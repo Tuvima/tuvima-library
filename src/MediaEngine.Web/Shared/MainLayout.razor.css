@@ -498,6 +498,35 @@
 
 }
 
+/* Tablets and narrow desktop windows swap the wordmark for the icon logo; wider screens keep the wordmark. */
+.layout-shell__brand-icon-shell.layout-shell__brand-icon-shell--compact {
+    display: none;
+}
+
+@media (max-width: 840px) {
+    .layout-shell__brand-lockup-shell {
+        display: none;
+    }
+
+    .layout-shell__brand-icon-shell.layout-shell__brand-icon-shell--compact {
+        display: inline-flex;
+    }
+
+    /* The labels never run under the icons: if they still do not fit (a long translation, a very narrow window), the row
+       scrolls sideways inside its own column. "safe" keeps the first label reachable; the inline padding keeps focus rings. */
+    .layout-shell__desktop-nav {
+        justify-content: safe center;
+        padding-inline: 0.25rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+    }
+
+    .layout-shell__desktop-nav::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 /* Phone shell: the floating dock pill, the compact top bar (hamburger, icon logo) and the chips row under it apply to the
    phone form factor only (html[data-form-factor="phone"]). Tablets keep the desktop top navigation. The sizes come from the
    phone chrome tokens in tuvima.tokens.css. */

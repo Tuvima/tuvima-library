@@ -115,7 +115,9 @@ public sealed partial class UiShellRenderTests
             Assert.Empty(cut.FindAll(".phone-nav-menu"));
             Assert.Empty(cut.FindAll(".phone-downloads-action"));
             Assert.Equal("/images/library.svg", cut.Find(".layout-shell__brand-lockup").GetAttribute("src"));
-            Assert.Empty(cut.FindAll(".layout-shell__brand-icon"));
+            // The icon logo is rendered only as the compact variant, which CSS shows at 840px and under.
+            Assert.Equal("/images/tuvima-icon.svg", cut.Find(".layout-shell__brand-icon-shell--compact .layout-shell__brand-icon").GetAttribute("src"));
+            Assert.Single(cut.FindAll(".layout-shell__brand-icon"));
             Assert.Single(cut.FindAll(".layout-shell__search-action"));
             Assert.Equal(["/read", "/watch", "/listen", "/view", "/collections"], Hrefs(cut.FindAll(".layout-shell__nav-link")));
         });
