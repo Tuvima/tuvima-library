@@ -13,18 +13,6 @@ public sealed class NetworkSettings
     public string SchemaVersion { get; set; } = "3.0";
 
     /// <summary>
-    /// The one door rule: how far from this computer a visitor may be. One of <see cref="WhoCanConnectModes"/>.
-    /// Replaces the old separate remote on/off switch and the sign-in remote toggles.
-    /// </summary>
-    [JsonPropertyName("who_can_connect")]
-    public string WhoCanConnect { get; set; } = WhoCanConnectModes.HomeNetwork;
-
-    /// <summary>True only when <see cref="WhoCanConnect"/> is <see cref="WhoCanConnectModes.Anywhere"/>.</summary>
-    [JsonIgnore]
-    public bool AllowsInternet =>
-        string.Equals(WhoCanConnect?.Trim(), WhoCanConnectModes.Anywhere, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
     /// True when <c>remote.public_hostname</c> is a usable public address (see <see cref="PublicAddress"/>).
     /// Passkeys, linked sign-in and reset links need it.
     /// </summary>
@@ -44,18 +32,15 @@ public sealed class NetworkSettings
 }
 
 /// <summary>
-/// Whether phone, TV and tablet apps may reach this Library through the Dashboard. Off by default, and it can
-/// only be on while who-can-connect is Anywhere (and therefore a verified secure HTTPS path).
+/// Phone, TV and tablet apps always reach this Library through the Dashboard's app door; there is no on/off switch.
+/// The only setting is the config-file opt-in for packaged TV web apps.
 /// </summary>
 public sealed class NativeAppAccessSettings
 {
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; }
-
     /// <summary>
-    /// Separate opt-in, config file only, off by default: lets packaged TV web apps (origin <c>null</c> or an app scheme)
-    /// call the app door cross-origin. Only meaningful while <see cref="Enabled"/> is on. Any web page can claim those
-    /// origins, so leave it off unless a Tizen or webOS TV web app is in use.
+    /// Config file only, off by default: lets packaged TV web apps (origin <c>null</c> or an app scheme)
+    /// call the app door cross-origin. Any web page can claim those origins, so leave it off unless a
+    /// Tizen or webOS TV web app is in use.
     /// </summary>
     [JsonPropertyName("allow_browser_apps")]
     public bool AllowBrowserApps { get; set; }
@@ -118,6 +103,11 @@ public sealed class RemoteNetworkSettings
 
     [JsonPropertyName("trusted_proxy_networks")]
     public List<string> TrustedProxyNetworks { get; set; } = [];
+
+    /// <summary>True once a secure outside path (Tailscale, reverse proxy or router mapping) has been chosen.</summary>
+    [JsonIgnore]
+    public bool HasOutsidePath =>
+        !string.Equals(ConnectionMode?.Trim(), NetworkConnectionModes.LocalOnly, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class NetworkStreamingSettings
@@ -133,23 +123,6 @@ public sealed class NetworkStreamingSettings
 
     [JsonPropertyName("concurrent_remote_streams")]
     public string ConcurrentRemoteStreams { get; set; } = RemoteStreamConcurrencyModes.Automatic;
-}
-
-public static class WhoCanConnectModes
-{
-    public const string ThisComputer = "this_computer";
-    public const string HomeNetwork = "home_network";
-    public const string Anywhere = "anywhere";
-
-    public static readonly IReadOnlyList<string> All = [ThisComputer, HomeNetwork, Anywhere];
-
-    /// <summary>How far the door is open: 0 this computer, 1 home network, 2 anywhere. Unknown is the most closed.</summary>
-    public static int Rank(string? mode) => mode?.Trim().ToLowerInvariant() switch
-    {
-        Anywhere => 2,
-        HomeNetwork => 1,
-        _ => 0,
-    };
 }
 
 public static class NetworkBindModes

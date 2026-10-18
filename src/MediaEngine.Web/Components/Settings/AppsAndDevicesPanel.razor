@@ -12,121 +12,78 @@
 }
 else if (Settings is null)
 {
-    <AppErrorState Title="App settings are unavailable"
-                   Message="Start the Engine or retry before changing which apps can connect." />
+    <AppErrorState Title="App addresses are unavailable"
+                   Message="Start the Engine or retry to see the address to type in the app." />
 }
 else
 {
 <div class="apps-devices" data-devices-panel="apps">
-    <SettingsSectionPanel Title="Allow apps" Icon="@AppMaterialIcons.Outlined.Devices"
-                          Description="Phones and TVs connect over your internet address and sign in with a paired code.">
-        <AppSwitchRow Label="Allow apps to connect"
-                      Value="@Settings.NativeAppAccess.Enabled"
-                      ValueChanged="SetAppAccessAsync"
-                      Disabled="@(!AllowsInternet || _saving)" />
-        @if (_secureAccountFirst)
+    <SettingsSectionPanel Title="Address to type in the app" Icon="@AppMaterialIcons.Outlined.Language"
+                          Description="Enter this in the app when it asks for your server.">
+        <dl class="apps-devices__facts">
+            <div><dt>At home</dt><dd>@(HomeAddress ?? "Not detected yet")</dd></div>
+            @if (OutsideAddress is not null)
+            {
+                <div><dt>Apps use this away from home</dt><dd>@OutsideAddress</dd></div>
+            }
+        </dl>
+        @if (OutsideAddress is null)
         {
-            <AppAlert Tone="AppUiTone.Warning">Secure your account first: add a password or passkey, then turn apps on. <a href="/settings/account">Open your account</a></AppAlert>
+            <AppAlert Tone="AppUiTone.Info">Want apps to work away from home too? <a href="/settings/network/remote">Set a secure outside address in Remote Access</a></AppAlert>
         }
-        @if (!AllowsInternet)
-        {
-            <AppAlert Tone="AppUiTone.Info">Apps connect over the internet address. Set Who can connect to Anywhere first. <a href="/settings/network/remote">Open Remote Access</a></AppAlert>
-        }
+        <div class="apps-devices__actions">
+            @if (HomeAddress is not null)
+            {
+                <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyHomeAddressAsync" />
+            }
+            @if (OutsideAddress is not null)
+            {
+                <AppButton Label="Copy outside address" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyOutsideAddressAsync" />
+            }
+            <AppButton Label="Test" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestAsync" />
+        </div>
     </SettingsSectionPanel>
-
-    @if (Settings.NativeAppAccess.Enabled && AllowsInternet)
-    {
-        <SettingsSectionPanel Title="Address to type in the app" Icon="@AppMaterialIcons.Outlined.Language"
-                              Description="Enter this in the app when it asks for your server.">
-            @if (string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
-            {
-                <AppAlert Tone="AppUiTone.Warning">No internet address is set yet. <a href="/settings/network/remote">Set it in Remote Access</a></AppAlert>
-            }
-            else
-            {
-                <dl class="apps-devices__facts">
-                    <div><dt>Address</dt><dd>@Settings.Remote.PublicHostname</dd></div>
-                </dl>
-            }
-            <div class="apps-devices__actions">
-                @if (!string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
-                {
-                    <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAddressAsync" />
-                }
-                <AppButton Label="Test" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestAsync" />
-            </div>
-        </SettingsSectionPanel>
-    }
 </div>
 }
 
 <NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
 
 @code {
-    // The switch and the address belong to the server administrator; the page that hosts this panel decides who sees it.
+    // The addresses belong to the server administrator; the page that hosts this panel decides who sees it.
     private NetworkSettingsDto? Settings { get; set; }
+    private NetworkRuntimeStatusDto? Status { get; set; }
     private NetworkTestResultDto? _testResult;
     private bool _loading = true;
-    private bool _saving;
     private bool _testing;
     private bool _testDialogOpen;
-    private bool _secureAccountFirst;
 
-    private bool AllowsInternet => Settings?.WhoCanConnect == "anywhere";
+    // The address a phone or TV on the home network types in: the Engine's preferred address on the adapter the owner
+    // chose (Settings > Network), with the Dashboard port.
+    private string? HomeAddress => string.IsNullOrWhiteSpace(Status?.PreferredLocalAddress) ? null : Status.PreferredLocalAddress;
+
+    // An outside address only counts once a way in from the internet is chosen (Tailscale or a reverse proxy); the Engine
+    // reports the tailnet address in Tailscale mode and the public hostname otherwise.
+    private bool HasOutsidePath =>
+        !string.Equals(Settings?.Remote.ConnectionMode?.Trim(), "local-only", StringComparison.OrdinalIgnoreCase);
+
+    private string? OutsideAddress => HasOutsidePath && !string.IsNullOrWhiteSpace(Status?.ExternalAddress)
+        ? Status.ExternalAddress
+        : null;
 
     protected override async Task OnInitializedAsync()
     {
         Settings = await ApiClient.GetNetworkSettingsAsync();
+        Status = await ApiClient.GetNetworkRuntimeStatusAsync();
         _loading = false;
     }
 
-    private async Task SetAppAccessAsync(bool enabled)
+    private Task CopyHomeAddressAsync() => CopyAsync(HomeAddress);
+
+    private Task CopyOutsideAddressAsync() => CopyAsync(OutsideAddress);
+
+    private async Task CopyAsync(string? address)
     {
-        if (Settings is null)
-        {
-            return;
-        }
-
-        _saving = true;
-        _secureAccountFirst = false;
-        try
-        {
-            // Save a fresh copy with only this switch changed, so unrelated unsaved edits elsewhere are not saved too.
-            var fresh = await ApiClient.GetNetworkSettingsAsync();
-            if (fresh is null)
-            {
-                Snackbar.Add("App access could not be changed.", AppSeverity.Error);
-                return;
-            }
-
-            fresh.NativeAppAccess.Enabled = enabled;
-            if (await ApiClient.UpdateNetworkSettingsAsync(fresh) is null)
-            {
-                var error = ApiClient.LastError;
-                if (error is not null && (error.Contains("secure_account_first", StringComparison.Ordinal)
-                    || error.Contains("password or passkey", StringComparison.OrdinalIgnoreCase)))
-                {
-                    _secureAccountFirst = true;
-                }
-                else
-                {
-                    Snackbar.Add(error ?? "App access could not be changed.", AppSeverity.Error);
-                }
-                return;
-            }
-
-            Settings.NativeAppAccess.Enabled = enabled;
-            Snackbar.Add(enabled ? "Apps can connect." : "Apps can no longer connect.", AppSeverity.Success);
-        }
-        finally
-        {
-            _saving = false;
-        }
-    }
-
-    private async Task CopyAddressAsync()
-    {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Settings?.Remote.PublicHostname ?? string.Empty);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", address ?? string.Empty);
         Snackbar.Add("Address copied.", AppSeverity.Success);
     }
 
@@ -137,7 +94,10 @@ else
         _testDialogOpen = true;
         try
         {
-            _testResult = await ApiClient.TestRemoteNetworkAsync();
+            // Without an outside address only the home network can be checked.
+            _testResult = OutsideAddress is null
+                ? await ApiClient.TestLocalNetworkAsync()
+                : await ApiClient.TestRemoteNetworkAsync();
         }
         finally
         {

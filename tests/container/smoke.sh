@@ -68,9 +68,10 @@ wait_for_health
 # the Dashboard sees the container's own private (home network) address.
 container_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER")"
 test -n "$container_ip"
-# Native app door is off by default: discovery and app actions answer "not found" before the Engine is contacted.
-test "$(docker exec "$CONTAINER" curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/.well-known/tuvima")" = "404"
-test "$(docker exec "$CONTAINER" curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/api/v1/playback/encode/jobs")" = "404"
+# Apps are always allowed (open from the start): discovery answers, but an app action without a sign-in is refused.
+discovery="$(docker exec "$CONTAINER" curl --silent --fail --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/.well-known/tuvima")"
+echo "$discovery" | grep -q '"api_base_url"'
+test "$(docker exec "$CONTAINER" curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused "http://${container_ip}:5016/api/v1/playback/encode/jobs")" = "401"
 
 docker exec "$CONTAINER" sh -exc '
     process_count=0

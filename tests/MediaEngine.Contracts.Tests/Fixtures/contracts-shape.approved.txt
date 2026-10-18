@@ -1277,6 +1277,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Tuvima
   DeviceAuthorizationEndpoint: System.String | nullability=not-null | accessors=get,init
   TokenEndpoint: System.String | nullability=not-null | accessors=get,init
   VerificationUri: System.String | nullability=not-null | accessors=get,init
+  OutsideAddress: System.String | nullability=nullable | accessors=get,init
   Capabilities: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.TwoStepRequiredResponse
@@ -7520,9 +7521,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MissingItemDisplay
   PageSize: System.Int32 | nullability=not-null | accessors=get,set
   DetailHydration: System.String | nullability=not-null | accessors=get,set
 
-MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto
-  Enabled: System.Boolean | nullability=not-null | accessors=get,set
-
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAddressDto
   InterfaceId: System.String | nullability=not-null | accessors=get,set
   InterfaceName: System.String | nullability=not-null | accessors=get,set
@@ -7535,6 +7533,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkBandwidthSt
   AvailableMbps: System.Double? | nullability=nullable | accessors=get,set
   MeasuredAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   Status: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkOutsideAddressDto
+  OutsideAddress: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkRuntimeStatusDto
   LocalAccess: System.String | nullability=not-null | accessors=get,set
@@ -7569,11 +7570,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkRuntimeStat
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkSettingsDto
   SchemaVersion: System.String | nullability=not-null | accessors=get,set
-  WhoCanConnect: System.String | nullability=not-null | accessors=get,set
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | nullability=not-null | accessors=get,set
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | nullability=not-null | accessors=get,set
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | nullability=not-null | accessors=get,set
-  NativeAppAccess: MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto
   RemoteQuality: System.String | nullability=not-null | accessors=get,set
@@ -7849,10 +7848,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProviderTestResult
   SampleFields: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
-  Ready: System.Boolean | nullability=not-null | accessors=get,set
-  Checks: System.Collections.Generic.List<MediaEngine.Contracts.Settings.NetworkTestCheckDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   ConnectionMode: System.String | nullability=not-null | accessors=get,set

@@ -1,0 +1,10 @@
+# Benchmark outputs and scratch data stay out of the repository.
+bin/
+obj/
+*.db
+*.db-wal
+*.db-shm
+BenchmarkDotNet.Artifacts/
+results/
+*.csv
+*.log

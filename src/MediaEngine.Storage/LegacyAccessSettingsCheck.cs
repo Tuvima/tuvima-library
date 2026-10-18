@@ -3,9 +3,8 @@ using System.Text.Json;
 namespace MediaEngine.Storage;
 
 /// <summary>
-/// Finds access settings left over from before the single "who can connect" rule. They are ignored (never converted),
-/// so the Engine still starts; the caller logs these messages so an administrator knows to re-enable remote access
-/// through <c>who_can_connect</c>.
+/// Finds access settings left over from older releases. They are ignored (never converted), so the Engine still
+/// starts; the caller logs these messages so an administrator knows where the setting lives now.
 /// </summary>
 public static class LegacyAccessSettingsCheck
 {
@@ -18,17 +17,7 @@ public static class LegacyAccessSettingsCheck
             if (net.TryGetProperty("remote", out var remote) && remote.ValueKind == JsonValueKind.Object
                 && remote.TryGetProperty("enabled", out _))
             {
-                warnings.Add("network.json still has remote.enabled, which is ignored. Set who_can_connect (this_computer, home_network or anywhere) under Settings > Network instead; remote access stays off until you choose Anywhere.");
-            }
-
-            var anywhere = net.TryGetProperty("who_can_connect", out var who)
-                && who.ValueKind == JsonValueKind.String
-                && string.Equals(who.GetString()?.Trim(), "anywhere", StringComparison.OrdinalIgnoreCase);
-            if (!anywhere
-                && net.TryGetProperty("native_app_access", out var apps) && apps.ValueKind == JsonValueKind.Object
-                && apps.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == JsonValueKind.True)
-            {
-                warnings.Add("native_app_access.enabled is on but who_can_connect is not anywhere, so app access is turned off. Choose Anywhere under Settings > Network to allow apps again.");
+                warnings.Add("network.json still has remote.enabled, which is ignored. Choose a secure outside address under Settings > Network > Remote Access instead.");
             }
         }
 
@@ -48,7 +37,7 @@ public static class LegacyAccessSettingsCheck
             {
                 if (auth.TryGetProperty(key, out _))
                 {
-                    warnings.Add($"core.json still has auth.{key}, which is ignored. Who can connect is now set under Settings > Network (who_can_connect), and remote sign-in always requires HTTPS.");
+                    warnings.Add($"core.json still has auth.{key}, which is ignored.");
                 }
             }
         }

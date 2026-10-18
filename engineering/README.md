@@ -24,26 +24,29 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
+| [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
+| [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Locked (v1, 2026-10-18) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
 | [Spec: Item Detail page](specs/archive/item-detail.md) | Built (v5, archived 2026-10-17) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/archive/registry-retirement.md) | Built (v5, archived 2026-10-17) |
+| [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 
 ## Handoffs
 
 | Doc | Status |
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
-| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Current — decision pending |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
 
 | Decision | Status |
 |---|---|
 | [Architecture decisions](architecture/decisions/README.md) | Current — list of all decisions |
-| [0001 — SQLite with hand-written SQL (Dapper), not Entity Framework](architecture/decisions/0001-sqlite-and-dapper.md) | Accepted — Shy asked to revisit this after 2026-10-17 (follow-up session) |
+| [0001 — SQLite with hand-written SQL (Dapper), not Entity Framework](architecture/decisions/0001-sqlite-and-dapper.md) | Accepted — reaffirmed by Shy 2026-10-17 after the EF benchmark |
 | [0002 — First-party `App*` UI components; MudBlazor removed](architecture/decisions/0002-first-party-ui-components.md) | Accepted |
 | [0003 — Storage epoch `guid-blob-v1`; reset instead of migrate](architecture/decisions/0003-storage-epoch-guid-blob.md) | Accepted |
 | [0004 — `MediaEngine.Contracts` alone owns Engine↔Dashboard wire types](architecture/decisions/0004-contracts-own-the-wire.md) | Accepted |
@@ -51,6 +54,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [0006 — All-in-one management workspace retired; shared editor + Needs Review](architecture/decisions/0006-management-workspace-retired.md) | Accepted |
 | [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Accepted |
 | [0008 — Public docs site in `docs/`; internal planning in `engineering/`](architecture/decisions/0008-public-docs-vs-engineering-docs.md) | Accepted |
+| [0009 — Open from the start; apps always allowed](architecture/decisions/0009-open-from-the-start.md) | Accepted |
 
 ## Design
 
@@ -58,6 +62,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Tuvima design system](design/design-system.md) | Current |
 | [Mockups](design/mockups/) | Historical — 18 HTML previews and a Dashboard UI kit from spring 2026; older token values (see design system) |
+
+## Reports
+
+| Doc | Status |
+|---|---|
+| [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 
 ## History (pre-2026-10-17 engineering records)
 

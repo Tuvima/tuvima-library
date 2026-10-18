@@ -5,16 +5,9 @@ namespace MediaEngine.Contracts.Settings;
 public sealed class NetworkSettingsDto
 {
     [JsonPropertyName("schema_version")] public string SchemaVersion { get; set; } = "3.0";
-    [JsonPropertyName("who_can_connect")] public string WhoCanConnect { get; set; } = "home_network";
     [JsonPropertyName("local")] public LocalNetworkSettingsDto Local { get; set; } = new();
     [JsonPropertyName("remote")] public RemoteNetworkSettingsDto Remote { get; set; } = new();
     [JsonPropertyName("streaming")] public NetworkStreamingSettingsDto Streaming { get; set; } = new();
-    [JsonPropertyName("native_app_access")] public NativeAppAccessSettingsDto NativeAppAccess { get; set; } = new();
-}
-
-public sealed class NativeAppAccessSettingsDto
-{
-    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
 }
 
 public sealed class LocalNetworkSettingsDto
@@ -46,6 +39,12 @@ public sealed class NetworkStreamingSettingsDto
     [JsonPropertyName("upload_protection_enabled")] public bool UploadProtectionEnabled { get; set; } = true;
     [JsonPropertyName("reserved_upload_mbps")] public int ReservedUploadMbps { get; set; } = 5;
     [JsonPropertyName("concurrent_remote_streams")] public string ConcurrentRemoteStreams { get; set; } = "automatic";
+}
+
+/// <summary>The outside address apps use away from home (an origin such as https://tuvima.example.com), or null when none is set up.</summary>
+public sealed class NetworkOutsideAddressDto
+{
+    [JsonPropertyName("outside_address")] public string? OutsideAddress { get; set; }
 }
 
 public sealed class NetworkRuntimeStatusDto
@@ -115,12 +114,6 @@ public sealed class NetworkTestCheckDto
     [JsonPropertyName("label")] public string Label { get; set; } = string.Empty;
     [JsonPropertyName("status")] public string Status { get; set; } = "unknown";
     [JsonPropertyName("detail")] public string Detail { get; set; } = string.Empty;
-}
-
-public sealed class RemoteAccessReadinessDto
-{
-    [JsonPropertyName("ready")] public bool Ready { get; set; }
-    [JsonPropertyName("checks")] public List<NetworkTestCheckDto> Checks { get; set; } = [];
 }
 
 public sealed class PortAvailabilityRequest

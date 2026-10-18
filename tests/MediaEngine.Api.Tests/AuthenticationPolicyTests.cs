@@ -28,8 +28,8 @@ public sealed class AuthenticationPolicyTests
         Assert.All(result, session => Assert.Null(session.RevokedAt));
     }
 
-    private static NetworkSettings Network(string whoCanConnect, string publicAddress = "https://library.example") =>
-        new() { WhoCanConnect = whoCanConnect, Remote = { PublicHostname = publicAddress } };
+    private static NetworkSettings Network(string publicAddress = "https://library.example") =>
+        new() { Remote = { PublicHostname = publicAddress } };
 
     private sealed class TempConfiguration : IDisposable
     {
@@ -59,11 +59,11 @@ public sealed class AuthenticationPolicyTests
         var policy = new AuthSettings { Mode = "Optional", PasskeySignInEnabled = true };
 
         Assert.Equal(string.Empty, policy.PasswordReset.SmtpHost);
-        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, Network(WhoCanConnectModes.Anywhere), ClientIngressValues.HomeNetwork, true));
+        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, Network(), ClientIngressValues.HomeNetwork, true));
         Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(
-            policy, Network(WhoCanConnectModes.Anywhere, publicAddress: string.Empty), ClientIngressValues.HomeNetwork, true));
+            policy, Network(publicAddress: string.Empty), ClientIngressValues.HomeNetwork, true));
         Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(
-            policy, Network(WhoCanConnectModes.Anywhere, publicAddress: "https://library.example/sub"), ClientIngressValues.HomeNetwork, true));
+            policy, Network(publicAddress: "https://library.example/sub"), ClientIngressValues.HomeNetwork, true));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public sealed class AuthenticationPolicyTests
             ],
         };
 
-        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network(WhoCanConnectModes.HomeNetwork, "http://library.example"), restartRequired: true);
+        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network("http://library.example"), restartRequired: true);
 
         Assert.True(dto.PasswordReset.Configured);
         Assert.False(dto.PasswordReset.Ready);
@@ -141,7 +141,7 @@ public sealed class AuthenticationPolicyTests
             PasskeySignInEnabled = true,
         };
 
-        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network(WhoCanConnectModes.HomeNetwork), restartRequired: false);
+        var dto = SettingsEndpoints.ToAuthSettingsDto(auth, Network(), restartRequired: false);
 
         Assert.Equal("https://library.example", dto.PublicAddress);
         Assert.True(dto.CanonicalOriginReady);
@@ -240,11 +240,11 @@ public sealed class AuthenticationPolicyTests
         };
 
         Assert.True(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, Network(WhoCanConnectModes.HomeNetwork), "google", "https://accounts.google.com"));
+            policy, Network(), "google", "https://accounts.google.com"));
         Assert.False(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, Network(WhoCanConnectModes.HomeNetwork), "google", "https://attacker.example"));
+            policy, Network(), "google", "https://attacker.example"));
         Assert.False(AuthenticationEndpoints.IsConfiguredProvider(
-            policy, Network(WhoCanConnectModes.HomeNetwork), "github", "https://github.com"));
+            policy, Network(), "github", "https://github.com"));
     }
 
     [Fact]
@@ -278,9 +278,9 @@ public sealed class AuthenticationPolicyTests
             ],
         };
 
-        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "oidc", "https://idp.example/realm/"));
-        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "pinned", "https://idp.example/realm"));
-        Assert.False(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(WhoCanConnectModes.HomeNetwork), "pinned", "https://idp.example/realm/"));
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(), "oidc", "https://idp.example/realm/"));
+        Assert.True(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(), "pinned", "https://idp.example/realm"));
+        Assert.False(AuthenticationEndpoints.IsConfiguredProvider(policy, Network(), "pinned", "https://idp.example/realm/"));
     }
 
     [Theory]
@@ -470,14 +470,14 @@ public sealed class AuthenticationPolicyTests
                 var policy = ReadyExternalPolicy(providerEnabled: true);
 
                 Assert.True(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!, ct: CancellationToken.None));
+                    policy, Network(), account.Id, accounts, identities, external, null!, ct: CancellationToken.None));
                 Assert.False(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!,
+                    policy, Network(), account.Id, accounts, identities, external, null!,
                     excludedExternalLoginId: login.Id, ct: CancellationToken.None));
 
                 policy.PasswordSignInEnabled = true;
                 Assert.True(await AuthenticationEndpoints.HasUsableAccountSignInAsync(
-                    policy, Network(WhoCanConnectModes.HomeNetwork), account.Id, accounts, identities, external, null!,
+                    policy, Network(), account.Id, accounts, identities, external, null!,
                     excludedExternalLoginId: login.Id, ct: CancellationToken.None));
             }
         }

@@ -77,7 +77,9 @@ Passkeys need a secure browser origin. Development on `localhost` is allowed; ot
 
 ## Secure a this-computer account
 
-If you started Tuvima on your desktop without a password, open **Settings → Security → Password**, which shows **Secure your account**. Enter an email (only if the account has none; you sign in with it away from home), then a password (at least 12 characters), and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
+If you started Tuvima on your desktop without a password (**Use Tuvima on this computer**), that account has no password and no passkey. **Any device that can reach the server can use it, including a guest on your home Wi-Fi, and it has administrator rights.** Tuvima is open from the start and closed router ports are what keep outsiders away, so add a password or passkey as soon as other people share your network, and always before you give Tuvima an address on the internet.
+
+To close it, open **Settings → Security → Password**, which shows **Secure your account**. Enter an email (only if the account has none; you sign in with it from other devices), then a password (at least 12 characters), and confirm it. You get a new set of recovery codes, and the account becomes a normal one that always asks for its password or passkey. You can add a passkey afterwards. Installs that start with a password are normal accounts from the first sign-in.
 
 ## Confirm it's you
 

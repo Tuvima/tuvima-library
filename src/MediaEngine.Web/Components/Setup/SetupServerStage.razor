@@ -13,8 +13,6 @@
         <p class="setup-server-form__preview">Other devices on your home network can open <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local</strong>. If a device cannot find it by name, the numeric address keeps working.</p>
     </div>
 
-    <p class="setup-server-form__preview">Keep this Dashboard on your private network until the first administrator is created.</p>
-
     <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
         <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />

@@ -64,7 +64,7 @@ public sealed class NativeAppCorsTests
     [InlineData("webos://tv")]
     public async Task Preflight_IsApproved_ForAppOriginsWithTheNarrowSet(string origin)
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.PreflightAsync(origin, "/api/v1/display/home", "GET", "authorization");
 
@@ -81,7 +81,7 @@ public sealed class NativeAppCorsTests
     [Fact]
     public async Task Preflight_ForPairingPostWithJson_IsApproved()
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.PreflightAsync("null", "/api/v1/oauth/token", "POST", "Content-Type");
 
@@ -94,7 +94,7 @@ public sealed class NativeAppCorsTests
     [InlineData("http://192.168.1.20:5016")]
     public async Task Preflight_GetsNoCorsHeaders_ForWebOrigins(string origin)
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.PreflightAsync(origin, "/api/v1/display/home", "GET", "authorization");
 
@@ -104,20 +104,9 @@ public sealed class NativeAppCorsTests
     }
 
     [Fact]
-    public async Task Preflight_GetsNoCorsHeaders_WhileAppAccessIsOff()
+    public async Task NoCorsAtAll_WhenAllowBrowserAppsIsOff()
     {
-        await using var host = await TestHost.StartAsync(enabled: false);
-
-        using var response = await host.PreflightAsync("null", "/api/v1/display/home", "GET", "authorization");
-
-        AssertNoCors(response);
-        Assert.Equal(1, host.TerminalHits);
-    }
-
-    [Fact]
-    public async Task NoCorsAtAll_WhenAllowBrowserAppsIsOff_EvenWithAppAccessOn()
-    {
-        await using var host = await TestHost.StartAsync(enabled: true, allowBrowserApps: false);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: false);
 
         using var preflight = await host.PreflightAsync("null", "/api/v1/oauth/token", "POST", "Content-Type");
         using var discovery = await host.GetAsync("null", "/.well-known/tuvima");
@@ -130,33 +119,26 @@ public sealed class NativeAppCorsTests
     }
 
     [Fact]
-    public async Task NoCorsAtAll_WhenAllowBrowserAppsIsOn_ButAppAccessIsOff()
-    {
-        await using var host = await TestHost.StartAsync(enabled: false, allowBrowserApps: true);
-
-        using var preflight = await host.PreflightAsync("null", "/api/v1/display/home", "GET", "authorization");
-
-        AssertNoCors(preflight);
-    }
-
-    [Fact]
-    public void NetworkSettingsGate_NeedsBothSwitches_AndTheDefaultIsOff()
+    public void NetworkSettingsGate_FollowsAllowBrowserAppsAlone_AndTheDefaultIsOff()
     {
         var dir = Path.Combine(Path.GetTempPath(), "tuvima-cors-gate-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
-            (bool Enabled, bool Browser) Read(string json)
+            bool Read(string json)
             {
                 File.WriteAllText(Path.Combine(dir, "network.json"), json);
                 var gate = new NetworkSettingsNativeAppAccessGate(new MediaEngine.Web.Services.Configuration.DashboardConfigurationReader(dir), dir);
-                return (gate.IsEnabled, gate.AllowBrowserApps);
+                return gate.AllowBrowserApps;
             }
 
-            Assert.Equal((true, false), Read("{\"native_app_access\":{\"enabled\":true}}"));
-            Assert.Equal((true, true), Read("{\"native_app_access\":{\"enabled\":true,\"allow_browser_apps\":true}}"));
-            Assert.Equal((false, false), Read("{\"native_app_access\":{\"enabled\":false,\"allow_browser_apps\":true}}"));
-            Assert.Equal((false, false), Read("{ not json"));
+            Assert.False(Read("{}"));
+            Assert.False(Read("{\"native_app_access\":{}}"));
+            Assert.True(Read("{\"native_app_access\":{\"allow_browser_apps\":true}}"));
+            // The removed on/off switch is ignored, whichever way an old file has it.
+            Assert.True(Read("{\"native_app_access\":{\"enabled\":false,\"allow_browser_apps\":true}}"));
+            Assert.False(Read("{\"native_app_access\":{\"enabled\":true}}"));
+            Assert.False(Read("{ not json"));
         }
         finally
         {
@@ -167,7 +149,7 @@ public sealed class NativeAppCorsTests
     [Fact]
     public async Task Preflight_FailsClosed_WhenNoGateIsRegistered()
     {
-        await using var host = await TestHost.StartAsync(enabled: null);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: null);
 
         using var response = await host.PreflightAsync("null", "/api/v1/display/home", "GET", "authorization");
 
@@ -186,7 +168,7 @@ public sealed class NativeAppCorsTests
     [InlineData("/api/v1/display/home", "GET", "x-custom")]
     public async Task Preflight_IsNotApproved_ForOtherPathsMethodsOrHeaders(string path, string method, string headers)
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.PreflightAsync("null", path, method, headers);
 
@@ -196,7 +178,7 @@ public sealed class NativeAppCorsTests
     [Fact]
     public async Task ActualRequest_FromAnAppOrigin_GetsTheOriginAndRetryAfterButNeverCredentials()
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.GetAsync("tizen://tv", "/api/v1/display/home");
 
@@ -213,7 +195,7 @@ public sealed class NativeAppCorsTests
     [Fact]
     public async Task ActualRequest_Discovery_FromNullOrigin_IsAllowed()
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.GetAsync("null", "/.well-known/tuvima");
 
@@ -227,7 +209,7 @@ public sealed class NativeAppCorsTests
     [InlineData("null", "/pair")]
     public async Task ActualRequest_OtherwiseGetsNoCorsHeaders(string? origin, string path)
     {
-        await using var host = await TestHost.StartAsync(enabled: true);
+        await using var host = await TestHost.StartAsync(allowBrowserApps: true);
 
         using var response = await host.GetAsync(origin, path);
 
@@ -247,9 +229,8 @@ public sealed class NativeAppCorsTests
         Assert.False(response.Headers.Contains("Access-Control-Expose-Headers"));
     }
 
-    private sealed class FixedGate(bool enabled, bool allowBrowserApps) : INativeAppAccessGate
+    private sealed class FixedGate(bool allowBrowserApps) : INativeAppAccessGate
     {
-        public bool IsEnabled => enabled;
         public bool AllowBrowserApps => allowBrowserApps;
     }
 
@@ -262,13 +243,13 @@ public sealed class NativeAppCorsTests
 
         public int TerminalHits => counter.Hits;
 
-        public static async Task<TestHost> StartAsync(bool? enabled, bool allowBrowserApps = true)
+        public static async Task<TestHost> StartAsync(bool? allowBrowserApps)
         {
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
-            if (enabled is { } value)
+            if (allowBrowserApps is { } value)
             {
-                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value, allowBrowserApps));
+                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
             }
 
             var app = builder.Build();

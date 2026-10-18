@@ -30,7 +30,7 @@ public static class ClientIngress
 
     /// <summary>
     /// A session that was made at home or on this computer is only usable from there; a session made from
-    /// outside keeps working anywhere (the door rule still applies on top).
+    /// outside keeps working anywhere.
     /// </summary>
     public static bool SessionMayContinue(string? issuedIngress, string? currentIngress) =>
         !IsLocal(issuedIngress) || IsLocal(currentIngress);

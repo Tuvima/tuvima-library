@@ -26,6 +26,7 @@ public sealed class NativeClientContractFixtureTests
         var manifest = Read<PlaybackManifestDto>("playback-manifest-hls.json");
 
         Assert.Contains("1", discovery.SupportedApiVersions);
+        Assert.Equal("https://library.example", discovery.OutsideAddress);
         Assert.Equal(600, authorization.ExpiresIn);
         Assert.Equal("Bearer", token.TokenType);
         Assert.Equal(PlaybackDeliveryModes.Hls, manifest.RecommendedDelivery);
