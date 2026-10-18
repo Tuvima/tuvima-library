@@ -179,7 +179,7 @@ Native capture returns an asset/request/source-verification proof with position 
 
 Both main and popout hosts use `ListenPlaybackCommandActionsClient` and `AudiobookBookmarkCommandDispatcher`. Main uses an in-process channel, while the popout uses transient BroadcastChannel request/reply messages. The Contracts-owned envelope supplies command and recipient correlation; bookmark commands, drafts and notes must never be persisted in localStorage. The main native owner validates authority before capture or replay. Pure snapshot reads do not emit change notifications, and an uncertain save result requires a Saved reload rather than an automatic duplicate retry.
 
-Fresh bookmark DDL lives in `schema.sql`; the repository requires that schema and performs writes through the shared write boundary. Do not restore lazy table creation or runtime schema correction. Scoped disposable development-state changes are explicit setup operations recorded in the execution evidence.
+The bookmark tables are created by the baseline upgrade step (`Schema/Upgrades/0001_baseline.sql`); the repository requires that schema and performs writes through the shared write boundary. Do not restore lazy table creation or runtime schema correction. Scoped disposable development-state changes are explicit setup operations recorded in the execution evidence.
 
 ## Client Identity
 

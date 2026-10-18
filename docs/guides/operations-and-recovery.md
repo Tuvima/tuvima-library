@@ -66,6 +66,33 @@ Test restore uses temporary storage, checks archive boundaries and SQLite integr
 
 The staged restore applies before the data store opens at restart. Pre-restore database and configuration copies are retained beside replaced files. A restore does not replace the media files excluded from its archive.
 
+## When Tuvima upgrades its data store
+
+A new version of Tuvima sometimes changes how the data store (the `library.db` file) is laid out. The Engine does this by itself the first time the new version starts, one numbered step at a time. A start with nothing to upgrade is unchanged. A start with steps to run takes a little longer, and the Engine log lists the steps it ran with lines starting "Data store upgrade:". The Dashboard shows its usual "unreachable" state until the Engine is ready.
+
+**Safety copies.** Before the first step runs on an existing data store, the Engine writes a checked copy of it to the `safety-copies` folder inside your backups folder. That is `config/backups` unless you set `TUVIMA_BACKUP_DIR` (the Docker image uses `/backups`). A copy is named like `tuvima-safety-copy-20261018-093000-step-0001-to-0002.db`, which records the upgrade it was taken before. The Engine keeps the two newest copies and deletes older ones. It never touches the recovery points you create in **Settings → Backup & Recovery**, which stay in the backups folder itself. A brand-new install has nothing to copy, so it makes none.
+
+**Go back to a safety copy.** Use this when an upgrade went wrong, or you want the older version back.
+
+1. Stop the Engine (or the container).
+2. Keep the current `library.db` somewhere safe, then replace it with the safety copy, renamed to `library.db`.
+3. Delete `library.db-wal` and `library.db-shm` next to it, if they exist.
+4. Start the version of Tuvima the safety copy came from. The step numbers in its name tell you which upgrade it was taken before.
+
+Starting the newer version again repeats the upgrade.
+
+**When the Engine will not start.** The Engine stops with a plain message, exit code 75 in the console or container log, and leaves the data store as it was. There are three messages:
+
+| The message says | What it means | What to do |
+|---|---|---|
+| "Data store upgrade step 0002 (name) failed ... The data store was left as it was before this step." | A step could not finish, and none of its changes were kept. The message names the safety copy. | Report the message. Meanwhile, start the previous version, or restore the safety copy as above. |
+| "The data store ... was upgraded by a newer version of Tuvima" | You started an older version on a data store a newer version has already upgraded. | Install the newer version again, or restore an older recovery point or safety copy. |
+| "Upgrade step ... has been changed after it was applied ... Applied steps must never be edited" | This build was altered after the data store was upgraded. It happens with development builds, not releases. | Use an unmodified build, or restore an older recovery point. |
+
+If the Engine says there is not enough free disk space for the safety copy, it stopped before changing anything. Free up space, or set `TUVIMA_BACKUP_DIR` to a drive with more room and start again. The copy is about the size of `library.db`.
+
+Contributors adding a data store change: see [Changing the data store](../develop/changing-the-data-store.md).
+
 ## Upgrade a container
 
 1. Read the available release or image notes.

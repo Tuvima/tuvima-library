@@ -247,6 +247,12 @@
       "section": "Contribute"
     },
     {
+      "source": "develop/changing-the-data-store.md",
+      "slug": "develop/changing-the-data-store",
+      "group": "Develop",
+      "section": "Contribute"
+    },
+    {
       "source": "tutorials/dev-setup.md",
       "slug": "tutorials/dev-setup",
       "group": "Develop",
