@@ -545,10 +545,13 @@ public sealed class DevHarnessResetService
                 fkOff.ExecuteNonQuery();
             }
 
+            // pragma_table_list reports full-text shadow tables as type 'shadow', so they are left out here.
+            // Deleting from a full-text table through its virtual table clears its shadow tables consistently;
+            // deleting from the shadow tables directly corrupts the index.
             var tables = new List<string>();
             using (var listCmd = conn.CreateCommand())
             {
-                listCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
+                listCmd.CommandText = "SELECT name FROM pragma_table_list WHERE schema='main' AND type IN ('table','virtual') AND name NOT LIKE 'sqlite_%';";
                 using var reader = listCmd.ExecuteReader();
                 while (reader.Read())
                 {
@@ -560,7 +563,7 @@ public sealed class DevHarnessResetService
             foreach (string table in tables)
             {
                 ct.ThrowIfCancellationRequested();
-                if (ShouldPreserveConfigurationTable(table) || IsSearchIndexShadowTable(table))
+                if (ShouldPreserveConfigurationTable(table))
                 {
                     continue;
                 }
@@ -617,9 +620,6 @@ public sealed class DevHarnessResetService
         || table.StartsWith("view_", StringComparison.OrdinalIgnoreCase)
         || table.StartsWith("local_", StringComparison.OrdinalIgnoreCase)
         || table.StartsWith("onboarding_", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSearchIndexShadowTable(string table) =>
-        table.StartsWith("search_index_", StringComparison.OrdinalIgnoreCase);
 
     private void WipeRuntimeLogs(List<string> details)
     {
