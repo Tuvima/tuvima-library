@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaEngine.Contracts.Realtime;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -2126,20 +2127,12 @@ public sealed partial class IngestionLiveDashboardState
             return [];
         }
 
-        var uncertain = SumReasonCounts(reasons, "low_confidence");
-        var unmatched = SumReasonCounts(reasons, "unmatched");
-        var missingIdentity = SumReasonCounts(reasons, "missing_wikidata");
-        var duplicates = SumReasonCounts(reasons, "duplicates");
-        var missingArtwork = SumReasonCounts(reasons, "missing_artwork");
-        var providerFailures = SumReasonCounts(reasons, "provider_failures");
+        // Every shared review category (ReviewCategory) has a phrase, so no category's items go unmentioned.
         var rows = new List<LibraryUpdateAttentionReasonViewModel>();
-
-        AddReason(rows, uncertain, "uncertain matches");
-        AddReason(rows, unmatched, "unmatched items");
-        AddReason(rows, missingIdentity, "missing identity");
-        AddReason(rows, duplicates, "possible duplicates");
-        AddReason(rows, missingArtwork, "missing artwork");
-        AddReason(rows, providerFailures, "provider failures");
+        foreach (var (key, phrase) in AttentionPhrases)
+        {
+            AddReason(rows, SumReasonCounts(reasons, key), phrase);
+        }
 
         if (rows.Count == 0)
         {
@@ -2148,6 +2141,16 @@ public sealed partial class IngestionLiveDashboardState
 
         return rows;
     }
+
+    private static readonly (string Key, string Phrase)[] AttentionPhrases =
+    [
+        (ReviewCategory.LowConfidence, "uncertain matches"),
+        (ReviewCategory.Unmatched, "unmatched items"),
+        (ReviewCategory.MissingWikidata, "missing identity"),
+        (ReviewCategory.Naming, "naming issues"),
+        (ReviewCategory.MetadataConflicts, "metadata conflicts"),
+        (ReviewCategory.ProviderFailures, "provider failures"),
+    ];
 
     private static int SumReasonCounts(IReadOnlyList<IngestionReviewReasonDto> reasons, params string[] keys) =>
         reasons

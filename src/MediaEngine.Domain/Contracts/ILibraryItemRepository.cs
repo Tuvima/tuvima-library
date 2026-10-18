@@ -32,20 +32,10 @@ public interface ILibraryItemRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// Returns counts for each status category (All, Review, Auto, Edited, Duplicate).
-    /// </summary>
-    Task<LibraryItemStatusCounts> GetStatusCountsAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns counts for the four lifecycle states (Registered, InReview, Provisional, Rejected)
+    /// Returns counts for the four calculated lifecycle states (Identified, InReview, Provisional, Rejected)
     /// plus a per-trigger breakdown within InReview. Optionally scoped to a single batch.
     /// </summary>
     Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(Guid? batchId = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns a dictionary of media type → count across all works in the library.
-    /// </summary>
-    Task<Dictionary<string, int>> GetMediaTypeCountsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Returns a dictionary of media type counts for owned media assets.
@@ -70,19 +60,6 @@ public sealed record LibraryItemLifecycleCounts(
     [property: JsonPropertyName("person_count")] int PersonCount,
     [property: JsonPropertyName("collection_count")] int CollectionCount,
     [property: JsonPropertyName("trigger_counts")] IReadOnlyDictionary<string, int> TriggerCounts);
-
-/// <summary>Counts for status tab badges.</summary>
-public sealed record LibraryItemStatusCounts(
-    [property: JsonPropertyName("total")] int Total,
-    [property: JsonPropertyName("needs_review")] int NeedsReview,
-    [property: JsonPropertyName("auto_approved")] int AutoApproved,
-    [property: JsonPropertyName("edited")] int Edited,
-    [property: JsonPropertyName("duplicate")] int Duplicate,
-    [property: JsonPropertyName("staging")] int Staging = 0,
-    [property: JsonPropertyName("missing_images")] int MissingImages = 0,
-    [property: JsonPropertyName("recently_updated")] int RecentlyUpdated = 0,
-    [property: JsonPropertyName("low_confidence")] int LowConfidence = 0,
-    [property: JsonPropertyName("rejected")] int Rejected = 0);
 
 /// <summary>Aggregate counts derived from the shared libraryItem pipeline projection.</summary>
 public sealed record LibraryItemProjectionSummary(

@@ -27,7 +27,7 @@ public enum ReviewRootCause
 
     /// <summary>
     /// Identity resolved but enrichment has gaps.
-    /// Maps from: ArtworkUnconfirmed, LanguageMismatch, WritebackFailed.
+    /// Maps from: LanguageMismatch, WritebackFailed.
     /// </summary>
     EnrichmentIncomplete
 }
@@ -46,7 +46,7 @@ public static class ReviewRootCauseExtensions
             => ReviewRootCause.ConflictingEvidence,
         "WikidataBridgeFailed" or "MissingQid"
             => ReviewRootCause.NoCanonicalIdentity,
-        "ArtworkUnconfirmed" or "LanguageMismatch" or "WritebackFailed"
+        "LanguageMismatch" or "WritebackFailed"
             => ReviewRootCause.EnrichmentIncomplete,
         _ => null,
     };

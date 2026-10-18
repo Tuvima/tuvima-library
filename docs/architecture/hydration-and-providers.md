@@ -564,7 +564,6 @@ The review queue surfaces items that need human attention. Dashboard review acti
 | `LowConfidence` | Pipeline completed but overall confidence fell below `auto_review_confidence_threshold` (0.60) |
 | `MultipleQidMatches` | Stage 2 found multiple Wikidata candidates; user must pick one |
 | `UserFixMatch` | User manually flagged an item for re-review |
-| `ArbiterNeedsReview` | Collection Arbiter flagged an uncertain Collection assignment |
 | `AmbiguousMediaType` | Media type disambiguation could not determine the content type with sufficient confidence |
 
 Each review item carries: entity reference, trigger reason, confidence score, optional disambiguation candidates (JSON array of `{ qid, label, description }`), and a human-readable detail string.

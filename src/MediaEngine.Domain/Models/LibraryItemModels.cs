@@ -12,7 +12,6 @@ public sealed record LibraryItemQuery(
     double? MinConfidence = null,
     string? MatchSource = null,
     bool DuplicatesOnly = false,
-    bool MissingUniverseOnly = false,
     /// <summary>Sort order: "newest" (default), "oldest", "confidence".</summary>
     string? Sort = null,
     /// <summary>When set, only return items first ingested within this many days.</summary>

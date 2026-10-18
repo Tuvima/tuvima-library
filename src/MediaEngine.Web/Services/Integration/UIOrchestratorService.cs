@@ -8,7 +8,6 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Realtime;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -598,6 +597,11 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         int limit = 50, CancellationToken ct = default)
         => _api.GetPendingReviewsAsync(limit, ct);
 
+    /// <summary>Returns pending review queue items, or the reason they could not be loaded.</summary>
+    public Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(
+        int limit = 50, CancellationToken ct = default)
+        => _api.GetPendingReviewsAttemptAsync(limit, ct);
+
     /// <summary>Returns a single review item.</summary>
     public Task<ReviewItemViewModel?> GetReviewItemAsync(
         Guid id, CancellationToken ct = default)
@@ -614,12 +618,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _state.Invalidate();
         }
         return ok;
-    }
-
-    /// <summary>Permanently removes a work and all its files from the library.</summary>
-    public async Task<bool> DeleteLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default)
-    {
-        return await _api.DeleteLibraryCatalogItemAsync(entityId, ct);
     }
 
     /// <summary>Dismisses a review item.</summary>
@@ -969,44 +967,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     // -- LibraryItem ------------------------------------------------------------
 
-    /// <summary>Returns paginated libraryItem items.</summary>
-    public Task<LibraryCatalogPageResponse?> GetLibraryCatalogItemsAsync(
-        int offset = 0, int limit = 50,
-        string? search = null, string? type = null, string? status = null,
-        double? minConfidence = null, string? matchSource = null,
-        bool? duplicatesOnly = null, bool? missingUniverseOnly = null,
-        string? sort = null, int? maxDays = null,
-        CancellationToken ct = default)
-        => _api.GetLibraryCatalogItemsAsync(offset, limit, search, type, status, minConfidence, matchSource, duplicatesOnly, missingUniverseOnly, sort, maxDays, ct);
-
-    /// <summary>Bulk-approves libraryItem items by entity ID.</summary>
-    public Task<BatchLibraryItemResponse?> BatchApproveLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-        => _api.BatchApproveLibraryCatalogItemsAsync(entityIds, ct);
-
-    /// <summary>Bulk-deletes libraryItem items by entity ID.</summary>
-    public Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-        => _api.BatchDeleteLibraryCatalogItemsAsync(entityIds, ct);
-
-    /// <summary>Rejects a single libraryItem item.</summary>
-    public Task<BatchLibraryItemResponse?> RejectLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default)
-        => _api.RejectLibraryCatalogItemAsync(entityId, ct);
-
-    /// <summary>Bulk-rejects libraryItem items by entity ID.</summary>
-    public Task<BatchLibraryItemResponse?> BatchRejectLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-        => _api.BatchRejectLibraryCatalogItemsAsync(entityIds, ct);
-
     /// <summary>Returns full detail for a single libraryItem item.</summary>
     public Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(Guid entityId, CancellationToken ct = default)
         => _api.GetLibraryItemDetailAsync(entityId, ct);
-
-    /// <summary>Returns status counts for libraryItem tab badges.</summary>
-    public Task<LibraryItemStatusCountsDto?> GetLibraryItemStatusCountsAsync(CancellationToken ct = default)
-        => _api.GetLibraryItemStatusCountsAsync(ct);
-
-    /// <summary>Returns four-state counts (Registered, NeedsReview, NoMatch, Failed) with trigger breakdown.</summary>
-    public Task<LibraryItemLifecycleCountsDto?> GetLibraryItemLifecycleCountsAsync(
-        Guid? batchId = null, CancellationToken ct = default)
-        => _api.GetLibraryItemLifecycleCountsAsync(batchId, ct);
 
     /// <summary>Fetches recent ingestion batches from the Engine.</summary>
     public async Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(int limit = 20)
@@ -1086,20 +1049,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return aliases;
     }
 
-    /// <summary>POST /library/items/{entityId}/apply-match  -  apply a selected match.</summary>
-    public async Task<ApplyMatchResponseDto?> ApplyLibraryItemMatchAsync(
-        Guid entityId, ApplyMatchRequestDto request,
-        CancellationToken ct = default)
-    {
-        var result = await _api.ApplyLibraryItemMatchAsync(entityId, request, ct);
-        if (result is not null)
-        {
-            _state.Invalidate(); // refresh collection list since metadata changed
-        }
-
-        return result;
-    }
-
     public async Task<ItemCanonicalSearchResponseDto?> SearchItemCanonicalAsync(
         Guid entityId, ItemCanonicalSearchRequestDto request, CancellationToken ct = default)
         => await _api.SearchItemCanonicalAsync(entityId, request, ct);
@@ -1115,16 +1064,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
         return result;
     }
-
-    /// <summary>POST /library/items/{entityId}/create-manual  -  create manual metadata entry.</summary>
-    public Task<CreateManualResponseDto?> CreateManualEntryAsync(
-        Guid entityId, CreateManualRequestDto request,
-        CancellationToken ct = default)
-        => _api.CreateManualEntryAsync(entityId, request, ct);
-
-    /// <summary>Mark a libraryItem item as provisional with curator-entered metadata.</summary>
-    public Task<bool> MarkProvisionalAsync(Guid entityId, ProvisionalMetadataRequestDto metadata, CancellationToken ct = default)
-        => _api.MarkProvisionalAsync(entityId, metadata, ct);
 
     // -- SignalR Intercom -------------------------------------------------------
 
@@ -1546,18 +1485,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<bool> ApplyCoverFromUrlAsync(
         Guid entityId, string imageUrl, CancellationToken ct = default)
         => _api.ApplyCoverFromUrlAsync(entityId, imageUrl, ct);
-
-    public Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default)
-        => _api.SubmitReportAsync(request, ct);
-
-    public Task<List<ReportEntryResponse>> GetReportsForEntityAsync(Guid entityId, CancellationToken ct = default)
-        => _api.GetReportsForEntityAsync(entityId, ct);
-
-    public Task<bool> ResolveReportAsync(long activityId, CancellationToken ct = default)
-        => _api.ResolveReportAsync(activityId, ct);
-
-    public Task<bool> DismissReportAsync(long activityId, CancellationToken ct = default)
-        => _api.DismissReportAsync(activityId, ct);
 
     // -- AI Hardware Profile ---------------------------------------------------
 

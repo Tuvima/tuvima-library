@@ -28,9 +28,6 @@
     "tl-input-outlined-border",
     "tl-input-root"
   ],
-  "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": [
-    "tl-checkbox-label"
-  ],
   "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": [
     "tl-button-root"
   ],

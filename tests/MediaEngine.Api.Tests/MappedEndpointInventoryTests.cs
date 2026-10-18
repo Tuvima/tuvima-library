@@ -38,8 +38,8 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem", "GetReportsForEntity"],
-            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv", "ResolveReport", "DismissReport"],
+            [ApplicationPermissionIds.ReviewRead] = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"],
+            [ApplicationPermissionIds.ReviewResolve] = ["ResolveReviewItem", "DismissReviewItem", "SkipUniverseMatch", "MoveReviewItemToTv"],
             [ApplicationPermissionIds.ProvidersStatusRead] = ["GetProviderHealth", "GetProviderIcon"],
             [ApplicationPermissionIds.ProvidersConfigRead] = ["GetProviderStatus", "GetProviderCatalogue"],
             [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon"],
@@ -63,7 +63,7 @@ public sealed class MappedEndpointInventoryTests
             }
         }
 
-        string[] personal = ["GetUIDeviceProfile", "GetUIProfileSettings", "UpdateUIProfileSettings", "GetResolvedUISettings", "GetLibraryPreferences", "SubmitReport", "GetMediaTypes", "GetProfilePlaybackSettings", "UpdateProfilePlaybackSettings"];
+        string[] personal = ["GetUIDeviceProfile", "GetUIProfileSettings", "UpdateUIProfileSettings", "GetResolvedUISettings", "GetLibraryPreferences", "GetMediaTypes", "GetProfilePlaybackSettings", "UpdateProfilePlaybackSettings"];
         foreach (var name in personal)
         {
             Assert.Single(inventory.Endpoints, endpoint => endpoint.Name == name).RequiresNamedPolicy(AuthPolicies.HumanSelfService);

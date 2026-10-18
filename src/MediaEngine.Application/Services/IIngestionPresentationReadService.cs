@@ -24,6 +24,7 @@ public interface IIngestionPresentationReadService
         int offset,
         int limit,
         string? sort = null,
+        string? status = null,
         CancellationToken ct = default);
 
     Task<IngestionMediaGroupDto?> GetMediaGroupAsync(

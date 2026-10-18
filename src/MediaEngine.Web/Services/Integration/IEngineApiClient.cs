@@ -3,7 +3,6 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -33,6 +32,9 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /review/pending?limit= — list pending review queue items.</summary>
     Task<List<ReviewItemViewModel>> GetPendingReviewsAsync(int limit = 50, CancellationToken ct = default);
+
+    /// <summary>GET /review/pending?limit= — like <see cref="GetPendingReviewsAsync"/>, but a failed load is reported instead of returned as an empty list.</summary>
+    Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(int limit = 50, CancellationToken ct = default);
 
     /// <summary>GET /review/{id} — single review item with full detail.</summary>
     Task<ReviewItemViewModel?> GetReviewItemAsync(Guid id, CancellationToken ct = default);
@@ -146,11 +148,6 @@ public partial interface IEngineApiClient
     Task<RetailCandidateDetailDto?> GetRetailCandidateDetailAsync(
         RetailCandidateDetailRequestDto request, CancellationToken ct = default);
 
-    /// <summary>POST /library/items/{entityId}/apply-match - apply a match to a library item.</summary>
-    Task<ApplyMatchResponseDto?> ApplyLibraryItemMatchAsync(
-        Guid entityId, ApplyMatchRequestDto request,
-        CancellationToken ct = default);
-
     /// <summary>POST /library/items/{entityId}/canonical-search - targeted canonical search for a field group.</summary>
     Task<ItemCanonicalSearchResponseDto?> SearchItemCanonicalAsync(
         Guid entityId, ItemCanonicalSearchRequestDto request, CancellationToken ct = default);
@@ -169,26 +166,6 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/{entityId}/create-manual - create a manual metadata entry.</summary>
-    Task<CreateManualResponseDto?> CreateManualEntryAsync(
-        Guid entityId, CreateManualRequestDto request,
-        CancellationToken ct = default);
-
-    /// <summary>DELETE /library/items/{entityId} - permanently remove a work and all its files.</summary>
-    Task<bool> DeleteLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>Submit a problem report on a media item.</summary>
-    Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default);
-
-    /// <summary>Get all problem reports for a specific entity.</summary>
-    Task<List<ReportEntryResponse>> GetReportsForEntityAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>Resolve a problem report.</summary>
-    Task<bool> ResolveReportAsync(long activityId, CancellationToken ct = default);
-
-    /// <summary>Dismiss a problem report.</summary>
-    Task<bool> DismissReportAsync(long activityId, CancellationToken ct = default);
 
     // ── Universe Alignment ──
 

@@ -971,7 +971,7 @@ Write-R " Waiting for hydration pipeline (QID assignment)..." -c "Gray"
 
 do {
     Start-Sleep -Seconds 3
-    $regCheck = Invoke-Api "/library/items?limit=1"
+    $regCheck = Invoke-Api "/dev/library-items?limit=1"
     $currentCount = if ($regCheck -and $regCheck.total_count) { $regCheck.total_count } else { 0 }
 
     if ($currentCount -ne $stableCount) {
@@ -991,7 +991,7 @@ Write-R " Hydration complete: $stableCount items identified in $([int]$Hydration
 
 # -- 10. Query results -------------------------------------------------------
 Start-Sleep -Seconds 2
-$libraryItem    = Invoke-Api "/library/items?limit=200"
+$libraryItem    = Invoke-Api "/dev/library-items?limit=200"
 $reviewItems = Invoke-Api "/review/pending?limit=200"
 $actAll      = Invoke-Api "/activity/recent?limit=500"
 
@@ -1101,12 +1101,12 @@ foreach ($f in $droppedFiles) {
             # Fallback: search the libraryItem by title (handles Wikidata language renames)
             if ($f.Book.Title -and $f.Book.Title.Length -gt 3) {
                 $enc   = [System.Uri]::EscapeDataString($f.Book.Title)
-                $srch  = Invoke-Api "/library/items?search=$enc&limit=5"
+                $srch  = Invoke-Api "/dev/library-items?search=$enc&limit=5"
                 $sitem = if ($srch -and $srch.items -and $srch.items.Count -gt 0) { $srch.items[0] } else { $null }
                 # Second fallback: search by author (handles Wikidata native-language title renames)
                 if (-not $sitem -and $f.Book.Author -and $f.Book.Author.Length -gt 3) {
                     $encA  = [System.Uri]::EscapeDataString($f.Book.Author)
-                    $srch2 = Invoke-Api "/library/items?search=$encA&limit=10"
+                    $srch2 = Invoke-Api "/dev/library-items?search=$encA&limit=10"
                     if ($srch2 -and $srch2.items -and $srch2.items.Count -gt 0) {
                         # Pick highest-confidence confirmed item for this author
                         $candidates = @($srch2.items | Where-Object { $_.author -and $_.author -like "*$($f.Book.Author.Split(' ')[-1])*" })

@@ -74,7 +74,6 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapItemCanonicalEndpoints();
         app.MapTimelineEndpoints();
         app.MapSearchEndpoints();
-        app.MapReportEndpoints();
         app.MapAiEndpoints();
         app.MapPluginEndpoints();
         app.MapPluginApplicationServiceEndpoints();

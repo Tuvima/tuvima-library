@@ -568,167 +568,6 @@ public sealed partial class EngineApiClient
 
     // -- Library items (/library/items) -------------------------------------------
 
-    public async Task<LibraryCatalogPageResponse?> GetLibraryCatalogItemsAsync(
-        int offset = 0, int limit = 50,
-        string? search = null, string? type = null, string? status = null,
-        double? minConfidence = null, string? matchSource = null,
-        bool? duplicatesOnly = null, bool? missingUniverseOnly = null,
-        string? sort = null, int? maxDays = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var url = $"/library/items?offset={offset}&limit={limit}";
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                url += $"&search={Uri.EscapeDataString(search)}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(type))
-            {
-                url += $"&type={Uri.EscapeDataString(type)}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(status))
-            {
-                url += $"&status={Uri.EscapeDataString(status)}";
-            }
-
-            if (minConfidence.HasValue)
-            {
-                url += $"&minConfidence={minConfidence.Value}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(matchSource))
-            {
-                url += $"&matchSource={Uri.EscapeDataString(matchSource)}";
-            }
-
-            if (duplicatesOnly == true)
-            {
-                url += "&duplicatesOnly=true";
-            }
-
-            if (missingUniverseOnly == true)
-            {
-                url += "&missingUniverseOnly=true";
-            }
-
-            if (!string.IsNullOrWhiteSpace(sort))
-            {
-                url += $"&sort={Uri.EscapeDataString(sort)}";
-            }
-
-            if (maxDays.HasValue)
-            {
-                url += $"&maxDays={maxDays.Value}";
-            }
-
-            var transport = await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemsPageDto>(url, ct);
-            var response = transport?.ToViewModel();
-            if (response?.Items is not null)
-            {
-                foreach (var item in response.Items)
-                {
-                    if (item.CoverUrl is not null)
-                    {
-                        item.CoverUrl = AbsoluteUrl(item.CoverUrl);
-                    }
-
-                    if (item.BackgroundUrl is not null)
-                    {
-                        item.BackgroundUrl = AbsoluteUrl(item.BackgroundUrl);
-                    }
-
-                    if (item.BannerUrl is not null)
-                    {
-                        item.BannerUrl = AbsoluteUrl(item.BannerUrl);
-                    }
-
-                    if (item.HeroUrl is not null)
-                    {
-                        item.HeroUrl = AbsoluteUrl(item.HeroUrl);
-                    }
-                }
-            }
-            return response;
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/items failed");
-            LastError = ex.Message;
-            return null;
-        }
-    }
-
-    public async Task<BatchLibraryItemResponse?> BatchApproveLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var request = new MediaEngine.Contracts.Items.BatchLibraryItemRequest { EntityIds = entityIds };
-            var response = await _http.PostAsJsonAsync("/library/items/batch/approve", request, ct);
-            response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.BatchLibraryItemResponse>(ct))
-                ?.ToViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Batch approve failed");
-            return null;
-        }
-    }
-
-    public async Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var request = new MediaEngine.Contracts.Items.BatchLibraryItemRequest { EntityIds = entityIds };
-            var response = await _http.PostAsJsonAsync("/library/items/batch/delete", request, ct);
-            response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.BatchLibraryItemResponse>(ct))
-                ?.ToViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Batch delete failed");
-            return null;
-        }
-    }
-
-    public async Task<BatchLibraryItemResponse?> RejectLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync($"/library/items/{entityId}/reject", new { }, ct);
-            response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.BatchLibraryItemResponse>(ct))
-                ?.ToViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Reject libraryItem item {EntityId} failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<BatchLibraryItemResponse?> BatchRejectLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var request = new MediaEngine.Contracts.Items.BatchLibraryItemRequest { EntityIds = entityIds };
-            var response = await _http.PostAsJsonAsync("/library/items/batch/reject", request, ct);
-            response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.BatchLibraryItemResponse>(ct))
-                ?.ToViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Batch reject failed");
-            return null;
-        }
-    }
-
     public async Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(
         Guid entityId, CancellationToken ct = default)
     {
@@ -773,65 +612,6 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "GET /library/items/{EntityId}/detail failed", entityId);
             RecordExceptionFailure(endpoint, ex);
-            return null;
-        }
-    }
-
-    public async Task<LibraryItemStatusCountsDto?> GetLibraryItemStatusCountsAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var counts = await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemStatusCountsDto>(
-                "/library/items/counts", ct);
-            return counts is null ? null : new LibraryItemStatusCountsDto
-            {
-                Total = counts.Total,
-                NeedsReview = counts.NeedsReview,
-                AutoApproved = counts.AutoApproved,
-                Edited = counts.Edited,
-                Duplicate = counts.Duplicate,
-                Staging = counts.Staging,
-                MissingImages = counts.MissingImages,
-                RecentlyUpdated = counts.RecentlyUpdated,
-                LowConfidence = counts.LowConfidence,
-                Rejected = counts.Rejected,
-            };
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/items/counts failed");
-            LastError = ex.Message;
-            return null;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<LibraryItemLifecycleCountsDto?> GetLibraryItemLifecycleCountsAsync(
-        Guid? batchId = null, CancellationToken ct = default)
-    {
-        try
-        {
-            var url = batchId.HasValue
-                ? $"/library/items/state-counts?batchId={batchId.Value}"
-                : "/library/items/state-counts";
-            var counts = await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemLifecycleCountsDto>(url, ct);
-            return counts is null ? null : new LibraryItemLifecycleCountsDto
-            {
-                Identified = counts.Identified,
-                InReview = counts.InReview,
-                Provisional = counts.Provisional,
-                Rejected = counts.Rejected,
-                PersonCount = counts.PersonCount,
-                CollectionCount = counts.CollectionCount,
-                TriggerCounts = counts.TriggerCounts,
-            };
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/items/state-counts failed");
-            LastError = ex.Message;
             return null;
         }
     }
@@ -895,7 +675,7 @@ public sealed partial class EngineApiClient
 
     public Task<PagedResponse<IngestionMediaGroupDto>?> GetRecentIngestionAdditionsAsync(
         string? search = null, string? lane = null, DateTimeOffset? start = null, DateTimeOffset? end = null,
-        int offset = 0, int limit = 50, string? sort = null, CancellationToken ct = default)
+        int offset = 0, int limit = 50, string? sort = null, string? status = null, CancellationToken ct = default)
     {
         var values = new List<string>
         {
@@ -925,6 +705,11 @@ public sealed partial class EngineApiClient
         if (!string.IsNullOrWhiteSpace(sort) && !sort.Equals("newest", StringComparison.OrdinalIgnoreCase))
         {
             values.Add($"sort={Uri.EscapeDataString(sort)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            values.Add($"status={Uri.EscapeDataString(status)}");
         }
 
         return GetPresentationPageAsync($"ingestion/recent-additions?{string.Join('&', values)}", ct);

@@ -92,43 +92,11 @@ public partial interface IEngineApiClient
 
     // ── Library items (/library/items) ─────────────────────────────────────────
 
-    /// <summary>GET /library/items - paginated list of all ingested items.</summary>
-    Task<LibraryCatalogPageResponse?> GetLibraryCatalogItemsAsync(
-        int offset = 0, int limit = 50,
-        string? search = null, string? type = null, string? status = null,
-        double? minConfidence = null, string? matchSource = null,
-        bool? duplicatesOnly = null, bool? missingUniverseOnly = null,
-        string? sort = null, int? maxDays = null,
-        CancellationToken ct = default);
-
-    /// <summary>POST /library/items/batch/approve - bulk-approve library items.</summary>
-    Task<BatchLibraryItemResponse?> BatchApproveLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/batch/delete - bulk-delete library items.</summary>
-    Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/{entityId}/reject - reject a single library item.</summary>
-    Task<BatchLibraryItemResponse?> RejectLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/batch/reject - bulk-reject library items.</summary>
-    Task<BatchLibraryItemResponse?> BatchRejectLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default);
-
     /// <summary>GET /library/items/{entityId}/detail - full detail for expanded row.</summary>
     Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>GET /library/items/{entityId}/history - processing history timeline.</summary>
-    Task<List<LibraryItemHistoryDto>> GetItemHistoryAsync(Guid entityId, CancellationToken ct = default);
     Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetItemHistoryWithStatusAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/{entityId}/provisional - mark an item as provisional with curator metadata.</summary>
-    Task<bool> MarkProvisionalAsync(Guid entityId, ProvisionalMetadataRequestDto metadata, CancellationToken ct = default);
-
-    /// <summary>GET /library/items/counts - status counts for tab badges.</summary>
-    Task<LibraryItemStatusCountsDto?> GetLibraryItemStatusCountsAsync(CancellationToken ct = default);
-
-    /// <summary>GET /library/items/state-counts - four-state counts with trigger breakdown.</summary>
-    Task<LibraryItemLifecycleCountsDto?> GetLibraryItemLifecycleCountsAsync(
-        Guid? batchId = null, CancellationToken ct = default);
 
     /// <summary>GET /ingestion/batches — recent ingestion batches.</summary>
     Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(
@@ -146,7 +114,7 @@ public partial interface IEngineApiClient
 
     Task<PagedResponse<IngestionMediaGroupDto>?> GetRecentIngestionAdditionsAsync(
         string? search = null, string? lane = null, DateTimeOffset? start = null, DateTimeOffset? end = null,
-        int offset = 0, int limit = 50, string? sort = null, CancellationToken ct = default);
+        int offset = 0, int limit = 50, string? sort = null, string? status = null, CancellationToken ct = default);
 
     Task<IngestionMediaGroupDto?> GetIngestionMediaGroupAsync(
         Guid batchId, Guid groupId, CancellationToken ct = default);
