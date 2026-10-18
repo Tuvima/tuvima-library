@@ -1,0 +1,12 @@
+<Project>
+  <!-- A nested Directory.Packages.props hides the repository root one, so import it first;
+       only packages used by this throwaway benchmark are added below. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Packages.props', '$(MSBuildThisFileDirectory)../'))" />
+  <ItemGroup Label="Benchmark only (nothing here ships)">
+    <!-- BenchmarkDotNet: timing and allocation harness. MIT license - AGPLv3-compatible. -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <!-- EF Core SQLite (.Core flavour): same version line as the repo's Microsoft.Data.Sqlite 10.0.3, and it
+         brings no native SQLite of its own, so EF runs on the product's pinned SQLitePCLRaw bundle. MIT license. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite.Core" Version="10.0.3" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MediaEngine.Storage.Benchmarks</RootNamespace>
+    <AssemblyName>MediaEngine.Storage.Benchmarks</AssemblyName>
+    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MediaEngine.Storage\MediaEngine.Storage.csproj" />
+    <ProjectReference Include="..\..\src\MediaEngine.Api\MediaEngine.Api.csproj" />
+  </ItemGroup>
+</Project>
