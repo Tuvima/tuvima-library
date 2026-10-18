@@ -1,6 +1,8 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
+@using Microsoft.AspNetCore.WebUtilities
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
 @implements IDisposable
@@ -9,6 +11,7 @@
 
 @if (_detail is not null)
 {
+    var version = _detailVersion;
     @* While the next item loads, the previous page stays on screen but dimmed and inert, so the wrong
        item's actions can never be used; DetailPage is re-created (via @key) only when the new payload lands. *@
     <div class="@ShellClass" inert="@_loading" aria-busy="@(_loading ? "true" : null)">
@@ -16,6 +19,9 @@
                     Model="_detail"
                     ActiveTab="@_activeTab"
                     ActiveTabChanged="HandleTabChangedAsync"
+                    SelectedSeasonId="_selectedSeasonId"
+                    SelectedSeasonChanged="HandleSeasonSelectedAsync"
+                    ModelRefreshed="@(refreshed => HandleModelRefreshed(version, refreshed))"
                     OnActionSelected="HandleActionAsync" />
     </div>
 
@@ -73,6 +79,14 @@ else
     private DetailPageLoadFailure _failure;
     private bool _loading = true;
     private string? _activeTab;
+    // The tab and season the page address named when the current page was last (re)applied. The address carries
+    // them (D19), so a request that differs from the loaded page only here is applied without asking the Engine.
+    private string? _addressTab;
+    private Guid? _addressSeasonId;
+    private Guid? _selectedSeasonId;
+    // Which Engine payload the page on screen (or in flight) is; see DetailRouteRequest.LoadKey.
+    private string? _pageKey;
+    private string? _requestKey;
     private int _loadVersion;
     private int _detailVersion;
     private CancellationTokenSource? _loadCts;
@@ -84,7 +98,20 @@ else
     private string PageTitleText =>
         $"{(_loading ? null : _detail?.Title) ?? Request.PageTitleFallback} - {Request.ProductTitle}";
 
-    protected override Task OnParametersSetAsync() => LoadAsync();
+    protected override Task OnParametersSetAsync()
+    {
+        var showsRequestedPage = _pageKey is not null
+            && (string.Equals(Request.LoadKey, _pageKey, StringComparison.Ordinal)
+                || string.Equals(Request.LoadKey, _requestKey, StringComparison.Ordinal))
+            && (_loading || _detail is not null);
+        if (!showsRequestedPage)
+            return LoadAsync();
+
+        // Only the tab or the season changed (a pick written back into the address, or a link to another tab):
+        // the page stays as it is.
+        ApplyAddressState();
+        return Task.CompletedTask;
+    }
 
     private Task RetryAsync() => LoadAsync();
 
@@ -101,6 +128,11 @@ else
         // The previous page (if any) stays visible, dimmed, until the new payload replaces it.
         _loading = true;
         _failure = DetailPageLoadFailure.None;
+        _pageKey = _requestKey = Request.LoadKey;
+        _addressTab = Request.RequestedTab;
+        _addressSeasonId = Request.SelectedSeasonId;
+        _selectedSeasonId = Request.SelectedSeasonId;
+        _activeTab = Request.RequestedTab;
 
         if (Request.EntityType is not { } entityType)
         {
@@ -126,8 +158,27 @@ else
             ? DetailPageLoadFailure.NotFound
             : result.Failure;
         _detailVersion++;
+        // A season opened by its own address answers with its show's page; later requests name the show.
+        if (_detail is { EntityType: DetailEntityType.TvShow } && Guid.TryParse(_detail.Id, out var showId))
+            _pageKey = Request.ShowLoadKey(showId);
         ApplyDetailTabRoute();
         _loading = false;
+    }
+
+    private void ApplyAddressState()
+    {
+        if (!string.Equals(Request.RequestedTab, _addressTab, StringComparison.Ordinal))
+        {
+            _addressTab = Request.RequestedTab;
+            _activeTab = Request.RequestedTab;
+            ApplyDetailTabRoute();
+        }
+
+        if (Request.SelectedSeasonId != _addressSeasonId)
+        {
+            _addressSeasonId = Request.SelectedSeasonId;
+            _selectedSeasonId = Request.SelectedSeasonId;
+        }
     }
 
     private void CancelPendingLoad()
@@ -154,7 +205,59 @@ else
     private Task HandleTabChangedAsync(string tab)
     {
         _activeTab = tab;
+        ReplaceAddress(tab, season: null);
         return Task.CompletedTask;
+    }
+
+    private Task HandleSeasonSelectedAsync(Guid seasonId)
+    {
+        if (_selectedSeasonId == seasonId)
+            return Task.CompletedTask;
+
+        _selectedSeasonId = seasonId;
+        // Only a show's page opens on a season; an episode's page keeps its own address.
+        if (_detail is { EntityType: DetailEntityType.TvShow })
+            ReplaceAddress(tab: null, season: seasonId);
+
+        return Task.CompletedTask;
+    }
+
+    // A personal action refreshed the page inside DetailPage; keep that payload so a later re-render of this host
+    // does not hand the stale one back.
+    // The callback is bound to the page version it was rendered for, so a refresh that lands after the person moved
+    // to another item (or while the next one loads) is ignored instead of replacing the newer page.
+    private void HandleModelRefreshed(int version, DetailPageViewModel refreshed)
+    {
+        if (version != _detailVersion || _loading)
+            return;
+
+        _detail = refreshed;
+    }
+
+    /// <summary>
+    /// Writes the chosen tab or season into the page address by replacing the current history entry, so reload
+    /// returns to it and Back does not gain a step (D19). Other query values (context, episode) are kept.
+    /// </summary>
+    private void ReplaceAddress(string? tab, Guid? season)
+    {
+        var current = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(current.Query);
+        var path = current.GetLeftPart(UriPartial.Path);
+
+        if (tab is not null)
+            query["tab"] = tab;
+
+        if (season is { } seasonId)
+        {
+            query["season"] = seasonId.ToString("D");
+            // The show's own address (a season opened by /details/tvseason/{id} moves to it).
+            if (_detail is { } show)
+                path = Nav.ToAbsoluteUri($"details/tvshow/{show.Id}").GetLeftPart(UriPartial.Path);
+        }
+
+        var target = QueryHelpers.AddQueryString(path, query);
+        if (!string.Equals(target, Nav.Uri, StringComparison.Ordinal))
+            Nav.NavigateTo(target, replace: true);
     }
 
     private void ApplyDetailTabRoute()

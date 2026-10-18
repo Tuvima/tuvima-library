@@ -119,7 +119,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact,
 .tl-detail-page .tl-overview-credit-rows ::deep .tl-credit-card--compact:first-child {
         display: block;
@@ -141,7 +141,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-overview-credit-rows {
         display: flex;
         flex-wrap: wrap;
@@ -226,7 +226,7 @@
 
 }
 
-@media (max-width: 960px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-overview-section,
 :where(.tl-detail-page) .tl-overview-section--secondary {
         padding: 1.25rem 0;
@@ -354,7 +354,7 @@
     text-transform: uppercase;
 }
 
-@media (max-width: 960px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-overview-surface {
         grid-template-columns: minmax(0, 1fr);
         width: calc(100% - 2rem);
@@ -492,19 +492,19 @@
     aspect-ratio: 1;
 }
 
-@media (max-width: 1599px) {
+@media (max-width: 1180px) {
     .tl-overview-credit-group--cast .tl-overview-credit-rows ::deep .tl-credit-card--compact:nth-child(n + 7) {
         display: none;
     }
 }
 
-@media (max-width: 1199px) {
+@media (width < 840px) {
     .tl-overview-credit-group--cast .tl-overview-credit-rows ::deep .tl-credit-card--compact:nth-child(n + 6) {
         display: none;
     }
 }
 
-@media (max-width: 900px) {
+@media (width < 840px) {
     .tl-overview-credit-groups {
         display: grid;
     }

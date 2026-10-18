@@ -177,7 +177,7 @@ public sealed class EditingModeTests : AsyncBunitContext
         var mode = await StartedAsync(turnOn: false);
         var cut = Render<EditingModeBar>(parameters => parameters
             .Add(component => component.Mode, mode)
-            .Add(component => component.MoreActions, [new DetailAction { Key = "copy-link", Label = "Copy library link", Icon = "link" }]));
+            .Add(component => component.MoreActions, [new DetailAction { Key = "status-history", Label = "Viewing history", Icon = "history" }]));
 
         Assert.Single(cut.FindAll("button.tl-editing-toggle"));
         Assert.Empty(cut.FindAll(".tl-editing-bar__action"));

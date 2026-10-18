@@ -25,7 +25,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         "play-from-beginning", "read", "listen", "play-album", "shuffle", "shuffle-collection",
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
-        "copy-link", "edit", "edit-media", "my-list",
+        "edit", "edit-media", "my-list",
         "reaction-dislike", "reaction-like", "reaction-love", "details",
     ];
 
@@ -77,7 +77,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         Assert.Contains(movie.SecondaryActions, action => action.Key == "my-list");
         Assert.Contains(Flatten(movie.SecondaryActions), action => action.Key == "reaction-like");
         Assert.Contains(movie.OverflowActions, action => action.Key == "edit");
-        Assert.Contains(movie.OverflowActions, action => action.Key == "copy-link");
+        Assert.DoesNotContain(pages.Values.SelectMany(ActionLists).SelectMany(list => Flatten(list.Actions)), action => action.Key == "copy-link");
         var offenders = new List<string>();
         foreach (var (name, page) in pages)
         {

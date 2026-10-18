@@ -219,7 +219,7 @@ ContentGroup collections have additional fields:
 - **`group_by_field`** - the metadata field that defines the group (e.g. `series`, `album`, `show`)
 - **`sort_field`** / **`sort_direction`** - default ordering for items (e.g. episode number ascending, track number ascending)
 
-These ContentGroup records power **lane shelves** in Read, Watch, and Listen, but the user-facing surface follows the media concept rather than the storage type. When Watch groups TV by show, clicking a show opens `/watch/tv/show/{collectionId}` on the unified detail page with seasons and episodes. The Collections page uses broader rollups only when relationships such as series, franchise, or fictional universe connect multiple shelves.
+These ContentGroup records power **lane shelves** in Read, Watch, and Listen, but the user-facing surface follows the media concept rather than the storage type. When Watch groups TV by show, clicking a show opens `/details/tvshow/{id}`, the unified detail page with seasons and episodes. The Collections page uses broader rollups only when relationships such as series, franchise, or fictional universe connect multiple shelves.
 
 ### ContentGroup by Media Type
 

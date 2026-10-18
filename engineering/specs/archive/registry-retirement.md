@@ -1,6 +1,6 @@
 # Spec: Registry retirement — Needs Review is the home for exceptions
 
-> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail](item-detail.md) · [ADR 0006 — management workspace retired](../architecture/decisions/0006-management-workspace-retired.md) · [Resolving reviews guide (public)](../../docs/guides/resolving-reviews.md)
+> **Status:** Built · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../../product/overview.md) · [Item Detail](item-detail.md) · [ADR 0006 — management workspace retired](../../architecture/decisions/0006-management-workspace-retired.md) · [Resolving reviews guide (public)](../../../docs/guides/resolving-reviews.md)
 
 > Replaces the March 2026 "Registry spec v3". Version 5 records Shy's answers to all four open questions and all thirteen gaps (2026-10-17). Per Shy, "Registry" is **retired entirely** so it no longer exists in the app, the docs or Claude's context. Sections 4 and 5 describe what exists today; section 6 is the removal plan.
 
@@ -18,7 +18,7 @@ There is one, clearly named place to deal with library items the Engine isn't su
 
 ## 3. Decisions made
 
-- **D1.** (2026-04-14 → 04-25) The all-in-one Registry screen was retired. Fixing one item → the shared editor; exceptions → Needs Review; item history → the editor's History section. Recorded in [ADR 0006](../architecture/decisions/0006-management-workspace-retired.md).
+- **D1.** (2026-04-14 → 04-25) The all-in-one Registry screen was retired. Fixing one item → the shared editor; exceptions → Needs Review; item history → the editor's History section. Recorded in [ADR 0006](../../architecture/decisions/0006-management-workspace-retired.md).
 - **D2.** (2026-10-17, Shy) Retire the name and every remnant. New docs call the exceptions place **Needs Review**.
 - **D3.** Bulk editing stays switched off until a spec brings it back; the editor launcher refuses multi-item launches and a guardrail test enforces it.
 - **D4 (Q1).** (2026-10-17, Shy) The Registry tab's diagnostics move: **identity status and artwork source** go into the editor's Match & Identity section, shown to server administrators only. Everything else on the tab is dropped.

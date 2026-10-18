@@ -59,6 +59,8 @@
             {
                 <SequencePlacementPanel Placement="Model.SequencePlacement"
                                         DetailSurface="true"
+                                        RequestedSeasonId="SelectedSeasonId"
+                                        OnSeasonSelected="OnSeasonSelected"
                                         OnContainerSelected="OnContainerSelected"
                                         OnEditItem="OnEditItem" />
             }
@@ -103,6 +105,8 @@
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+    [Parameter] public Guid? SelectedSeasonId { get; set; }
+    [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
     [Parameter] public EventCallback<SequenceItemViewModel> OnEditItem { get; set; }
 

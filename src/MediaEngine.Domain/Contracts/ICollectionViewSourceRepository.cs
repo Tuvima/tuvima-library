@@ -22,6 +22,15 @@ public interface ICollectionViewSourceRepository
         Guid sourceId,
         Guid ownerProfileId,
         CancellationToken ct = default);
+    /// <summary>
+    /// Removes a source from a manually curated collection only while another member remains (a collection item, or
+    /// another source). The check and the delete are one write, so two removals cannot both pass and empty the collection.
+    /// </summary>
+    Task<CollectionViewSourceRemoval> RemoveUnlessLastMemberAsync(
+        Guid collectionId,
+        Guid sourceId,
+        Guid ownerProfileId,
+        CancellationToken ct = default);
     Task<IReadOnlyList<CollectionViewSourceProjection>> GetAuthorizedProjectionAsync(
         IReadOnlyCollection<Guid> collectionIds,
         Guid viewerProfileId,

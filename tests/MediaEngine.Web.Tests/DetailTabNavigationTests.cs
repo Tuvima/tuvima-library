@@ -56,7 +56,7 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void Resolve_SeriesTabUsesSequencePlacementAndRemainsFirst()
+    public void Resolve_WithoutARequestedTabOpensOverviewAndNeverASeriesTab()
     {
         var model = new DetailPageViewModel
         {
@@ -64,8 +64,8 @@ public sealed class DetailTabNavigationTests
             EntityType = DetailEntityType.Book,
             Title = "Leviathan Wakes",
             Tabs = [
-                new DetailTab { Key = "series", Label = "Series" },
                 new DetailTab { Key = "overview", Label = "Overview" },
+                new DetailTab { Key = "credits", Label = "Credits" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             SequencePlacement = new SequencePlacementViewModel
@@ -77,9 +77,12 @@ public sealed class DetailTabNavigationTests
         };
 
         var resolution = DetailTabNavigation.Resolve(model, null);
+        var requestedSeries = DetailTabNavigation.Resolve(model, "series");
 
-        Assert.Equal("series", resolution.ActiveTab);
+        Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.ShouldRedirect);
+        Assert.Equal("overview", requestedSeries.ActiveTab);
+        Assert.True(requestedSeries.ShouldRedirect);
     }
 
     [Fact]
