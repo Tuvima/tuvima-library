@@ -8,6 +8,19 @@ public enum CollectionViewSourceKind
     SmartRule,
 }
 
+/// <summary>What happened when a personal-media source was taken out of a collection that must keep a member.</summary>
+public enum CollectionViewSourceRemoval
+{
+    /// <summary>No such source in the collection.</summary>
+    NotFound,
+
+    /// <summary>The source was deleted.</summary>
+    Removed,
+
+    /// <summary>The source is the collection's last member (no items, no other source), so it was left in place.</summary>
+    WouldLeaveCollectionEmpty,
+}
+
 public sealed record ViewSmartRuleDefinition
 {
     public const int CurrentVersion = 1;

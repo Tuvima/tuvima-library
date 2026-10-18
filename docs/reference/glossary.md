@@ -357,7 +357,7 @@ Optional compiled code loaded by the Engine to add behavior. Plugins run in-proc
 
 ### Removed all-in-one workspace
 
-Old management concepts that should not be reintroduced. Current browse and correction flows use Home, Read, Watch, Listen, Collections, Search, detail pages, Needs Review, and Settings/Admin. The retired all-in-one management screen was once called the Registry; that name is no longer used.
+Old management concepts that should not be reintroduced. Current browse and correction flows use Home, Read, Watch, Listen, Collections, Search, detail pages, Needs Review, and Settings/Admin. The retired all-in-one management screen is gone: fixing one item happens in Editing Mode on its detail page, and items the Engine is unsure about go to Needs Review.
 
 ## Next steps
 

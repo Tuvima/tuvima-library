@@ -12,7 +12,7 @@ public sealed class DetailActionKeysTests
         "play-from-beginning", "read", "listen", "play-album", "shuffle", "shuffle-collection",
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
-        "copy-link", "edit", "edit-media", "my-list",
+        "edit", "edit-media", "my-list",
         "reaction-dislike", "reaction-like", "reaction-love", "details",
     ];
 

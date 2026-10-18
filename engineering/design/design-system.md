@@ -86,4 +86,3 @@ New CSS may only break at **600 / 840 / 1180 px** (plus the touch query at 1023p
 - Two colour sources disagree: CSS tokens and `config/ui/palette.json` (used for some chips and universe graphs).
 - `--tl-media-view` is used on the For Me page but never defined.
 - Global styles remove the focus outline on links and buttons in places (`native-utilities.css:7`); a replacement ring isn't confirmed everywhere.
-- The Details page uses off-standard breakpoints (see [Item Detail spec](../specs/item-detail.md), G15).

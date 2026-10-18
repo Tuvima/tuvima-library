@@ -188,6 +188,82 @@ public sealed class CollectionViewSourceRepositoryTests : IDisposable
             [collectionId], stranger.ProfileId));
     }
 
+    [Fact]
+    public async Task RemoveUnlessLastMember_LeavesTheOnlySourceInPlaceWhenTheCollectionHasNoItems()
+    {
+        var owner = await CreateOwnerAsync("Owner");
+        var collectionId = InsertCollection("Only photos", "Custom", profileId: null);
+        var only = await AddSmartRuleSourceAsync(collectionId, owner);
+
+        var result = await _sources.RemoveUnlessLastMemberAsync(collectionId, only.Id, owner.ProfileId);
+
+        Assert.Equal(CollectionViewSourceRemoval.WouldLeaveCollectionEmpty, result);
+        Assert.Single(await _sources.ListAsync(collectionId, owner.ProfileId));
+    }
+
+    [Fact]
+    public async Task RemoveUnlessLastMember_RemovesASourceWhileAnotherSourceRemains()
+    {
+        var owner = await CreateOwnerAsync("Owner");
+        var collectionId = InsertCollection("Two sources", "Custom", profileId: null);
+        var first = await AddSmartRuleSourceAsync(collectionId, owner);
+        var second = await CreateGalleryAsync(owner, "Trips");
+        var gallerySource = await _sources.AddGalleryAsync(new(collectionId, owner.ProfileId, second.Id, Position: 1));
+
+        Assert.Equal(CollectionViewSourceRemoval.Removed,
+            await _sources.RemoveUnlessLastMemberAsync(collectionId, first.Id, owner.ProfileId));
+        Assert.Equal(CollectionViewSourceRemoval.WouldLeaveCollectionEmpty,
+            await _sources.RemoveUnlessLastMemberAsync(collectionId, gallerySource.Id, owner.ProfileId));
+
+        Assert.Equal([gallerySource.Id], (await _sources.ListAsync(collectionId, owner.ProfileId)).Select(source => source.Id));
+    }
+
+    [Fact]
+    public async Task RemoveUnlessLastMember_RemovesTheOnlySourceWhenTheCollectionStillHasAnItem()
+    {
+        var owner = await CreateOwnerAsync("Owner");
+        var collectionId = InsertCollection("Film and photos", "Custom", profileId: null);
+        var only = await AddSmartRuleSourceAsync(collectionId, owner);
+        InsertCollectionItem(collectionId);
+
+        var result = await _sources.RemoveUnlessLastMemberAsync(collectionId, only.Id, owner.ProfileId);
+
+        Assert.Equal(CollectionViewSourceRemoval.Removed, result);
+        Assert.Empty(await _sources.ListAsync(collectionId, owner.ProfileId));
+    }
+
+    [Fact]
+    public async Task RemoveUnlessLastMember_ReportsASourceThatIsNotInTheCollectionAsNotFound()
+    {
+        var owner = await CreateOwnerAsync("Owner");
+        var collectionId = InsertCollection("Photos", "Custom", profileId: null);
+        await AddSmartRuleSourceAsync(collectionId, owner);
+
+        var result = await _sources.RemoveUnlessLastMemberAsync(collectionId, Guid.NewGuid(), owner.ProfileId);
+
+        Assert.Equal(CollectionViewSourceRemoval.NotFound, result);
+        Assert.Single(await _sources.ListAsync(collectionId, owner.ProfileId));
+    }
+
+    private Task<CollectionViewSource> AddSmartRuleSourceAsync(
+        Guid collectionId,
+        (Guid ProfileId, Guid SpaceId, Guid LibraryId) owner) =>
+        _sources.AddSmartRuleAsync(new(
+            collectionId,
+            owner.ProfileId,
+            ViewSmartRuleDefinition.Create(1, """{"media_kind":"image","favorite":true}"""),
+            Position: 0));
+
+    private void InsertCollectionItem(Guid collectionId)
+    {
+        var workId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@workId, 'Movies', 'standalone', 'accepted');
+            INSERT INTO collection_items (id, collection_id, work_id, sort_order) VALUES (@id, @collectionId, @workId, 1);
+            """, new { id = Guid.NewGuid(), collectionId, workId });
+    }
+
     private Guid InsertProfile(string name)
     {
         var id = Guid.NewGuid();

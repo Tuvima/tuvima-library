@@ -111,6 +111,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     selectedContainerId: selectedContainerId,
                     authorizedWorks: authorizedWorks,
                     sequenceWindow: sequenceWindow),
+            DetailEntityType.TvSeason => await BuildTvSeasonAsync(id, context, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct, sequenceWindow),
             DetailEntityType.Universe => await BuildUniverseAsync(id, context, actionAuthorization, authorizedWorks, ct),
             _ => await BuildWorkAsync(
                 id,

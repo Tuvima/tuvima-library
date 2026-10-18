@@ -46,7 +46,7 @@
     cursor: pointer;
 }
 
-@media (max-width: 720px) {
+@media (width < 840px) {
     .tl-detail-hero-genres {
         gap: 0.45rem;
         margin-top: 0.58rem;

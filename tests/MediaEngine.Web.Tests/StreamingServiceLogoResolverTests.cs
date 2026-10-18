@@ -256,9 +256,9 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
         DetailAction? selected = null;
         var edit = new DetailAction
         {
-            Key = "copy-link",
-            Label = "Copy library link",
-            Icon = "link",
+            Key = "status-history",
+            Label = "Viewing history",
+            Icon = "history",
         };
 
         using var cut = Render<OverflowActionMenu>(parameters => parameters

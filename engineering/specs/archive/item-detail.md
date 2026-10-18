@@ -1,6 +1,6 @@
 # Spec: Item Detail page
 
-> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../docs/architecture/dashboard-ui.md)
+> **Status:** Built · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../../docs/architecture/dashboard-ui.md)
 
 > Version 5 replaces the "as built" v4. It records what the page does today (including PR 222, merged, and PR 223 Editing Mode, assumed merged before packets start) and every decision Shy made on 2026-10-17 about what to change, remove or leave to other plans. Anything labelled "to be confirmed by Claude Code" is a fact I could not check from the planning side.
 

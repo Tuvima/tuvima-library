@@ -23,7 +23,6 @@ public static class DetailActionKeys
     public const string StatusHide = "status-hide";
     public const string StatusShow = "status-show";
     public const string StatusHistory = "status-history";
-    public const string CopyLink = "copy-link";
     public const string Edit = "edit";
     public const string EditMedia = "edit-media";
     public const string MyList = "my-list";
@@ -49,7 +48,6 @@ public static class DetailActionKeys
         StatusHide,
         StatusShow,
         StatusHistory,
-        CopyLink,
         Edit,
         EditMedia,
         MyList,

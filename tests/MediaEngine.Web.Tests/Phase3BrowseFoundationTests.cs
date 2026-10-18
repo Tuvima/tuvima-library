@@ -45,7 +45,7 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
                     "1965",
                     null,
                     "A science fiction classic.",
-                    "/book/31000000-0000-0000-0000-000000000001",
+                    "/details/work/31000000-0000-0000-0000-000000000001",
                     "Read",
                     "Exact title match",
                     1);
@@ -220,7 +220,7 @@ public sealed class Phase3BrowseFoundationTests : AsyncBunitContext
     {
         var workId = Guid.Parse("33000000-0000-0000-0000-000000000001");
         var assetId = Guid.Parse("33000000-0000-0000-0000-000000000002");
-        var details = new DisplayActionDto("openWork", "Details", WorkId: workId, WebUrl: "/book/33000000-0000-0000-0000-000000000001");
+        var details = new DisplayActionDto("openWork", "Details", WorkId: workId, WebUrl: "/details/work/33000000-0000-0000-0000-000000000001");
         var resume = new DisplayActionDto("readAsset", "Continue", WorkId: workId, AssetId: assetId, WebUrl: "/read/33000000-0000-0000-0000-000000000002");
         var artwork = new DisplayArtworkDto(
             CoverUrl: "/cover.jpg",

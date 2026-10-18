@@ -270,19 +270,19 @@ Guided import from existing media managers:
 
 ### CollectionDetail
 
-Route: `/collection/{id}`
+Route: `/details/collection/{id}`
 
 Hero artwork with dominant color extraction. Collection metadata (name, year, franchise, Wikidata QID link). Works list grouped by media type. Person credits with headshots. Social Pivot links. "Hydrate from Wikidata" button.
 
 ### WorkDetail
 
-Route: `/work/{id}`
+Route: `/details/work/{id}`
 
 Work metadata (title, author, year, series position). Edition list with format labels and file sizes. Claim history panel. Play/Read/Listen button.
 
 ### PersonDetail
 
-Route: `/person/{id}`
+Route: `/details/person/{id}`
 
 Headshot, biography, occupation. Social links (Instagram, TikTok, Mastodon, website - using Actionable URI Schemes). Works grouped by role (author, narrator, director, cast member). Pseudonym relationships where applicable.
 
