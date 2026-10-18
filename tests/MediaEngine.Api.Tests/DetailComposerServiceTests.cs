@@ -174,6 +174,7 @@ public sealed class DetailComposerServiceTests
     [InlineData("watch", DetailPresentationContext.Watch)]
     [InlineData("read", DetailPresentationContext.Read)]
     [InlineData("unknown", DetailPresentationContext.Default)]
+    [InlineData("admin", DetailPresentationContext.Default)]
     public void ParseContext_UsesDefaultForUnknownValues(string value, DetailPresentationContext expected)
     {
         Assert.Equal(expected, DetailComposerService.ParseContext(value));
@@ -318,7 +319,8 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("? []", source);
         Assert.Contains("BuildStandardCollectionMetadata(works)", source);
         Assert.Contains("c.collection_type AS CollectionType", source);
-        Assert.Contains("CollectionTypeNames.Custom", source);
+        // A custom collection is editable by the same rules as every other: never by an address flag.
+        Assert.DoesNotContain("CollectionTypeNames.Custom", source);
         Assert.Contains("EditorTarget = canEdit", source);
         Assert.Contains("DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries", source);
         Assert.Contains("Kind = $\"{lane}_count\"", source);
@@ -1407,8 +1409,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             entityType,
-            DetailPresentationContext.Default,
-            false);
+            DetailPresentationContext.Default);
 
         Assert.Equal("overview", tabs[0].Key);
         Assert.DoesNotContain(tabs, tab => tab.Key == "series");
@@ -1421,8 +1422,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.MusicAlbum,
-            DetailPresentationContext.Listen,
-            false);
+            DetailPresentationContext.Listen);
 
         Assert.Equal(["overview", "details"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "tracks");
@@ -1435,8 +1435,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.Audiobook,
-            DetailPresentationContext.Listen,
-            false);
+            DetailPresentationContext.Listen);
 
         Assert.Equal(["overview", "tracks", "details"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "chapters");
@@ -1449,8 +1448,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.Work,
-            DetailPresentationContext.Default,
-            false);
+            DetailPresentationContext.Default);
 
         Assert.DoesNotContain(tabs, tab => tab.Key == "formats");
     }

@@ -50,7 +50,6 @@ public sealed class DetailPageViewModel
 
     public CanonicalIdentityStatus IdentityStatus { get; init; } = CanonicalIdentityStatus.Unknown;
     public LibraryStatus LibraryStatus { get; init; } = LibraryStatus.Unknown;
-    public bool IsAdminView { get; init; }
 }
 
 public sealed class MusicAlbumCompanionViewModel
@@ -177,7 +176,6 @@ public enum DetailPresentationContext
     Watch,
     Read,
     Comics,
-    Admin,
     Search,
     Universe
 }
@@ -281,7 +279,6 @@ public sealed class DetailTab
 {
     public string Key { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
-    public bool IsAdminOnly { get; init; }
 }
 
 public sealed class DetailPrimaryModuleViewModel

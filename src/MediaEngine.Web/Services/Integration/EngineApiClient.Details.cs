@@ -120,15 +120,26 @@ public sealed partial class EngineApiClient
         string? containerId = null,
         SequenceWindowQuery? sequence = null,
         CancellationToken ct = default) =>
-        (await LoadDetailPageAsync(entityType, id, context, containerId, sequence, ct).ConfigureAwait(false)).Detail;
+        // Background lookups (playback, sequence panels) must not leave a stale error in the shared failure state.
+        (await LoadDetailPageCoreAsync(entityType, id, context, containerId, sequence, recordFailure: false, ct).ConfigureAwait(false)).Detail;
 
-    public async Task<DetailPageLoadResult> LoadDetailPageAsync(
+    public Task<DetailPageLoadResult> LoadDetailPageAsync(
         DetailEntityType entityType,
         Guid id,
         DetailPresentationContext context = DetailPresentationContext.Default,
         string? containerId = null,
         SequenceWindowQuery? sequence = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        LoadDetailPageCoreAsync(entityType, id, context, containerId, sequence, recordFailure: true, ct);
+
+    private async Task<DetailPageLoadResult> LoadDetailPageCoreAsync(
+        DetailEntityType entityType,
+        Guid id,
+        DetailPresentationContext context,
+        string? containerId,
+        SequenceWindowQuery? sequence,
+        bool recordFailure,
+        CancellationToken ct)
     {
         const string endpoint = "GET /api/v1/details/{entityType}/{id}";
         try
@@ -160,15 +171,28 @@ public sealed partial class EngineApiClient
                 var failure = response.StatusCode switch
                 {
                     HttpStatusCode.NotFound or HttpStatusCode.BadRequest => DetailPageLoadFailure.NotFound,
-                    HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => DetailPageLoadFailure.NotAllowed,
+                    HttpStatusCode.Forbidden => DetailPageLoadFailure.NotAllowed,
+                    // 401 is an expired or invalid sign-in/service credential, not a refusal; Retry can recover it.
                     _ => DetailPageLoadFailure.Unreachable,
                 };
-                await RecordHttpFailureAsync(endpoint, response, ct, logAsWarning: failure == DetailPageLoadFailure.Unreachable);
+                if (recordFailure)
+                {
+                    await RecordHttpFailureAsync(endpoint, response, ct, logAsWarning: failure == DetailPageLoadFailure.Unreachable);
+                }
+                else
+                {
+                    _logger.LogWarning("GET /api/details/{EntityType}/{Id} returned {StatusCode}", entityType, id, (int)response.StatusCode);
+                }
+
                 return DetailPageLoadResult.Failed(failure);
             }
 
             var detail = await response.Content.ReadFromJsonAsync<DetailPageViewModel>(cancellationToken: ct).ConfigureAwait(false);
-            ClearFailure(endpoint);
+            if (recordFailure)
+            {
+                ClearFailure(endpoint);
+            }
+
             return detail is null
                 ? DetailPageLoadResult.Failed(DetailPageLoadFailure.NotFound)
                 : DetailPageLoadResult.Loaded(NormalizeDetailArtwork(detail));
@@ -182,7 +206,11 @@ public sealed partial class EngineApiClient
         {
             // Includes timeouts (TaskCanceledException not caused by ct) and connection failures.
             _logger.LogWarning(ex, "GET /api/details/{EntityType}/{Id} failed", entityType, id);
-            _failureState.RecordExceptionFailure(endpoint, ex);
+            if (recordFailure)
+            {
+                _failureState.RecordExceptionFailure(endpoint, ex);
+            }
+
             return DetailPageLoadResult.Failed(DetailPageLoadFailure.Unreachable);
         }
     }

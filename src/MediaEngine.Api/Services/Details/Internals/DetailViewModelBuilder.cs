@@ -115,21 +115,8 @@ internal static class DetailViewModelBuilder
             BackdropLeftBottomColor = backdropBottom,
             HeroArtwork = heroArtwork,
             PresentationMode = mode,
-            Source = ResolveArtworkSource(artworkSource),
+            Source = DetailPresentationPolicy.ResolveArtworkSource(artworkSource),
         };
-    }
-
-    private static ArtworkSource ResolveArtworkSource(string? source)
-    {
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return ArtworkSource.Generated;
-        }
-
-        return source.Contains("user", StringComparison.OrdinalIgnoreCase)
-               || source.Contains("manual", StringComparison.OrdinalIgnoreCase)
-            ? ArtworkSource.User
-            : ArtworkSource.Provider;
     }
 
     private static string? GetValue(IReadOnlyDictionary<string, string> values, string key)

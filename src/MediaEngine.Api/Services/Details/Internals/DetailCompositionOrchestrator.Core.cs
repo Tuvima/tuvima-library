@@ -93,19 +93,17 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
         SequenceWindowRequest? sequenceWindow = null)
     {
-        var isAdminView = context is DetailPresentationContext.Admin;
         var favoriteWorkIds = await _reader.LoadFavoriteWorkIdsAsync(profileId, ct);
 
         var model = entityType switch
         {
-            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, isAdminView, actionAuthorization, authorizedWorks, ct),
-            DetailEntityType.BookSeries => await BuildBookSeriesAsync(id, context, isAdminView, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct),
+            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.BookSeries => await BuildBookSeriesAsync(id, context, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct),
             DetailEntityType.Collection or DetailEntityType.TvShow or DetailEntityType.MovieSeries
                 or DetailEntityType.ComicSeries or DetailEntityType.MusicAlbum => await BuildCollectionAsync(
                     id,
                     entityType,
                     context,
-                    isAdminView,
                     actionAuthorization,
                     favoriteWorkIds,
                     ct,
@@ -113,13 +111,12 @@ internal sealed partial class DetailCompositionOrchestrator
                     selectedContainerId: selectedContainerId,
                     authorizedWorks: authorizedWorks,
                     sequenceWindow: sequenceWindow),
-            DetailEntityType.Character => await BuildCharacterAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
-            DetailEntityType.Universe => await BuildUniverseAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.Character => await BuildCharacterAsync(id, context, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.Universe => await BuildUniverseAsync(id, context, actionAuthorization, authorizedWorks, ct),
             _ => await BuildWorkAsync(
                 id,
                 entityType,
                 context,
-                isAdminView,
                 actionAuthorization,
                 selectedContainerId,
                 favoriteWorkIds,

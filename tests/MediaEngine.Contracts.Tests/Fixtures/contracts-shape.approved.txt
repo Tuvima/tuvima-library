@@ -2151,7 +2151,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   MusicAlbumCompanion: MediaEngine.Contracts.Details.MusicAlbumCompanionViewModel | nullability=nullable | accessors=get,init
   IdentityStatus: MediaEngine.Contracts.Details.CanonicalIdentityStatus | nullability=not-null | accessors=get,init
   LibraryStatus: MediaEngine.Contracts.Details.LibraryStatus | nullability=not-null | accessors=get,init
-  IsAdminView: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
 
@@ -2169,7 +2168,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailProgressKind
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTab
   Key: System.String | nullability=not-null | accessors=get,init
   Label: System.String | nullability=not-null | accessors=get,init
-  IsAdminOnly: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel
   IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set
@@ -4888,6 +4886,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorContext
   FileMetadataSyncStatus: System.String | nullability=nullable | accessors=get,set
   CurrentTargetSummary: MediaEngine.Contracts.Metadata.MediaEditorTargetSummaryDto | nullability=nullable | accessors=get,set
   IdentitySummary: MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto | nullability=nullable | accessors=get,set
+  IdentityStatus: System.String | nullability=nullable | accessors=get,set
+  ArtworkSource: System.String | nullability=nullable | accessors=get,set
   FieldLockMap: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
   DisplayOverrideKeys: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   DisplayOverrides: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set

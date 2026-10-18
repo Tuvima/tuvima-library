@@ -974,21 +974,6 @@ internal sealed partial class DetailCompositionOrchestrator
         => assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase) && a.IsPreferred)?.ImageUrl
            ?? assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase))?.ImageUrl;
 
-    private static CanonicalIdentityStatus ResolveIdentityStatus(string? qid, string? status, double? confidence)
-    {
-        if (!string.IsNullOrWhiteSpace(qid))
-        {
-            return CanonicalIdentityStatus.WikidataLinked;
-        }
-
-        if (status?.Contains("review", StringComparison.OrdinalIgnoreCase) == true || confidence is < 0.7)
-        {
-            return CanonicalIdentityStatus.NeedsReview;
-        }
-
-        return CanonicalIdentityStatus.ProviderMatched;
-    }
-
     private static SequenceLabels ResolveSequenceLabels(DetailEntityType type) => type switch
     {
         DetailEntityType.TvEpisode or DetailEntityType.TvSeason or DetailEntityType.TvShow =>

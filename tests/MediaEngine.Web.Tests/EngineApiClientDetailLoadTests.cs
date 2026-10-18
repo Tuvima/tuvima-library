@@ -35,7 +35,7 @@ public sealed class EngineApiClientDetailLoadTests
     [Theory]
     [InlineData(HttpStatusCode.NotFound, DetailPageLoadFailure.NotFound)]
     [InlineData(HttpStatusCode.BadRequest, DetailPageLoadFailure.NotFound)]
-    [InlineData(HttpStatusCode.Unauthorized, DetailPageLoadFailure.NotAllowed)]
+    [InlineData(HttpStatusCode.Unauthorized, DetailPageLoadFailure.Unreachable)]
     [InlineData(HttpStatusCode.Forbidden, DetailPageLoadFailure.NotAllowed)]
     [InlineData(HttpStatusCode.InternalServerError, DetailPageLoadFailure.Unreachable)]
     [InlineData(HttpStatusCode.BadGateway, DetailPageLoadFailure.Unreachable)]
@@ -93,6 +93,26 @@ public sealed class EngineApiClientDetailLoadTests
         var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.Forbidden));
 
         Assert.Null(await client.GetDetailPageAsync(DetailEntityType.Work, Id));
+    }
+
+    [Fact]
+    public async Task GetDetailPageAsync_LeavesNoErrorBehindForOtherScreens()
+    {
+        var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        await client.GetDetailPageAsync(DetailEntityType.Work, Id);
+
+        Assert.Null(client.LastError);
+    }
+
+    [Fact]
+    public async Task LoadDetailPageAsync_RecordsTheFailureForTheDetailPage()
+    {
+        var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+
+        await client.LoadDetailPageAsync(DetailEntityType.Work, Id);
+
+        Assert.NotNull(client.LastError);
     }
 
     [Fact]

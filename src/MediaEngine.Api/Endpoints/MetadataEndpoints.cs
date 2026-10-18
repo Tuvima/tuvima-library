@@ -6,6 +6,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Metadata;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
@@ -749,6 +750,8 @@ public static partial class MetadataEndpoints
                 FileMetadataSyncStatus = context.FileMetadataSyncStatus,
                 CurrentTargetSummary = ToContract(context.CurrentTargetSummary),
                 IdentitySummary = ToContract(context.IdentitySummary),
+                IdentityStatus = context.IdentityStatus,
+                ArtworkSource = context.ArtworkSource,
                 FieldLockMap = new Dictionary<string, bool>(context.FieldLockMap, StringComparer.OrdinalIgnoreCase),
                 DisplayOverrideKeys = context.DisplayOverrideKeys.ToList(),
                 DisplayOverrides = new Dictionary<string, string>(context.DisplayOverrides, StringComparer.OrdinalIgnoreCase),
@@ -2328,7 +2331,14 @@ public static partial class MetadataEndpoints
             displayOverrides,
             initialScope,
             scopes,
-            scopeIdentitySummaries);
+            scopeIdentitySummaries,
+            // Same producers the detail composer uses, so the editor and the page agree.
+            launchDetail is null
+                ? null
+                : DetailPresentationPolicy.ResolveIdentityStatus(launchDetail.WikidataQid, launchDetail.Status, launchDetail.Confidence).ToString(),
+            launchDetail is null
+                ? null
+                : DetailPresentationPolicy.ResolveArtworkSource(launchDetail.ArtworkSource).ToString());
     }
 
     private static async ValueTask<bool> HasEditorScopeAccessAsync(
@@ -3207,7 +3217,9 @@ public static partial class MetadataEndpoints
         IReadOnlyDictionary<string, string> DisplayOverrides,
         string InitialScope,
         IReadOnlyList<EditorScopeResolution> Scopes,
-        IReadOnlyDictionary<Guid, MediaEditorIdentitySummaryEnvelope> ScopeIdentitySummaries);
+        IReadOnlyDictionary<Guid, MediaEditorIdentitySummaryEnvelope> ScopeIdentitySummaries,
+        string? IdentityStatus,
+        string? ArtworkSource);
     internal sealed record EditorScopeResolution(
         string ScopeId,
         string Label,

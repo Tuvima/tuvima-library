@@ -75,7 +75,7 @@ public sealed class DetailHeroPresentation
         // The line under the title is dropped when it is a description (the paragraph already shows it) or when it
         // repeats the hero paragraph. A TV show's hero paragraph is its summary, so a real tagline there still shows.
         var hideSecondaryTitleText = secondaryTitleIsDescription
-            || string.Equals(model.SecondaryTitleText?.Trim(), copySource?.Trim(), StringComparison.OrdinalIgnoreCase);
+            || !string.IsNullOrWhiteSpace(model.SecondaryTitleText) && string.Equals(model.SecondaryTitleText?.Trim(), copySource?.Trim(), StringComparison.OrdinalIgnoreCase);
         var secondaryTitleText = hideSecondaryTitleText ? null : model.SecondaryTitleText;
         var usesReadOverviewCopy = UsesReadOverviewCopy(model.EntityType);
         var usesFullParagraphCopy = usesReadOverviewCopy || isWatchHero;

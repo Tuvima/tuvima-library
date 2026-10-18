@@ -67,7 +67,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid collectionId,
         DetailEntityType entityType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlySet<Guid> favoriteWorkIds,
         CancellationToken ct,
@@ -448,9 +447,7 @@ internal sealed partial class DetailCompositionOrchestrator
         var isAutomaticCollection = hasCollectionRow && entityType == DetailEntityType.Collection
             && !CollectionAccessPolicy.IsManagedCollectionType(row.CollectionType ?? string.Empty);
         var canEdit = (hasCollectionRow && entityType is DetailEntityType.Collection or DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
-                      || ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue)
-                      || (isAdminView
-                          && string.Equals(row.CollectionType, CollectionTypeNames.Custom, StringComparison.OrdinalIgnoreCase));
+                      || ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue);
 
         // Only TV shows carry the line under the title; series, albums and collections keep none (D20).
         var secondaryTitle = entityType == DetailEntityType.TvShow
@@ -514,13 +511,12 @@ internal sealed partial class DetailCompositionOrchestrator
             CharacterGroups = characterGroups,
             PreviewCharacters = characterGroups.SelectMany(g => g.Characters).Take(12).ToList(),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(entityType, context, isAdminView),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             MusicAlbumCompanion = musicAlbumCompanion,
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
+            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

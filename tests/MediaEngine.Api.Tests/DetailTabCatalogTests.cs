@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Contracts.Details;
 
@@ -29,19 +30,22 @@ public sealed class DetailTabCatalogTests
     [MemberData(nameof(ExpectedSets))]
     public void EveryTypeGetsExactlyItsTabs(DetailEntityType entityType, string[] expected)
     {
-        var tabs = BuildTabs(entityType, isAdminView: false);
+        var tabs = BuildTabs(entityType, DetailPresentationContext.Default);
 
         Assert.Equal(expected, tabs.Select(tab => tab.Key));
     }
 
     [Theory]
     [MemberData(nameof(ExpectedSets))]
-    public void AdminRegistryTabStaysLast(DetailEntityType entityType, string[] expected)
+    public void AdminAddressFlagDoesNotAddARegistryTab(DetailEntityType entityType, string[] expected)
     {
-        var tabs = BuildTabs(entityType, isAdminView: true);
+        var context = DetailComposerService.ParseContext("admin");
 
-        Assert.Equal([.. expected, "registry"], tabs.Select(tab => tab.Key));
-        Assert.True(tabs[^1].IsAdminOnly);
+        var tabs = BuildTabs(entityType, context);
+
+        Assert.Equal(DetailPresentationContext.Default, context);
+        Assert.Equal(expected, tabs.Select(tab => tab.Key));
+        Assert.DoesNotContain(tabs, tab => tab.Key == "registry");
     }
 
     [Fact]
@@ -56,7 +60,7 @@ public sealed class DetailTabCatalogTests
         }
     }
 
-    private static List<DetailTab> BuildTabs(DetailEntityType entityType, bool isAdminView)
+    private static List<DetailTab> BuildTabs(DetailEntityType entityType, DetailPresentationContext context)
     {
         var orchestrator = typeof(MediaEngine.Api.Services.Details.DetailComposerService).Assembly.GetType(
             "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator", throwOnError: true)!;
@@ -65,6 +69,6 @@ public sealed class DetailTabCatalogTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         Assert.NotNull(method);
         return Assert.IsType<List<DetailTab>>(
-            method!.Invoke(null, [entityType, DetailPresentationContext.Default, isAdminView]));
+            method!.Invoke(null, [entityType, context]));
     }
 }

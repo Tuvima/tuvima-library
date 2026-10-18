@@ -820,18 +820,11 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static IReadOnlyList<DetailTab> BuildTabs(
         DetailEntityType entityType,
-        DetailPresentationContext context,
-        bool isAdminView)
+        DetailPresentationContext context)
     {
         var keys = DetailTabCatalog.KeysFor(entityType);
 
-        var tabs = keys.Select(key => new DetailTab { Key = key, Label = ToTabLabel(key, entityType) }).ToList();
-        if (isAdminView)
-        {
-            tabs.Add(new DetailTab { Key = "registry", Label = "Registry", IsAdminOnly = true });
-        }
-
-        return tabs;
+        return keys.Select(key => new DetailTab { Key = key, Label = ToTabLabel(key, entityType) }).ToList();
     }
 
     private static DetailPrimaryModuleViewModel BuildPrimaryModule(

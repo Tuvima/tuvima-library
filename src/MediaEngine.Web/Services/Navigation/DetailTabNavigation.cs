@@ -34,7 +34,6 @@ public static class DetailTabNavigation
 
     public static IReadOnlyList<DetailTab> GetVisibleTabs(DetailPageViewModel model) =>
         model.Tabs
-            .Where(tab => !tab.IsAdminOnly || model.IsAdminView)
             .Where(tab => HasRenderableContent(model, tab.Key))
             .ToList();
 

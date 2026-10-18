@@ -21,6 +21,36 @@ internal static class DetailPresentationPolicy
             ? parsed
             : DetailPresentationContext.Default;
 
+    // Shared by the detail composer and the media editor's Match & Identity facts so both
+    // report the same identity status and artwork source for an item.
+    internal static CanonicalIdentityStatus ResolveIdentityStatus(string? qid, string? status, double? confidence)
+    {
+        if (!string.IsNullOrWhiteSpace(qid))
+        {
+            return CanonicalIdentityStatus.WikidataLinked;
+        }
+
+        if (status?.Contains("review", StringComparison.OrdinalIgnoreCase) == true || confidence is < 0.7)
+        {
+            return CanonicalIdentityStatus.NeedsReview;
+        }
+
+        return CanonicalIdentityStatus.ProviderMatched;
+    }
+
+    internal static ArtworkSource ResolveArtworkSource(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return ArtworkSource.Generated;
+        }
+
+        return source.Contains("user", StringComparison.OrdinalIgnoreCase)
+               || source.Contains("manual", StringComparison.OrdinalIgnoreCase)
+            ? ArtworkSource.User
+            : ArtworkSource.Provider;
+    }
+
     internal static ArtworkPresentationMode ResolveArtworkPresentationMode(
         DetailEntityType entityType,
         string? backdropUrl,

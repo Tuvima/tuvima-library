@@ -1798,7 +1798,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             }).ToList(),
             IdentityStatus = detail.IdentityStatus,
             LibraryStatus = detail.LibraryStatus,
-            IsAdminView = detail.IsAdminView,
         };
     }
 

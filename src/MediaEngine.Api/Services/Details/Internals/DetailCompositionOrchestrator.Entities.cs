@@ -34,7 +34,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid personId,
         DetailEntityType entityType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
@@ -173,19 +172,17 @@ internal sealed partial class DetailCompositionOrchestrator
             PreviewContributors = groups.SelectMany(g => g.Credits).Take(12).ToList(),
             CharacterGroups = BuildPersonCharacterGroups(characterRoles),
             PreviewCharacters = BuildPersonCharacterGroups(characterRoles).SelectMany(g => g.Characters).Take(12).ToList(),
-            Tabs = BuildTabs(entityType, context, isAdminView),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, null, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(person.WikidataQid, null, null),
+            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(person.WikidataQid, null, null),
             LibraryStatus = credits.Count > 0 ? LibraryStatus.Owned : LibraryStatus.Unknown,
-            IsAdminView = isAdminView,
         };
     }
 
     private async Task<DetailPageViewModel?> BuildCharacterAsync(
         Guid characterId,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
@@ -276,17 +273,15 @@ internal sealed partial class DetailCompositionOrchestrator
             PrimaryActions = [new DetailAction { Key = "appearances", Label = "View Appearances", Icon = "auto_stories", IsPrimary = true }],
             OverflowActions = BuildOverflowActions(characterId, DetailEntityType.Character, actionAuthorization),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(DetailEntityType.Character, context, isAdminView),
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
+            Tabs = BuildTabs(DetailEntityType.Character, context),
+            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 
     private async Task<DetailPageViewModel?> BuildUniverseAsync(
         Guid id,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
@@ -366,12 +361,11 @@ internal sealed partial class DetailCompositionOrchestrator
             CharacterGroups = characterGroups,
             PreviewCharacters = characterGroups.SelectMany(g => g.Characters).Take(12).ToList(),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(DetailEntityType.Universe, context, isAdminView),
+            Tabs = BuildTabs(DetailEntityType.Universe, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(DetailEntityType.Universe, null, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
+            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

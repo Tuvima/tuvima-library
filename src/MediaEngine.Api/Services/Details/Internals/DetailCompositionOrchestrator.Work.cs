@@ -34,7 +34,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid workId,
         DetailEntityType requestedType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         string? selectedContainerId,
         IReadOnlySet<Guid> favoriteWorkIds,
@@ -129,7 +128,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 showId,
                 DetailEntityType.TvShow,
                 context,
-                isAdminView,
                 actionAuthorization,
                 favoriteWorkIds,
                 ct,
@@ -273,19 +271,17 @@ internal sealed partial class DetailCompositionOrchestrator
             CharacterGroups = characters,
             PreviewCharacters = characters.SelectMany(g => g.Characters).Take(12).ToList(),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(entityType, context, isAdminView),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(detail.WikidataQid, detail.Status, detail.Confidence),
+            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(detail.WikidataQid, detail.Status, detail.Confidence),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 
     private async Task<DetailPageViewModel?> BuildBookSeriesAsync(
         Guid seriesId,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlySet<Guid> favoriteWorkIds,
         Guid? profileId,
@@ -297,7 +293,6 @@ internal sealed partial class DetailCompositionOrchestrator
             seriesId,
             DetailEntityType.BookSeries,
             context,
-            isAdminView,
             actionAuthorization,
             favoriteWorkIds,
             ct,
@@ -324,7 +319,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 preview.WorkId,
                 DetailEntityType.Book,
                 context,
-                isAdminView,
                 actionAuthorization,
                 selectedContainerId: selectedContainerId,
                 favoriteWorkIds: favoriteWorkIds,
@@ -420,7 +414,7 @@ internal sealed partial class DetailCompositionOrchestrator
             OverflowActions = BuildOverflowActions(seriesId, DetailEntityType.BookSeries, actionAuthorization),
             ContributorGroups = seedDetail.ContributorGroups,
             PreviewContributors = seedDetail.PreviewContributors,
-            Tabs = BuildTabs(DetailEntityType.BookSeries, context, isAdminView),
+            Tabs = BuildTabs(DetailEntityType.BookSeries, context),
             PrimaryModule = BuildPrimaryModule(DetailEntityType.BookSeries, placement, []),
             MediaGroups =
             [
@@ -437,7 +431,6 @@ internal sealed partial class DetailCompositionOrchestrator
             ],
             IdentityStatus = seedDetail.IdentityStatus,
             LibraryStatus = hasMissingItems ? LibraryStatus.PartiallyOwned : LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

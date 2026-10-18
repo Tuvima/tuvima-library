@@ -231,6 +231,28 @@ public sealed class DetailTabNavigationTests
         }
     }
 
+    [Fact]
+    public void Resolve_RequestedRegistryTabRedirectsToTheFirstTab()
+    {
+        var model = CreateModel("overview", "details");
+
+        var resolution = DetailTabNavigation.Resolve(model, "registry");
+
+        Assert.Equal("overview", resolution.ActiveTab);
+        Assert.False(resolution.IsRequestedTabValid);
+        Assert.True(resolution.ShouldRedirect);
+    }
+
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("ADMIN")]
+    public void UnifiedRoute_TreatsTheAdminAddressFlagAsTheDefaultContext(string contextValue)
+    {
+        var request = DetailRouteRequest.ForUnified("work", Guid.NewGuid(), contextValue);
+
+        Assert.Equal(DetailPresentationContext.Default, request.PresentationContext);
+    }
+
     private static DetailPageViewModel CreateModel(params string[] tabs) =>
         CreateModel(tabs, withCast: false);
 

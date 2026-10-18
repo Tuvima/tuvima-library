@@ -292,7 +292,8 @@ public sealed class UnifiedDetailComponentTests
 
         Assert.DoesNotContain("EpisodesTab", source);
         Assert.DoesNotContain("FormatsTab", source);
-        Assert.Contains("RegistryTab", source);
+        Assert.DoesNotContain("RegistryTab", source);
+        Assert.DoesNotContain("\"registry\"", source);
 
         // Only tab keys the Engine sends have a panel; Sync and the unsent keys are gone.
         Assert.DoesNotContain("SyncTab", source);
@@ -300,6 +301,29 @@ public sealed class UnifiedDetailComponentTests
         {
             Assert.DoesNotContain($"\"{unsentKey}\"", source);
         }
+    }
+
+    [Fact]
+    public void DetailPage_HasNoRegistryTabOrAdminAddressFlagPath()
+    {
+        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/RegistryTab.razor")));
+
+        foreach (var path in new[]
+        {
+            "src/MediaEngine.Web/Components/Details/DetailPage.razor",
+            "src/MediaEngine.Web/Components/Details/DetailHero.razor",
+            "src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor",
+            "src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs",
+            "src/MediaEngine.Web/Services/Integration/EngineApiClient.cs",
+        })
+        {
+            var source = ReadSource(path);
+            Assert.DoesNotContain("IsAdminView", source);
+            Assert.DoesNotContain("IsAdminOnly", source);
+            Assert.DoesNotContain("tl-registry-panel", source);
+        }
+
+        Assert.DoesNotContain("tl-registry-panel", ReadDetailStyles());
     }
 
     [Fact]

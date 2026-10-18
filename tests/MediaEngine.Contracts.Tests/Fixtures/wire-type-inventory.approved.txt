@@ -2572,8 +2572,7 @@
   MusicAlbumCompanion: MediaEngine.Contracts.Details.MusicAlbumCompanionViewModel | json=musicAlbumCompanion | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IdentityStatus: MediaEngine.Contracts.Details.CanonicalIdentityStatus | json=identityStatus | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LibraryStatus: MediaEngine.Contracts.Details.LibraryStatus | json=libraryStatus | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsAdminView: System.Boolean | json=isAdminView | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","entityType":0,"presentationContext":0,"editorTarget":null,"title":"sample","subtitle":"sample","tagline":"sample","secondaryTitleText":"sample","secondaryTitleTextKind":"sample","secondaryTitleTextHasMore":true,"description":"sample","descriptionAttribution":null,"sourceLinks":[],"personDetails":null,"facts":null,"usesEpisodeArtwork":true,"artwork":null,"heroBrand":null,"progress":null,"ownedFormats":[],"multiFormatState":0,"readingListeningSync":null,"syncCapability":null,"sequencePlacement":null,"metadata":[],"primaryActions":[],"secondaryActions":[],"personalStatus":null,"overflowActions":[],"contributorGroups":[],"fullContributorGroups":[],"previewContributors":[],"characterGroups":[],"previewCharacters":[],"relationshipStrip":[],"tabs":[],"mediaGroups":[],"primaryModule":null,"musicAlbumCompanion":null,"identityStatus":0,"libraryStatus":0,"isAdminView":true}
+  sample={"id":"sample","entityType":0,"presentationContext":0,"editorTarget":null,"title":"sample","subtitle":"sample","tagline":"sample","secondaryTitleText":"sample","secondaryTitleTextKind":"sample","secondaryTitleTextHasMore":true,"description":"sample","descriptionAttribution":null,"sourceLinks":[],"personDetails":null,"facts":null,"usesEpisodeArtwork":true,"artwork":null,"heroBrand":null,"progress":null,"ownedFormats":[],"multiFormatState":0,"readingListeningSync":null,"syncCapability":null,"sequencePlacement":null,"metadata":[],"primaryActions":[],"secondaryActions":[],"personalStatus":null,"overflowActions":[],"contributorGroups":[],"fullContributorGroups":[],"previewContributors":[],"characterGroups":[],"previewCharacters":[],"relationshipStrip":[],"tabs":[],"mediaGroups":[],"primaryModule":null,"musicAlbumCompanion":null,"identityStatus":0,"libraryStatus":0}
 
 [contracts] MediaEngine.Contracts.Details.DetailPresentationContext
   kind=enum | converter=default | number-handling=default | unmapped=default
@@ -2582,9 +2581,8 @@
   enum Watch=2 | json=2
   enum Read=3 | json=3
   enum Comics=4 | json=4
-  enum Admin=5 | json=5
-  enum Search=6 | json=6
-  enum Universe=7 | json=7
+  enum Search=5 | json=5
+  enum Universe=6 | json=6
 
 [contracts] MediaEngine.Contracts.Details.DetailPrimaryModuleKind
   kind=enum | converter=default | number-handling=default | unmapped=default
@@ -2617,8 +2615,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsAdminOnly: System.Boolean | json=isAdminOnly | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","label":"sample","isAdminOnly":true}
+  sample={"key":"sample","label":"sample"}
 
 [contracts] MediaEngine.Contracts.Details.EntityCreditViewModel
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -5818,12 +5815,14 @@
   FileMetadataSyncStatus: System.String | json=file_metadata_sync_status | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CurrentTargetSummary: MediaEngine.Contracts.Metadata.MediaEditorTargetSummaryDto | json=current_target_summary | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IdentitySummary: MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto | json=identity_summary | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IdentityStatus: System.String | json=identity_status | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ArtworkSource: System.String | json=artwork_source | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FieldLockMap: System.Collections.Generic.Dictionary<System.String, System.Boolean> | json=field_lock_map | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayOverrideKeys: System.Collections.Generic.List<System.String> | json=display_override_keys | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayOverrides: System.Collections.Generic.Dictionary<System.String, System.String> | json=display_overrides | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InitialScope: System.String | json=initial_scope | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Scopes: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorScopeDto> | json=scopes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"launch_entity_id":"11111111-2222-3333-4444-555555555555","launch_entity_kind":"sample","media_type":"sample","editor_mode":"sample","available_tabs":[],"content_tab_label":"sample","supports_file_tab":true,"file_metadata_sync_status":"sample","current_target_summary":null,"identity_summary":null,"field_lock_map":{},"display_override_keys":[],"display_overrides":{},"initial_scope":"sample","scopes":[]}
+  sample={"launch_entity_id":"11111111-2222-3333-4444-555555555555","launch_entity_kind":"sample","media_type":"sample","editor_mode":"sample","available_tabs":[],"content_tab_label":"sample","supports_file_tab":true,"file_metadata_sync_status":"sample","current_target_summary":null,"identity_summary":null,"identity_status":"sample","artwork_source":"sample","field_lock_map":{},"display_override_keys":[],"display_overrides":{},"initial_scope":"sample","scopes":[]}
 
 [contracts] MediaEngine.Contracts.Metadata.MediaEditorEditionCoverAffectedFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
