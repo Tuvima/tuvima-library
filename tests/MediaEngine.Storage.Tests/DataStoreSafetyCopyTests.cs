@@ -114,6 +114,8 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         Assert.Contains("TUVIMA_BACKUP_DIR", refusal.Message, StringComparison.Ordinal);
         Assert.Contains("Nothing was changed", refusal.Message, StringComparison.Ordinal);
         Assert.Empty(SafetyCopies());
+        // The folder is only created once there is room for the copy.
+        Assert.False(Directory.Exists(Path.Combine(_backups, "safety-copies")));
 
         database.Dispose();
         Assert.Equal(1L, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
@@ -167,6 +169,47 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     }
 
     [Fact]
+    public void FinishedCopy_HasItsFinalNameAndLeavesNoPartialFile()
+    {
+        CreateStoreAtStepOne();
+        using var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False");
+        connection.Open();
+        var safetyCopy = new DataStoreSafetyCopy(_dbPath, _backups);
+        var now = new DateTimeOffset(2026, 10, 18, 9, 30, 15, TimeSpan.Zero);
+
+        var path = safetyCopy.Create(connection, new DataStoreUpgradePlan(1, [AddProbeNote(2)], now));
+
+        // The name uses the time the runner supplied, not the machine clock.
+        Assert.Equal("tuvima-safety-copy-20261018-093015-step-0001-to-0002.db", Path.GetFileName(path));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, "*.partial"));
+        Assert.Equal("ok", Text(path, "PRAGMA quick_check;"));
+    }
+
+    [Fact]
+    public void Pruning_OrdersByTheTimestampInTheName_NotByFileTime_AndIgnoresPartialFiles()
+    {
+        CreateStoreAtStepOne();
+        var folder = Path.Combine(_backups, "safety-copies");
+        Directory.CreateDirectory(folder);
+        // File times are the reverse of the names: only the name may decide which copies are the newest.
+        var newestByName = SeedFile(folder, "tuvima-safety-copy-20260301-000000-step-0001-to-0002.db", DateTime.UtcNow.AddDays(-60));
+        var oldestByName = SeedFile(folder, "tuvima-safety-copy-20260101-000000-step-0001-to-0002.db", DateTime.UtcNow.AddDays(-1));
+        var partial = SeedFile(folder, "tuvima-safety-copy-20250101-000000-step-0001-to-0002.db.partial", DateTime.UtcNow.AddDays(-90));
+        var oddName = SeedFile(folder, "tuvima-safety-copy-by-hand.db", DateTime.UtcNow.AddDays(-90));
+
+        using var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False");
+        connection.Open();
+        var path = new DataStoreSafetyCopy(_dbPath, _backups)
+            .Create(connection, new DataStoreUpgradePlan(1, [AddProbeNote(2)], new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero)));
+
+        Assert.True(File.Exists(path));
+        Assert.True(File.Exists(newestByName));
+        Assert.False(File.Exists(oldestByName));
+        Assert.True(File.Exists(partial));
+        Assert.True(File.Exists(oddName));
+    }
+
+    [Fact]
     public void CopyThatCannotBeChecked_IsDeletedAndTheUpgradeRefused()
     {
         CreateStoreAtStepOne();
@@ -175,11 +218,12 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         connection.Open();
         var safetyCopy = new DataStoreSafetyCopy(_dbPath, _backups);
 
-        var plan = new DataStoreUpgradePlan(5, [AddProbeNote(6)]);
+        var plan = new DataStoreUpgradePlan(5, [AddProbeNote(6)], DateTimeOffset.UtcNow);
         var runnerStyleFailure = Assert.Throws<DataStoreUpgradeRefusedException>(() => safetyCopy.Create(connection, plan));
 
         Assert.Contains("should be at step 5", runnerStyleFailure.Message, StringComparison.Ordinal);
         Assert.Empty(SafetyCopies());
+        Assert.Empty(Directory.GetFiles(Path.Combine(_backups, "safety-copies")));
     }
 
     private DatabaseConnection Open(

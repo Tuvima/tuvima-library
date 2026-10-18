@@ -7,7 +7,8 @@ namespace MediaEngine.Storage.Schema.Upgrades;
 /// <summary>What the runner is about to apply, handed to <see cref="DataStoreUpgradeOptions.BeforeFirstPendingStep"/>.</summary>
 /// <param name="FromNumber">Highest step already applied (always at least 1 when the hook runs).</param>
 /// <param name="PendingSteps">Steps that will run, in order.</param>
-internal sealed record DataStoreUpgradePlan(int FromNumber, IReadOnlyList<DataStoreUpgradeStep> PendingSteps);
+/// <param name="Now">The runner's clock reading when the plan was made (used to name the safety copy).</param>
+internal sealed record DataStoreUpgradePlan(int FromNumber, IReadOnlyList<DataStoreUpgradeStep> PendingSteps, DateTimeOffset Now);
 
 /// <summary>Settings for one <see cref="DataStoreUpgradeRunner.Run"/>.</summary>
 internal sealed class DataStoreUpgradeOptions
@@ -124,7 +125,7 @@ internal sealed class DataStoreUpgradeRunner
         {
             try
             {
-                safetyCopyPath = options.BeforeFirstPendingStep(new DataStoreUpgradePlan(appliedCount, pending));
+                safetyCopyPath = options.BeforeFirstPendingStep(new DataStoreUpgradePlan(appliedCount, pending, options.Clock.GetUtcNow()));
             }
             catch (Exception exception) when (exception is not DataStoreUpgradeException)
             {

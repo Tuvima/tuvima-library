@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -25,6 +27,34 @@ namespace MediaEngine.Api.Tests;
 public sealed class DataStoreVersionEndpointTests : IDisposable
 {
     private const string Route = "/system/data-store-version";
+    private const string PrincipalClaim = "test-principal";
+
+    private static readonly Guid Account = Guid.NewGuid();
+    private static readonly Guid Profile = Guid.NewGuid();
+    private static readonly Guid Household = Guid.NewGuid();
+    private static readonly Guid NativeApp = BuiltInApplicationIds.NativeClient;
+    private static readonly Guid BackupApp = Guid.NewGuid();
+    private static readonly Guid PlainApp = Guid.NewGuid();
+
+    private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
+    {
+        ["server-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
+            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+        ["household-member"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
+            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household),
+        ["household-admin"] = new(PrincipalKind.Human, true, Account, Profile, null, Guid.NewGuid(), null,
+            AccountEnabled: true, GrantEnabled: true, AccountHouseholdId: Household, AccountIsHouseholdAdmin: true),
+        // A paired native app (a device token for a signed-in administrator) that was not granted backup.read.
+        ["native-app-without-backup-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, NativeApp, null, Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true),
+        // A paired native app that does hold backup.read still acts for a person who is not an administrator.
+        ["native-app-with-backup-read"] = new(PrincipalKind.DelegatedUserClient, true, Account, Profile, BackupApp, null, Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true),
+        ["service-without-backup-read"] = new(PrincipalKind.ServiceApplication, true, null, null, PlainApp,
+            ApplicationEnabled: true),
+        ["service-with-backup-read"] = new(PrincipalKind.ServiceApplication, true, null, null, BackupApp,
+            ApplicationEnabled: true),
+    };
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-store-version-{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
@@ -91,10 +121,43 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
         Assert.Equal(backups.AllowHouseholdAdministrator, version.AllowHouseholdAdministrator);
     }
 
+    [Theory]
+    [InlineData("household-member")]
+    [InlineData("household-admin")]
+    [InlineData("native-app-without-backup-read")]
+    [InlineData("native-app-with-backup-read")]
+    [InlineData("service-without-backup-read")]
+    public async Task Route_IsRefusedToEveryoneButAServerAdministratorOrABackupApplication(string principal)
+    {
+        _database.InitializeSchema();
+        await using var app = BuildApplication();
+
+        Assert.False(await PassesAsync(app, Route, principal), $"{principal} must not read the data store version.");
+        // The backups list refuses the same principals, so the new route is exactly as private.
+        Assert.False(await PassesAsync(app, "/system/backups", principal), $"{principal} must not list backups.");
+    }
+
+    [Theory]
+    [InlineData("server-admin")]
+    [InlineData("service-with-backup-read")]
+    public async Task Route_ServesAServerAdministratorAndAnApplicationGrantedBackupRead(string principal)
+    {
+        _database.InitializeSchema();
+        await using var app = BuildApplication();
+
+        Assert.True(await PassesAsync(app, Route, principal), $"{principal} must read the data store version.");
+        Assert.True(await PassesAsync(app, "/system/backups", principal), $"{principal} must list backups.");
+    }
+
     private WebApplication BuildApplication()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<IRequestAuthorityResolver>(new PrincipalClaimResolver());
+        builder.Services.AddSingleton<IAccountAccessDecisionService>(new AdministratorDecisions());
+        // Only the applications that hold backup.read are allowed that permission.
+        builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator>(new BackupReadEvaluator(BackupApp));
+        builder.Services.AddScoped<IAuthorizationHandler, AdministratorOrApplicationHandler>();
         builder.Services.AddSingleton<IDatabaseConnection>(_database);
         builder.Services.AddSingleton<DataStoreVersionRepository>();
         // The other system routes are mapped too; their services only need to be known so they bind as services.
@@ -121,6 +184,22 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
             .SelectMany(policy => policy.Requirements)
             .OfType<AdministratorOrApplicationRequirement>());
 
+    // What the authorization middleware does for an endpoint: combine its policies, then evaluate them for the principal.
+    private static async Task<bool> PassesAsync(WebApplication app, string route, string principal)
+    {
+        var endpoint = EndpointOf(app, route);
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(PrincipalClaim, principal)], "test"));
+        var context = new DefaultHttpContext { RequestServices = app.Services, User = user };
+        var provider = app.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+        var policy = await AuthorizationPolicy.CombineAsync(
+            provider,
+            endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(),
+            endpoint.Metadata.GetOrderedMetadata<AuthorizationPolicy>());
+        Assert.NotNull(policy);
+        var result = await app.Services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(user, context, policy);
+        return result.Succeeded;
+    }
+
     private static async Task<(int Status, string Text)> GetAsync(WebApplication app)
     {
         var responseBody = new MemoryStream();
@@ -141,5 +220,25 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
     {
         _database.Dispose();
         TestTemp.DeleteDatabase(_databasePath);
+    }
+
+    private sealed class PrincipalClaimResolver : IRequestAuthorityResolver
+    {
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
+            ValueTask.FromResult(Principals[context.User.FindFirstValue(PrincipalClaim)!]);
+    }
+
+    /// <summary>Allows the backup.read permission only to the applications named; everything else is denied.</summary>
+    private sealed class BackupReadEvaluator(params Guid[] applicationsWithBackupRead) : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
+    {
+        public ValueTask<AuthorizationDecision> EvaluateAsync(RequestAuthority authority,
+            AuthorizationRequirement requirement, ResourceAuthorizationContext? resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(
+                requirement.ApplicationPermission == ApplicationPermissionIds.BackupRead
+                    && authority.ApplicationId is { } application
+                    && applicationsWithBackupRead.Contains(application)
+                    ? AuthorizationDecision.Allow()
+                    : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
     }
 }

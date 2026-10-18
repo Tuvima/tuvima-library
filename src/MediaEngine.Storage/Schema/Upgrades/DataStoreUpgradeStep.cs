@@ -103,7 +103,9 @@ internal sealed class SqlDataStoreUpgradeStep : DataStoreUpgradeStep
 /// <remarks>
 /// The fingerprint covers the number, name and type name only, so renaming or renumbering an applied
 /// step is caught at startup. Edits to the body of <see cref="Apply"/> cannot be seen at run time;
-/// the source-edit guardrail added alongside the generated structure snapshot covers that.
+/// <c>SchemaUpgradeGuardrailTests.ReleasedUpgradeSteps_AreNeverEdited</c> covers that by hashing the step's source file.
+/// A code step must therefore live entirely in one file named after its type (<c>TypeName.cs</c> in this folder),
+/// with any helpers and SQL inside that file, so the hash covers everything the step does.
 /// </remarks>
 internal abstract class DataStoreCodeUpgradeStep : DataStoreUpgradeStep
 {

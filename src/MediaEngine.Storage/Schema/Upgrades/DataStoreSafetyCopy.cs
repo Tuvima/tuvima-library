@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Schema.Upgrades;
@@ -17,33 +18,39 @@ internal sealed class DataStoreSafetyCopy
     /// <summary>Every safety copy file name starts with this and ends in <c>.db</c>.</summary>
     public const string FilePrefix = "tuvima-safety-copy-";
 
+    /// <summary>
+    /// A copy is written under its final name plus this extension and renamed only after it has been checked,
+    /// so a file with the final name is always a checked copy.
+    /// </summary>
+    public const string PartialExtension = ".partial";
+
     /// <summary>How many safety copies are kept (D9).</summary>
     public const int CopiesToKeep = 2;
 
-    private const string FilePattern = FilePrefix + "*.db";
     private const double SpaceMargin = 1.10;
+
+    // The only names that count as safety copies when pruning; the stamp (UTC) is what orders them.
+    private static readonly Regex FinalCopyName = new(
+        "^" + FilePrefix + "(?<stamp>[0-9]{8}-[0-9]{6})-step-[0-9]{4}-to-[0-9]{4}(?:-[0-9]+)?\\.db$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly string _databasePath;
     private readonly string _folder;
-    private readonly TimeProvider _clock;
     private readonly Func<string, long> _freeSpaceLookup;
     private readonly List<string> _warnings = [];
 
     /// <param name="databasePath">The data store file being upgraded.</param>
     /// <param name="backupDirectory">The backups folder; copies go in its <see cref="FolderName"/> subfolder.</param>
-    /// <param name="clock">Source of the time in the file name.</param>
     /// <param name="freeSpaceLookup">Free bytes on the drive holding a folder. Null uses the real drive.</param>
     public DataStoreSafetyCopy(
         string databasePath,
         string backupDirectory,
-        TimeProvider? clock = null,
         Func<string, long>? freeSpaceLookup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(backupDirectory);
         _databasePath = Path.GetFullPath(databasePath);
         _folder = FolderFor(backupDirectory);
-        _clock = clock ?? TimeProvider.System;
         _freeSpaceLookup = freeSpaceLookup ?? DefaultFreeSpace;
     }
 
@@ -70,26 +77,35 @@ internal sealed class DataStoreSafetyCopy
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(plan);
 
-        Directory.CreateDirectory(_folder);
         CheckFreeSpace();
+        Directory.CreateDirectory(_folder);
 
         var toNumber = plan.PendingSteps[^1].Number;
-        var stamp = _clock.GetUtcNow().UtcDateTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var stamp = plan.Now.UtcDateTime.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         var baseName = string.Create(
             CultureInfo.InvariantCulture,
             $"{FilePrefix}{stamp}-step-{plan.FromNumber:0000}-to-{toNumber:0000}");
         var path = UniquePath(baseName);
+        var partial = path + PartialExtension;
 
         try
         {
-            WriteCopy(connection, path);
-            VerifyCopy(path, plan.FromNumber);
+            WriteCopy(connection, partial);
+            VerifyCopy(partial, plan.FromNumber);
+            File.Move(partial, path);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            // Never leave a half-written or unchecked copy that could later be mistaken for a good one.
-            DeleteFailedCopy(path);
-            throw;
+            // Never leave a half-written or unchecked copy behind. If one cannot be removed, say so in the refusal.
+            var leftovers = DeleteFailedCopy(partial);
+            if (leftovers.Count == 0)
+            {
+                throw;
+            }
+
+            throw new DataStoreUpgradeRefusedException(
+                $"{exception.Message} {string.Join(" ", leftovers)}",
+                exception);
         }
 
         Prune(path);
@@ -138,7 +154,7 @@ internal sealed class DataStoreSafetyCopy
     private string UniquePath(string baseName)
     {
         var candidate = Path.Combine(_folder, baseName + ".db");
-        for (var suffix = 2; File.Exists(candidate); suffix++)
+        for (var suffix = 2; File.Exists(candidate) || File.Exists(candidate + PartialExtension); suffix++)
         {
             candidate = Path.Combine(_folder, string.Create(CultureInfo.InvariantCulture, $"{baseName}-{suffix}.db"));
         }
@@ -188,10 +204,11 @@ internal sealed class DataStoreSafetyCopy
         return Convert.ToString(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
-    private void DeleteFailedCopy(string path)
+    private List<string> DeleteFailedCopy(string partialPath)
     {
         // The original failure is what the person needs to see; a leftover file is reported beside it.
-        foreach (var file in new[] { path, path + "-wal", path + "-shm", path + "-journal" })
+        var leftovers = new List<string>();
+        foreach (var file in new[] { partialPath, partialPath + "-wal", partialPath + "-shm", partialPath + "-journal" })
         {
             try
             {
@@ -199,19 +216,27 @@ internal sealed class DataStoreSafetyCopy
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                _warnings.Add($"Could not delete the unfinished safety copy '{file}': {exception.Message}");
+                var warning = $"Could not delete the unfinished safety copy '{file}': {exception.Message}";
+                leftovers.Add(warning);
+                _warnings.Add(warning);
             }
         }
+
+        return leftovers;
     }
 
     private void Prune(string newest)
     {
+        // Only final names are considered (never .partial files, never other files), newest first by the
+        // timestamp in the name; the copy just made is always kept.
         var older = new DirectoryInfo(_folder)
-            .EnumerateFiles(FilePattern, SearchOption.TopDirectoryOnly)
+            .EnumerateFiles("*", SearchOption.TopDirectoryOnly)
+            .Where(file => FinalCopyName.IsMatch(file.Name))
             .Where(file => !string.Equals(file.FullName, newest, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .OrderByDescending(file => FinalCopyName.Match(file.Name).Groups["stamp"].Value, StringComparer.Ordinal)
             .ThenByDescending(file => file.Name, StringComparer.Ordinal)
-            .Skip(CopiesToKeep - 1);
+            .Skip(CopiesToKeep - 1)
+            .ToList();
 
         foreach (var file in older)
         {

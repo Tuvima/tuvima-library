@@ -42,6 +42,9 @@ function Get-MainReleasedNumbers {
     # An empty set when origin/main exists but does not have the list yet: nothing has been released.
     $git = Get-Command git -ErrorAction SilentlyContinue
     if (-not $git) { return $null }
+    # Read the current origin/main, not a stale copy; a failed fetch (offline, no remote) means "unavailable".
+    & git -C $repo fetch origin main --quiet *> $null
+    if ($LASTEXITCODE -ne 0) { return $null }
     & git -C $repo rev-parse --verify --quiet 'origin/main' *> $null
     if ($LASTEXITCODE -ne 0) { return $null }
     & git -C $repo cat-file -e "origin/main:$releasedRelativePath" *> $null
