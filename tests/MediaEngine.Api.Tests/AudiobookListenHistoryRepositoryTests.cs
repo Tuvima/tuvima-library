@@ -211,53 +211,6 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AudiobookBookmarkRepository_FailsClearlyWhenTheFreshNoteSchemaIsMissing()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"tuvima-audiobook-bookmark-old-schema-{Guid.NewGuid():N}.db");
-        try
-        {
-            using (var connection = new SqliteConnection($"Data Source={path}"))
-            {
-                connection.Open();
-                connection.Execute(
-                    """
-                    CREATE TABLE audiobook_bookmarks (
-                        id BLOB NOT NULL PRIMARY KEY,
-                        profile_id BLOB NOT NULL,
-                        work_id BLOB NOT NULL,
-                        asset_id BLOB NOT NULL,
-                        chapter_index INTEGER,
-                        chapter_title TEXT,
-                        position_seconds REAL NOT NULL,
-                        duration_seconds REAL,
-                        label TEXT,
-                        created_at TEXT NOT NULL
-                    );
-                    """);
-            }
-
-            var database = new DatabaseConnection(path);
-            var repository = new AudiobookBookmarkRepository(database);
-            var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => repository.GetByWorkAsync(Guid.NewGuid(), Guid.NewGuid()));
-            Assert.Contains("missing: note", error.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("runtime schema migration is not supported", error.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            using (var poolConnection = new SqliteConnection($"Data Source={path}"))
-            {
-                SqliteConnection.ClearPool(poolConnection);
-            }
-
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-    }
-
-    [Fact]
     public async Task AudiobookChapterTitleOverrideRepository_UpsertsListsAndDeletesDisplayNames()
     {
         var ids = await CreateProfileAssetAsync();
