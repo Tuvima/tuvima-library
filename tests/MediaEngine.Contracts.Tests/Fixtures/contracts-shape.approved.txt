@@ -3266,19 +3266,6 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.WatchFolderPageR
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.BatchLibraryItemRequest
-  EntityIds: System.Guid[] | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.BatchLibraryItemResponse
-  ProcessedCount: System.Int32 | nullability=not-null | accessors=get,init
-  TotalRequested: System.Int32 | nullability=not-null | accessors=get,init
-  Message: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.DeleteLibraryItemResponse
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  FilesDeleted: System.Int32 | nullability=not-null | accessors=get,init
-  Message: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemDisplayOverridesRequest
   Fields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
 
@@ -3310,60 +3297,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemPreferencesResponse
   FieldsUpdated: System.Int32 | nullability=not-null | accessors=get,init
   UpdatedKeys: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryCatalogItemDto
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  Year: System.String | nullability=nullable | accessors=get,init
-  MediaType: System.String | nullability=not-null | accessors=get,init
-  CoverUrl: System.String | nullability=nullable | accessors=get,init
-  BackgroundUrl: System.String | nullability=nullable | accessors=get,init
-  BannerUrl: System.String | nullability=nullable | accessors=get,init
-  MatchSource: System.String | nullability=nullable | accessors=get,init
-  MatchMethod: System.String | nullability=nullable | accessors=get,init
-  Confidence: System.Double | nullability=not-null | accessors=get,init
-  Status: System.String | nullability=not-null | accessors=get,init
-  HasDuplicate: System.Boolean | nullability=not-null | accessors=get,init
-  DuplicateOf: System.String | nullability=nullable | accessors=get,init
-  ReviewItemId: System.Guid? | nullability=nullable | accessors=get,init
-  ReviewTrigger: System.String | nullability=nullable | accessors=get,init
-  HasUserLocks: System.Boolean | nullability=not-null | accessors=get,init
-  CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
-  FileName: System.String | nullability=nullable | accessors=get,init
-  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,init
-  Author: System.String | nullability=nullable | accessors=get,init
-  Director: System.String | nullability=nullable | accessors=get,init
-  Artist: System.String | nullability=nullable | accessors=get,init
-  Series: System.String | nullability=nullable | accessors=get,init
-  SeriesPosition: System.String | nullability=nullable | accessors=get,init
-  Narrator: System.String | nullability=nullable | accessors=get,init
-  Genre: System.String | nullability=nullable | accessors=get,init
-  Runtime: System.String | nullability=nullable | accessors=get,init
-  Rating: System.String | nullability=nullable | accessors=get,init
-  Album: System.String | nullability=nullable | accessors=get,init
-  TrackNumber: System.String | nullability=nullable | accessors=get,init
-  SeasonNumber: System.String | nullability=nullable | accessors=get,init
-  EpisodeNumber: System.String | nullability=nullable | accessors=get,init
-  ShowName: System.String | nullability=nullable | accessors=get,init
-  EpisodeTitle: System.String | nullability=nullable | accessors=get,init
-  Network: System.String | nullability=nullable | accessors=get,init
-  TopCast: System.String | nullability=nullable | accessors=get,init
-  Duration: System.String | nullability=nullable | accessors=get,init
-  FilePath: System.String | nullability=nullable | accessors=get,init
-  WikidataStatus: System.String | nullability=nullable | accessors=get,init
-  MissingUniverse: System.Boolean | nullability=not-null | accessors=get
-  WikidataMatch: System.String | nullability=not-null | accessors=get,init
-  RetailMatch: System.String | nullability=not-null | accessors=get,init
-  RetailMatchDetail: System.String | nullability=nullable | accessors=get,init
-  WikidataQid: System.String | nullability=nullable | accessors=get,init
-  QidResolutionMethod: System.String | nullability=nullable | accessors=get,init
-  HeroUrl: System.String | nullability=nullable | accessors=get,init
-  PipelineStep: System.String | nullability=not-null | accessors=get,init
-  LibraryVisibility: System.String | nullability=not-null | accessors=get,init
-  IsReadyForLibrary: System.Boolean | nullability=not-null | accessors=get,init
-  ArtworkState: System.String | nullability=not-null | accessors=get,init
-  ArtworkSource: System.String | nullability=nullable | accessors=get,init
-  ArtworkSettledAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemCanonicalValueDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -3454,28 +3387,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemHistoryDto
   Category: System.String | nullability=not-null | accessors=get,init
   ActorLabel: System.String | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemLifecycleCountsDto
-  Identified: System.Int32 | nullability=not-null | accessors=get,init
-  InReview: System.Int32 | nullability=not-null | accessors=get,init
-  Provisional: System.Int32 | nullability=not-null | accessors=get,init
-  Rejected: System.Int32 | nullability=not-null | accessors=get,init
-  PersonCount: System.Int32 | nullability=not-null | accessors=get,init
-  CollectionCount: System.Int32 | nullability=not-null | accessors=get,init
-  TriggerCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
-  All: System.Int32 | nullability=not-null | accessors=get
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemStatusCountsDto
-  Total: System.Int32 | nullability=not-null | accessors=get,init
-  NeedsReview: System.Int32 | nullability=not-null | accessors=get,init
-  AutoApproved: System.Int32 | nullability=not-null | accessors=get,init
-  Edited: System.Int32 | nullability=not-null | accessors=get,init
-  Duplicate: System.Int32 | nullability=not-null | accessors=get,init
-  Staging: System.Int32 | nullability=not-null | accessors=get,init
-  MissingImages: System.Int32 | nullability=not-null | accessors=get,init
-  RecentlyUpdated: System.Int32 | nullability=not-null | accessors=get,init
-  LowConfidence: System.Int32 | nullability=not-null | accessors=get,init
-  Rejected: System.Int32 | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemUniverseSummaryDto
   UniverseStatus: System.String | nullability=not-null | accessors=get,init
   UniverseName: System.String | nullability=nullable | accessors=get,init
@@ -3487,17 +3398,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemUniverseSumma
   RelationshipCount: System.Int32 | nullability=not-null | accessors=get,init
   PortraitCount: System.Int32 | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemsPageDto
-  Items: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryCatalogItemDto> | nullability=not-null | accessors=get,init
-  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
-  HasMore: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.MarkProvisionalResponse
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  State: System.String | nullability=not-null | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  Message: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummaryDto
   VideoResolutionLabel: System.String | nullability=nullable | accessors=get,init
   VideoCodec: System.String | nullability=nullable | accessors=get,init
@@ -3507,31 +3407,6 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummary
   SubtitleSummary: System.String | nullability=nullable | accessors=get,init
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ProvisionalMetadataRequestDto
-  MediaType: System.String | nullability=nullable | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  Creator: System.String | nullability=nullable | accessors=get,init
-  Year: System.String | nullability=nullable | accessors=get,init
-  Description: System.String | nullability=nullable | accessors=get,init
-  Narrator: System.String | nullability=nullable | accessors=get,init
-  Isbn: System.String | nullability=nullable | accessors=get,init
-  Director: System.String | nullability=nullable | accessors=get,init
-  Runtime: System.String | nullability=nullable | accessors=get,init
-  Seasons: System.String | nullability=nullable | accessors=get,init
-  TrackCount: System.String | nullability=nullable | accessors=get,init
-  Host: System.String | nullability=nullable | accessors=get,init
-  Writer: System.String | nullability=nullable | accessors=get,init
-  Artist: System.String | nullability=nullable | accessors=get,init
-  PageCount: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RecoverLibraryItemResponse
-  message: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.RejectLibraryItemResponse
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  NewFilePath: System.String | nullability=not-null | accessors=get,init
-  Message: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditPreview
   AffectedCount: System.Int32 | nullability=not-null | accessors=get,init
@@ -4429,39 +4304,6 @@ MediaEngine.Contracts.Maintenance.MediaEngine.Contracts.Maintenance.StorageMaint
   Name: System.String | nullability=not-null | accessors=get,init
   AffectedRows: System.Int32 | nullability=not-null | accessors=get,init
   Detail: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ApplyMatchRequestDto
-  Qid: System.String | nullability=nullable | accessors=get,set
-  Title: System.String | nullability=nullable | accessors=get,set
-  Year: System.String | nullability=nullable | accessors=get,set
-  Author: System.String | nullability=nullable | accessors=get,set
-  Director: System.String | nullability=nullable | accessors=get,set
-  Description: System.String | nullability=nullable | accessors=get,set
-  CoverUrl: System.String | nullability=nullable | accessors=get,set
-  RetailProviderName: System.String | nullability=nullable | accessors=get,set
-  RetailProviderItemId: System.String | nullability=nullable | accessors=get,set
-  RetailBridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,set
-  RetailDescription: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ApplyMatchResponseDto
-  EntityId: System.Guid | nullability=not-null | accessors=get,set
-  WikidataStatus: System.String | nullability=not-null | accessors=get,set
-  ClaimsWritten: System.Int32 | nullability=not-null | accessors=get,set
-  HydrationTriggered: System.Boolean | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.CreateManualRequestDto
-  Title: System.String | nullability=not-null | accessors=get,set
-  MediaType: System.String | nullability=nullable | accessors=get,set
-  Author: System.String | nullability=nullable | accessors=get,set
-  Year: System.String | nullability=nullable | accessors=get,set
-  Description: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.CreateManualResponseDto
-  EntityId: System.Guid | nullability=not-null | accessors=get,set
-  WikidataStatus: System.String | nullability=not-null | accessors=get,set
-  ClaimsWritten: System.Int32 | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Matching.MediaEngine.Contracts.Matching.ItemCanonicalApplyRequestDto
   TargetKind: System.String | nullability=not-null | accessors=get,set
@@ -6979,10 +6821,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.InitialSweepStarte
 
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryChangedEvent
 
-MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryItemReviewActionEvent
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  Action: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ManualMetadataHarvestedEvent
   EntityId: System.Guid | nullability=not-null | accessors=get,init
   ProviderName: System.String | nullability=not-null | accessors=get,init
@@ -7103,11 +6941,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ReviewItemCreatedE
   Trigger: System.String | nullability=not-null | accessors=get,init
   EntityTitle: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ReviewItemCreatedSupplementaryEvent
-  ReviewItemId: System.Guid | nullability=not-null | accessors=get,init
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  Trigger: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ReviewItemResolvedEvent
   ReviewItemId: System.Guid | nullability=not-null | accessors=get,init
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -7128,25 +6961,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.WikidataMetadataHa
   TargetFieldGroup: System.String | nullability=not-null | accessors=get,init
   ProviderName: System.String | nullability=not-null | accessors=get,init
   UpdatedFields: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.ReportEntryResponse
-  Id: System.Int64 | nullability=not-null | accessors=get,set
-  OccurredAt: System.String | nullability=not-null | accessors=get,set
-  Category: System.String | nullability=not-null | accessors=get,set
-  Note: System.String | nullability=not-null | accessors=get,set
-  ReporterName: System.String | nullability=not-null | accessors=get,set
-  Detail: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.SubmitReportRequest
-  EntityId: System.Guid | nullability=not-null | accessors=get,set
-  ItemTitle: System.String | nullability=nullable | accessors=get,set
-  Category: System.String | nullability=nullable | accessors=get,set
-  Note: System.String | nullability=nullable | accessors=get,set
-  ReporterName: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.SubmitReportResponse
-  Success: System.Boolean | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.FieldOverrideDto
   Key: System.String | nullability=not-null | accessors=get,init
@@ -7200,6 +7014,9 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   entity_id: System.Guid | nullability=not-null | accessors=get,init
   show_name: System.String | nullability=not-null | accessors=get,init
   tv_library_id: System.String | nullability=nullable | accessors=get,init
+  season_number: System.Int32 | nullability=not-null | accessors=get,init
+  episode_numbers: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
+  placement_reason: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewResolveRequestDto
   SelectedQid: System.String | nullability=nullable | accessors=get,init

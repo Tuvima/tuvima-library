@@ -3458,7 +3458,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
             ? $"{title} - {artworkAssetCount.Value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)}"
             : title;
 
-    private static List<IngestionReviewReasonDto> BuildReviewReasons(
+    internal static List<IngestionReviewReasonDto> BuildReviewReasons(
         IReadOnlyList<ReviewCountRow> reviewRows)
     {
         var triggerCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -3467,17 +3467,19 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
             triggerCounts[row.Trigger] = triggerCounts.GetValueOrDefault(row.Trigger) + ToInt(row.Count);
         }
 
-        return
-        [
-            Review("unmatched", "Unmatched", SumMatching(triggerCounts, "RetailMatchFailed", "StagedUnidentifiable", "MovieMatchedAsTv"), "Items could not be matched to a known catalogue record."),
-            Review("low_confidence", "Low Confidence", SumMatching(triggerCounts, "LowConfidence", "RetailMatchAmbiguous", "ArbiterNeedsReview"), "Items matched below the confidence threshold."),
-            Review("duplicates", "Duplicates", 0, "Possible duplicate files or editions need confirmation."),
-            Review("missing_artwork", "Missing Artwork", SumMatching(triggerCounts, "ArtworkUnconfirmed"), "Artwork is missing or needs confirmation."),
-            Review("missing_wikidata", "Missing Wikidata Identity", SumMatching(triggerCounts, "MissingQid", "WikidataBridgeFailed", "MultipleQidMatches"), "Items need canonical identity or Wikidata confirmation."),
-            Review("naming", "Naming Issues", SumMatching(triggerCounts, "RootWatchFolder", "PlaceholderTitle", "AmbiguousMediaType"), "File or folder names do not provide enough context."),
-            Review("provider_failures", "Provider Failures", SumMatching(triggerCounts, "WritebackFailed"), "A provider or writeback step could not complete."),
-            Review("metadata_conflicts", "Metadata Conflicts", SumMatching(triggerCounts, "MetadataConflict", "UserFixMatch", "LanguageMismatch", "UserReport"), "Conflicting metadata requires a human decision."),
-        ];
+        // Every trigger lands in exactly one shared category (ReviewCategory.For); unknown triggers are ignored.
+        var categoryCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (trigger, count) in triggerCounts)
+        {
+            if (ReviewCategory.For(trigger) is { } key)
+            {
+                categoryCounts[key] = categoryCounts.GetValueOrDefault(key) + count;
+            }
+        }
+
+        return ReviewCategory.All
+            .Select(category => Review(category.Key, category.Label, Count(categoryCounts, category.Key), category.Explanation))
+            .ToList();
     }
 
     private async Task<IReadOnlyList<IngestionBatch>> ReconcileCompletedBatchesAsync(
@@ -4503,9 +4505,6 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
     private static int ToInt(long value) =>
         value > int.MaxValue ? int.MaxValue : (int)Math.Max(0, value);
 
-    private static int SumMatching(IReadOnlyDictionary<string, int> counts, params string[] keys) =>
-        keys.Sum(key => Count(counts, key));
-
     private static DateTimeOffset? ParseDate(string? value) =>
         DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
 
@@ -4528,7 +4527,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
         public long Count { get; set; }
     }
 
-    private sealed class ReviewCountRow
+    internal sealed class ReviewCountRow
     {
         public string Trigger { get; set; } = "";
         public string? Detail { get; set; }

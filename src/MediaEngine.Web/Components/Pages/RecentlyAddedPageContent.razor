@@ -9,6 +9,7 @@
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
+@inject DashboardSessionAccessor Session
 @implements IDisposable
 
 <div class="recently-added-page">
@@ -22,83 +23,96 @@
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                       Class="recently-added-filters__search" />
         <AppSelect Label="Media type" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
-        <AppSelect Label="Status" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusOptions" />
+        <AppSelect Label="Status" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
         <AppSelect Label="Date range" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
         <AppSelect Label="Sort by" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
     </section>
 
-    @if (_reviewsLoading && _reviews.Count == 0)
+    @* Needs Review is for server administrators only. Everyone else gets no section, no count and no review-list request. *@
+    @if (CanViewReview)
     {
-        <AppProgressBar Indeterminate="true" />
-    }
-    else if (_reviews.Count == 0)
-    {
-        <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>No items need review</span></div>
-    }
-    else
-    {
-        <section class="review-pinned @( _reviewExpanded ? "is-expanded" : null)" aria-labelledby="review-pinned-title">
-            <AppNativeButton Type="button"
-                             Class="review-pinned__header"
-                             AriaLabel="@(_reviewExpanded ? "Collapse Needs Review" : "Expand Needs Review")"
-                             aria-expanded="@(_reviewExpanded ? "true" : "false")"
-                             OnClick="@(_ => _reviewExpanded = !_reviewExpanded)">
-                <span class="review-pinned__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><strong id="review-pinned-title">Needs Review</strong><b>@_reviews.Count</b></span>
-                <span class="review-pinned__helper">Items Tuvima Library could not identify or complete automatically.</span>
-                <AppMaterialIcon Icon="@(_reviewExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" />
-            </AppNativeButton>
+        @if (_reviewsLoading && _reviews.Count == 0)
+        {
+            <AppProgressBar Indeterminate="true" />
+        }
+        else if (_reviewsError is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error">
+                <span class="review-load-error">
+                    <span>Needs Review could not load. Nothing was changed.</span>
+                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="RetryReviewsAsync" />
+                </span>
+            </AppAlert>
+        }
+        else if (_reviews.Count == 0)
+        {
+            <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>No items need review</span></div>
+        }
+        else
+        {
+            <section class="review-pinned @( _reviewExpanded ? "is-expanded" : null)" aria-labelledby="review-pinned-title">
+                <AppNativeButton Type="button"
+                                 Class="review-pinned__header"
+                                 AriaLabel="@(_reviewExpanded ? "Collapse Needs Review" : "Expand Needs Review")"
+                                 aria-expanded="@(_reviewExpanded ? "true" : "false")"
+                                 OnClick="@(_ => _reviewExpanded = !_reviewExpanded)">
+                    <span class="review-pinned__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><strong id="review-pinned-title">Needs Review</strong><b>@_reviews.Count</b></span>
+                    <span class="review-pinned__helper">Items Tuvima Library could not identify or complete automatically.</span>
+                    <AppMaterialIcon Icon="@(_reviewExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" />
+                </AppNativeButton>
 
-            @if (_reviewExpanded)
-            {
-                <div class="review-pinned__list">
-                    @if (VisibleReviews.Count == 0)
-                    {
-                        <AppEmptyState Title="No review items match the search" Message="The full unresolved queue remains available when the search is cleared." />
-                    }
-                    @foreach (var item in VisibleReviews)
-                    {
-                        var issue = ReviewIssueClassifier.Classify(item.Trigger);
-                        var detail = ReviewIssuePresentationBuilder.Build(item);
-                        var tvSuggestion = item.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(item.CandidatesJson) : null;
-                        <article class="review-row" @key="item.Id">
-                            <span class="review-row__identity">
-                                <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
-                                <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small></span>
-                            </span>
-                            <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
-                            <span class="review-row__actions">
-                                @if (tvSuggestion is null)
-                                {
-                                    <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
-                                }
-                                <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
-                                    <AppMenuItem Label="Review" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
-                                    <AppMenuItem Label="Find in recent history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
-                                    @if (IsWikidataReview(item.Trigger))
+                @if (_reviewExpanded)
+                {
+                    <div class="review-pinned__list">
+                        @if (VisibleReviews.Count == 0)
+                        {
+                            <AppEmptyState Title="No review items match the search" Message="The full unresolved queue remains available when the search is cleared." />
+                        }
+                        @foreach (var item in VisibleReviews)
+                        {
+                            var issue = ReviewIssueClassifier.Classify(item.Trigger);
+                            var detail = ReviewIssuePresentationBuilder.Build(item);
+                            var tvSuggestion = item.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(item.CandidatesJson) : null;
+                            <article class="review-row" @key="item.Id">
+                                <span class="review-row__identity">
+                                    <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
+                                    <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small>@if (item.FromImportFolder || item.FromMerge){<span class="review-row__badges">@if (item.FromImportFolder){<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}@if (item.FromMerge){<AppStatusBadge Text="From merge" Tone="AppUiTone.Info" />}</span>}</span>
+                                </span>
+                                <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
+                                <span class="review-row__actions">
+                                    @if (tvSuggestion is null)
                                     {
-                                        <AppMenuItem Label="Keep provider match" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
+                                        <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
                                     }
-                                    <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
-                                </AppOverflowMenu>
-                            </span>
-                            @if (tvSuggestion is not null)
-                            {
-                                <div class="review-row__suggestion">
-                                    <MovieAsTvSuggestionCard Suggestion="@tvSuggestion"
-                                                             Busy="@_busyReviewIds.Contains(item.Id)"
-                                                             OnMoveToTv="@(() => MoveToTvAsync(item))"
-                                                             OnSearchAgain="@(() => OpenReviewEditorAsync(item))"
-                                                             OnKeepAsFilm="@(() => KeepAsFilmAsync(item))" />
-                                </div>
-                            }
-                        </article>
-                    }
-                </div>
-            }
-        </section>
+                                    <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
+                                        <AppMenuItem Label="Review" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                        <AppMenuItem Label="Find in recent history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
+                                        @if (IsWikidataReview(item.Trigger))
+                                        {
+                                            <AppMenuItem Label="Keep provider match" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
+                                        }
+                                        <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
+                                    </AppOverflowMenu>
+                                </span>
+                                @if (tvSuggestion is not null)
+                                {
+                                    <div class="review-row__suggestion">
+                                        <MovieAsTvSuggestionCard Suggestion="@tvSuggestion"
+                                                                 Busy="@_busyReviewIds.Contains(item.Id)"
+                                                                 OnMoveToTv="@(() => MoveToTvAsync(item))"
+                                                                 OnSearchAgain="@(() => OpenReviewEditorAsync(item))"
+                                                                 OnKeepAsFilm="@(() => KeepAsFilmAsync(item))" />
+                                    </div>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        }
     }
 
-    @if (_status != "review")
+    @if (_status != "review" || !CanViewReview)
     {
         <section class="recent-history" aria-labelledby="recent-history-title">
             <header><div><h2 id="recent-history-title">Library activity</h2><p>Items being added, items needing review, and completed additions. <a href="/settings/ingestion">View processing queue</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
@@ -164,6 +178,7 @@
     private string _sort = "newest";
     private bool _reviewExpanded;
     private bool _reviewsLoading = true;
+    private string? _reviewsError;
     private bool _historyLoading = true;
     private string? _historyError;
     private bool _initialized;
@@ -182,6 +197,12 @@
     [new("today", "Today"), new("7", "Last 7 days"), new("30", "Last 30 days"), new("all", "All time")];
     private static readonly IReadOnlyList<AppSelectOption> SortOptions =
     [new("newest", "Date added (newest)"), new("oldest", "Date added (oldest)"), new("title", "Title A–Z"), new("media", "Media type")];
+
+    // Same rule as the account menu's Needs Review entry and the shell badge (MainLayout.CanViewReview).
+    private bool CanViewReview => Session.HasNavigation("settings.administration");
+
+    private IReadOnlyList<AppSelectOption> StatusFilterOptions =>
+        CanViewReview ? StatusOptions : StatusOptions.Where(option => option.Value != "review").ToList();
 
     private IReadOnlyList<ReviewItemViewModel> VisibleReviews => _reviews
         .Where(item => string.IsNullOrWhiteSpace(_search) || $"{DisplayTitle(item)} {item.Detail} {item.Trigger} {MediaLabel(item)}".Contains(_search, StringComparison.OrdinalIgnoreCase))
@@ -224,15 +245,39 @@
 
     private async Task LoadReviewsAsync()
     {
+        if (!CanViewReview)
+        {
+            // Nothing is requested and nothing is shown: the queue is for server administrators only.
+            _reviewsError = null;
+            _reviewsLoading = false;
+            return;
+        }
+
         _reviewsLoading = true;
         try
         {
             // The pinned section is the queue, not a preview. Ask the endpoint for
             // every unresolved record in one ordered result, then refresh the shell badge.
-            _reviews = await Orchestrator.GetPendingReviewsAsync(int.MaxValue);
-            await Orchestrator.RefreshReviewCountAsync();
+            var attempt = await Orchestrator.GetPendingReviewsAttemptAsync(int.MaxValue);
+            if (attempt.Items is { } items)
+            {
+                _reviews = items;
+                _reviewsError = null;
+                await Orchestrator.RefreshReviewCountAsync();
+            }
+            else
+            {
+                // A failed load is never shown as an empty queue.
+                _reviewsError = attempt.Error ?? "The Engine did not return the review list.";
+            }
         }
         finally { _reviewsLoading = false; }
+    }
+
+    private async Task RetryReviewsAsync()
+    {
+        await LoadReviewsAsync();
+        if (_reviews.Count > 0 && _reviewsError is null) _reviewExpanded = true;
     }
 
     private async Task LoadHistoryAsync(int offset)
@@ -248,7 +293,8 @@
         {
             var (start, end) = DateBounds();
             var page = await Api.GetRecentIngestionAdditionsAsync(
-                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, _sort, ct);
+                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, _sort,
+                _status == "added" ? "added" : null, ct);
             if (revision == _revision) _history = page;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -315,7 +361,12 @@
     private async Task DismissAsync(ReviewItemViewModel item)
     {
         _busyReviewIds.Add(item.Id);
-        try { if (await Orchestrator.DismissReviewAsync(item.Id)) _reviews.Remove(item); }
+        try
+        {
+            if (await Orchestrator.DismissReviewAsync(item.Id)) _reviews.Remove(item);
+            else Snackbar.Add($"'{DisplayTitle(item)}' could not be dismissed. It is still in Needs Review.", AppSeverity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"'{DisplayTitle(item)}' could not be dismissed: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 
@@ -328,7 +379,7 @@
             if (attempt.Response is { } moved)
             {
                 _reviews.Remove(item);
-                Snackbar.Add($"Moved to TV as a special of '{moved.show_name}'. The file was not moved.", AppSeverity.Success);
+                Snackbar.Add(MovieTvSuggestionReader.DescribeMove(moved), AppSeverity.Success);
                 await LoadHistoryAsync(0);
             }
             else
@@ -359,7 +410,12 @@
     private async Task SkipUniverseAsync(ReviewItemViewModel item)
     {
         _busyReviewIds.Add(item.Id);
-        try { if (await Orchestrator.SkipUniverseAsync(item.Id)) _reviews.Remove(item); }
+        try
+        {
+            if (await Orchestrator.SkipUniverseAsync(item.Id)) _reviews.Remove(item);
+            else Snackbar.Add($"'{DisplayTitle(item)}' could not keep the provider match. It is still in Needs Review.", AppSeverity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"'{DisplayTitle(item)}' could not keep the provider match: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 

@@ -1,3 +1,5 @@
+using System.Reflection;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Web.Services.Editing;
 
 namespace MediaEngine.Web.Tests;
@@ -6,7 +8,6 @@ public sealed class ReviewIssueClassifierTests
 {
     [Theory]
     [InlineData("MissingQid", ReviewIssueBucket.QuickFix)]
-    [InlineData("ArtworkUnconfirmed", ReviewIssueBucket.QuickFix)]
     [InlineData("RetailMatchAmbiguous", ReviewIssueBucket.ManualReview)]
     [InlineData("AmbiguousMediaType", ReviewIssueBucket.ManualReview)]
     [InlineData("WritebackFailed", ReviewIssueBucket.HighPriority)]
@@ -35,20 +36,34 @@ public sealed class ReviewIssueClassifierTests
         Assert.Equal(expectedLabel, ReviewIssueClassifier.Classify(trigger).Label);
     }
 
-    [Theory]
-    [InlineData("RetailMatchFailed", ReviewIssueClassifier.CategoryNoProviderMatch)]
-    [InlineData("PlaceholderTitle", ReviewIssueClassifier.CategoryIncompleteMetadata)]
-    [InlineData("StagedUnidentifiable", ReviewIssueClassifier.CategoryIncompleteMetadata)]
-    [InlineData("PossibleDuplicate", ReviewIssueClassifier.CategoryDuplicates)]
-    [InlineData("ArtworkUnconfirmed", ReviewIssueClassifier.CategoryQuickFix)]
-    public void CategoryFor_UsesUserFacingQueueCategories(string trigger, string expected)
+    public static TheoryData<string> AllTriggers()
     {
-        Assert.Equal(expected, ReviewIssueClassifier.CategoryFor(trigger));
+        var data = new TheoryData<string>();
+        foreach (var trigger in typeof(ReviewTrigger)
+                     .GetFields(BindingFlags.Public | BindingFlags.Static)
+                     .Where(field => field.IsLiteral)
+                     .Select(field => (string)field.GetRawConstantValue()!))
+        {
+            data.Add(trigger);
+        }
+
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(AllTriggers))]
+    public void Classify_CarriesTheSharedReviewCategoryForEveryTrigger(string trigger)
+    {
+        var category = ReviewIssueClassifier.Classify(trigger).Category;
+
+        Assert.NotNull(category);
+        Assert.Equal(ReviewCategory.For(trigger), category);
     }
 
     [Fact]
-    public void ManualReviewCategory_IncludesHighPriorityIssues()
+    public void Classify_UnknownTrigger_HasNoSharedCategory()
     {
-        Assert.True(ReviewIssueClassifier.MatchesCategory("WritebackFailed", ReviewIssueClassifier.CategoryManualReview));
+        Assert.Null(ReviewIssueClassifier.Classify("FutureTrigger").Category);
+        Assert.Null(ReviewIssueClassifier.Classify(null).Category);
     }
 }

@@ -257,6 +257,12 @@ internal class EngineApiClientStub : DispatchProxy
                 },
             });
 
+        // By default the attempt view of the pending list mirrors whatever GetPendingReviewsAsync is set to.
+        _handlers[nameof(IEngineApiClient.GetPendingReviewsAttemptAsync)] =
+            args => _handlers[nameof(IEngineApiClient.GetPendingReviewsAsync)](args) is Task<List<ReviewItemViewModel>> list
+                ? list.ContinueWith(task => new ReviewListAttempt(task.Result, null), TaskScheduler.Default)
+                : Task.FromResult(new ReviewListAttempt([], null));
+
         _handlers[nameof(IEngineApiClient.GetSystemStatusAsync)] =
             _ => Task.FromResult<SystemStatusViewModel?>(new SystemStatusViewModel
             {

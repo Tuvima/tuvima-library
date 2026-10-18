@@ -59,7 +59,6 @@ Inline styles are concentrated in:
 
 - settings tabs using `Style="@InnerCardStyle"`, `Style="@SectionCardStyle"`, and `Style="@ToggleRowStyle"`
 - library item inspectors and detail drawers with inline icon sizes, colors, range controls, and helper text
-- `ReportProblemDialog.razor`, which contains inline flex/text styles and should use shared dialog/body/action classes
 - provider tester and enrichment tester tabs using inline `MudPaper` panel styling
 - collection and media editor dialogs where some inline styles remain for dynamic behavior
 

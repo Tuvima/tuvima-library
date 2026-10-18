@@ -720,6 +720,12 @@ public static class IntegrationTestEndpoints
         group.MapPost("/integration-test", RunIntegrationTestAsync)
             .WithSummary("Full integration test: wipe -> seed -> ingest -> validate -> HTML report")
             .Produces(200, contentType: "text/html; charset=utf-8");
+
+        // Development listing for tools/Test-BookIngestion.ps1; the product Engine has no item list.
+        group.MapGet("/library-items", (string? search, int? limit, ILibraryItemRepository libraryItemRepo, CancellationToken ct) =>
+                libraryItemRepo.GetPageAsync(new LibraryItemQuery(Offset: 0, Limit: Math.Clamp(limit ?? 50, 1, 5000), Search: search, IncludeAll: true), ct))
+            .WithSummary("Development-only listing of every library item, including staging and all statuses.")
+            .Produces(200, contentType: "application/json");
     }
 
     // ── POST /dev/integration-test ────────────────────────────────────────

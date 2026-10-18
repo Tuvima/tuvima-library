@@ -144,7 +144,7 @@
             {
                 "current" => await Api.GetCurrentIngestionMediaAsync(offset, 50, ct),
                 "batch" when BatchId.HasValue => await Api.GetActivityBatchMediaGroupsAsync(BatchId.Value, offset, 50, _search, _lane, _sort, ct),
-                _ => await Api.GetRecentIngestionAdditionsAsync(_search, _lane, Date?.ToDateTime(TimeOnly.MinValue), Date?.ToDateTime(TimeOnly.MaxValue), offset, 50, _sort, ct),
+                _ => await Api.GetRecentIngestionAdditionsAsync(_search, _lane, Date?.ToDateTime(TimeOnly.MinValue), Date?.ToDateTime(TimeOnly.MaxValue), offset, 50, _sort, ct: ct),
             };
             if (revision == _revision) _page = page;
         }

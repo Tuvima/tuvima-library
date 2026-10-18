@@ -25,14 +25,13 @@ public sealed class CuratedCollectionCleanupTests : IDisposable
     [Fact]
     public async Task DeletingTheLastWorkOfACuratedCollection_RemovesTheCollectionAndLogsIt()
     {
-        var leaving = SeedWork("Leaving");
+        var leaving = SeedWorkWithoutEdition("Leaving");
         var staying = SeedWork("Staying");
-        var onlyLeaving = SeedCollection("Only the leaving film", "Custom", "materialized", "Manual", leaving.WorkId);
-        var both = SeedCollection("Both films", "Custom", "materialized", "Manual", leaving.WorkId, staying.WorkId);
+        var onlyLeaving = SeedCollection("Only the leaving film", "Custom", "materialized", "Manual", leaving);
+        var both = SeedCollection("Both films", "Custom", "materialized", "Manual", leaving, staying.WorkId);
 
-        var repository = new LibraryItemCurationRepository(_db);
-        var removal = (await repository.GetRemovalTargetsAsync([leaving.WorkId]))[leaving.WorkId];
-        await repository.DeleteWorkRecordsAsync(removal);
+        // The work leaves the library when the orphan prune removes it (it has no edition left).
+        await new CollectionRepository(_db).PruneOrphanedHierarchyAsync();
 
         Assert.False(CollectionExists(onlyLeaving));
         Assert.True(CollectionExists(both));
@@ -48,16 +47,14 @@ public sealed class CuratedCollectionCleanupTests : IDisposable
     [Fact]
     public async Task PlaylistsAndRuleDrivenCollections_AreNotRemovedWhenTheyHoldNoItems()
     {
-        var leaving = SeedWork("Leaving");
-        var playlist = SeedCollection("Road trip", "Playlist", "materialized", "Manual", leaving.WorkId);
+        var leaving = SeedWorkWithoutEdition("Leaving");
+        var playlist = SeedCollection("Road trip", "Playlist", "materialized", "Manual", leaving);
         var folder = SeedCollection("Mixes", "PlaylistFolder", "materialized", "Manual");
         var ruleDriven = SeedCollection("Everything new", "Custom", "query", "Smart");
         var smartCustom = SeedCollection("Smart custom", "Custom", "materialized", "Smart");
-        var curated = SeedCollection("Curated", "Custom", "materialized", "Manual", leaving.WorkId);
+        var curated = SeedCollection("Curated", "Custom", "materialized", "Manual", leaving);
 
-        var repository = new LibraryItemCurationRepository(_db);
-        var removal = (await repository.GetRemovalTargetsAsync([leaving.WorkId]))[leaving.WorkId];
-        await repository.DeleteWorkRecordsAsync(removal);
+        await new CollectionRepository(_db).PruneOrphanedHierarchyAsync();
 
         Assert.True(CollectionExists(playlist));
         Assert.True(CollectionExists(folder));

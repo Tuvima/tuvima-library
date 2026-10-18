@@ -72,15 +72,14 @@ public sealed class Phase5InlineEditingTests
     [Fact]
     public void ReviewQueue_ReviewActionLaunchesEditorInReviewModeWithReviewId()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor");
+        var source = ReadSource("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
 
         Assert.Contains("Mode = SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
         Assert.Contains("ReviewItemId = item.Id", source, StringComparison.Ordinal);
         Assert.Contains("Label=\"Review\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Desktop required", source, StringComparison.Ordinal);
-        Assert.Contains("InitialTab = \"links\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Open complete review", source, StringComparison.Ordinal);
-        Assert.Contains("await LoadAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("await LoadReviewsAsync();", source, StringComparison.Ordinal);
     }
 
     [Fact]

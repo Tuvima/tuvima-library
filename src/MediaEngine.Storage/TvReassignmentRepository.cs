@@ -4,6 +4,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Services;
@@ -34,39 +35,68 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
         public bool IsCatalogOnly { get; set; }
     }
 
-    public Task<TvSpecialReassignment> ReassignToTvShowSpecialAsync(
+    public Task<TvReassignment> ReassignToTvShowSpecialAsync(
         Guid assetId,
         string showName,
         string? episodeTitle,
         CancellationToken ct = default)
-        => ApplyAsync(assetId, showName, episodeTitle, move: null, ct);
+        => ApplyAsync(
+            assetId,
+            showName,
+            episodeTitle,
+            TvSpecialPlacement.SeasonNumber,
+            [TvSpecialPlacement.EpisodeNumber],
+            move: null,
+            ct);
 
-    public Task<TvSpecialReassignment> MoveToTvShowSpecialAsync(
+    public Task<TvReassignment> MoveToTvShowAsync(
         TvMoveRequest request,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.LibraryId);
         ArgumentNullException.ThrowIfNull(request.BuildDecision);
-        return ApplyAsync(request.AssetId, request.ShowName, request.EpisodeTitle, request, ct);
+        ArgumentNullException.ThrowIfNull(request.EpisodeNumbers);
+        if (request.SeasonNumber < 0)
+        {
+            throw new ArgumentException("The season number cannot be negative.", nameof(request));
+        }
+
+        if (request.EpisodeNumbers.Count == 0
+            || request.EpisodeNumbers.Any(number => number < 1)
+            || request.EpisodeNumbers.Distinct().Count() != request.EpisodeNumbers.Count)
+        {
+            throw new ArgumentException("Episode numbers must be unique and start at 1.", nameof(request));
+        }
+
+        return ApplyAsync(
+            request.AssetId,
+            request.ShowName,
+            request.EpisodeTitle,
+            request.SeasonNumber,
+            request.EpisodeNumbers,
+            request,
+            ct);
     }
 
-    private Task<TvSpecialReassignment> ApplyAsync(
+    private Task<TvReassignment> ApplyAsync(
         Guid assetId,
         string showName,
         string? episodeTitle,
+        int seasonNumber,
+        IReadOnlyList<int> episodeNumbers,
         TvMoveRequest? move,
         CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(showName);
         ct.ThrowIfCancellationRequested();
 
-        // Show -> Season 0 -> Episode 1, found or created by the same strategy ingestion uses.
+        // Show -> Season -> host Episode, found or created by the same strategy ingestion uses.
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["show_name"] = showName.Trim(),
-            [MetadataFieldConstants.SeasonNumber] = TvSpecialPlacement.SeasonNumber.ToString(CultureInfo.InvariantCulture),
-            [MetadataFieldConstants.EpisodeNumber] = TvSpecialPlacement.EpisodeNumber.ToString(CultureInfo.InvariantCulture),
+            [MetadataFieldConstants.SeasonNumber] = seasonNumber.ToString(CultureInfo.InvariantCulture),
+            [MetadataFieldConstants.EpisodeNumber] = episodeNumbers[0].ToString(CultureInfo.InvariantCulture),
         };
         if (!string.IsNullOrWhiteSpace(episodeTitle))
         {
@@ -108,23 +138,54 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
                 throw new InvalidOperationException("The asset's edition changed while it was being re-filed.");
             }
 
-            // The episode, its season and the show now hold an owned file.
-            foreach (var workId in new[] { resolved.WorkId, seasonWorkId, showWorkId })
+            // Any further episodes the file covers, in the same season, in episode order (host first).
+            var coveredWorkIds = new List<Guid>(episodeNumbers.Count) { resolved.WorkId };
+            foreach (var episode in episodeNumbers.Skip(1))
+            {
+                coveredWorkIds.Add(WorkRepository.GetOrCreateChild(
+                    connection, transaction, MediaType.TV, seasonWorkId, episode, episode));
+            }
+
+            // Every covered episode, the season and the show now hold an owned file.
+            foreach (var workId in coveredWorkIds.Append(seasonWorkId).Append(showWorkId))
             {
                 MarkWorkOwned(connection, transaction, workId);
             }
 
             var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId);
-            var placement = new TvSpecialReassignment(
-                assetId, current.EditionId, current.WorkId, removed, showWorkId, seasonWorkId, resolved.WorkId);
+            var placement = new TvReassignment(
+                assetId, current.EditionId, current.WorkId, removed, showWorkId, seasonWorkId, resolved.WorkId,
+                coveredWorkIds);
 
             if (move is not null)
             {
+                RecordCoverage(connection, transaction, assetId, coveredWorkIds, innerCt);
                 ApplyMove(connection, transaction, current, placement, move);
             }
 
             return placement;
         }, ct);
+    }
+
+    /// <summary>
+    /// A person's decision that the file covers several episodes is stored as manual coverage, one row per
+    /// episode in episode order, so the identity re-run (which only replaces filename coverage) keeps it.
+    /// A single-episode file leaves no coverage rows.
+    /// </summary>
+    private static void RecordCoverage(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid assetId,
+        IReadOnlyList<Guid> coveredWorkIds,
+        CancellationToken ct)
+    {
+        var rows = coveredWorkIds.Count == 1
+            ? []
+            : coveredWorkIds
+                .Select((workId, index) => new MediaAssetCoverage(
+                    assetId, workId, index + 1, null, null, MediaAssetCoverage.SourceManual))
+                .ToList();
+        MediaAssetCoverageRepository.ReplaceInTransaction(connection, transaction, assetId, rows, ct);
     }
 
     /// <summary>
@@ -135,7 +196,7 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
         SqliteConnection connection,
         SqliteTransaction transaction,
         PlacementRow current,
-        TvSpecialReassignment placement,
+        TvReassignment placement,
         TvMoveRequest move)
     {
         // Library membership is data only; the media asset's file path is not touched.

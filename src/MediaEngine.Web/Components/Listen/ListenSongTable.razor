@@ -204,17 +204,14 @@ else
                                 </AppNativeButton>
                             </div>
                             break;
-                        case "editDelete":
-                            <div class="listen-song-table__edit-delete" role="cell">
+                        case "edit":
+                            <div class="listen-song-table__edit" role="cell">
                                 @if (!DeviceContext.IsPhone)
                                 {
                                     <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
                                     </AppNativeButton>
                                 }
-                                <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
-                                </AppNativeButton>
                             </div>
                             break;
                         case "options":
@@ -250,7 +247,7 @@ else
     [Parameter] public bool ShowDateAdded { get; set; } = true;
     [Parameter] public bool ShowFavorite { get; set; } = true;
     [Parameter] public bool ShowQueue { get; set; } = true;
-    [Parameter] public bool ShowEditDelete { get; set; } = true;
+    [Parameter] public bool ShowEdit { get; set; } = true;
     [Parameter] public Guid? CurrentWorkId { get; set; }
     [Parameter] public string DefaultSortColumn { get; set; } = "dateAdded";
     [Parameter] public bool DefaultSortDescending { get; set; } = true;
@@ -260,7 +257,6 @@ else
     [Parameter] public Func<WorkViewModel, Task>? OnAlbumRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnPlayNextRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnEditRequested { get; set; }
-    [Parameter] public Func<WorkViewModel, Task>? OnDeleteRequested { get; set; }
     [Parameter] public Func<Guid, Task>? OnDragStarted { get; set; }
     [Parameter] public Func<Task>? OnDragEnded { get; set; }
 
@@ -275,7 +271,7 @@ else
         new("plays", "Plays", 50, 46),
         new("dateAdded", "Date Added", 112, 104),
         new("queue", "Queue", 64, 56),
-        new("editDelete", "Edit / Delete", 64, 56),
+        new("edit", "Edit", 64, 56),
         new("options", string.Empty, 42, 40),
     ];
 
@@ -362,14 +358,14 @@ else
         "dateAdded" => ShowDateAdded,
         "favorite" => ShowFavorite,
         "queue" => ShowQueue,
-        "editDelete" => ShowEditDelete,
+        "edit" => ShowEdit,
         _ => true,
     };
 
     private string RowClass(WorkViewModel track) =>
         $"listen-song-table__row {(CurrentWorkId == track.Id ? "is-playing" : string.Empty)}".Trim();
 
-    private static bool IsSortableColumn(string key) => key is not "queue" and not "editDelete";
+    private static bool IsSortableColumn(string key) => key is not "queue" and not "edit";
 
     private void BeginColumnResize(string key, double clientX)
     {
@@ -530,9 +526,6 @@ else
 
     private Task EditAsync(WorkViewModel track)
         => OnEditRequested?.Invoke(track) ?? Task.CompletedTask;
-
-    private Task DeleteAsync(WorkViewModel track)
-        => OnDeleteRequested?.Invoke(track) ?? Task.CompletedTask;
 
     private Task StartDragAsync(Guid trackId)
         => CanDrag ? OnDragStarted?.Invoke(trackId) ?? Task.CompletedTask : Task.CompletedTask;

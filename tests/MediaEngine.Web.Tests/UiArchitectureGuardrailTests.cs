@@ -9,12 +9,14 @@ public sealed class UiArchitectureGuardrailTests
     public void RetiredLibraryItemsWorkspace_RemainsRemoved()
     {
         var directory = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "LibraryItems");
-        var activeComponents = Directory.GetFiles(directory, "*.razor")
-            .Select(path => Path.GetFileNameWithoutExtension(path)!)
-            .OrderBy(name => name)
-            .ToArray();
+        var activeComponents = Directory.Exists(directory)
+            ? Directory.GetFiles(directory, "*.razor")
+                .Select(path => Path.GetFileNameWithoutExtension(path)!)
+                .OrderBy(name => name)
+                .ToArray()
+            : [];
 
-        Assert.Equal(["ReportProblemDialog"], activeComponents);
+        Assert.Empty(activeComponents);
     }
 
     [Theory]

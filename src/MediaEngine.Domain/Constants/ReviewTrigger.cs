@@ -28,12 +28,6 @@ public static class ReviewTrigger
     public const string UserFixMatch = "UserFixMatch";
 
     /// <summary>
-    /// The <see cref="MediaEngine.Intelligence.CollectionArbiter"/> scored the entity in
-    /// the NeedsReview disposition band (between Conflict and AutoLink thresholds).
-    /// </summary>
-    public const string ArbiterNeedsReview = "ArbiterNeedsReview";
-
-    /// <summary>
     /// The scoring engine detected a metadata conflict: two or more claims for
     /// the same field have confidence values within the conflict epsilon. The file
     /// is still organised with the best guess, but the user should verify the
@@ -72,22 +66,12 @@ public static class ReviewTrigger
     public const string PlaceholderTitle = "PlaceholderTitle";
 
     /// <summary>
-    /// Cover art was deposited by a retail provider using a text search (title + author)
-    /// rather than a precise bridge identifier lookup (ISBN, Apple Books ID). The match
-    /// may be incorrect — the user should confirm or replace the artwork.
-    /// </summary>
-    public const string ArtworkUnconfirmed = "ArtworkUnconfirmed";
-
-    /// <summary>
     /// The file's embedded language metadata (dc:language in EPUB OPF, id3 lang tag)
     /// does not match the user's configured library language in
     /// <c>CoreConfiguration.Language</c>. The book may be in the wrong language
     /// or in a foreign edition. The user should confirm or reclassify the item.
     /// </summary>
     public const string LanguageMismatch = "LanguageMismatch";
-
-    /// <summary>A user submitted a problem report flagging incorrect or missing metadata.</summary>
-    public const string UserReport = "UserReport";
 
     /// <summary>
     /// Stage 1 (Retail Identification) returned no results from any configured provider.

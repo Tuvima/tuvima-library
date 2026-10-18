@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Events;
 
 namespace MediaEngine.Api.Realtime;
@@ -27,6 +28,7 @@ public sealed class IntercomAudienceAuthorizer(
     IIdentityRepository identities,
     IAccountRepository accounts,
     IApplicationEventResourceResolver resources,
+    IProfileRepository profiles,
     TimeProvider timeProvider) : IIntercomAudienceAuthorizer
 {
     public async ValueTask<bool> CanReceiveAsync<T>(
@@ -51,10 +53,15 @@ public sealed class IntercomAudienceAuthorizer(
             return false;
         }
 
+        // A child (restricted) profile never gets administrator authority, as on Engine requests.
+        var activeProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
+        var administrator = account.IsAdministrator && grant.AdminEnabled &&
+            activeProfile?.Role != ProfileRole.RestrictedProfile;
+
         var assetId = AssetId(eventName, payload);
         if (assetId is { } id)
         {
-            if (account.IsAdministrator && grant.AdminEnabled)
+            if (administrator)
             {
                 return true;
             }
@@ -65,7 +72,7 @@ public sealed class IntercomAudienceAuthorizer(
                 await accounts.HasFeatureGrantAsync(account.Id, provenance.FeatureId, ct).ConfigureAwait(false);
         }
 
-        if (!account.IsAdministrator || !grant.AdminEnabled)
+        if (!administrator)
         {
             return false;
         }

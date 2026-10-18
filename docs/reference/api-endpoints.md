@@ -359,12 +359,10 @@ unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/items` | Paginated item list for current browse/detail surfaces. Includes projection-backed fields such as `pipelineStep`, `libraryVisibility`, `isReadyForLibrary`, `artworkState`, `artworkSource`, and `artworkSettledAt`. Supports filtering by status, media type, collection, and search term. | Required |
-| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Required |
+| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Server administrator or Application with `review.read`, plus catalogue access |
+| GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Server administrator or Application with `review.read`, plus catalogue access |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
-| GET | `/library/items/counts` | Status counts for tab badges and compatibility counters such as review, auto-approved, duplicate, staging, and missing-image counts | Required |
-| GET | `/library/items/state-counts?batchId=` | Four-state counts scoped to a specific ingestion batch | Required |
 
 ---
 
@@ -460,7 +458,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |
 | POST | `/review/{id}/dismiss` | Dismiss a review item without resolving it | Effective administrator or precise Application permission |
-| POST | `/review/{id}/move-to-tv` | Accept a "Found as a TV title" suggestion: re-file the film as Season 0, Episode 1 (Specials) of the matched TMDB show in the TV library and re-run identity as TV. The file on disk is never moved. | Effective administrator or precise Application permission |
+| POST | `/review/{id}/move-to-tv` | Accept a "Found as a TV title" suggestion: re-file the film under the matched TMDB show in the TV library and re-run identity as TV. When TMDB lists the parts as one season of at most six episodes numbered from 1, the file is placed on Season 1, Episode 1 and covers every part; otherwise it falls back to Season 0, Episode 1 (Specials). The response carries `season_number`, `episode_numbers` and `placement_reason` (why it fell back, else null). The file on disk is never moved. | Effective administrator or precise Application permission |
 | POST | `/review/{id}/skip-universe` | Accept the item without a Wikidata QID. The item can still remain browse surfaces-visible if it passes the browse readiness gate. | Effective administrator or precise Application permission |
 
 ---
@@ -682,17 +680,6 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | PUT | `/progress/{assetId}` | Update progress. A paired app replaying progress it recorded offline sends `offline: true` and `client_timestamp`; the later of the server's and the client's record wins instead of a stale revision being rejected (see Offline media for paired apps) | Required |
 | GET | `/progress/recent` | Recently accessed assets with progress | Required |
 | GET | `/progress/journey` | Full reading/watching journey across all assets for the current profile | Required |
-
----
-
-## Reports
-
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| POST | `/reports` | Submit a metadata quality report for an entity | Required |
-| GET | `/reports/entity/{id}` | All reports for a specific entity | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/resolve` | Mark a report as resolved | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/dismiss` | Dismiss a report | Effective administrator or precise Application permission |
 
 ---
 
