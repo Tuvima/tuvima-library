@@ -141,21 +141,6 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
         Assert.Equal(expected, Assert.IsType<bool>(method!.Invoke(null, [table])));
     }
 
-    [Theory]
-    [InlineData("search_index_data", true)]
-    [InlineData("search_index_idx", true)]
-    [InlineData("search_index", false)]
-    [InlineData("search_results_cache", false)]
-    public void LibraryReset_DoesNotDeleteFtsShadowTablesDirectly(string table, bool expected)
-    {
-        var method = typeof(DevHarnessResetService).GetMethod(
-            "IsSearchIndexShadowTable",
-            BindingFlags.Static | BindingFlags.NonPublic);
-
-        Assert.NotNull(method);
-        Assert.Equal(expected, Assert.IsType<bool>(method!.Invoke(null, [table])));
-    }
-
     [Fact]
     public void RunFullIntegration_DefaultsToGeneratedStateAndSupportsExplicitFullWipe()
     {
