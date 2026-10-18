@@ -58,16 +58,43 @@ internal sealed class FakeOcrService : IOcrService
 
 internal sealed class ManualPlaybackProbe : IPlaybackActivityProbe
 {
+    private readonly object _gate = new();
+    private readonly List<(int Target, TaskCompletionSource Signal)> _waiters = [];
     private int _checks;
 
     public volatile bool Playing;
 
-    public int Checks => _checks;
+    public int Checks => Volatile.Read(ref _checks);
 
     public Task<bool> IsAnyonePlayingAsync(CancellationToken ct = default)
     {
-        Interlocked.Increment(ref _checks);
+        var checks = Interlocked.Increment(ref _checks);
+        lock (_gate)
+        {
+            foreach (var waiter in _waiters.Where(waiter => waiter.Target <= checks).ToList())
+            {
+                _waiters.Remove(waiter);
+                waiter.Signal.TrySetResult();
+            }
+        }
+
         return Task.FromResult(Playing);
+    }
+
+    /// <summary>Completes once the worker has asked about playback at least <paramref name="target"/> times.</summary>
+    public Task WaitForChecksAsync(int target)
+    {
+        lock (_gate)
+        {
+            if (Checks >= target)
+            {
+                return Task.CompletedTask;
+            }
+
+            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _waiters.Add((target, signal));
+            return signal.Task;
+        }
     }
 }
 
