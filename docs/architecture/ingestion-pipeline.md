@@ -494,7 +494,7 @@ Once a file is identified and enriched, `WriteBackService` embeds the canonical 
 
 ### Per-media-type writeback hash
 
-Every media asset carries a `writeback_fields_hash` column (migration **M-084**) that combines:
+Every media asset carries a `writeback_fields_hash` column that combines:
 
 1. The SHA-256 of the JSON slice for the asset's media type in `writeback-fields.json`.
 2. The version constant of the specific tagger that wrote the file (`VideoMetadataTagger.TaggerVersion`, `AudioMetadataTagger.TaggerVersion`, `EpubMetadataTagger.TaggerVersion`, `ComicMetadataTagger.TaggerVersion`).

@@ -4,6 +4,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Schema.Upgrades;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -961,8 +962,9 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("1", Scalar(conn, "SELECT COUNT(*) FROM data_store_upgrades;"));
-        Assert.Equal("1", Scalar(conn, "SELECT MAX(number) FROM data_store_upgrades;"));
+        var latest = DataStoreUpgradeCatalog.ForProduct().Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(latest, Scalar(conn, "SELECT COUNT(*) FROM data_store_upgrades;"));
+        Assert.Equal(latest, Scalar(conn, "SELECT MAX(number) FROM data_store_upgrades;"));
         Assert.Equal("baseline", Scalar(conn, "SELECT name FROM data_store_upgrades WHERE number = 1;"));
         Assert.True(TableExists(conn, "review_queue"));
         Assert.True(TableExists(conn, "works"));

@@ -522,7 +522,7 @@ To avoid redundant Wikidata API calls when the same person appears across multip
 - **Stale (>30 days):** Check `last_revision_id` against Wikidata entity revision. If unchanged, skip full fetch. If changed, re-fetch all properties.
 - **New:** Full property fetch and enrichment.
 
-`last_revision_id` is stored on the Person record (migration M-065) and passed as a hint in harvest requests.
+`last_revision_id` is stored on the Person record and passed as a hint in harvest requests.
 
 ### 7.6 Pseudonym Resolution
 
@@ -684,7 +684,7 @@ In Sequential mode, `PriorProviderBridgeIds` on `ProviderLookupRequest` carries 
 
 ### Architecture
 
-The v2 pipeline replaces the in-memory queue with durable SQLite-backed jobs (migration M-080). Three tables: `identity_jobs` (one row per staged asset, tracks state machine), `retail_match_candidates` (every candidate from Stage 1 with full score breakdowns), `wikidata_bridge_candidates` (every Wikidata entity evaluated in Stage 2).
+The v2 pipeline replaces the in-memory queue with durable SQLite-backed jobs. Three tables: `identity_jobs` (one row per staged asset, tracks state machine), `retail_match_candidates` (every candidate from Stage 1 with full score breakdowns), `wikidata_bridge_candidates` (every Wikidata entity evaluated in Stage 2).
 
 ### State Machine
 

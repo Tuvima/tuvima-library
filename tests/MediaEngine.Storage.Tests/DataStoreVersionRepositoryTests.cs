@@ -1,3 +1,4 @@
+using MediaEngine.Storage.Schema.Upgrades;
 using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
@@ -45,15 +46,16 @@ public sealed class DataStoreVersionRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void GetCurrent_OnAFreshlyUpgradedDataStore_ReportsTheBaselineStep()
+    public void GetCurrent_OnAFreshlyUpgradedDataStore_ReportsTheLatestProductStep()
     {
         _database.InitializeSchema();
 
         var current = new DataStoreVersionRepository(_database).GetCurrent();
 
         Assert.NotNull(current);
-        Assert.Equal(1, current.Number);
-        Assert.Equal("baseline", current.Name);
+        var latest = DataStoreUpgradeCatalog.ForProduct()[^1];
+        Assert.Equal(latest.Number, current.Number);
+        Assert.Equal(latest.Name, current.Name);
     }
 
     private void CreateRecordTable() =>

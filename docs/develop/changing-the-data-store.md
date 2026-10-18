@@ -56,17 +56,19 @@ There are no "down" steps. Before the first pending step runs on an existing dat
 
 You can keep editing a step you have not merged yet. Run the refresh script again and it replaces your step's fingerprint. Once the step is on `main`, it is released and no longer yours to edit.
 
+Two branches that each add a step will pick the same next number. Whoever merges second renumbers their step (file name, or `Number` in a code step), runs the refresh script again and commits the new snapshot and `released-steps.txt`. If they forget, the numbering and snapshot guardrails fail.
+
 ## Reshape existing data
 
 When SQL cannot do the job cleanly, such as splitting a value across rows or recomputing a column, write a code step. It shares the numbering with SQL steps.
 
-1. Create `src/MediaEngine.Storage/Schema/Upgrades/AddWorkNotesFromSummary.cs` (or in a subfolder). The file must be named after the type, and the step, its helpers and its SQL must all live in that one file. The guardrail fingerprints the file, so everything the step does is covered.
+1. Create a file named after your step in `src/MediaEngine.Storage/Schema/Upgrades/` (or a subfolder), for example `AddWorkNotesFromSummary.cs`. The file must be named after the type, and the step, its helpers and its SQL must all live in that one file. The guardrail fingerprints the file, so everything the step does is covered.
 2. Make the class `internal sealed`, derive from `DataStoreCodeUpgradeStep`, give it a parameterless constructor, and override `Number`, `Name` and `Apply`:
 
    ```csharp
    internal sealed class AddWorkNotesFromSummary : DataStoreCodeUpgradeStep
    {
-       public override int Number => 3;
+       public override int Number => 3; // Illustrative. Use the next number after the highest step.
        public override string Name => "add_work_notes_from_summary";
 
        public override void Apply(SqliteConnection connection, SqliteTransaction transaction)
@@ -102,6 +104,9 @@ Until beta, a change that old data stores cannot survive is allowed, with a rese
 
 1. Change `StorageEpochGuard.CurrentEpoch` in `src/MediaEngine.Storage/StorageEpochGuard.cs` to a new value.
 2. Add an upgrade step that updates the stored value to the same text: `UPDATE storage_metadata SET value = '...' WHERE key = 'storage_epoch';`.
+3. Update the other places that state the epoch: the expected values in `tests/MediaEngine.Storage.Tests/DatabaseStartupSafetyTests.cs` and the epoch text in [Database schema](../reference/database-schema.md).
+
+The test `AfterAllUpgradeSteps_TheStoredEpochEqualsCurrentEpoch` fails if you change the epoch but forget the step.
 
 At startup, a data store whose epoch is not the current one is refused. Setting `TUVIMA_STORAGE_RESET=1` backs it up and starts a fresh data store to reingest into. A fresh data store runs every step, including yours, so it ends at the new epoch.
 
@@ -147,11 +152,13 @@ finally
 
 - Name tests as behaviour sentences, such as `WorkNotes_RemovingTheWork_RemovesItsNote`.
 - For a new table, add a startup-safety assertion to `tests/MediaEngine.Storage.Tests/DatabaseStartupSafetyTests.cs`, such as a foreign key cascade or a constraint you rely on.
-- Run the focused tests and the guardrails before you push:
+- Run the whole Storage test project before you open a change, not just the guardrails. Other tests count steps and tables, and a new step can break them:
 
   ```sh
-  dotnet test tests/MediaEngine.Storage.Tests/MediaEngine.Storage.Tests.csproj --filter "FullyQualifiedName~Guardrail"
+  dotnet test tests/MediaEngine.Storage.Tests/MediaEngine.Storage.Tests.csproj
   ```
+
+  Tests that need the newest step read it from the real catalog (`DataStoreUpgradeCatalog.ForProduct()`) instead of assuming a number. Do the same in yours.
 
 ## Document the change
 

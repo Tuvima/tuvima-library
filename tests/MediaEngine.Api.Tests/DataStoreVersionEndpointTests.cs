@@ -65,18 +65,31 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task FreshDataStore_ReportsTheBaselineStepAsStepOne()
+    public async Task FreshDataStore_ReportsTheLatestUpgradeStepTheDataStoreHasRecorded()
     {
         _database.InitializeSchema();
         await using var app = BuildApplication();
+        var (latestNumber, latestName) = LatestRecordedStep();
 
         var (status, body) = await GetAsync(app);
 
         Assert.Equal(StatusCodes.Status200OK, status);
         var root = JsonDocument.Parse(body).RootElement;
-        Assert.Equal(1, root.GetProperty("step_number").GetInt32());
-        Assert.Equal("baseline", root.GetProperty("step_name").GetString());
+        Assert.True(latestNumber >= 1);
+        Assert.Equal(latestNumber, root.GetProperty("step_number").GetInt32());
+        Assert.Equal(latestName, root.GetProperty("step_name").GetString());
         Assert.True(root.GetProperty("applied_at").GetDateTimeOffset() > DateTimeOffset.UtcNow.AddMinutes(-5));
+    }
+
+    // What a fresh start recorded, read straight from the table, so the test keeps passing when more steps are added.
+    private (int Number, string Name) LatestRecordedStep()
+    {
+        using var connection = _database.CreateConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT number, name FROM data_store_upgrades ORDER BY number DESC LIMIT 1;";
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        return (reader.GetInt32(0), reader.GetString(1));
     }
 
     [Fact]

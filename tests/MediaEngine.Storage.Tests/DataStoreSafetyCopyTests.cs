@@ -24,25 +24,25 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void PendingStepsOnAnExistingDataStore_WriteOneSafetyCopyFirst()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
 
-        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(2)]);
+        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(Latest + 1)]);
         database.InitializeSchema();
 
         var copy = Assert.Single(SafetyCopies());
         Assert.Equal(Path.Combine(_backups, "safety-copies"), Path.GetDirectoryName(copy));
         Assert.Equal([copy], Directory.GetFiles(Path.GetDirectoryName(copy)!));
-        Assert.Matches(@"^tuvima-safety-copy-\d{8}-\d{6}-step-0001-to-0002\.db$", Path.GetFileName(copy));
+        Assert.Matches($@"^tuvima-safety-copy-\d{{8}}-\d{{6}}-step-{Latest:D4}-to-{Latest + 1:D4}\.db$", Path.GetFileName(copy));
 
         // The copy opens as a valid data store at the "from" step, with the data from before the upgrade
         // and without the structure change the upgrade made.
-        Assert.Equal(1L, Scalar(copy, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest, Scalar(copy, "SELECT MAX(number) FROM data_store_upgrades;"));
         Assert.Equal("ok", Text(copy, "PRAGMA quick_check;"));
         Assert.Equal(2L, Scalar(copy, "SELECT COUNT(*) FROM safety_probe;"));
         Assert.Equal(0L, Scalar(copy, "SELECT COUNT(*) FROM pragma_table_info('safety_probe') WHERE name = 'note';"));
 
         // The live data store did move on.
-        Assert.Equal(2L, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest + 1, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
         Assert.Equal(1L, Scalar(_dbPath, "SELECT COUNT(*) FROM pragma_table_info('safety_probe') WHERE name = 'note';"));
 
         Assert.Contains(database.StartupNotes, note => note.Contains(copy, StringComparison.Ordinal));
@@ -51,19 +51,19 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void BrandNewDataStore_GetsNoSafetyCopy()
     {
-        var addTable = new SqlDataStoreUpgradeStep(2, "add_table", "CREATE TABLE added_later (id INTEGER PRIMARY KEY);", "test:0002_add_table.sql");
+        var addTable = new SqlDataStoreUpgradeStep(Latest + 1, "add_table", "CREATE TABLE added_later (id INTEGER PRIMARY KEY);", $"test:{Latest + 1:D4}_add_table.sql");
         using var database = Open(_backups, [.. ProductSteps(), addTable]);
         database.InitializeSchema();
 
         Assert.False(Directory.Exists(Path.Combine(_backups, "safety-copies")));
         Assert.Empty(SafetyCopies());
-        Assert.Equal(2L, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest + 1, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
     }
 
     [Fact]
     public void NoPendingSteps_GetsNoSafetyCopy()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
 
         using var database = Open(_backups, ProductSteps());
         database.InitializeSchema();
@@ -75,7 +75,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void OnlyTheTwoNewestSafetyCopiesAreKept_AndUserBackupsAreUntouched()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
         var folder = Path.Combine(_backups, "safety-copies");
         Directory.CreateDirectory(folder);
         var oldest = SeedFile(folder, "tuvima-safety-copy-20260101-000000-step-0001-to-0002.db", DateTime.UtcNow.AddDays(-30));
@@ -85,7 +85,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         var userBackup = SeedFile(_backups, "tuvima-backup-20260101-000000.zip", DateTime.UtcNow.AddDays(-50));
         var otherDatabase = SeedFile(_backups, "tuvima-safety-copy-in-wrong-folder.db", DateTime.UtcNow.AddDays(-60));
 
-        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(2)]);
+        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(Latest + 1)]);
         database.InitializeSchema();
 
         var kept = SafetyCopies().Select(Path.GetFileName).ToList();
@@ -93,7 +93,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         Assert.Contains(Path.GetFileName(recent), kept);
         Assert.DoesNotContain(Path.GetFileName(oldest), kept);
         Assert.DoesNotContain(Path.GetFileName(older), kept);
-        Assert.Contains(kept, name => name!.Contains("step-0001-to-0002", StringComparison.Ordinal) && name != Path.GetFileName(recent));
+        Assert.Contains(kept, name => name!.Contains($"step-{Latest:D4}-to-{Latest + 1:D4}", StringComparison.Ordinal) && name != Path.GetFileName(recent));
 
         Assert.True(File.Exists(stray));
         Assert.True(File.Exists(userBackup));
@@ -103,9 +103,9 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void NotEnoughDiskSpace_RefusesAndChangesNothing()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
 
-        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(2)], freeSpace: _ => 1_000);
+        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(Latest + 1)], freeSpace: _ => 1_000);
         var refusal = Assert.Throws<DataStoreUpgradeRefusedException>(() => database.InitializeSchema());
 
         Assert.Contains("Not enough free disk space to make a safety copy", refusal.Message, StringComparison.Ordinal);
@@ -118,19 +118,19 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_backups, "safety-copies")));
 
         database.Dispose();
-        Assert.Equal(1L, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
         Assert.Equal(0L, Scalar(_dbPath, "SELECT COUNT(*) FROM pragma_table_info('safety_probe') WHERE name = 'note';"));
     }
 
     [Fact]
     public void NoBackupFolder_MakesNoSafetyCopy_AndSaysSo()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
 
-        using var database = Open(backupDirectory: null, [.. ProductSteps(), AddProbeNote(2)]);
+        using var database = Open(backupDirectory: null, [.. ProductSteps(), AddProbeNote(Latest + 1)]);
         database.InitializeSchema();
 
-        Assert.Equal(2L, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest + 1, Scalar(_dbPath, "SELECT MAX(number) FROM data_store_upgrades;"));
         Assert.Contains("No backup folder configured, so no safety copy was made.", database.StartupNotes);
         Assert.False(Directory.Exists(_backups));
     }
@@ -138,8 +138,8 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void FailedStep_MessageNamesTheSafetyCopy()
     {
-        CreateStoreAtStepOne();
-        var failing = new SqlDataStoreUpgradeStep(2, "break_things", "ALTER TABLE no_such_table ADD COLUMN x TEXT;", "test:0002_break_things.sql");
+        CreateStoreAtLatestStep();
+        var failing = new SqlDataStoreUpgradeStep(Latest + 1, "break_things", "ALTER TABLE no_such_table ADD COLUMN x TEXT;", $"test:{Latest + 1:D4}_break_things.sql");
 
         using var database = Open(_backups, [.. ProductSteps(), failing]);
         var failure = Assert.Throws<DataStoreUpgradeFailedException>(() => database.InitializeSchema());
@@ -147,17 +147,17 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         var copy = Assert.Single(SafetyCopies());
         Assert.Equal(copy, failure.SafetyCopyPath);
         Assert.Contains(copy, failure.Message, StringComparison.Ordinal);
-        Assert.Contains("0002 (break_things)", failure.Message, StringComparison.Ordinal);
+        Assert.Contains($"{Latest + 1:D4} (break_things)", failure.Message, StringComparison.Ordinal);
         Assert.Contains(_dbPath, failure.Message, StringComparison.Ordinal);
-        Assert.Equal(1L, Scalar(copy, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal((long)Latest, Scalar(copy, "SELECT MAX(number) FROM data_store_upgrades;"));
     }
 
     [Fact]
     public void SafetyCopyFolder_IsKeptApartFromUserBackups()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
 
-        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(2)]);
+        using var database = Open(_backups, [.. ProductSteps(), AddProbeNote(Latest + 1)]);
         database.InitializeSchema();
 
         // The user-facing backup list reads only tuvima-backup-*.zip directly inside the backups folder
@@ -171,16 +171,16 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void FinishedCopy_HasItsFinalNameAndLeavesNoPartialFile()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
         using var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False");
         connection.Open();
         var safetyCopy = new DataStoreSafetyCopy(_dbPath, _backups);
         var now = new DateTimeOffset(2026, 10, 18, 9, 30, 15, TimeSpan.Zero);
 
-        var path = safetyCopy.Create(connection, new DataStoreUpgradePlan(1, [AddProbeNote(2)], now));
+        var path = safetyCopy.Create(connection, new DataStoreUpgradePlan(Latest, [AddProbeNote(Latest + 1)], now));
 
         // The name uses the time the runner supplied, not the machine clock.
-        Assert.Equal("tuvima-safety-copy-20261018-093015-step-0001-to-0002.db", Path.GetFileName(path));
+        Assert.Equal($"tuvima-safety-copy-20261018-093015-step-{Latest:D4}-to-{Latest + 1:D4}.db", Path.GetFileName(path));
         Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, "*.partial"));
         Assert.Equal("ok", Text(path, "PRAGMA quick_check;"));
     }
@@ -188,7 +188,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void Pruning_OrdersByTheTimestampInTheName_NotByFileTime_AndIgnoresPartialFiles()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
         var folder = Path.Combine(_backups, "safety-copies");
         Directory.CreateDirectory(folder);
         // File times are the reverse of the names: only the name may decide which copies are the newest.
@@ -200,7 +200,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         using var connection = new SqliteConnection($"Data Source={_dbPath};Pooling=False");
         connection.Open();
         var path = new DataStoreSafetyCopy(_dbPath, _backups)
-            .Create(connection, new DataStoreUpgradePlan(1, [AddProbeNote(2)], new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero)));
+            .Create(connection, new DataStoreUpgradePlan(Latest, [AddProbeNote(Latest + 1)], new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero)));
 
         Assert.True(File.Exists(path));
         Assert.True(File.Exists(newestByName));
@@ -212,7 +212,7 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
     [Fact]
     public void CopyThatCannotBeChecked_IsDeletedAndTheUpgradeRefused()
     {
-        CreateStoreAtStepOne();
+        CreateStoreAtLatestStep();
         // A store with no record of the step it claims: the check against the plan's "from" step fails.
         using var connection = new SqliteConnection($"Data Source={_dbPath}");
         connection.Open();
@@ -242,11 +242,14 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
 
     private static IReadOnlyList<DataStoreUpgradeStep> ProductSteps() => DataStoreUpgradeCatalog.ForProduct();
 
+    /// <summary>The newest step this build ships with; a test step that comes after it is numbered <c>Latest + 1</c>.</summary>
+    private static int Latest => ProductSteps().Count;
+
     private static SqlDataStoreUpgradeStep AddProbeNote(int number)
         => new(number, "add_probe_note", "ALTER TABLE safety_probe ADD COLUMN note TEXT;", $"test:{number:D4}_add_probe_note.sql");
 
-    /// <summary>A real data store at step 1 holding two rows of data a safety copy has to preserve.</summary>
-    private void CreateStoreAtStepOne()
+    /// <summary>A real data store at the latest product step holding two rows of data a safety copy has to preserve.</summary>
+    private void CreateStoreAtLatestStep()
     {
         using (var database = Open(_backups, ProductSteps()))
         {

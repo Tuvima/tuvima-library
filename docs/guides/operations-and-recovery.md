@@ -75,21 +75,22 @@ A new version of Tuvima sometimes changes how the data store (the `library.db` f
 **Go back to a safety copy.** Use this when an upgrade went wrong, or you want the older version back.
 
 1. Stop the Engine (or the container).
-2. Keep the current `library.db` somewhere safe, then replace it with the safety copy, renamed to `library.db`.
-3. Delete `library.db-wal` and `library.db-shm` next to it, if they exist.
+2. Move `library.db` and, if they exist, `library.db-wal` and `library.db-shm` together into a safe folder. Keep all three so nothing is lost.
+3. Copy the safety copy into the original folder and name it `library.db`. There must be no `-wal` or `-shm` file beside it.
 4. Start the version of Tuvima the safety copy came from. The step numbers in its name tell you which upgrade it was taken before.
 
 Starting the newer version again repeats the upgrade.
 
-**When the Engine will not start.** The Engine stops with a plain message, exit code 75 in the console or container log, and leaves the data store as it was. There are three messages:
+**When the Engine will not start.** The Engine stops with a plain message, exit code 75 in the console or container log, and leaves the data store as it was. These are the messages:
 
 | The message says | What it means | What to do |
 |---|---|---|
 | "Data store upgrade step 0002 (name) failed ... The data store was left as it was before this step." | A step could not finish, and none of its changes were kept. The message names the safety copy. | Report the message. Meanwhile, start the previous version, or restore the safety copy as above. |
 | "The data store ... was upgraded by a newer version of Tuvima" | You started an older version on a data store a newer version has already upgraded. | Install the newer version again, or restore an older recovery point or safety copy. |
 | "Upgrade step ... has been changed after it was applied ... Applied steps must never be edited" | This build was altered after the data store was upgraded. It happens with development builds, not releases. | Use an unmodified build, or restore an older recovery point. |
-
-If the Engine says there is not enough free disk space for the safety copy, it stopped before changing anything. Free up space, or set `TUVIMA_BACKUP_DIR` to a drive with more room and start again. The copy is about the size of `library.db`.
+| "The record of applied upgrade steps in the data store ... is damaged" | The list of steps the data store has had is missing or out of order. | Restore a recovery point or safety copy. |
+| "Not enough free disk space to make a safety copy ..." | There is no room for the safety copy, so the Engine stopped before changing anything. | Free up space, or set `TUVIMA_BACKUP_DIR` to a drive with more room, and start again. The copy is about the size of `library.db`. |
+| "The safety copy of the data store could not be checked" or "Could not prepare the upgrade" | The Engine could not make a copy it trusts, so it did not start the upgrade. Nothing was changed. | Check the backups folder is writable and has room, then start again. |
 
 Contributors adding a data store change: see [Changing the data store](../develop/changing-the-data-store.md).
 
