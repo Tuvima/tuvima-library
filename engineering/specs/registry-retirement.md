@@ -1,6 +1,6 @@
 # Spec: Registry retirement — Needs Review is the home for exceptions
 
-> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail](item-detail.md) · [ADR 0006 — management workspace retired](../architecture/decisions/0006-management-workspace-retired.md) · [Resolving reviews guide (public)](../../docs/guides/resolving-reviews.md)
+> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail](item-detail.md) · [ADR 0006 — management workspace retired](../architecture/decisions/0006-management-workspace-retired.md) · [Resolving reviews guide (public)](../../docs/guides/resolving-reviews.md)
 
 > Replaces the March 2026 "Registry spec v3". Version 5 records Shy's answers to all four open questions and all thirteen gaps (2026-10-17). Per Shy, "Registry" is **retired entirely** so it no longer exists in the app, the docs or Claude's context. Sections 4 and 5 describe what exists today; section 6 is the removal plan.
 
@@ -28,6 +28,8 @@ There is one, clearly named place to deal with library items the Engine isn't su
 - **D10 (G4).** Change code: the "Added" status filter is made to work (not removed).
 - **D11 (G8, G9, G10).** Change code: remove the impossible "Possible duplicates" bucket and the three never-raised review reasons (UserReport, ArtworkUnconfirmed, ArbiterNeedsReview); Live Ingestion and Needs Review use one shared set of categories. User reports stay in the activity log only.
 - **D12 (G13).** (2026-10-17, Shy) **Only server administrators can see and resolve reviews.** Household administrators manage their own household's users and what those users can see; they cannot resolve reviews, and do not see the Needs Review count or page.
+- **D13.** (2026-10-17, Shy) **Approved apps keep Needs Review access.** An app a server administrator has granted review permission may still list and resolve reviews; D12 limits people, not those apps.
+- **D14.** (2026-10-17, Shy) **WP1 is built inside Item Detail WP10**, on the Item Detail work, right after its WP2. This spec's WP8 waits for it.
 
 ## 4. UI behaviour (as built today, before this spec's changes)
 

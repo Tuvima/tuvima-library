@@ -1,7 +1,8 @@
 # Plan: First-run ingestion fixes (2026-10-10)
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-10 · **Related docs:** [Multi-episode files](multi-episode-files.md) · [Profiles and setup redesign](profiles-setup-redesign.md)
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-10-17 · **Related docs:** [Multi-episode files](../multi-episode-files.md) · [Profiles and setup redesign](../profiles-setup-redesign.md)
 > _Moved from engineering/plans/ on 2026-10-17. Written before the spec template existed; content unchanged apart from links updated to the moved files._
+> _Built: all 12 work packages merged on 2026-10-10 (PR 70), with proof-run follow-ups in the same week. Shy confirmed on 2026-10-17 that the second wiped first-run import passed. Archived unchanged below this header; the Season 0 placement in AC11 is superseded by [multi-episode files](../multi-episode-files.md) D6._
 
 Source: a fully wiped first-run import of `C:\Temp\real_import` (508 catalogue files) on 2026-10-10, plus the Product Owner's walkthrough of the result. Each bug below has a confirmed root cause with code anchors. No code has been changed yet.
 
