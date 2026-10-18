@@ -24,12 +24,19 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | Draft (v2, 2026-10-17: one question left) |
-| [Plan: First-run ingestion fixes (2026-10-10)](specs/first-run-ingestion-fixes.md) | In progress |
-| [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
-| [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
+| [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Draft (as-built) |
-| [Archive](specs/archive/README.md) | Built specs move here (none yet) |
+| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP1 built inside Item Detail WP10) |
+| [Archive](specs/archive/README.md) | Built specs |
+| [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
+| [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
+
+## Handoffs
+
+| Doc | Status |
+|---|---|
+| [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Current — decision pending |
 
 ## Architecture decisions
 

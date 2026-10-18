@@ -9,6 +9,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,8 +18,9 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// "Move to TV" on a "Found as a TV title" review item, against a real temp SQLite data store:
-/// the film is re-filed as Season 0 Episode 1 of the TMDB show in the TV library, identity re-runs as
-/// TV, the review item resolves, and the file on disk is never touched.
+/// the film is re-filed under the TMDB show in the TV library (Season 1 covering every part of a short
+/// miniseries, otherwise Season 0 Episode 1 as a special with the reason), identity re-runs as TV, the
+/// review item resolves, and the file on disk is never touched.
 /// </summary>
 public sealed class ReviewMoveToTvServiceTests : IDisposable
 {
@@ -35,6 +37,7 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
     private readonly CanonicalValueRepository _canonicals;
     private readonly RecordingPipeline _pipeline = new();
     private readonly RecordingPublisher _publisher = new();
+    private readonly SpyEpisodeCatalogue _episodes = new();
     private readonly MediaEntityChainFactory _factory;
     private readonly ReviewMoveToTvService _service;
     private readonly string _filePath;
@@ -62,6 +65,7 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
             _reviews,
             new MediaAssetRepository(_db),
             new TvReassignmentRepository(_db, resolver),
+            _episodes,
             _canonicals,
             _configuration,
             _pipeline,
@@ -87,6 +91,8 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
     [Fact]
     public async Task MoveToTv_RefilesTheFilmAsSeasonZeroEpisodeOne_AndLeavesTheFileUntouched()
     {
+        // TMDB's list has a gap, so the three-part miniseries falls back to Specials.
+        _episodes.SeasonOne = new HashSet<int> { 1, 3 };
         var (assetId, movieWorkId, reviewId) = await SeedPendingSuggestionAsync();
         var bytesBefore = File.ReadAllBytes(_filePath);
         var writtenBefore = File.GetLastWriteTimeUtc(_filePath);
@@ -98,6 +104,9 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
         Assert.True(response.moved);
         Assert.Equal(ShowName, response.show_name);
         Assert.Equal(TvLibraryId, response.tv_library_id);
+        Assert.Equal(0, response.season_number);
+        Assert.Equal([1], response.episode_numbers);
+        Assert.NotNull(response.placement_reason);
 
         using var conn = _db.CreateConnection();
 
@@ -175,8 +184,121 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task MovingAThreePartMiniseries_CoversSeasonOneEpisodesOneToThree_AllOwned()
+    {
+        _episodes.SeasonOne = new HashSet<int> { 1, 2, 3 };
+        var (assetId, _, reviewId) = await SeedPendingSuggestionAsync();
+
+        var result = await _service.MoveAsync(reviewId, "user");
+
+        Assert.Equal(ReviewMoveToTvOutcome.Moved, result.Outcome);
+        var response = Assert.IsType<ReviewMoveToTvResponse>(result.Response);
+        Assert.Equal(1, response.season_number);
+        Assert.Equal([1, 2, 3], response.episode_numbers);
+        Assert.Null(response.placement_reason);
+        Assert.Equal(("5739", 1), Assert.Single(_episodes.Requests));
+
+        using var conn = _db.CreateConnection();
+
+        // The edition sits on S01E01.
+        var host = conn.QuerySingle<(int? Ordinal, int? SeasonOrdinal)>(
+            """
+            SELECT ep.ordinal AS Ordinal, season.ordinal AS SeasonOrdinal
+            FROM media_assets a
+            JOIN editions e ON e.id = a.edition_id
+            JOIN works ep ON ep.id = e.work_id
+            JOIN works season ON season.id = ep.parent_work_id
+            WHERE a.id = @id;
+            """, new { id = assetId });
+        Assert.Equal((1, 1), host);
+
+        // Coverage rows E01..E03, a manual decision so the identity re-run keeps them.
+        var coverage = conn.Query<(int Position, int Ordinal, string Source)>(
+            """
+            SELECT c.position AS Position, w.ordinal AS Ordinal, c.source AS Source
+            FROM media_asset_coverage c JOIN works w ON w.id = c.work_id
+            WHERE c.asset_id = @id ORDER BY c.position;
+            """, new { id = assetId }).ToList();
+        Assert.Equal([(1, 1, "manual"), (2, 2, "manual"), (3, 3, "manual")], coverage);
+
+        // All three episodes (and the season and show) count as owned.
+        var ownedEpisodes = conn.Query<int>(
+            """
+            SELECT ordinal FROM works
+            WHERE media_type = 'TV' AND work_kind = 'child' AND ownership = 'Owned' AND is_catalog_only = 0
+            ORDER BY ordinal;
+            """).ToList();
+        Assert.Equal([1, 2, 3], ownedEpisodes);
+        Assert.Equal(0, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM works WHERE media_type = 'TV' AND work_kind = 'parent' AND ownership <> 'Owned';"));
+
+        // The decision is locked as season 1 / episode 1, and identity re-runs with the same hints.
+        var assetClaims = await _claims.GetByEntityAsync(assetId);
+        Assert.Equal("1", Assert.Single(assetClaims, c => c.ClaimKey == "season_number").ClaimValue);
+        Assert.Equal("1", Assert.Single(assetClaims, c => c.ClaimKey == "episode_number").ClaimValue);
+        Assert.DoesNotContain(assetClaims, c => c.ClaimKey == "episode_end");
+        var request = Assert.Single(_pipeline.Requests);
+        Assert.Equal("1", request.Hints["season_number"]);
+        Assert.Equal("1", request.Hints["episode_number"]);
+        Assert.False(request.Hints.ContainsKey("episode_end"));
+
+        // History says what was covered.
+        var detail = conn.ExecuteScalar<string>(
+            "SELECT detail FROM system_activity WHERE entity_id = @id AND changes_json LIKE '%moved_to_tv%';", new { id = assetId });
+        Assert.Equal(
+            $"Moved to TV as '{ShowName}' Season 1, Episodes 1\u20133. The file was not moved.", detail);
+    }
+
+    [Fact]
+    public async Task MovingAnOverLimitMiniseries_FallsBackToSpecials_WithAVisibleReason()
+    {
+        _episodes.SeasonOne = new HashSet<int>(Enumerable.Range(1, 7));
+        var (assetId, _, reviewId) = await SeedPendingSuggestionAsync(episodes: 7);
+
+        var result = await _service.MoveAsync(reviewId, "user");
+
+        var response = Assert.IsType<ReviewMoveToTvResponse>(result.Response);
+        Assert.Equal(0, response.season_number);
+        Assert.Equal([1], response.episode_numbers);
+        Assert.NotNull(response.placement_reason);
+        Assert.Contains("at most 6", response.placement_reason);
+        AssertFilledAsSpecial(assetId, response.placement_reason);
+    }
+
+    [Fact]
+    public async Task MovingWhenTmdbEpisodeListIsUnavailable_FallsBackToSpecials_WithAVisibleReason()
+    {
+        _episodes.SeasonOne = null;
+        var (assetId, _, reviewId) = await SeedPendingSuggestionAsync();
+
+        var result = await _service.MoveAsync(reviewId, "user");
+
+        var response = Assert.IsType<ReviewMoveToTvResponse>(result.Response);
+        Assert.Equal(0, response.season_number);
+        Assert.NotNull(response.placement_reason);
+        Assert.Contains("couldn't be fetched", response.placement_reason);
+        AssertFilledAsSpecial(assetId, response.placement_reason);
+    }
+
+    [Fact]
+    public async Task MovingAMultiSeasonShow_DoesNotFetchEpisodes_AndFallsBackToSpecials()
+    {
+        _episodes.SeasonOne = new HashSet<int> { 1, 2, 3 };
+        var (assetId, _, reviewId) = await SeedPendingSuggestionAsync(seasons: 2);
+
+        var result = await _service.MoveAsync(reviewId, "user");
+
+        var response = Assert.IsType<ReviewMoveToTvResponse>(result.Response);
+        Assert.Equal(0, response.season_number);
+        Assert.Contains("2 seasons", response.placement_reason);
+        Assert.Empty(_episodes.Requests);
+        AssertFilledAsSpecial(assetId, response.placement_reason!);
+    }
+
+    [Fact]
     public async Task FailureAfterTheHierarchyIsCreated_RollsEverythingBack_AndTheReviewItemStaysPending()
     {
+        _episodes.SeasonOne = null; // falls back to Specials: show, season and one episode
         var (assetId, movieWorkId, reviewId) = await SeedPendingSuggestionAsync();
 
         // The bridge id is written after the hierarchy, edition move, library change and claims,
@@ -278,6 +400,29 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
 
     private const string SignalREventsReviewResolved = SignalREvents.ReviewItemResolved;
 
+    /// <summary>The file sits on S00E01 with no coverage rows, and History carries the reason.</summary>
+    private void AssertFilledAsSpecial(Guid assetId, string? reason)
+    {
+        using var conn = _db.CreateConnection();
+        var placed = conn.QuerySingle<(int? Ordinal, int? SeasonOrdinal)>(
+            """
+            SELECT ep.ordinal AS Ordinal, season.ordinal AS SeasonOrdinal
+            FROM media_assets a
+            JOIN editions e ON e.id = a.edition_id
+            JOIN works ep ON ep.id = e.work_id
+            JOIN works season ON season.id = ep.parent_work_id
+            WHERE a.id = @id;
+            """, new { id = assetId });
+        Assert.Equal((1, 0), placed);
+        Assert.Equal(0, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM media_asset_coverage WHERE asset_id = @id;", new { id = assetId }));
+
+        var detail = conn.ExecuteScalar<string>(
+            "SELECT detail FROM system_activity WHERE entity_id = @id AND changes_json LIKE '%moved_to_tv%';", new { id = assetId });
+        Assert.Contains("Specials (Season 0, Episode 1)", detail);
+        Assert.Contains(reason!, detail);
+    }
+
     private void AssertStillAMovie(Guid assetId, Guid movieWorkId)
     {
         using var conn = _db.CreateConnection();
@@ -286,7 +431,8 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
         Assert.Equal(MoviesLibraryId, conn.ExecuteScalar<string>("SELECT library_id FROM media_assets WHERE id = @id;", new { id = assetId }));
     }
 
-    private async Task<(Guid AssetId, Guid MovieWorkId, Guid ReviewId)> SeedPendingSuggestionAsync()
+    private async Task<(Guid AssetId, Guid MovieWorkId, Guid ReviewId)> SeedPendingSuggestionAsync(
+        int seasons = 1, int episodes = 3)
     {
         var assetId = Guid.NewGuid();
         var editionId = await _factory.EnsureEntityChainAsync(
@@ -318,8 +464,8 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
             Name = ShowName,
             FirstAirYear = 2008,
             Type = "Miniseries",
-            Seasons = 1,
-            Episodes = 3,
+            Seasons = seasons,
+            Episodes = episodes,
             PosterUrl = "https://image.tmdb.org/t/p/w500/dr.jpg",
             Overview = "A low-rent super-villain.",
         };
@@ -349,6 +495,20 @@ public sealed class ReviewMoveToTvServiceTests : IDisposable
         };
         await _reviews.InsertAsync(entry);
         return entry.Id;
+    }
+
+    private sealed class SpyEpisodeCatalogue : ITmdbSeasonEpisodeCatalogue
+    {
+        public IReadOnlySet<int>? SeasonOne { get; set; } = new HashSet<int> { 1, 2, 3 };
+
+        public List<(string TvId, int Season)> Requests { get; } = [];
+
+        public Task<IReadOnlySet<int>?> GetSeasonEpisodeNumbersAsync(
+            string tmdbTvId, int seasonNumber, CancellationToken ct = default)
+        {
+            Requests.Add((tmdbTvId, seasonNumber));
+            return Task.FromResult(SeasonOne);
+        }
     }
 
     private sealed class RecordingPipeline : IHydrationPipelineService

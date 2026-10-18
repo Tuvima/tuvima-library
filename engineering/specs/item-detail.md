@@ -1,6 +1,6 @@
 # Spec: Item Detail page
 
-> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../docs/architecture/dashboard-ui.md)
+> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../docs/architecture/dashboard-ui.md)
 
 > Version 5 replaces the "as built" v4. It records what the page does today (including PR 222, merged, and PR 223 Editing Mode, assumed merged before packets start) and every decision Shy made on 2026-10-17 about what to change, remove or leave to other plans. Anything labelled "to be confirmed by Claude Code" is a fact I could not check from the planning side.
 
@@ -49,6 +49,7 @@ New on 2026-10-17 (Shy):
 - **D22. Editor start tabs** (G11) are dropped: superseded by Editing Mode.
 - **D23. Remove the unused profile ID** the Dashboard sends. (G14)
 - **D24. Standard breakpoints** (600, 840, 1180 px) on the Details pages. (G15)
+- **D25. WP10 carries Registry retirement WP1** (Shy, 2026-10-17): the Registry tab and `?context=admin` removal, and moving identity status and artwork source into the editor's Match & Identity section, are built once, here, right after WP2.
 
 ## 4. UI behaviour
 

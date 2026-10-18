@@ -47,7 +47,7 @@ A grouping of media with explicit purpose and access. Automatic Collections conn
 
 ### Combined file
 
-One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`).
+One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`). A whole miniseries in one film file becomes a combined file when it is moved to TV.
 
 ### Correspondent
 
@@ -97,7 +97,7 @@ The **Extra protection** row under **Settings → Security**, which opens one sh
 
 ### Found as a TV title
 
-A Review Queue reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film.
+A Review Queue reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film. Move to TV attaches the file to every part TMDB lists (at most six, in one season), so a show of several parts becomes a combined file; only when the parts cannot be listed that clearly is it filed as a special, and the item's History says why.
 
 ### From merge
 
