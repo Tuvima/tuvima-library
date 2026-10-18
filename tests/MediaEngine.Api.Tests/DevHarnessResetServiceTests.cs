@@ -54,6 +54,7 @@ public sealed class DevHarnessResetServiceTests : IDisposable
                 INSERT INTO artwork_asset_search (artwork_asset_id, search_text) VALUES ('art-1', 'dune desert poster');
                 INSERT INTO artwork_asset_search (artwork_asset_id, search_text) VALUES ('art-2', 'arrakis spice cover');
                 INSERT INTO search_index (entity_id, title) VALUES ('work-1', 'Dune');
+                INSERT INTO local_item_search (title, file_name) VALUES ('Beach sunset', 'IMG_0001.jpg');
                 """);
         }
 
@@ -75,6 +76,10 @@ public sealed class DevHarnessResetServiceTests : IDisposable
             Execute(conn, "INSERT INTO artwork_asset_search (artwork_asset_id, search_text) VALUES ('art-3', 'fresh backdrop');");
             Assert.Equal(1L, Scalar(conn, "SELECT COUNT(*) FROM artwork_asset_search WHERE artwork_asset_search MATCH 'backdrop';"));
             Execute(conn, "INSERT INTO artwork_asset_search (artwork_asset_search) VALUES ('integrity-check');");
+
+            // The local item index is preserved, and still searchable, after a library-only reset.
+            Assert.Equal(1L, Scalar(conn, "SELECT COUNT(*) FROM local_item_search WHERE local_item_search MATCH 'sunset';"));
+            Execute(conn, "INSERT INTO local_item_search (local_item_search) VALUES ('integrity-check');");
         }
     }
 
