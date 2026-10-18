@@ -31,6 +31,7 @@ There is one, clearly named place to deal with library items the Engine isn't su
 - **D13.** (2026-10-17, Shy) **Approved apps keep Needs Review access.** An app a server administrator has granted review permission may still list and resolve reviews; D12 limits people, not those apps.
 - **D14.** (2026-10-17, Shy) **WP1 is built inside Item Detail WP10**, on the Item Detail work, right after its WP2. This spec's WP8 waits for it.
 - **D15.** (2026-10-17, Shy) **An app acting for a signed-in person needs that person to be a server administrator** to list or resolve reviews (Option A); server-integration and automation apps keep access under D13. This is an Engine-side check only: native apps stay consumption-only and get no review or admin screens.
+- **D16.** (2026-10-17, Shy) **Remove song delete now.** WP3 also removes the batch delete Engine action and the Listen page's Delete song button, because that delete removed files even from folders Tuvima may only read, breaking the rule that original source media stay protected. Music has no Delete until the Delete from library spec is built.
 
 ## 4. UI behaviour (as built today, before this spec's changes)
 
