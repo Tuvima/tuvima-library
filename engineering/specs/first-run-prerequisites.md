@@ -26,6 +26,7 @@
 - **A6.** Settings has one **Tools and requirements** page listing every tool and the Local AI models with their state, matching what setup showed, and for anything missing it says what is blocked and how many files are held. The Local AI page keeps only AI settings. (WP2, WP7)
 - **A7.** Each key-needing service connects from a single screen: link, paste, Test. (WP4)
 - **A8.** The folder picker's path bar spans the full width above the lists, and the icon follows the media type. (WP5)
+- **A8b.** (Added by Shy 2026-10-18.) The folder picker follows the reference layout and behaviours AD1 to AD6 under WP5: paste a path and go, single-click select and double-click open, one-click copy, container paths, a plain message for a missing or unreadable path, and media locations first. (WP5)
 - **A9.** The from-source install page lists every tool and how to get it. (WP6)
 
 ## 1. Goal
@@ -125,6 +126,13 @@ Whoever installs the Library, however they installed it, is told up front which 
 - **Depends on:** none
 - **Size:** Standard
 - **Done when:** at desktop and narrow widths the path bar spans the dialog and can be selected and copied in one go; opening the picker for Movies, TV, Music, Books, Comics and Audiobooks shows six different icons.
+- **Addendum (Shy, 2026-10-18, added during the build).** Reference layout: [folder picker mockup](../design/mockups/first-run-prerequisites-folder-picker.webp) (layout only; values come from the shipped tokens). Title and help text at the top, then a full-width path box with a clear button and **Go**; a folder list down the left; on the right Back, Forward and Up buttons, a breadcrumb trail, a folder search box, and a Name / Modified list; at the bottom a "Selected path" box with a copy button beside Cancel and the select button. Required behaviour:
+  - **AD1. Paste a path.** Typing or pasting a full path (for example `/media/movies`) and pressing Enter or **Go** goes straight there.
+  - **AD2. Browse.** Single-click selects a folder, double-click opens it; breadcrumbs and an Up button move back up.
+  - **AD3. Copy.** The complete selected path copies with one click.
+  - **AD4. Container-aware.** Paths are shown as the Engine sees them (inside the container when it runs in Docker), never translated to host paths.
+  - **AD5. Validate.** A path that does not exist or cannot be opened says so plainly beside the path box, and nothing is selected.
+  - **AD6. Simple navigation.** The left list shows the configured media locations first, not every system folder. The picker never opens up folders outside the locations it is already allowed to browse.
 
 ### WP6 — Install pages list every tool
 - **What it does:** The from-source page currently covers Tesseract but not FFmpeg. Add both, with what each affects, where to get them, and how to check. Align the Windows and Docker pages and the configuration reference with the new tools list. Update the status and feature inventory pages per the docs rules.
