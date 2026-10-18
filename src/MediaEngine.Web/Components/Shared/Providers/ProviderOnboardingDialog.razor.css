@@ -2,7 +2,6 @@
     display: grid;
     align-content: start;
     gap: 24px;
-    min-height: 520px;
     padding: 24px 36px 30px;
 }
 
@@ -20,64 +19,13 @@
 }
 
 .provider-onboarding__identity strong,
-.provider-onboarding__step h3,
 .provider-onboarding__success h3 {
     color: var(--tl-text-primary);
 }
 
 .provider-onboarding__identity small,
-.provider-onboarding__step > p,
 .provider-onboarding__success p {
     color: var(--tl-text-muted);
-}
-
-.provider-onboarding__progress {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-    gap: 18px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.provider-onboarding__progress li {
-    display: grid;
-    grid-template-columns: 42px minmax(0, 1fr);
-    align-items: center;
-    gap: 14px;
-    color: var(--tl-text-muted);
-    font-size: .9rem;
-    font-weight: 600;
-    position: relative;
-}
-
-.provider-onboarding__progress li:not(:last-child)::after {
-    content: "";
-    position: absolute;
-    left: calc(100% + 9px);
-    width: 18px;
-    height: 1px;
-    background: var(--tl-border-default);
-}
-
-.provider-onboarding__progress li > span {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: 50%;
-}
-
-.provider-onboarding__progress li.is-active,
-.provider-onboarding__progress li.is-complete {
-    color: var(--tl-text-primary);
-}
-
-.provider-onboarding__progress li.is-active > span,
-.provider-onboarding__progress li.is-complete > span {
-    border-color: var(--provider-accent, var(--tl-accent-primary));
-    background: color-mix(in srgb, var(--provider-accent, var(--tl-accent-primary)) 22%, transparent);
 }
 
 .provider-onboarding__step {
@@ -87,13 +35,9 @@
     width: 100%;
 }
 
-.provider-onboarding__step h3 {
-    font-size: 1.4rem;
-}
-
-.provider-onboarding__step > p {
-    font-size: 1rem;
-    line-height: 1.5;
+.provider-onboarding__step-action {
+    display: grid;
+    gap: var(--tl-space-3);
 }
 
 .provider-onboarding__step-action ::deep .app-button {
@@ -101,8 +45,6 @@
     min-height: 52px;
 }
 
-.provider-onboarding__step h3,
-.provider-onboarding__step p,
 .provider-onboarding__success h3,
 .provider-onboarding__success p {
     margin: 0;
@@ -170,14 +112,6 @@
     .provider-onboarding {
         min-height: 0;
         padding: 18px;
-    }
-
-    .provider-onboarding__progress {
-        grid-template-columns: 1fr;
-    }
-
-    .provider-onboarding__progress li:not(:last-child)::after {
-        display: none;
     }
 
     .provider-onboarding__footer {

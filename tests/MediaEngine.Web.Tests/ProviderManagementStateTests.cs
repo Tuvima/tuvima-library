@@ -14,7 +14,7 @@ public sealed class ProviderManagementStateTests
 
         Assert.Contains("OpenProviderDialogAsync", page, StringComparison.Ordinal);
         Assert.Contains("Onboarding.Steps", dialog, StringComparison.Ordinal);
-        Assert.Contains("current.Action", dialog, StringComparison.Ordinal);
+        Assert.Contains("KeyLink", dialog, StringComparison.Ordinal);
         Assert.Contains("Onboarding.Troubleshooting", dialog, StringComparison.Ordinal);
         Assert.DoesNotContain("TMDB API Key", page, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Comic Vine API Key", page, StringComparison.OrdinalIgnoreCase);
