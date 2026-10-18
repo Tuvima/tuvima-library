@@ -4,6 +4,8 @@
 
 > Replaces the March 2026 "Registry spec v3". Version 5 records Shy's answers to all four open questions and all thirteen gaps (2026-10-17). Per Shy, "Registry" is **retired entirely** so it no longer exists in the app, the docs or Claude's context. Sections 4 and 5 describe what exists today; section 6 is the removal plan.
 
+> **Build progress (2026-10-17):** WP2–WP7 and the WP8 docs are built in the Registry retirement proposed change (#245). WP1 and the WP8 retired-vocabulary guardrail ship with the Item Detail proposed change (Item Detail WP10); this spec moves to Built once both are on main.
+
 ## 1. Goal
 
 There is one, clearly named place to deal with library items the Engine isn't sure about — **Needs Review** — and no leftover "Registry" screen, tab, wording or dead Engine actions that confuse people or future work. Needs Review also tells the truth when something fails.
