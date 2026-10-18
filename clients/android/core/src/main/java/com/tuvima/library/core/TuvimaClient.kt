@@ -1,5 +1,7 @@
 package com.tuvima.library.core
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -63,7 +65,10 @@ class TuvimaClient(
         // Settle on the address that answers first, so this and every later request go to it.
         refreshServerAddress()
         val json = requestJson("GET", DISCOVERY_PATH, authenticated = false)
-        rememberOutside(json.optionalString("outside_address"), addresses.current)
+        // Pairing and app start are the only places the outside address is learned. While nobody is signed in (pairing) the
+        // answer is authoritative, so re-pairing picks up a removed outside address; once paired, an answer can only replace
+        // it with a new valid address, never clear it.
+        rememberOutside(json.optionalString("outside_address"), clearWhenNone = !isPaired())
         val value = Discovery(
             serverName = json.optString("server_name", "Tuvima Library"),
             apiBaseUrl = json.getString("api_base_url"),
@@ -98,9 +103,15 @@ class TuvimaClient(
      */
     fun resolveUrl(url: String): String = addresses.rebase(url)
 
-    private fun rememberOutside(announced: String?, answeredBy: String) {
-        if (addresses.updateOutside(announced, answeredBy)) addressStore.saveOutside(serverOrigin, addresses.outside)
+    private fun rememberOutside(announced: String?, clearWhenNone: Boolean) {
+        if (addresses.updateOutside(announced, clearWhenNone)) addressStore.saveOutside(serverOrigin, addresses.outside)
     }
+
+    /**
+     * A bearer token for a request to [url], or null when [url] is not on the home or outside address. Players ask per
+     * request, so a playlist, a redirect or a subtitle link that names another host never receives the device's token.
+     */
+    suspend fun streamBearerTokenFor(url: String): String? = if (addresses.owns(url)) authenticatedToken() else null
 
     /**
      * After a connection failure on [failedOrigin]: when an outside address is known and another request has not already
@@ -136,40 +147,58 @@ class TuvimaClient(
         }
     }
 
-    /** Asks [origin] for its discovery answer within [ServerAddressSelector.PROBE_TIMEOUT_MS]; a bare 200 from a captive portal does not count. */
+    /**
+     * Asks [origin] for its discovery answer within [ServerAddressSelector.PROBE_TIMEOUT_MS]; a bare 200 from a captive portal
+     * does not count. A check only answers "does it respond": it never changes the stored outside address.
+     */
     private suspend fun isReachable(origin: String): Boolean {
         val answer = fetchDiscoveryQuickly(origin) ?: return false
-        val json = runCatching { JSONObject(answer) }.getOrNull() ?: return false
-        if (!json.has("api_base_url")) return false
-        rememberOutside(json.optionalString("outside_address"), origin)
-        return true
+        val json = try {
+            JSONObject(answer)
+        } catch (error: org.json.JSONException) {
+            Log.d(TAG, "$origin answered the address check with something that is not JSON", error)
+            return false
+        }
+        return json.has("api_base_url")
     }
 
     private suspend fun fetchDiscoveryQuickly(origin: String): String? {
-        val connection = (URL(origin + DISCOVERY_PATH).openConnection() as HttpURLConnection).apply {
-            connectTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
-            readTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
-            setRequestProperty("Accept", "application/json")
-        }
+        var connection: HttpURLConnection? = null
         return try {
+            val opened = (URL(origin + DISCOVERY_PATH).openConnection() as HttpURLConnection).apply {
+                connectTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
+                readTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
+                setRequestProperty("Accept", "application/json")
+            }
+            connection = opened
             // Name resolution is not covered by the connection timeouts, so the whole check also has a budget; running out of
             // it closes the connection, which ends the blocked read.
             withTimeoutOrNull(ServerAddressSelector.PROBE_TIMEOUT_MS + PROBE_GRACE_MS) {
                 suspendCancellableCoroutine<String?> { waiting ->
-                    waiting.invokeOnCancellation { connection.disconnect() }
+                    waiting.invokeOnCancellation { opened.disconnect() }
                     thread(isDaemon = true, name = "tuvima-address-check") {
                         val text = try {
-                            if (connection.responseCode in 200..299) connection.inputStream.bufferedReader().use { it.readText() } else null
+                            if (opened.responseCode in 200..299) opened.inputStream.bufferedReader().use { it.readText() } else null
                         } catch (error: IOException) {
-                            // An unreachable address is the expected answer of this check, not a failure to report.
+                            // An unreachable address is the expected answer of this check.
+                            Log.d(TAG, "$origin did not answer the address check", error)
+                            null
+                        } catch (error: Exception) {
+                            // Anything else on this thread would crash the app; it counts as unreachable, and is logged.
+                            Log.w(TAG, "The address check for $origin failed unexpectedly", error)
                             null
                         }
                         waiting.resume(text)
                     }
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "The address check for $origin could not be started", error)
+            null
         } finally {
-            connection.disconnect()
+            connection?.disconnect()
         }
     }
 
@@ -829,6 +858,7 @@ class TuvimaClient(
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
         const val DISCOVERY_PATH = "/.well-known/tuvima"
+        const val TAG = "TuvimaClient"
 
         /** Budget on top of the connection timeouts for the whole address check, which name resolution can otherwise exceed. */
         const val PROBE_GRACE_MS = 500L

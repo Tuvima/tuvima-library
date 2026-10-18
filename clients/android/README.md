@@ -22,7 +22,8 @@ Home and outside address: the address typed at pairing is the server's home addr
 saved sign-in is keyed to it). The Dashboard's discovery answer (`GET /.well-known/tuvima`) also carries an optional
 `outside_address` when the owner has set one up in Remote Access (a reverse-proxy address or a Tailscale address; nothing to type
 twice). The app saves it next to the home address (`PreferencesServerAddressStore`, refreshed whenever discovery runs;
-an answer received over the outside address that omits it never makes the app forget it). The app uses the home address
+an answer that omits it never makes the app forget it, and only discovery at pairing or app start can set it, never the quick
+address checks; so removing the outside address on the server takes effect on the phone after re-pairing). The app uses the home address
 first: `TuvimaClient.refreshServerAddress()` asks the home address for its discovery answer with a short timeout
 (about 1.5 seconds), then the outside address, and otherwise stays where it is, so the usual "Can't reach your Tuvima server"
 with Retry appears. It rechecks on app start (`discover()`), when the phone's default network changes

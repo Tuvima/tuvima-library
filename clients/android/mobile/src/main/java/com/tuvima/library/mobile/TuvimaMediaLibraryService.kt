@@ -113,7 +113,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             } else {
                 val api = client
                 val located = if (api == null) dataSpec else dataSpec.withUri(Uri.parse(api.resolveUrl(dataSpec.uri.toString())))
-                val token = if (api == null) null else runBlocking { api.streamBearerToken() }
+                // Only the server's own addresses get the token; a link to any other host is fetched without it.
+                val token = if (api == null) null else runBlocking { api.streamBearerTokenFor(located.uri.toString()) }
                 if (token == null) located else located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
             }
         }

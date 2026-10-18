@@ -206,8 +206,9 @@ class ClipPlayerActivity : ComponentActivity() {
             val authorised = ResolvingDataSource.Factory(DefaultDataSource.Factory(this@ClipPlayerActivity, http)) { dataSpec ->
                 // The address is read per request too, so a switch between home and outside never needs a new URL.
                 val located = dataSpec.withUri(Uri.parse(client.resolveUrl(dataSpec.uri.toString())))
-                val token = runBlocking { client.streamBearerToken() }
-                located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+                // Only the server's own addresses get the token; a link to any other host is fetched without it.
+                val token = runBlocking { client.streamBearerTokenFor(located.uri.toString()) }
+                if (token == null) located else located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
             }
             val created = ExoPlayer.Builder(this@ClipPlayerActivity)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(this@ClipPlayerActivity).setDataSourceFactory(authorised))

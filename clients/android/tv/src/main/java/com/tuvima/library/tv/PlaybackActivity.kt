@@ -55,9 +55,10 @@ class PlaybackActivity : ComponentActivity() {
         // The token and the server address (home or outside) are read when each request is made, never once at start-up:
         // the token lives about ten minutes and the address can change when the television changes network.
         val dataSource = ResolvingDataSource.Factory(DefaultHttpDataSource.Factory()) { dataSpec ->
-            val token = runBlocking { client.streamBearerToken() }
-            dataSpec.withUri(Uri.parse(client.resolveUrl(dataSpec.uri.toString())))
-                .withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+            val located = dataSpec.withUri(Uri.parse(client.resolveUrl(dataSpec.uri.toString())))
+            // Only the server's own addresses get the token; a link to any other host is fetched without it.
+            val token = runBlocking { client.streamBearerTokenFor(located.uri.toString()) }
+            if (token == null) located else located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
         }
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(dataSource))

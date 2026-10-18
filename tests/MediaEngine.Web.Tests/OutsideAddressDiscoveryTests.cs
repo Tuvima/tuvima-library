@@ -144,6 +144,71 @@ public sealed class OutsideAddressDiscoveryTests
         Assert.True(EngineOutsideAddressSource.FailureLifetime < EngineOutsideAddressSource.AnswerLifetime);
     }
 
+    [Fact]
+    public async Task Source_KeepsServingTheLastGoodAddress_WhenTheEngineFailsLater()
+    {
+        var healthy = true;
+        var clock = new ManualClock();
+        await using var engine = await TestHost.StartEngineAsync(_ => healthy
+            ? Results.Json(new { outside_address = "https://tuvima.example.com" })
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
+        var source = new EngineOutsideAddressSource(new FixedClientFactory(engine.Address), NullLogger<EngineOutsideAddressSource>.Instance, clock);
+
+        var first = await source.GetAsync();
+        healthy = false;
+        clock.Advance(EngineOutsideAddressSource.AnswerLifetime + TimeSpan.FromSeconds(1));
+        var duringOutage = await source.GetAsync();
+        clock.Advance(EngineOutsideAddressSource.FailureLifetime + TimeSpan.FromSeconds(1));
+        var stillDuringOutage = await source.GetAsync();
+
+        Assert.Equal("https://tuvima.example.com", first);
+        Assert.Equal(first, duringOutage);
+        Assert.Equal(first, stillDuringOutage);
+    }
+
+    [Fact]
+    public async Task Source_StopsServingTheAddress_OnlyWhenTheEngineSaysThereIsNone()
+    {
+        var address = (string?)"https://tuvima.example.com";
+        var clock = new ManualClock();
+        await using var engine = await TestHost.StartEngineAsync(_ => Results.Json(new { outside_address = address }));
+        var source = new EngineOutsideAddressSource(new FixedClientFactory(engine.Address), NullLogger<EngineOutsideAddressSource>.Instance, clock);
+
+        var first = await source.GetAsync();
+        address = null;
+        clock.Advance(EngineOutsideAddressSource.AnswerLifetime + TimeSpan.FromSeconds(1));
+        var afterRemoval = await source.GetAsync();
+
+        Assert.Equal("https://tuvima.example.com", first);
+        Assert.Null(afterRemoval);
+    }
+
+    [Fact]
+    public async Task Source_AnswersNothing_WhenTheEngineHasNeverAnsweredWell()
+    {
+        await using var engine = await TestHost.StartEngineAsync(_ => Results.StatusCode(StatusCodes.Status500InternalServerError));
+        var source = new EngineOutsideAddressSource(new FixedClientFactory(engine.Address), NullLogger<EngineOutsideAddressSource>.Instance, new ManualClock());
+
+        Assert.Null(await source.GetAsync());
+    }
+
+    [Theory]
+    [InlineData("<html>maintenance</html>", "text/html")]
+    [InlineData("plain words", "text/plain")]
+    [InlineData("{ not json", "application/json")]
+    [InlineData("", "application/json")]
+    public async Task Discovery_StillAnswers200_WhenTheEngineAnswers200WithABodyThatIsNotTheExpectedJson(string body, string contentType)
+    {
+        await using var engine = await TestHost.StartEngineAsync(_ => Results.Text(body, contentType));
+        await using var dashboard = await TestHost.StartDashboardAsync(engine.Address);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var response = await client.GetAsync("/.well-known/tuvima");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null((await response.Content.ReadFromJsonAsync<TuvimaDiscoveryResponse>())!.OutsideAddress);
+    }
+
     private sealed class ManualClock : TimeProvider
     {
         private DateTimeOffset now = new(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);

@@ -59,17 +59,18 @@ class ServerAddresses(val home: String, outside: String? = null) {
     val outside: String? get() = outsideOrigin
 
     /**
-     * Records the outside address a discovery answer announced (null or blank when it announced none); [answeredBy] is the
-     * address that answer came from. An address equal to [home] is no second address.
+     * Records the outside address a discovery answer announced (null or blank when it announced none). An address equal to
+     * [home] is no second address.
      *
-     * A new address always replaces the old one. "None announced" removes the stored address only when the answer came from
-     * the home address: an answer received over the outside address that omits it (a server hiccup) must not make the
-     * phone forget the only way back in while away. Returns true when the stored address changed.
+     * A new valid address always replaces the old one. An answer that announces none (or an unusable address) never removes
+     * the stored address: a server hiccup must not make the phone forget its only way back in while away. The one exception
+     * is [clearWhenNone], which the client sets only while pairing, when nobody is signed in to lose. Returns true when the
+     * stored address changed.
      */
-    fun updateOutside(announced: String?, answeredBy: String): Boolean = synchronized(lock) {
+    fun updateOutside(announced: String?, clearWhenNone: Boolean = false): Boolean = synchronized(lock) {
         val next = ServerOrigins.normalizeOrNull(announced)?.takeUnless { it == home }
         val previous = outsideOrigin
-        if (next == null && answeredBy != home) return false
+        if (next == null && !clearWhenNone) return false
         if (next == previous) return false
         outsideOrigin = next
         if (currentOrigin == previous) currentOrigin = next ?: home
@@ -84,17 +85,26 @@ class ServerAddresses(val home: String, outside: String? = null) {
         true
     }
 
+    /** True when [url] is on the home or the outside address, the only hosts that may be sent the device's token. */
+    fun owns(url: String): Boolean = listOfNotNull(home, outsideOrigin).any { startsWithOrigin(url, it) }
+
     /**
      * [url] with the origin of either known address replaced by [current] (or by [onto]), so a URL that was built while
      * the other address was in use still reaches the server. Anything else (another host, a path) is returned as it is.
      */
     fun rebase(url: String, onto: String = currentOrigin): String {
         for (origin in listOfNotNull(home, outsideOrigin)) {
-            if (origin == onto || !url.startsWith(origin)) continue
-            val rest = url.substring(origin.length)
-            if (rest.isEmpty() || rest[0] == '/' || rest[0] == '?' || rest[0] == '#') return onto + rest
+            if (origin == onto || !startsWithOrigin(url, origin)) continue
+            return onto + url.substring(origin.length)
         }
         return url
+    }
+
+    // The origin must end where the host ends: https://a.example must not match https://a.example.evil.test.
+    private fun startsWithOrigin(url: String, origin: String): Boolean {
+        if (!url.startsWith(origin)) return false
+        val rest = url.substring(origin.length)
+        return rest.isEmpty() || rest[0] == '/' || rest[0] == '?' || rest[0] == '#'
     }
 
     /** [path] as an absolute URL on [origin]: a server-relative path is resolved against it, an absolute URL is rebased onto it. */

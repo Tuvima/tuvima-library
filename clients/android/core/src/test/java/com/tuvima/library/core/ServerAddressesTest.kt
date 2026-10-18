@@ -74,53 +74,73 @@ class ServerAddressesTest {
     }
 
     @Test
-    fun aDiscoveryAnswerReplacesTheOutsideAddress() {
+    fun aDiscoveryAnswerReplacesTheOutsideAddressWithANewValidOne() {
         val addresses = ServerAddresses(home, outside)
 
-        assertTrue(addresses.updateOutside("https://new.tailnet.ts.net/", answeredBy = home))
+        assertTrue(addresses.updateOutside("https://new.tailnet.ts.net/"))
         assertEquals("https://new.tailnet.ts.net", addresses.outside)
-        assertFalse(addresses.updateOutside("https://new.tailnet.ts.net", answeredBy = home))
+        assertFalse(addresses.updateOutside("https://new.tailnet.ts.net"))
     }
 
     @Test
-    fun aDiscoveryAnswerFromHomeThatAnnouncesNoneRemovesTheOutsideAddress() {
-        val addresses = ServerAddresses(home, outside)
-
-        assertTrue(addresses.updateOutside(null, answeredBy = home))
-        assertNull(addresses.outside)
-        assertEquals(home, addresses.current)
-    }
-
-    @Test
-    fun anAnswerReceivedOverTheOutsideAddressNeverMakesThePhoneForgetIt() {
+    fun anAnswerThatAnnouncesNoneNeverMakesThePhoneForgetTheOutsideAddress() {
         val addresses = ServerAddresses(home, outside)
         addresses.select(outside)
 
-        assertFalse(addresses.updateOutside(null, answeredBy = outside))
+        assertFalse(addresses.updateOutside(null))
+        assertFalse(addresses.updateOutside(""))
+        assertFalse(addresses.updateOutside("   "))
+        assertFalse(addresses.updateOutside("http://public.example.com"))
         assertEquals(outside, addresses.outside)
         assertEquals(outside, addresses.current)
     }
 
     @Test
-    fun whenTheOutsideAddressInUseIsReplacedTheNewOneIsUsed_andWhenItIsRemovedHomeIs() {
+    fun whilePairingAnAnswerThatAnnouncesNoneRemovesTheOutsideAddress() {
         val addresses = ServerAddresses(home, outside)
-        addresses.select(outside)
 
-        addresses.updateOutside("https://new.tailnet.ts.net", answeredBy = outside)
-        assertEquals("https://new.tailnet.ts.net", addresses.current)
-
-        addresses.updateOutside(null, answeredBy = home)
+        assertTrue(addresses.updateOutside(null, clearWhenNone = true))
+        assertNull(addresses.outside)
         assertEquals(home, addresses.current)
     }
 
     @Test
-    fun anAnnouncedAddressEqualToHomeOrUnusableIsIgnored() {
+    fun whenTheOutsideAddressInUseIsReplacedTheNewOneIsUsed() {
+        val addresses = ServerAddresses(home, outside)
+        addresses.select(outside)
+
+        addresses.updateOutside("https://new.tailnet.ts.net")
+
+        assertEquals("https://new.tailnet.ts.net", addresses.current)
+    }
+
+    @Test
+    fun anAnnouncedAddressEqualToHomeIsNoSecondAddress() {
         val addresses = ServerAddresses(home)
 
-        assertFalse(addresses.updateOutside(home, answeredBy = home))
-        assertFalse(addresses.updateOutside("http://public.example.com", answeredBy = home))
-        assertFalse(addresses.updateOutside("   ", answeredBy = home))
+        assertFalse(addresses.updateOutside(home))
+        assertFalse(addresses.updateOutside("http://public.example.com"))
         assertNull(addresses.outside)
+    }
+
+    @Test
+    fun onlyTheHomeAndOutsideAddressesMayBeSentTheToken() {
+        val addresses = ServerAddresses(home, outside)
+
+        assertTrue(addresses.owns("$home/api/v1/stream/1"))
+        assertTrue(addresses.owns("$outside/api/v1/stream/1?x=1"))
+        assertFalse(addresses.owns("https://cdn.example.org/a.m3u8"))
+        assertFalse(addresses.owns("$outside.evil.test/api/v1/stream/1"))
+        assertFalse(addresses.owns("http://192.168.1.20:50160/x"))
+        assertFalse(addresses.owns("file:///data/user/0/x.mp4"))
+    }
+
+    @Test
+    fun aServerAddressThatIsNoLongerKnownIsNoLongerTrusted() {
+        val addresses = ServerAddresses(home, outside)
+        addresses.updateOutside(null, clearWhenNone = true)
+
+        assertFalse(addresses.owns("$outside/api/v1/stream/1"))
     }
 
     @Test
