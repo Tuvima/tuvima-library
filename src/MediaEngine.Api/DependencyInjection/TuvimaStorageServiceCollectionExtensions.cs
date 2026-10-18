@@ -91,6 +91,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAudioFingerprintRepository, AudioFingerprintRepository>();
         services.AddSingleton<IProviderConfigurationRepository, ProviderConfigurationRepository>();
         services.AddSingleton<IProfileRepository, ProfileRepository>();
+        services.AddSingleton<DataStoreVersionRepository>();
         services.AddSingleton<AccountRepository>();
         services.AddSingleton<IAccountRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IAccessRepository>(sp => sp.GetRequiredService<AccountRepository>());

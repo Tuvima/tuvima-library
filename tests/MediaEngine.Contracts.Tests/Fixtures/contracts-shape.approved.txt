@@ -8255,6 +8255,11 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.BackupArchiveDto
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.CreateBackupRequest
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
+  StepNumber: System.Int32 | nullability=not-null | accessors=get,init
+  StepName: System.String | nullability=not-null | accessors=get,init
+  AppliedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.RestoreValidationResultDto
   Valid: System.Boolean | nullability=not-null | accessors=get,init
   FileName: System.String | nullability=not-null | accessors=get,init

@@ -10,6 +10,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using SystemStatusResponse = MediaEngine.Contracts.System.SystemStatusResponse;
@@ -112,6 +113,19 @@ public static class SystemEndpoints
         .WithName("ListBackups")
         .WithSummary("Lists server-side database and configuration backup archives.")
         .Produces<IReadOnlyList<BackupArchiveDto>>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
+
+        app.MapGet("/system/data-store-version", (DataStoreVersionRepository versions) =>
+        {
+            var current = versions.GetCurrent();
+            return Results.Ok(current is null
+                ? new DataStoreVersionDto(0, string.Empty, null)
+                : new DataStoreVersionDto(current.Number, current.Name, current.AppliedAt));
+        })
+        .WithTags("System")
+        .WithName("GetDataStoreVersion")
+        .WithSummary("Reports the latest upgrade step applied to the data store and when it ran; step 0 means none is recorded yet.")
+        .Produces<DataStoreVersionDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
 
         app.MapPost("/system/backups", async (

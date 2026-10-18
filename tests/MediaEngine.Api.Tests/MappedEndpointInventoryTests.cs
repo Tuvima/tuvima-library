@@ -197,6 +197,9 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/system/activity-status", HttpMethods.Get)
             .RequiresHumanOrApplicationPermission(ApplicationPermissionIds.SystemActivityRead);
 
+        inventory.Require("/system/data-store-version", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
+
         inventory.Require("/system/backups/validate", HttpMethods.Post)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
         inventory.Require("/system/backups/restore", HttpMethods.Post)

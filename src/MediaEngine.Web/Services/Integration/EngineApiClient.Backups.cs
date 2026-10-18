@@ -19,6 +19,11 @@ public sealed partial class EngineApiClient
         }
     }
 
+    // Null means the Engine could not be asked (unreachable, refused or failed); the failure is already recorded
+    // and logged by GetAsync. A brand-new install answers step 0, which is a real answer and not null.
+    public Task<DataStoreVersionDto?> GetDataStoreVersionAsync(CancellationToken ct = default) =>
+        GetAsync<DataStoreVersionDto>("GET /system/data-store-version", "/system/data-store-version", ct: ct);
+
     public Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default) =>
         PostAsync<CreateBackupRequest, BackupArchiveDto>(
             "POST /system/backups", "/system/backups", new CreateBackupRequest(), ct: ct);
