@@ -70,7 +70,7 @@
     color: rgba(231, 232, 241, 0.6);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
     .tl-music-album-series-rail {
         padding: 0 1rem 3rem;
     }

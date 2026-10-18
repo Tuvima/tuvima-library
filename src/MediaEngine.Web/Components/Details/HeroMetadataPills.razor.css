@@ -77,7 +77,7 @@
     justify-items: start;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
         min-height: 3rem;
         height: auto;

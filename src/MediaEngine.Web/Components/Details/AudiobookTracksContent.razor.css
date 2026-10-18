@@ -45,7 +45,7 @@
     box-shadow: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
     .tl-audiobook-tracks {
         width: calc(100% - 2rem);
     }

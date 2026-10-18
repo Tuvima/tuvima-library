@@ -448,7 +448,7 @@
     font-size: 0.92rem;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 ::deep .tl-detail-hero--watch .tl-detail-metadata-stack,
 ::deep .tl-detail-hero--watch .tl-detail-hero__tagline {
         width: 100%;
@@ -490,7 +490,7 @@
 /* The sequence rail owns clipping, while the item grid remains as wide as its
    contents. This matches the Read/Watch/Listen shelves and avoids artificial rows. */
 
-@media (max-width: 900px) {
+@media (max-width: 840px) {
 ::deep .tl-detail-tab-panel,
 ::deep .tl-series-placement:not(.tl-series-placement--compact) {
         padding-inline: 1.25rem;
@@ -634,11 +634,7 @@
 /* Portrait covers remain restrained inside the larger identity-only hero.
    The added viewport height belongs to the cinematic field, not oversized art. */
 
-@media (min-width: 721px) and (max-height: 800px) {
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
-        gap: 0.22rem;
-    }
+@media (min-width: 840px) and (max-height: 800px) {
 
 .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
 .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
@@ -653,7 +649,7 @@
    viewport, the global app bar floats above it, and the transparent section
    navigation occupies the lower fade. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage {
         --detail-navigation-height: 3.75rem;
 
@@ -681,15 +677,9 @@
         min-height: var(--detail-navigation-height);
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-
-        bottom: var(--detail-navigation-height);
-
-    }
-
 }
 
-@media (max-width: 720px), (max-height: 620px) {
+@media (max-width: 840px), (max-height: 620px) {
 .tl-detail-stage {
         min-height: 100svh;
     }
@@ -697,11 +687,6 @@
 .tl-detail-stage__navigation {
         background: rgba(5, 8, 14, 0.58);
         backdrop-filter: blur(1rem);
-    }
-
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        width: calc(100% - 2rem);
-        margin-inline: auto;
     }
 
 }
@@ -730,7 +715,7 @@
 
 /* Final cascade lock for the viewport cinematic contract. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage__navigation {
 
         right: 0;
@@ -755,7 +740,7 @@
    Episode cards need their own unconstrained layout; the numbered portrait rail
    grid otherwise collapses landscape metadata into the artwork row. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content
         ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-item__description.is-expanded {
         display: block;
@@ -776,7 +761,7 @@
         linear-gradient(180deg, #080d14, #070b11 40rem);
 }
 
-@media (max-width: 720px), (max-height: 620px) {
+@media (max-width: 840px), (max-height: 620px) {
 .tl-detail-stage {
         height: auto;
         max-height: none;
@@ -800,7 +785,7 @@
    full-width surfaces below it. Audio is the only primary module composed
    inside the hero and receives the remaining height after its identity block. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage {
 
         overflow: hidden;
@@ -849,12 +834,6 @@
         margin: 0;
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        width: calc(100% - clamp(10rem, 12vw, 14rem));
-        margin-inline: auto;
-        padding-bottom: 1rem;
-    }
-
 }
 
 /* The target keeps useful card proportions on shorter desktop windows. The
@@ -865,7 +844,7 @@
 
 /* CINEMATIC_CONTRACT_EOF: keep these current-state declarations at EOF. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage,
 .tl-detail-stage--with-primary {
         height: 95svh;
@@ -892,19 +871,6 @@
         backdrop-filter: none;
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        position: absolute;
-        right: clamp(2rem, 4.5vw, 5.5rem);
-        bottom: 3.75rem;
-        left: clamp(2rem, 4.5vw, 5.5rem);
-        z-index: 7;
-        width: auto;
-        height: clamp(19rem, 38svh, 28rem);
-        min-height: 0;
-        margin: 0;
-        padding: 0 0 clamp(0.75rem, 1.5svh, 1.15rem);
-    }
-
 .tl-detail-stage ::deep .tl-detail-hero--collection .tl-detail-media-stage__cover-wrap,
 .tl-detail-stage ::deep .tl-detail-titlebar {
         display: none;
@@ -914,11 +880,7 @@
 
 /* FOLLOWUP_CONTRACT_EOF: final overrides for the 95svh composition. */
 
-@media (min-width: 721px) {
-.tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-primary-module--embedded {
-        height: clamp(14rem, 28svh, 21rem);
-    }
+@media (min-width: 840px) {
 
 .tl-detail-stage__navigation
         ::deep .detail-surface-navigation .surface-navigation-bar__tab {
@@ -1002,7 +964,7 @@
 
 /* Keep long audiobook identities readable without crowding the cover. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage--audiobook ::deep .tl-detail-hero__copy,
 .tl-detail-stage--audiobook ::deep .tl-detail-hero__identity,
 .tl-detail-stage--audiobook ::deep .tl-detail-metadata-stack,
@@ -1019,7 +981,7 @@
 /* Final phone contract: detail content owns normal vertical scrolling, audio
    rows become compact cards, and every direct action remains touchable. */
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 .tl-detail-stage {
         height: auto;
         min-height: 0;

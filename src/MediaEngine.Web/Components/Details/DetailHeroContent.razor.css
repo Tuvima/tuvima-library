@@ -204,7 +204,7 @@
     background: linear-gradient(to right, rgba(var(--hero-accent-rgb, 136, 82, 252), 0.92), rgba(255, 224, 150, 0.96));
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
     .tl-detail-hero__inner {
         padding-inline: clamp(1.5rem, 5vw, 3rem);
     }
@@ -214,7 +214,7 @@
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
     .tl-detail-hero__identity {
         min-height: clamp(5rem, 15svh, 8rem);
     }
@@ -237,7 +237,7 @@
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
     .tl-detail-hero__inner {
         align-items: flex-end;
         padding: 2rem 1.25rem 1.5rem;
@@ -579,14 +579,14 @@
     text-transform: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero.tl-detail-hero--title-medium:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
         max-width: 18ch;
         font-size: clamp(2.15rem, 10vw, 3.35rem);
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
         font-size: clamp(2.35rem, 12vw, 4rem);
     }
@@ -654,64 +654,64 @@
     -webkit-line-clamp: 3;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: center;
         padding: clamp(1.25rem, 3svh, 2.5rem) clamp(1.5rem, 5vw, 4rem) clamp(0.9rem, 2svh, 1.5rem);
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: start;
         transform: none;
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity {
         height: clamp(6rem, 18svh, 12rem);
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo {
         max-height: clamp(5.5rem, 16svh, 11rem);
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__synopsis {
         width: 100%;
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity {
         height: clamp(5rem, 15svh, 8rem);
         min-height: clamp(5rem, 15svh, 8rem);
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__logo {
         max-height: clamp(4.75rem, 13svh, 7.25rem);
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__synopsis .tl-detail-hero__tagline {
         -webkit-line-clamp: 2;
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__copy {
         gap: 0.55rem;
     }
 }
 
-@media (max-height: 850px) and (min-width: 721px) {
+@media (max-height: 850px) and (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__synopsis {
         margin-top: 0;
         padding-top: 0.45rem;
@@ -748,8 +748,8 @@
     line-height: 0.94;
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
+@media (min-width: 840px) {
+:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
 
         padding:
             calc(var(--app-topbar-height, 65px) + clamp(2rem, 4svh, 3.5rem))
@@ -758,31 +758,11 @@
     }
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
+@media (min-width: 840px) {
+:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: end;
         width: min(43rem, 46vw);
         max-width: 43rem;
-        transform: none;
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
-
-        padding:
-            calc(var(--app-topbar-height, 65px) + 1.5rem)
-            clamp(2rem, 4.5vw, 5.5rem)
-            calc(var(--detail-navigation-height) + clamp(22rem, 42svh, 30rem));
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
-        align-content: end;
-        width: min(43rem, 46vw);
-        max-width: 43rem;
-        gap: 0.48rem;
         transform: none;
     }
 }
@@ -808,7 +788,7 @@
     font-size: clamp(2.35rem, 3vw, 3.45rem);
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner,
 :where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-start;
@@ -819,7 +799,7 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: start;
         width: min(42rem, 44vw);
@@ -829,14 +809,14 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__identity {
         height: auto;
         min-height: 0;
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--read:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--listen:not(.tl-detail-hero--watch) .tl-detail-hero__copy h1 {
         font-size: clamp(3.6rem, 4vw, 4.75rem);
@@ -845,50 +825,21 @@
     }
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
-        padding-inline: clamp(6rem, 6vw, 7.5rem);
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
+@media (min-width: 840px) {
+:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: center;
         padding-block: clamp(2.5rem, 5svh, 4.5rem);
     }
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
+@media (min-width: 840px) {
+:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: center;
     }
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
-        align-items: center;
-        padding-block: clamp(1.25rem, 2.2svh, 2rem);
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
-        align-content: center;
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
-        align-items: flex-end;
-        padding:
-            calc(var(--app-topbar-height, 65px) + 1.5rem)
-            clamp(2rem, 4.5vw, 5.5rem)
-            calc(3.75rem + clamp(22rem, 42svh, 30rem));
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage:not(.tl-detail-stage--primary-before-navigation) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
+@media (min-width: 840px) {
+:where(.tl-detail-page) .tl-detail-stage.tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-end;
         padding:
             calc(var(--app-topbar-height, 65px) + clamp(2rem, 4svh, 3.5rem))
@@ -897,46 +848,34 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: end;
         transform: none;
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--identity-only .tl-detail-hero__synopsis,
 :where(.tl-detail-page) .tl-detail-stage--primary-after-navigation .tl-detail-hero__synopsis {
         display: block;
     }
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero__synopsis {
-        display: none;
-    }
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
-        padding-bottom: calc(3.75rem + clamp(15.5rem, 30svh, 22.5rem));
-    }
-}
-
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         width: min(42rem, 44vw) !important;
         max-width: min(42rem, 44vw) !important;
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-hero__subtitle {
         color: #e7c36d;
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
 :where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-hero__copy h1 {
         max-width: calc(100% - 1.75rem) !important;
     }
@@ -960,14 +899,14 @@
     justify-items: start;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__content {
         align-items: flex-end !important;
         padding: clamp(17rem, 48svh, 25rem) 1.25rem 1.5rem !important;
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__content .tl-detail-hero__copy {
         width: 100%;
         max-width: 100%;
@@ -1002,7 +941,7 @@
     order: 6;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-hero__copy h1 {
         width: 100% !important;
         max-width: 28ch !important;
@@ -1013,7 +952,7 @@
     z-index: 10;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-end;
         min-height: clamp(30rem, 68svh, 36rem);
@@ -1024,7 +963,7 @@
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: end;
         width: 100%;
@@ -1034,7 +973,7 @@
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1,

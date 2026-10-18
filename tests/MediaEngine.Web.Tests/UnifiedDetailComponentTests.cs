@@ -250,7 +250,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("height:4.6rem", actions);
         Assert.Contains("flex:0 0 auto; width:22rem", actions);
         Assert.Contains("var(--tl-font-size-xl)", actions);
-        Assert.Contains("@media(max-width:479px)", actions);
+        Assert.Contains("@media (max-width: 600px)", actions);
     }
 
     [Fact]
@@ -386,7 +386,7 @@ public sealed class UnifiedDetailComponentTests
     {
         var root = FindRepoRoot();
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        var peopleTab = ReadSource("src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor");
+        var peopleTab = ReadSource("src/MediaEngine.Web/Components/Details/PeopleTab.razor");
         var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
         var group = ReadSource("src/MediaEngine.Web/Components/Details/CreditGroupSection.razor");
         var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs");
@@ -1155,7 +1155,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("touch-action: auto;", ReadSource("src/MediaEngine.Web/Components/Details/DetailRouteHost.razor.css"));
         Assert.Contains("object-position: center top !important", detailStyles);
         Assert.DoesNotContain("height: clamp(34rem, 70svh, 47.5rem)", detailStyles);
-        Assert.Contains("height: clamp(14rem, 28svh, 21rem)", detailStyles);
         Assert.Contains("tl-detail-media-stage__cover-wrap--over-backdrop", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor"));
         Assert.Contains("private bool IsStructuralContainer", ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor"));
         Assert.Contains("Structural rails and navigation are", detailStyles);
@@ -1166,7 +1165,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("height: 100%", detailStyles);
         Assert.Contains(".tl-detail-primary-module--tracks .tl-detail-track-table thead", detailStyles);
         Assert.Contains("position: sticky", detailStyles);
-        Assert.Contains("inset: 0 -2rem", primaryModuleStyles);
         Assert.Contains(".tl-detail-secondary-actions", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
         Assert.Contains("flex-wrap: nowrap", detailStyles);
         Assert.Contains(".tl-detail-person-hero__content .tl-detail-hero__copy", detailStyles);

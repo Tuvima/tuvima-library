@@ -1077,18 +1077,6 @@
       "important": 12,
       "deep": 29
     },
-    "src/MediaEngine.Web/Components/Details/CharacterCreditCard.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Details/CharactersSection.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Details/ChildrenListTab.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Details/CreditGroupSection.razor.css": {
       "important": 0,
       "deep": 4
@@ -1107,7 +1095,7 @@
     },
     "src/MediaEngine.Web/Components/Details/DetailPage.razor.css": {
       "important": 18,
-      "deep": 157
+      "deep": 134
     },
     "src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor.css": {
       "important": 0,
@@ -1157,7 +1145,7 @@
       "important": 0,
       "deep": 59
     },
-    "src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor.css": {
+    "src/MediaEngine.Web/Components/Details/PeopleTab.razor.css": {
       "important": 0,
       "deep": 0
     },
@@ -1169,14 +1157,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Details/RelatedEntityChip.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Details/RelatedTab.razor.css": {
-      "important": 0,
-      "deep": 5
-    },
     "src/MediaEngine.Web/Components/Details/SequenceEntryContent.razor.css": {
       "important": 3,
       "deep": 3
@@ -1184,14 +1164,6 @@
     "src/MediaEngine.Web/Components/Details/SequencePlacementPanel.razor.css": {
       "important": 23,
       "deep": 113
-    },
-    "src/MediaEngine.Web/Components/Details/SyncTab.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Details/UniverseTab.razor.css": {
-      "important": 0,
-      "deep": 0
     },
     "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.css": {
       "important": 0,

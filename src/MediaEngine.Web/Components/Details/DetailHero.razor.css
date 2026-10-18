@@ -55,7 +55,7 @@
     font-size: 1rem;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1180px) {
     .tl-detail-collection-artwork {
         right: 1.5rem;
         width: 58vw;
@@ -63,7 +63,7 @@
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
     .tl-detail-collection-artwork {
         top: calc(var(--app-topbar-height, 65px) + 2rem);
         right: 1rem;
@@ -286,7 +286,7 @@
     max-height: calc(100% - 2rem);
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--person .tl-detail-person-portrait {
 
         max-height: calc(100% - var(--app-topbar-height, 65px) - var(--detail-navigation-height) - 4rem);
@@ -295,7 +295,7 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-detail-hero--person .tl-detail-person-portrait {
         width: auto;
         height: clamp(18rem, 30svh, 22rem);
@@ -303,7 +303,7 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--person .tl-detail-person-portrait {
         width: auto;
         max-width: min(32vw, 30rem);
@@ -312,7 +312,7 @@
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 :where(.tl-detail-page) .tl-detail-stage--person .tl-detail-hero--person .tl-detail-person-portrait {
         width: auto;
         max-width: min(34vw, 34rem);
@@ -333,7 +333,7 @@
     transform: translateY(-50%);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-portrait {
         top: calc(var(--app-topbar-height, 65px) + 1rem);
         right: 1.25rem;

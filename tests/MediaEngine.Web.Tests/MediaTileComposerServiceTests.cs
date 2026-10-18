@@ -87,7 +87,7 @@ public sealed class MediaTileComposerServiceTests
             TileTextMode: "coverOnly",
             PreviewPlacement: "bottom",
             Progress: new DisplayProgressDto(32, "32%", DateTimeOffset.Parse("2026-04-24T12:00:00Z"), resumeAction),
-            Actions: [resumeAction, new DisplayActionDto("openWork", "Details", WorkId: workId, WebUrl: $"/book/{workId}")],
+            Actions: [resumeAction, new DisplayActionDto("openWork", "Details", WorkId: workId, WebUrl: $"/details/work/{workId}")],
             Flags: new DisplayCardFlagsDto(IsPlayable: false, IsReadable: true, IsCollection: false, IsFavorite: false),
             SortTimestamp: DateTimeOffset.Parse("2026-04-24T12:00:00Z"))
         {
@@ -277,7 +277,7 @@ public sealed class MediaTileComposerServiceTests
     public void FromDisplayCard_MapsCollectionArtworkIntoBackdropAndPreviewImages()
     {
         var collectionId = Guid.Parse("66666666-1111-1111-1111-666666666666");
-        var action = new DisplayActionDto("openCollection", "Explore", CollectionId: collectionId, WebUrl: $"/collection/{collectionId}");
+        var action = new DisplayActionDto("openCollection", "Explore", CollectionId: collectionId, WebUrl: $"/details/collection/{collectionId}");
         var card = new DisplayCardDto(
             Id: collectionId,
             WorkId: null,

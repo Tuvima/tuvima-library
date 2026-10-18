@@ -77,7 +77,7 @@
             }
             else if (CurrentActiveTab is "people" or "credits" or "cast")
             {
-                <PeopleAndCharactersTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
+                <PeopleTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
                                         EpisodeId="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.Id : null)"
                                         EpisodeContributorGroups="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.ContributorGroups : null)" />
             }

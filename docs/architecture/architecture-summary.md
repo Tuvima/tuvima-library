@@ -73,13 +73,13 @@ Dark-mode-only cinematic design with an ambient gradient background. The Dashboa
 
 - `/` — **LibraryBrowsePage** (home / discovery landing)
 - `/read`, `/read/{Tab}` — ReadPage (books + comics)
-- `/watch`, `/watch/{Tab}`, `/watch/movie/{WorkId}`, `/watch/tv/show/{CollectionId}/...`, `/watch/player/{AssetId}` — Watch surfaces
-- `/listen`, `/listen/music/...`, `/listen/audiobooks`, `/listen/audiobook/{WorkId}` — Listen surfaces
-- `/collections`, `/details/collection/{Id}` — Collections browse + canonical full-width detail
-- `/book/{Id}`, `/person/{Id}` — detail pages
+- `/watch`, `/watch/{Tab}`, `/watch/player/{WorkId}` — Watch surfaces (browse and the video player)
+- `/listen`, `/listen/{Tab}`, `/listen/music/playlists/{CollectionId}` — Listen surfaces (browse and playlists)
+- `/collections`, `/collections/{Section}` — Collections browse
+- `/details/{entityType}/{id}` — the one detail page for every kind of item (book, movie, TV show and episode, album, audiobook, person, series, collection, universe)
 - `/universe/{Qid}/explore` — Chronicle Explorer (Cytoscape graph)
 - `/search` — global search
-- `/settings`, `/settings/{Section}` — Settings shell (review queue lives at `/settings/review`)
+- `/settings`, `/settings/{Section}` — Settings shell (Needs Review lives in Settings, Recently Added)
 
 Real-time SignalR updates push pipeline progress into every surface. Theming is fixed dark with a purple chrome accent (`#8852FC`, hover `#A46FFF`); EPUB reader highlight colors remain reader-specific.
 
@@ -187,7 +187,7 @@ Needs Review (stored in the Engine's review queue) is the Engine's safety net fo
 
 The queue surfaces items that need human attention: failed retail matches, ambiguous Wikidata candidates, low-confidence matches, missing titles, and items that fell through during enrichment. Review rows can launch the shared editor in review mode, dismiss an item, skip universe matching where supported, keep a provider match, move a film to TV, or retry a failed write-back according to existing Engine rules. `PostPipelineService` auto-resolves queue items when a later enrichment pass pushes confidence above threshold.
 
-Browsing lives on Home, Read, Watch, Listen, Collections, Search, and detail pages; review lives inside Settings/Admin. Do not add all-in-one management routes, components, docs, or navigation. Normal media correction opens `SharedMediaEditorShell` from media pages and details through `MediaEditorLauncherService.OpenAsync`; Review uses the same modal editor in review mode.
+Browsing lives on Home, Read, Watch, Listen, Collections, Search, and detail pages; review lives inside Settings/Admin. Do not add all-in-one management routes, components, docs, or navigation. A single item is fixed in Editing Mode on its own detail page (desktop only: hero Edit/Done, one pencil per field, and an `EditingDrawer` that re-houses the `SharedMediaEditorShell` sections beside the unchanged page); Needs Review, browse shells and Recently Added open the same shell as a modal through `MediaEditorLauncherService.OpenAsync`.
 
 ## Universal Parameterized Collection System
 **Detail:** [`docs/architecture/collections.md`](collections.md)
@@ -201,7 +201,7 @@ Every collection is a parameterised query container. Normalised filter predicate
 - **Playlist** — profile-owned, materialised, and exposed only in Listen
 - **Custom** — explicitly profile-owned or administrator-managed, with manual or dynamic membership and audience policy
 
-Resolution is hybrid: query-resolved collections evaluate predicates at display time; materialised collections track membership in `collection_works`. `CollectionAssignmentService` (called by `QuickHydrationWorker`) reads Wikidata series / franchise / universe QIDs and assigns works to a ContentGroup collection via the `collection_id` FK, but lane shelves route by media concept, such as `/watch/tv/show/{CollectionId}` for TV. `collection_placements` maps broader collections/lists to UI locations. The Collections section browses automatic rollups, administrator-curated collections, cross-lane shelves, and canonical people; administrator controls create and manage curated collections.
+Resolution is hybrid: query-resolved collections evaluate predicates at display time; materialised collections track membership in `collection_works`. `CollectionAssignmentService` (called by `QuickHydrationWorker`) reads Wikidata series / franchise / universe QIDs and assigns works to a ContentGroup collection via the `collection_id` FK, but lane shelves route by media concept, such as `/details/tvshow/{id}` for TV. `collection_placements` maps broader collections/lists to UI locations. The Collections section browses automatic rollups, administrator-curated collections, cross-lane shelves, and canonical people; administrator controls create and manage curated collections.
 
 ## Localization & Multi-Language Support
 
