@@ -51,6 +51,13 @@ New on 2026-10-17 (Shy):
 - **D24. Standard breakpoints** (600, 840, 1180 px) on the Details pages. (G15)
 - **D25. WP10 carries Registry retirement WP1** (Shy, 2026-10-17): the Registry tab and `?context=admin` removal, and moving identity status and artwork source into the editor's Match & Identity section, are built once, here, right after WP2.
 
+Answers to the WP1 report (Shy, 2026-10-17):
+- **D26. A curated collection whose last item leaves the library is deleted automatically.** The editor still refuses to save or empty a collection to zero items (D17). Deleting a library item that sits in a manually curated collection must warn first; automatic collections need no warning because they follow the canonical metadata. (The app has no delete action for library items today; where that warning lives is pending Shy's answer.)
+- **D27. Character-only Engine actions are removed** (character portraits, a universe's character list, a person's character roles), with their Dashboard wrappers and tests. Actions shared with Universe Explore and the entity editor stay.
+- **D28. Person pages drop the separate "characters played" section;** role names stay on their credits.
+- **D29. "Copy library link" on the Home hero and the Listen page's own Related tab are removed too**, matching D11 and D12.
+- **D30. Series, collections, universes and people have no line under the title** (built in WP9; recorded in `docs/reference/secondary-title-text.md`).
+
 ## 4. UI behaviour
 
 ### Layout by kind of media
