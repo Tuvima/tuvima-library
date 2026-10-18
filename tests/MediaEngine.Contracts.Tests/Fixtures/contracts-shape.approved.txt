@@ -7110,6 +7110,9 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   entity_id: System.Guid | nullability=not-null | accessors=get,init
   show_name: System.String | nullability=not-null | accessors=get,init
   tv_library_id: System.String | nullability=nullable | accessors=get,init
+  season_number: System.Int32 | nullability=not-null | accessors=get,init
+  episode_numbers: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init
+  placement_reason: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewResolveRequestDto
   SelectedQid: System.String | nullability=nullable | accessors=get,init

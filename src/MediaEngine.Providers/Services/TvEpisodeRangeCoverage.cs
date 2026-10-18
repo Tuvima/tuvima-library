@@ -73,4 +73,53 @@ public static class TvEpisodeRangeCoverage
 
         return new EpisodeRangeDecision(EpisodeRangeKind.Clean, episodes, null);
     }
+
+    /// <summary>
+    /// Decides whether a whole short series stored as one file ("Move to TV") may cover all of its parts:
+    /// TMDB must list the show in exactly one season whose episodes are an unbroken run 1..N with
+    /// N at most <see cref="MaxEpisodesPerFile"/>. <see cref="EpisodeRangeKind.Clean"/> carries the
+    /// episodes 1..N. <see cref="EpisodeRangeKind.NeedsReview"/> is not a review item here: it means the
+    /// file falls back to Specials, and <see cref="EpisodeRangeDecision.Reason"/> is the plain-English
+    /// explanation shown to the user.
+    /// </summary>
+    /// <param name="seasonCount">Number of seasons TMDB lists for the show.</param>
+    /// <param name="seasonOneEpisodes">Episode numbers TMDB lists for Season 1, or null when unavailable.</param>
+    public static EpisodeRangeDecision EvaluateWholeShow(int seasonCount, IReadOnlySet<int>? seasonOneEpisodes)
+    {
+        if (seasonCount <= 0)
+        {
+            return EpisodeRangeDecision.Review("TMDB doesn't list any seasons for this show.");
+        }
+
+        if (seasonCount != 1)
+        {
+            return EpisodeRangeDecision.Review(
+                $"TMDB lists this show in {seasonCount} seasons, so its parts can't be matched to one file.");
+        }
+
+        if (seasonOneEpisodes is null)
+        {
+            return EpisodeRangeDecision.Review("TMDB's episode list for this show couldn't be fetched.");
+        }
+
+        if (seasonOneEpisodes.Count == 0)
+        {
+            return EpisodeRangeDecision.Review("TMDB lists no episodes for Season 1.");
+        }
+
+        if (seasonOneEpisodes.Count > MaxEpisodesPerFile)
+        {
+            return EpisodeRangeDecision.Review(
+                $"TMDB lists {seasonOneEpisodes.Count} parts; one file can cover at most {MaxEpisodesPerFile}.");
+        }
+
+        var episodes = Enumerable.Range(1, seasonOneEpisodes.Count).ToArray();
+        if (!episodes.All(seasonOneEpisodes.Contains))
+        {
+            return EpisodeRangeDecision.Review(
+                "TMDB's Season 1 episodes aren't an unbroken run starting at Episode 1.");
+        }
+
+        return new EpisodeRangeDecision(EpisodeRangeKind.Clean, episodes, null);
+    }
 }

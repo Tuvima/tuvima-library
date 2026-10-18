@@ -77,7 +77,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
             {
                 moved?.Add((Guid)args![0]!);
                 return Task.FromResult<ReviewMoveToTvResponse?>(
-                    new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library"));
+                    new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library", 1, [1, 2, 3], null));
             });
             stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
             {
@@ -180,6 +180,35 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         var suggestion = new MovieTvSuggestionDto { Name = "X", FirstAirYear = 2008, Type = type, Episodes = episodes };
 
         Assert.Equal(expected, MovieTvSuggestionReader.Describe(suggestion));
+    }
+
+    [Fact]
+    public void DescribeMove_ForAWholeMiniseries_NamesSeasonOneAndTheEpisodeRange()
+    {
+        var moved = new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library", 1, [1, 2, 3], null);
+
+        Assert.Equal(
+            "Moved to TV: 'Dr. Horrible's Sing-Along Blog' Season 1, Episodes 1\u20133.",
+            MovieTvSuggestionReader.DescribeMove(moved));
+    }
+
+    [Fact]
+    public void DescribeMove_ForASinglePart_NamesTheOneEpisode()
+    {
+        var moved = new ReviewMoveToTvResponse(true, ReviewId, EntityId, "X", "tv-library", 1, [1], null);
+
+        Assert.Equal("Moved to TV: 'X' Season 1, Episode 1.", MovieTvSuggestionReader.DescribeMove(moved));
+    }
+
+    [Fact]
+    public void DescribeMove_WhenThePartsCouldNotBeMatched_SaysItWasFiledAsASpecialAndWhy()
+    {
+        var moved = new ReviewMoveToTvResponse(
+            true, ReviewId, EntityId, "X", "tv-library", 0, [1], "TMDB lists 7 parts; one file can cover at most 6.");
+
+        Assert.Equal(
+            "Moved to TV as a special of 'X'. TMDB lists 7 parts; one file can cover at most 6.",
+            MovieTvSuggestionReader.DescribeMove(moved));
     }
 
     [Fact]

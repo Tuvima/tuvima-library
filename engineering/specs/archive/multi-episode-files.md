@@ -1,8 +1,10 @@
 # Spec: One file covering several TV episodes
 
-> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [First-run ingestion fixes](archive/first-run-ingestion-fixes.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Playback architecture](../../docs/architecture/playback.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../../product/overview.md) · [First-run ingestion fixes](first-run-ingestion-fixes.md) · [Presentation rules](../../../docs/product/presentation-rules.md) · [Playback architecture](../../../docs/architecture/playback.md)
 
 > Replaces Version 1 (a 2026-10-10 draft). Most of Version 1 is already built; this version records what was built and specifies the one piece still missing (the Dr. Horrible case). Locked by Shy on 2026-10-17.
+
+> Built on 2026-10-17: WP1 (D6, Move to TV covers the whole miniseries, with Specials as the explained fallback) and WP2 (docs). Section 8's "Not built yet" item for D6 is now done; D7 remains a future spec.
 
 ## 1. Goal
 

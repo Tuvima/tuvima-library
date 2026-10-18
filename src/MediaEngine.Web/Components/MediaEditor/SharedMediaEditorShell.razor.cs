@@ -2622,7 +2622,7 @@ public partial class SharedMediaEditorShell
             var attempt = await Orchestrator.MoveReviewToTvAsync(reviewItemId);
             if (attempt.Response is { } moved)
             {
-                Snackbar.Add($"Moved to TV as a special of '{moved.show_name}'. The file was not moved.", AppSeverity.Success);
+                Snackbar.Add(MovieTvSuggestionReader.DescribeMove(moved), AppSeverity.Success);
                 await CloseEditorAsync(applied: true);
             }
             else

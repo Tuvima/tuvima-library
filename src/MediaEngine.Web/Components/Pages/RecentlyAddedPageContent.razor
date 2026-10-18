@@ -379,7 +379,7 @@
             if (attempt.Response is { } moved)
             {
                 _reviews.Remove(item);
-                Snackbar.Add($"Moved to TV as a special of '{moved.show_name}'. The file was not moved.", AppSeverity.Success);
+                Snackbar.Add(MovieTvSuggestionReader.DescribeMove(moved), AppSeverity.Success);
                 await LoadHistoryAsync(0);
             }
             else
