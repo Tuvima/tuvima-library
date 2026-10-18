@@ -52,6 +52,56 @@ public sealed class DetailRouteRequestTests
         Assert.Equal("Episode not found", request.NotFoundTitle);
     }
 
+    [Fact]
+    public void TvShowRouteWithASeason_AsksForThatSeasonInsideItsShow()
+    {
+        var request = DetailRouteRequest.ForUnified("tvshow", ContainerId, "watch", seasonId: EntityId);
+
+        Assert.True(request.CanLoad);
+        Assert.Equal(DetailEntityType.TvSeason, request.EntityType);
+        Assert.Equal(EntityId, request.EntityId);
+        Assert.Equal(ContainerId.ToString("D"), request.ContainerId);
+        Assert.Equal(DetailPresentationContext.Watch, request.PresentationContext);
+        Assert.Equal("Back to Watch", request.OriginNavigation?.Label);
+        Assert.Equal("Season not found", request.NotFoundTitle);
+    }
+
+    [Theory]
+    [InlineData("tvseason")]
+    [InlineData("tv-season")]
+    [InlineData("TvSeason")]
+    public void TvSeasonRoute_AsksForTheSeasonAndLetsTheEngineFindItsShow(string entityType)
+    {
+        var request = DetailRouteRequest.ForUnified(entityType, EntityId, null);
+
+        Assert.True(request.CanLoad);
+        Assert.Equal(DetailEntityType.TvSeason, request.EntityType);
+        Assert.Equal(EntityId, request.EntityId);
+        Assert.Null(request.ContainerId);
+        Assert.Equal(DetailPresentationContext.Watch, request.PresentationContext);
+        Assert.Equal("Season not found", request.NotFoundTitle);
+    }
+
+    [Fact]
+    public void TvShowRouteWithAnEpisodeAndASeason_OpensTheEpisode()
+    {
+        var request = DetailRouteRequest.ForUnified("tvshow", ContainerId, "watch", EntityId, Guid.NewGuid());
+
+        Assert.Equal(DetailEntityType.TvEpisode, request.EntityType);
+        Assert.Equal(EntityId, request.EntityId);
+        Assert.Equal(ContainerId.ToString("D"), request.ContainerId);
+    }
+
+    [Fact]
+    public void SeasonQueryOnAnotherKindOfPage_IsIgnored()
+    {
+        var request = DetailRouteRequest.ForUnified("movie", ContainerId, "watch", seasonId: EntityId);
+
+        Assert.Equal(DetailEntityType.Movie, request.EntityType);
+        Assert.Equal(ContainerId, request.EntityId);
+        Assert.Null(request.ContainerId);
+    }
+
     [Theory]
     [InlineData("music-album", "listen", DetailEntityType.MusicAlbum, DetailPresentationContext.Listen, "Back to Listen", "/listen")]
     [InlineData("comic_issue", "comics", DetailEntityType.ComicIssue, DetailPresentationContext.Comics, "Back to Read", "/read")]

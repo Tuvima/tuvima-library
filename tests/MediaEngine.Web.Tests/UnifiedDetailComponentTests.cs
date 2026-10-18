@@ -797,7 +797,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("return episodeRoute;", sequence);
         Assert.Contains("&episode={episodeId:D}", sequence);
         Assert.Contains("SupplyParameterFromQuery(Name = \"episode\")", showPage);
-        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId)", showPage);
+        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId)", showPage);
         Assert.Contains("parsedEntityType == DetailEntityType.TvShow", routeRequest);
         Assert.Contains("DetailEntityType.TvEpisode", routeRequest);
         Assert.Contains("containerId: id.ToString(\"D\")", routeRequest);

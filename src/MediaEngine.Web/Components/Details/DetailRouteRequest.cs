@@ -46,7 +46,8 @@ public sealed record DetailRouteRequest
         string entityType,
         Guid id,
         string? contextValue,
-        Guid? episodeId = null)
+        Guid? episodeId = null,
+        Guid? seasonId = null)
     {
         var context = ParseContext(contextValue);
         var hasParsedEntityType = TryParseEntityType(entityType, out var parsedEntityType);
@@ -63,6 +64,26 @@ public sealed record DetailRouteRequest
                 notFoundTitle: "Episode not found",
                 notFoundMessage: "This episode could not be loaded from your library.",
                 containerId: id.ToString("D"),
+                originNavigation: OriginFor(DetailPresentationContext.Watch));
+        }
+
+        // A season has no page of its own (D13): its two addresses, /details/tvshow/{show}?season={season} and
+        // /details/tvseason/{season}, both ask the Engine for the season, which answers with the show's page
+        // opened on that season.
+        if (hasParsedEntityType
+            && ((parsedEntityType == DetailEntityType.TvShow && seasonId.HasValue)
+                || parsedEntityType == DetailEntityType.TvSeason))
+        {
+            var viaShow = parsedEntityType == DetailEntityType.TvShow;
+            return new(
+                DetailEntityType.TvSeason,
+                viaShow ? seasonId!.Value : id,
+                DetailPresentationContext.Watch,
+                pageTitleFallback: "TV Show",
+                productTitle: "Tuvima Library",
+                notFoundTitle: "Season not found",
+                notFoundMessage: "This season could not be loaded from your library.",
+                containerId: viaShow ? id.ToString("D") : null,
                 originNavigation: OriginFor(DetailPresentationContext.Watch));
         }
 

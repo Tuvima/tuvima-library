@@ -593,10 +593,18 @@ internal sealed partial class DetailCompositionOrchestrator
         var selectedItem = currentWorkId.HasValue
             ? items.FirstOrDefault(item => item.IsCurrent)
             : null;
-        var selectedGroup = selectedItem is null
-            ? initialGroup
-            : groups.FirstOrDefault(group => string.Equals(group.Key, selectedItem.GroupKey, StringComparison.OrdinalIgnoreCase));
-        var representative = selectedItem
+        // A season opened on its own (D13) wins over the season being watched; a season id this show does not
+        // carry leaves the usual choice in place and the caller decides whether that is "not found".
+        var requestedGroup = entityType == DetailEntityType.TvShow && window?.SelectedSeasonId is { } requestedSeasonId
+            ? groups.FirstOrDefault(group => string.Equals(group.EntityId, requestedSeasonId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+            : null;
+        var selectedGroup = requestedGroup
+            ?? (selectedItem is null
+                ? initialGroup
+                : groups.FirstOrDefault(group => string.Equals(group.Key, selectedItem.GroupKey, StringComparison.OrdinalIgnoreCase)));
+        var currentInSelectedGroup = selectedItem is not null
+            && (requestedGroup is null || string.Equals(selectedItem.GroupKey, requestedGroup.Key, StringComparison.OrdinalIgnoreCase));
+        var representative = (currentInSelectedGroup ? selectedItem : null)
             ?? selectedGroup?.Items.FirstOrDefault(item => item.IsOwned)
             ?? initialGroup?.Items.FirstOrDefault()
             ?? items.FirstOrDefault(item => item.IsOwned)

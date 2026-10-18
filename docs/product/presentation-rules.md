@@ -102,6 +102,18 @@ on their own non-wrapping line. Movie heroes
 use the movie description without a synopsis heading. The watch utility row does
 not repeat a Show details action.
 
+### Seasons open inside their show
+
+A season has no page of its own. Opening one, from any address, shows its show's page
+with that season selected in the season control and that season's episodes listed;
+it never reads as "not found" while the show and at least one of the season's episodes
+are visible to the profile. The address is the show's with the season added
+(`/details/tvshow/{show}?season={season}`); `/details/tvseason/{season}` resolves to the
+same page. The chosen season is part of the address, so reloading keeps it, and the
+season control and episode list behave the same on phones, tablets and desktops. A
+season whose episodes the active profile cannot see reads as not found, like any other
+item the profile may not see.
+
 ### One file, several episodes: the editor picker
 
 When one video file holds several episodes of a season, the editor's Matching tab
