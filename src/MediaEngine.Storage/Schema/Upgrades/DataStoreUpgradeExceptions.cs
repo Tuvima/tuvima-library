@@ -33,6 +33,11 @@ internal sealed class DataStoreUpgradeRefusedException : DataStoreUpgradeExcepti
         : base(message)
     {
     }
+
+    public DataStoreUpgradeRefusedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }
 
 /// <summary>A step failed. The data store was left as it was before that step.</summary>

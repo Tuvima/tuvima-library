@@ -22,7 +22,7 @@ internal static class DataStoreUpgradeCatalog
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Regex ForbiddenPragmaPattern = new(
-        "\\bPRAGMA\\s+(?<pragma>journal_mode|foreign_keys)\\b",
+        "\\bPRAGMA\\s+(?:[\\w\"`\\[\\]]+\\s*\\.\\s*)?[\"`\\[]?(?<pragma>journal_mode|foreign_keys)\\b",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     /// <summary>The steps this build of the Engine ships with. An empty catalog is valid.</summary>
@@ -67,6 +67,12 @@ internal static class DataStoreUpgradeCatalog
 
         foreach (var step in ordered)
         {
+            if (string.IsNullOrEmpty(step.Name))
+            {
+                throw new DataStoreUpgradeCatalogException(
+                    $"Upgrade step '{step.Source}' has no name. Names use lowercase letters and digits joined by single underscores.");
+            }
+
             if (!NamePattern.IsMatch(step.Name))
             {
                 throw new DataStoreUpgradeCatalogException(
@@ -75,6 +81,13 @@ internal static class DataStoreUpgradeCatalog
 
             if (step is SqlDataStoreUpgradeStep sql)
             {
+                var transactionStatement = SqlScriptInspector.FindForbiddenStatementStart(sql.Script);
+                if (transactionStatement is not null)
+                {
+                    throw new DataStoreUpgradeCatalogException(
+                        $"Upgrade step '{step.Source}' has a {transactionStatement} statement. The runner owns the transaction (and a step cannot run VACUUM, ATTACH or DETACH inside it), so a step must not use BEGIN, COMMIT, END, ROLLBACK, SAVEPOINT, RELEASE, VACUUM, ATTACH or DETACH.");
+                }
+
                 var pragma = ForbiddenPragmaPattern.Match(sql.Script);
                 if (pragma.Success)
                 {

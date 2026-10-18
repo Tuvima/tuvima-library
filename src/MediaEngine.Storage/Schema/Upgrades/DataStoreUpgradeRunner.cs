@@ -109,7 +109,8 @@ internal sealed class DataStoreUpgradeRunner
         Execute(connection, CreateRecordTableSql);
         var applied = ReadApplied(connection);
 
-        CheckRecord(applied, known, options);
+        var dataStore = DescribeDataStore(connection);
+        CheckRecord(dataStore, applied, known, options);
 
         var appliedCount = applied.Count;
         var pending = known.Where(step => step.Number > appliedCount).ToList();
@@ -121,21 +122,34 @@ internal sealed class DataStoreUpgradeRunner
         string? safetyCopyPath = null;
         if (appliedCount > 0 && options.BeforeFirstPendingStep is not null)
         {
-            safetyCopyPath = options.BeforeFirstPendingStep(new DataStoreUpgradePlan(appliedCount, pending));
+            try
+            {
+                safetyCopyPath = options.BeforeFirstPendingStep(new DataStoreUpgradePlan(appliedCount, pending));
+            }
+            catch (Exception exception) when (exception is not DataStoreUpgradeException)
+            {
+                throw new DataStoreUpgradeRefusedException(
+                    $"Could not prepare the upgrade of the data store {dataStore}: {exception.Message} Nothing was changed.",
+                    exception);
+            }
         }
 
         var done = new List<(int Number, string Name, TimeSpan Duration)>();
         foreach (var step in pending)
         {
             var started = options.Clock.GetTimestamp();
-            ApplyStep(connection, step, options, safetyCopyPath);
+            ApplyStep(connection, dataStore, step, options, safetyCopyPath);
             done.Add((step.Number, step.Name, options.Clock.GetElapsedTime(started)));
         }
 
         return new DataStoreUpgradeResult(appliedCount, pending[^1].Number, done, safetyCopyPath);
     }
 
+    private static string DescribeDataStore(SqliteConnection connection)
+        => string.IsNullOrWhiteSpace(connection.DataSource) ? "(unnamed data store)" : $"'{connection.DataSource}'";
+
     private static void CheckRecord(
+        string dataStore,
         IReadOnlyList<AppliedRow> applied,
         IReadOnlyList<DataStoreUpgradeStep> known,
         DataStoreUpgradeOptions options)
@@ -145,7 +159,7 @@ internal sealed class DataStoreUpgradeRunner
             if (applied[index].Number != index + 1)
             {
                 throw new DataStoreUpgradeRefusedException(
-                    $"The data store's record of applied upgrade steps is damaged: expected step {DataStoreUpgradeCatalog.Format(index + 1)} but found {DataStoreUpgradeCatalog.Format(applied[index].Number)}. "
+                    $"The record of applied upgrade steps in the data store {dataStore} is damaged: expected step {DataStoreUpgradeCatalog.Format(index + 1)} but found {DataStoreUpgradeCatalog.Format(applied[index].Number)}. "
                     + $"Restore a backup from {options.BackupLocationHint}.");
             }
         }
@@ -154,7 +168,7 @@ internal sealed class DataStoreUpgradeRunner
         if (applied.Count > 0 && applied[^1].Number > highestKnown)
         {
             throw new DataStoreUpgradeRefusedException(
-                $"This data store was upgraded by a newer version of Tuvima (step {DataStoreUpgradeCatalog.Format(applied[^1].Number)}). "
+                $"The data store {dataStore} was upgraded by a newer version of Tuvima (step {DataStoreUpgradeCatalog.Format(applied[^1].Number)}). "
                 + $"Install that version, or restore an older backup from {options.BackupLocationHint}.");
         }
 
@@ -165,7 +179,7 @@ internal sealed class DataStoreUpgradeRunner
                 || !string.Equals(step.Name, row.Name, StringComparison.Ordinal))
             {
                 throw new DataStoreUpgradeRefusedException(
-                    $"Upgrade step {DataStoreUpgradeCatalog.Format(row.Number)} ({row.Name}) has been changed after it was applied. "
+                    $"Upgrade step {DataStoreUpgradeCatalog.Format(row.Number)} ({row.Name}) has been changed after it was applied to the data store {dataStore}. "
                     + "Applied steps must never be edited - add a new step instead.");
             }
         }
@@ -173,11 +187,13 @@ internal sealed class DataStoreUpgradeRunner
 
     private static void ApplyStep(
         SqliteConnection connection,
+        string dataStore,
         DataStoreUpgradeStep step,
         DataStoreUpgradeOptions options,
         string? safetyCopyPath)
     {
         var foreignKeysOff = step.RequiresForeignKeysOff;
+        Exception? failure = null;
         try
         {
             if (foreignKeysOff)
@@ -199,25 +215,50 @@ internal sealed class DataStoreUpgradeRunner
         }
         catch (Exception exception)
         {
+            failure = exception;
+        }
+
+        Exception? restoreFailure = null;
+        if (foreignKeysOff)
+        {
+            try
+            {
+                Execute(connection, "PRAGMA foreign_keys = ON;");
+            }
+            catch (Exception exception)
+            {
+                restoreFailure = exception;
+            }
+        }
+
+        if (failure is not null)
+        {
+            var message = FailureMessage(step, dataStore, failure, safetyCopyPath);
+            if (restoreFailure is not null)
+            {
+                message += $" Foreign keys could not be switched back on afterwards: {restoreFailure.Message}";
+                failure.Data["ForeignKeysRestoreFailure"] = restoreFailure.Message;
+            }
+
+            throw new DataStoreUpgradeFailedException(step.Number, step.Name, safetyCopyPath, message, failure);
+        }
+
+        if (restoreFailure is not null)
+        {
+            // The step committed; only the connection setting is wrong, so say exactly that.
             throw new DataStoreUpgradeFailedException(
                 step.Number,
                 step.Name,
                 safetyCopyPath,
-                FailureMessage(step, exception, safetyCopyPath),
-                exception);
-        }
-        finally
-        {
-            if (foreignKeysOff)
-            {
-                Execute(connection, "PRAGMA foreign_keys = ON;");
-            }
+                $"Data store upgrade step {DataStoreUpgradeCatalog.Format(step.Number)} ({step.Name}) was applied to the data store {dataStore}, "
+                + $"but foreign keys could not be switched back on afterwards: {restoreFailure.Message}",
+                restoreFailure);
         }
     }
 
-    private static string FailureMessage(DataStoreUpgradeStep step, Exception exception, string? safetyCopyPath)
+    private static string FailureMessage(DataStoreUpgradeStep step, string dataStore, Exception exception, string? safetyCopyPath)
     {
-        var message = $"Data store upgrade step {DataStoreUpgradeCatalog.Format(step.Number)} ({step.Name}) failed: {exception.Message} "
+        var message = $"Data store upgrade step {DataStoreUpgradeCatalog.Format(step.Number)} ({step.Name}) failed on the data store {dataStore}: {exception.Message} "
                       + "The data store was left as it was before this step.";
         return safetyCopyPath is null
             ? message

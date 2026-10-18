@@ -63,7 +63,7 @@ internal sealed class SqlDataStoreUpgradeStep : DataStoreUpgradeStep
         Number = number;
         Name = name;
         Source = source;
-        _script = script.TrimStart('﻿').Replace("\r\n", "\n", StringComparison.Ordinal);
+        _script = script.TrimStart('\uFEFF').Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         Fingerprint = Sha256Hex(_script);
         RequiresForeignKeysOff = FirstLine(_script).Equals(ForeignKeysOffMarker, StringComparison.Ordinal);
     }

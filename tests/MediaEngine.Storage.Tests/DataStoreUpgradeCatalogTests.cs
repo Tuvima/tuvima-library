@@ -89,12 +89,112 @@ namespace MediaEngine.Storage.Tests
         [InlineData("PRAGMA foreign_keys = OFF;")]
         [InlineData("pragma  Foreign_Keys=on;")]
         [InlineData("PRAGMA journal_mode = DELETE;")]
+        [InlineData("PRAGMA main.foreign_keys = OFF;")]
+        [InlineData("PRAGMA \"foreign_keys\" = OFF;")]
+        [InlineData("PRAGMA [main].[foreign_keys] = OFF;")]
+        [InlineData("PRAGMA temp.`journal_mode` = OFF;")]
         public void SqlStepWithForeignKeysPragma_FailsValidation(string statement)
         {
             var exception = Assert.Throws<DataStoreUpgradeCatalogException>(
                 () => DataStoreUpgradeCatalog.Validate([Sql(1, "pragma_step", $"CREATE TABLE t (id INTEGER);\n{statement}\n")]));
 
             Assert.Contains("test:1_pragma_step", exception.Message);
+        }
+
+        [Theory]
+        [InlineData("BEGIN;", "BEGIN")]
+        [InlineData("BEGIN TRANSACTION;", "BEGIN")]
+        [InlineData("COMMIT;", "COMMIT")]
+        [InlineData("END;", "END")]
+        [InlineData("END TRANSACTION;", "END")]
+        [InlineData("ROLLBACK;", "ROLLBACK")]
+        [InlineData("SAVEPOINT sp;", "SAVEPOINT")]
+        [InlineData("RELEASE sp;", "RELEASE")]
+        [InlineData("VACUUM;", "VACUUM")]
+        [InlineData("ATTACH DATABASE 'other.db' AS other;", "ATTACH")]
+        [InlineData("DETACH DATABASE other;", "DETACH")]
+        [InlineData("-- finish up\n   /* really */ commit;", "COMMIT")]
+        [InlineData("insert into t values (1); rollback;", "ROLLBACK")]
+        public void SqlStepWithTransactionControlStatement_FailsValidation(string statement, string keyword)
+        {
+            var script = $"CREATE TABLE t (id INTEGER);\n{statement}\nCREATE TABLE e (id INTEGER);\n";
+
+            var exception = Assert.Throws<DataStoreUpgradeCatalogException>(
+                () => DataStoreUpgradeCatalog.Validate([Sql(1, "controls_transaction", script)]));
+
+            Assert.Contains("test:1_controls_transaction", exception.Message);
+            Assert.Contains(keyword, exception.Message);
+        }
+
+        [Fact]
+        public void SqlStepWithTransactionControlAfterATrigger_FailsValidation()
+        {
+            var script = TriggerScript + "\nCOMMIT;\n";
+
+            var exception = Assert.Throws<DataStoreUpgradeCatalogException>(
+                () => DataStoreUpgradeCatalog.Validate([Sql(1, "trigger_then_commit", script)]));
+
+            Assert.Contains("COMMIT", exception.Message);
+        }
+
+        [Fact]
+        public void SqlStepWithTriggerAndCaseExpressions_PassesValidation()
+        {
+            var steps = DataStoreUpgradeCatalog.Validate([Sql(1, "trigger_and_case", TriggerScript)]);
+
+            Assert.Single(steps);
+        }
+
+        [Fact]
+        public void SqlStepMentioningTransactionWordsOnlyInTextAndComments_PassesValidation()
+        {
+            const string script = """
+                -- BEGIN; COMMIT; VACUUM;
+                /* ROLLBACK;
+                   END; */
+                CREATE TABLE "begin" (id INTEGER, [end] TEXT, `commit` TEXT);
+                INSERT INTO "begin" (id, [end]) VALUES (1, 'commit; rollback; end;');
+                CREATE TABLE release_notes (id INTEGER, detach_reason TEXT);
+                """;
+
+            var steps = DataStoreUpgradeCatalog.Validate([Sql(1, "words_in_text", script)]);
+
+            Assert.Single(steps);
+        }
+
+        [Fact]
+        public void CodeStepWithNoName_FailsValidationWithACatalogError()
+        {
+            var nameless = new NamelessCodeStep(null!);
+            var empty = new NamelessCodeStep(string.Empty);
+
+            var first = Assert.Throws<DataStoreUpgradeCatalogException>(() => DataStoreUpgradeCatalog.Validate([nameless]));
+            Assert.Throws<DataStoreUpgradeCatalogException>(() => DataStoreUpgradeCatalog.Validate([empty]));
+
+            Assert.Contains(nameof(NamelessCodeStep), first.Message);
+        }
+
+        private const string TriggerScript = """
+            CREATE TABLE t (id INTEGER PRIMARY KEY, n INTEGER, label TEXT);
+            CREATE TABLE log (msg TEXT);
+            CREATE TRIGGER t_after_insert AFTER INSERT ON t
+            WHEN CASE WHEN NEW.n > 0 THEN 1 ELSE 0 END = 1
+            BEGIN
+                INSERT INTO log (msg) SELECT CASE WHEN NEW.n > 5 THEN 'big' ELSE 'small' END;
+                UPDATE t SET label = CASE WHEN NEW.n = 1 THEN 'one' ELSE 'many' END WHERE id = NEW.id;
+            END;
+            SELECT CASE WHEN 1 THEN 2 END;
+            """;
+
+        private sealed class NamelessCodeStep(string name) : DataStoreCodeUpgradeStep
+        {
+            public override int Number => 1;
+
+            public override string Name => name;
+
+            public override void Apply(Microsoft.Data.Sqlite.SqliteConnection connection, Microsoft.Data.Sqlite.SqliteTransaction transaction)
+            {
+            }
         }
 
         [Fact]
@@ -113,6 +213,7 @@ namespace MediaEngine.Storage.Tests
             var edited = Sql(1, "same", "CREATE TABLE t (\n    id INTEGER,\n    x TEXT\n);\n");
 
             Assert.Equal(lf.Fingerprint, crlf.Fingerprint);
+            Assert.Equal(lf.Fingerprint, Sql(1, "same", "CREATE TABLE t (\r    id INTEGER\r);\r").Fingerprint);
             Assert.NotEqual(lf.Fingerprint, edited.Fingerprint);
             Assert.Matches("^[0-9a-f]{64}$", lf.Fingerprint);
         }

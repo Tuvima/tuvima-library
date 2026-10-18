@@ -95,6 +95,7 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
         Assert.Contains("half_done", exception.Message);
         Assert.Contains("table_that_does_not_exist", exception.Message);
         Assert.Contains("The data store was left as it was before this step.", exception.Message);
+        Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
         Assert.IsType<SqliteException>(exception.InnerException);
         Assert.Equal(1, TableCount("things"));
         Assert.Equal(0, TableCount("half_done"));
@@ -123,10 +124,22 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
     {
         _runner.Run(_connection, TwoSteps(), Options());
         var olderEngine = new DataStoreUpgradeStep[] { TwoSteps()[0] };
+        var hookCalls = 0;
 
         var exception = Assert.Throws<DataStoreUpgradeRefusedException>(
-            () => _runner.Run(_connection, olderEngine, new DataStoreUpgradeOptions { BackupLocationHint = "the Backups folder" }));
+            () => _runner.Run(_connection, olderEngine, new DataStoreUpgradeOptions
+            {
+                BackupLocationHint = "the Backups folder",
+                BeforeFirstPendingStep = _ =>
+                {
+                    hookCalls++;
+                    return null;
+                },
+            }));
 
+        Assert.Equal(0, hookCalls);
+        Assert.Equal([1L, 2L], Query<long>("SELECT number FROM data_store_upgrades ORDER BY number;"));
+        Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
         Assert.Contains("newer version of Tuvima", exception.Message);
         Assert.Contains("0002", exception.Message);
         Assert.Contains("Install that version", exception.Message);
@@ -141,10 +154,14 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
         {
             TwoSteps()[0],
             Sql(2, "add_note", "ALTER TABLE things ADD COLUMN note TEXT NOT NULL DEFAULT '';"),
+            Sql(3, "pending_step", "CREATE TABLE pending_table (id INTEGER);"),
         };
 
         var exception = Assert.Throws<DataStoreUpgradeRefusedException>(() => _runner.Run(_connection, edited, Options()));
 
+        Assert.Equal(0, TableCount("pending_table"));
+        Assert.Equal([1L, 2L], Query<long>("SELECT number FROM data_store_upgrades ORDER BY number;"));
+        Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
         Assert.Contains("0002", exception.Message);
         Assert.Contains("add_note", exception.Message);
         Assert.Contains("add a new step", exception.Message);
@@ -169,9 +186,13 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
         var steps = new List<DataStoreUpgradeStep>(TwoSteps()) { Sql(3, "add_tag", "ALTER TABLE things ADD COLUMN tag TEXT;") };
         _runner.Run(_connection, steps, Options());
         Execute("DELETE FROM data_store_upgrades WHERE number = 2;");
+        steps.Add(Sql(4, "pending_step", "CREATE TABLE pending_table (id INTEGER);"));
 
         var exception = Assert.Throws<DataStoreUpgradeRefusedException>(() => _runner.Run(_connection, steps, Options()));
 
+        Assert.Equal(0, TableCount("pending_table"));
+        Assert.Equal([1L, 3L], Query<long>("SELECT number FROM data_store_upgrades ORDER BY number;"));
+        Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
         Assert.Contains("damaged", exception.Message);
         Assert.Contains("Restore a backup", exception.Message);
     }
@@ -278,6 +299,57 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
 
         Assert.Equal("D:/backups/before-0003.db", exception.SafetyCopyPath);
         Assert.Contains("D:/backups/before-0003.db", exception.Message);
+    }
+
+    [Fact]
+    public void BeforeFirstPendingStep_Throwing_RefusesAndAppliesNothing()
+    {
+        _runner.Run(_connection, TwoSteps(), Options());
+        var steps = TwoSteps().Append(Sql(3, "pending_step", "CREATE TABLE pending_table (id INTEGER);")).ToList();
+        var options = new DataStoreUpgradeOptions
+        {
+            BeforeFirstPendingStep = _ => throw new IOException("The disk is full."),
+        };
+
+        var exception = Assert.Throws<DataStoreUpgradeRefusedException>(() => _runner.Run(_connection, steps, options));
+
+        Assert.StartsWith("Could not prepare the upgrade", exception.Message);
+        Assert.Contains("The disk is full.", exception.Message);
+        Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
+        Assert.IsType<IOException>(exception.InnerException);
+        Assert.Equal(0, TableCount("pending_table"));
+        Assert.Equal([1L, 2L], Query<long>("SELECT number FROM data_store_upgrades ORDER BY number;"));
+    }
+
+    [Fact]
+    public void BeforeFirstPendingStep_ThrowingAnUpgradeException_IsNotWrapped()
+    {
+        _runner.Run(_connection, TwoSteps(), Options());
+        var steps = TwoSteps().Append(Sql(3, "pending_step", "CREATE TABLE pending_table (id INTEGER);")).ToList();
+        var options = new DataStoreUpgradeOptions
+        {
+            BeforeFirstPendingStep = _ => throw new DataStoreUpgradeRefusedException("No room for a safety copy."),
+        };
+
+        var exception = Assert.Throws<DataStoreUpgradeRefusedException>(() => _runner.Run(_connection, steps, options));
+
+        Assert.Equal("No room for a safety copy.", exception.Message);
+    }
+
+    [Fact]
+    public void ForeignKeysOffStep_WhenForeignKeysCannotBeRestored_ReportsBothProblems()
+    {
+        var steps = new DataStoreUpgradeStep[]
+        {
+            new ClosingCodeStep(1, "closes_connection"),
+        };
+
+        var exception = Assert.Throws<DataStoreUpgradeFailedException>(() => _runner.Run(_connection, steps, Options()));
+
+        Assert.Contains("Simulated step failure.", exception.Message);
+        Assert.Contains("Foreign keys could not be switched back on", exception.Message);
+        Assert.Equal("Simulated step failure.", exception.InnerException!.Message);
+        Assert.True(exception.InnerException.Data.Contains("ForeignKeysRestoreFailure"));
     }
 
     [Fact]
@@ -392,6 +464,22 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
             {
                 throw new InvalidOperationException("Simulated code step failure.");
             }
+        }
+    }
+
+    /// <summary>A foreign-keys-off step that closes the connection and then fails, so nothing can be restored afterwards.</summary>
+    private sealed class ClosingCodeStep(int number, string name) : DataStoreCodeUpgradeStep
+    {
+        public override int Number => number;
+
+        public override string Name => name;
+
+        public override bool RequiresForeignKeysOff => true;
+
+        public override void Apply(SqliteConnection connection, SqliteTransaction transaction)
+        {
+            connection.Close();
+            throw new InvalidOperationException("Simulated step failure.");
         }
     }
 
