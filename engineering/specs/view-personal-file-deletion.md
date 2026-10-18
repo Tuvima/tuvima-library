@@ -1,8 +1,8 @@
 # Spec: Deleting personal files in View
 
-> **Status:** Draft · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Delete from library](delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Draft · **Version:** 3 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Delete from library](delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../docs/architecture/security.md)
 
-> Written 2026-10-17 from Shy's decisions in the Delete from library spec: library media is deleted straight away after a confirmation (D22), but personal files in View can't be downloaded again, so they always go to a recycle bin first (D23), in a spec of their own (D24). View already has a **Trash** that only hides items; nothing in it ever leaves the disk. This spec adds the one step that does: **Empty Trash**. Version 2 (same day) records Shy's answers to Q1–Q9 as D13–D21. One question is left (Q10, Move to Trash on phones). Nothing here is built.
+> Written 2026-10-17 from Shy's decisions in the Delete from library spec: library media is deleted straight away after a confirmation (D22), but personal files in View can't be downloaded again, so they always go to a recycle bin first (D23), in a spec of their own (D24). View already has a **Trash** that only hides items; nothing in it ever leaves the disk. This spec adds the one step that does: **Empty Trash**. Version 2 (same day) records Shy's answers to Q1–Q9 as D13–D21, and version 3 the answer to Q10 as D22. No questions are left; the spec waits only for Shy to Lock it. Nothing here is built.
 
 ## 1. Goal
 
@@ -35,7 +35,7 @@ Someone using View can finally free disk space by getting rid of photos, home vi
 
 ## 3. Decisions made
 
-D1–D12 follow from Shy's decisions in the Delete from library spec and from View's existing architecture rules. D13–D21 are Shy's answers to Q1–Q9 (2026-10-17).
+D1–D12 follow from Shy's decisions in the Delete from library spec and from View's existing architecture rules. D13–D22 are Shy's answers to Q1–Q10 (2026-10-17).
 
 - **D1. Trash first, always** (Delete from library D23). Moving an item to Trash stays reversible and never touches the file. A file leaves the disk only through Empty Trash. "Delete immediately" is never offered.
 - **D2. Empty Trash is the "separate, explicit operation" the architecture asked for.** The architecture says any permanent file operation must separately prove ownership, source containment, managed/writable policy and a fresh explicit confirmation. Empty Trash does all four: the Engine checks the person owns each item, that each file sits inside that person's own managed folder, that the safety gate allows removing it, and that the person confirmed the exact summary they were shown (D7).
@@ -59,11 +59,12 @@ Shy's answers (2026-10-17):
 - **D14. (Q2) Shared Library items stay out of this spec.** Nobody can trash or delete them for now; a later spec can add that for household administrators.
 - **D15. (Q3) Trash never empties itself.** Only Empty Trash removes files, so nothing leaves the disk without the owner confirming it at that moment.
 - **D16. (Q4) Empty Trash empties the whole Trash.** There is no deleting chosen items from inside Trash. To keep something, restore it first.
-- **D17. (Q5) No deleting on a phone** (Shy: "no deleting on a phone either makes this easier"). **Empty Trash** appears only on a desktop with a fine, hover-capable pointer, the same desktop-only rule as editing; the Engine refuses it from anything but a Dashboard session. On a phone or tablet the Trash shows its size and "Empty Trash on a computer." Whether phones keep **Move to Trash** is Q10.
+- **D17. (Q5) No deleting on a phone** (Shy: "no deleting on a phone either makes this easier"). **Empty Trash** appears only on a desktop with a fine, hover-capable pointer, the same desktop-only rule as editing; the Engine refuses it from anything but a Dashboard session. On a phone or tablet the Trash shows its size and "Empty Trash on a computer." Phones keep Move to Trash and Restore (D22).
 - **D18. (Q6) Read-only folders are for looking at, not deleting** (Shy: "if it's read only, then you can't delete anything. It's just for consumption."). Items whose files are in a linked read-only folder can't be moved to Trash: the button isn't shown for them and the Engine refuses. A selection that mixes them with other items trashes the others and says "3 items are in a read-only folder and weren't moved to Trash." Favorite, Archive, Hide and Galleries still work for them, because those never touch the file. A compound item counts as read-only if any of its files is in a linked folder. Linked items already in Trash before this is built can be restored; Empty Trash skips them ("In a read-only folder").
 - **D19. (Q7) One Trash for photos and documents.** Each Personal Space has one Trash; Photos and Documents each show their part of it. Empty Trash from either place empties the whole Trash, and the dialog lists photos, videos and documents separately so nothing is a surprise.
 - **D20. (Q8) Trashed items leave Galleries while in Trash.** A trashed item disappears from Manual Galleries and can't be a Gallery's cover; Restore brings it back where it was.
 - **D21. (Q9) The paired-app gap is fixed separately, first.** The possible gap that lets a paired phone app move photos to Trash (section 8) is checked and fixed in its own small change before this spec is built.
+- **D22. (Q10) Phones keep Move to Trash and Restore.** Only Empty Trash needs a computer. Nothing leaves the disk from a phone, and Trash can always be undone.
 
 ## 4. UI behaviour
 
@@ -71,7 +72,7 @@ Shy's answers (2026-10-17):
 
 | Place | Today | After this spec |
 |---|---|---|
-| Photos selection bar and photo viewer | **Move to Trash** / **Restore** (phone: in the row's More sheet) | Unchanged for managed items (phones: Q10). Not shown for items in a read-only folder (D18). |
+| Photos selection bar and photo viewer | **Move to Trash** / **Restore** (phone: in the row's More sheet) | Unchanged for managed items, phones included (D22). Not shown for items in a read-only folder (D18). |
 | Documents bulk bar | **Move to Trash** / **Restore** | Same as above. |
 | Photos → **Trash** filter | Lists trashed items, Restore | Adds a header: "Items in Trash stay on your disk until you empty Trash." · "128 items · 4.2 GB" · **Empty Trash…** (red, desktop only). |
 | Documents → **Trash** | Lists trashed documents, Restore | Same header and **Empty Trash…**, which empties the whole Trash (D19). |
@@ -123,7 +124,7 @@ Opening it asks the Engine for the summary ("Checking what's in Trash…"). Then
 
 ## 6. Work packets
 
-Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass focused on file safety and authorization. Fable only with Shy's approval (`.claude/rules/model-routing.md`). The paired-app fix (D21) lands first in its own change. WP3 waits for Q10.
+Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass focused on file safety and authorization. Fable only with Shy's approval (`.claude/rules/model-routing.md`). The paired-app fix (D21) lands first in its own change.
 
 ### WP1 — Engine: View in the safety gate, and the Empty Trash summary
 - **What it does:** Teaches `SourceMutationPolicyGate` (`src/MediaEngine.Ingestion/SourceMutationPolicyGate.cs`) about View: a delete request for a file under the managed View root is allowed only when the file's `view_sources.storage_mode` is `managed`, the path is contained (after resolving links) beneath that owner's `Profiles/{storage_label}` folder (`ViewStorageService.GetProfileRoot`), and the file is writable; `linked` sources are always refused. Adds `ViewTrashDeletionPlanner` (`src/MediaEngine.Api/Services/View/`) that, for the caller's Mine scope, lists trashed items (`local_items.trashed_at IS NOT NULL`) with each item's files from `local_item_files` / `local_file_sources`, decides per item `delete` / `skip_read_only` / `skip_contribution_pending` / `skip_refused` (from the gate, never from path inspection alone), finds paths another live item still uses (D6), Manual Galleries affected (`view_gallery_items`), counts by media kind, bytes freed and a fingerprint. New Engine actions `GET /view/trash/summary` (D9; any device) and `POST /view/trash/empty-preview`. Authorization: `IViewResourceAuthorizationService` with Mine scope and `Manage` on every item; the preview and empty actions are refused for `PrincipalKind.DelegatedUserClient` and `ServiceApplication` (D3, D17). Restricted (Kids) profiles are allowed (D13); Shared Library items never appear (D14). Contracts in `src/MediaEngine.Contracts/LocalAssets/ViewTrashContracts.cs`: `ViewTrashSummaryDto { item_count, photo_count, video_count, document_count, bytes }`, `ViewTrashEmptyPreviewDto { items[], galleries[], delete_count, skipped[], bytes_freed, fingerprint }`, with fixtures (`tools/Update-ContractFixtures.ps1`).
@@ -140,7 +141,7 @@ Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass
 - **Done when:** tests pass for: stale fingerprint → 409 and nothing changed; managed files and thumbnails gone from disk; a Live Photo whose video is locked keeps both files and stays in Trash; a file shared with another item stays; no row for the removed item remains in any `local_*`, `doc_*`, `view_gallery_items` or search table (a test walks every table with an item column); a Gallery left empty still exists; activity row written with count and bytes and no file names; the scanner does not re-add a removed managed item.
 
 ### WP3 — Engine: Trash rules for read-only items and Galleries (D18, D20)
-- **What it does:** Trash refuses items with any file in a `linked` source: the single-item `POST /view/items/{id}/trash` answers a clear refusal, and the documents bulk `move_to_trash` reports them as `skipped` with reason `read_only_source`. Restore keeps working for them. Item responses carry a `can_trash` flag so the Dashboard can hide the button. Manual Gallery item lists, counts and cover selection skip trashed items (`ViewGalleryRepository.GetItemsAsync`, cover checks), as the timeline, Smart Galleries and discovery already do; memberships are kept so Restore puts them back. Applies Q10's answer to phones once Shy decides.
+- **What it does:** Trash refuses items with any file in a `linked` source: the single-item `POST /view/items/{id}/trash` answers a clear refusal, and the documents bulk `move_to_trash` reports them as `skipped` with reason `read_only_source`. Restore keeps working for them. Item responses carry a `can_trash` flag so the Dashboard can hide the button. Manual Gallery item lists, counts and cover selection skip trashed items (`ViewGalleryRepository.GetItemsAsync`, cover checks), as the timeline, Smart Galleries and discovery already do; memberships are kept so Restore puts them back.
 - **Files likely touched:** `src/MediaEngine.Api/Endpoints/ViewEndpoints.cs` (`MapLifecycle`), `src/MediaEngine.Api/Services/View/ViewDocumentBulkService.cs`, `src/MediaEngine.Contracts/LocalAssets/` (`can_trash`, fixtures), `src/MediaEngine.Storage/ViewGalleryRepository.cs` (and `src/MediaEngine.Domain/Contracts/IViewGalleryRepository.cs` if a signature changes), `tests/MediaEngine.Api.Tests`, `tests/MediaEngine.Storage.Tests`.
 - **Depends on:** none (can run beside WP1).
 - **Size:** Standard.
@@ -169,10 +170,7 @@ Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass
 
 **Open questions**
 
-- **Q10. Do phones keep Move to Trash?** D17 takes Empty Trash off phones. Today a phone can also move items to Trash and restore them (from the selection's More sheet and the photo viewer).
-  - (a) **Recommended:** keep Move to Trash and Restore on phones. Nothing leaves the disk from a phone; Trash can be undone, and going through photos on a phone is where people decide what to clear out. Emptying still waits for a computer.
-  - (b) Remove Move to Trash from phones but keep Restore, so a phone can't start a delete at all.
-  - (c) Remove both: Trash is a computer-only area apart from showing what's in it.
+None. Q1–Q10 were answered on 2026-10-17 (D13–D22).
 
 ## 8. Gaps and drift
 
