@@ -253,11 +253,12 @@ public sealed partial class UiShellRenderTests
         var cut = await RenderLayoutAsync(PhoneDevice);
         var nav = Services.GetRequiredService<NavigationManager>();
 
-        cut.Find(".layout-shell__menu-button").Click();
+        // The layout keeps re-rendering while its session and profile load, so each click finds its element afresh and
+        // retries if a render replaced it between the find and the click.
+        cut.WaitForAssertion(() => cut.Find(".layout-shell__menu-button").Click());
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
-        var myLibrary = cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1];
-        Assert.Equal("/my-library", myLibrary.GetAttribute("href"));
-        myLibrary.Click();
+        Assert.Equal("/my-library", cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1].GetAttribute("href"));
+        cut.WaitForAssertion(() => cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1].Click());
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".phone-nav-menu")));
         Assert.EndsWith("/my-library", nav.Uri);
 
