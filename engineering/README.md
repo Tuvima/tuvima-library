@@ -51,6 +51,13 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Tuvima design system](design/design-system.md) | Current |
 | [Mockups](design/mockups/) | Historical — 18 HTML previews and a Dashboard UI kit from spring 2026; older token values (see design system) |
 
+## Reports and handoffs
+
+| Doc | Status |
+|---|---|
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — results below; ADR 0001 decision pending with Shy |
+| [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — recommends staying on Dapper; awaiting Shy's decision |
+
 ## History (pre-2026-10-17 engineering records)
 
 Kept as a record of what was planned, decided and verified. Not maintained; newer specs and decisions win. Engineering plans written before the spec template stay here unless still active (active ones moved to `specs/`).
