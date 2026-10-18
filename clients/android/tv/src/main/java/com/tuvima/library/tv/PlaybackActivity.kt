@@ -1,11 +1,15 @@
 package com.tuvima.library.tv
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
@@ -13,6 +17,7 @@ import com.tuvima.library.core.PlaybackManifest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 class PlaybackActivity : ComponentActivity() {
@@ -45,9 +50,15 @@ class PlaybackActivity : ComponentActivity() {
         error("Media preparation timed out.")
     }
 
+    @OptIn(UnstableApi::class)
     private suspend fun startPlayback(manifest: PlaybackManifest) {
-        val headers = mapOf("Authorization" to "Bearer ${client.currentAccessToken()}")
-        val dataSource = DefaultHttpDataSource.Factory().setDefaultRequestProperties(headers)
+        // The token and the server address (home or outside) are read when each request is made, never once at start-up:
+        // the token lives about ten minutes and the address can change when the television changes network.
+        val dataSource = ResolvingDataSource.Factory(DefaultHttpDataSource.Factory()) { dataSpec ->
+            val token = runBlocking { client.streamBearerToken() }
+            dataSpec.withUri(Uri.parse(client.resolveUrl(dataSpec.uri.toString())))
+                .withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+        }
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(dataSource))
             .build()

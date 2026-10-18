@@ -82,6 +82,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 val position = player.currentPosition
                 val current = player.currentMediaItem
                 val wasPlaying = player.playWhenReady
+                // A new network may be home or away: settle on the address that answers before asking for the stream.
+                client?.refreshServerAddress()
                 resolvePlayable(assetId)?.let { resolved ->
                     // A video keeps its type and title so the video screen and the notification stay as they were.
                     val item = if (current?.mediaMetadata?.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO) {
@@ -103,13 +105,16 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         // The access token lives about ten minutes, so it is read when each request is made (never kept in the factory) and
         // refreshed by the client when it has expired. That covers streams, seeks, reconnects, the next item and sidecar subtitles.
         // The default source also reads file:// URIs, which is how a downloaded copy plays without a connection; those carry no header.
+        // The address is read the same way: a URL built while the other (home or outside) address was in use is moved onto the
+        // one in use now, so a queued item, a playlist or a segment link survives a switch.
         val dataSource = ResolvingDataSource.Factory(DefaultDataSource.Factory(this, DefaultHttpDataSource.Factory())) { dataSpec ->
             if (dataSpec.uri.scheme.equals("file", ignoreCase = true)) {
                 dataSpec
             } else {
                 val api = client
+                val located = if (api == null) dataSpec else dataSpec.withUri(Uri.parse(api.resolveUrl(dataSpec.uri.toString())))
                 val token = if (api == null) null else runBlocking { api.streamBearerToken() }
-                if (token == null) dataSpec else dataSpec.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+                if (token == null) located else located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
             }
         }
         player = ExoPlayer.Builder(this)

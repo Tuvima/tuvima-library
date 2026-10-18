@@ -3,12 +3,25 @@ package com.tuvima.library.tv
 import android.app.Application
 import android.os.Build
 import com.tuvima.library.core.ClientCapabilities
+import com.tuvima.library.core.NetworkChangeWatcher
+import com.tuvima.library.core.PreferencesServerAddressStore
 import com.tuvima.library.core.SecureTokenStore
 import com.tuvima.library.core.TuvimaClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class TuvimaTvApplication : Application() {
     var client: TuvimaClient? = null
         private set
+
+    override fun onCreate() {
+        super.onCreate()
+        // Home or outside address: move to whichever answers whenever the television changes network.
+        NetworkChangeWatcher(this, CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+            client?.refreshServerAddress()
+        }.start()
+    }
 
     fun connect(serverAddress: String): TuvimaClient {
         getSharedPreferences("tuvima_tv", MODE_PRIVATE).edit().putString("server", serverAddress).apply()
@@ -29,6 +42,7 @@ class TuvimaTvApplication : Application() {
                 supportsHdr = true,
             ),
             tokenStore = SecureTokenStore(this),
+            addressStore = PreferencesServerAddressStore(this),
         ).also { client = it }
     }
 

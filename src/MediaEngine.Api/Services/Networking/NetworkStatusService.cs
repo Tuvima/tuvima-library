@@ -76,9 +76,7 @@ public sealed class NetworkStatusService
             SecureConnection = secure,
             LocalAddresses = addresses,
             PreferredLocalAddress = selected is null ? null : NetworkDiagnosticsService.FormatAddress(selected.Address, settings.Local.Port),
-            ExternalAddress = settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
-                ? tailscale?.PublicAddress
-                : settings.Remote.PublicHostname,
+            ExternalAddress = ExternalAddressFor(settings, tailscale),
             PublicIp = mapping?.PublicAddress,
             RouterConfiguration = settings.Remote.AutomaticRouterConfiguration
                 ? "automatic"
@@ -118,6 +116,24 @@ public sealed class NetworkStatusService
             HardwareAcceleration = _configuration.LoadTranscoding().HardwareAcceleration,
         };
     }
+
+    /// <summary>
+    /// The address apps use away from home, as an origin, or null while no way in from the internet is chosen.
+    /// The Dashboard hands this to apps in its discovery answer; it is the same value the Devices page shows.
+    /// </summary>
+    public string? GetOutsideAddress() =>
+        OutsideAddressFor(_configuration.LoadNetwork(), _runtime.GetRemoteProvider("tailscale"));
+
+    internal static string? OutsideAddressFor(NetworkSettings settings, RemoteProviderSnapshot? tailscale) =>
+        settings.Remote.HasOutsidePath
+            ? PublicAddress.ToOrigin(ExternalAddressFor(settings, tailscale))
+            : null;
+
+    // The tailnet address in Tailscale mode, the public hostname otherwise.
+    private static string? ExternalAddressFor(NetworkSettings settings, RemoteProviderSnapshot? tailscale) =>
+        settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
+            ? tailscale?.PublicAddress
+            : settings.Remote.PublicHostname;
 
     private static NetworkAddressDto? SelectPreferredAddress(NetworkSettings settings, IReadOnlyList<NetworkAddressDto> addresses)
     {

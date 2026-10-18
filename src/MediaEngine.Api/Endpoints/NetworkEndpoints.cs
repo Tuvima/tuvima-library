@@ -79,6 +79,14 @@ public static class NetworkEndpoints
             .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
 
+        // The Dashboard's discovery answer is anonymous, so it asks with its own service credential (no signed-in person).
+        network.MapGet("/outside-address", (NetworkStatusService status) =>
+            Results.Ok(new NetworkOutsideAddressDto { OutsideAddress = status.GetOutsideAddress() }))
+            .WithName("GetNetworkOutsideAddress")
+            .WithSummary("Return the outside address apps use away from home, or none, for the Dashboard's discovery answer.")
+            .Produces<NetworkOutsideAddressDto>()
+        .RequireAuthorization(AuthPolicies.DashboardService);
+
         network.MapPost("/tests/local", async (INetworkDiagnosticsService diagnostics, CancellationToken ct) =>
             Results.Ok(await diagnostics.TestLocalAsync(ct)))
             .WithName("TestLocalNetworkConnection")

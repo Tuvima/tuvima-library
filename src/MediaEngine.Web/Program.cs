@@ -329,6 +329,7 @@ builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
 builder.Services.AddSingleton<NativeAppPairingThrottle>();
+builder.Services.AddSingleton<IOutsideAddressSource, EngineOutsideAddressSource>();
 builder.Services.AddSingleton<SignInAttemptLimiter>();
 builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()

@@ -9,6 +9,14 @@ Client rules:
 
 - discover the server through `/.well-known/tuvima` or an explicitly entered
   Dashboard HTTPS address;
+- treat the address the person typed (or the one discovery was reached on) as
+  the server's home address, and read the optional `outside_address` field of
+  the discovery answer as its address away from home. It is an origin such as
+  `https://tuvima.example.com` or a Tailscale `https://host.tailnet.ts.net`,
+  and is `null` or absent when the owner has not set up a way in from the
+  internet. Try the home address first, fall back to the outside address, and
+  keep the same sign-in on both: tokens belong to the server, not to one
+  address;
 - never connect to the Engine port or receive the Dashboard service key;
 - ignore additive JSON fields that the client does not understand;
 - treat bearer tokens, refresh tokens, and signed HLS URLs as secrets;

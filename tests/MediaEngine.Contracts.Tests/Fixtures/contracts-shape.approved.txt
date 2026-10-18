@@ -1277,6 +1277,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Tuvima
   DeviceAuthorizationEndpoint: System.String | nullability=not-null | accessors=get,init
   TokenEndpoint: System.String | nullability=not-null | accessors=get,init
   VerificationUri: System.String | nullability=not-null | accessors=get,init
+  OutsideAddress: System.String | nullability=nullable | accessors=get,init
   Capabilities: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.TwoStepRequiredResponse
@@ -7532,6 +7533,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkBandwidthSt
   AvailableMbps: System.Double? | nullability=nullable | accessors=get,set
   MeasuredAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   Status: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkOutsideAddressDto
+  OutsideAddress: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkRuntimeStatusDto
   LocalAccess: System.String | nullability=not-null | accessors=get,set

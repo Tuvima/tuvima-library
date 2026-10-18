@@ -18,13 +18,18 @@ public static class ClientApiEdgeEndpoints
 {
     public static IEndpointRouteBuilder MapClientApiEdge(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/.well-known/tuvima", (HttpRequest request) =>
+        // The address this request arrived on is the app's home address; the outside address (when the owner has set
+        // one up) rides along so the app never asks for a second address. Discovery never fails because of it.
+        app.MapGet("/.well-known/tuvima", async (HttpRequest request, CancellationToken ct) =>
             Results.Ok(new TuvimaDiscoveryResponse
             {
                 ServerId = Environment.MachineName,
                 ServerName = Environment.MachineName,
                 ApiBaseUrl = $"{request.Scheme}://{request.Host}/api/v1",
                 VerificationUri = $"{request.Scheme}://{request.Host}/pair",
+                OutsideAddress = request.HttpContext.RequestServices.GetService<IOutsideAddressSource>() is { } source
+                    ? await source.GetAsync(ct)
+                    : null,
             }))
         .WithName("DiscoverTuvimaPublicEdge")
         .AllowAnonymous();

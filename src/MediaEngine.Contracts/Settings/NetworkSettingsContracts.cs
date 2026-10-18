@@ -41,6 +41,12 @@ public sealed class NetworkStreamingSettingsDto
     [JsonPropertyName("concurrent_remote_streams")] public string ConcurrentRemoteStreams { get; set; } = "automatic";
 }
 
+/// <summary>The outside address apps use away from home (an origin such as https://tuvima.example.com), or null when none is set up.</summary>
+public sealed class NetworkOutsideAddressDto
+{
+    [JsonPropertyName("outside_address")] public string? OutsideAddress { get; set; }
+}
+
 public sealed class NetworkRuntimeStatusDto
 {
     [JsonPropertyName("local_access")] public string LocalAccess { get; set; } = "unavailable";

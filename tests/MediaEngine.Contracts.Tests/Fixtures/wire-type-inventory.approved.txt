@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=993; api=0; web-client=77
+# scopes: contracts=994; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1518,8 +1518,9 @@
   DeviceAuthorizationEndpoint: System.String | json=device_authorization_endpoint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TokenEndpoint: System.String | json=token_endpoint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VerificationUri: System.String | json=verification_uri | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OutsideAddress: System.String | json=outside_address | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.IReadOnlyList<System.String> | json=capabilities | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"product":"sample","server_id":"sample","server_name":"sample","api_base_url":"sample","supported_api_versions":[],"device_authorization_endpoint":"sample","token_endpoint":"sample","verification_uri":"sample","capabilities":[]}
+  sample={"product":"sample","server_id":"sample","server_name":"sample","api_base_url":"sample","supported_api_versions":[],"device_authorization_endpoint":"sample","token_endpoint":"sample","verification_uri":"sample","outside_address":"sample","capabilities":[]}
 
 [contracts] MediaEngine.Contracts.Authentication.TwoStepRequiredResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8840,6 +8841,11 @@
   MeasuredAt: System.DateTimeOffset? | json=measured_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"upload_capacity_mbps":7,"reserved_mbps":7,"available_mbps":7,"measured_at":"2025-01-02T03:04:05+00:00","status":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.NetworkOutsideAddressDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OutsideAddress: System.String | json=outside_address | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"outside_address":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.NetworkRuntimeStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default

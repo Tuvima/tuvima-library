@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -203,8 +204,10 @@ class ClipPlayerActivity : ComponentActivity() {
             // The token goes on each request as it is made, never into the URL, and is refreshed when it is about to expire.
             val http = DefaultHttpDataSource.Factory()
             val authorised = ResolvingDataSource.Factory(DefaultDataSource.Factory(this@ClipPlayerActivity, http)) { dataSpec ->
+                // The address is read per request too, so a switch between home and outside never needs a new URL.
+                val located = dataSpec.withUri(Uri.parse(client.resolveUrl(dataSpec.uri.toString())))
                 val token = runBlocking { client.streamBearerToken() }
-                dataSpec.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+                located.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
             }
             val created = ExoPlayer.Builder(this@ClipPlayerActivity)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(this@ClipPlayerActivity).setDataSourceFactory(authorised))

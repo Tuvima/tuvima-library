@@ -206,5 +206,11 @@ public sealed class TuvimaDiscoveryResponse
     [JsonPropertyName("device_authorization_endpoint")] public string DeviceAuthorizationEndpoint { get; init; } = "/api/v1/oauth/device_authorization";
     [JsonPropertyName("token_endpoint")] public string TokenEndpoint { get; init; } = "/api/v1/oauth/token";
     [JsonPropertyName("verification_uri")] public string VerificationUri { get; init; } = "/pair";
+    /// <summary>
+    /// Optional. The origin apps use away from home (for example <c>https://tuvima.example.com</c> or a Tailscale
+    /// <c>https://host.tailnet.ts.net</c>), null when the owner has not set up a way in from the internet. The
+    /// address the app was reached on is its home address, so it is not repeated here.
+    /// </summary>
+    [JsonPropertyName("outside_address")] public string? OutsideAddress { get; init; }
     [JsonPropertyName("capabilities")] public IReadOnlyList<string> Capabilities { get; init; } = ["browse", "search", "details", "artwork", "progress", "queues", "downloads", "playback"];
 }
