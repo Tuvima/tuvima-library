@@ -39,6 +39,8 @@ internal sealed class ConcurrencyRun
     private readonly bool _useEf;
     private readonly bool _writerUsesEf;
     private readonly TimeSpan _duration;
+    private readonly double _writerTps;
+    private double _writerSeconds;
     private readonly Stopwatch _clock = new();
 
     private int _writerTransactions;
@@ -48,7 +50,7 @@ internal sealed class ConcurrencyRun
     private readonly List<string> _errorSamples = [];
     private readonly object _errorGate = new();
 
-    public ConcurrencyRun(BenchContext context, string scenario, string stack, TimeSpan duration)
+    public ConcurrencyRun(BenchContext context, string scenario, string stack, TimeSpan duration, double writerTps)
     {
         _context = context;
         Scenario = scenario;
@@ -56,6 +58,7 @@ internal sealed class ConcurrencyRun
         _useEf = stack == "ef";
         _writerUsesEf = scenario == "B" && _useEf;
         _duration = duration;
+        _writerTps = writerTps;
     }
 
     public string Scenario { get; }
@@ -102,6 +105,8 @@ internal sealed class ConcurrencyRun
             Scenario,
             Stack,
             _clock.Elapsed.TotalSeconds,
+            _writerTps,
+            _writerSeconds,
             merged.OrderBy(pair => pair.Key).Select(pair => Summarise(pair.Key, pair.Value)).ToList(),
             _writerTransactions,
             _writerBusy,
@@ -163,8 +168,24 @@ internal sealed class ConcurrencyRun
     private async Task WriterLoopAsync()
     {
         long batch = 0;
+        var period = _writerTps > 0 ? TimeSpan.FromSeconds(1 / _writerTps) : TimeSpan.Zero;
         while (_clock.Elapsed < _duration)
         {
+            // Fixed schedule: transaction n is due at n * period, so a slow transaction is followed by a shorter pause and
+            // the average rate stays at the target. If the writer cannot keep up the pause is zero and the achieved
+            // rate is reported below the target.
+            var due = period * batch;
+            var wait = due - _clock.Elapsed;
+            if (wait > TimeSpan.Zero)
+            {
+                if (due >= _duration)
+                {
+                    break;
+                }
+
+                await Task.Delay(wait);
+            }
+
             try
             {
                 if (_writerUsesEf)
@@ -185,6 +206,8 @@ internal sealed class ConcurrencyRun
 
             batch++;
         }
+
+        _writerSeconds = _clock.Elapsed.TotalSeconds;
     }
 
     private Task DapperWriteAsync(long batch)

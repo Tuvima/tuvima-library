@@ -8,6 +8,8 @@ internal sealed record ConcurrencyResult(
     string Scenario,
     string Stack,
     double Seconds,
+    double WriterTargetTps,
+    double WriterSeconds,
     IReadOnlyList<OperationStats> ReaderOperations,
     int WriterTransactions,
     int WriterBusyErrors,

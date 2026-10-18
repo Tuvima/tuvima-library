@@ -22,9 +22,9 @@ internal static class Q2MetadataClaims
 
     /// <summary>
     /// The production SQL text (MetadataClaimRepository.GetByEntitiesAsync at commit 2210bc763) through EF raw SQL on
-    /// the mapped set, plus the same batching loop and grouping. Column aliases dropped (FromSql maps by column name).
+    /// the mapped set, plus the same batching loop and grouping, synchronously like the production read. Column aliases dropped (FromSql maps by column name).
     /// </summary>
-    public static async Task<Result> EfRaw(BenchContext context, IReadOnlyList<Guid> ids)
+    public static Task<Result> EfRaw(BenchContext context, IReadOnlyList<Guid> ids)
     {
         using var lease = context.Ef.Rent();
         var results = new List<MetadataClaim>();
@@ -39,7 +39,7 @@ internal static class Q2MetadataClaims
             }
 
 #pragma warning disable EF1003 // the concatenated text is only generated '@entityId<n>' placeholders, as in production
-            results.AddRange(await lease.Context.MetadataClaims
+            results.AddRange(lease.Context.MetadataClaims
                 .FromSqlRaw(
                     """
                     SELECT id, entity_id, provider_id, decision_source_provider_id, observation_set_id, claim_key,
@@ -52,30 +52,30 @@ internal static class Q2MetadataClaims
                     """,
                     parameters)
                 .AsNoTracking()
-                .ToListAsync());
+                .ToList());
 #pragma warning restore EF1003
         }
 
-        return Group(results);
+        return Task.FromResult(Group(results));
     }
 
     /// <summary>Idiomatic LINQ over the mapped set (pooled context).</summary>
-    public static async Task<Result> EfLinq(BenchContext context, IReadOnlyList<Guid> ids)
+    public static Task<Result> EfLinq(BenchContext context, IReadOnlyList<Guid> ids)
     {
         using var lease = context.Ef.Rent();
         var results = new List<MetadataClaim>();
         foreach (var batch in ids.Where(id => id != Guid.Empty).Distinct().Chunk(BatchSize))
         {
             var batchIds = batch;
-            results.AddRange(await lease.Context.MetadataClaims
+            results.AddRange(lease.Context.MetadataClaims
                 .AsNoTracking()
                 .Where(claim => batchIds.Contains(claim.EntityId) && claim.IsCurrent)
                 .OrderBy(claim => claim.EntityId)
                 .ThenBy(claim => claim.ClaimedAt)
-                .ToListAsync());
+                .ToList());
         }
 
-        return Group(results);
+        return Task.FromResult(Group(results));
     }
 
     public static IEnumerable<string> Lines(Result result)

@@ -21,7 +21,8 @@ internal static class Q5DisplayProjection
         var method = typeof(DisplayWorkProjectionReader).GetMethod("BuildSql", BindingFlags.NonPublic | BindingFlags.Static)
             ?? throw new InvalidOperationException("DisplayWorkProjectionReader.BuildSql was not found; the benchmark is pinned to commit 2210bc763.");
         var sql = (string)method.Invoke(null, [false, false, false])!;
-        // EF composes raw SQL as a sub-select, which does not allow the statement terminator.
+        // An uncomposed FromSqlRaw/SqlQueryRaw is sent to SQLite unchanged (checked with ToQueryString); the trailing
+        // terminator is trimmed only so the text would also stay valid if EF ever wrapped it as a sub-select.
         return sql.TrimEnd().TrimEnd(';');
     });
 
@@ -29,7 +30,8 @@ internal static class Q5DisplayProjection
     public static Task<IReadOnlyList<DisplayWorkRow>> Dapper(BenchContext context, int limit) =>
         new DisplayWorkProjectionReader(context.Database).LoadAsync(CancellationToken.None, limit);
 
-    /// <summary>The production SQL through EF raw SQL, then the production post-processing of LoadAsync.</summary>
+    /// <summary>The production SQL through EF raw SQL, then the production post-processing of LoadAsync. The main query is async like
+    /// production's <c>QueryAsync</c>; the pseudonym lookup is synchronous like production's <c>conn.Query</c>.</summary>
     public static async Task<IReadOnlyList<DisplayWorkRow>> EfRaw(BenchContext context, int limit)
     {
         using var lease = context.Ef.Rent();
@@ -40,9 +42,9 @@ internal static class Q5DisplayProjection
 #pragma warning restore EF1002
         var rows = efRows.ConvertAll(RowMapper<DisplayWorkEfRow, DisplayWorkRow>.Convert);
 
-        var pseudonymNames = (await database
+        var pseudonymNames = database
                 .SqlQueryRaw<string>("SELECT name AS Value FROM persons WHERE is_pseudonym = 1 AND NULLIF(TRIM(name), '') IS NOT NULL")
-                .ToListAsync())
+                .ToList()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {

@@ -44,7 +44,8 @@ All of it is marked with a comment naming the source and commit `2210bc763`.
 3. `verify` compares every variant to production field by field, in order (see below).
 4. Parameter sets are fixed: ids come from deterministic strides, pages from fixed offsets.
 5. BenchmarkDotNet: Release only, `MemoryDiagnoser`, columns Median, P95, Mean, StdDev, Allocated, Gen0/1/2 and the ratio to the Dapper baseline.
-6. EF options set, and nothing else: SQLite provider and `QueryTrackingBehavior.NoTracking` as the default. Logging off, no sensitive-data logging, thread-safety checks left at their default. The EF write path in the concurrency run switches tracking on for its own context only.
+6. Synchronous where production is synchronous. Storage reads (Q1, Q2, Q4, and Q5's pseudonym lookup) call the synchronous SQLite API and return a completed task, so their EF variants use `ToList()`, not `ToListAsync()`. Where production awaits (`QueryAsync` in Q3 and in Q5's main query), the EF variants await too.
+7. EF options set, and nothing else: SQLite provider and `QueryTrackingBehavior.NoTracking` as the default. Logging off, no sensitive-data logging, thread-safety checks left at their default. The EF write path in the concurrency run switches tracking on for its own context only.
 
 Value converters match the product exactly: `Guid` as a 16-byte big-endian BLOB through `GuidSql`, `DateTimeOffset` as ISO-8601 `"o"` text parsed with `DateTimeOffset.Parse`. No enum columns are involved.
 
@@ -124,7 +125,7 @@ $RUN verify --db $T/projection.db                           # about 1 minute (Q4
 
 $RUN bench --db $T/full.db --filter "*LightQuery*" "*FeedQuery*"
 $RUN bench --db $T/projection.db --filter "*ProjectionQuery*"
-$RUN concurrency --db $T/projection.db --seconds 60
+$RUN concurrency --db $T/projection.db --seconds 60 --writer-tps 50
 
 $RUN clean --db $T/small.db                                 # deletes the db, -wal, -shm and the .bench.json description
 ```
@@ -143,9 +144,14 @@ Other commands: `probe --db <path> [--ef] [--repeat n] [--only Q1,Q4]` times eac
 
 ### Concurrency run
 
-Four runs, each in its own process against a fresh copy of the file (so growth from one writer never reaches the next, and peak working set and GC counts belong to that run alone): scenario A (one shared background writer on the production Dapper write path, `IDatabaseConnection.ExecuteWriteAsync`) and scenario B (the writer also uses the stack under test), each for Dapper and EF. The writer commits 50 `metadata_claims` inserts and 20 `canonical_values` updates per transaction as fast as it can; the EF writer takes the same global write lock and does one `SaveChanges` per batch inside a transaction on a pooled, change-tracking context. Four reader tasks loop Q2 and Q4 (media-type page) on the stack under test.
+Four runs, each in its own process against a fresh copy of the file (so growth from one writer never reaches the next, and peak working set and GC counts belong to that run alone): scenario A (one shared background writer on the production Dapper write path, `IDatabaseConnection.ExecuteWriteAsync`) and scenario B (the writer also uses the stack under test), each for Dapper and EF. The writer commits 50 `metadata_claims` inserts and 20 `canonical_values` updates per transaction at a fixed target rate, `--writer-tps` (default **50 transactions/s**, paced on a fixed schedule so a slow transaction is followed by a shorter pause), so the readers of both stacks face the same write load. The printed table and the CSV give the achieved rate, and the output says `WRITER BELOW TARGET` if it falls under 95% of the target. `--writer-tps 0` runs the writer unthrottled (as fast as it can). The EF writer takes the same global write lock and does one `SaveChanges` per batch inside a transaction on a pooled, change-tracking context. Four reader tasks loop Q2 and Q4 (media-type page) on the stack under test.
 
-Reported per run: reader operations with p50/p95/p99, writer transactions, `SQLITE_BUSY`/`SQLITE_LOCKED` counts (writer and reader, also when wrapped by EF), any other error (the run fails and prints it), peak working set, GC counts, allocated bytes and WAL size. Scenario A and B are the same run for Dapper; comparing them shows the noise level.
+Two things about the EF side to keep in mind when reading the numbers:
+
+* The EF writer runs a `SELECT` (load the 20 `canonical_values` rows with tracking, then modify and `SaveChanges`) **while holding the write lock**. The Dapper writer issues blind `UPDATE`s with no read. For a blind update of known keys, idiomatic EF would more likely use `ExecuteUpdate` or attached stub entities and skip the `SELECT`; load-modify-save is the classic change-tracking pattern and was kept, so the EF writer's transactions carry one extra read.
+* The EF readers run Q2 through the **LINQ** variant, not the raw-SQL one (Q4 has only the raw-SQL variant).
+
+Reported per run: reader operations with p50/p95/p99, writer transactions, `SQLITE_BUSY`/`SQLITE_LOCKED` counts (writer and reader, also when wrapped by EF), any other error (the run fails and prints it), peak working set, GC counts, allocated bytes and WAL size. Scenario A and B are the same run for Dapper; comparing them shows the noise level. Each child process is given the run length plus 5 minutes; if it exceeds that, only that child is killed, the run fails with a message, and the file copy is still deleted.
 
 ## Cost of a full run
 
@@ -155,4 +161,4 @@ Reported per run: reader operations with p50/p95/p99, writer transactions, `SQLI
 
 ## Known limits
 
-Synthetic data (realistic shape, not a real library); one desktop; SQLite plans depend on the data and on `ANALYZE`; the EF variants include a few steps production does not (for example mapping the twin row type in Q5); Q4 and Q5 are measured at a smaller size than the other three; LINQ variants exist only where LINQ can express the query.
+Synthetic data (realistic shape, not a real library); one desktop; SQLite plans depend on the data and on `ANALYZE`; the EF variants include a few steps production does not (for example mapping the twin row type in Q5); Q4 and Q5 are measured at a smaller size than the other three; LINQ variants exist only where LINQ can express the query. Production rebuilds its SQL string on every call, while the EF variants build or cache it once (microseconds against calls that take milliseconds to minutes). The concurrency reader operations number only tens per run, so their p99 is effectively the maximum; read p50 and p95. The paced writer catches up after a stall, so short bursts above the target rate are possible.

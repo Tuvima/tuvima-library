@@ -19,6 +19,26 @@ internal static class Options
         return null;
     }
 
+    /// <summary>
+    /// <c>--writer-tps</c>: target writer transactions per second for the concurrency run. Defaults to 50 so readers on
+    /// both stacks face the same write load; 0 means unthrottled. An unreadable or negative value is an error.
+    /// </summary>
+    public static double WriterTps(string[] args)
+    {
+        var text = Optional(args, "--writer-tps");
+        if (text is null)
+        {
+            return 50;
+        }
+
+        if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) || value < 0)
+        {
+            throw new ArgumentException($"--writer-tps must be a number of at least 0, not '{text}'.");
+        }
+
+        return value;
+    }
+
     /// <summary>The arguments with one <c>--name value</c> pair removed.</summary>
     public static string[] Without(string[] args, string name)
     {

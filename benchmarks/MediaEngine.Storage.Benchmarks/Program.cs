@@ -23,6 +23,7 @@ internal static class Program
           explain      --db <path> --query q4|q5               print SQLite's query plan for a heavy read (diagnostic)
           bench        --db <path> [BenchmarkDotNet args]      timing and allocation run (for example: --filter "*" or --job dry)
           concurrency  --db <path> [--seconds <n>]             reader/writer contention run on a copy of the file
+                       [--writer-tps <n>]                      writer rate in transactions/s (default 50; 0 = unthrottled)
           clean        --db <path>                             delete the database, -wal, -shm and dataset description
         """;
 
@@ -80,14 +81,16 @@ internal static class Program
                 case "concurrency":
                     return await ConcurrencyHarness.RunAsync(
                         Options.Required(rest, "--db"),
-                        int.TryParse(Options.Optional(rest, "--seconds"), out var seconds) ? seconds : 60);
+                        int.TryParse(Options.Optional(rest, "--seconds"), out var seconds) ? seconds : 60,
+                        Options.WriterTps(rest));
                 case "concurrency-run":
                     // Internal: one scenario/stack in its own process. Started by 'concurrency'.
                     return await ConcurrencyHarness.ExecuteChildAsync(
                         Options.Required(rest, "--db"),
                         Options.Required(rest, "--scenario"),
                         Options.Required(rest, "--stack"),
-                        int.Parse(Options.Required(rest, "--seconds"), CultureInfo.InvariantCulture));
+                        int.Parse(Options.Required(rest, "--seconds"), CultureInfo.InvariantCulture),
+                        Options.WriterTps(rest));
                 case "clean":
                     Clean(Options.Required(rest, "--db"));
                     return 0;

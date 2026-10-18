@@ -22,10 +22,11 @@ internal static class Q1CanonicalValues
 
     /// <summary>
     /// The production SQL text (CanonicalValueRepository.GetByEntitiesAsync at commit 2210bc763) through EF raw SQL
-    /// on the mapped set, plus the same per-batch loop and in-memory grouping. The column aliases are dropped
+    /// on the mapped set, plus the same per-batch loop and in-memory grouping. Synchronous like the production read
+    /// (Storage reads run synchronously and return a completed task). The column aliases are dropped
     /// because FromSql on a mapped set matches by column name.
     /// </summary>
-    public static async Task<Result> EfRaw(BenchContext context, IReadOnlyList<Guid> ids)
+    public static Task<Result> EfRaw(BenchContext context, IReadOnlyList<Guid> ids)
     {
         using var lease = context.Ef.Rent();
         var rows = new List<CanonicalValue>();
@@ -40,7 +41,7 @@ internal static class Q1CanonicalValues
             }
 
 #pragma warning disable EF1003 // the concatenated text is only generated '@entityId<n>' placeholders, as in production
-            rows.AddRange(await lease.Context.CanonicalValues
+            rows.AddRange(lease.Context.CanonicalValues
                 .FromSqlRaw(
                     """
                     SELECT entity_id, key, value, last_scored_at, is_conflicted, winning_provider_id, needs_review
@@ -52,11 +53,11 @@ internal static class Q1CanonicalValues
                     """,
                     parameters)
                 .AsNoTracking()
-                .ToListAsync());
+                .ToList());
 #pragma warning restore EF1003
         }
 
-        return Group(rows);
+        return Task.FromResult(Group(rows));
     }
 
     /// <summary>Idiomatic LINQ over the mapped set (pooled context).</summary>
@@ -67,7 +68,7 @@ internal static class Q1CanonicalValues
     public static Task<Result> EfLinqFreshContext(BenchContext context, IReadOnlyList<Guid> ids) =>
         EfLinqCore(context.Ef.RentFresh(), ids);
 
-    private static async Task<Result> EfLinqCore(Ef.EfLease lease, IReadOnlyList<Guid> ids)
+    private static Task<Result> EfLinqCore(Ef.EfLease lease, IReadOnlyList<Guid> ids)
     {
         using (lease)
         {
@@ -75,15 +76,15 @@ internal static class Q1CanonicalValues
             foreach (var batch in ids.Where(id => id != Guid.Empty).Distinct().Chunk(BatchSize))
             {
                 var batchIds = batch;
-                rows.AddRange(await lease.Context.CanonicalValues
+                rows.AddRange(lease.Context.CanonicalValues
                     .AsNoTracking()
                     .Where(value => batchIds.Contains(value.EntityId))
                     .OrderBy(value => value.EntityId)
                     .ThenBy(value => value.Key)
-                    .ToListAsync());
+                    .ToList());
             }
 
-            return Group(rows);
+            return Task.FromResult(Group(rows));
         }
     }
 

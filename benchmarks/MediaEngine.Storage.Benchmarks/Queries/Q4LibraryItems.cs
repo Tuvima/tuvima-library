@@ -32,9 +32,9 @@ internal static class Q4LibraryItems
     /// <summary>
     /// The production SQL through EF raw SQL, then the production row mapping. Supports exactly the query shapes the
     /// benchmark uses (no filter, or a single media type) and the default sort; the condition and ORDER BY text is
-    /// what <c>GetPageAsync</c> builds for them.
+    /// what <c>GetPageAsync</c> builds for them. Synchronous, like the production method (it returns a completed task).
     /// </summary>
-    public static async Task<LibraryItemsPage> EfRaw(BenchContext context, LibraryItemQuery query)
+    public static Task<LibraryItemsPage> EfRaw(BenchContext context, LibraryItemQuery query)
     {
         var conditions = new List<string>();
         var parameters = new List<SqliteParameter>();
@@ -65,7 +65,7 @@ internal static class Q4LibraryItems
 
         var countSql = sql + $"SELECT COUNT(*) AS Value FROM full_data fd {whereClause}";
 #pragma warning disable EF1002 // the interpolated text is the product's own SQL and fixed predicates, no caller input
-        var counts = await database.SqlQueryRaw<int>(countSql, Clone(parameters).ToArray()).ToListAsync();
+        var counts = database.SqlQueryRaw<int>(countSql, Clone(parameters).ToArray()).ToList();
         var totalCount = counts.Single();
 
         var dataSql = sql + $"""
@@ -86,11 +86,11 @@ internal static class Q4LibraryItems
         var dataParameters = Clone(parameters);
         dataParameters.Add(new SqliteParameter("@limit", query.Limit));
         dataParameters.Add(new SqliteParameter("@offset", query.Offset));
-        var rows = await lease.Context.Set<ItemRow>().FromSqlRaw(dataSql, dataParameters.ToArray()).ToListAsync();
+        var rows = lease.Context.Set<ItemRow>().FromSqlRaw(dataSql, dataParameters.ToArray()).ToList();
 #pragma warning restore EF1002
 
         var items = rows.Select(Map).ToList();
-        return new LibraryItemsPage(items, totalCount, query.Offset + items.Count < totalCount);
+        return Task.FromResult(new LibraryItemsPage(items, totalCount, query.Offset + items.Count < totalCount));
     }
 
     public static IEnumerable<string> Lines(LibraryItemsPage page)
