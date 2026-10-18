@@ -294,8 +294,7 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
     services.GetRequiredService<IActiveProfileAccessor>(),
     services.GetService<StreamingServiceLogoResolver>(),
     services.GetService<ILoggerFactory>(),
-    services.GetService<EngineApiFailureState>(),
-    services.GetService<OpenScreenRegistry>()));
+    services.GetService<EngineApiFailureState>()));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
@@ -326,7 +325,6 @@ builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
     .AddHttpMessageHandler<SessionValidationInvalidationHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
-builder.Services.AddSingleton(new ExposureSettingsReader(dashboardConfig, configDir));
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
@@ -428,7 +426,6 @@ if (proxyPort is null
 // explicitly configured proxy addresses/networks; the main port ignores them.
 app.UseForwardedHeadersOnProxyPort(proxyPort);
 app.UseHostAllowList();
-app.UseExposurePolicy();
 // Packaged TV apps (null or app-scheme origin) may call the app door cross-origin; nothing else gets CORS.
 app.UseNativeAppCors();
 app.UseWebSockets();

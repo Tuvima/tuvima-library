@@ -108,13 +108,14 @@ public sealed class DockerfileGuardrailTests
     }
 
     [Fact]
-    public void ContainerFirstRun_StartsOnHomeNetwork()
+    public void ContainerFirstRun_SeedsNoConnectionRuleOrAppSwitch()
     {
-        // The container copies docker/config over the shipped defaults. A published container port reaches the
-        // Dashboard from the Docker bridge (a home-network address), so "This computer" would refuse every device.
+        // The container copies docker/config over the shipped defaults. Tuvima is open from the start: there is no
+        // "who can connect" rule and no app on/off switch to seed.
         var network = File.ReadAllText(Path.Combine(FindRepoRoot(), "docker", "config", "network.json"));
 
-        Assert.Contains("\"who_can_connect\": \"home_network\"", network);
+        Assert.DoesNotContain("who_can_connect", network);
+        Assert.DoesNotContain("\"enabled\"", network);
     }
 
     [Fact]

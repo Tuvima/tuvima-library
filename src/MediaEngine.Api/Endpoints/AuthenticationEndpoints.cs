@@ -800,8 +800,7 @@ public static class AuthenticationEndpoints
             ClaimsPrincipal user,
             [FromServices] IFirstPartyIdentityService identity, [FromServices] IAccountRepository accounts,
             [FromServices] IPasskeyHandler<Account> passkeys, [FromServices] UserManager<Account> users,
-            [FromServices] IConfigurationLoader configuration, [FromServices] DashboardAuthorityProjector projector,
-            [FromServices] ILoggerFactory loggers, CancellationToken ct) =>
+            [FromServices] DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             if (!ComesFromThisComputer(httpRequest))
             {
@@ -859,7 +858,6 @@ public static class AuthenticationEndpoints
             // Another sign-in took the email between the check and the save; nothing else was written yet.
             catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return ApiErrors.Conflict("That email is already used."); }
 
-            await MoveToHomeNetworkIfFirstAdministratorAsync(accounts, configuration, loggers.CreateLogger("MediaEngine.Api.Endpoints.AuthenticationEndpoints"), accountId, ct).ConfigureAwait(false);
             return Results.Ok(await ToResponseAsync(issued, projector, ct));
         }).WithName("SecureThisComputerAccount").Produces<AuthSessionResponse>()
           .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status409Conflict)
@@ -874,44 +872,6 @@ public static class AuthenticationEndpoints
         }).Produces<IntercomTokenResponse>().RequireRateLimiting("intercom").RequireAuthorization(AuthPolicies.HumanSelfService);
 
         return app;
-    }
-
-    /// <summary>
-    /// Once the first administrator has a password or passkey, the server moves from <i>This computer</i> to
-    /// <i>Home network</i> so they can sign in from other devices at home. Any other account, or a server that is
-    /// already set wider, is left alone.
-    /// </summary>
-    internal static async Task<bool> MoveToHomeNetworkIfFirstAdministratorAsync(
-        IAccountRepository accounts, IConfigurationLoader configuration, ILogger logger, Guid accountId, CancellationToken ct)
-    {
-        var network = configuration.LoadNetwork();
-        if (!string.Equals(network.WhoCanConnect?.Trim(), WhoCanConnectModes.ThisComputer, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var first = (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-            .Where(candidate => candidate.IsAdministrator)
-            .OrderBy(candidate => candidate.CreatedAt)
-            .FirstOrDefault();
-        if (first?.Id != accountId)
-        {
-            return false;
-        }
-
-        try
-        {
-            network.WhoCanConnect = WhoCanConnectModes.HomeNetwork;
-            configuration.SaveNetwork(network);
-            return true;
-        }
-        catch (ConfigValidationException ex)
-        {
-            // The account is already secured; a settings file that will not save must not undo that. The owner can
-            // still change "who can connect" on the Network page.
-            logger.LogWarning(ex, "The account was secured but the network setting could not be moved to the home network");
-            return false;
-        }
     }
 
     /// <summary>How a refused profile switch is answered. A locked profile is a 429 so the Dashboard can tell the person to wait.</summary>

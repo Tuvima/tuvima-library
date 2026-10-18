@@ -8,7 +8,6 @@ internal static class NetworkContractMapper
     public static NetworkSettingsDto ToContract(NetworkSettings settings) => new()
     {
         SchemaVersion = settings.SchemaVersion,
-        WhoCanConnect = settings.WhoCanConnect,
         Local = new LocalNetworkSettingsDto
         {
             Port = settings.Local.Port,
@@ -37,13 +36,11 @@ internal static class NetworkContractMapper
             ReservedUploadMbps = settings.Streaming.ReservedUploadMbps,
             ConcurrentRemoteStreams = settings.Streaming.ConcurrentRemoteStreams,
         },
-        NativeAppAccess = new NativeAppAccessSettingsDto { Enabled = settings.NativeAppAccess.Enabled },
     };
 
     public static NetworkSettings ToStorage(NetworkSettingsDto dto) => new()
     {
         SchemaVersion = dto.SchemaVersion,
-        WhoCanConnect = Normalize(dto.WhoCanConnect),
         Local = new LocalNetworkSettings
         {
             Port = dto.Local.Port,
@@ -84,7 +81,6 @@ internal static class NetworkContractMapper
             ReservedUploadMbps = dto.Streaming.ReservedUploadMbps,
             ConcurrentRemoteStreams = Normalize(dto.Streaming.ConcurrentRemoteStreams),
         },
-        NativeAppAccess = new NativeAppAccessSettings { Enabled = dto.NativeAppAccess?.Enabled ?? false },
     };
 
     private static string Normalize(string? value) => value?.Trim().ToLowerInvariant() ?? string.Empty;

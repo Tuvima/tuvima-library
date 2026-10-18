@@ -153,7 +153,7 @@ public static class SetupEndpoints
 
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
-            SetupSessionService sessions, IFirstPartyIdentityService identity, IConfigurationLoader configuration,
+            SetupSessionService sessions, IFirstPartyIdentityService identity,
             IContainerProbe container, OnboardingRepository onboarding, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
@@ -200,16 +200,6 @@ public static class SetupEndpoints
                         return ApiErrors.BadRequest("Enter a name.");
                     }
 
-                    // Close the door first: if anything below fails, Tuvima is left more closed, never more open.
-                    // Home network is the widest a no-password account is ever allowed.
-                    var network = configuration.LoadNetwork();
-                    if (WhoCanConnectModes.Rank(network.WhoCanConnect) > WhoCanConnectModes.Rank(WhoCanConnectModes.HomeNetwork))
-                    {
-                        network.WhoCanConnect = WhoCanConnectModes.HomeNetwork;
-                    }
-
-                    network.NativeAppAccess.Enabled = false;
-                    configuration.SaveNetwork(network);
                     issued = await identity.BootstrapThisComputerAdministratorAsync(
                         null, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
                 }

@@ -7,7 +7,6 @@ public partial interface IEngineApiClient
     Task<NetworkSettingsDto?> GetNetworkSettingsAsync(CancellationToken ct = default);
     Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default);
     Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default);
-    Task<RemoteAccessReadinessDto?> GetRemoteAccessReadinessAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestLocalNetworkAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestRemoteNetworkAsync(CancellationToken ct = default);
     Task<NetworkBandwidthStatusDto?> TestNetworkBandwidthAsync(CancellationToken ct = default);

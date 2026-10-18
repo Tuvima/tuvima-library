@@ -1,6 +1,5 @@
 {
   "schema_version": "3.0",
-  "who_can_connect": "home_network",
   "local": {
     "port": 5016,
     "bind_mode": "automatic",
@@ -25,8 +24,5 @@
     "upload_protection_enabled": true,
     "reserved_upload_mbps": 5,
     "concurrent_remote_streams": "automatic"
-  },
-  "native_app_access": {
-    "enabled": false
   }
 }

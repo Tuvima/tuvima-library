@@ -1,6 +1,5 @@
 using System.Net;
 using MediaEngine.Web.Endpoints;
-using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -14,20 +13,22 @@ namespace MediaEngine.Web.Tests;
 
 // Mirrors the production order in Program.cs: the status-code re-run sits before authentication.
 // The sign-in-protected fallback applies to anything without an endpoint, so these tests use an
-// anonymous "not found" page to see whether the re-run happened.
+// anonymous "not found" page to see whether the re-run happened. The app door is always open, so the
+// only 404 it answers is for a path it refuses to forward.
 public sealed class DoorStatusCodePagesTests
 {
     [Theory]
-    [InlineData("/.well-known/tuvima")]
-    [InlineData("/api/v1/display/home")]
-    [InlineData("/API/V1/DISPLAY/HOME")]
-    [InlineData("/application-events/hub")]
-    public async Task ClosedDoor_AnswersItsOwnNotFoundWithoutTheNotFoundPage(string path)
+    [InlineData("/api/v1/analytics/playback")]
+    [InlineData("/API/V1/ANALYTICS/PLAYBACK")]
+    [InlineData("/application-events/a//b")]
+    public async Task Door_AnswersItsOwnNotFoundForAPathItWillNotForward_WithoutTheNotFoundPage(string path)
     {
         await using var dashboard = await StartDashboardAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "app-token");
 
-        using var response = await client.GetAsync(path);
+        using var response = await client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -64,7 +65,6 @@ public sealed class DoorStatusCodePagesTests
         {
             options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
         });
-        builder.Services.AddSingleton<INativeAppAccessGate>(new ClosedGate());
 
         var app = builder.Build();
         app.UseStatusCodePagesExceptDoors("/not-found");
@@ -80,11 +80,6 @@ public sealed class DoorStatusCodePagesTests
 
         var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
         return new(app, new Uri(addresses!.Addresses.Single()));
-    }
-
-    private sealed class ClosedGate : INativeAppAccessGate
-    {
-        public bool IsEnabled => false;
     }
 
     private sealed class TestApplication(WebApplication app, Uri address) : IAsyncDisposable

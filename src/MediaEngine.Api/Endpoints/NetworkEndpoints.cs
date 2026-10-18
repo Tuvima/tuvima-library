@@ -29,8 +29,6 @@ public static class NetworkEndpoints
         settings.MapPut("", async (
             NetworkSettingsDto request,
             IConfigurationLoader configuration,
-            RemoteAccessReadinessService readiness,
-            SecureAccountGate secureAccount,
             ClaimsPrincipal user,
             [FromServices] RecentSignInGuard recentSignIn,
             CancellationToken ct) =>
@@ -44,24 +42,11 @@ public static class NetworkEndpoints
             var proposed = NetworkContractMapper.ToStorage(request);
             // allow_browser_apps is edited in the config file only; saving from the settings page must not reset it.
             proposed.NativeAppAccess.AllowBrowserApps = current.NativeAppAccess.AllowBrowserApps;
-            // Until the account has a password or passkey, Tuvima stays on this computer: no wider door, no app access.
-            if ((SecureAccountGate.Raises(current.WhoCanConnect, proposed.WhoCanConnect)
-                    || (proposed.NativeAppAccess.Enabled && !current.NativeAppAccess.Enabled))
-                && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
-            {
-                return SecureAccountGate.Refusal();
-            }
-
             // The strict public-address rule applies when saving, so a hand-edited older value never stops startup.
             if (!string.IsNullOrWhiteSpace(proposed.Remote.PublicHostname)
                 && !PublicAddress.IsValid(proposed.Remote.PublicHostname))
             {
                 return ApiErrors.BadRequest(PublicAddress.RuleMessage);
-            }
-            // App access rides on the verified secure path: anything below "Anywhere" turns it off too.
-            if (!proposed.AllowsInternet)
-            {
-                proposed.NativeAppAccess.Enabled = false;
             }
             if (proposed.Local.Port != current.Local.Port)
             {
@@ -70,17 +55,6 @@ public static class NetworkEndpoints
 
             try
             {
-                if (proposed.AllowsInternet)
-                {
-                    var result = await readiness.EvaluateAsync(proposed.Remote, ct).ConfigureAwait(false);
-                    if (!result.Ready)
-                    {
-                        var blockers = string.Join(" ", result.Checks
-                            .Where(check => check.Status == "failed")
-                            .Select(check => check.Detail));
-                        return ApiErrors.Conflict($"Anywhere was not enabled. {blockers}");
-                    }
-                }
                 configuration.SaveNetwork(proposed);
                 return Results.Ok(NetworkContractMapper.ToContract(proposed));
             }
@@ -103,16 +77,6 @@ public static class NetworkEndpoints
             .WithName("GetNetworkRuntimeStatus")
             .WithSummary("Return observed connectivity state without mixing it into configuration.")
             .Produces<NetworkRuntimeStatusDto>()
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
-
-        network.MapGet("/readiness", async (
-            IConfigurationLoader configuration,
-            RemoteAccessReadinessService readiness,
-            CancellationToken ct) =>
-            Results.Ok(await readiness.EvaluateAsync(configuration.LoadNetwork().Remote, ct).ConfigureAwait(false)))
-            .WithName("GetRemoteAccessReadiness")
-            .WithSummary("Verify authentication and a secure remote path before remote access can be enabled.")
-            .Produces<RemoteAccessReadinessDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
 
         network.MapPost("/tests/local", async (INetworkDiagnosticsService diagnostics, CancellationToken ct) =>
@@ -202,18 +166,9 @@ public static class NetworkEndpoints
         .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
-        network.MapPost("/reset", async (
-            IConfigurationLoader configuration,
-            SecureAccountGate secureAccount,
-            CancellationToken ct) =>
+        network.MapPost("/reset", (IConfigurationLoader configuration) =>
         {
             var defaults = new NetworkSettings();
-            if (SecureAccountGate.Raises(configuration.LoadNetwork().WhoCanConnect, defaults.WhoCanConnect)
-                && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
-            {
-                return SecureAccountGate.Refusal();
-            }
-
             configuration.SaveNetwork(defaults);
             return Results.Ok(NetworkContractMapper.ToContract(defaults));
         })

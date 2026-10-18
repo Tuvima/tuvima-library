@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Security;
 
 /// <summary>
 /// Who may start without a password: a visitor on this computer or on the home network. Without a password the
-/// account never works from outside, and cannot open the door to Anywhere.
+/// account never works from outside.
 /// </summary>
 public static class ThisComputerAccess
 {
@@ -26,9 +26,6 @@ public sealed class SecureAccountGate
 
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
     public Task<bool> IsLockedAsync(CancellationToken ct) => Task.FromResult(false);
-
-    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider than the home network (the widest a no-password account may use).</summary>
-    public static bool Raises(string? current, string? proposed) => false;
 
     public static IResult Refusal() => ApiErrors.Conflict(Code, Message);
 }

@@ -12,30 +12,30 @@ public sealed class NetworkConfigurationTests
         var settings = new NetworkSettings();
 
         Assert.Equal("3.0", settings.SchemaVersion);
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, settings.WhoCanConnect);
-        Assert.False(settings.AllowsInternet);
+        Assert.False(settings.Remote.HasOutsidePath);
         Assert.Equal(NetworkConnectionModes.LocalOnly, settings.Remote.ConnectionMode);
         Assert.False(settings.Remote.AutomaticRouterConfiguration);
     }
 
     [Fact]
-    public void Load_WithLegacyKeysAndAppAccessOn_DoesNotFail_AndTurnsAppAccessOff()
+    public void Load_WithLegacyKeys_DoesNotFail_AndIgnoresTheRemovedConnectionRuleAndAppSwitch()
     {
         var path = CreateTempDirectory();
         try
         {
             File.WriteAllText(Path.Combine(path, "network.json"),
-                "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}");
+                "{\"who_can_connect\":\"anywhere\",\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true,\"allow_browser_apps\":true}}");
             File.WriteAllText(Path.Combine(path, "core.json"),
                 "{\"auth\":{\"allow_remote_sign_in\":true,\"require_https_remote\":true}}");
 
             var network = new ConfigurationDirectoryLoader(path).LoadNetwork();
 
-            Assert.False(network.AllowsInternet);
-            Assert.False(network.NativeAppAccess.Enabled);
+            Assert.False(network.Remote.HasOutsidePath);
+            Assert.True(network.NativeAppAccess.AllowBrowserApps);
             var warnings = LegacyAccessSettingsCheck.Find(path);
             Assert.Contains(warnings, w => w.Contains("remote.enabled", StringComparison.Ordinal));
-            Assert.Contains(warnings, w => w.Contains("native_app_access", StringComparison.Ordinal));
+            Assert.DoesNotContain(warnings, w => w.Contains("who_can_connect", StringComparison.Ordinal)
+                || w.Contains("native_app_access", StringComparison.Ordinal));
             Assert.Contains(warnings, w => w.Contains("allow_remote_sign_in", StringComparison.Ordinal));
             Assert.Contains(warnings, w => w.Contains("require_https_remote", StringComparison.Ordinal));
         }
@@ -82,29 +82,17 @@ public sealed class NetworkConfigurationTests
     }
 
     [Fact]
-    public void NativeAppAccess_IsOffByDefault_AndIsTurnedOffBelowAnywhere()
+    public void NativeAppAccess_BrowserAppsAreOffByDefault_AndSurviveASaveAndLoad()
     {
-        Assert.False(new NetworkSettings().NativeAppAccess.Enabled);
+        Assert.False(new NetworkSettings().NativeAppAccess.AllowBrowserApps);
 
         var path = CreateTempDirectory();
         try
         {
             var loader = new ConfigurationDirectoryLoader(path);
-            var withoutRemote = new NetworkSettings { NativeAppAccess = new NativeAppAccessSettings { Enabled = true } };
-            loader.SaveNetwork(withoutRemote);
-            Assert.False(loader.LoadNetwork().NativeAppAccess.Enabled);
+            loader.SaveNetwork(new NetworkSettings { NativeAppAccess = new NativeAppAccessSettings { AllowBrowserApps = true } });
 
-            loader.SaveNetwork(new NetworkSettings
-            {
-                WhoCanConnect = WhoCanConnectModes.Anywhere,
-                Remote = new RemoteNetworkSettings
-                {
-                    ConnectionMode = NetworkConnectionModes.Custom,
-                    PublicHostname = "https://media.example.test",
-                },
-                NativeAppAccess = new NativeAppAccessSettings { Enabled = true },
-            });
-            Assert.True(loader.LoadNetwork().NativeAppAccess.Enabled);
+            Assert.True(loader.LoadNetwork().NativeAppAccess.AllowBrowserApps);
         }
         finally
         {
@@ -113,15 +101,21 @@ public sealed class NetworkConfigurationTests
     }
 
     [Fact]
-    public void SaveNetwork_RejectsUnknownWhoCanConnect()
+    public void Load_WithAnOldConnectionRuleValue_LoadsFine_AndTheNextSaveDropsTheKey()
     {
         var path = CreateTempDirectory();
         try
         {
+            File.WriteAllText(Path.Combine(path, "network.json"),
+                "{\"who_can_connect\":\"everyone\",\"native_app_access\":{\"enabled\":true}}");
             var loader = new ConfigurationDirectoryLoader(path);
-            var ex = Assert.Throws<ConfigValidationException>(() =>
-                loader.SaveNetwork(new NetworkSettings { WhoCanConnect = "everyone" }));
-            Assert.Contains("who_can_connect", ex.Message, StringComparison.Ordinal);
+
+            var loaded = loader.LoadNetwork();
+            loader.SaveNetwork(loaded);
+
+            var saved = File.ReadAllText(Path.Combine(path, "network.json"));
+            Assert.DoesNotContain("who_can_connect", saved, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"enabled\"", saved, StringComparison.Ordinal);
         }
         finally
         {
@@ -138,7 +132,6 @@ public sealed class NetworkConfigurationTests
             var loader = new ConfigurationDirectoryLoader(path);
             loader.SaveNetwork(new NetworkSettings
             {
-                WhoCanConnect = WhoCanConnectModes.Anywhere,
                 Local = new LocalNetworkSettings
                 {
                     Port = 8096,
@@ -180,7 +173,6 @@ public sealed class NetworkConfigurationTests
             var loader = new ConfigurationDirectoryLoader(path);
             var settings = new NetworkSettings
             {
-                WhoCanConnect = WhoCanConnectModes.Anywhere,
                 Local = new LocalNetworkSettings { Port = 0 },
                 Remote = new RemoteNetworkSettings
                 {

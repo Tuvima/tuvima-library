@@ -87,7 +87,6 @@
 .network-settings ::deep .network-mode-option em { display: block; }
 .network-settings ::deep .network-mode-option small { margin-top: 3px; color: var(--tl-text-muted); font-style: normal; }
 .network-settings ::deep .network-mode-option em { margin-top: 5px; color: var(--tl-palette-warning); font-size: var(--tl-font-size-xs); }
-.network-settings ::deep .network-mode-option.is-disabled { cursor: not-allowed; opacity: .62; }
 .network-settings ::deep .network-manual-rule { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
 .network-settings ::deep .network-manual-rule > div { padding: 10px 12px; border-bottom: 1px solid var(--tl-border-subtle); }
 .network-settings ::deep .network-manual-rule dt { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }

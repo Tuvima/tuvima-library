@@ -18,15 +18,14 @@ public static class ClientApiEdgeEndpoints
 {
     public static IEndpointRouteBuilder MapClientApiEdge(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/.well-known/tuvima", (HttpRequest request) => AppAccessEnabled(request.HttpContext)
-            ? Results.Ok(new TuvimaDiscoveryResponse
+        app.MapGet("/.well-known/tuvima", (HttpRequest request) =>
+            Results.Ok(new TuvimaDiscoveryResponse
             {
                 ServerId = Environment.MachineName,
                 ServerName = Environment.MachineName,
                 ApiBaseUrl = $"{request.Scheme}://{request.Host}/api/v1",
                 VerificationUri = $"{request.Scheme}://{request.Host}/pair",
-            })
-            : Results.NotFound())
+            }))
         .WithName("DiscoverTuvimaPublicEdge")
         .AllowAnonymous();
 
@@ -37,11 +36,6 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
-            if (!AppAccessEnabled(context))
-            {
-                return Results.NotFound();
-            }
-
             var code = user_code?.Trim() ?? string.Empty;
             var (review, signedOut) = await ReviewPairingAsync(clients, code, ct);
             if (signedOut)
@@ -60,11 +54,6 @@ public static class ClientApiEdgeEndpoints
             IAntiforgery antiforgery,
             CancellationToken ct) =>
         {
-            if (!AppAccessEnabled(context))
-            {
-                return Results.NotFound();
-            }
-
             await antiforgery.ValidateRequestAsync(context);
             var form = await context.Request.ReadFormAsync(ct);
             var code = form["user_code"].ToString();
@@ -190,12 +179,6 @@ public static class ClientApiEdgeEndpoints
         IHttpClientFactory clients,
         CancellationToken ct)
     {
-        if (!AppAccessEnabled(context))
-        {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-        }
-
         if (!TryReadBearer(context.Request, out var bearer))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -321,12 +304,6 @@ public static class ClientApiEdgeEndpoints
         IHttpClientFactory clients,
         CancellationToken ct)
     {
-        if (!AppAccessEnabled(context))
-        {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return;
-        }
-
         var decision = NativeApiForwardPolicy.Evaluate(
             context.Request.Method, clientPath, TryReadBearer(context.Request, out _));
         if (decision != NativeApiForwardDecision.Forward)
@@ -459,10 +436,6 @@ public static class ClientApiEdgeEndpoints
         services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = engineAddress)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
-    // Fails closed: with no gate registered, or the switch off, the app door does not exist.
-    private static bool AppAccessEnabled(HttpContext context) =>
-        context.RequestServices.GetService<INativeAppAccessGate>()?.IsEnabled == true;
-
     // Engine response headers pass through, except anything that could set state on the app's side
     // of the Dashboard (cookies) or describe the hop-by-hop connection.
     private static void CopyResponseHeaders(HttpResponseMessage source, HttpResponse target)
@@ -562,8 +535,8 @@ public static class ClientApiEdgeEndpoints
 
 /// <summary>
 /// Keeps the native app door's own "not found" answer. The Dashboard turns every 404 into a re-run of its
-/// <c>/not-found</c> page, which needs a sign-in, so a closed door would send a visitor to the sign-in page
-/// instead. Door paths skip that re-run; every other page still gets the normal not-found page.
+/// <c>/not-found</c> page, which needs a sign-in, so a path the door refuses to forward would send an app to the
+/// sign-in page instead. Door paths skip that re-run; every other page still gets the normal not-found page.
 /// </summary>
 public static class DoorStatusCodePagesExtensions
 {

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=995; api=0; web-client=77
+# scopes: contracts=993; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8824,11 +8824,6 @@
   DetailHydration: System.String | json=detail_hydration | nullability=not-null | accessors=get,set | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"enabled":true,"default_visibility":"sample","presentation":"sample","page_size":7,"detail_hydration":"sample"}
 
-[contracts] MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"enabled":true}
-
 [contracts] MediaEngine.Contracts.Settings.NetworkAddressDto
   kind=class | converter=default | number-handling=default | unmapped=default
   InterfaceId: System.String | json=interface_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8882,12 +8877,10 @@
 [contracts] MediaEngine.Contracts.Settings.NetworkSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   SchemaVersion: System.String | json=schema_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  WhoCanConnect: System.String | json=who_can_connect | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | json=local | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | json=remote | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | json=streaming | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  NativeAppAccess: MediaEngine.Contracts.Settings.NativeAppAccessSettingsDto | json=native_app_access | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":"sample","who_can_connect":"sample","local":null,"remote":null,"streaming":null,"native_app_access":null}
+  sample={"schema_version":"sample","local":null,"remote":null,"streaming":null}
 
 [contracts] MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9228,12 +9221,6 @@
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"success":true,"response_time_ms":7,"sample_fields":[],"message":"sample","status":"sample"}
-
-[contracts] MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Ready: System.Boolean | json=ready | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Checks: System.Collections.Generic.List<MediaEngine.Contracts.Settings.NetworkTestCheckDto> | json=checks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"ready":true,"checks":[]}
 
 [contracts] MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
