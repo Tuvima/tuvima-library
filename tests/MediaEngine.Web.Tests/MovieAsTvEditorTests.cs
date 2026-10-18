@@ -36,7 +36,7 @@ public sealed class MovieAsTvEditorTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
             {
                 movedIds.Add((Guid)args![0]!);
-                return Task.FromResult<ReviewMoveToTvResponse?>(new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library"));
+                return Task.FromResult<ReviewMoveToTvResponse?>(new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library", 1, [1, 2, 3], null));
             }));
         Services.AddSingleton(api);
         Services.AddSingleton(serviceProvider => new UIOrchestratorService(
