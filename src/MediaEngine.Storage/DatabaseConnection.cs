@@ -20,6 +20,8 @@ public sealed class DatabaseConnection : IDatabaseConnection
     private readonly SqliteMaintenanceService _maintenanceService;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly List<string> _startupNotes = [];
+    private readonly IReadOnlyList<DataStoreUpgradeStep>? _upgradeSteps;
+    private readonly Func<string, long>? _freeSpaceLookup;
     private SqliteConnection? _connection;
 
     /// <param name="databasePath">
@@ -50,7 +52,9 @@ public sealed class DatabaseConnection : IDatabaseConnection
         SqliteConnectionFactory connectionFactory,
         ReferenceDataTopUp referenceDataTopUp,
         DatabaseIntegrityChecker integrityChecker,
-        SqliteMaintenanceService maintenanceService)
+        SqliteMaintenanceService maintenanceService,
+        IReadOnlyList<DataStoreUpgradeStep>? upgradeSteps = null,
+        Func<string, long>? freeSpaceLookup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         ArgumentNullException.ThrowIfNull(options);
@@ -61,6 +65,8 @@ public sealed class DatabaseConnection : IDatabaseConnection
         _referenceDataTopUp = referenceDataTopUp;
         _integrityChecker = integrityChecker;
         _maintenanceService = maintenanceService;
+        _upgradeSteps = upgradeSteps;
+        _freeSpaceLookup = freeSpaceLookup;
     }
 
     /// <summary>
@@ -105,15 +111,29 @@ public sealed class DatabaseConnection : IDatabaseConnection
             _integrityChecker.EnsureIntact(conn, _databasePath);
         }
 
+        var hasBackupFolder = !string.IsNullOrWhiteSpace(_startupOptions.BackupDirectory);
+        var safetyCopy = hasBackupFolder
+            ? new DataStoreSafetyCopy(_databasePath, _startupOptions.BackupDirectory!, freeSpaceLookup: _freeSpaceLookup)
+            : null;
         var upgradeOptions = new DataStoreUpgradeOptions
         {
-            BackupLocationHint = string.IsNullOrWhiteSpace(_startupOptions.BackupDirectory)
-                ? "your backups folder"
-                : Path.GetFullPath(_startupOptions.BackupDirectory),
+            BackupLocationHint = hasBackupFolder
+                ? $"the backups folder '{Path.GetFullPath(_startupOptions.BackupDirectory!)}' "
+                  + $"or the safety copies the Engine makes before an upgrade in '{DataStoreSafetyCopy.FolderFor(_startupOptions.BackupDirectory!)}'"
+                : "your backups folder",
+            BeforeFirstPendingStep = safetyCopy?.AsHook(conn),
         };
 
-        var result = new DataStoreUpgradeRunner().Run(conn, DataStoreUpgradeCatalog.ForProduct(), upgradeOptions);
+        var result = new DataStoreUpgradeRunner().Run(conn, _upgradeSteps ?? DataStoreUpgradeCatalog.ForProduct(), upgradeOptions);
         _startupNotes.AddRange(result.DescribeForLog());
+        if (safetyCopy is not null)
+        {
+            _startupNotes.AddRange(safetyCopy.Warnings);
+        }
+        else if (result.FromNumber > 0 && result.Applied.Count > 0)
+        {
+            _startupNotes.Add("No backup folder configured, so no safety copy was made.");
+        }
     }
 
     /// <inheritdoc/>

@@ -4,8 +4,8 @@ namespace MediaEngine.Storage;
 public sealed class DataStoreStartupOptions
 {
     /// <summary>
-    /// The folder holding data store backups. Named in upgrade messages so a person knows where an older
-    /// backup can be restored from; later also where safety copies are kept. Null means "your backups folder".
+    /// The folder holding data store backups. Safety copies made before an upgrade go in its
+    /// <c>safety-copies</c> subfolder, and upgrade messages name both. Null means no safety copy is made.
     /// </summary>
     public string? BackupDirectory { get; init; }
 }
