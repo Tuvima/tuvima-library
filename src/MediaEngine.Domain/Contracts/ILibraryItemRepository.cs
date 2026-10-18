@@ -37,7 +37,7 @@ public interface ILibraryItemRepository
     Task<LibraryItemStatusCounts> GetStatusCountsAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Returns counts for the four lifecycle states (Registered, InReview, Provisional, Rejected)
+    /// Returns counts for the four calculated lifecycle states (Identified, InReview, Provisional, Rejected)
     /// plus a per-trigger breakdown within InReview. Optionally scoped to a single batch.
     /// </summary>
     Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(Guid? batchId = null, CancellationToken ct = default);
