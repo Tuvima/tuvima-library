@@ -48,6 +48,7 @@ sealed class ReadOnlyDatabase(string path) : IDatabaseConnection
         using var connection = CreateConnection();
         using var transaction = connection.BeginTransaction();
         var result = body(connection, transaction, ct);
+        ct.ThrowIfCancellationRequested();
         transaction.Commit();
         return Task.FromResult(result);
     }
