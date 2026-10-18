@@ -87,36 +87,6 @@ public sealed class ProfileStateRepositoryTests : IDisposable
         Assert.DoesNotContain("collection_id", savedColumns, StringComparer.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task StartupMigration_CutsOverOnlyExactLegacyFakeLists()
-    {
-        var profileId = SeedProfile("Legacy user");
-        var workId = SeedWork("Movies");
-        var legacyId = Guid.NewGuid();
-        var userOwnedCollisionId = Guid.NewGuid();
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("DELETE FROM schema_migrations WHERE migration_id = '006_profile_state_for_me_cutover';");
-            connection.Execute(
-                """
-                INSERT INTO collections(id, display_name, description, collection_type, scope, profile_id, resolution)
-                VALUES (@legacyId, 'Favorites', 'Profile-level favorites across the library.', 'Playlist', 'user', @profileId, 'materialized'),
-                       (@userOwnedCollisionId, 'Favorites', 'A real user-created playlist.', 'Playlist', 'user', @profileId, 'materialized');
-                INSERT INTO collection_items(id, collection_id, work_id, sort_order)
-                VALUES (@itemId, @legacyId, @workId, 0);
-                """,
-                new { legacyId, userOwnedCollisionId, profileId, workId, itemId = Guid.NewGuid() });
-        }
-
-        _database.RunStartupChecks();
-
-        var saved = await _repository.GetSavedItemsAsync(profileId);
-        Assert.Contains(saved, item => item.EntityKind == ProfileEntityKind.Movie && item.EntityId == workId);
-        using var verify = _database.CreateConnection();
-        Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM collections WHERE id = @legacyId;", new { legacyId }));
-        Assert.Equal(1, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM collections WHERE id = @userOwnedCollisionId;", new { userOwnedCollisionId }));
-    }
-
     private Guid SeedProfile(string name)
     {
         var id = Guid.NewGuid();

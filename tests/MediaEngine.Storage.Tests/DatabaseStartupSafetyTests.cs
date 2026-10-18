@@ -4,6 +4,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Schema.Upgrades;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -260,7 +261,7 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v10-graph-timeline-lore", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
 
         (string Table, string Column)[] internalGuidColumns =
         [
@@ -764,29 +765,6 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
-    public void ExistingNativeApplication_GainsThePhotoScopesOnceWhenItPredatesThem()
-    {
-        using var fixture = TempDatabase.Create();
-        fixture.Database.InitializeSchema();
-        fixture.Database.RunStartupChecks();
-        using (var conn = fixture.Database.CreateConnection())
-        {
-            using var command = conn.CreateCommand();
-            command.CommandText = """
-                DELETE FROM application_permission_grants WHERE permission_id LIKE 'view.%';
-                DELETE FROM storage_metadata WHERE key='access_native_photos_seeded';
-                """;
-            command.ExecuteNonQuery();
-        }
-
-        fixture.Database.InitializeSchema();
-        fixture.Database.RunStartupChecks();
-        using var conn2 = fixture.Database.CreateConnection();
-        Assert.Equal("3", Scalar(conn2, "SELECT COUNT(*) FROM application_permission_grants WHERE application_id=X'00000000000000000000000000000004' AND permission_id LIKE 'view.%';"));
-        Assert.Equal("1", Scalar(conn2, "SELECT COUNT(*) FROM storage_metadata WHERE key='access_native_photos_seeded';"));
-    }
-
-    [Fact]
     public void FreshDatabase_ViewOwnershipAndGalleryForeignKeysTargetCurrentTables()
     {
         using var fixture = TempDatabase.Create();
@@ -953,92 +931,73 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
-    public void StartupChecks_SplitPackedSubtitleLanguagesIntoArrayRowsAndStayIdempotent()
+    public void SecondStart_AppliesNoUpgradeStepsAndChangesNothing()
     {
         using var fixture = TempDatabase.Create();
         fixture.Database.InitializeSchema();
         fixture.Database.RunStartupChecks();
+        Assert.Contains(fixture.Database.StartupNotes, note => note.Contains("0001 (baseline)", StringComparison.Ordinal));
 
-        var packedEntity = GuidSql.ToBlob(Guid.NewGuid());
-        var singleEntity = GuidSql.ToBlob(Guid.NewGuid());
-        var alreadyArrayEntity = GuidSql.ToBlob(Guid.NewGuid());
-        var claimEntity = packedEntity;
+        string before;
         using (var conn = fixture.Database.CreateConnection())
         {
-            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'eng|eng|ara|ger|spa|spa|chi|chi|xx-codec', '2026-01-01T00:00:00Z');", ("$e", packedEntity));
-            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'fre', '2026-01-01T00:00:00Z');", ("$e", singleEntity));
-            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'eng|spa', '2026-01-01T00:00:00Z');", ("$e", alreadyArrayEntity));
-            Exec(conn, "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES ($e, 'subtitle_languages', 0, 'ja');", ("$e", alreadyArrayEntity));
-            Exec(conn, "INSERT INTO metadata_claims (id, entity_id, provider_id, claim_key, claim_value, confidence) VALUES ($id, $e, $p, 'subtitle_languages', 'eng|eng|ara', 0.8);",
-                ("$id", GuidSql.ToBlob(Guid.NewGuid())), ("$e", claimEntity), ("$p", GuidSql.ToBlob(WellKnownProviders.LocalProcessor)));
+            before = Fingerprint(conn);
         }
 
-        for (var run = 0; run < 2; run++)
-        {
-            fixture.Database.InitializeSchema();
-            fixture.Database.RunStartupChecks();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
 
-            using var conn = fixture.Database.CreateConnection();
-            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM canonical_values WHERE key = 'subtitle_languages';"));
-            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM canonical_values WHERE value LIKE '%|%';"));
-            Assert.Equal("en,ar,de,es,zh,xx-codec", ArrayValues(conn, packedEntity));
-            Assert.Equal("fr", ArrayValues(conn, singleEntity));
-            Assert.Equal("ja", ArrayValues(conn, alreadyArrayEntity));
-            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 1 AND claim_value LIKE '%|%';"));
-            Assert.Equal("1", Scalar(conn, "SELECT COUNT(*) FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 0;"));
-            using var currentClaims = conn.CreateCommand();
-            currentClaims.CommandText = "SELECT claim_value FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 1 ORDER BY rowid;";
-            using var reader = currentClaims.ExecuteReader();
-            var values = new List<string>();
-            while (reader.Read())
-            {
-                values.Add(reader.GetString(0));
-            }
-
-            Assert.Equal(["en", "ar"], values);
-        }
-    }
-
-    private static void Exec(SqliteConnection conn, string sql, params (string Name, object Value)[] parameters)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        foreach (var (name, value) in parameters)
-        {
-            cmd.Parameters.AddWithValue(name, value);
-        }
-
-        cmd.ExecuteNonQuery();
-    }
-
-    private static string ArrayValues(SqliteConnection conn, byte[] entityId)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT value FROM canonical_value_arrays WHERE entity_id = $e AND key = 'subtitle_languages' ORDER BY ordinal;";
-        cmd.Parameters.AddWithValue("$e", entityId);
-        using var reader = cmd.ExecuteReader();
-        var values = new List<string>();
-        while (reader.Read())
-        {
-            values.Add(reader.GetString(0));
-        }
-
-        return string.Join(",", values);
+        Assert.Empty(fixture.Database.StartupNotes);
+        using var after = fixture.Database.CreateConnection();
+        Assert.Equal(before, Fingerprint(after));
+        Assert.True(TableExists(after, "review_queue"));
+        Assert.Equal("ok", Scalar(after, "PRAGMA integrity_check;"));
     }
 
     [Fact]
-    public void StartupInitialization_IsIdempotent()
+    public void FreshDataStore_IsAtTheLatestStep_AndHasTheBaselineStructure()
     {
         using var fixture = TempDatabase.Create();
-
-        fixture.Database.InitializeSchema();
-        fixture.Database.RunStartupChecks();
         fixture.Database.InitializeSchema();
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
+        var latest = DataStoreUpgradeCatalog.ForProduct().Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(latest, Scalar(conn, "SELECT COUNT(*) FROM data_store_upgrades;"));
+        Assert.Equal(latest, Scalar(conn, "SELECT MAX(number) FROM data_store_upgrades;"));
+        Assert.Equal("baseline", Scalar(conn, "SELECT name FROM data_store_upgrades WHERE number = 1;"));
         Assert.True(TableExists(conn, "review_queue"));
-        Assert.Equal("ok", Scalar(conn, "PRAGMA integrity_check;"));
+        Assert.True(TableExists(conn, "works"));
+        Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'schema_migrations';"));
+        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Contains(fixture.Database.StartupNotes, note => note.StartsWith("Applied data store upgrade step 0001 (baseline)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AfterAllUpgradeSteps_TheStoredEpochEqualsCurrentEpoch()
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"tuvima_epoch_{Guid.NewGuid():N}.db");
+        try
+        {
+            // The steps alone, with no connection helper writing the row afterwards.
+            using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                conn.Open();
+                new Schema.Upgrades.DataStoreUpgradeRunner().Run(
+                    conn,
+                    Schema.Upgrades.DataStoreUpgradeCatalog.ForProduct(),
+                    new Schema.Upgrades.DataStoreUpgradeOptions());
+
+                Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(path);
+            TryDelete($"{path}-wal");
+            TryDelete($"{path}-shm");
+        }
     }
 
     [Fact]
@@ -1053,7 +1012,7 @@ public sealed class DatabaseStartupSafetyTests
         fixture.Database.RunStartupChecks();
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v10-graph-timeline-lore", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.True(TableExists(conn, "review_queue"));
     }
 
@@ -1086,7 +1045,7 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         var exception = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
-        Assert.Contains("guid-blob-v10-graph-timeline-lore", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("guid-blob-v11-upgrade-steps", exception.Message, StringComparison.Ordinal);
         Assert.Contains("not migrated in place", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1113,7 +1072,7 @@ public sealed class DatabaseStartupSafetyTests
 
         var exception = Assert.Throws<InvalidOperationException>(() => fixture.Database.InitializeSchema());
 
-        Assert.Contains("guid-blob-v10-graph-timeline-lore", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("guid-blob-v11-upgrade-steps", exception.Message, StringComparison.Ordinal);
         Assert.Contains("not migrated in place", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1137,7 +1096,7 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         using var conn = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v10-graph-timeline-lore", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.Equal("BLOB", ColumnType(conn, "metadata_providers", "id"));
         Assert.True(TableExists(conn, "review_queue"));
 
@@ -1176,19 +1135,19 @@ public sealed class DatabaseStartupSafetyTests
         }
 
         using var current = fixture.Database.CreateConnection();
-        Assert.Equal("guid-blob-v10-graph-timeline-lore", Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+        Assert.Equal("guid-blob-v11-upgrade-steps", Scalar(current, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
         Assert.Equal("INTEGER", ColumnType(current, "user_states", "revision"));
     }
 
     [Fact]
-    public void SchemaResource_DoesNotContainRetiredLegacyStorageTokens()
+    public void CurrentStructure_DoesNotContainRetiredLegacyStorageTokens()
     {
         var root = FindRepoRoot();
-        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/schema.sql"));
+        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/schema.snapshot.sql"));
 
         Assert.DoesNotContain("provider_" + "reg" + "istry", schema, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("hub_" + "items", schema, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("CREATE TABLE IF NOT EXISTS " + "hubs", schema, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CREATE TABLE " + "hubs", schema, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("idx_" + "hubs", schema, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("packed delimiter", schema, StringComparison.OrdinalIgnoreCase);
     }
@@ -1321,6 +1280,90 @@ public sealed class DatabaseStartupSafetyTests
         Assert.NotEmpty(wellKnown);
         var missing = wellKnown.Where(provider => !seeded.Contains(provider.Id)).Select(provider => provider.Name).ToList();
         Assert.True(missing.Count == 0, $"Not seeded into metadata_providers: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public void NativeApplicationRows_ExistExactlyOnceAfterTwoStarts()
+    {
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        using var conn = fixture.Database.CreateConnection();
+        Assert.Equal("1", Scalar(conn, "SELECT COUNT(*) FROM applications WHERE id=X'00000000000000000000000000000004';"));
+        Assert.Equal("13", Scalar(conn, "SELECT COUNT(*) FROM application_permission_grants WHERE application_id=X'00000000000000000000000000000004';"));
+        Assert.Equal("4", Scalar(conn, "SELECT COUNT(*) FROM application_client_bindings WHERE application_id=X'00000000000000000000000000000004';"));
+        Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM storage_metadata WHERE key LIKE 'access_native_%';"));
+    }
+
+    [Fact]
+    public void ReferenceDataTopUp_AddsAMissingProviderOnTheNextStartup_AndChangesNothingElse()
+    {
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        var removed = GuidSql.ToBlob(WellKnownProviders.Tvdb);
+        var edited = GuidSql.ToBlob(WellKnownProviders.Tmdb);
+        using (var conn = fixture.Database.CreateConnection())
+        {
+            Exec(conn, "DELETE FROM metadata_providers WHERE id = $id;", ("$id", removed));
+            Exec(conn, "UPDATE metadata_providers SET is_enabled = 0, version = 'user-edited' WHERE id = $id;", ("$id", edited));
+            Exec(conn, "UPDATE profiles SET display_name = 'Renamed' WHERE id = $id;", ("$id", GuidSql.ToBlob(Guid.Parse("00000000-0000-0000-0000-000000000001"))));
+        }
+
+        string structureBefore;
+        using (var conn = fixture.Database.CreateConnection())
+        {
+            structureBefore = Scalar(conn, "SELECT group_concat(type || name || sql, char(10)) FROM (SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name);");
+        }
+
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        Assert.Empty(fixture.Database.StartupNotes);
+        using var after = fixture.Database.CreateConnection();
+        Assert.Equal("1", Scalar(after, "SELECT COUNT(*) FROM metadata_providers WHERE name = 'tvdb';"));
+        Assert.Equal("16", Scalar(after, "SELECT COUNT(*) FROM metadata_providers;"));
+        Assert.Equal("user-edited", Scalar(after, "SELECT version FROM metadata_providers WHERE name = 'tmdb';"));
+        Assert.Equal("0", Scalar(after, "SELECT is_enabled FROM metadata_providers WHERE name = 'tmdb';"));
+        Assert.Equal("Renamed", Scalar(after, "SELECT display_name FROM profiles;"));
+        Assert.Equal("1", Scalar(after, "SELECT COUNT(*) FROM profiles;"));
+        Assert.Equal(structureBefore, Scalar(after, "SELECT group_concat(type || name || sql, char(10)) FROM (SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name);"));
+    }
+
+    private static void Exec(SqliteConnection conn, string sql, params (string Name, object Value)[] parameters)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            cmd.Parameters.AddWithValue(name, value);
+        }
+
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>The structure, the applied-step record and the row counts, so "changes nothing" is one comparison.</summary>
+    private static string Fingerprint(SqliteConnection conn)
+    {
+        var tables = new List<string>();
+        using (var list = conn.CreateCommand())
+        {
+            list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND sql NOT LIKE 'CREATE VIRTUAL%' ORDER BY name;";
+            using var reader = list.ExecuteReader();
+            while (reader.Read())
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+
+        var counts = tables.Select(table => $"{table}={Scalar(conn, $"SELECT COUNT(*) FROM \"{table}\";")}");
+        return Scalar(conn, "SELECT group_concat(type || name || sql, char(10)) FROM (SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name);")
+            + "\n" + Scalar(conn, "SELECT group_concat(number || name || fingerprint || applied_at, ',') FROM data_store_upgrades;")
+            + "\n" + string.Join(",", counts);
     }
 
     private static string Scalar(SqliteConnection conn, string sql)

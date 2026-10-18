@@ -153,24 +153,6 @@ public sealed class MediaAssetCoverageRepositoryTests : IDisposable
         Assert.Single(await _repo.ListByAssetAsync(assetId));
     }
 
-    [Fact]
-    public void Schema_AppliesToADatabaseThatLacksTheTable()
-    {
-        using (var conn = _db.CreateConnection())
-        {
-            conn.Execute("DROP TABLE media_asset_coverage;");
-        }
-
-        _db.InitializeSchema();
-        _db.RunStartupChecks();
-
-        using var check = _db.CreateConnection();
-        var count = check.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'media_asset_coverage';");
-        Assert.Equal(1, count);
-        Assert.Equal(0, check.ExecuteScalar<long>("SELECT COUNT(*) FROM media_asset_coverage;"));
-    }
-
     public void Dispose()
     {
         _db.Dispose();

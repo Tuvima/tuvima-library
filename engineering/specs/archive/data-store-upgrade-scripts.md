@@ -1,6 +1,6 @@
 # Spec: Numbered data store upgrades and contributor guide
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [ADR 0001 — SQLite and Dapper](../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../docs/reference/database-schema.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../../product/overview.md) · [ADR 0001 — SQLite and Dapper](../../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../../docs/reference/database-schema.md)
 
 ## 1. Goal
 
@@ -11,7 +11,7 @@ Make changing Tuvima's data store easy for contributors and safe for people's li
 **In scope**
 - **Ordered steps.** A numbered, ordered list of upgrade steps applied once each at Engine startup, recorded in the data store with when each one ran.
 - **A baseline step** that creates today's complete data structure: everything the current structure file and startup routine produce together.
-- **Retiring the old routine.** The "add it if missing" startup routine and the one-time data conversions it carries (they only convert pre-release data) are removed.
+- **Retiring the old routine.** The "add it if missing" startup routine and the one-time data conversions it carries (they only convert pre-release data) are removed. The exception is a small **reference-data top-up**, which keeps adding missing built-in entries at every startup (D12).
 - **A safety copy** of the data store before any pending step runs.
 - **Clear refusals.** The Engine refuses to start, with a plain message, when a step fails, when the data store is newer than this Engine, or when an already-applied step has been edited.
 - **A readable "current structure" file** for contributors, kept in step with the numbered steps by an automatic check and a refresh command.
@@ -42,6 +42,7 @@ Make changing Tuvima's data store easy for contributors and safe for people's li
 - **D9 (Q2).** (Shy, 2026-10-18) The Engine keeps the **2** newest safety copies. *Reason: covers "the last upgrade went wrong and I only noticed after the next one" without using more disk.*
 - **D10 (Q3).** (Shy, 2026-10-18) Administrators see a read-only line in Settings: "Data store version: step N, upgraded on DATE". *Reason: it answers support questions ("which version are you on?"), and it is operational state, which belongs in Settings.*
 - **D11 (Q4).** (Shy, 2026-10-18) The generated structure file is called `schema.snapshot.sql` and starts with a comment saying it is generated and how to refresh it. *Reason: the new name makes clear it isn't an editable source.*
+- **D12.** (Shy, 2026-10-18; raised while building WP2) Built-in lists whose master copy is in the app's code keep a small **reference-data top-up**, separate from the upgrade steps. Today these are the known metadata providers, the setup wizard's workflow steps and the default Owner profile. The top-up runs at every startup and only ever adds missing rows to those tables. It never changes structure, updates or deletes rows, or touches any other table, and a guardrail enforces that (WP3). Built-in data written in SQL, such as the native apps' registration, goes in upgrade steps like everything else. *Reason: Maintenance and Reliability. Each list stays in one place, so a new provider reaches existing libraries automatically after an update, with no extra step for a contributor to forget.*
 
 ## 4. UI behaviour
 
@@ -92,7 +93,7 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
   - **Baseline.** Writes `0001_baseline.sql` equal to today's complete structure: the current `schema.sql` plus every effect of `SchemaMigrator.RunStartupTasks`. That means all tables, columns, indexes, triggers, the 3 FTS5 tables and the seed rows, including the `storage_epoch` row.
   - **Proof.** A one-off comparison test proves a fresh data store built the old way and the new way have identical normalised `sqlite_master` and `pragma_table_info` output. Run it once, then delete it with the old path.
   - **Wiring.** Connects the runner into `DatabaseConnection.InitializeSchema` / `RunStartupChecks`, in this order: epoch guard → writable check → integrity check → pending steps (safety copy from WP4 once it lands) → `PRAGMA optimize`.
-  - **Retirement.** Removes `SchemaMigrator` (its `Ensure*`, `AddColumnIfMissing` and data-conversion steps) and the whole-file `SchemaInitializer` execution.
+  - **Retirement.** Removes `SchemaMigrator` (its `Ensure*`, `AddColumnIfMissing` and data-conversion steps) and the whole-file `SchemaInitializer` execution. Its every-startup seeding of the code-defined lists moves unchanged into the reference-data top-up (D12).
   - **Epoch.** Bumps `StorageEpochGuard.CurrentEpoch` (D8).
 - **Files likely touched:**
   - `src/MediaEngine.Storage/SchemaMigrator.cs` (deleted)
@@ -117,7 +118,8 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
     - the snapshot is current;
     - step numbers are contiguous;
     - every released step's fingerprint matches a committed list, so an edit of a merged step fails CI;
-    - no new code reintroduces "add column if missing" style startup patching outside the step folder.
+    - no new code reintroduces "add column if missing" style startup patching outside the step folder;
+    - the reference-data top-up contains no structure statements, only add-if-missing inserts, and touches only its allow-listed tables (D12).
 - **Files likely touched:**
   - new `tools/Update-SchemaSnapshot.ps1`
   - new `src/MediaEngine.Storage/Schema/schema.snapshot.sql`
@@ -207,3 +209,15 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 
 **Open questions**
 - None. Q1–Q4 were answered by Shy on 2026-10-18 and are recorded as D8–D11.
+
+## 8. Gaps and drift (as built, 2026-10-18)
+
+- **Built and matches the spec:** D1–D12; the §4 situations; WP1–WP6. Before the old routine was deleted, a one-off test proved that a fresh data store built the old way and one built the new way were identical (204 tables, 250 indexes, 14 triggers, 2 views and every seeded row), apart from the four intended differences.
+- **Built differently (implementation details; Shy to confirm keeping them):**
+  - **Epoch:** the `storage_epoch` row is written by the baseline step itself, in the same transaction as the structure. A future epoch bump is an ordinary numbered step that updates it, and a test checks that the stored epoch equals the Engine's.
+  - **Exit code:** a refusal or failed step at startup exits the Engine with code 75, next to the existing 74 for a read-only data store.
+  - **CI:** the build-and-test job fetches full history (`fetch-depth: 0`), so CI can check that steps already on `main` were never edited.
+  - **Wider clean-up:** the new guardrail found four playback tables that the app created lazily at runtime. They were identical to the baseline and were removed, along with several dead "does this column or table exist?" checks.
+  - **Tests:** tests that only exercised conversions of old pre-release data shapes were deleted, per D8 and the "no compatibility shims" rule. Tests of current behaviour were kept or rewritten against a fresh data store.
+  - **Native apps' registration:** it is seed data in the baseline step, not part of the top-up, because it is written in SQL rather than as a list in code (D12).
+- **In the spec but not built:** nothing.

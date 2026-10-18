@@ -5,13 +5,13 @@ public sealed class ClientApiV1GuardrailTests
     [Fact]
     public void DevicePairing_UsesHashedRotatingCredentialsAndPerDeviceRevocation()
     {
-        var schema = Source("src/MediaEngine.Storage/Schema/schema.sql");
+        var schema = Source("src/MediaEngine.Storage/Schema/schema.snapshot.sql");
         var authorization = Source("src/MediaEngine.Api/Security/ClientAuthorizationService.cs");
         var repository = Source("src/MediaEngine.Storage/ClientAuthorizationRepository.cs");
 
-        Assert.Contains("CREATE TABLE IF NOT EXISTS client_devices", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS device_pairing_requests", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS client_tokens", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE client_devices", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE device_pairing_requests", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE client_tokens", schema, StringComparison.Ordinal);
         Assert.Contains("DeviceGrantType = \"urn:ietf:params:oauth:grant-type:device_code\"", authorization, StringComparison.Ordinal);
         Assert.Contains("refresh_token_replay", authorization, StringComparison.Ordinal);
         Assert.Contains("Hash(plaintext)", authorization, StringComparison.Ordinal);

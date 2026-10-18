@@ -1,18 +1,13 @@
-﻿-- =============================================================================
--- Tuvima Library - SQLite initialization script
--- Current storage epoch: guid-blob-v10-graph-timeline-lore
+-- Baseline: the complete data structure as of storage epoch guid-blob-v11-upgrade-steps.
+-- Never edit; add a new numbered step.
 --
--- Internal UUIDs are stored as 16-byte BLOBs where the current domain model owns
--- the identifier. External provider identifiers, QIDs, hashes, URLs, and file
--- paths remain TEXT. Unsupported database epochs are rejected unless an
--- explicit destructive reset is requested.
--- =============================================================================
+-- Tables first, then indexes, triggers and views. The three FTS5 tables (local_item_search,
+-- search_index, artwork_asset_search) are created here; SQLite makes their shadow tables itself.
+-- The built-in native-client Application at the end is one-time seed data: it runs once with this
+-- step, so later administrative edits or deletions are never overwritten.
 
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-PRAGMA temp_store = MEMORY;
-
-CREATE TABLE IF NOT EXISTS alignment_jobs (
+-- table alignment_jobs
+CREATE TABLE alignment_jobs (
     id                  BLOB NOT NULL PRIMARY KEY,
     ebook_asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     audiobook_asset_id  BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -24,7 +19,8 @@ CREATE TABLE IF NOT EXISTS alignment_jobs (
     completed_at        TEXT
 );
 
-CREATE TABLE IF NOT EXISTS audio_fingerprints (
+-- table audio_fingerprints
+CREATE TABLE audio_fingerprints (
     asset_id      BLOB NOT NULL PRIMARY KEY,
     fingerprint   BLOB NOT NULL,
     duration_sec  REAL NOT NULL DEFAULT 0,
@@ -32,7 +28,8 @@ CREATE TABLE IF NOT EXISTS audio_fingerprints (
     FOREIGN KEY (asset_id) REFERENCES media_assets(id)
 );
 
-CREATE TABLE IF NOT EXISTS bridge_ids (
+-- table bridge_ids
+CREATE TABLE bridge_ids (
     id                BLOB NOT NULL PRIMARY KEY,
     entity_id         BLOB NOT NULL,
     id_type           TEXT NOT NULL,
@@ -43,7 +40,8 @@ CREATE TABLE IF NOT EXISTS bridge_ids (
     UNIQUE(entity_id, id_type)
 );
 
-CREATE TABLE IF NOT EXISTS canonical_value_arrays (
+-- table canonical_value_arrays
+CREATE TABLE canonical_value_arrays (
     entity_id BLOB    NOT NULL,
     key       TEXT    NOT NULL,
     ordinal   INTEGER NOT NULL DEFAULT 0,
@@ -52,7 +50,8 @@ CREATE TABLE IF NOT EXISTS canonical_value_arrays (
     PRIMARY KEY (entity_id, key, ordinal)
 );
 
-CREATE TABLE IF NOT EXISTS canonical_values (
+-- table canonical_values
+CREATE TABLE canonical_values (
     entity_id           BLOB    NOT NULL,
     key                 TEXT    NOT NULL,
     value               TEXT    NOT NULL,
@@ -71,14 +70,16 @@ CREATE TABLE IF NOT EXISTS canonical_values (
     PRIMARY KEY (entity_id, key)
 );
 
-CREATE TABLE IF NOT EXISTS character_performer_links (
+-- table character_performer_links
+CREATE TABLE character_performer_links (
     person_id           BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     fictional_entity_id BLOB NOT NULL REFERENCES fictional_entities(id) ON DELETE CASCADE,
     work_qid            TEXT, character_image_path TEXT,
     PRIMARY KEY (person_id, fictional_entity_id, work_qid)
 );
 
-CREATE TABLE IF NOT EXISTS character_portraits (
+-- table character_portraits
+CREATE TABLE character_portraits (
     id                  BLOB PRIMARY KEY,
     person_id           BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     fictional_entity_id BLOB NOT NULL REFERENCES fictional_entities(id) ON DELETE CASCADE,
@@ -90,7 +91,8 @@ CREATE TABLE IF NOT EXISTS character_portraits (
     updated_at          TEXT
 );
 
-CREATE TABLE IF NOT EXISTS collection_items (
+-- table collection_items
+CREATE TABLE collection_items (
     id                BLOB NOT NULL PRIMARY KEY,  -- UUID
     collection_id            BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     work_id           BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -101,7 +103,8 @@ CREATE TABLE IF NOT EXISTS collection_items (
     added_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS collection_placements (
+-- table collection_placements
+CREATE TABLE collection_placements (
     id            BLOB PRIMARY KEY,
     collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     location      TEXT NOT NULL,
@@ -112,7 +115,8 @@ CREATE TABLE IF NOT EXISTS collection_placements (
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS collection_relationships (
+-- table collection_relationships
+CREATE TABLE collection_relationships (
     id            BLOB NOT NULL PRIMARY KEY,
     collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     rel_type      TEXT NOT NULL,
@@ -122,7 +126,8 @@ CREATE TABLE IF NOT EXISTS collection_relationships (
     discovered_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS collections (
+-- table collections
+CREATE TABLE collections (
     id                BLOB NOT NULL PRIMARY KEY,  -- UUID
     universe_id       BLOB,                       -- NULLABLE: cross-hub grouping
     parent_collection_id     BLOB REFERENCES collections(id) ON DELETE SET NULL,  -- franchise parent
@@ -149,14 +154,16 @@ CREATE TABLE IF NOT EXISTS collections (
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 , resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT);
 
-CREATE TABLE IF NOT EXISTS collection_profile_audience (
+-- table collection_profile_audience
+CREATE TABLE collection_profile_audience (
     collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY(collection_id, profile_id)
 );
 
-CREATE TABLE IF NOT EXISTS deferred_enrichment_queue (
+-- table deferred_enrichment_queue
+CREATE TABLE deferred_enrichment_queue (
     id           BLOB NOT NULL PRIMARY KEY,
     entity_id    BLOB NOT NULL,
     wikidata_qid TEXT,
@@ -167,13 +174,15 @@ CREATE TABLE IF NOT EXISTS deferred_enrichment_queue (
     processed_at TEXT
 , failure_type TEXT, failed_provider_name TEXT);
 
-CREATE TABLE IF NOT EXISTS editions (
+-- table editions
+CREATE TABLE editions (
     id           BLOB NOT NULL PRIMARY KEY,  -- UUID
     work_id      BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     format_label TEXT                        -- e.g. '4K Bluray', 'First Edition'
 , wikidata_qid TEXT);
 
-CREATE TABLE IF NOT EXISTS encode_jobs (
+-- table encode_jobs
+CREATE TABLE encode_jobs (
     id             BLOB NOT NULL PRIMARY KEY,
     asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     owner_profile_id BLOB,
@@ -192,7 +201,8 @@ CREATE TABLE IF NOT EXISTS encode_jobs (
     retry_count    INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS entity_assets (
+-- table entity_assets
+CREATE TABLE entity_assets (
     id               BLOB PRIMARY KEY,
     entity_id        BLOB NOT NULL,
     entity_type      TEXT NOT NULL CHECK(entity_type IN ('Work','Edition','Person','Universe','FictionalEntity')),
@@ -220,7 +230,8 @@ CREATE TABLE IF NOT EXISTS entity_assets (
     updated_at       TEXT
 );
 
-CREATE TABLE IF NOT EXISTS entity_capability_states (
+-- table entity_capability_states
+CREATE TABLE entity_capability_states (
   id                  BLOB PRIMARY KEY,
   entity_id           BLOB NOT NULL,
   entity_kind         TEXT NOT NULL,
@@ -250,7 +261,8 @@ CREATE TABLE IF NOT EXISTS entity_capability_states (
   updated_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS entity_events (
+-- table entity_events
+CREATE TABLE entity_events (
     id                BLOB NOT NULL PRIMARY KEY,
     entity_id         BLOB NOT NULL,
     entity_type       TEXT NOT NULL,
@@ -275,7 +287,8 @@ CREATE TABLE IF NOT EXISTS entity_events (
     detail            TEXT
 );
 
-CREATE TABLE IF NOT EXISTS entity_field_changes (
+-- table entity_field_changes
+CREATE TABLE entity_field_changes (
     id              BLOB NOT NULL PRIMARY KEY,
     event_id        BLOB NOT NULL REFERENCES entity_events(id) ON DELETE CASCADE,
     entity_id       BLOB NOT NULL,
@@ -288,7 +301,8 @@ CREATE TABLE IF NOT EXISTS entity_field_changes (
     is_file_original INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS entity_relationships (
+-- table entity_relationships
+CREATE TABLE entity_relationships (
     id                      BLOB NOT NULL PRIMARY KEY,
     statement_key           TEXT NOT NULL UNIQUE,
     subject_qid             TEXT NOT NULL,
@@ -304,7 +318,8 @@ CREATE TABLE IF NOT EXISTS entity_relationships (
     end_time                TEXT
 );
 
-CREATE TABLE IF NOT EXISTS entity_relationship_qualifiers (
+-- table entity_relationship_qualifiers
+CREATE TABLE entity_relationship_qualifiers (
     id                      BLOB NOT NULL PRIMARY KEY,
     relationship_id         BLOB NOT NULL REFERENCES entity_relationships(id) ON DELETE CASCADE,
     qualifier_type          TEXT NOT NULL,
@@ -316,7 +331,8 @@ CREATE TABLE IF NOT EXISTS entity_relationship_qualifiers (
     confidence              REAL
 );
 
-CREATE TABLE IF NOT EXISTS fictional_entities (
+-- table fictional_entities
+CREATE TABLE fictional_entities (
     id                       BLOB NOT NULL PRIMARY KEY,
     wikidata_qid             TEXT NOT NULL UNIQUE,
     label                    TEXT NOT NULL,
@@ -331,23 +347,24 @@ CREATE TABLE IF NOT EXISTS fictional_entities (
     enriched_at              TEXT
 , wikidata_revision_id INTEGER);
 
--- User-authored graph-editor details are intentionally isolated from provider fields.
--- Enrichment can update fictional_entities without undoing editor choices.
-CREATE TABLE IF NOT EXISTS fictional_entity_user_overrides (
+-- table fictional_entity_user_overrides
+CREATE TABLE fictional_entity_user_overrides (
     entity_id      BLOB NOT NULL PRIMARY KEY REFERENCES fictional_entities(id) ON DELETE CASCADE,
     label          TEXT NOT NULL,
     description    TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS narrative_root_user_overrides (
+-- table narrative_root_user_overrides
+CREATE TABLE narrative_root_user_overrides (
     qid            TEXT NOT NULL PRIMARY KEY REFERENCES narrative_roots(qid) ON DELETE CASCADE,
     label          TEXT NOT NULL,
     description    TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS fictional_entity_work_links (
+-- table fictional_entity_work_links
+CREATE TABLE fictional_entity_work_links (
     id                   BLOB NOT NULL PRIMARY KEY,
     appearance_key       TEXT NOT NULL UNIQUE,
     entity_id            BLOB NOT NULL REFERENCES fictional_entities(id) ON DELETE CASCADE,
@@ -368,11 +385,8 @@ CREATE TABLE IF NOT EXISTS fictional_entity_work_links (
     confidence           REAL
 );
 
--- Durable provenance and orchestration state for generated AI features.
--- Canonical values remain the user-facing projection; this table records who
--- generated that projection and whether it was published, gated for review,
--- deferred for retry, or quarantined as poison work.
-CREATE TABLE IF NOT EXISTS ai_feature_artifacts (
+-- table ai_feature_artifacts
+CREATE TABLE ai_feature_artifacts (
     entity_id             BLOB NOT NULL,
     feature_key           TEXT NOT NULL,
     source_provider_id    BLOB NOT NULL,
@@ -395,7 +409,8 @@ CREATE TABLE IF NOT EXISTS ai_feature_artifacts (
     PRIMARY KEY (entity_id, feature_key)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_lore_sources (
+-- table plugin_lore_sources
+CREATE TABLE plugin_lore_sources (
     id                  BLOB PRIMARY KEY,
     universe_qid        TEXT NOT NULL,
     plugin_id           TEXT NOT NULL,
@@ -418,7 +433,8 @@ CREATE TABLE IF NOT EXISTS plugin_lore_sources (
     UNIQUE (universe_qid, plugin_id, source_key)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_lore_entities (
+-- table plugin_lore_entities
+CREATE TABLE plugin_lore_entities (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
     universe_qid    TEXT NOT NULL,
@@ -438,7 +454,8 @@ CREATE TABLE IF NOT EXISTS plugin_lore_entities (
     UNIQUE (source_id, external_key)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_lore_relationships (
+-- table plugin_lore_relationships
+CREATE TABLE plugin_lore_relationships (
     id                   BLOB PRIMARY KEY,
     source_id            BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
     universe_qid         TEXT NOT NULL,
@@ -456,7 +473,8 @@ CREATE TABLE IF NOT EXISTS plugin_lore_relationships (
     UNIQUE (source_id, subject_external_key, relationship_type, object_external_key)
 );
 
-CREATE TABLE IF NOT EXISTS file_hash_cache (
+-- table file_hash_cache
+CREATE TABLE file_hash_cache (
     absolute_path TEXT COLLATE NOCASE NOT NULL PRIMARY KEY,
     size_bytes    INTEGER NOT NULL,
     mtime_utc     TEXT    NOT NULL,
@@ -464,7 +482,8 @@ CREATE TABLE IF NOT EXISTS file_hash_cache (
     cached_at     TEXT    NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS identity_jobs (
+-- table identity_jobs
+CREATE TABLE identity_jobs (
     id                     BLOB PRIMARY KEY,
     entity_id              BLOB NOT NULL,
     entity_type            TEXT NOT NULL,
@@ -485,21 +504,24 @@ CREATE TABLE IF NOT EXISTS identity_jobs (
     updated_at             TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS image_cache (
+-- table image_cache
+CREATE TABLE image_cache (
     content_hash  TEXT NOT NULL PRIMARY KEY,
     file_path     TEXT NOT NULL,
     source_url    TEXT,
     downloaded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 , is_user_override INTEGER NOT NULL DEFAULT 0, phash INTEGER);
 
-CREATE TABLE IF NOT EXISTS image_cache_sources (
+-- table image_cache_sources
+CREATE TABLE image_cache_sources (
     source_url    TEXT NOT NULL PRIMARY KEY,
     content_hash  TEXT NOT NULL,
     first_seen_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     FOREIGN KEY(content_hash) REFERENCES image_cache(content_hash) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ingestion_batches (
+-- table ingestion_batches
+CREATE TABLE ingestion_batches (
     id                BLOB NOT NULL PRIMARY KEY,
     status            TEXT NOT NULL DEFAULT 'running',
     source_path       TEXT,
@@ -516,7 +538,8 @@ CREATE TABLE IF NOT EXISTS ingestion_batches (
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE IF NOT EXISTS ingestion_log (
+-- table ingestion_log
+CREATE TABLE ingestion_log (
     id                BLOB NOT NULL PRIMARY KEY,
     file_path         TEXT NOT NULL,
     media_asset_id    BLOB,
@@ -533,7 +556,8 @@ CREATE TABLE IF NOT EXISTS ingestion_log (
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE IF NOT EXISTS ingestion_batch_artifacts (
+-- table ingestion_batch_artifacts
+CREATE TABLE ingestion_batch_artifacts (
     id                BLOB NOT NULL PRIMARY KEY,
     batch_id          BLOB NOT NULL,
     artifact_type     TEXT NOT NULL,
@@ -548,7 +572,8 @@ CREATE TABLE IF NOT EXISTS ingestion_batch_artifacts (
     occurred_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE IF NOT EXISTS media_assets (
+-- table media_assets
+CREATE TABLE media_assets (
     id             BLOB NOT NULL PRIMARY KEY,  -- UUID
     edition_id     BLOB NOT NULL REFERENCES editions(id) ON DELETE CASCADE,
     content_hash   TEXT NOT NULL UNIQUE,       -- reconciliation key; SHA-256 hex, lowercase
@@ -587,10 +612,8 @@ CREATE TABLE IF NOT EXISTS media_assets (
     rendition_source_fingerprint TEXT,
     CHECK(derived_from_asset_id IS NULL OR derived_from_asset_id != id));
 
--- Lists every episode a single physical file covers (for example S01E01E02.mkv).
--- The file stays attached to its first episode via editions; single-episode files
--- have no rows here. Original files are never split or altered.
-CREATE TABLE IF NOT EXISTS media_asset_coverage (
+-- table media_asset_coverage
+CREATE TABLE media_asset_coverage (
     asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     work_id       BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     position      INTEGER NOT NULL CHECK (position >= 1),
@@ -603,12 +626,9 @@ CREATE TABLE IF NOT EXISTS media_asset_coverage (
     CHECK (start_seconds IS NULL OR start_seconds >= 0),
     CHECK (end_seconds IS NULL OR start_seconds IS NULL OR end_seconds >= start_seconds)
 );
-CREATE INDEX IF NOT EXISTS idx_media_asset_coverage_work ON media_asset_coverage(work_id);
 
--- An editor commit and its file-sync intent are recorded in the same transaction
--- as the owned-file reassociation. A retry of the same operation token reads this
--- receipt instead of applying the edit twice.
-CREATE TABLE IF NOT EXISTS media_editor_commits (
+-- table media_editor_commits
+CREATE TABLE media_editor_commits (
     operation_token TEXT NOT NULL PRIMARY KEY,
     request_hash TEXT NOT NULL,
     asset_id BLOB NOT NULL,
@@ -618,12 +638,9 @@ CREATE TABLE IF NOT EXISTS media_editor_commits (
     committed_at TEXT NOT NULL,
     sync_state TEXT NOT NULL DEFAULT 'pending'
 );
-CREATE INDEX IF NOT EXISTS ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
 
--- Coalescing durable command for synchronizing the latest effective metadata to
--- an owned file. A later library edit increments generation and returns the row
--- to pending; workers complete only the generation they claimed.
-CREATE TABLE IF NOT EXISTS media_file_write_intents (
+-- table media_file_write_intents
+CREATE TABLE media_file_write_intents (
     asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
     generation INTEGER NOT NULL DEFAULT 1,
     operation_token TEXT NOT NULL,
@@ -636,10 +653,9 @@ CREATE TABLE IF NOT EXISTS media_file_write_intents (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS ix_media_file_write_intents_dispatch
-    ON media_file_write_intents(status, lease_expires_at, updated_at);
 
-CREATE TABLE IF NOT EXISTS media_editor_commit_items (
+-- table media_editor_commit_items
+CREATE TABLE media_editor_commit_items (
     operation_token TEXT NOT NULL REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
     asset_id BLOB NOT NULL,
     source_edition_id BLOB NOT NULL,
@@ -650,13 +666,15 @@ CREATE TABLE IF NOT EXISTS media_editor_commit_items (
     PRIMARY KEY (operation_token, asset_id)
 );
 
-CREATE TABLE IF NOT EXISTS media_editor_music_pairing_commits (
+-- table media_editor_music_pairing_commits
+CREATE TABLE media_editor_music_pairing_commits (
     operation_token TEXT NOT NULL PRIMARY KEY,
     request_hash TEXT NOT NULL,
     committed_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS media_editor_music_pairing_commit_items (
+-- table media_editor_music_pairing_commit_items
+CREATE TABLE media_editor_music_pairing_commit_items (
     operation_token TEXT NOT NULL REFERENCES media_editor_music_pairing_commits(operation_token) ON DELETE CASCADE,
     asset_id BLOB NOT NULL,
     edition_id BLOB NOT NULL,
@@ -666,9 +684,8 @@ CREATE TABLE IF NOT EXISTS media_editor_music_pairing_commit_items (
     PRIMARY KEY (operation_token, asset_id)
 );
 
--- An optional reviewed episode-still choice is audited with the same commit
--- receipt. Existing artwork links remain available after preference changes.
-CREATE TABLE IF NOT EXISTS media_editor_commit_artwork (
+-- table media_editor_commit_artwork
+CREATE TABLE media_editor_commit_artwork (
     operation_token TEXT NOT NULL PRIMARY KEY REFERENCES media_editor_commits(operation_token) ON DELETE CASCADE,
     owner_work_id BLOB NOT NULL,
     artwork_asset_id BLOB NOT NULL,
@@ -678,9 +695,8 @@ CREATE TABLE IF NOT EXISTS media_editor_commit_artwork (
     committed_at TEXT NOT NULL
 );
 
--- Storage-only receipt for a reviewed preferred-artwork choice. The associated
--- source file is not modified by this preference transaction.
-CREATE TABLE IF NOT EXISTS media_editor_preferred_artwork_commits (
+-- table media_editor_preferred_artwork_commits
+CREATE TABLE media_editor_preferred_artwork_commits (
     operation_token TEXT NOT NULL PRIMARY KEY,
     request_hash TEXT NOT NULL,
     owner_work_id BLOB NOT NULL,
@@ -693,7 +709,8 @@ CREATE TABLE IF NOT EXISTS media_editor_preferred_artwork_commits (
     committed_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS media_editor_edition_artwork_commits (
+-- table media_editor_edition_artwork_commits
+CREATE TABLE media_editor_edition_artwork_commits (
     operation_token TEXT NOT NULL PRIMARY KEY,
     request_hash TEXT NOT NULL,
     edition_id BLOB NOT NULL,
@@ -705,9 +722,8 @@ CREATE TABLE IF NOT EXISTS media_editor_edition_artwork_commits (
     committed_at TEXT NOT NULL
 );
 
--- Artwork embedding is tracked separately from metadata retagging and sidecar export.
--- 'embedded' is recorded only after the physical file tag is read back and verified.
-CREATE TABLE IF NOT EXISTS media_artwork_writeback (
+-- table media_artwork_writeback
+CREATE TABLE media_artwork_writeback (
     media_asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
     desired_artwork_asset_id BLOB NOT NULL,
     desired_version TEXT,
@@ -719,14 +735,9 @@ CREATE TABLE IF NOT EXISTS media_artwork_writeback (
     file_size_bytes INTEGER,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
-CREATE INDEX IF NOT EXISTS idx_media_artwork_writeback_status
-    ON media_artwork_writeback(status, updated_at);
 
--- A Personal Space is the stable View identity owned by exactly one profile.
--- library_id remains the bridge to configured intake libraries while sources
--- and devices describe where files came from. Shared View is intentionally not
--- persisted here: it is an authorized projection across Personal Spaces.
-CREATE TABLE IF NOT EXISTS view_personal_spaces (
+-- table view_personal_spaces
+CREATE TABLE view_personal_spaces (
     id                  BLOB NOT NULL PRIMARY KEY,
     owner_profile_id    BLOB NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
     library_id          BLOB NOT NULL UNIQUE,
@@ -734,13 +745,14 @@ CREATE TABLE IF NOT EXISTS view_personal_spaces (
     updated_at          TEXT NOT NULL
 );
 
--- Storage labels are immutable reservations, independent of login names.
-CREATE TABLE IF NOT EXISTS view_storage_labels (
+-- table view_storage_labels
+CREATE TABLE view_storage_labels (
     personal_space_id BLOB NOT NULL PRIMARY KEY,
     label TEXT NOT NULL UNIQUE COLLATE NOCASE
 );
 
-CREATE TABLE IF NOT EXISTS view_sources (
+-- table view_sources
+CREATE TABLE view_sources (
     id                  BLOB NOT NULL PRIMARY KEY,
     scope_kind          TEXT NOT NULL CHECK (scope_kind IN ('personal','shared')),
     personal_space_id   BLOB REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
@@ -766,48 +778,23 @@ CREATE TABLE IF NOT EXISTS view_sources (
         OR (scope_kind = 'shared' AND personal_space_id IS NULL))
 );
 
--- One Shared library per household; each household's library is created when it is first needed.
-CREATE TABLE IF NOT EXISTS view_shared_library (
+-- table view_shared_library
+CREATE TABLE view_shared_library (
     household_id BLOB NOT NULL PRIMARY KEY REFERENCES households(id),
     library_id BLOB NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
-CREATE TRIGGER IF NOT EXISTS trg_view_personal_space_shared_collision_insert
-BEFORE INSERT ON view_personal_spaces WHEN EXISTS (
-    SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
-BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
-CREATE TRIGGER IF NOT EXISTS trg_view_personal_space_shared_collision_update
-BEFORE UPDATE OF library_id ON view_personal_spaces WHEN EXISTS (
-    SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
-BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
-CREATE TRIGGER IF NOT EXISTS trg_view_personal_space_identity_immutable
-BEFORE UPDATE OF owner_profile_id,library_id ON view_personal_spaces
-WHEN NEW.owner_profile_id<>OLD.owner_profile_id OR NEW.library_id<>OLD.library_id
-BEGIN SELECT RAISE(ABORT,'Personal Space owner and library identities are immutable'); END;
-CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_collision_insert
-BEFORE INSERT ON view_shared_library WHEN EXISTS (
-    SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
-BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal Space'); END;
-CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_identity_immutable
-BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
-BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
-CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_delete
-BEFORE DELETE ON view_shared_library
-BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
 
--- Timeline inclusion is separate from source registration. Browser uploads
--- participate by default; additional folders opt in explicitly.
-CREATE TABLE IF NOT EXISTS view_source_policies (
+-- table view_source_policies
+CREATE TABLE view_source_policies (
     source_id            BLOB NOT NULL PRIMARY KEY REFERENCES view_sources(id) ON DELETE CASCADE,
     include_in_timeline  INTEGER NOT NULL DEFAULT 0 CHECK (include_in_timeline IN (0, 1)),
     updated_at           TEXT NOT NULL
 );
 
--- Folder-level View preferences. Pins are private to the profile. Timeline
--- policies belong to the source and are evaluated from the most-specific
--- ancestor so a branch can override its source default.
-CREATE TABLE IF NOT EXISTS view_folder_pins (
+-- table view_folder_pins
+CREATE TABLE view_folder_pins (
     profile_id      BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     source_id       BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
     relative_path   TEXT NOT NULL,
@@ -815,7 +802,8 @@ CREATE TABLE IF NOT EXISTS view_folder_pins (
     PRIMARY KEY (profile_id, source_id, relative_path)
 );
 
-CREATE TABLE IF NOT EXISTS view_folder_timeline_policies (
+-- table view_folder_timeline_policies
+CREATE TABLE view_folder_timeline_policies (
     source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
     relative_path       TEXT NOT NULL,
     absolute_path       TEXT NOT NULL,
@@ -825,9 +813,8 @@ CREATE TABLE IF NOT EXISTS view_folder_timeline_policies (
     PRIMARY KEY (source_id, relative_path)
 );
 
--- An accepted Shared Library item remains traceable to its originating profile
--- while its durable physical keeper location belongs to the server library.
-CREATE TABLE IF NOT EXISTS view_shared_assets (
+-- table view_shared_assets
+CREATE TABLE view_shared_assets (
     item_id                BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE RESTRICT,
     origin_item_id         BLOB REFERENCES local_items(id) ON DELETE SET NULL,
     original_profile_id    BLOB REFERENCES profiles(id) ON DELETE SET NULL,
@@ -837,7 +824,8 @@ CREATE TABLE IF NOT EXISTS view_shared_assets (
     promoted_at            TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS view_shared_contributions (
+-- table view_shared_contributions
+CREATE TABLE view_shared_contributions (
     id                         BLOB NOT NULL PRIMARY KEY,
     submitted_by_profile_id    BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     submitted_by_name          TEXT NOT NULL,
@@ -856,7 +844,8 @@ CREATE TABLE IF NOT EXISTS view_shared_contributions (
     UNIQUE(submitted_by_profile_id, idempotency_key)
 );
 
-CREATE TABLE IF NOT EXISTS view_shared_contribution_items (
+-- table view_shared_contribution_items
+CREATE TABLE view_shared_contribution_items (
     id                  BLOB NOT NULL PRIMARY KEY,
     contribution_id     BLOB NOT NULL REFERENCES view_shared_contributions(id) ON DELETE CASCADE,
     item_id              BLOB NOT NULL REFERENCES local_items(id) ON DELETE RESTRICT,
@@ -871,14 +860,8 @@ CREATE TABLE IF NOT EXISTS view_shared_contribution_items (
     UNIQUE(contribution_id, item_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_view_shared_contributions_submitter
-    ON view_shared_contributions(submitted_by_profile_id, submitted_at DESC);
-CREATE INDEX IF NOT EXISTS idx_view_shared_contributions_review
-    ON view_shared_contributions(status, submitted_at);
-CREATE INDEX IF NOT EXISTS idx_view_shared_contribution_items_batch
-    ON view_shared_contribution_items(contribution_id, position);
-
-CREATE TABLE IF NOT EXISTS view_shared_contribution_events (
+-- table view_shared_contribution_events
+CREATE TABLE view_shared_contribution_events (
     id               BLOB NOT NULL PRIMARY KEY,
     contribution_id  BLOB NOT NULL REFERENCES view_shared_contributions(id) ON DELETE CASCADE,
     actor_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
@@ -888,10 +871,8 @@ CREATE TABLE IF NOT EXISTS view_shared_contribution_events (
     occurred_at       TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_view_shared_contribution_events_batch
-    ON view_shared_contribution_events(contribution_id, occurred_at, id);
-
-CREATE TABLE IF NOT EXISTS view_shared_transfers (
+-- table view_shared_transfers
+CREATE TABLE view_shared_transfers (
     id                     BLOB NOT NULL PRIMARY KEY,
     item_id                BLOB NOT NULL REFERENCES local_items(id) ON DELETE RESTRICT,
     contribution_item_id   BLOB REFERENCES view_shared_contribution_items(id) ON DELETE SET NULL,
@@ -906,7 +887,8 @@ CREATE TABLE IF NOT EXISTS view_shared_transfers (
     UNIQUE(item_id)
 );
 
-CREATE TABLE IF NOT EXISTS view_devices (
+-- table view_devices
+CREATE TABLE view_devices (
     id                  BLOB NOT NULL PRIMARY KEY,
     personal_space_id   BLOB NOT NULL REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
     source_id           BLOB REFERENCES view_sources(id) ON DELETE SET NULL,
@@ -922,13 +904,8 @@ CREATE TABLE IF NOT EXISTS view_devices (
     UNIQUE (personal_space_id, client_device_id)
 );
 
--- Generalized local assets are the mixed-media model for personal View.
--- A logical item is explicitly owner- and Personal-Space-scoped and may be composed of
--- several exact, hash-addressed files (for example HEIC + MOV Live Photos,
--- RAW + JPEG + XMP sets, or generated previews). Each physical file retains
--- every path at which it was observed, so exact duplicates never erase source
--- provenance. This model is intentionally independent from catalogue identity.
-CREATE TABLE IF NOT EXISTS local_items (
+-- table local_items
+CREATE TABLE local_items (
     id                  BLOB NOT NULL PRIMARY KEY,
     scope_kind          TEXT NOT NULL CHECK (scope_kind IN ('personal','shared')),
     personal_space_id   BLOB REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
@@ -953,7 +930,8 @@ CREATE TABLE IF NOT EXISTS local_items (
     UNIQUE (personal_space_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS local_item_metadata (
+-- table local_item_metadata
+CREATE TABLE local_item_metadata (
     item_id             BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
     width               INTEGER CHECK (width IS NULL OR width >= 0),
     height              INTEGER CHECK (height IS NULL OR height >= 0),
@@ -986,7 +964,8 @@ CREATE TABLE IF NOT EXISTS local_item_metadata (
     updated_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS local_files (
+-- table local_files
+CREATE TABLE local_files (
     id                  BLOB NOT NULL PRIMARY KEY,
     content_hash        TEXT NOT NULL UNIQUE COLLATE NOCASE,
     byte_size           INTEGER NOT NULL CHECK (byte_size >= 0),
@@ -995,7 +974,8 @@ CREATE TABLE IF NOT EXISTS local_files (
     created_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS local_file_sources (
+-- table local_file_sources
+CREATE TABLE local_file_sources (
     id                  BLOB NOT NULL PRIMARY KEY,
     file_id             BLOB NOT NULL REFERENCES local_files(id) ON DELETE CASCADE,
     library_id          BLOB NOT NULL,
@@ -1007,7 +987,8 @@ CREATE TABLE IF NOT EXISTS local_file_sources (
     UNIQUE (library_id, file_path COLLATE NOCASE)
 );
 
-CREATE TABLE IF NOT EXISTS local_item_files (
+-- table local_item_files
+CREATE TABLE local_item_files (
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     file_id             BLOB NOT NULL REFERENCES local_files(id) ON DELETE RESTRICT,
     role                TEXT NOT NULL
@@ -1019,9 +1000,8 @@ CREATE TABLE IF NOT EXISTS local_item_files (
     PRIMARY KEY (item_id, file_id, role)
 );
 
--- Tags, correspondents, document types and custom fields are global: one list per install. Who may see a name is
--- decided at read time from the items the viewer can reach (plus names they made themselves), never stored here.
-CREATE TABLE IF NOT EXISTS tags (
+-- table tags
+CREATE TABLE tags (
     id                  BLOB NOT NULL PRIMARY KEY,
     name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
     colour              TEXT,
@@ -1029,14 +1009,16 @@ CREATE TABLE IF NOT EXISTS tags (
     created_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS local_item_tag_links (
+-- table local_item_tag_links
+CREATE TABLE local_item_tag_links (
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     tag_id              BLOB NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     added_at            TEXT NOT NULL,
     PRIMARY KEY (item_id, tag_id)
 );
 
-CREATE TABLE IF NOT EXISTS doc_correspondents (
+-- table doc_correspondents
+CREATE TABLE doc_correspondents (
     id                  BLOB NOT NULL PRIMARY KEY,
     name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
     colour              TEXT,
@@ -1044,15 +1026,16 @@ CREATE TABLE IF NOT EXISTS doc_correspondents (
     created_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS doc_types (
+-- table doc_types
+CREATE TABLE doc_types (
     id                  BLOB NOT NULL PRIMARY KEY,
     name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
     created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     created_at          TEXT NOT NULL
 );
 
--- Organising details of one document. A document with no row here was added before filing existed and counts as filed.
-CREATE TABLE IF NOT EXISTS doc_item_details (
+-- table doc_item_details
+CREATE TABLE doc_item_details (
     item_id             BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
     document_date       TEXT,
     correspondent_id    BLOB REFERENCES doc_correspondents(id) ON DELETE SET NULL,
@@ -1066,7 +1049,8 @@ CREATE TABLE IF NOT EXISTS doc_item_details (
     updated_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS doc_field_definitions (
+-- table doc_field_definitions
+CREATE TABLE doc_field_definitions (
     id                  BLOB NOT NULL PRIMARY KEY,
     name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
     kind                TEXT NOT NULL CHECK (kind IN ('text', 'number', 'date', 'money', 'bool', 'choice')),
@@ -1074,16 +1058,16 @@ CREATE TABLE IF NOT EXISTS doc_field_definitions (
     created_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS doc_field_choices (
+-- table doc_field_choices
+CREATE TABLE doc_field_choices (
     field_id            BLOB NOT NULL REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
     value               TEXT NOT NULL COLLATE NOCASE,
     sort_order          INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (field_id, value)
 );
 
--- One row per document and field. Money keeps the amount in number_value and the ISO 4217 code in text_value;
--- a choice keeps the chosen value in text_value.
-CREATE TABLE IF NOT EXISTS doc_field_values (
+-- table doc_field_values
+CREATE TABLE doc_field_values (
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     field_id            BLOB NOT NULL REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
     text_value          TEXT,
@@ -1093,10 +1077,8 @@ CREATE TABLE IF NOT EXISTS doc_field_values (
     PRIMARY KEY (item_id, field_id)
 );
 
--- Who last set a document's correspondent, type or custom field value: a person (by hand, or by accepting a suggestion)
--- or an auto-filing rule. A value with no row here and a person-set row are never overwritten by a rule; a rule-set
--- value may be replaced by a rule. slot is correspondent, document_type or field (then field_id names the field).
-CREATE TABLE IF NOT EXISTS doc_item_field_sources (
+-- table doc_item_field_sources
+CREATE TABLE doc_item_field_sources (
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     slot                TEXT NOT NULL CHECK (slot IN ('correspondent', 'document_type', 'field')),
     field_id            BLOB REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
@@ -1104,9 +1086,8 @@ CREATE TABLE IF NOT EXISTS doc_item_field_sources (
     CHECK ((slot = 'field' AND field_id IS NOT NULL) OR (slot <> 'field' AND field_id IS NULL))
 );
 
--- Auto-filing rules. A rule belongs to the person who made it and covers documents in their own Personal Space, or
--- (personal_space_id NULL, household administrators only) the Shared Library of their household.
-CREATE TABLE IF NOT EXISTS doc_rules (
+-- table doc_rules
+CREATE TABLE doc_rules (
     id                  BLOB NOT NULL PRIMARY KEY,
     owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     personal_space_id   BLOB REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
@@ -1119,7 +1100,8 @@ CREATE TABLE IF NOT EXISTS doc_rules (
     updated_at          TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS doc_rule_conditions (
+-- table doc_rule_conditions
+CREATE TABLE doc_rule_conditions (
     rule_id             BLOB NOT NULL REFERENCES doc_rules(id) ON DELETE CASCADE,
     position            INTEGER NOT NULL,
     kind                TEXT NOT NULL
@@ -1128,9 +1110,8 @@ CREATE TABLE IF NOT EXISTS doc_rule_conditions (
     PRIMARY KEY (rule_id, position)
 );
 
--- ref_id points at a tag, correspondent, document type or custom field depending on kind (no foreign key: the target
--- can be removed, and the action then simply does nothing). A custom field's value is text_value.
-CREATE TABLE IF NOT EXISTS doc_rule_actions (
+-- table doc_rule_actions
+CREATE TABLE doc_rule_actions (
     rule_id             BLOB NOT NULL REFERENCES doc_rules(id) ON DELETE CASCADE,
     position            INTEGER NOT NULL,
     kind                TEXT NOT NULL CHECK (kind IN ('add_tag', 'set_correspondent', 'set_document_type', 'set_field')),
@@ -1139,7 +1120,8 @@ CREATE TABLE IF NOT EXISTS doc_rule_actions (
     PRIMARY KEY (rule_id, position)
 );
 
-CREATE TABLE IF NOT EXISTS view_galleries (
+-- table view_galleries
+CREATE TABLE view_galleries (
     id                  BLOB NOT NULL PRIMARY KEY,
     owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     personal_space_id   BLOB NOT NULL REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
@@ -1156,7 +1138,8 @@ CREATE TABLE IF NOT EXISTS view_galleries (
         OR (gallery_kind = 'smart' AND smart_rule_json IS NOT NULL))
 );
 
-CREATE TABLE IF NOT EXISTS view_gallery_items (
+-- table view_gallery_items
+CREATE TABLE view_gallery_items (
     gallery_id          BLOB NOT NULL REFERENCES view_galleries(id) ON DELETE CASCADE,
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     position            INTEGER NOT NULL DEFAULT 0,
@@ -1164,7 +1147,8 @@ CREATE TABLE IF NOT EXISTS view_gallery_items (
     PRIMARY KEY (gallery_id, item_id)
 );
 
-CREATE TABLE IF NOT EXISTS view_gallery_shares (
+-- table view_gallery_shares
+CREATE TABLE view_gallery_shares (
     gallery_id          BLOB NOT NULL REFERENCES view_galleries(id) ON DELETE CASCADE,
     profile_id          BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     permission          TEXT NOT NULL DEFAULT 'view' CHECK (permission IN ('view', 'contribute')),
@@ -1172,10 +1156,8 @@ CREATE TABLE IF NOT EXISTS view_gallery_shares (
     PRIMARY KEY (gallery_id, profile_id)
 );
 
--- Personal-media inputs for administrator-authored Custom Collections. Each
--- row remains a dynamic Gallery reference or a saved View rule; local asset
--- IDs and expanded Gallery membership are intentionally absent.
-CREATE TABLE IF NOT EXISTS collection_view_sources (
+-- table collection_view_sources
+CREATE TABLE collection_view_sources (
     id                  BLOB NOT NULL PRIMARY KEY,
     collection_id       BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -1196,10 +1178,8 @@ CREATE TABLE IF NOT EXISTS collection_view_sources (
             AND gallery_id IS NULL AND rule_version IS NOT NULL AND rule_json IS NOT NULL))
 );
 
--- Reserved for optional, provenance-aware inferred metadata. The table does
--- not run inference; it only prevents future annotations from being confused
--- with user-authored or extracted facts.
-CREATE TABLE IF NOT EXISTS local_item_annotations (
+-- table local_item_annotations
+CREATE TABLE local_item_annotations (
     id                  BLOB NOT NULL PRIMARY KEY,
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
     annotation_kind     TEXT NOT NULL,
@@ -1213,14 +1193,14 @@ CREATE TABLE IF NOT EXISTS local_item_annotations (
     reviewed_at         TEXT
 );
 
--- FTS rowids are mapped to BLOB GUIDs in a normal table. This avoids storing
--- an internal identifier as text merely because FTS5 is text-oriented.
-CREATE TABLE IF NOT EXISTS local_item_search_keys (
+-- table local_item_search_keys
+CREATE TABLE local_item_search_keys (
     rowid               INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id             BLOB NOT NULL UNIQUE REFERENCES local_items(id) ON DELETE CASCADE
 );
 
-CREATE VIRTUAL TABLE IF NOT EXISTS local_item_search USING fts5(
+-- table local_item_search
+CREATE VIRTUAL TABLE local_item_search USING fts5(
     title,
     file_name,
     mime_type,
@@ -1233,99 +1213,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS local_item_search USING fts5(
     tokenize = 'unicode61 remove_diacritics 2'
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_local_items_delete_search
-BEFORE DELETE ON local_items
-BEGIN
-    DELETE FROM local_item_search
-     WHERE rowid = (SELECT rowid FROM local_item_search_keys WHERE item_id = OLD.id);
-END;
-
-CREATE INDEX IF NOT EXISTS ix_view_personal_spaces_library
-    ON view_personal_spaces(library_id, owner_profile_id);
-CREATE INDEX IF NOT EXISTS ix_view_sources_space_activity
-    ON view_sources(personal_space_id, last_activity_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_view_devices_space_backup
-    ON view_devices(personal_space_id, last_backup_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_local_items_owner_timeline
-    ON local_items(owner_profile_id, archived_at, trashed_at,
-                   COALESCE(captured_at, created_at) DESC, id DESC);
-CREATE INDEX IF NOT EXISTS ix_local_items_library_timeline
-    ON local_items(library_id, archived_at, trashed_at,
-                   COALESCE(captured_at, created_at) DESC, id DESC);
-CREATE INDEX IF NOT EXISTS ix_local_items_space_timeline
-    ON local_items(personal_space_id, archived_at, trashed_at,
-                   COALESCE(captured_at, created_at) DESC, id DESC);
-CREATE INDEX IF NOT EXISTS ix_local_items_library_kind
-    ON local_items(library_id, media_kind, hidden, archived_at, trashed_at);
-CREATE INDEX IF NOT EXISTS ix_local_items_library_favorite_timeline
-    ON local_items(library_id, favorite, archived_at, trashed_at,
-                   COALESCE(captured_at, created_at) DESC, id DESC);
-CREATE INDEX IF NOT EXISTS ix_local_item_metadata_location
-    ON local_item_metadata(location_name, latitude, longitude, item_id)
-    WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
-CREATE INDEX IF NOT EXISTS ix_local_items_library_atlas_timeline
-    ON local_items(library_id, hidden, archived_at, trashed_at, media_kind,
-                   favorite, COALESCE(captured_at, created_at), id);
-CREATE INDEX IF NOT EXISTS ix_local_items_active_discovery
-    ON local_items(library_id, hidden, archived_at, trashed_at, id);
-CREATE INDEX IF NOT EXISTS ix_local_files_hash
-    ON local_files(content_hash COLLATE NOCASE);
-CREATE INDEX IF NOT EXISTS ix_local_file_sources_file
-    ON local_file_sources(file_id, indexed_at DESC);
-CREATE INDEX IF NOT EXISTS ix_local_file_sources_library
-    ON local_file_sources(library_id, file_path COLLATE NOCASE);
-CREATE INDEX IF NOT EXISTS ix_local_file_sources_source
-    ON local_file_sources(source_id, indexed_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_local_file_sources_device
-    ON local_file_sources(device_id, indexed_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_local_item_files_item
-    ON local_item_files(item_id, role, position);
-CREATE INDEX IF NOT EXISTS ix_local_item_files_file
-    ON local_item_files(file_id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_local_item_single_primary
-    ON local_item_files(item_id)
-    WHERE role = 'primary';
-CREATE INDEX IF NOT EXISTS ix_view_galleries_owner_order
-    ON view_galleries(owner_profile_id, sort_order, updated_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_view_galleries_space_kind
-    ON view_galleries(personal_space_id, gallery_kind, updated_at DESC, id);
-CREATE INDEX IF NOT EXISTS ix_view_gallery_items_gallery
-    ON view_gallery_items(gallery_id, position, added_at, item_id);
-CREATE INDEX IF NOT EXISTS ix_view_gallery_items_item
-    ON view_gallery_items(item_id, gallery_id);
-CREATE INDEX IF NOT EXISTS ix_view_gallery_shares_profile
-    ON view_gallery_shares(profile_id, shared_at DESC, gallery_id);
-CREATE INDEX IF NOT EXISTS ix_local_item_tag_links_tag
-    ON local_item_tag_links(tag_id, item_id);
-CREATE INDEX IF NOT EXISTS ix_doc_item_details_correspondent
-    ON doc_item_details(correspondent_id, item_id);
-CREATE INDEX IF NOT EXISTS ix_doc_item_details_type
-    ON doc_item_details(doc_type_id, item_id);
-CREATE INDEX IF NOT EXISTS ix_doc_item_details_state
-    ON doc_item_details(filing_state, document_date);
-CREATE INDEX IF NOT EXISTS ix_doc_field_values_field
-    ON doc_field_values(field_id, item_id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_doc_item_field_sources
-    ON doc_item_field_sources(item_id, slot, COALESCE(field_id, zeroblob(16)));
-CREATE INDEX IF NOT EXISTS ix_doc_rules_owner_order
-    ON doc_rules(owner_profile_id, personal_space_id, sort_order, id);
-CREATE INDEX IF NOT EXISTS ix_collection_view_sources_collection
-    ON collection_view_sources(collection_id, position, id);
-CREATE INDEX IF NOT EXISTS ix_collection_view_sources_owner
-    ON collection_view_sources(owner_profile_id, source_kind, collection_id, id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_collection_view_sources_gallery
-    ON collection_view_sources(collection_id, gallery_id)
-    WHERE source_kind = 'gallery';
-CREATE INDEX IF NOT EXISTS ix_local_item_annotations_item
-    ON local_item_annotations(item_id, annotation_kind, created_at);
-CREATE INDEX IF NOT EXISTS ix_local_item_annotations_lookup
-    ON local_item_annotations(annotation_kind, annotation_value, item_id);
-CREATE INDEX IF NOT EXISTS ix_local_item_annotations_people
-    ON local_item_annotations(annotation_kind, reviewed_at, annotation_value, item_id)
-    WHERE annotation_kind IN ('person_name', 'named_person', 'face_name',
-                              'person_identity', 'face_identity');
-
-CREATE TABLE IF NOT EXISTS media_operation_events (
+-- table media_operation_events
+CREATE TABLE media_operation_events (
   id             BLOB PRIMARY KEY,
   operation_id   BLOB NOT NULL,
   entity_id      BLOB,
@@ -1340,11 +1229,8 @@ CREATE TABLE IF NOT EXISTS media_operation_events (
   occurred_at    TEXT NOT NULL
 );
 
--- One row per file moved while a folder is converted from as-is to managed (the organise job). Written as each file
--- moves, so an interrupted conversion resumes and every move can be read back or exported (there is no automatic undo). operation_id is the media_operations
--- row that owns the conversion; it is kept without a foreign key so the history outlives the operation row. outcome
--- 'moving' is the intent written before a file moves; detail carries the plain-English reason for any outcome that needs one.
-CREATE TABLE IF NOT EXISTS folder_organise_log (
+-- table folder_organise_log
+CREATE TABLE folder_organise_log (
   operation_id BLOB NOT NULL,
   source_id    BLOB NOT NULL,
   old_path     TEXT NOT NULL,
@@ -1355,14 +1241,8 @@ CREATE TABLE IF NOT EXISTS folder_organise_log (
   PRIMARY KEY (operation_id, old_path)
 );
 
-CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
-  ON folder_organise_log(source_id, at);
-
--- The mutation gate asks "is this path a merge original?" before every delete or move, so it is one indexed lookup.
-CREATE INDEX IF NOT EXISTS idx_folder_organise_log_old_path
-  ON folder_organise_log(old_path COLLATE NOCASE);
-
-CREATE TABLE IF NOT EXISTS media_operations (
+-- table media_operations
+CREATE TABLE media_operations (
   id                  BLOB PRIMARY KEY,
   operation_type      TEXT NOT NULL,
   operation_kind      TEXT NOT NULL,
@@ -1404,7 +1284,8 @@ CREATE TABLE IF NOT EXISTS media_operations (
   idempotency_key     TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS metadata_claims (
+-- table metadata_claims
+CREATE TABLE metadata_claims (
     id          BLOB NOT NULL PRIMARY KEY,  -- UUID
     entity_id   BLOB NOT NULL,              -- FK → works.id | editions.id (polymorphic)
     provider_id BLOB NOT NULL REFERENCES metadata_providers(id),
@@ -1426,14 +1307,16 @@ CREATE TABLE IF NOT EXISTS metadata_claims (
     superseded_at  TEXT
 );
 
-CREATE TABLE IF NOT EXISTS metadata_providers (
+-- table metadata_providers
+CREATE TABLE metadata_providers (
     id         BLOB    NOT NULL PRIMARY KEY,  -- UUID
     name       TEXT    NOT NULL UNIQUE,
     version    TEXT    NOT NULL,
     is_enabled INTEGER NOT NULL DEFAULT 1     -- BOOLEAN: 1=true, 0=false
 );
 
-CREATE TABLE IF NOT EXISTS narrative_roots (
+-- table narrative_roots
+CREATE TABLE narrative_roots (
     qid         TEXT NOT NULL PRIMARY KEY,
     label       TEXT NOT NULL,
     level       TEXT NOT NULL
@@ -1442,7 +1325,8 @@ CREATE TABLE IF NOT EXISTS narrative_roots (
     created_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS offline_variants (
+-- table offline_variants
+CREATE TABLE offline_variants (
     id            BLOB NOT NULL PRIMARY KEY,
     asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     owner_profile_id BLOB,
@@ -1463,7 +1347,8 @@ CREATE TABLE IF NOT EXISTS offline_variants (
     expires_at    TEXT
 );
 
-CREATE TABLE IF NOT EXISTS adaptive_hls_packages (
+-- table adaptive_hls_packages
+CREATE TABLE adaptive_hls_packages (
     id              BLOB NOT NULL PRIMARY KEY,
     asset_id        BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     source_hash     TEXT NOT NULL,
@@ -1478,7 +1363,8 @@ CREATE TABLE IF NOT EXISTS adaptive_hls_packages (
     UNIQUE(asset_id, source_hash, profile_key)
 );
 
-CREATE TABLE IF NOT EXISTS pending_person_signals (
+-- table pending_person_signals
+CREATE TABLE pending_person_signals (
     id          BLOB NOT NULL PRIMARY KEY,
     entity_id   BLOB NOT NULL,
     name        TEXT NOT NULL,
@@ -1489,13 +1375,15 @@ CREATE TABLE IF NOT EXISTS pending_person_signals (
     created_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS person_aliases (
+-- table person_aliases
+CREATE TABLE person_aliases (
     pseudonym_person_id BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     real_person_id      BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     PRIMARY KEY (pseudonym_person_id, real_person_id)
 );
 
-CREATE TABLE IF NOT EXISTS person_group_members (
+-- table person_group_members
+CREATE TABLE person_group_members (
     group_id    BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     member_id   BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     start_date  TEXT,   -- ISO-8601 date when member joined (from Wikidata P580 qualifier)
@@ -1503,14 +1391,16 @@ CREATE TABLE IF NOT EXISTS person_group_members (
     PRIMARY KEY (group_id, member_id)
 );
 
-CREATE TABLE IF NOT EXISTS person_media_links (
+-- table person_media_links
+CREATE TABLE person_media_links (
     media_asset_id  BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     person_id       BLOB NOT NULL REFERENCES persons(id)       ON DELETE CASCADE,
     role            TEXT NOT NULL,
     PRIMARY KEY (media_asset_id, person_id, role)
 );
 
-CREATE TABLE IF NOT EXISTS person_roles (
+-- table person_roles
+CREATE TABLE person_roles (
     person_id BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     role      TEXT NOT NULL CHECK (role IN (
                   'Author','Narrator','Director',
@@ -1519,7 +1409,8 @@ CREATE TABLE IF NOT EXISTS person_roles (
     PRIMARY KEY (person_id, role)
 );
 
-CREATE TABLE IF NOT EXISTS persons (
+-- table persons
+CREATE TABLE persons (
     id                BLOB    NOT NULL PRIMARY KEY,  -- UUID
     name              TEXT    NOT NULL,
     wikidata_qid      TEXT,                          -- e.g. Q42
@@ -1543,7 +1434,8 @@ CREATE TABLE IF NOT EXISTS persons (
     enriched_at       TEXT                           -- NULL = not yet enriched
 , is_group INTEGER NOT NULL DEFAULT 0);
 
-CREATE TABLE IF NOT EXISTS playback_inspection_cache (
+-- table playback_inspection_cache
+CREATE TABLE playback_inspection_cache (
     asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     source_hash    TEXT NOT NULL,
     inspected_at   TEXT NOT NULL,
@@ -1554,10 +1446,8 @@ CREATE TABLE IF NOT EXISTS playback_inspection_cache (
     PRIMARY KEY (asset_id, source_hash)
 );
 
--- Durable recurrence state for entity enrichment. Future refreshes are kept
--- separate from media_operations: an operation is created only when work is
--- actually queued, while this table remains the calendar/read model.
-CREATE TABLE IF NOT EXISTS enrichment_refresh_schedule (
+-- table enrichment_refresh_schedule
+CREATE TABLE enrichment_refresh_schedule (
   entity_type       TEXT NOT NULL,
   entity_id         BLOB NOT NULL,
   stage             TEXT NOT NULL,
@@ -1576,7 +1466,8 @@ CREATE TABLE IF NOT EXISTS enrichment_refresh_schedule (
   PRIMARY KEY (entity_type, entity_id, stage, provider_id)
 );
 
-CREATE TABLE IF NOT EXISTS player_sessions (
+-- table player_sessions
+CREATE TABLE player_sessions (
     profile_id            BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     session_id            BLOB NOT NULL,
     device_id             TEXT NOT NULL,
@@ -1600,7 +1491,8 @@ CREATE TABLE IF NOT EXISTS player_sessions (
     last_heartbeat_at     TEXT
 );
 
-CREATE TABLE IF NOT EXISTS player_queue_items (
+-- table player_queue_items
+CREATE TABLE player_queue_items (
     id               BLOB NOT NULL PRIMARY KEY,
     profile_id       BLOB NOT NULL REFERENCES player_sessions(profile_id) ON DELETE CASCADE,
     position         INTEGER NOT NULL,
@@ -1629,7 +1521,8 @@ CREATE TABLE IF NOT EXISTS player_queue_items (
     source_label     TEXT
 );
 
-CREATE TABLE IF NOT EXISTS audiobook_listen_active_segments (
+-- table audiobook_listen_active_segments
+CREATE TABLE audiobook_listen_active_segments (
     profile_id             BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     asset_id               BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -1646,7 +1539,8 @@ CREATE TABLE IF NOT EXISTS audiobook_listen_active_segments (
     last_heartbeat_at      TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS audiobook_listen_history (
+-- table audiobook_listen_history
+CREATE TABLE audiobook_listen_history (
     id                     BLOB NOT NULL PRIMARY KEY,
     profile_id             BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -1663,7 +1557,8 @@ CREATE TABLE IF NOT EXISTS audiobook_listen_history (
     ended_at               TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS audiobook_bookmarks (
+-- table audiobook_bookmarks
+CREATE TABLE audiobook_bookmarks (
     id                     BLOB NOT NULL PRIMARY KEY,
     profile_id             BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -1677,7 +1572,8 @@ CREATE TABLE IF NOT EXISTS audiobook_bookmarks (
     created_at             TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS music_play_active_segments (
+-- table music_play_active_segments
+CREATE TABLE music_play_active_segments (
     profile_id             BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     asset_id               BLOB REFERENCES media_assets(id) ON DELETE SET NULL,
@@ -1690,7 +1586,8 @@ CREATE TABLE IF NOT EXISTS music_play_active_segments (
     last_heartbeat_at      TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS music_play_stats (
+-- table music_play_stats
+CREATE TABLE music_play_stats (
     profile_id             BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     play_count             INTEGER NOT NULL DEFAULT 0,
@@ -1698,7 +1595,8 @@ CREATE TABLE IF NOT EXISTS music_play_stats (
     PRIMARY KEY (profile_id, work_id)
 );
 
-CREATE TABLE IF NOT EXISTS audiobook_chapter_title_overrides (
+-- table audiobook_chapter_title_overrides
+CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     asset_id               BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     chapter_index          INTEGER NOT NULL,
@@ -1708,7 +1606,8 @@ CREATE TABLE IF NOT EXISTS audiobook_chapter_title_overrides (
     PRIMARY KEY (asset_id, chapter_index)
 );
 
-CREATE TABLE IF NOT EXISTS playback_segments (
+-- table playback_segments
+CREATE TABLE playback_segments (
     id            BLOB NOT NULL PRIMARY KEY,
     asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     kind          TEXT NOT NULL,
@@ -1723,14 +1622,16 @@ CREATE TABLE IF NOT EXISTS playback_segments (
     updated_at    TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS households (
+-- table households
+CREATE TABLE households (
     id         BLOB NOT NULL PRIMARY KEY,
     name       TEXT NOT NULL,
     created_at TEXT NOT NULL,
     primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS profiles (
+-- table profiles
+CREATE TABLE profiles (
     id           BLOB NOT NULL PRIMARY KEY,  -- UUID
     display_name TEXT NOT NULL,
     avatar_color TEXT NOT NULL DEFAULT '#7C4DFF',
@@ -1744,7 +1645,8 @@ CREATE TABLE IF NOT EXISTS profiles (
 , navigation_config TEXT
 , household_id BLOB REFERENCES households(id));
 
-CREATE TABLE IF NOT EXISTS accounts (
+-- table accounts
+CREATE TABLE accounts (
     id               BLOB NOT NULL PRIMARY KEY,
     email            TEXT,
     normalized_email TEXT,
@@ -1760,10 +1662,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
     temporary_password_expires_at TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email
-    ON accounts(normalized_email);
 
-CREATE TABLE IF NOT EXISTS account_profile_grants (
+-- table account_profile_grants
+CREATE TABLE account_profile_grants (
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
@@ -1774,7 +1675,8 @@ CREATE TABLE IF NOT EXISTS account_profile_grants (
     PRIMARY KEY (account_id, profile_id)
 );
 
-CREATE TABLE IF NOT EXISTS account_invitations (
+-- table account_invitations
+CREATE TABLE account_invitations (
     id          BLOB NOT NULL PRIMARY KEY,
     account_id  BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     token_hash  TEXT NOT NULL UNIQUE,
@@ -1782,41 +1684,25 @@ CREATE TABLE IF NOT EXISTS account_invitations (
     expires_at  TEXT NOT NULL,
     consumed_at TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_account_profile_default
-    ON account_profile_grants(account_id) WHERE is_default = 1;
 
-CREATE TABLE IF NOT EXISTS account_feature_grants (
+-- table account_feature_grants
+CREATE TABLE account_feature_grants (
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     feature_id TEXT NOT NULL CHECK (feature_id IN ('read','watch','listen','view')),
     granted_at TEXT NOT NULL,
     PRIMARY KEY (account_id, feature_id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
-END;
-CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
-END;
-CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
-END;
-CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
-END;
-CREATE UNIQUE INDEX IF NOT EXISTS ux_view_sources_personal_key ON view_sources(personal_space_id, source_key)
-    WHERE scope_kind = 'personal' AND source_key IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS ux_view_sources_shared_key ON view_sources(library_id, source_key)
-    WHERE scope_kind = 'shared' AND source_key IS NOT NULL;
-
-CREATE TABLE IF NOT EXISTS account_library_grants (
+-- table account_library_grants
+CREATE TABLE account_library_grants (
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     library_id BLOB NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (account_id, library_id)
 );
 
-CREATE TABLE IF NOT EXISTS grant_admin_protections (
+-- table grant_admin_protections
+CREATE TABLE grant_admin_protections (
     account_id BLOB NOT NULL,
     profile_id BLOB NOT NULL,
     is_enabled INTEGER NOT NULL DEFAULT 0 CHECK (is_enabled IN (0, 1)),
@@ -1835,7 +1721,8 @@ CREATE TABLE IF NOT EXISTS grant_admin_protections (
         OR (is_enabled = 1 AND pin_hash IS NOT NULL AND hash_scheme IS NOT NULL))
 );
 
-CREATE TABLE IF NOT EXISTS account_external_logins (
+-- table account_external_logins
+CREATE TABLE account_external_logins (
     id            BLOB NOT NULL PRIMARY KEY,
     account_id    BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     provider      TEXT NOT NULL,
@@ -1848,14 +1735,8 @@ CREATE TABLE IF NOT EXISTS account_external_logins (
     UNIQUE(provider, issuer, subject)
 );
 
--- Versioned first-party identity and access storage. Human credentials are
--- salted, work-factored payloads produced by ASP.NET Core PasswordHasher.
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    migration_id TEXT NOT NULL PRIMARY KEY,
-    applied_at   TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS account_credentials (
+-- table account_credentials
+CREATE TABLE account_credentials (
     id                   BLOB NOT NULL PRIMARY KEY,
     account_id           BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     credential_kind      TEXT NOT NULL CHECK (credential_kind = 'Password'),
@@ -1871,7 +1752,8 @@ CREATE TABLE IF NOT EXISTS account_credentials (
     UNIQUE(account_id, credential_kind)
 );
 
-CREATE TABLE IF NOT EXISTS profile_credentials (
+-- table profile_credentials
+CREATE TABLE profile_credentials (
     id                   BLOB NOT NULL PRIMARY KEY,
     profile_id           BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     credential_kind      TEXT NOT NULL CHECK (credential_kind = 'ProfilePin'),
@@ -1887,7 +1769,8 @@ CREATE TABLE IF NOT EXISTS profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
-CREATE TABLE IF NOT EXISTS auth_sessions (
+-- table auth_sessions
+CREATE TABLE auth_sessions (
     id                    BLOB NOT NULL PRIMARY KEY,
     account_id            BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     active_profile_id     BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -1907,11 +1790,8 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     profile_pending       INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_sessions_account_active
-    ON auth_sessions(account_id, revoked_at, expires_at);
-
--- "Always open as this person on this device": one row per signed-in account and browser/device.
-CREATE TABLE IF NOT EXISTS device_profile_preferences (
+-- table device_profile_preferences
+CREATE TABLE device_profile_preferences (
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     device_id  TEXT NOT NULL,
     profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -1919,7 +1799,8 @@ CREATE TABLE IF NOT EXISTS device_profile_preferences (
     PRIMARY KEY (account_id, device_id)
 );
 
-CREATE TABLE IF NOT EXISTS grant_admin_unlocks (
+-- table grant_admin_unlocks
+CREATE TABLE grant_admin_unlocks (
     session_id BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
     account_id BLOB NOT NULL,
     profile_id BLOB NOT NULL,
@@ -1930,7 +1811,8 @@ CREATE TABLE IF NOT EXISTS grant_admin_unlocks (
     FOREIGN KEY (account_id, profile_id) REFERENCES account_profile_grants(account_id, profile_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS applications (
+-- table applications
+CREATE TABLE applications (
     id BLOB NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -1943,7 +1825,8 @@ CREATE TABLE IF NOT EXISTS applications (
     last_used_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS application_credentials (
+-- table application_credentials
+CREATE TABLE application_credentials (
     id BLOB NOT NULL PRIMARY KEY,
     application_id BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -1955,19 +1838,23 @@ CREATE TABLE IF NOT EXISTS application_credentials (
     revoked_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS application_permission_grants (
+-- table application_permission_grants
+CREATE TABLE application_permission_grants (
     application_id BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     permission_id TEXT NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (application_id, permission_id)
 );
-CREATE TABLE IF NOT EXISTS application_client_bindings (
+
+-- table application_client_bindings
+CREATE TABLE application_client_bindings (
     application_id BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     client_id TEXT NOT NULL PRIMARY KEY COLLATE BINARY,
     created_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS account_passkeys (
+-- table account_passkeys
+CREATE TABLE account_passkeys (
     credential_id BLOB NOT NULL PRIMARY KEY,
     account_id    BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     name          TEXT NOT NULL,
@@ -1976,7 +1863,8 @@ CREATE TABLE IF NOT EXISTS account_passkeys (
     last_used_at  TEXT
 );
 
-CREATE TABLE IF NOT EXISTS password_reset_challenges (
+-- table password_reset_challenges
+CREATE TABLE password_reset_challenges (
     id         BLOB NOT NULL PRIMARY KEY,
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
@@ -1985,9 +1873,8 @@ CREATE TABLE IF NOT EXISTS password_reset_challenges (
     consumed_at TEXT
 );
 
--- Optional two-step sign-in with a free authenticator app (TOTP, RFC 6238). A row with enabled_at NULL is a setup
--- the person has not confirmed yet. last_used_step blocks reusing a code.
-CREATE TABLE IF NOT EXISTS account_two_step (
+-- table account_two_step
+CREATE TABLE account_two_step (
     account_id      BLOB NOT NULL PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
     secret_protected TEXT NOT NULL,
     created_at      TEXT NOT NULL,
@@ -1995,8 +1882,8 @@ CREATE TABLE IF NOT EXISTS account_two_step (
     last_used_step  INTEGER NOT NULL DEFAULT 0
 );
 
--- The half-finished sign-in between a correct password and the authenticator code.
-CREATE TABLE IF NOT EXISTS two_step_challenges (
+-- table two_step_challenges
+CREATE TABLE two_step_challenges (
     id              BLOB NOT NULL PRIMARY KEY,
     account_id      BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     token_hash      TEXT NOT NULL UNIQUE,
@@ -2011,9 +1898,8 @@ CREATE TABLE IF NOT EXISTS two_step_challenges (
     consumed_at     TEXT
 );
 
--- Server-issued identities for Dashboard, television, mobile and future
--- clients. Request fields and browser storage are never identity authorities.
-CREATE TABLE IF NOT EXISTS client_devices (
+-- table client_devices
+CREATE TABLE client_devices (
     id                BLOB NOT NULL PRIMARY KEY,
     application_id    BLOB NOT NULL REFERENCES applications(id) ON DELETE RESTRICT,
     account_id        BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -2031,12 +1917,9 @@ CREATE TABLE IF NOT EXISTS client_devices (
     revoked_reason    TEXT,
     backup_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_client_devices_profile_active
-    ON client_devices(profile_id, revoked_at, last_seen_at DESC);
 
--- What a paired app reports it has stored for offline use, one row per device and offline variant.
--- A row follows its variant, asset, device and profile: removing any of them (including an expired variant) removes it.
-CREATE TABLE IF NOT EXISTS device_downloads (
+-- table device_downloads
+CREATE TABLE device_downloads (
     device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     asset_id     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2046,14 +1929,9 @@ CREATE TABLE IF NOT EXISTS device_downloads (
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (device_id, variant_id)
 );
-CREATE INDEX IF NOT EXISTS idx_device_downloads_device_profile
-    ON device_downloads(device_id, profile_id, stored_at);
-CREATE INDEX IF NOT EXISTS idx_device_downloads_variant
-    ON device_downloads(variant_id);
 
--- Photos a paired app reports as kept on the device (kind "photo"), one row per device, person and View item.
--- A row follows its item, device and profile: removing any of them removes it. Photos never expire.
-CREATE TABLE IF NOT EXISTS device_photo_downloads (
+-- table device_photo_downloads
+CREATE TABLE device_photo_downloads (
     device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     item_id      BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
@@ -2062,12 +1940,9 @@ CREATE TABLE IF NOT EXISTS device_photo_downloads (
     updated_at   TEXT NOT NULL,
     PRIMARY KEY (device_id, profile_id, item_id)
 );
-CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_device_profile
-    ON device_photo_downloads(device_id, profile_id, stored_at);
-CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_item
-    ON device_photo_downloads(item_id);
 
-CREATE TABLE IF NOT EXISTS device_pairing_requests (
+-- table device_pairing_requests
+CREATE TABLE device_pairing_requests (
     id                     BLOB NOT NULL PRIMARY KEY,
     application_id         BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     device_code_hash       TEXT NOT NULL UNIQUE,
@@ -2092,10 +1967,9 @@ CREATE TABLE IF NOT EXISTS device_pairing_requests (
     decided_at             TEXT,
     consumed_at            TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_device_pairing_expiry
-    ON device_pairing_requests(status, expires_at);
 
-CREATE TABLE IF NOT EXISTS client_tokens (
+-- table client_tokens
+CREATE TABLE client_tokens (
     id              BLOB NOT NULL PRIMARY KEY,
     application_id  BLOB NOT NULL REFERENCES applications(id) ON DELETE RESTRICT,
     account_id      BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -2115,12 +1989,9 @@ CREATE TABLE IF NOT EXISTS client_tokens (
     revoked_at      TEXT,
     revoked_reason  TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_client_tokens_family_active
-    ON client_tokens(token_family_id, token_kind, revoked_at, expires_at);
-CREATE INDEX IF NOT EXISTS idx_client_tokens_device_active
-    ON client_tokens(device_id, revoked_at, expires_at);
 
-CREATE TABLE IF NOT EXISTS password_recovery_codes (
+-- table password_recovery_codes
+CREATE TABLE password_recovery_codes (
     id          BLOB NOT NULL PRIMARY KEY,
     account_id  BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     code_hash   TEXT NOT NULL,
@@ -2130,7 +2001,8 @@ CREATE TABLE IF NOT EXISTS password_recovery_codes (
     UNIQUE(account_id, code_hash)
 );
 
-CREATE TABLE IF NOT EXISTS service_credentials (
+-- table service_credentials
+CREATE TABLE service_credentials (
     id           BLOB NOT NULL PRIMARY KEY,
     purpose      TEXT NOT NULL,
     key_id       TEXT NOT NULL UNIQUE,
@@ -2140,11 +2012,8 @@ CREATE TABLE IF NOT EXISTS service_credentials (
     revoked_at   TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_service_credentials_active_purpose
-    ON service_credentials(purpose)
-    WHERE revoked_at IS NULL;
-
-CREATE TABLE IF NOT EXISTS identity_audit_events (
+-- table identity_audit_events
+CREATE TABLE identity_audit_events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id  BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     profile_id  BLOB REFERENCES profiles(id) ON DELETE SET NULL,
@@ -2155,10 +2024,8 @@ CREATE TABLE IF NOT EXISTS identity_audit_events (
     occurred_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_identity_audit_profile_occurred
-    ON identity_audit_events(profile_id, occurred_at DESC);
-
-CREATE TABLE IF NOT EXISTS authorization_audit_events (
+-- table authorization_audit_events
+CREATE TABLE authorization_audit_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_type TEXT NOT NULL,
     occurred_at TEXT NOT NULL,
@@ -2169,14 +2036,9 @@ CREATE TABLE IF NOT EXISTS authorization_audit_events (
     subject_id TEXT NOT NULL,
     changes_json TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_authorization_audit_subject
-    ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
 
--- Administrator-owned View capability policy. Viewing and submitting to the household's Shared Library are
--- separate permissions; both default on (submitting stays off for a child profile). Reviewing contributions
--- belongs to household administrators, so there is no per-profile review flag. documents_enabled controls the
--- Documents page and the document files behind it; a profile with no saved row gets it off when it is a child profile.
-CREATE TABLE IF NOT EXISTS profile_view_policies (
+-- table profile_view_policies
+CREATE TABLE profile_view_policies (
     profile_id              BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     view_enabled            INTEGER NOT NULL DEFAULT 1 CHECK (view_enabled IN (0, 1)),
     access_shared_library   INTEGER NOT NULL DEFAULT 1 CHECK (access_shared_library IN (0, 1)),
@@ -2186,9 +2048,8 @@ CREATE TABLE IF NOT EXISTS profile_view_policies (
     updated_at              TEXT NOT NULL
 );
 
--- User-owned presentation preferences travel with the profile across devices.
--- Scope authorization and revoked-scope fallback are resolved above storage.
-CREATE TABLE IF NOT EXISTS profile_view_preferences (
+-- table profile_view_preferences
+CREATE TABLE profile_view_preferences (
     profile_id              BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     last_scope_kind         TEXT CHECK (last_scope_kind IS NULL OR last_scope_kind IN ('shared', 'mine', 'profile')),
     last_scope_profile_id   BLOB REFERENCES profiles(id) ON DELETE SET NULL,
@@ -2203,7 +2064,8 @@ CREATE TABLE IF NOT EXISTS profile_view_preferences (
            AND last_scope_profile_id IS NULL)
 );
 
-CREATE TABLE IF NOT EXISTS provider_config (
+-- table provider_config
+CREATE TABLE provider_config (
     provider_id BLOB    NOT NULL REFERENCES metadata_providers(id) ON DELETE CASCADE,
     key         TEXT    NOT NULL,
     value       TEXT    NOT NULL,
@@ -2211,7 +2073,8 @@ CREATE TABLE IF NOT EXISTS provider_config (
     PRIMARY KEY (provider_id, key)
 );
 
-CREATE TABLE IF NOT EXISTS provider_health (
+-- table provider_health
+CREATE TABLE provider_health (
     provider_id          TEXT NOT NULL PRIMARY KEY,
     status               TEXT NOT NULL DEFAULT 'Healthy',
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
@@ -2223,8 +2086,8 @@ CREATE TABLE IF NOT EXISTS provider_health (
     down_since           TEXT
 );
 
--- Last read-only connection result for the configured provider. Never stores a key.
-CREATE TABLE IF NOT EXISTS provider_connection_checks (
+-- table provider_connection_checks
+CREATE TABLE provider_connection_checks (
     provider_name    TEXT NOT NULL PRIMARY KEY,
     status           TEXT NOT NULL,
     message          TEXT NOT NULL,
@@ -2232,7 +2095,8 @@ CREATE TABLE IF NOT EXISTS provider_connection_checks (
     response_time_ms INTEGER
 );
 
-CREATE TABLE IF NOT EXISTS provider_response_cache (
+-- table provider_response_cache
+CREATE TABLE provider_response_cache (
     cache_key     TEXT NOT NULL PRIMARY KEY,
     provider_id   TEXT NOT NULL,
     query_hash    TEXT NOT NULL,
@@ -2242,7 +2106,8 @@ CREATE TABLE IF NOT EXISTS provider_response_cache (
     expires_at    TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS qid_labels (
+-- table qid_labels
+CREATE TABLE qid_labels (
     qid         TEXT NOT NULL PRIMARY KEY,
     label       TEXT NOT NULL,
     description TEXT,
@@ -2251,7 +2116,8 @@ CREATE TABLE IF NOT EXISTS qid_labels (
     updated_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS reader_bookmarks (
+-- table reader_bookmarks
+CREATE TABLE reader_bookmarks (
     id             BLOB NOT NULL PRIMARY KEY,
     user_id        TEXT NOT NULL,
     asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2261,7 +2127,8 @@ CREATE TABLE IF NOT EXISTS reader_bookmarks (
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS reader_highlights (
+-- table reader_highlights
+CREATE TABLE reader_highlights (
     id             BLOB NOT NULL PRIMARY KEY,
     user_id        TEXT NOT NULL,
     asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2275,7 +2142,8 @@ CREATE TABLE IF NOT EXISTS reader_highlights (
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS reader_statistics (
+-- table reader_statistics
+CREATE TABLE reader_statistics (
     id                      BLOB NOT NULL PRIMARY KEY,
     user_id                 TEXT NOT NULL,
     asset_id                BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2288,7 +2156,8 @@ CREATE TABLE IF NOT EXISTS reader_statistics (
     UNIQUE (user_id, asset_id)
 );
 
-CREATE TABLE IF NOT EXISTS resolver_cache (
+-- table resolver_cache
+CREATE TABLE resolver_cache (
     cache_key        TEXT NOT NULL PRIMARY KEY,
     normalized_title TEXT NOT NULL,
     media_type       TEXT NOT NULL,
@@ -2299,7 +2168,8 @@ CREATE TABLE IF NOT EXISTS resolver_cache (
     expires_at       TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS retail_match_candidates (
+-- table retail_match_candidates
+CREATE TABLE retail_match_candidates (
     id                    BLOB PRIMARY KEY,
     job_id                BLOB NOT NULL REFERENCES identity_jobs(id) ON DELETE CASCADE,
     provider_id           BLOB NOT NULL,
@@ -2318,7 +2188,8 @@ CREATE TABLE IF NOT EXISTS retail_match_candidates (
     created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS review_queue (
+-- table review_queue
+CREATE TABLE review_queue (
     id               BLOB NOT NULL PRIMARY KEY,
     entity_id        BLOB NOT NULL,
     entity_type      TEXT NOT NULL,
@@ -2334,7 +2205,8 @@ CREATE TABLE IF NOT EXISTS review_queue (
     resolved_by      TEXT
 , source_operation_id BLOB, source_capability_id TEXT, source_capability_sub_key TEXT, review_ready_at TEXT, automation_completed_at TEXT);
 
-CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+-- table search_index
+CREATE VIRTUAL TABLE search_index USING fts5(
     entity_id UNINDEXED,
     title,
     original_title,
@@ -2344,13 +2216,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
     tokenize = 'trigram'
 );
 
-CREATE TABLE IF NOT EXISTS search_results_cache (
+-- table search_results_cache
+CREATE TABLE search_results_cache (
     entity_id    BLOB NOT NULL PRIMARY KEY,
     results_json TEXT NOT NULL,
     searched_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS series_manifest_hydrations (
+-- table series_manifest_hydrations
+CREATE TABLE series_manifest_hydrations (
     series_qid            TEXT PRIMARY KEY,
     collection_id         BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     series_label          TEXT,
@@ -2365,7 +2239,8 @@ CREATE TABLE IF NOT EXISTS series_manifest_hydrations (
     updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS series_manifest_items (
+-- table series_manifest_items
+CREATE TABLE series_manifest_items (
     id                          BLOB PRIMARY KEY,
     collection_id               BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     series_qid                  TEXT NOT NULL,
@@ -2401,7 +2276,8 @@ CREATE TABLE IF NOT EXISTS series_manifest_items (
     UNIQUE(collection_id, item_qid)
 );
 
-CREATE TABLE IF NOT EXISTS series_members (
+-- table series_members
+CREATE TABLE series_members (
     series_qid TEXT NOT NULL,
     work_qid   TEXT NOT NULL,
     work_label TEXT,
@@ -2411,59 +2287,14 @@ CREATE TABLE IF NOT EXISTS series_members (
     PRIMARY KEY (series_qid, work_qid)
 );
 
-CREATE TABLE IF NOT EXISTS storage_metadata (
+-- table storage_metadata
+CREATE TABLE storage_metadata (
     key   TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
 );
 
-INSERT OR REPLACE INTO storage_metadata (key, value)
-VALUES ('storage_epoch', 'guid-blob-v10-graph-timeline-lore');
-
--- Seed the built-in native-client Application once for a new access epoch. The
--- marker preserves later administrative disable, delete, permission, and binding edits.
-INSERT OR IGNORE INTO applications
-    (id,name,description,application_type,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-SELECT X'00000000000000000000000000000004','Tuvima native clients',
-    'Built-in delegated identity for paired native clients.','UserClient',1,0,1,
-    strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now')
-WHERE NOT EXISTS (SELECT 1 FROM storage_metadata WHERE key='access_native_seeded');
-
-WITH pending AS (
-    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM storage_metadata WHERE key='access_native_seeded')
-), permissions(permission_id) AS (VALUES
-    ('library.read'),('artwork.read'),('progress.read'),('progress.write'),
-    ('queue.read'),('queue.write'),('playback.read'),('playback.write'),
-    ('downloads.read'),('downloads.write'))
-INSERT OR IGNORE INTO application_permission_grants(application_id,permission_id,granted_at)
-SELECT X'00000000000000000000000000000004',permission_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
-FROM pending CROSS JOIN permissions;
-
-WITH pending AS (
-    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM storage_metadata WHERE key='access_native_seeded')
-), clients(client_id) AS (VALUES
-    ('tuvima-tv'),('tuvima-mobile'),('tuvima-automotive'),('tuvima-web'))
-INSERT OR IGNORE INTO application_client_bindings(application_id,client_id,created_at)
-SELECT X'00000000000000000000000000000004',client_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
-FROM pending CROSS JOIN clients;
-
-INSERT OR IGNORE INTO storage_metadata(key,value) VALUES ('access_native_seeded','1');
-
--- Photos and personal videos: let the built-in native-client Application hold the three view scopes once, so a paired
--- app can be given them. Holding them is not consent: a device token carries them only when the person ticks the
--- photo consent on the pairing screen. Like the seed above, the marker preserves later administrative edits, and an
--- Application an administrator deleted is not recreated.
-WITH pending AS (
-    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM storage_metadata WHERE key='access_native_photos_seeded')
-      AND EXISTS (SELECT 1 FROM applications WHERE id=X'00000000000000000000000000000004')
-), permissions(permission_id) AS (VALUES
-    ('view.personal.read'),('view.originals.read'),('view.galleries.read'))
-INSERT OR IGNORE INTO application_permission_grants(application_id,permission_id,granted_at)
-SELECT X'00000000000000000000000000000004',permission_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
-FROM pending CROSS JOIN permissions;
-
-INSERT OR IGNORE INTO storage_metadata(key,value) VALUES ('access_native_photos_seeded','1');
-
-CREATE TABLE IF NOT EXISTS system_activity (
+-- table system_activity
+CREATE TABLE system_activity (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     occurred_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     action_type  TEXT    NOT NULL,
@@ -2476,7 +2307,8 @@ CREATE TABLE IF NOT EXISTS system_activity (
     ingestion_run_id BLOB
 );
 
-CREATE TABLE IF NOT EXISTS text_tracks (
+-- table text_tracks
+CREATE TABLE text_tracks (
     id                  BLOB PRIMARY KEY,
     asset_id            BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
     kind                TEXT NOT NULL CHECK(kind IN ('Lyrics','Subtitles')),
@@ -2498,7 +2330,8 @@ CREATE TABLE IF NOT EXISTS text_tracks (
     updated_at          TEXT
 );
 
-CREATE TABLE IF NOT EXISTS transaction_log (
+-- table transaction_log
+CREATE TABLE transaction_log (
     id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     event_type  TEXT    NOT NULL,
     entity_type TEXT    NOT NULL,
@@ -2506,19 +2339,22 @@ CREATE TABLE IF NOT EXISTS transaction_log (
     timestamp   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS ui_settings_cache (
+-- table ui_settings_cache
+CREATE TABLE ui_settings_cache (
     scope       TEXT NOT NULL PRIMARY KEY,
     settings    TEXT NOT NULL,
     cached_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
-CREATE TABLE IF NOT EXISTS user_playback_settings (
+-- table user_playback_settings
+CREATE TABLE user_playback_settings (
     profile_id    BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     settings_json TEXT NOT NULL,
     updated_at    TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS profile_work_preferences (
+-- table profile_work_preferences
+CREATE TABLE profile_work_preferences (
     profile_id                 BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     work_id                    BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
     local_tags_json            TEXT,
@@ -2527,10 +2363,8 @@ CREATE TABLE IF NOT EXISTS profile_work_preferences (
     PRIMARY KEY (profile_id, work_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_profile_work_preferences_work
-    ON profile_work_preferences(work_id, profile_id);
-
-CREATE TABLE IF NOT EXISTS profile_person_preferences (
+-- table profile_person_preferences
+CREATE TABLE profile_person_preferences (
     profile_id       BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     person_id        BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     local_tags_json  TEXT,
@@ -2539,12 +2373,8 @@ CREATE TABLE IF NOT EXISTS profile_person_preferences (
     PRIMARY KEY (profile_id, person_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_profile_person_preferences_person
-    ON profile_person_preferences(person_id, profile_id);
-
--- Explicit profile-and-series overrides only. Media-level defaults remain in
--- config/ui/library-preferences.json and are inherited when no row exists.
-CREATE TABLE IF NOT EXISTS profile_sequence_preferences (
+-- table profile_sequence_preferences
+CREATE TABLE profile_sequence_preferences (
     profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     media_type    TEXT NOT NULL,
     container_key TEXT NOT NULL,
@@ -2553,12 +2383,8 @@ CREATE TABLE IF NOT EXISTS profile_sequence_preferences (
     PRIMARY KEY (profile_id, media_type, container_key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_profile_sequence_preferences_container
-    ON profile_sequence_preferences(media_type, container_key, profile_id);
-
--- Personal hub state is deliberately independent from Collections, Playlists,
--- Galleries, and playback progress. A saved container remains one reference.
-CREATE TABLE IF NOT EXISTS profile_saved_items (
+-- table profile_saved_items
+CREATE TABLE profile_saved_items (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
     entity_id    BLOB NOT NULL,
@@ -2567,9 +2393,8 @@ CREATE TABLE IF NOT EXISTS profile_saved_items (
     PRIMARY KEY (profile_id, entity_kind, entity_id)
 );
 
--- Canonical artwork model. image_cache remains the byte/download cache; these
--- tables provide one durable image identity plus any number of entity usages.
-CREATE TABLE IF NOT EXISTS artwork_assets (
+-- table artwork_assets
+CREATE TABLE artwork_assets (
     id                  BLOB NOT NULL PRIMARY KEY,
     content_hash        TEXT NOT NULL UNIQUE,
     original_path       TEXT,
@@ -2590,7 +2415,8 @@ CREATE TABLE IF NOT EXISTS artwork_assets (
     updated_at          TEXT
 );
 
-CREATE TABLE IF NOT EXISTS entity_artwork_links (
+-- table entity_artwork_links
+CREATE TABLE entity_artwork_links (
     id                  BLOB NOT NULL PRIMARY KEY,
     entity_id           BLOB NOT NULL,
     entity_type         TEXT NOT NULL,
@@ -2606,7 +2432,8 @@ CREATE TABLE IF NOT EXISTS entity_artwork_links (
     UNIQUE(entity_id, entity_type, artwork_asset_id, role, context)
 );
 
-CREATE TABLE IF NOT EXISTS artwork_asset_context (
+-- table artwork_asset_context
+CREATE TABLE artwork_asset_context (
     artwork_asset_id    BLOB NOT NULL REFERENCES artwork_assets(id) ON DELETE CASCADE,
     entity_id           BLOB NOT NULL,
     entity_type         TEXT NOT NULL,
@@ -2622,45 +2449,15 @@ CREATE TABLE IF NOT EXISTS artwork_asset_context (
     PRIMARY KEY(artwork_asset_id, entity_id, entity_type, role)
 );
 
-CREATE INDEX IF NOT EXISTS idx_entity_artwork_links_entity_role
-    ON entity_artwork_links(entity_id, entity_type, role, is_preferred DESC, sort_order);
-CREATE INDEX IF NOT EXISTS idx_entity_artwork_links_asset
-    ON entity_artwork_links(artwork_asset_id);
-CREATE INDEX IF NOT EXISTS idx_artwork_asset_context_search
-    ON artwork_asset_context(search_text COLLATE NOCASE);
-CREATE INDEX IF NOT EXISTS idx_artwork_asset_context_facets
-    ON artwork_asset_context(entity_type, media_type, year, role, provider, entity_id);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS artwork_asset_search USING fts5(
+-- table artwork_asset_search
+CREATE VIRTUAL TABLE artwork_asset_search USING fts5(
     artwork_asset_id UNINDEXED,
     search_text,
     tokenize = 'trigram'
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_artwork_asset_context_search_insert
-AFTER INSERT ON artwork_asset_context BEGIN
-    INSERT INTO artwork_asset_search(artwork_asset_id, search_text)
-    VALUES (new.artwork_asset_id, new.search_text);
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_artwork_asset_context_search_update
-AFTER UPDATE OF search_text, artwork_asset_id ON artwork_asset_context BEGIN
-    DELETE FROM artwork_asset_search
-    WHERE artwork_asset_id = old.artwork_asset_id AND search_text = old.search_text;
-    INSERT INTO artwork_asset_search(artwork_asset_id, search_text)
-    VALUES (new.artwork_asset_id, new.search_text);
-END;
-
-CREATE TRIGGER IF NOT EXISTS trg_artwork_asset_context_search_delete
-AFTER DELETE ON artwork_asset_context BEGIN
-    DELETE FROM artwork_asset_search
-    WHERE artwork_asset_id = old.artwork_asset_id AND search_text = old.search_text;
-END;
-
-CREATE INDEX IF NOT EXISTS idx_profile_saved_items_recent
-    ON profile_saved_items(profile_id, saved_at DESC);
-
-CREATE TABLE IF NOT EXISTS profile_reactions (
+-- table profile_reactions
+CREATE TABLE profile_reactions (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     entity_kind  TEXT NOT NULL CHECK(entity_kind IN ('Movie','TvShow','Book','Comic','Audiobook','Album','Song','Collection','Playlist')),
     entity_id    BLOB NOT NULL,
@@ -2669,10 +2466,8 @@ CREATE TABLE IF NOT EXISTS profile_reactions (
     PRIMARY KEY (profile_id, entity_kind, entity_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_profile_reactions_recent
-    ON profile_reactions(profile_id, reaction, updated_at DESC);
-
-CREATE TABLE IF NOT EXISTS user_states (
+-- table user_states
+CREATE TABLE user_states (
     revision INTEGER NOT NULL DEFAULT 0,
     user_id             BLOB NOT NULL,
     asset_id            BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
@@ -2683,14 +2478,16 @@ CREATE TABLE IF NOT EXISTS user_states (
     PRIMARY KEY (user_id, asset_id)
 );
 
-CREATE TABLE IF NOT EXISTS user_taste_profiles (
+-- table user_taste_profiles
+CREATE TABLE user_taste_profiles (
     user_id       BLOB NOT NULL PRIMARY KEY,
     profile_json  TEXT NOT NULL DEFAULT '{}',
     summary       TEXT,
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS wikidata_bridge_candidates (
+-- table wikidata_bridge_candidates
+CREATE TABLE wikidata_bridge_candidates (
     id                    BLOB PRIMARY KEY,
     job_id                BLOB NOT NULL REFERENCES identity_jobs(id) ON DELETE CASCADE,
     qid                   TEXT NOT NULL,
@@ -2705,7 +2502,8 @@ CREATE TABLE IF NOT EXISTS wikidata_bridge_candidates (
     created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS works (
+-- table works
+CREATE TABLE works (
     id                   BLOB    NOT NULL PRIMARY KEY,  -- UUID
     collection_id               BLOB    REFERENCES collections(id) ON DELETE SET NULL,
     media_type           TEXT    NOT NULL,              -- e.g. 'Movies', 'Books'
@@ -2732,473 +2530,1253 @@ CREATE TABLE IF NOT EXISTS works (
     ownership            TEXT NOT NULL DEFAULT 'Owned'
 , universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT);
 
+-- table tv_episode_credits
+CREATE TABLE tv_episode_credits (
+    work_id BLOB PRIMARY KEY REFERENCES works(id) ON DELETE CASCADE,
+    show_work_id BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+    provider_episode_id TEXT NOT NULL,
+    season INTEGER NOT NULL,
+    episode INTEGER NOT NULL,
+    credits_json TEXT NOT NULL
+);
 
-CREATE INDEX IF NOT EXISTS idx_bridge_ids_entity
+-- table personal_status_commands
+CREATE TABLE personal_status_commands (
+    id BLOB PRIMARY KEY,
+    profile_id BLOB NOT NULL,
+    target_id BLOB NOT NULL,
+    media_type TEXT NOT NULL,
+    command TEXT NOT NULL,
+    changed_at TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    undone INTEGER NOT NULL DEFAULT 0
+);
+
+-- table application_events
+CREATE TABLE application_events (
+    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id BLOB NOT NULL UNIQUE,
+    event_type TEXT NOT NULL,
+    version INTEGER NOT NULL CHECK(version > 0),
+    occurred_at TEXT NOT NULL,
+    server_id TEXT NOT NULL,
+    subject_type TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    library_id BLOB,
+    profile_id BLOB,
+    feature_id TEXT CHECK(feature_id IS NULL OR feature_id IN ('read', 'watch', 'listen')),
+    payload_json TEXT NOT NULL CHECK(length(CAST(payload_json AS BLOB)) <= 65536)
+);
+
+-- table application_webhooks
+CREATE TABLE application_webhooks (
+    id BLOB PRIMARY KEY,
+    application_id BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    event_types_json TEXT NOT NULL,
+    allow_local_network INTEGER NOT NULL DEFAULT 0,
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    secret_ciphertext TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    last_event_sequence INTEGER NOT NULL DEFAULT 0,
+    last_status TEXT NOT NULL DEFAULT 'Waiting for events',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_attempt_at TEXT,
+    last_success_at TEXT
+);
+
+-- table application_webhook_deliveries
+CREATE TABLE application_webhook_deliveries (
+    id BLOB PRIMARY KEY,
+    webhook_id BLOB NOT NULL REFERENCES application_webhooks(id) ON DELETE CASCADE,
+    webhook_version INTEGER NOT NULL,
+    event_id BLOB NOT NULL,
+    event_sequence INTEGER NOT NULL,
+    event_json TEXT NOT NULL CHECK(length(CAST(event_json AS BLOB)) <= 70000),
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(webhook_id,event_id)
+);
+
+-- table playback_telemetry_sessions
+CREATE TABLE playback_telemetry_sessions (
+    id BLOB NOT NULL PRIMARY KEY,
+    player_session_id BLOB NOT NULL,
+    authority_session_id BLOB,
+    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    application_id BLOB REFERENCES applications(id) ON DELETE SET NULL,
+    device_id BLOB REFERENCES client_devices(id) ON DELETE SET NULL,
+    asset_id BLOB REFERENCES media_assets(id) ON DELETE SET NULL,
+    library_id BLOB NOT NULL,
+    media_type TEXT NOT NULL,
+    feature_id TEXT NOT NULL CHECK(feature_id IN('read','watch','listen')),
+    state TEXT NOT NULL CHECK(state IN('playing','paused','stopped','completed')),
+    started_at TEXT NOT NULL,
+    last_observed_at TEXT NOT NULL,
+    ended_at TEXT,
+    started_position_seconds REAL NOT NULL CHECK(started_position_seconds >= 0),
+    last_position_seconds REAL NOT NULL CHECK(last_position_seconds >= 0),
+    duration_seconds REAL CHECK(duration_seconds IS NULL OR duration_seconds >= 0),
+    played_duration_seconds REAL NOT NULL DEFAULT 0 CHECK(played_duration_seconds >= 0),
+    last_sequence INTEGER NOT NULL DEFAULT -1 CHECK(last_sequence >= -1),
+    completion_reason TEXT CHECK(completion_reason IS NULL OR completion_reason IN('stopped','completed','replaced','takeover','stale','error')),
+    delivery_mode TEXT CHECK(delivery_mode IS NULL OR delivery_mode IN('direct-play','remux','transcode','reader','offline','unknown')),
+    container TEXT,
+    video_codec TEXT,
+    audio_codec TEXT,
+    width INTEGER CHECK(width IS NULL OR width > 0),
+    height INTEGER CHECK(height IS NULL OR height > 0),
+    bitrate_kbps INTEGER CHECK(bitrate_kbps IS NULL OR bitrate_kbps > 0),
+    connection_type TEXT CHECK(connection_type IS NULL OR connection_type IN('local','remote','unknown')),
+    client_name TEXT,
+    client_version TEXT,
+    CHECK((ended_at IS NULL AND completion_reason IS NULL AND state IN('playing','paused'))
+        OR (ended_at IS NOT NULL AND completion_reason IS NOT NULL AND state IN('stopped','completed')))
+);
+
+-- table consumption_history
+CREATE TABLE consumption_history (
+    id BLOB PRIMARY KEY,
+    profile_id BLOB NOT NULL,
+    asset_id BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    session_key TEXT NOT NULL,
+    experience TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    progress_pct REAL NOT NULL,
+    UNIQUE(profile_id, asset_id, session_key)
+);
+
+-- table onboarding_workflows
+CREATE TABLE onboarding_workflows (
+    workflow_version INTEGER NOT NULL PRIMARY KEY,
+    state TEXT NOT NULL CHECK (state IN ('in_progress', 'complete')),
+    current_step TEXT NOT NULL,
+    administrator_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    revision INTEGER NOT NULL DEFAULT 0,
+    completed_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- table onboarding_steps
+CREATE TABLE onboarding_steps (
+    workflow_version INTEGER NOT NULL REFERENCES onboarding_workflows(workflow_version) ON DELETE CASCADE,
+    step_key TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('not_started', 'in_progress', 'passed', 'deferred', 'blocked')),
+    detail TEXT,
+    repair_target TEXT,
+    completed_at TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (workflow_version, step_key)
+);
+
+-- table onboarding_sessions
+CREATE TABLE onboarding_sessions (
+    id BLOB NOT NULL PRIMARY KEY,
+    workflow_version INTEGER NOT NULL REFERENCES onboarding_workflows(workflow_version) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    last_used_at TEXT NOT NULL,
+    revoked_at TEXT
+);
+
+-- table setup_codes
+CREATE TABLE setup_codes (
+    id BLOB NOT NULL PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    consumed_at TEXT,
+    invalidated_at TEXT
+);
+
+-- table onboarding_restore_operations
+CREATE TABLE onboarding_restore_operations (
+    id BLOB NOT NULL PRIMARY KEY,
+    workflow_version INTEGER NOT NULL REFERENCES onboarding_workflows(workflow_version) ON DELETE CASCADE,
+    archive_path TEXT NOT NULL,
+    original_file_name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('inspected', 'scheduled', 'applied', 'failed', 'cancelled')),
+    manifest_version TEXT NOT NULL,
+    database_epoch TEXT NOT NULL,
+    summary_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- index idx_media_asset_coverage_work
+CREATE INDEX idx_media_asset_coverage_work ON media_asset_coverage(work_id);
+
+-- index ix_media_editor_commits_asset
+CREATE INDEX ix_media_editor_commits_asset ON media_editor_commits(asset_id, committed_at);
+
+-- index ix_media_file_write_intents_dispatch
+CREATE INDEX ix_media_file_write_intents_dispatch
+    ON media_file_write_intents(status, lease_expires_at, updated_at);
+
+-- index idx_media_artwork_writeback_status
+CREATE INDEX idx_media_artwork_writeback_status
+    ON media_artwork_writeback(status, updated_at);
+
+-- index idx_view_shared_contributions_submitter
+CREATE INDEX idx_view_shared_contributions_submitter
+    ON view_shared_contributions(submitted_by_profile_id, submitted_at DESC);
+
+-- index idx_view_shared_contributions_review
+CREATE INDEX idx_view_shared_contributions_review
+    ON view_shared_contributions(status, submitted_at);
+
+-- index idx_view_shared_contribution_items_batch
+CREATE INDEX idx_view_shared_contribution_items_batch
+    ON view_shared_contribution_items(contribution_id, position);
+
+-- index idx_view_shared_contribution_events_batch
+CREATE INDEX idx_view_shared_contribution_events_batch
+    ON view_shared_contribution_events(contribution_id, occurred_at, id);
+
+-- index ix_view_personal_spaces_library
+CREATE INDEX ix_view_personal_spaces_library
+    ON view_personal_spaces(library_id, owner_profile_id);
+
+-- index ix_view_sources_space_activity
+CREATE INDEX ix_view_sources_space_activity
+    ON view_sources(personal_space_id, last_activity_at DESC, id);
+
+-- index ix_view_devices_space_backup
+CREATE INDEX ix_view_devices_space_backup
+    ON view_devices(personal_space_id, last_backup_at DESC, id);
+
+-- index ix_local_items_owner_timeline
+CREATE INDEX ix_local_items_owner_timeline
+    ON local_items(owner_profile_id, archived_at, trashed_at,
+                   COALESCE(captured_at, created_at) DESC, id DESC);
+
+-- index ix_local_items_library_timeline
+CREATE INDEX ix_local_items_library_timeline
+    ON local_items(library_id, archived_at, trashed_at,
+                   COALESCE(captured_at, created_at) DESC, id DESC);
+
+-- index ix_local_items_space_timeline
+CREATE INDEX ix_local_items_space_timeline
+    ON local_items(personal_space_id, archived_at, trashed_at,
+                   COALESCE(captured_at, created_at) DESC, id DESC);
+
+-- index ix_local_items_library_kind
+CREATE INDEX ix_local_items_library_kind
+    ON local_items(library_id, media_kind, hidden, archived_at, trashed_at);
+
+-- index ix_local_items_library_favorite_timeline
+CREATE INDEX ix_local_items_library_favorite_timeline
+    ON local_items(library_id, favorite, archived_at, trashed_at,
+                   COALESCE(captured_at, created_at) DESC, id DESC);
+
+-- index ix_local_item_metadata_location
+CREATE INDEX ix_local_item_metadata_location
+    ON local_item_metadata(location_name, latitude, longitude, item_id)
+    WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+
+-- index ix_local_items_library_atlas_timeline
+CREATE INDEX ix_local_items_library_atlas_timeline
+    ON local_items(library_id, hidden, archived_at, trashed_at, media_kind,
+                   favorite, COALESCE(captured_at, created_at), id);
+
+-- index ix_local_items_active_discovery
+CREATE INDEX ix_local_items_active_discovery
+    ON local_items(library_id, hidden, archived_at, trashed_at, id);
+
+-- index ix_local_files_hash
+CREATE INDEX ix_local_files_hash
+    ON local_files(content_hash COLLATE NOCASE);
+
+-- index ix_local_file_sources_file
+CREATE INDEX ix_local_file_sources_file
+    ON local_file_sources(file_id, indexed_at DESC);
+
+-- index ix_local_file_sources_library
+CREATE INDEX ix_local_file_sources_library
+    ON local_file_sources(library_id, file_path COLLATE NOCASE);
+
+-- index ix_local_file_sources_source
+CREATE INDEX ix_local_file_sources_source
+    ON local_file_sources(source_id, indexed_at DESC, id);
+
+-- index ix_local_file_sources_device
+CREATE INDEX ix_local_file_sources_device
+    ON local_file_sources(device_id, indexed_at DESC, id);
+
+-- index ix_local_item_files_item
+CREATE INDEX ix_local_item_files_item
+    ON local_item_files(item_id, role, position);
+
+-- index ix_local_item_files_file
+CREATE INDEX ix_local_item_files_file
+    ON local_item_files(file_id);
+
+-- index ux_local_item_single_primary
+CREATE UNIQUE INDEX ux_local_item_single_primary
+    ON local_item_files(item_id)
+    WHERE role = 'primary';
+
+-- index ix_view_galleries_owner_order
+CREATE INDEX ix_view_galleries_owner_order
+    ON view_galleries(owner_profile_id, sort_order, updated_at DESC, id);
+
+-- index ix_view_galleries_space_kind
+CREATE INDEX ix_view_galleries_space_kind
+    ON view_galleries(personal_space_id, gallery_kind, updated_at DESC, id);
+
+-- index ix_view_gallery_items_gallery
+CREATE INDEX ix_view_gallery_items_gallery
+    ON view_gallery_items(gallery_id, position, added_at, item_id);
+
+-- index ix_view_gallery_items_item
+CREATE INDEX ix_view_gallery_items_item
+    ON view_gallery_items(item_id, gallery_id);
+
+-- index ix_view_gallery_shares_profile
+CREATE INDEX ix_view_gallery_shares_profile
+    ON view_gallery_shares(profile_id, shared_at DESC, gallery_id);
+
+-- index ix_local_item_tag_links_tag
+CREATE INDEX ix_local_item_tag_links_tag
+    ON local_item_tag_links(tag_id, item_id);
+
+-- index ix_doc_item_details_correspondent
+CREATE INDEX ix_doc_item_details_correspondent
+    ON doc_item_details(correspondent_id, item_id);
+
+-- index ix_doc_item_details_type
+CREATE INDEX ix_doc_item_details_type
+    ON doc_item_details(doc_type_id, item_id);
+
+-- index ix_doc_item_details_state
+CREATE INDEX ix_doc_item_details_state
+    ON doc_item_details(filing_state, document_date);
+
+-- index ix_doc_field_values_field
+CREATE INDEX ix_doc_field_values_field
+    ON doc_field_values(field_id, item_id);
+
+-- index ux_doc_item_field_sources
+CREATE UNIQUE INDEX ux_doc_item_field_sources
+    ON doc_item_field_sources(item_id, slot, COALESCE(field_id, zeroblob(16)));
+
+-- index ix_doc_rules_owner_order
+CREATE INDEX ix_doc_rules_owner_order
+    ON doc_rules(owner_profile_id, personal_space_id, sort_order, id);
+
+-- index ix_collection_view_sources_collection
+CREATE INDEX ix_collection_view_sources_collection
+    ON collection_view_sources(collection_id, position, id);
+
+-- index ix_collection_view_sources_owner
+CREATE INDEX ix_collection_view_sources_owner
+    ON collection_view_sources(owner_profile_id, source_kind, collection_id, id);
+
+-- index ux_collection_view_sources_gallery
+CREATE UNIQUE INDEX ux_collection_view_sources_gallery
+    ON collection_view_sources(collection_id, gallery_id)
+    WHERE source_kind = 'gallery';
+
+-- index ix_local_item_annotations_item
+CREATE INDEX ix_local_item_annotations_item
+    ON local_item_annotations(item_id, annotation_kind, created_at);
+
+-- index ix_local_item_annotations_lookup
+CREATE INDEX ix_local_item_annotations_lookup
+    ON local_item_annotations(annotation_kind, annotation_value, item_id);
+
+-- index ix_local_item_annotations_people
+CREATE INDEX ix_local_item_annotations_people
+    ON local_item_annotations(annotation_kind, reviewed_at, annotation_value, item_id)
+    WHERE annotation_kind IN ('person_name', 'named_person', 'face_name',
+                              'person_identity', 'face_identity');
+
+-- index idx_folder_organise_log_source
+CREATE INDEX idx_folder_organise_log_source
+  ON folder_organise_log(source_id, at);
+
+-- index idx_folder_organise_log_old_path
+CREATE INDEX idx_folder_organise_log_old_path
+  ON folder_organise_log(old_path COLLATE NOCASE);
+
+-- index ux_accounts_normalized_email
+CREATE UNIQUE INDEX ux_accounts_normalized_email
+    ON accounts(normalized_email);
+
+-- index ux_account_profile_default
+CREATE UNIQUE INDEX ux_account_profile_default
+    ON account_profile_grants(account_id) WHERE is_default = 1;
+
+-- index ux_view_sources_personal_key
+CREATE UNIQUE INDEX ux_view_sources_personal_key ON view_sources(personal_space_id, source_key)
+    WHERE scope_kind = 'personal' AND source_key IS NOT NULL;
+
+-- index ux_view_sources_shared_key
+CREATE UNIQUE INDEX ux_view_sources_shared_key ON view_sources(library_id, source_key)
+    WHERE scope_kind = 'shared' AND source_key IS NOT NULL;
+
+-- index idx_auth_sessions_account_active
+CREATE INDEX idx_auth_sessions_account_active
+    ON auth_sessions(account_id, revoked_at, expires_at);
+
+-- index idx_client_devices_profile_active
+CREATE INDEX idx_client_devices_profile_active
+    ON client_devices(profile_id, revoked_at, last_seen_at DESC);
+
+-- index idx_device_downloads_device_profile
+CREATE INDEX idx_device_downloads_device_profile
+    ON device_downloads(device_id, profile_id, stored_at);
+
+-- index idx_device_downloads_variant
+CREATE INDEX idx_device_downloads_variant
+    ON device_downloads(variant_id);
+
+-- index idx_device_photo_downloads_device_profile
+CREATE INDEX idx_device_photo_downloads_device_profile
+    ON device_photo_downloads(device_id, profile_id, stored_at);
+
+-- index idx_device_photo_downloads_item
+CREATE INDEX idx_device_photo_downloads_item
+    ON device_photo_downloads(item_id);
+
+-- index idx_device_pairing_expiry
+CREATE INDEX idx_device_pairing_expiry
+    ON device_pairing_requests(status, expires_at);
+
+-- index idx_client_tokens_family_active
+CREATE INDEX idx_client_tokens_family_active
+    ON client_tokens(token_family_id, token_kind, revoked_at, expires_at);
+
+-- index idx_client_tokens_device_active
+CREATE INDEX idx_client_tokens_device_active
+    ON client_tokens(device_id, revoked_at, expires_at);
+
+-- index ux_service_credentials_active_purpose
+CREATE UNIQUE INDEX ux_service_credentials_active_purpose
+    ON service_credentials(purpose)
+    WHERE revoked_at IS NULL;
+
+-- index idx_identity_audit_profile_occurred
+CREATE INDEX idx_identity_audit_profile_occurred
+    ON identity_audit_events(profile_id, occurred_at DESC);
+
+-- index idx_authorization_audit_subject
+CREATE INDEX idx_authorization_audit_subject
+    ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
+
+-- index idx_profile_work_preferences_work
+CREATE INDEX idx_profile_work_preferences_work
+    ON profile_work_preferences(work_id, profile_id);
+
+-- index idx_profile_person_preferences_person
+CREATE INDEX idx_profile_person_preferences_person
+    ON profile_person_preferences(person_id, profile_id);
+
+-- index idx_profile_sequence_preferences_container
+CREATE INDEX idx_profile_sequence_preferences_container
+    ON profile_sequence_preferences(media_type, container_key, profile_id);
+
+-- index idx_entity_artwork_links_entity_role
+CREATE INDEX idx_entity_artwork_links_entity_role
+    ON entity_artwork_links(entity_id, entity_type, role, is_preferred DESC, sort_order);
+
+-- index idx_entity_artwork_links_asset
+CREATE INDEX idx_entity_artwork_links_asset
+    ON entity_artwork_links(artwork_asset_id);
+
+-- index idx_artwork_asset_context_search
+CREATE INDEX idx_artwork_asset_context_search
+    ON artwork_asset_context(search_text COLLATE NOCASE);
+
+-- index idx_artwork_asset_context_facets
+CREATE INDEX idx_artwork_asset_context_facets
+    ON artwork_asset_context(entity_type, media_type, year, role, provider, entity_id);
+
+-- index idx_profile_saved_items_recent
+CREATE INDEX idx_profile_saved_items_recent
+    ON profile_saved_items(profile_id, saved_at DESC);
+
+-- index idx_profile_reactions_recent
+CREATE INDEX idx_profile_reactions_recent
+    ON profile_reactions(profile_id, reaction, updated_at DESC);
+
+-- index idx_bridge_ids_entity
+CREATE INDEX idx_bridge_ids_entity
     ON bridge_ids(entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_bridge_ids_type_value
+-- index idx_bridge_ids_type_value
+CREATE INDEX idx_bridge_ids_type_value
     ON bridge_ids(id_type, id_value);
 
-CREATE INDEX IF NOT EXISTS idx_canonical_value_arrays_key_value_entity
+-- index idx_canonical_value_arrays_key_value_entity
+CREATE INDEX idx_canonical_value_arrays_key_value_entity
     ON canonical_value_arrays(key, value, entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_canonical_values_key_value_entity
+-- index idx_canonical_values_key_value_entity
+CREATE INDEX idx_canonical_values_key_value_entity
     ON canonical_values(key, value, entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_canonical_values_entity_key
+-- index idx_canonical_values_entity_key
+CREATE INDEX idx_canonical_values_entity_key
     ON canonical_values(entity_id, key);
 
-CREATE INDEX IF NOT EXISTS idx_character_portraits_character
+-- index idx_character_portraits_character
+CREATE INDEX idx_character_portraits_character
     ON character_portraits(fictional_entity_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_character_portraits_pair
+-- index idx_character_portraits_pair
+CREATE UNIQUE INDEX idx_character_portraits_pair
     ON character_portraits(person_id, fictional_entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_character_portraits_person
+-- index idx_character_portraits_person
+CREATE INDEX idx_character_portraits_person
     ON character_portraits(person_id);
 
-CREATE INDEX IF NOT EXISTS idx_collection_placements_collection_id
+-- index idx_collection_placements_collection_id
+CREATE INDEX idx_collection_placements_collection_id
     ON collection_placements(collection_id);
 
-CREATE INDEX IF NOT EXISTS idx_collection_items_collection_sort
+-- index idx_collection_items_collection_sort
+CREATE INDEX idx_collection_items_collection_sort
     ON collection_items(collection_id, sort_order);
 
-CREATE INDEX IF NOT EXISTS idx_collection_items_work
+-- index idx_collection_items_work
+CREATE INDEX idx_collection_items_work
     ON collection_items(work_id);
 
-CREATE INDEX IF NOT EXISTS idx_collection_placements_location
+-- index idx_collection_placements_location
+CREATE INDEX idx_collection_placements_location
     ON collection_placements(location);
 
-CREATE INDEX IF NOT EXISTS idx_collection_rel_collection_id
+-- index idx_collection_rel_collection_id
+CREATE INDEX idx_collection_rel_collection_id
     ON collection_relationships(collection_id);
 
-CREATE INDEX IF NOT EXISTS idx_collection_rel_type_qid
+-- index idx_collection_rel_type_qid
+CREATE INDEX idx_collection_rel_type_qid
     ON collection_relationships(rel_type, rel_qid);
 
-CREATE INDEX IF NOT EXISTS idx_collections_collection_type ON collections(collection_type);
+-- index idx_collections_collection_type
+CREATE INDEX idx_collections_collection_type ON collections(collection_type);
 
-CREATE INDEX IF NOT EXISTS idx_collections_resolution ON collections(resolution);
+-- index idx_collections_resolution
+CREATE INDEX idx_collections_resolution ON collections(resolution);
 
-CREATE INDEX IF NOT EXISTS idx_collections_rule_hash ON collections(rule_hash);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_collections_custom_rule_hash
+-- index idx_collections_rule_hash
+CREATE INDEX idx_collections_rule_hash ON collections(rule_hash);
+
+-- index ux_collections_custom_rule_hash
+CREATE UNIQUE INDEX ux_collections_custom_rule_hash
     ON collections(rule_hash)
     WHERE rule_hash IS NOT NULL AND is_enabled = 1 AND collection_type = 'Custom';
 
-CREATE INDEX IF NOT EXISTS idx_cva_key_qid
+-- index idx_cva_key_qid
+CREATE INDEX idx_cva_key_qid
     ON canonical_value_arrays(key, value_qid);
 
-CREATE INDEX IF NOT EXISTS idx_deferred_queue_created
+-- index idx_deferred_queue_created
+CREATE INDEX idx_deferred_queue_created
     ON deferred_enrichment_queue(created_at);
 
-CREATE INDEX IF NOT EXISTS idx_deferred_queue_failure_type
+-- index idx_deferred_queue_failure_type
+CREATE INDEX idx_deferred_queue_failure_type
     ON deferred_enrichment_queue(failure_type)
     WHERE failure_type IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_deferred_queue_status
+-- index idx_deferred_queue_status
+CREATE INDEX idx_deferred_queue_status
     ON deferred_enrichment_queue(status);
 
-CREATE INDEX IF NOT EXISTS idx_editions_work_id
+-- index idx_editions_work_id
+CREATE INDEX idx_editions_work_id
     ON editions(work_id);
 
-CREATE INDEX IF NOT EXISTS idx_encode_jobs_status_schedule
+-- index idx_encode_jobs_status_schedule
+CREATE INDEX idx_encode_jobs_status_schedule
     ON encode_jobs(status, scheduled_for, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_encode_jobs_native_owner
+-- index idx_encode_jobs_native_owner
+CREATE INDEX idx_encode_jobs_native_owner
     ON encode_jobs(owner_profile_id, owner_device_id, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_offline_variants_native_owner
+-- index idx_offline_variants_native_owner
+CREATE INDEX idx_offline_variants_native_owner
     ON offline_variants(asset_id, owner_profile_id, owner_device_id, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_entity_assets_entity
+-- index idx_entity_assets_entity
+CREATE INDEX idx_entity_assets_entity
     ON entity_assets(entity_id, entity_type);
 
-CREATE INDEX IF NOT EXISTS idx_entity_assets_type
+-- index idx_entity_assets_type
+CREATE INDEX idx_entity_assets_type
     ON entity_assets(entity_id, asset_type);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_entity_assets_entity_type_source_url
+-- index ux_entity_assets_entity_type_source_url
+CREATE UNIQUE INDEX ux_entity_assets_entity_type_source_url
     ON entity_assets(entity_id, asset_type, image_url COLLATE NOCASE)
     WHERE image_url IS NOT NULL AND length(trim(image_url)) > 0;
 
-CREATE INDEX IF NOT EXISTS idx_entity_capability_states_entity
+-- index idx_entity_capability_states_entity
+CREATE INDEX idx_entity_capability_states_entity
 ON entity_capability_states(entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_entity_capability_states_status
+-- index idx_entity_capability_states_status
+CREATE INDEX idx_entity_capability_states_status
 ON entity_capability_states(capability_id, status, next_retry_at);
 
-CREATE INDEX IF NOT EXISTS idx_entity_rel_object
+-- index idx_entity_rel_object
+CREATE INDEX idx_entity_rel_object
     ON entity_relationships (object_qid);
 
-CREATE INDEX IF NOT EXISTS idx_entity_rel_subject
+-- index idx_entity_rel_subject
+CREATE INDEX idx_entity_rel_subject
     ON entity_relationships (subject_qid);
 
-CREATE INDEX IF NOT EXISTS idx_entity_rel_context_work
+-- index idx_entity_rel_context_work
+CREATE INDEX idx_entity_rel_context_work
     ON entity_relationships (context_work_qid);
 
-CREATE INDEX IF NOT EXISTS idx_entity_rel_qualifier_lookup
+-- index idx_entity_rel_qualifier_lookup
+CREATE INDEX idx_entity_rel_qualifier_lookup
     ON entity_relationship_qualifiers (qualifier_type, value);
 
-CREATE INDEX IF NOT EXISTS idx_entity_rel_qualifier_relationship
+-- index idx_entity_rel_qualifier_relationship
+CREATE INDEX idx_entity_rel_qualifier_relationship
     ON entity_relationship_qualifiers (relationship_id);
 
-CREATE INDEX IF NOT EXISTS idx_events_entity ON entity_events(entity_id);
+-- index idx_events_entity
+CREATE INDEX idx_events_entity ON entity_events(entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_events_entity_stage ON entity_events(entity_id, stage);
+-- index idx_events_entity_stage
+CREATE INDEX idx_events_entity_stage ON entity_events(entity_id, stage);
 
-CREATE INDEX IF NOT EXISTS idx_events_entity_type ON entity_events(entity_type);
+-- index idx_events_entity_type
+CREATE INDEX idx_events_entity_type ON entity_events(entity_type);
 
-CREATE INDEX IF NOT EXISTS idx_events_occurred ON entity_events(occurred_at);
+-- index idx_events_occurred
+CREATE INDEX idx_events_occurred ON entity_events(occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_events_provider ON entity_events(provider_id);
+-- index idx_events_provider
+CREATE INDEX idx_events_provider ON entity_events(provider_id);
 
-CREATE INDEX IF NOT EXISTS idx_events_type ON entity_events(event_type);
+-- index idx_events_type
+CREATE INDEX idx_events_type ON entity_events(event_type);
 
-CREATE INDEX IF NOT EXISTS idx_fewl_work_qid
+-- index idx_fewl_work_qid
+CREATE INDEX idx_fewl_work_qid
     ON fictional_entity_work_links (work_qid);
 
-CREATE INDEX IF NOT EXISTS idx_fewl_entity_work
+-- index idx_fewl_entity_work
+CREATE INDEX idx_fewl_entity_work
     ON fictional_entity_work_links (entity_id, work_qid);
 
-CREATE INDEX IF NOT EXISTS idx_fictional_entities_type
+-- index idx_fictional_entities_type
+CREATE INDEX idx_fictional_entities_type
     ON fictional_entities (entity_sub_type);
 
-CREATE INDEX IF NOT EXISTS idx_fictional_entities_universe
+-- index idx_fictional_entities_universe
+CREATE INDEX idx_fictional_entities_universe
     ON fictional_entities (fictional_universe_qid);
 
-CREATE INDEX IF NOT EXISTS idx_plugin_lore_sources_universe
+-- index idx_plugin_lore_sources_universe
+CREATE INDEX idx_plugin_lore_sources_universe
     ON plugin_lore_sources (universe_qid, status);
 
-CREATE INDEX IF NOT EXISTS idx_plugin_lore_entities_universe
+-- index idx_plugin_lore_entities_universe
+CREATE INDEX idx_plugin_lore_entities_universe
     ON plugin_lore_entities (universe_qid, entity_type);
 
-CREATE INDEX IF NOT EXISTS idx_plugin_lore_entities_qid
+-- index idx_plugin_lore_entities_qid
+CREATE INDEX idx_plugin_lore_entities_qid
     ON plugin_lore_entities (wikidata_qid) WHERE wikidata_qid IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_plugin_lore_relationships_universe
+-- index idx_plugin_lore_relationships_universe
+CREATE INDEX idx_plugin_lore_relationships_universe
     ON plugin_lore_relationships (universe_qid, relationship_type);
 
-CREATE INDEX IF NOT EXISTS idx_field_changes_entity ON entity_field_changes(entity_id);
+-- index idx_field_changes_entity
+CREATE INDEX idx_field_changes_entity ON entity_field_changes(entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_field_changes_event ON entity_field_changes(event_id);
+-- index idx_field_changes_event
+CREATE INDEX idx_field_changes_event ON entity_field_changes(event_id);
 
-CREATE INDEX IF NOT EXISTS idx_field_changes_field ON entity_field_changes(entity_id, field);
+-- index idx_field_changes_field
+CREATE INDEX idx_field_changes_field ON entity_field_changes(entity_id, field);
 
-CREATE INDEX IF NOT EXISTS idx_file_hash_cache_sha256
+-- index idx_file_hash_cache_sha256
+CREATE INDEX idx_file_hash_cache_sha256
     ON file_hash_cache(sha256);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_file_hash_cache_path_nocase
+-- index ux_file_hash_cache_path_nocase
+CREATE UNIQUE INDEX ux_file_hash_cache_path_nocase
     ON file_hash_cache(absolute_path COLLATE NOCASE);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_entity_id ON identity_jobs (entity_id);
+-- index idx_identity_jobs_entity_id
+CREATE INDEX idx_identity_jobs_entity_id ON identity_jobs (entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_ingestion_run_id ON identity_jobs (ingestion_run_id);
+-- index idx_identity_jobs_ingestion_run_id
+CREATE INDEX idx_identity_jobs_ingestion_run_id ON identity_jobs (ingestion_run_id);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_lease ON identity_jobs (state, lease_expires_at);
+-- index idx_identity_jobs_lease
+CREATE INDEX idx_identity_jobs_lease ON identity_jobs (state, lease_expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_run_entity_updated
+-- index idx_identity_jobs_run_entity_updated
+CREATE INDEX idx_identity_jobs_run_entity_updated
     ON identity_jobs(ingestion_run_id, entity_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_activity_latest
+-- index idx_identity_jobs_activity_latest
+CREATE INDEX idx_identity_jobs_activity_latest
     ON identity_jobs(ingestion_run_id, entity_id, updated_at, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_state ON identity_jobs (state);
+-- index idx_identity_jobs_state
+CREATE INDEX idx_identity_jobs_state ON identity_jobs (state);
 
-CREATE INDEX IF NOT EXISTS idx_identity_jobs_next_retry
+-- index idx_identity_jobs_next_retry
+CREATE INDEX idx_identity_jobs_next_retry
     ON identity_jobs(next_retry_at) WHERE next_retry_at IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_image_cache_phash
+-- index idx_image_cache_phash
+CREATE INDEX idx_image_cache_phash
     ON image_cache(phash) WHERE phash IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batches_created ON ingestion_batches(created_at);
+-- index idx_ingestion_batches_created
+CREATE INDEX idx_ingestion_batches_created ON ingestion_batches(created_at);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batches_status ON ingestion_batches(status);
+-- index idx_ingestion_batches_status
+CREATE INDEX idx_ingestion_batches_status ON ingestion_batches(status);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batch_artifacts_batch
+-- index idx_ingestion_batch_artifacts_batch
+CREATE INDEX idx_ingestion_batch_artifacts_batch
     ON ingestion_batch_artifacts(batch_id, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batch_artifacts_type
+-- index idx_ingestion_batch_artifacts_type
+CREATE INDEX idx_ingestion_batch_artifacts_type
     ON ingestion_batch_artifacts(batch_id, artifact_type);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batch_artifacts_artifact
+-- index idx_ingestion_batch_artifacts_artifact
+CREATE INDEX idx_ingestion_batch_artifacts_artifact
     ON ingestion_batch_artifacts(artifact_type, artifact_id);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_batch_artifacts_parent
+-- index idx_ingestion_batch_artifacts_parent
+CREATE INDEX idx_ingestion_batch_artifacts_parent
     ON ingestion_batch_artifacts(parent_entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_log_media_asset ON ingestion_log(media_asset_id);
+-- index idx_ingestion_log_media_asset
+CREATE INDEX idx_ingestion_log_media_asset ON ingestion_log(media_asset_id);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_log_run
+-- index idx_ingestion_log_run
+CREATE INDEX idx_ingestion_log_run
     ON ingestion_log(ingestion_run_id);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_log_run_created
+-- index idx_ingestion_log_run_created
+CREATE INDEX idx_ingestion_log_run_created
     ON ingestion_log(ingestion_run_id, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_ingestion_log_status
+-- index idx_ingestion_log_status
+CREATE INDEX idx_ingestion_log_status
     ON ingestion_log(status);
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_content_hash
+-- index idx_media_assets_content_hash
+CREATE INDEX idx_media_assets_content_hash
     ON media_assets (content_hash);
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_file_path_root
+-- index idx_media_assets_file_path_root
+CREATE INDEX idx_media_assets_file_path_root
     ON media_assets (file_path_root COLLATE NOCASE);
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_status
+-- index idx_media_assets_status
+CREATE INDEX idx_media_assets_status
     ON media_assets(status);
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_presented
+-- index idx_media_assets_presented
+CREATE INDEX idx_media_assets_presented
     ON media_assets(presented_at) WHERE presented_at IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_edition_id
+-- index idx_media_assets_edition_id
+CREATE INDEX idx_media_assets_edition_id
     ON media_assets (edition_id);
-CREATE INDEX IF NOT EXISTS idx_media_assets_derived_from
+
+-- index idx_media_assets_derived_from
+CREATE INDEX idx_media_assets_derived_from
     ON media_assets (derived_from_asset_id) WHERE derived_from_asset_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_library_id
+-- index idx_media_assets_library_id
+CREATE INDEX idx_media_assets_library_id
     ON media_assets(library_id) WHERE library_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_media_assets_orphaned
+-- index idx_media_assets_orphaned
+CREATE INDEX idx_media_assets_orphaned
     ON media_assets(is_orphaned) WHERE is_orphaned = 1;
 
-CREATE INDEX IF NOT EXISTS idx_media_operation_events_batch
+-- index idx_media_operation_events_batch
+CREATE INDEX idx_media_operation_events_batch
 ON media_operation_events(batch_id, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operation_events_entity
+-- index idx_media_operation_events_entity
+CREATE INDEX idx_media_operation_events_entity
 ON media_operation_events(entity_id, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operation_events_operation
+-- index idx_media_operation_events_operation
+CREATE INDEX idx_media_operation_events_operation
 ON media_operation_events(operation_id, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operation_events_batch_entity
+-- index idx_media_operation_events_batch_entity
+CREATE INDEX idx_media_operation_events_batch_entity
 ON media_operation_events(batch_id, entity_id, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_batch
+-- index idx_media_operations_batch
+CREATE INDEX idx_media_operations_batch
 ON media_operations(batch_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_batch_entity_type
+-- index idx_media_operations_batch_entity_type
+CREATE INDEX idx_media_operations_batch_entity_type
 ON media_operations(batch_id, entity_id, operation_type);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_capability
+-- index idx_media_operations_capability
+CREATE INDEX idx_media_operations_capability
 ON media_operations(capability_id, status, next_retry_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_entity
+-- index idx_media_operations_entity
+CREATE INDEX idx_media_operations_entity
 ON media_operations(entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_lease
+-- index idx_media_operations_lease
+CREATE INDEX idx_media_operations_lease
 ON media_operations(status, lease_expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_queue
+-- index idx_media_operations_queue
+CREATE INDEX idx_media_operations_queue
 ON media_operations(queue_name, status, priority, position_key);
 
-CREATE INDEX IF NOT EXISTS idx_media_operations_source_path
+-- index idx_media_operations_source_path
+CREATE INDEX idx_media_operations_source_path
 ON media_operations(operation_type, source_path, status);
 
-CREATE INDEX IF NOT EXISTS idx_metadata_claims_claimed_at
+-- index idx_metadata_claims_claimed_at
+CREATE INDEX idx_metadata_claims_claimed_at
     ON metadata_claims (claimed_at);
 
-CREATE INDEX IF NOT EXISTS idx_metadata_claims_entity_id
+-- index idx_metadata_claims_entity_id
+CREATE INDEX idx_metadata_claims_entity_id
     ON metadata_claims (entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_metadata_claims_provider_id
+-- index idx_metadata_claims_provider_id
+CREATE INDEX idx_metadata_claims_provider_id
     ON metadata_claims (provider_id);
 
-CREATE INDEX IF NOT EXISTS idx_metadata_claims_current_lookup
+-- index idx_metadata_claims_current_lookup
+CREATE INDEX idx_metadata_claims_current_lookup
     ON metadata_claims (entity_id, provider_id, claim_key, is_current);
 
-CREATE INDEX IF NOT EXISTS idx_offline_variants_asset
+-- index idx_offline_variants_asset
+CREATE INDEX idx_offline_variants_asset
     ON offline_variants(asset_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_adaptive_hls_packages_eviction
+-- index idx_adaptive_hls_packages_eviction
+CREATE INDEX idx_adaptive_hls_packages_eviction
     ON adaptive_hls_packages(status, last_accessed);
 
-CREATE INDEX IF NOT EXISTS idx_pending_person_signals_name_role
+-- index idx_pending_person_signals_name_role
+CREATE INDEX idx_pending_person_signals_name_role
     ON pending_person_signals (name, role);
 
-CREATE INDEX IF NOT EXISTS idx_person_aliases_real ON person_aliases (real_person_id);
+-- index idx_person_aliases_real
+CREATE INDEX idx_person_aliases_real ON person_aliases (real_person_id);
 
-CREATE INDEX IF NOT EXISTS idx_person_group_members_member
+-- index idx_person_group_members_member
+CREATE INDEX idx_person_group_members_member
     ON person_group_members (member_id);
 
-CREATE INDEX IF NOT EXISTS idx_enrichment_refresh_schedule_due
+-- index idx_enrichment_refresh_schedule_due
+CREATE INDEX idx_enrichment_refresh_schedule_due
     ON enrichment_refresh_schedule (status, next_due_at);
 
-CREATE INDEX IF NOT EXISTS idx_person_media_links_asset
+-- index idx_person_media_links_asset
+CREATE INDEX idx_person_media_links_asset
     ON person_media_links (media_asset_id);
 
-CREATE INDEX IF NOT EXISTS idx_person_media_links_asset_role_person
+-- index idx_person_media_links_asset_role_person
+CREATE INDEX idx_person_media_links_asset_role_person
     ON person_media_links(media_asset_id, role, person_id);
 
-CREATE INDEX IF NOT EXISTS idx_person_media_links_person
+-- index idx_person_media_links_person
+CREATE INDEX idx_person_media_links_person
     ON person_media_links(person_id);
 
-CREATE INDEX IF NOT EXISTS idx_persons_name
+-- index idx_persons_name
+CREATE INDEX idx_persons_name
     ON persons (name);
 
-CREATE INDEX IF NOT EXISTS idx_persons_name_nocase
+-- index idx_persons_name_nocase
+CREATE INDEX idx_persons_name_nocase
     ON persons (name COLLATE NOCASE);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_wikidata_qid
+-- index idx_persons_wikidata_qid
+CREATE UNIQUE INDEX idx_persons_wikidata_qid
     ON persons (wikidata_qid) WHERE wikidata_qid IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_playback_segments_asset
+-- index idx_playback_segments_asset
+CREATE INDEX idx_playback_segments_asset
     ON playback_segments(asset_id, kind, start_seconds);
 
-CREATE INDEX IF NOT EXISTS idx_player_queue_items_profile_position
+-- index idx_player_queue_items_profile_position
+CREATE INDEX idx_player_queue_items_profile_position
     ON player_queue_items(profile_id, position);
 
-CREATE INDEX IF NOT EXISTS idx_player_sessions_heartbeat
+-- index idx_player_sessions_heartbeat
+CREATE INDEX idx_player_sessions_heartbeat
     ON player_sessions(last_heartbeat_at);
 
-CREATE INDEX IF NOT EXISTS idx_audiobook_listen_history_profile_work
+-- index idx_audiobook_listen_history_profile_work
+CREATE INDEX idx_audiobook_listen_history_profile_work
     ON audiobook_listen_history(profile_id, work_id, ended_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_audiobook_listen_history_profile_asset
+-- index idx_audiobook_listen_history_profile_asset
+CREATE INDEX idx_audiobook_listen_history_profile_asset
     ON audiobook_listen_history(profile_id, asset_id, ended_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_music_play_stats_profile_recent
+-- index idx_music_play_stats_profile_recent
+CREATE INDEX idx_music_play_stats_profile_recent
     ON music_play_stats(profile_id, last_played_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_audiobook_bookmarks_profile_work
+-- index idx_audiobook_bookmarks_profile_work
+CREATE INDEX idx_audiobook_bookmarks_profile_work
     ON audiobook_bookmarks(profile_id, work_id, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_audiobook_chapter_title_overrides_work
+-- index idx_audiobook_chapter_title_overrides_work
+CREATE INDEX idx_audiobook_chapter_title_overrides_work
     ON audiobook_chapter_title_overrides(work_id, asset_id, chapter_index);
 
-CREATE INDEX IF NOT EXISTS idx_prc_expires ON provider_response_cache (expires_at);
+-- index idx_prc_expires
+CREATE INDEX idx_prc_expires ON provider_response_cache (expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_prc_provider ON provider_response_cache (provider_id);
+-- index idx_prc_provider
+CREATE INDEX idx_prc_provider ON provider_response_cache (provider_id);
 
-CREATE INDEX IF NOT EXISTS idx_account_external_logins_account
+-- index idx_account_external_logins_account
+CREATE INDEX idx_account_external_logins_account
     ON account_external_logins(account_id);
 
-CREATE INDEX IF NOT EXISTS idx_qid_labels_type ON qid_labels(entity_type);
+-- index idx_qid_labels_type
+CREATE INDEX idx_qid_labels_type ON qid_labels(entity_type);
 
-CREATE INDEX IF NOT EXISTS idx_reader_bookmarks_user_asset
+-- index idx_reader_bookmarks_user_asset
+CREATE INDEX idx_reader_bookmarks_user_asset
     ON reader_bookmarks (user_id, asset_id);
 
-CREATE INDEX IF NOT EXISTS idx_reader_highlights_user_asset
+-- index idx_reader_highlights_user_asset
+CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);
 
-CREATE INDEX IF NOT EXISTS idx_resolver_cache_expires
+-- index idx_resolver_cache_expires
+CREATE INDEX idx_resolver_cache_expires
     ON resolver_cache(expires_at);
 
-CREATE INDEX IF NOT EXISTS idx_retail_candidates_job_id ON retail_match_candidates (job_id);
+-- index idx_retail_candidates_job_id
+CREATE INDEX idx_retail_candidates_job_id ON retail_match_candidates (job_id);
 
-CREATE INDEX IF NOT EXISTS idx_retail_candidates_outcome ON retail_match_candidates (outcome);
+-- index idx_retail_candidates_outcome
+CREATE INDEX idx_retail_candidates_outcome ON retail_match_candidates (outcome);
 
-CREATE INDEX IF NOT EXISTS idx_review_queue_entity_id
+-- index idx_review_queue_entity_id
+CREATE INDEX idx_review_queue_entity_id
     ON review_queue (entity_id);
 
-CREATE INDEX IF NOT EXISTS idx_review_queue_status
+-- index idx_review_queue_status
+CREATE INDEX idx_review_queue_status
     ON review_queue (status);
 
-CREATE INDEX IF NOT EXISTS idx_review_queue_status_entity_ready
+-- index idx_review_queue_status_entity_ready
+CREATE INDEX idx_review_queue_status_entity_ready
     ON review_queue(status, entity_id, review_ready_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_review_queue_pending_entity_trigger
+-- index ux_review_queue_pending_entity_trigger
+CREATE UNIQUE INDEX ux_review_queue_pending_entity_trigger
     ON review_queue (entity_id, trigger)
     WHERE status = 'Pending';
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_hydrations_collection
+-- index idx_series_manifest_hydrations_collection
+CREATE INDEX idx_series_manifest_hydrations_collection
     ON series_manifest_hydrations(collection_id);
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_items_collection
+-- index idx_series_manifest_items_collection
+CREATE INDEX idx_series_manifest_items_collection
     ON series_manifest_items(collection_id);
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_items_item_qid
+-- index idx_series_manifest_items_item_qid
+CREATE INDEX idx_series_manifest_items_item_qid
     ON series_manifest_items(item_qid);
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_items_linked_work
+-- index idx_series_manifest_items_linked_work
+CREATE INDEX idx_series_manifest_items_linked_work
     ON series_manifest_items(linked_work_id);
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_items_ownership
+-- index idx_series_manifest_items_ownership
+CREATE INDEX idx_series_manifest_items_ownership
     ON series_manifest_items(ownership_state);
 
-CREATE INDEX IF NOT EXISTS idx_series_manifest_items_series_qid
+-- index idx_series_manifest_items_series_qid
+CREATE INDEX idx_series_manifest_items_series_qid
     ON series_manifest_items(series_qid);
 
-CREATE INDEX IF NOT EXISTS idx_series_members_series
+-- index idx_series_members_series
+CREATE INDEX idx_series_members_series
     ON series_members(series_qid);
 
-CREATE INDEX IF NOT EXISTS idx_system_activity_action_type
+-- index idx_system_activity_action_type
+CREATE INDEX idx_system_activity_action_type
     ON system_activity (action_type);
 
-CREATE INDEX IF NOT EXISTS idx_system_activity_occurred_at
+-- index idx_system_activity_occurred_at
+CREATE INDEX idx_system_activity_occurred_at
     ON system_activity (occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_system_activity_run_entity_action
+-- index idx_system_activity_run_entity_action
+CREATE INDEX idx_system_activity_run_entity_action
     ON system_activity(ingestion_run_id, entity_id, action_type, occurred_at);
 
-CREATE INDEX IF NOT EXISTS idx_text_tracks_asset_kind
+-- index idx_text_tracks_asset_kind
+CREATE INDEX idx_text_tracks_asset_kind
     ON text_tracks(asset_id, kind);
 
-CREATE INDEX IF NOT EXISTS idx_text_tracks_preferred
+-- index idx_text_tracks_preferred
+CREATE INDEX idx_text_tracks_preferred
     ON text_tracks(asset_id, kind, language, is_preferred);
 
-CREATE INDEX IF NOT EXISTS idx_wikidata_candidates_job_id ON wikidata_bridge_candidates (job_id);
+-- index idx_wikidata_candidates_job_id
+CREATE INDEX idx_wikidata_candidates_job_id ON wikidata_bridge_candidates (job_id);
 
-CREATE INDEX IF NOT EXISTS idx_wikidata_candidates_outcome ON wikidata_bridge_candidates (outcome);
+-- index idx_wikidata_candidates_outcome
+CREATE INDEX idx_wikidata_candidates_outcome ON wikidata_bridge_candidates (outcome);
 
-CREATE INDEX IF NOT EXISTS idx_works_collection_id
+-- index idx_works_collection_id
+CREATE INDEX idx_works_collection_id
     ON works (collection_id);
 
-CREATE INDEX IF NOT EXISTS idx_works_collection_ordinal_sort
+-- index idx_works_collection_ordinal_sort
+CREATE INDEX idx_works_collection_ordinal_sort
     ON works(collection_id, ordinal_sort);
 
-CREATE INDEX IF NOT EXISTS idx_works_media_type
+-- index idx_works_media_type
+CREATE INDEX idx_works_media_type
     ON works (media_type);
 
-CREATE INDEX IF NOT EXISTS idx_works_ownership_media_type
+-- index idx_works_ownership_media_type
+CREATE INDEX idx_works_ownership_media_type
     ON works(ownership, media_type);
 
-CREATE INDEX IF NOT EXISTS idx_works_curator_state
+-- index idx_works_curator_state
+CREATE INDEX idx_works_curator_state
     ON works(curator_state) WHERE curator_state IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_works_catalog_media_type
+-- index idx_works_catalog_media_type
+CREATE INDEX idx_works_catalog_media_type
     ON works(is_catalog_only, media_type);
 
-CREATE INDEX IF NOT EXISTS idx_works_parent_key
+-- index idx_works_parent_key
+CREATE INDEX idx_works_parent_key
     ON works(media_type, parent_key) WHERE parent_key IS NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_works_root_parent_key
+-- index ux_works_root_parent_key
+CREATE UNIQUE INDEX ux_works_root_parent_key
     ON works(media_type, parent_key)
     WHERE work_kind = 'parent'
       AND parent_key IS NOT NULL
       AND parent_work_id IS NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_works_nested_parent_ordinal
+-- index ux_works_nested_parent_ordinal
+CREATE UNIQUE INDEX ux_works_nested_parent_ordinal
     ON works(media_type, parent_work_id, ordinal)
     WHERE work_kind = 'parent'
       AND parent_work_id IS NOT NULL
       AND ordinal IS NOT NULL;
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_works_child_parent_ordinal_sort
+-- index ux_works_child_parent_ordinal_sort
+CREATE UNIQUE INDEX ux_works_child_parent_ordinal_sort
     ON works(parent_work_id, ordinal_sort)
     WHERE work_kind IN ('child', 'catalog')
       AND parent_work_id IS NOT NULL
       AND ordinal_sort IS NOT NULL
       AND (media_type != 'Audiobooks' OR parent_key IS NULL);
 
-CREATE INDEX IF NOT EXISTS idx_works_parent_work_id ON works(parent_work_id);
+-- index idx_works_parent_work_id
+CREATE INDEX idx_works_parent_work_id ON works(parent_work_id);
 
-CREATE INDEX IF NOT EXISTS idx_works_wikidata_qid
+-- index idx_works_wikidata_qid
+CREATE INDEX idx_works_wikidata_qid
                     ON works(wikidata_qid) WHERE wikidata_qid IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_works_work_kind      ON works(work_kind) WHERE work_kind != 'standalone';
+-- index idx_works_work_kind
+CREATE INDEX idx_works_work_kind      ON works(work_kind) WHERE work_kind != 'standalone';
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_entity_capability_states_key
+-- index ux_entity_capability_states_key
+CREATE UNIQUE INDEX ux_entity_capability_states_key
 ON entity_capability_states(entity_id, capability_id, COALESCE(sub_key, ''));
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_identity_jobs_entity_pass_active
+-- index ux_identity_jobs_entity_pass_active
+CREATE UNIQUE INDEX ux_identity_jobs_entity_pass_active
     ON identity_jobs (entity_id, pass)
     WHERE state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview');
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_media_operations_idempotency
+-- index ux_media_operations_idempotency
+CREATE UNIQUE INDEX ux_media_operations_idempotency
 ON media_operations(idempotency_key);
 
--- Every (work, edition, file) an owned work is reached through: its own files plus
--- files that cover it as an additional episode of a combined file. A covered
--- episode resolves to the host file's edition; the file itself is still one file,
--- so file counts must use DISTINCT asset_id. Single-episode files appear once.
-DROP VIEW IF EXISTS work_owned_assets;
+-- index ix_tv_episode_credits_show
+CREATE INDEX ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
+
+-- index ix_personal_status_history
+CREATE INDEX ix_personal_status_history ON personal_status_commands(profile_id, target_id, changed_at);
+
+-- index ix_application_events_type_sequence
+CREATE INDEX ix_application_events_type_sequence ON application_events(event_type, sequence);
+
+-- index ix_application_events_library_sequence
+CREATE INDEX ix_application_events_library_sequence ON application_events(library_id, sequence);
+
+-- index ix_application_events_profile_sequence
+CREATE INDEX ix_application_events_profile_sequence ON application_events(profile_id, sequence);
+
+-- index ix_application_events_occurred
+CREATE INDEX ix_application_events_occurred ON application_events(occurred_at);
+
+-- index ix_application_webhooks_application
+CREATE INDEX ix_application_webhooks_application ON application_webhooks(application_id);
+
+-- index ix_application_webhook_delivery_due
+CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
+
+-- index ux_playback_telemetry_active_player
+CREATE UNIQUE INDEX ux_playback_telemetry_active_player ON playback_telemetry_sessions(player_session_id) WHERE ended_at IS NULL;
+
+-- index ix_playback_telemetry_active
+CREATE INDEX ix_playback_telemetry_active ON playback_telemetry_sessions(last_observed_at DESC) WHERE ended_at IS NULL;
+
+-- index ix_playback_telemetry_history
+CREATE INDEX ix_playback_telemetry_history ON playback_telemetry_sessions(ended_at DESC,id);
+
+-- index ix_playback_telemetry_library
+CREATE INDEX ix_playback_telemetry_library ON playback_telemetry_sessions(library_id,started_at DESC,id);
+
+-- index ix_playback_telemetry_profile
+CREATE INDEX ix_playback_telemetry_profile ON playback_telemetry_sessions(account_id,profile_id,started_at DESC,id);
+
+-- index ix_playback_telemetry_device
+CREATE INDEX ix_playback_telemetry_device ON playback_telemetry_sessions(device_id,started_at DESC,id) WHERE device_id IS NOT NULL;
+
+-- index ix_accounts_household
+CREATE INDEX ix_accounts_household ON accounts(household_id);
+
+-- index ix_profiles_household
+CREATE INDEX ix_profiles_household ON profiles(household_id);
+
+-- index idx_onboarding_sessions_active
+CREATE INDEX idx_onboarding_sessions_active
+    ON onboarding_sessions(workflow_version, expires_at, revoked_at);
+
+-- index idx_setup_codes_active
+CREATE INDEX idx_setup_codes_active
+    ON setup_codes(consumed_at, invalidated_at, expires_at);
+
+-- index idx_canonical_value_arrays_key_qid_entity
+CREATE INDEX idx_canonical_value_arrays_key_qid_entity
+    ON canonical_value_arrays(key, value_qid, entity_id);
+
+-- trigger trg_view_personal_space_shared_collision_insert
+CREATE TRIGGER trg_view_personal_space_shared_collision_insert
+BEFORE INSERT ON view_personal_spaces WHEN EXISTS (
+    SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
+BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
+
+-- trigger trg_view_personal_space_shared_collision_update
+CREATE TRIGGER trg_view_personal_space_shared_collision_update
+BEFORE UPDATE OF library_id ON view_personal_spaces WHEN EXISTS (
+    SELECT 1 FROM view_shared_library WHERE library_id=NEW.library_id)
+BEGIN SELECT RAISE(ABORT,'Personal Space library cannot use the Shared library identity'); END;
+
+-- trigger trg_view_personal_space_identity_immutable
+CREATE TRIGGER trg_view_personal_space_identity_immutable
+BEFORE UPDATE OF owner_profile_id,library_id ON view_personal_spaces
+WHEN NEW.owner_profile_id<>OLD.owner_profile_id OR NEW.library_id<>OLD.library_id
+BEGIN SELECT RAISE(ABORT,'Personal Space owner and library identities are immutable'); END;
+
+-- trigger trg_view_shared_library_collision_insert
+CREATE TRIGGER trg_view_shared_library_collision_insert
+BEFORE INSERT ON view_shared_library WHEN EXISTS (
+    SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
+BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal Space'); END;
+
+-- trigger trg_view_shared_library_identity_immutable
+CREATE TRIGGER trg_view_shared_library_identity_immutable
+BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
+BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
+
+-- trigger trg_view_shared_library_delete
+CREATE TRIGGER trg_view_shared_library_delete
+BEFORE DELETE ON view_shared_library
+BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
+
+-- trigger trg_local_items_delete_search
+CREATE TRIGGER trg_local_items_delete_search
+BEFORE DELETE ON local_items
+BEGIN
+    DELETE FROM local_item_search
+     WHERE rowid = (SELECT rowid FROM local_item_search_keys WHERE item_id = OLD.id);
+END;
+
+-- trigger trg_view_sources_scope_insert
+CREATE TRIGGER trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+END;
+
+-- trigger trg_view_sources_scope_update
+CREATE TRIGGER trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+END;
+
+-- trigger trg_local_items_scope_insert
+CREATE TRIGGER trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+END;
+
+-- trigger trg_local_items_scope_update
+CREATE TRIGGER trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+END;
+
+-- trigger trg_artwork_asset_context_search_insert
+CREATE TRIGGER trg_artwork_asset_context_search_insert
+AFTER INSERT ON artwork_asset_context BEGIN
+    INSERT INTO artwork_asset_search(artwork_asset_id, search_text)
+    VALUES (new.artwork_asset_id, new.search_text);
+END;
+
+-- trigger trg_artwork_asset_context_search_update
+CREATE TRIGGER trg_artwork_asset_context_search_update
+AFTER UPDATE OF search_text, artwork_asset_id ON artwork_asset_context BEGIN
+    DELETE FROM artwork_asset_search
+    WHERE artwork_asset_id = old.artwork_asset_id AND search_text = old.search_text;
+    INSERT INTO artwork_asset_search(artwork_asset_id, search_text)
+    VALUES (new.artwork_asset_id, new.search_text);
+END;
+
+-- trigger trg_artwork_asset_context_search_delete
+CREATE TRIGGER trg_artwork_asset_context_search_delete
+AFTER DELETE ON artwork_asset_context BEGIN
+    DELETE FROM artwork_asset_search
+    WHERE artwork_asset_id = old.artwork_asset_id AND search_text = old.search_text;
+END;
+
+-- view work_owned_assets
 CREATE VIEW work_owned_assets AS
 SELECT e.work_id AS work_id, e.id AS edition_id, ma.id AS asset_id, 0 AS is_covered
 FROM editions e
@@ -3210,11 +3788,7 @@ INNER JOIN media_assets ma ON ma.id = c.asset_id
 INNER JOIN editions e ON e.id = ma.edition_id
 WHERE c.work_id <> e.work_id;
 
--- Presentation-facing person credits must follow the same ordered canonical
--- contributor source used by detail pages. person_media_links intentionally
--- remains the broader enrichment graph and can include assistant directors,
--- additional performers, and other non-primary relationships.
-DROP VIEW IF EXISTS primary_person_media_credits;
+-- view primary_person_media_credits
 CREATE VIEW primary_person_media_credits AS
 WITH asset_scope AS (
     SELECT ma.id AS media_asset_id,
@@ -3388,132 +3962,31 @@ WHERE credit.credit_key != 'author'
       AND collective_person.id != person.id
 );
 
+-- seed: built-in native-client Application, its permissions and client bindings
+INSERT INTO applications
+    (id,name,description,application_type,is_enabled,is_administrator,authorization_version,created_at,updated_at)
+VALUES
+    (X'00000000000000000000000000000004','Tuvima native clients',
+     'Built-in delegated identity for paired native clients.','UserClient',1,0,1,
+     strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
--- Exact episode participation; replacement is atomic and isolated from show enrichment.
-CREATE TABLE IF NOT EXISTS tv_episode_credits (
-    work_id BLOB PRIMARY KEY REFERENCES works(id) ON DELETE CASCADE,
-    show_work_id BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-    provider_episode_id TEXT NOT NULL,
-    season INTEGER NOT NULL,
-    episode INTEGER NOT NULL,
-    credits_json TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
+-- Photos and personal videos: the Application holds the three view scopes so a paired app can be given them.
+-- Holding them is not consent: a device token carries them only when the person ticks the photo consent on the pairing screen.
+WITH permissions(permission_id) AS (VALUES
+    ('library.read'),('artwork.read'),('progress.read'),('progress.write'),
+    ('queue.read'),('queue.write'),('playback.read'),('playback.write'),
+    ('downloads.read'),('downloads.write'),
+    ('view.personal.read'),('view.originals.read'),('view.galleries.read'))
+INSERT INTO application_permission_grants(application_id,permission_id,granted_at)
+SELECT X'00000000000000000000000000000004',permission_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
+FROM permissions;
 
-CREATE TABLE IF NOT EXISTS personal_status_commands (
-    id BLOB PRIMARY KEY,
-    profile_id BLOB NOT NULL,
-    target_id BLOB NOT NULL,
-    media_type TEXT NOT NULL,
-    command TEXT NOT NULL,
-    changed_at TEXT NOT NULL,
-    snapshot_json TEXT NOT NULL,
-    undone INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS ix_personal_status_history ON personal_status_commands(profile_id, target_id, changed_at);
+WITH clients(client_id) AS (VALUES
+    ('tuvima-tv'),('tuvima-mobile'),('tuvima-automotive'),('tuvima-web'))
+INSERT INTO application_client_bindings(application_id,client_id,created_at)
+SELECT X'00000000000000000000000000000004',client_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
+FROM clients;
 
-CREATE TABLE IF NOT EXISTS application_events (
-    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id BLOB NOT NULL UNIQUE,
-    event_type TEXT NOT NULL,
-    version INTEGER NOT NULL CHECK(version > 0),
-    occurred_at TEXT NOT NULL,
-    server_id TEXT NOT NULL,
-    subject_type TEXT NOT NULL,
-    subject_id TEXT NOT NULL,
-    library_id BLOB,
-    profile_id BLOB,
-    feature_id TEXT CHECK(feature_id IS NULL OR feature_id IN ('read', 'watch', 'listen')),
-    payload_json TEXT NOT NULL CHECK(length(CAST(payload_json AS BLOB)) <= 65536)
-);
-CREATE INDEX IF NOT EXISTS ix_application_events_type_sequence ON application_events(event_type, sequence);
-CREATE INDEX IF NOT EXISTS ix_application_events_library_sequence ON application_events(library_id, sequence);
-CREATE INDEX IF NOT EXISTS ix_application_events_profile_sequence ON application_events(profile_id, sequence);
-CREATE INDEX IF NOT EXISTS ix_application_events_occurred ON application_events(occurred_at);
-
-CREATE TABLE IF NOT EXISTS application_webhooks (
-    id BLOB PRIMARY KEY,
-    application_id BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    url TEXT NOT NULL,
-    event_types_json TEXT NOT NULL,
-    allow_local_network INTEGER NOT NULL DEFAULT 0,
-    is_enabled INTEGER NOT NULL DEFAULT 1,
-    secret_ciphertext TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 1,
-    last_event_sequence INTEGER NOT NULL DEFAULT 0,
-    last_status TEXT NOT NULL DEFAULT 'Waiting for events',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    last_attempt_at TEXT,
-    last_success_at TEXT
-);
-CREATE INDEX IF NOT EXISTS ix_application_webhooks_application ON application_webhooks(application_id);
-CREATE TABLE IF NOT EXISTS application_webhook_deliveries (
-    id BLOB PRIMARY KEY,
-    webhook_id BLOB NOT NULL REFERENCES application_webhooks(id) ON DELETE CASCADE,
-    webhook_version INTEGER NOT NULL,
-    event_id BLOB NOT NULL,
-    event_sequence INTEGER NOT NULL,
-    event_json TEXT NOT NULL CHECK(length(CAST(event_json AS BLOB)) <= 70000),
-    status TEXT NOT NULL DEFAULT 'pending',
-    attempt_count INTEGER NOT NULL DEFAULT 0,
-    next_attempt_at TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    UNIQUE(webhook_id,event_id)
-);
-CREATE INDEX IF NOT EXISTS ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
-
-CREATE TABLE IF NOT EXISTS playback_telemetry_sessions (
-    id BLOB NOT NULL PRIMARY KEY,
-    player_session_id BLOB NOT NULL,
-    authority_session_id BLOB,
-    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    application_id BLOB REFERENCES applications(id) ON DELETE SET NULL,
-    device_id BLOB REFERENCES client_devices(id) ON DELETE SET NULL,
-    asset_id BLOB REFERENCES media_assets(id) ON DELETE SET NULL,
-    library_id BLOB NOT NULL,
-    media_type TEXT NOT NULL,
-    feature_id TEXT NOT NULL CHECK(feature_id IN('read','watch','listen')),
-    state TEXT NOT NULL CHECK(state IN('playing','paused','stopped','completed')),
-    started_at TEXT NOT NULL,
-    last_observed_at TEXT NOT NULL,
-    ended_at TEXT,
-    started_position_seconds REAL NOT NULL CHECK(started_position_seconds >= 0),
-    last_position_seconds REAL NOT NULL CHECK(last_position_seconds >= 0),
-    duration_seconds REAL CHECK(duration_seconds IS NULL OR duration_seconds >= 0),
-    played_duration_seconds REAL NOT NULL DEFAULT 0 CHECK(played_duration_seconds >= 0),
-    last_sequence INTEGER NOT NULL DEFAULT -1 CHECK(last_sequence >= -1),
-    completion_reason TEXT CHECK(completion_reason IS NULL OR completion_reason IN('stopped','completed','replaced','takeover','stale','error')),
-    delivery_mode TEXT CHECK(delivery_mode IS NULL OR delivery_mode IN('direct-play','remux','transcode','reader','offline','unknown')),
-    container TEXT,
-    video_codec TEXT,
-    audio_codec TEXT,
-    width INTEGER CHECK(width IS NULL OR width > 0),
-    height INTEGER CHECK(height IS NULL OR height > 0),
-    bitrate_kbps INTEGER CHECK(bitrate_kbps IS NULL OR bitrate_kbps > 0),
-    connection_type TEXT CHECK(connection_type IS NULL OR connection_type IN('local','remote','unknown')),
-    client_name TEXT,
-    client_version TEXT,
-    CHECK((ended_at IS NULL AND completion_reason IS NULL AND state IN('playing','paused'))
-        OR (ended_at IS NOT NULL AND completion_reason IS NOT NULL AND state IN('stopped','completed')))
-);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_playback_telemetry_active_player ON playback_telemetry_sessions(player_session_id) WHERE ended_at IS NULL;
-CREATE INDEX IF NOT EXISTS ix_playback_telemetry_active ON playback_telemetry_sessions(last_observed_at DESC) WHERE ended_at IS NULL;
-CREATE INDEX IF NOT EXISTS ix_playback_telemetry_history ON playback_telemetry_sessions(ended_at DESC,id);
-CREATE INDEX IF NOT EXISTS ix_playback_telemetry_library ON playback_telemetry_sessions(library_id,started_at DESC,id);
-CREATE INDEX IF NOT EXISTS ix_playback_telemetry_profile ON playback_telemetry_sessions(account_id,profile_id,started_at DESC,id);
-CREATE INDEX IF NOT EXISTS ix_playback_telemetry_device ON playback_telemetry_sessions(device_id,started_at DESC,id) WHERE device_id IS NOT NULL;
-
-CREATE TABLE IF NOT EXISTS consumption_history (
-    id BLOB PRIMARY KEY,
-    profile_id BLOB NOT NULL,
-    asset_id BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    session_key TEXT NOT NULL,
-    experience TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    progress_pct REAL NOT NULL,
-    UNIQUE(profile_id, asset_id, session_key)
-);
+-- The storage epoch is committed with the structure, so a data store never exists without it.
+-- A later epoch bump is an ordinary numbered step that updates this row.
+INSERT INTO storage_metadata (key, value) VALUES ('storage_epoch', 'guid-blob-v11-upgrade-steps');

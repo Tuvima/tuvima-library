@@ -34,15 +34,19 @@ public interface IDatabaseConnection : IDisposable
         CancellationToken ct = default);
 
     /// <summary>
-    /// Applies the embedded schema DDL idempotently.
-    /// Safe to call on every startup; all statements use CREATE … IF NOT EXISTS.
+    /// Brings the data store to the latest structure: checks the storage epoch and that the file is writable,
+    /// runs <c>PRAGMA integrity_check</c> on an existing data store, then applies any pending numbered upgrade
+    /// steps (each exactly once, in its own transaction). A brand-new data store gets the baseline step.
+    /// Safe to call on every startup; a data store that is already current is left untouched.
+    /// Throws <see cref="InvalidOperationException"/> if integrity_check does not return "ok", and refuses to start
+    /// when an upgrade step fails, the data store is newer than this Engine, or an applied step was edited.
     /// </summary>
     void InitializeSchema();
 
     /// <summary>
-    /// Runs PRAGMA integrity_check and PRAGMA optimize.
+    /// Startup housekeeping after <see cref="InitializeSchema"/>: checks the file is writable, adds any missing
+    /// built-in reference rows (metadata providers, setup steps, the default Owner profile), and runs PRAGMA optimize.
     /// Spec: "SHOULD execute on application startup."
-    /// Throws <see cref="InvalidOperationException"/> if integrity_check does not return "ok".
     /// </summary>
     void RunStartupChecks();
 

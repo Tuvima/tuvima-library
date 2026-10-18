@@ -100,7 +100,7 @@ The HTTPS launch addresses are `https://localhost:61494` for the Engine and `htt
 | `MediaEngine.Domain` | Domain rules, configuration shapes, inward contracts |
 | `MediaEngine.Contracts` | HTTP and SignalR data contracts |
 | `MediaEngine.Application` | Read models and query interfaces |
-| `MediaEngine.Storage` | SQLite, Dapper, repositories, startup migrations |
+| `MediaEngine.Storage` | SQLite, Dapper, repositories, numbered data store upgrade steps |
 | `MediaEngine.Intelligence` | Identity decisions and metadata precedence |
 | `MediaEngine.Processors` | Embedded file metadata |
 | `MediaEngine.Providers` | Provider adapters and enrichment |
@@ -145,7 +145,7 @@ The Dashboard uses typed clients and shared Contracts over HTTP and SignalR. Kee
 
 Reusable UI belongs in its feature's `Components/` directory, routed pages in `Components/Pages/`, and settings panels in `Components/Settings/`. Engine connection points live in `MediaEngine.Api/Endpoints/`, with registration in focused composition modules.
 
-Storage uses SQLite and Dapper. Startup changes belong to idempotent `SchemaMigrator` steps invoked by startup checks. Use short-lived `IDatabaseConnection.CreateConnection()` connections for normal work; startup-only `Open()` is not a request-path helper.
+Storage uses SQLite and Dapper. Data structure changes are numbered upgrade steps that run once at startup; follow [Changing the data store](../develop/changing-the-data-store.md). Use short-lived `IDatabaseConnection.CreateConnection()` connections for normal work; startup-only `Open()` is not a request-path helper.
 
 Keep new warnings out of the solution and run the relevant guardrails before a change is complete. Follow the repository instructions for save points and proposed changes.
 

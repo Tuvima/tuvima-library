@@ -8,7 +8,13 @@ internal static class StorageEpochGuard
     // Shared Library contribution workflow. Pre-beta databases are rebuilt rather
     // than carrying both schemas or migrating user state in place.
     // Pre-beta databases are rebuilt instead of being migrated in place.
-    public const string CurrentEpoch = "guid-blob-v10-graph-timeline-lore";
+    // v11 moves the data structure onto numbered upgrade steps (Schema/Upgrades). Data stores from before the
+    // baseline step are backed up and reingested once; nothing recognises or adopts them.
+    /// <summary>
+    /// The epoch this build creates and accepts. When you change it, add an upgrade step that updates
+    /// <c>storage_metadata.storage_epoch</c> to the same value (the baseline step sets the first one).
+    /// </summary>
+    public const string CurrentEpoch = "guid-blob-v11-upgrade-steps";
     public const string ResetEnvironmentVariable = "TUVIMA_STORAGE_RESET";
 
     public static void EnsureCurrentOrReset(string databasePath)
@@ -45,16 +51,7 @@ internal static class StorageEpochGuard
         using var conn = new SqliteConnection($"Data Source={databasePath};Mode=ReadOnly;Pooling=False");
         conn.Open();
 
-        bool hasUserTables;
-        using (var userTablesCmd = conn.CreateCommand())
-        {
-            userTablesCmd.CommandText = """
-                SELECT COUNT(*)
-                FROM sqlite_master
-                WHERE type = 'table' AND name NOT LIKE 'sqlite_%';
-                """;
-            hasUserTables = Convert.ToInt32(userTablesCmd.ExecuteScalar()) > 0;
-        }
+        var hasUserTables = StorageStructure.HasUserTables(conn);
 
         using (var tableCmd = conn.CreateCommand())
         {

@@ -19,6 +19,11 @@
     }
     else
     {
+        @if (DataStoreVersionLine is { } versionLine)
+        {
+            <AppText Class="tl-u-color-tl-text-muted" data-testid="data-store-version">@versionLine</AppText>
+        }
+
         <AppPanel Class="tl-card backup-status">
             <AppText Typo="AppTypo.h6">Backup status</AppText>
             @if (LatestBackup is null)
@@ -144,12 +149,26 @@
     private BackupArchiveDto? _selectedRestore;
     private BackupArchiveDto? LatestBackup => _backups.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
 
+    // Null when the Engine could not be asked; the line is then hidden (the usual unreachable messaging applies).
+    private DataStoreVersionDto? _dataStoreVersion;
+
+    private string? DataStoreVersionLine => _dataStoreVersion switch
+    {
+        null => null,
+        { StepNumber: > 0, AppliedAt: { } appliedAt } version =>
+            $"Data store version: step {version.StepNumber}, upgraded on {DisplayFormat.FormatPlainDate(appliedAt)}",
+        _ => "Data store version: setting up",
+    };
+
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _backups = await ApiClient.GetBackupsAsync();
+        var backups = ApiClient.GetBackupsAsync();
+        var version = ApiClient.GetDataStoreVersionAsync();
+        _backups = await backups;
+        _dataStoreVersion = await version;
         _loading = false;
     }
 

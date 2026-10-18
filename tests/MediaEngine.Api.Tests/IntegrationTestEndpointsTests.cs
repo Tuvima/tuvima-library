@@ -119,6 +119,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
 
     [Theory]
     [InlineData("accounts", true)]
+    [InlineData("data_store_upgrades", true)]
     [InlineData("profiles", true)]
     [InlineData("profile_sequence_preferences", true)]
     [InlineData("metadata_providers", true)]

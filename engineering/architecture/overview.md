@@ -30,7 +30,7 @@ Tuvima is two programs that run on the person's computer or server:
 | `Domain` | Core concepts (Work, Edition, MediaAsset, Collection, Profile), rules, enums, ports. No outside libraries. |
 | `Contracts` | Every type sent between Engine and Dashboard (ADR 0004). |
 | `Application` | Read-model DTOs and query interfaces. |
-| `Storage` | Dapper repositories, `Schema/schema.sql`, `SchemaMigrator`, `DatabaseConnection`, config loading (ADR 0001, 0003). |
+| `Storage` | Dapper repositories, `Schema/Upgrades/` (numbered data store upgrade steps), `Schema/schema.snapshot.sql` (generated), `ReferenceDataTopUp`, `DatabaseConnection`, config loading (ADR 0001, 0003). |
 | `Intelligence` | Priority Cascade, identity strategies, collection/universe resolution, fuzzy matching. |
 | `Processors` | Embedded-metadata readers (EPUB, audio, video, comic, PDF). |
 | `Providers` | Config-driven provider adapters and enrichment workers. |
@@ -46,7 +46,7 @@ Tests: one `tests/MediaEngine.<X>.Tests` project per source project, plus `Perfo
 
 ### Patterns
 
-- **Data access:** SQLite + Dapper, no Entity Framework. Repositories (`*Repository`) open a short-lived connection with `IDatabaseConnection.CreateConnection()` per unit of work. Schema changes are idempotent startup migrations in `SchemaMigrator`; pre-release breaking changes reset the data store. Main tables: `works`, `editions`, `media_assets`, `collections` (with `parent_collection_id` for universes), `metadata_claims`, `canonical_values` / `canonical_value_arrays`, `identity_jobs`, `review_queue`, `persons`, profile/account tables.
+- **Data access:** SQLite + Dapper, no Entity Framework. Repositories (`*Repository`) open a short-lived connection with `IDatabaseConnection.CreateConnection()` per unit of work. Structure changes are numbered upgrade steps in `Schema/Upgrades/` (each runs once at startup and is recorded in `data_store_upgrades`); pre-release breaking changes reset the data store. Main tables: `works`, `editions`, `media_assets`, `collections` (with `parent_collection_id` for universes), `metadata_claims`, `canonical_values` / `canonical_value_arrays`, `identity_jobs`, `review_queue`, `persons`, profile/account tables.
 - **Engine composition:** `Api/Program.cs` is thin; services register in focused `AddTuvima*` modules under `Api/DependencyInjection/`. Endpoints stay thin and delegate to services and repositories.
 - **Background services:** ~50 hosted services (`IHostedService`/`BackgroundService`), mostly in `Api/Services/` — e.g. `IngestionEngine`, `PipelineStageHostedService`, `DeferredEnrichmentService`, `MetadataHarvestingService`, `EncodeQueueService`, `StorageMaintenanceHostedService`, `ProviderHealthMonitorService`. Work is recorded as durable job rows so restarts recover.
 - **Real-time:** two SignalR hubs (`Api/Realtime/Intercom.cs`, `ApplicationEventsHub.cs`) push progress and changes to the Dashboard and apps.

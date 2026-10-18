@@ -102,33 +102,6 @@ public sealed class ReaderHighlightRepositoryTests : IDisposable
         Assert.Empty(await _bookmarks.ListByAssetAsync(Guid.NewGuid().ToString("D"), _assetId));
     }
 
-    [Fact]
-    public async Task StartupChecks_AddTheCfiColumnToAnOlderDataStoreOnceAndKeepItsRows()
-    {
-        var profile = Guid.NewGuid().ToString("D");
-        var highlight = NewHighlight(profile, null);
-        await _highlights.InsertAsync(highlight);
-
-        // A data store from before the book reader existed has no cfi_range column.
-        using (var connection = _db.CreateConnection())
-        {
-            connection.Execute("ALTER TABLE reader_highlights DROP COLUMN cfi_range;");
-        }
-
-        _db.RunStartupChecks();
-        _db.RunStartupChecks();
-
-        using (var connection = _db.CreateConnection())
-        {
-            var columns = connection.Query<string>("SELECT name FROM pragma_table_info('reader_highlights');").ToList();
-            Assert.Single(columns, column => column == "cfi_range");
-        }
-
-        var kept = await _highlights.ListByAssetAsync(profile, _assetId);
-        Assert.Equal(highlight.Id, Assert.Single(kept).Id);
-        Assert.Null(kept[0].CfiRange);
-    }
-
     private ReaderHighlight NewHighlight(string userId, string? cfiRange) => new()
     {
         Id = Guid.NewGuid(),

@@ -3,7 +3,7 @@
 **Date:** 2026-03-17 (SQLite since 2026-02-27; Dapper added in `4fc05393`) · **Status:** Accepted — reaffirmed by Shy on 2026-10-17 after the [EF benchmark](../../proposals/ef-vs-dapper-benchmark-results-2026-10.md)
 
 ## What
-The library catalogue is one SQLite file per installation. Code talks to it with hand-written SQL through Dapper, in `*Repository` classes in `MediaEngine.Storage`. The data structure is defined in `schema.sql` and upgraded at startup by `SchemaMigrator`. Entity Framework (EF) is not used.
+The library catalogue is one SQLite file per installation. Code talks to it with hand-written SQL through Dapper, in `*Repository` classes in `MediaEngine.Storage`. The data structure is built by numbered upgrade steps in `Schema/Upgrades/`, applied once each at startup. Entity Framework (EF) is not used.
 
 ## Why
 - **Performance:** large libraries (hundreds of thousands of files, claims and artwork rows) depend on tuned queries; `LargeLibraryQueryGuardrailTests` and the storage execution-model guardrails lock that in.
@@ -29,7 +29,7 @@ Shy asked whether moving to EF Core would make contributing easier, since Tuvima
 - numbered upgrade scripts for data structure changes, replacing the growing idempotent `SchemaMigrator`;
 - a contributor guide for data changes.
 
-Both are specified in [Spec: Numbered data store upgrades and contributor guide](../../specs/data-store-upgrade-scripts.md).
+Both are specified in [Spec: Numbered data store upgrades and contributor guide](../../specs/archive/data-store-upgrade-scripts.md).
 
 ## Revisit if
 - Pre-release ends and real users need versioned, reversible migrations that numbered upgrade scripts cannot provide.

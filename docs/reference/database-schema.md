@@ -19,16 +19,20 @@ Inspect the database tables, columns, and relationships that back Tuvima Library
 
 ## Where this lives in the code
 
-- `src/MediaEngine.Storage/Schema/schema.sql`
-- `src/MediaEngine.Storage/SchemaMigrator.cs`
+- `src/MediaEngine.Storage/Schema/Upgrades/` (the numbered upgrade steps, starting with `0001_baseline.sql`)
+- `src/MediaEngine.Storage/Schema/schema.snapshot.sql` (generated, read-only view of the structure after every step)
+- `src/MediaEngine.Storage/Schema/ReferenceDataTopUp.cs`
 - `src/MediaEngine.Storage/StorageEpochGuard.cs`
 
 SQLite database located at `.data/database/library.db` (path set in `config/core.json`).
 
-Latest storage epoch: **guid-blob-v10-graph-timeline-lore**. Fresh databases are initialized from
-`src/MediaEngine.Storage/Schema/schema.sql`; obsolete development epochs are
-rejected until an explicit destructive reset and reingest, rather than being
-partially migrated in place.
+Latest storage epoch: **guid-blob-v11-upgrade-steps**. The data structure is built by numbered upgrade
+steps in `src/MediaEngine.Storage/Schema/Upgrades/`. Each step runs once at startup and is recorded in
+`data_store_upgrades`; a fresh data store runs them all, starting with `0001_baseline.sql`, which creates
+the whole structure. Every table below is created by that baseline step unless its notes say a later step
+changed it. `schema.snapshot.sql` is the generated, read-only result of all the steps. Obsolete development
+epochs are rejected until an explicit destructive reset and reingest, rather than being partially migrated
+in place. To change the structure, see [Changing the data store](../develop/changing-the-data-store.md).
 
 **Conventions:**
 - Internal UUIDs are stored as 16-byte SQLite `BLOB` values in RFC4122/network byte order. API JSON still serializes GUIDs as strings.
@@ -40,8 +44,8 @@ partially migrated in place.
 
 Startup safety:
 
-- Current databases record `storage_metadata.storage_epoch = guid-blob-v10-graph-timeline-lore`.
-- Older epochs, including the legacy TEXT-GUID database and `guid-blob-v1`, are
+- Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
+- Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.
 
@@ -278,10 +282,8 @@ kind, favorites, and active discovery.
   case-insensitive), optional `colour`, `created_by_profile_id` (cleared if that
   profile is removed) and `created_at`. `local_item_tag_links` joins it to
   items (`item_id`, `tag_id`, `added_at`; one row per pair). The earlier free
-  text `local_item_tags` table no longer exists: the startup migration copies
-  each distinct name (ignoring case) into `tags`, credited to the owner of the
-  first item that carried it, links every item, then drops the old table. It
-  runs once and does nothing afterwards.
+  text `local_item_tags` table no longer exists; tags live only in `tags` and
+  `local_item_tag_links`.
 - `doc_correspondents` (`id`, `name` unique ignoring case, `colour`,
   `created_by_profile_id`, `created_at`) and `doc_types` (the same without a
   colour) are the global correspondent and document-type lists.
@@ -358,7 +360,7 @@ validated absolute prefix used by the timeline query; the most-specific
 ancestor rule wins over the source default. `updated_by_profile_id` is optional and
 clears itself (`ON DELETE SET NULL`) when that person is removed.
 
-`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. Upgrade: a data store from before household administrators had one row for the whole server; the startup migration moves that row, keeping its library identity, to the server administrator's household and recreates the View scope triggers without the single-row condition. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
+`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
 
 `view_shared_assets` marks accepted items whose verified originals are owned by
 the Shared Library while retaining the original profile as provenance. This marker
@@ -418,8 +420,7 @@ compact/comfortable/relaxed timeline density. The Profile form requires a
 profile ID; other forms forbid one. The authorization layer owns fallback when
 a saved scope is no longer permitted. `documents_sort` (nullable; `added`,
 `document_date`, `title` or `correspondent`, NULL for the default order) is how
-the profile likes the Documents list ordered. It is added to existing data stores
-by an idempotent startup migration and saved on its own, so saving the scope or
+the profile likes the Documents list ordered. It is saved on its own, so saving the scope or
 density never resets it. A saved Documents view is a row in `view_galleries`
 (`gallery_kind = 'smart'`) whose `smart_rule_json` contains a `media_type` is
 `document` condition; no table was added for it.
@@ -479,7 +480,7 @@ URL, retrieval timestamp, and a flag for modified or summarized display text.
 
 ### canonical_value_arrays
 
-The winning multi-valued claims (genres, authors, vibe tags, cast members, and a video file's `subtitle_languages`, one ISO 639-1 code per distinct language). Each value is one row with an ordinal and optional QID; packed delimiter strings are not supported. A startup migration splits any packed `subtitle_languages` rows left by earlier builds into this table.
+The winning multi-valued claims (genres, authors, vibe tags, cast members, and a video file's `subtitle_languages`, one ISO 639-1 code per distinct language). Each value is one row with an ordinal and optional QID; packed delimiter strings are not supported.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -495,7 +496,7 @@ The winning multi-valued claims (genres, authors, vibe tags, cast members, and a
 
 ### search_index
 
-FTS5 full-text search index with trigram tokenizer (migration M-062). Handles CJK and languages without word boundaries. Short queries under 3 characters fall back to a `LIKE` scan.
+FTS5 full-text search index with trigram tokenizer. Handles CJK and languages without word boundaries. Short queries under 3 characters fall back to a `LIKE` scan.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -747,7 +748,7 @@ API keys for Engine authentication.
 
 ### accounts
 
-One row per person who signs in. A sign-in that works away from this computer has an email. The only account without one is a this-computer account made at setup (`this_computer_only = 1`); it gets an email when it is secured. There are no email-less "local-only" accounts: a data store from before that rule is migrated at startup (each such account's profiles move into the server administrator's household and the account and its sessions are removed). An idempotent startup migration (`EnsureAccountEmailIsOptional`) rebuilds `accounts` once so `email` and `normalized_email` allow NULL, keeping every column, the unique index and the household index; a data store that already allows NULL is left alone.
+One row per person who signs in. A sign-in that works away from this computer has an email. The only account without one is a this-computer account made at setup (`this_computer_only = 1`); it gets an email when it is secured. There are no email-less "local-only" accounts. `email` and `normalized_email` allow NULL, and the baseline step creates `accounts` that way.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -758,12 +759,12 @@ One row per person who signs in. A sign-in that works away from this computer ha
 | `is_administrator` | INTEGER | 1 when the account is eligible for administration |
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
-| `household_id` | BLOB | The household the account belongs to (see `households`). Filled by the startup migration and by the repository when an account is saved, so it is set on every account the Engine writes. |
+| `household_id` | BLOB | The household the account belongs to (see `households`). Set by the repository when an account is saved, so it is set on every account the Engine writes. |
 | `grants_inherit_from_account_id` | BLOB | When set, the account has no feature or library grants of its own and follows those of the named account (a person's own sign-in follows the household's main sign-in). Read at use time, so changes to the main sign-in reach the person. Cleared to the household's next main sign-in when the named account is deleted. |
-| `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0; added by an idempotent startup migration. |
-| `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0; added by an idempotent startup migration. |
+| `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It signs in without a password and, since Tuvima is open from the start, can be used from any device that reaches the server until a password or passkey is added (see Security). Defaults to 0. |
+| `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
-| `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0; added by an idempotent startup migration, and a household's first main sign-in gets it when the household is created. |
+| `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0, and a household's first main sign-in gets it when the household is created. |
 
 ### households
 
@@ -776,7 +777,7 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `created_at` | TEXT | Timestamp |
 | `primary_account_id` | BLOB | The household's main sign-in (the one the server administrator set up; household administrators can only hand out what it holds). Set when the first main sign-in is saved; re-pointed to the next oldest enabled main sign-in when it is deleted. Null only for a household with no main sign-in. |
 
-**Upgrade.** The idempotent startup migration adds `household_id` to `accounts` and `profiles`, then gives every account without one its own household (named after the account's default profile) and moves every profile granted to an account into that account's household. A profile granted to two accounts joins the household of the account where it is the default grant, otherwise the oldest account; the startup log notes each such profile. Re-running changes nothing. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
+**Creation.** The baseline step creates `household_id` on `accounts` and `profiles`. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
 ### profiles
 
@@ -787,9 +788,9 @@ User profiles for multi-user support.
 | `household_id` | BLOB | The household the profile belongs to (see `households`) |
 | `avatar_color` | TEXT | Avatar circle colour, `#RRGGBB`. The profile editor offers a fixed palette of 12 swatches. |
 | `avatar_image_path` | TEXT | Path of an uploaded avatar photo; NULL when none. A photo wins over an icon. |
-| `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. Added by an idempotent startup migration. |
-| `content_limit` | TEXT | The highest rating this person may see: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). NULL means Everything. Set by a household administrator and independent of `role`. Enforced by the Engine in every list, search, detail page, Continue Watching and player. Added by an idempotent startup migration. |
-| `content_limit_allow_unrated` | INTEGER | 1 keeps items with no recognised rating visible although a `content_limit` is set; 0 (the default) hides them. Added by an idempotent startup migration. |
+| `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. |
+| `content_limit` | TEXT | The highest rating this person may see: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). NULL means Everything. Set by a household administrator and independent of `role`. Enforced by the Engine in every list, search, detail page, Continue Watching and player. |
+| `content_limit_allow_unrated` | INTEGER | 1 keeps items with no recognised rating visible although a `content_limit` is set; 0 (the default) hides them. |
 
 | Column | Type | Notes |
 |---|---|---|
@@ -819,8 +820,8 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `active_profile_id` | BLOB | Profile in use |
 | `token_hash` | TEXT | Hash of the session token (unique); the token itself is never stored |
 | `authentication_method` | TEXT | `Password`, `Passkey`, `Oidc` |
-| `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). Added by the idempotent startup migration. |
-| `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. Added by the idempotent startup migration. |
+| `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). |
+| `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. |
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 
@@ -893,11 +894,11 @@ An app's request to pair, waiting for approval or already decided. `id`, `applic
 
 ### device_downloads
 
-What a paired app reports it has stored on the device for offline use (`GET/POST /api/v1/devices/current/downloads`). One row per device and offline variant. `device_id` (references `client_devices`), `profile_id` (the profile the app was using when it reported; a device switching profile does not show the earlier person's rows), `asset_id` (references `media_assets`), `variant_id` (references `offline_variants`), `stored_bytes` (never negative; the Engine clamps it to the variant's size), `stored_at` (the device's time, never later than the Engine's clock) and `updated_at`. The primary key is (`device_id`, `variant_id`), so reporting the same variant again updates its row. A device holds at most 500 rows. Rows are removed with their device, profile, asset or variant. `offline_variants.expires_at` is written when a variant is prepared (`variant_retention_days`), and the cleanup service removes an expired variant, its file and any `device_downloads` row that still marks it as stored. Indexes: `idx_device_downloads_device_profile` (`device_id`, `profile_id`, `stored_at`) for the list and `idx_device_downloads_variant` (`variant_id`) for removal. The table is created by `schema.sql` and by an idempotent startup migration (`SchemaMigrator.EnsureDeviceDownloadSchema`).
+What a paired app reports it has stored on the device for offline use (`GET/POST /api/v1/devices/current/downloads`). One row per device and offline variant. `device_id` (references `client_devices`), `profile_id` (the profile the app was using when it reported; a device switching profile does not show the earlier person's rows), `asset_id` (references `media_assets`), `variant_id` (references `offline_variants`), `stored_bytes` (never negative; the Engine clamps it to the variant's size), `stored_at` (the device's time, never later than the Engine's clock) and `updated_at`. The primary key is (`device_id`, `variant_id`), so reporting the same variant again updates its row. A device holds at most 500 rows. Rows are removed with their device, profile, asset or variant. `offline_variants.expires_at` is written when a variant is prepared (`variant_retention_days`), and the cleanup service removes an expired variant, its file and any `device_downloads` row that still marks it as stored. Indexes: `idx_device_downloads_device_profile` (`device_id`, `profile_id`, `stored_at`) for the list and `idx_device_downloads_variant` (`variant_id`) for removal. The table is created by the baseline step.
 
 ### device_photo_downloads
 
-The photos a paired app reports it keeps on the device (kind `photo` on `GET/POST /api/v1/devices/current/downloads`). One row per device, person and View item. `device_id` (references `client_devices`), `profile_id` (the person the app was using when it reported), `item_id` (references `local_items`), `stored_bytes` (never negative), `stored_at` (never later than the Engine's clock) and `updated_at`. The primary key is (`device_id`, `profile_id`, `item_id`), so reporting a photo again updates its row, and two people on one device can each keep the same shared photo. A photo never expires. Rows are removed with their device, profile or item. A device's `device_downloads` and `device_photo_downloads` rows together are limited to 500 listed entries. Indexes: `idx_device_photo_downloads_device_profile` (`device_id`, `profile_id`, `stored_at`) for the list and `idx_device_photo_downloads_item` (`item_id`). Created by `schema.sql` and by the same idempotent startup migration (`SchemaMigrator.EnsureDeviceDownloadSchema`).
+The photos a paired app reports it keeps on the device (kind `photo` on `GET/POST /api/v1/devices/current/downloads`). One row per device, person and View item. `device_id` (references `client_devices`), `profile_id` (the person the app was using when it reported), `item_id` (references `local_items`), `stored_bytes` (never negative), `stored_at` (never later than the Engine's clock) and `updated_at`. The primary key is (`device_id`, `profile_id`, `item_id`), so reporting a photo again updates its row, and two people on one device can each keep the same shared photo. A photo never expires. Rows are removed with their device, profile or item. A device's `device_downloads` and `device_photo_downloads` rows together are limited to 500 listed entries. Indexes: `idx_device_photo_downloads_device_profile` (`device_id`, `profile_id`, `stored_at`) for the list and `idx_device_photo_downloads_item` (`item_id`). Created by the baseline step.
 
 ### setup_codes
 
@@ -915,6 +916,18 @@ One-time codes that let a person on the home network start first-run setup (`tuv
 ---
 
 ## Operations
+
+### data_store_upgrades
+
+One row per upgrade step the data store has had (see [Changing the data store](../develop/changing-the-data-store.md)). The Engine reads it at every start to decide which steps still need to run, and refuses to start when the rows no longer match the steps it knows. The Settings "Data store version" line reads the highest row.
+
+| Column | Type | Notes |
+|---|---|---|
+| `number` | INTEGER | Step number, primary key. Numbers run `1, 2, 3...` with no gaps |
+| `name` | TEXT | Step name, such as `baseline` |
+| `fingerprint` | TEXT | SHA-256 of the step's content when it ran, compared on every later start |
+| `applied_at` | TEXT | ISO-8601 time the step ran |
+| `engine_version` | TEXT | Version of the Engine that ran it |
 
 ### ingestion_log
 
@@ -1144,7 +1157,7 @@ Text highlights and annotations.
 | `profile_id` | TEXT | |
 | `chapter_index` | INTEGER | |
 | `start_offset`, `end_offset` | INTEGER | Character offsets of the retired reader; 0 for rows made by the book reader |
-| `cfi_range` | TEXT | EPUB CFI range of the highlighted text (`epubcfi(...)`). NULL for rows made by the retired reader, which the book reader does not show. Added by an idempotent startup migration. |
+| `cfi_range` | TEXT | EPUB CFI range of the highlighted text (`epubcfi(...)`). NULL for rows made by the retired reader, which the book reader does not show. |
 | `selected_text` | TEXT | Highlighted text content |
 | `note_text` | TEXT | User annotation. NULL if no note. |
 | `color` | TEXT | Highlight colour as a hex code (one of the supported highlight colours) |

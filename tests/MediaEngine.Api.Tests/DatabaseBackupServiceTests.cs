@@ -149,6 +149,30 @@ public sealed class DatabaseBackupServiceTests : IDisposable
         Assert.Empty(Directory.EnumerateDirectories(Path.GetDirectoryName(archivePath)!, ".restore-drill-*"));
     }
 
+    [Fact]
+    public async Task SafetyCopyFolder_IsNotListedAsAUserBackup()
+    {
+        var config = Path.Combine(_root, "config-safety");
+        var backup = Path.Combine(_root, "backup-safety");
+        Directory.CreateDirectory(config);
+        await File.WriteAllTextAsync(Path.Combine(config, "core.json"), "{}");
+        using var database = CreateDatabase(Path.Combine(_root, "safety.db"));
+        var service = new DatabaseBackupService(database, config, backup);
+        var userBackup = await service.CreateAsync(CancellationToken.None);
+
+        // The Engine writes upgrade safety copies here (MediaEngine.Storage DataStoreSafetyCopy).
+        var safetyFolder = Path.Combine(backup, "safety-copies");
+        Directory.CreateDirectory(safetyFolder);
+        var safetyCopy = Path.Combine(safetyFolder, "tuvima-safety-copy-20260101-000000-step-0001-to-0002.db");
+        await File.WriteAllTextAsync(safetyCopy, "copy");
+
+        var listed = service.List();
+
+        Assert.Equal([Path.GetFileName(userBackup)], listed.Select(item => item.FileName));
+        Assert.ThrowsAny<Exception>(() => service.ResolveArchive(Path.GetFileName(safetyCopy)));
+        Assert.ThrowsAny<Exception>(() => service.ResolveArchive(Path.Combine("safety-copies", Path.GetFileName(safetyCopy))));
+    }
+
     private static DatabaseConnection CreateDatabase(string path)
     {
         var database = new DatabaseConnection(path);

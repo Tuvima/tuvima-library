@@ -17,7 +17,6 @@ public sealed class AudiobookChapterTitleOverrideRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var rows = conn.Query<OverrideRow>(
             """
             SELECT work_id AS WorkId,
@@ -39,7 +38,6 @@ public sealed class AudiobookChapterTitleOverrideRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var rows = conn.Query<OverrideRow>(
             """
             SELECT work_id AS WorkId,
@@ -88,7 +86,6 @@ public sealed class AudiobookChapterTitleOverrideRepository
         };
 
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         conn.Execute(
             """
             INSERT INTO audiobook_chapter_title_overrides
@@ -110,7 +107,6 @@ public sealed class AudiobookChapterTitleOverrideRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var affected = conn.Execute(
             """
             DELETE FROM audiobook_chapter_title_overrides
@@ -121,28 +117,6 @@ public sealed class AudiobookChapterTitleOverrideRepository
             new { workId, assetId, chapterIndex });
 
         return Task.FromResult(affected > 0);
-    }
-
-    private static void EnsureTables(System.Data.IDbConnection conn)
-    {
-        conn.Execute(
-            """
-            CREATE TABLE IF NOT EXISTS audiobook_chapter_title_overrides (
-                work_id        BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-                chapter_index  INTEGER NOT NULL,
-                title          TEXT NOT NULL,
-                title_source   TEXT NOT NULL,
-                updated_at     TEXT NOT NULL,
-                PRIMARY KEY (asset_id, chapter_index)
-            );
-            """);
-
-        conn.Execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_audiobook_chapter_title_overrides_work
-                ON audiobook_chapter_title_overrides (work_id, asset_id, chapter_index);
-            """);
     }
 
     private static AudiobookChapterTitleOverrideDto ToDto(OverrideRow row) => new()

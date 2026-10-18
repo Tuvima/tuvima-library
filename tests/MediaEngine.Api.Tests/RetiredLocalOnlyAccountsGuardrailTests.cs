@@ -19,11 +19,9 @@ public sealed class RetiredLocalOnlyAccountsGuardrailTests
         "AuthenticatePinAsync",
     ];
 
-    // The data-store migration must name the old column to rebuild the table, and the session check names the retired
-    // "ProfileEntry" method so it can refuse any session that still claims it.
+    // The session check names the retired "ProfileEntry" method so it can refuse any session that still claims it.
     private static readonly (string Path, string Name)[] Allowed =
     [
-        ("src/MediaEngine.Storage/SchemaMigrator.cs", "is_local_only"),
         ("src/MediaEngine.Identity/FirstPartyIdentityService.cs", "ProfileEntry"),
     ];
 

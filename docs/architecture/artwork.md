@@ -33,11 +33,11 @@ Image shape is deliberately independent of semantic role. `aspect_class` remains
 
 Automatic structural artwork is a derived presentation. It remains a bounded ordered list of child artwork IDs and is never written to `artwork_assets`.
 
-## Compatibility and migration
+## Compatibility
 
-Startup migration `007_canonical_artwork_assets` creates the normalized tables, the facet indexes and FTS projection, then projects every legacy `entity_assets` row into them. Rows backed by `image_cache` converge on the cache SHA-256; legacy rows without a known content hash receive a stable migration identity. Work, person, collection/universe, and fictional-entity search contexts are generated from canonical metadata and refreshed by the compatibility repository when their links change.
+The baseline upgrade step (`Schema/Upgrades/0001_baseline.sql`) creates the normalized artwork tables, the facet indexes and the FTS projection. Work, person, collection/universe, and fictional-entity search contexts are generated from canonical metadata and refreshed by the compatibility repository when their links change.
 
-`EntityAssetRepository` is the temporary compatibility bridge for existing ingestion/provider workers: every artwork upsert now resolves a SHA-256 canonical asset and writes an entity link. Legacy rows continue to be projected so current Home, Read, Watch, Listen, Collections, details, and editor consumers remain shape-aware while those readers migrate to the link resolver. Linking an existing asset writes only a compatibility reference to the same managed paths; it never copies image bytes or regenerates renditions.
+`EntityAssetRepository` is the temporary compatibility bridge for existing ingestion/provider workers: every artwork upsert now resolves a SHA-256 canonical asset and writes an entity link. The bridge keeps current Home, Read, Watch, Listen, Collections, details, and editor consumers remain shape-aware while those readers migrate to the link resolver. Linking an existing asset writes only a compatibility reference to the same managed paths; it never copies image bytes or regenerates renditions.
 
 Collection path columns are compatibility projections of the preferred collection link. Removing a collection link clears the projection but keeps the canonical image and other entity links.
 

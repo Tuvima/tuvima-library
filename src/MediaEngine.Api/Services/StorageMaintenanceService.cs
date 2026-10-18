@@ -124,11 +124,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         bool dryRun)
     {
         using var conn = _db.CreateConnection();
-        if (!TableExists(conn, table))
-        {
-            return new StorageMaintenanceStepResult(label, 0, "table missing - skipped");
-        }
-
         var count = conn.ExecuteScalar<int>($"SELECT COUNT(*) FROM {table} WHERE {predicate};", parameters);
         if (!dryRun && count > 0)
         {
@@ -147,11 +142,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        if (!TableExists(conn, "image_cache"))
-        {
-            return new StorageMaintenanceStepResult("Image cache", 0, "table missing - skipped");
-        }
-
         var cutoff = DateTimeOffset.UtcNow.AddDays(-retentionDays).ToString("O");
         var rows = conn.Query<ImageCacheRow>("""
             SELECT content_hash AS ContentHash,
@@ -220,11 +210,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     private StorageMaintenanceStepResult CompactDuplicateClaims(int batchSize, bool dryRun)
     {
         using var conn = _db.CreateConnection();
-        if (!TableExists(conn, "metadata_claims"))
-        {
-            return new StorageMaintenanceStepResult("Metadata claim compaction", 0, "table missing - skipped");
-        }
-
         var parameters = new { limit = batchSize };
         var count = conn.ExecuteScalar<int>("""
             WITH duplicate_claims AS (
@@ -275,11 +260,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     private async Task<StorageMaintenanceStepResult> RebuildUiSettingsCacheAsync(bool dryRun, CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        if (!TableExists(conn, "ui_settings_cache"))
-        {
-            return new StorageMaintenanceStepResult("UI settings cache", 0, "table missing - skipped");
-        }
-
         var before = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM ui_settings_cache;");
         if (!dryRun)
         {
@@ -295,14 +275,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
     private HashSet<string> LoadReferencedImagePaths(System.Data.IDbConnection conn)
     {
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!TableExists(conn, "entity_assets"))
-        {
-            return paths;
-        }
-
-        var columns = conn.Query<string>("SELECT name FROM pragma_table_info('entity_assets');")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         string[] candidates =
         [
             "local_image_path",
@@ -312,14 +284,8 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         ];
 
         var selects = candidates
-            .Where(columns.Contains)
             .Select(column => $"SELECT {column} FROM entity_assets WHERE {column} IS NOT NULL AND TRIM({column}) <> ''")
             .ToList();
-
-        if (selects.Count == 0)
-        {
-            return paths;
-        }
 
         foreach (var path in conn.Query<string>(string.Join(" UNION ALL ", selects)))
         {
@@ -347,13 +313,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             _logger.LogWarning(ex, "Storage maintenance could not resolve library asset root; cached files will not be deleted");
             return null;
         }
-    }
-
-    private static bool TableExists(System.Data.IDbConnection conn, string table)
-    {
-        return conn.ExecuteScalar<int>(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=@table;",
-            new { table }) > 0;
     }
 
     private static string? NormalizePath(string? path)

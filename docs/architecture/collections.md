@@ -502,7 +502,7 @@ The universal collection model draws from patterns proven by major media platfor
 
 ---
 
-## Data Store Changes (Migration M-070)
+## Data Store Changes
 
 New columns on the `collections` table:
 
@@ -536,7 +536,7 @@ Backfill migration converts existing collections to the new schema, generating `
 
 | Stage | Scope |
 |-------|-------|
-| **Stage 1 - Foundation** | Collection entity changes, migration M-070, `CollectionRuleEvaluator`, predicate model, actions (resolve/preview/field-values) |
+| **Stage 1 - Foundation** | Collection entity changes, `CollectionRuleEvaluator`, predicate model, actions (resolve/preview/field-values) |
 | **Stage 2 - ContentGroup** | Ingestion-time creation in `MediaEntityChainFactory`, browse container views driven by ContentGroup collections |
 | **Stage 3 - Smart Collection Generation** | Template engine, auto-generation from library data, threshold configuration |
 | **Stage 4 - Collections Page & Collection Builder** | `/collections` page, collection builder UI, Custom collection CRUD, placement management |

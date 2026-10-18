@@ -1,0 +1,11 @@
+# Data structure patching guardrail allowlist.
+# Format: one "repo-relative file path | reason" per line. Blank lines and lines starting with # are ignored.
+#
+# StartupCode_DoesNotPatchTheStructureOutsideUpgradeSteps fails for any file under src/ (outside
+# src/MediaEngine.Storage/Schema/Upgrades/) that contains ALTER TABLE, CREATE TABLE, CREATE INDEX, DROP TABLE or
+# table_info. CREATE TEMP TABLE is not matched. Structure changes belong in a numbered upgrade step; add an entry
+# here only with a real reason, and remove it when the file stops matching.
+
+src/MediaEngine.Storage/DatabaseIntegrityChecker.cs | Writable probe: creates a uniquely named table in a transaction that is rolled back, to prove the file accepts writes. It leaves no structure behind.
+src/MediaEngine.Api/Services/HealthChecks/SqliteHealthCheck.cs | Health probe: creates and drops a uniquely named throwaway table in a rolled-back transaction to prove the data store is writable.
+src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs | Development harness reset: drops tables to clear a disposable dev data store. It does not define or change the production structure.

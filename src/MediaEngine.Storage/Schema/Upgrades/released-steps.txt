@@ -1,0 +1,3 @@
+# Fingerprints of the data store upgrade steps, one line per step: NNNN name sha256.
+# A step that has been merged to main must never change. Maintained by: pwsh -File tools/Update-SchemaSnapshot.ps1
+0001 baseline 072279fb32cf53dd0b5a7a22fbbe37a11c4838374b2bf0cbd976e612558cc69e

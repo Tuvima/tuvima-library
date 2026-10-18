@@ -23,7 +23,6 @@ public sealed class AudiobookListenHistoryRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var cappedLimit = Math.Clamp(limit, 1, 50);
         var queryLimit = Math.Min(150, cappedLimit * 4);
         var rows = conn.Query<HistoryRow>("""
@@ -109,7 +108,6 @@ public sealed class AudiobookListenHistoryRepository
         }
 
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var now = DateTimeOffset.UtcNow;
         var active = conn.QueryFirstOrDefault<ActiveSegmentRow>("""
             SELECT profile_id AS ProfileId,
@@ -340,47 +338,6 @@ public sealed class AudiobookListenHistoryRepository
         return item.Chapters.LastOrDefault(chapter =>
             chapter.StartSeconds <= heartbeat.PositionSeconds
             && (!chapter.EndSeconds.HasValue || heartbeat.PositionSeconds < chapter.EndSeconds.Value));
-    }
-
-    private static void EnsureTables(System.Data.IDbConnection conn)
-    {
-        conn.Execute("""
-            CREATE TABLE IF NOT EXISTS audiobook_listen_active_segments (
-                profile_id             BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-                work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                asset_id               BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-                queue_item_id          BLOB,
-                title                  TEXT NOT NULL,
-                chapter_title          TEXT,
-                chapter_index          INTEGER,
-                started_at             TEXT NOT NULL,
-                started_position_seconds REAL NOT NULL DEFAULT 0.0,
-                last_position_seconds  REAL NOT NULL DEFAULT 0.0,
-                duration_seconds       REAL,
-                device_id              TEXT NOT NULL,
-                client                 TEXT NOT NULL,
-                last_heartbeat_at      TEXT NOT NULL
-            );
-            """);
-
-        conn.Execute("""
-            CREATE TABLE IF NOT EXISTS audiobook_listen_history (
-                id                     BLOB NOT NULL PRIMARY KEY,
-                profile_id             BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-                work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                asset_id               BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-                title                  TEXT NOT NULL,
-                chapter_title          TEXT,
-                chapter_index          INTEGER,
-                position_seconds       REAL NOT NULL DEFAULT 0.0,
-                duration_seconds       REAL,
-                progress_pct           REAL NOT NULL DEFAULT 0.0,
-                device_id              TEXT NOT NULL,
-                client                 TEXT NOT NULL,
-                started_at             TEXT NOT NULL,
-                ended_at               TEXT NOT NULL
-            );
-            """);
     }
 
     private static AudiobookListenHistoryItemDto ToDto(HistoryRow row) => new()

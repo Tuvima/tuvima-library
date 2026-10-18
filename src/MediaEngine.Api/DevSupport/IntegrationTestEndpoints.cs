@@ -5119,23 +5119,15 @@ public static class IntegrationTestEndpoints
         string assetType)
     {
         using var conn = db.CreateConnection();
-        var columns = (await conn.QueryAsync<string>("SELECT name FROM pragma_table_info('entity_assets');"))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (columns.Count == 0)
-        {
-            return [];
-        }
-
-        var rows = await conn.QueryAsync<PreferredArtworkRow>($"""
+        var rows = await conn.QueryAsync<PreferredArtworkRow>("""
             SELECT entity_id        AS EntityId,
                    local_image_path AS LocalImagePath,
-                   {ResolveEntityAssetColumnSql(columns, "LocalImagePathSmall", "local_image_path_s", "local_image_path_small")},
-                   {ResolveEntityAssetColumnSql(columns, "LocalImagePathMedium", "local_image_path_m", "local_image_path_medium")},
-                   {ResolveEntityAssetColumnSql(columns, "LocalImagePathLarge", "local_image_path_l", "local_image_path_large")},
-                   {ResolveEntityAssetColumnSql(columns, "PrimaryHex", "primary_hex")},
-                   {ResolveEntityAssetColumnSql(columns, "SecondaryHex", "secondary_hex")},
-                   {ResolveEntityAssetColumnSql(columns, "AccentHex", "accent_hex")}
+                   local_image_path_s AS LocalImagePathSmall,
+                   local_image_path_m AS LocalImagePathMedium,
+                   local_image_path_l AS LocalImagePathLarge,
+                   primary_hex AS PrimaryHex,
+                   secondary_hex AS SecondaryHex,
+                   accent_hex AS AccentHex
             FROM entity_assets
             WHERE asset_type = @assetType
               AND is_preferred = 1
@@ -5162,17 +5154,6 @@ public static class IntegrationTestEndpoints
         }
 
         return result;
-    }
-
-    private static string ResolveEntityAssetColumnSql(
-        IReadOnlySet<string> columns,
-        string alias,
-        params string[] candidates)
-    {
-        var match = candidates.FirstOrDefault(columns.Contains);
-        return match is null
-            ? $"NULL AS {alias}"
-            : $"{match} AS {alias}";
     }
 
     private static Guid ResolveArtworkOwnerEntityId(

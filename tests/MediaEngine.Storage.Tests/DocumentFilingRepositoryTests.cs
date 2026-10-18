@@ -578,17 +578,8 @@ public sealed class DocumentFilingRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task TheSuggestionsColumnIsAddedToAnExistingDataStoreAndNewTablesUseBlobIds()
+    public async Task AFreshDataStoreHasTheSuggestionsColumnAndTheFilingTablesUseBlobIds()
     {
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("ALTER TABLE doc_item_details DROP COLUMN suggestions_json;");
-            Assert.False(HasColumn(connection, "doc_item_details", "suggestions_json"));
-        }
-
-        _database.RunStartupChecks();
-        _database.RunStartupChecks();
-
         using var check = _database.CreateConnection();
         Assert.True(HasColumn(check, "doc_item_details", "suggestions_json"));
         foreach (var (table, column) in new[] { ("doc_rules", "id"), ("doc_rules", "owner_profile_id"), ("doc_rule_conditions", "rule_id"),

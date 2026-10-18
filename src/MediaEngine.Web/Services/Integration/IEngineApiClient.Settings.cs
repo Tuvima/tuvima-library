@@ -15,6 +15,9 @@ public partial interface IEngineApiClient
 {
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 
+    /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>
+    Task<DataStoreVersionDto?> GetDataStoreVersionAsync(CancellationToken ct = default);
+
     Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default);
 
     Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default);

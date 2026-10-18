@@ -130,7 +130,8 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
 - Review Queue is the exception workflow for blocked, uncertain, low-confidence, or unresolved items. Settings/Admin is for configuration and operational state, not a normal media correction workspace.
 - Use `IDatabaseConnection.CreateConnection()` for normal repository, read-service, endpoint, background-job, and request-path database work. Dispose each short-lived connection with `using`.
 - `IDatabaseConnection.Open()` is startup/schema/integrity-only. New uses outside `DatabaseConnection`, Engine startup, or explicitly documented test fixtures should fail guardrail tests.
-- Current storage epoch is `guid-blob-v1`: internal SQLite GUIDs are 16-byte BLOBs, external IDs remain TEXT, API JSON still returns GUID strings, and legacy TEXT-GUID databases are reset/reingested rather than migrated in place.
+- Current storage epoch is `guid-blob-v11-upgrade-steps`: internal SQLite GUIDs are 16-byte BLOBs, external IDs remain TEXT, API JSON still returns GUID strings, and legacy TEXT-GUID databases are reset/reingested rather than migrated in place.
+- The data structure changes only through numbered upgrade steps in `src/MediaEngine.Storage/Schema/Upgrades/` (`NNNN_short_name.sql` or a `DataStoreCodeUpgradeStep`). Each runs once, is recorded in `data_store_upgrades`, and is never edited after release. `Schema/schema.snapshot.sql` is generated; refresh it with `pwsh -File tools/Update-SchemaSnapshot.ps1`. See `docs/develop/changing-the-data-store.md`.
 - SQLite connections use WAL plus `synchronous=NORMAL`, `busy_timeout=5000`, memory temp storage, a 16 MiB page cache target, and a 256 MiB mmap cap for local ingestion throughput. The accepted tradeoff is that an OS/power crash can require reingesting the most recent file changes.
 - Microsoft.Data.Sqlite does not provide asynchronous I/O. Repository APIs may
   remain `Task`-shaped, but SQLite/Dapper commands execute synchronously after a
@@ -204,7 +205,7 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
     are not already identical.
 
 - `src/MediaEngine.Storage`
-  - SQLite repositories, embedded schema bootstrap, startup migrations, and config loading.
+  - SQLite repositories, numbered data store upgrade steps (`Schema/Upgrades/`), and config loading.
   - Every concrete repository belongs here. API services must not hide
     persistence behind `Store` or `DataService` names.
   - This is where persistent state lives: media records, review queue, activity log, provider cache, search index, reader progress, UI settings cache, and more.
@@ -352,7 +353,7 @@ Not every item reaches every level. Some files remain standalone if the system c
 
 Reading `src/MediaEngine.Api/Program.cs`, the Engine does far more than expose HTTP endpoints. It also:
 
-- opens SQLite and runs schema initialization plus startup migrations
+- opens SQLite, applies pending numbered data store upgrade steps (with a safety copy first) and tops up built-in reference rows
 - loads structured config from `config/`
 - registers providers and HTTP clients
 - wires up ingestion, scoring, hydration, search, and write-back services

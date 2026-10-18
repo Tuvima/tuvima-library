@@ -227,6 +227,10 @@ The Engine's internal store behind [Needs Review](#needs-review). People see it 
 
 ## S
 
+### Safety copy
+
+A checked copy of the data store that the Engine writes before it runs the first pending upgrade step. The Engine keeps the two newest, in the `safety-copies` folder inside the backups folder, so a failed upgrade can be undone by restoring one. See [Operations and recovery](../guides/operations-and-recovery.md).
+
 ### Saved view
 
 A set of Documents filters a person keeps under a name: a Smart Gallery whose rule says "these are documents" and lists tags (all of them), correspondent, type, a document date range (fixed or relative, such as the last 30 days), the Inbox, custom field values and words inside the document. It shows at the top of the Documents filter rail and in Galleries, is always private to its owner (it cannot be shared and is never offered as a Collection source), and can be renamed or deleted from its menu. Deleting one never changes a document.
@@ -275,6 +279,10 @@ Reading the words in a picture of text. Tuvima Library uses it for scanned PDF p
 ### Universe
 
 A larger world or franchise that can connect multiple shelves. Tuvima uses universe-style relationships to decide when a broader Collection is useful.
+
+### Upgrade step
+
+One numbered, forward-only change to the data store, such as adding a table or column. Each step runs once at Engine start and is recorded in the data store; a released step is never edited. See [Changing the data store](../develop/changing-the-data-store.md).
 
 ## W
 

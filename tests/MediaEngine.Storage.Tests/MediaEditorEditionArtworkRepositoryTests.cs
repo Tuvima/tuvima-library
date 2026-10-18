@@ -249,45 +249,25 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void StartupMigrationPreservesWorkArtworkAndAllowsEditionOwner()
+    public void AFreshDataStoreKeepsWorkArtworkAndAllowsEditionOwnedArtwork()
     {
-        var legacyWork = Guid.NewGuid();
-        var legacyArt = Guid.NewGuid();
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("INSERT INTO works(id, media_type) VALUES(@work, 'Books');",
-                new { work = legacyWork });
-            connection.Execute("""
-                INSERT INTO entity_assets(id, entity_id, entity_type, asset_type,
-                    is_preferred, is_user_override)
-                VALUES(@art, @work, 'Work', 'CoverArt', 1, 1);
-                """, new { art = legacyArt, work = legacyWork });
-            var currentDdl = connection.QuerySingle<string>("""
-                SELECT sql FROM sqlite_master WHERE type='table' AND name='entity_assets';
-                """);
-            var oldDdl = currentDdl.Replace("'Work','Edition','Person'",
-                "'Work','Person'", StringComparison.Ordinal);
-            Assert.NotEqual(currentDdl, oldDdl);
-            connection.Execute("ALTER TABLE entity_assets RENAME TO entity_assets_with_edition;");
-            connection.Execute(oldDdl);
-            connection.Execute("INSERT INTO entity_assets SELECT * FROM entity_assets_with_edition;");
-            connection.Execute("DROP TABLE entity_assets_with_edition;");
-        }
-
-        _database.RunStartupChecks();
-        using var verify = _database.CreateConnection();
-        Assert.Equal(1, verify.QuerySingle<int>("""
-            SELECT COUNT(*) FROM entity_assets WHERE id=@art AND entity_id=@work
-              AND entity_type='Work' AND is_preferred=1 AND is_user_override=1;
-            """, new { art = legacyArt, work = legacyWork }));
-        verify.Execute("""
+        var work = Guid.NewGuid();
+        var art = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("INSERT INTO works(id, media_type) VALUES(@work, 'Books');", new { work });
+        connection.Execute("""
+            INSERT INTO entity_assets(id, entity_id, entity_type, asset_type,
+                is_preferred, is_user_override)
+            VALUES(@art, @work, 'Work', 'CoverArt', 1, 1);
+            """, new { art, work });
+        connection.Execute("""
             INSERT INTO entity_assets(id, entity_id, entity_type, asset_type, is_preferred)
             VALUES(@id, @edition, 'Edition', 'CoverArt', 1);
             """, new { id = Guid.NewGuid(), edition = Guid.NewGuid() });
-        Assert.Equal(1, verify.QuerySingle<int>("""
-            SELECT COUNT(*) FROM schema_migrations
-            WHERE migration_id='007_edition_artwork_owner';
-            """));
+        Assert.Equal(1, connection.QuerySingle<int>("""
+            SELECT COUNT(*) FROM entity_assets WHERE id=@art AND entity_id=@work
+              AND entity_type='Work' AND is_preferred=1 AND is_user_override=1;
+            """, new { art, work }));
     }
 
     private void Seed(string mediaType)

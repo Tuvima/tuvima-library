@@ -46,18 +46,18 @@ public sealed class PlayerEndpointRouteTests
     [Fact]
     public void PlayerStorageSchema_PersistsQueueSessionAndExactResumePosition()
     {
-        var schema = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Schema/schema.sql"));
+        var schema = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Schema/schema.snapshot.sql"));
         var repositorySource = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Playback/PlayerSessionRepository.cs"));
         var serviceSource = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Api/Services/Playback/PlayerService.cs"));
 
-        Assert.Contains("CREATE TABLE IF NOT EXISTS player_sessions", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS player_queue_items", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS audiobook_listen_active_segments", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS audiobook_listen_history", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS audiobook_bookmarks", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS music_play_active_segments", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS music_play_stats", schema, StringComparison.Ordinal);
-        Assert.Contains("CREATE TABLE IF NOT EXISTS audiobook_chapter_title_overrides", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE player_sessions", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE player_queue_items", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE audiobook_listen_active_segments", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE audiobook_listen_history", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE audiobook_bookmarks", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE music_play_active_segments", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE music_play_stats", schema, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE audiobook_chapter_title_overrides", schema, StringComparison.Ordinal);
         Assert.Contains("position_seconds", schema, StringComparison.Ordinal);
         Assert.Contains("progress_pct", schema, StringComparison.Ordinal);
         Assert.Contains("duration_seconds", schema, StringComparison.Ordinal);

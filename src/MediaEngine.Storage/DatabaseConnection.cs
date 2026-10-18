@@ -1,4 +1,6 @@
 using MediaEngine.Storage.Contracts;
+using MediaEngine.Storage.Schema;
+using MediaEngine.Storage.Schema.Upgrades;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage;
@@ -6,17 +8,20 @@ namespace MediaEngine.Storage;
 /// <summary>
 /// Facade for the SQLite database lifecycle.
 /// Owns the shared startup connection and delegates focused lifecycle work to
-/// connection, schema, current-startup-task, integrity, and maintenance collaborators.
+/// connection, upgrade-step runner, reference-data top-up, integrity, and maintenance collaborators.
 /// </summary>
 public sealed class DatabaseConnection : IDatabaseConnection
 {
     private readonly string _databasePath;
+    private readonly DataStoreStartupOptions _startupOptions;
     private readonly SqliteConnectionFactory _connectionFactory;
-    private readonly SchemaInitializer _schemaInitializer;
-    private readonly SchemaMigrator _schemaMigrator;
+    private readonly ReferenceDataTopUp _referenceDataTopUp;
     private readonly DatabaseIntegrityChecker _integrityChecker;
     private readonly SqliteMaintenanceService _maintenanceService;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly List<string> _startupNotes = [];
+    private readonly IReadOnlyList<DataStoreUpgradeStep>? _upgradeSteps;
+    private readonly Func<string, long>? _freeSpaceLookup;
     private SqliteConnection? _connection;
 
     /// <param name="databasePath">
@@ -24,11 +29,18 @@ public sealed class DatabaseConnection : IDatabaseConnection
     /// Typically sourced from <c>config/core.json</c>.
     /// </param>
     public DatabaseConnection(string databasePath)
+        : this(databasePath, new DataStoreStartupOptions())
+    {
+    }
+
+    /// <param name="databasePath">Absolute or relative path to the <c>.db</c> file.</param>
+    /// <param name="options">Host settings such as the backups folder named in upgrade messages.</param>
+    public DatabaseConnection(string databasePath, DataStoreStartupOptions options)
         : this(
             databasePath,
+            options,
             new SqliteConnectionFactory(databasePath),
-            new SchemaInitializer(),
-            new SchemaMigrator(),
+            new ReferenceDataTopUp(),
             new DatabaseIntegrityChecker(),
             new SqliteMaintenanceService())
     {
@@ -36,26 +48,32 @@ public sealed class DatabaseConnection : IDatabaseConnection
 
     internal DatabaseConnection(
         string databasePath,
+        DataStoreStartupOptions options,
         SqliteConnectionFactory connectionFactory,
-        SchemaInitializer schemaInitializer,
-        SchemaMigrator schemaMigrator,
+        ReferenceDataTopUp referenceDataTopUp,
         DatabaseIntegrityChecker integrityChecker,
-        SqliteMaintenanceService maintenanceService)
+        SqliteMaintenanceService maintenanceService,
+        IReadOnlyList<DataStoreUpgradeStep>? upgradeSteps = null,
+        Func<string, long>? freeSpaceLookup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        ArgumentNullException.ThrowIfNull(options);
         DapperConfiguration.Configure();
         _databasePath = databasePath;
+        _startupOptions = options;
         _connectionFactory = connectionFactory;
-        _schemaInitializer = schemaInitializer;
-        _schemaMigrator = schemaMigrator;
+        _referenceDataTopUp = referenceDataTopUp;
         _integrityChecker = integrityChecker;
         _maintenanceService = maintenanceService;
+        _upgradeSteps = upgradeSteps;
+        _freeSpaceLookup = freeSpaceLookup;
     }
 
     /// <summary>
-    /// Lines describing data a startup migration changed (such as profiles moved between accounts), for the host to log.
+    /// Lines describing the data store upgrade steps the last <see cref="InitializeSchema"/> applied (and where the
+    /// safety copy is, when there is one), for the host to log. Empty when nothing was applied.
     /// </summary>
-    public IReadOnlyList<string> StartupNotes => _schemaMigrator.Notes;
+    public IReadOnlyList<string> StartupNotes => _startupNotes;
 
     /// <inheritdoc/>
     public SqliteConnection Open()
@@ -74,27 +92,57 @@ public sealed class DatabaseConnection : IDatabaseConnection
         => _connectionFactory.CreateOperationConnection();
 
     /// <inheritdoc/>
+    /// <exception cref="DataStoreUpgradeException">
+    /// Thrown when an upgrade step fails, or the data store is newer than this Engine or no longer matches the recorded steps.
+    /// </exception>
     public void InitializeSchema()
     {
         // The epoch guard may need to move an incompatible pre-beta database.
         // Release the shared connection first so Windows does not keep the file locked.
         _connection?.Dispose();
         _connection = null;
+        _startupNotes.Clear();
         StorageEpochGuard.EnsureCurrentOrReset(_databasePath);
         var conn = Open();
         _integrityChecker.EnsureWritable(conn, _databasePath);
-        _schemaInitializer.Initialize(conn);
+        if (StorageStructure.HasUserTables(conn))
+        {
+            // Before any step runs, so a damaged file is reported as damaged rather than as a failed step.
+            _integrityChecker.EnsureIntact(conn, _databasePath);
+        }
+
+        var hasBackupFolder = !string.IsNullOrWhiteSpace(_startupOptions.BackupDirectory);
+        var safetyCopy = hasBackupFolder
+            ? new DataStoreSafetyCopy(_databasePath, _startupOptions.BackupDirectory!, freeSpaceLookup: _freeSpaceLookup)
+            : null;
+        var upgradeOptions = new DataStoreUpgradeOptions
+        {
+            BackupLocationHint = hasBackupFolder
+                ? $"the backups folder '{Path.GetFullPath(_startupOptions.BackupDirectory!)}' "
+                  + $"or the safety copies the Engine makes before an upgrade in '{DataStoreSafetyCopy.FolderFor(_startupOptions.BackupDirectory!)}'"
+                : "your backups folder",
+            BeforeFirstPendingStep = safetyCopy?.AsHook(conn),
+        };
+
+        var result = new DataStoreUpgradeRunner().Run(conn, _upgradeSteps ?? DataStoreUpgradeCatalog.ForProduct(), upgradeOptions);
+        _startupNotes.AddRange(result.DescribeForLog());
+        if (safetyCopy is not null)
+        {
+            _startupNotes.AddRange(safetyCopy.Warnings);
+        }
+        else if (result.FromNumber > 0 && result.Applied.Count > 0)
+        {
+            _startupNotes.Add("No backup folder configured, so no safety copy was made.");
+        }
     }
 
     /// <inheritdoc/>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when <c>PRAGMA integrity_check</c> returns anything other than "ok".
-    /// </exception>
     public void RunStartupChecks()
     {
         var conn = Open();
-        _integrityChecker.RunStartupChecks(conn, _databasePath);
-        _schemaMigrator.RunStartupTasks(conn);
+        _integrityChecker.EnsureWritable(conn, _databasePath);
+        _referenceDataTopUp.Run(conn);
+        _integrityChecker.Optimize(conn);
     }
 
     /// <summary>
