@@ -21,7 +21,6 @@ public sealed class AudiobookBookmarkRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        EnsureSchema(conn);
         var rows = conn.Query<BookmarkRow>(
             """
             SELECT id AS Id,
@@ -62,8 +61,6 @@ public sealed class AudiobookBookmarkRepository
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
-            EnsureSchema(conn);
-
             var bookmark = new BookmarkRow
             {
                 Id = Guid.NewGuid(),
@@ -102,7 +99,6 @@ public sealed class AudiobookBookmarkRepository
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
-            EnsureSchema(conn);
             var affected = conn.Execute(
                 """
                 DELETE FROM audiobook_bookmarks
@@ -120,35 +116,6 @@ public sealed class AudiobookBookmarkRepository
                 tx);
             return affected > 0;
         }, ct);
-    }
-
-    private static void EnsureSchema(System.Data.IDbConnection conn)
-    {
-        var columns = conn.Query<BookmarkSchemaColumn>("PRAGMA table_info(audiobook_bookmarks);")
-            .Select(column => column.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (columns.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Audiobook bookmarks are not present in the initialized database schema. Recreate disposable development state from the current schema before using bookmarks.");
-        }
-
-        var required = new[]
-        {
-            "id", "profile_id", "work_id", "asset_id", "chapter_index", "chapter_title",
-            "position_seconds", "duration_seconds", "label", "note", "created_at",
-        };
-        var missing = required.Where(column => !columns.Contains(column)).ToArray();
-        if (missing.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"The audiobook bookmark schema is obsolete or incomplete (missing: {string.Join(", ", missing)}). Recreate disposable development state from the current schema; runtime schema migration is not supported.");
-        }
-    }
-
-    private sealed record BookmarkSchemaColumn
-    {
-        public string Name { get; init; } = string.Empty;
     }
 
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()

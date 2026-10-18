@@ -5,7 +5,7 @@ public sealed class ClientApiV1GuardrailTests
     [Fact]
     public void DevicePairing_UsesHashedRotatingCredentialsAndPerDeviceRevocation()
     {
-        var schema = Source("src/MediaEngine.Storage/Schema/Upgrades/0001_baseline.sql");
+        var schema = Source("src/MediaEngine.Storage/Schema/schema.snapshot.sql");
         var authorization = Source("src/MediaEngine.Api/Security/ClientAuthorizationService.cs");
         var repository = Source("src/MediaEngine.Storage/ClientAuthorizationRepository.cs");
 

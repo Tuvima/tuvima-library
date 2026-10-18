@@ -541,8 +541,7 @@ public sealed class IngestionOperationsContractTests
             "src",
             "MediaEngine.Storage",
             "Schema",
-            "Upgrades",
-            "0001_baseline.sql"));
+            "schema.snapshot.sql"));
 
         Assert.Contains("CREATE TABLE ingestion_batch_artifacts", schema, StringComparison.Ordinal);
         Assert.Contains("artifact_type", schema, StringComparison.Ordinal);

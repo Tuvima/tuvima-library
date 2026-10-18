@@ -1138,10 +1138,10 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
-    public void BaselineStep_DoesNotContainRetiredLegacyStorageTokens()
+    public void CurrentStructure_DoesNotContainRetiredLegacyStorageTokens()
     {
         var root = FindRepoRoot();
-        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/Upgrades/0001_baseline.sql"));
+        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/schema.snapshot.sql"));
 
         Assert.DoesNotContain("provider_" + "reg" + "istry", schema, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("hub_" + "items", schema, StringComparison.OrdinalIgnoreCase);

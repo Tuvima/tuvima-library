@@ -300,9 +300,6 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
             return paths;
         }
 
-        var columns = conn.Query<string>("SELECT name FROM pragma_table_info('entity_assets');")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         string[] candidates =
         [
             "local_image_path",
@@ -312,14 +309,8 @@ public sealed class StorageMaintenanceService : IStorageMaintenanceService
         ];
 
         var selects = candidates
-            .Where(columns.Contains)
             .Select(column => $"SELECT {column} FROM entity_assets WHERE {column} IS NOT NULL AND TRIM({column}) <> ''")
             .ToList();
-
-        if (selects.Count == 0)
-        {
-            return paths;
-        }
 
         foreach (var path in conn.Query<string>(string.Join(" UNION ALL ", selects)))
         {

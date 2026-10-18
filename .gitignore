@@ -159,6 +159,9 @@ website/external-links-report.json
 # Contracts snapshot review files (copy over the matching .approved.txt to accept)
 *.received.txt
 
+# Data structure snapshot review file (tools/Update-SchemaSnapshot.ps1 copies it over schema.snapshot.sql)
+*.received.sql
+
 # Config backups written by ConfigurationDirectoryLoader on save (local runtime state)
 *.bak
 .scratch/

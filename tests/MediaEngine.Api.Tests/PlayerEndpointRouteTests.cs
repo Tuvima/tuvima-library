@@ -46,7 +46,7 @@ public sealed class PlayerEndpointRouteTests
     [Fact]
     public void PlayerStorageSchema_PersistsQueueSessionAndExactResumePosition()
     {
-        var schema = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Schema/Upgrades/0001_baseline.sql"));
+        var schema = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Schema/schema.snapshot.sql"));
         var repositorySource = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Storage/Playback/PlayerSessionRepository.cs"));
         var serviceSource = File.ReadAllText(GetRepoFilePath("src/MediaEngine.Api/Services/Playback/PlayerService.cs"));
 

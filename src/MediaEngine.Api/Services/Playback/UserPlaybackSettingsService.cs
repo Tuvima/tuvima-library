@@ -103,7 +103,6 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         await EnsureProfileExistsAsync(profileId, ct);
 
         using var conn = _db.CreateConnection();
-        EnsureTable(conn);
         var row = conn.QueryFirstOrDefault<SettingsRow>("""
             SELECT profile_id AS ProfileId,
                    settings_json AS SettingsJson,
@@ -160,7 +159,6 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         var json = JsonSerializer.Serialize(normalized, JsonOptions);
 
         using var conn = _db.CreateConnection();
-        EnsureTable(conn);
         conn.Execute("""
             INSERT INTO user_playback_settings (profile_id, settings_json, updated_at)
             VALUES (@profileId, @json, @updatedAt)
@@ -189,17 +187,6 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         {
             throw new KeyNotFoundException($"Profile '{profileId}' was not found.");
         }
-    }
-
-    private static void EnsureTable(System.Data.IDbConnection conn)
-    {
-        conn.Execute("""
-            CREATE TABLE IF NOT EXISTS user_playback_settings (
-                profile_id    BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-                settings_json TEXT NOT NULL,
-                updated_at    TEXT NOT NULL
-            );
-            """);
     }
 
     private static UserPlaybackSettingsDto Normalize(UserPlaybackSettingsDto settings, Guid profileId)

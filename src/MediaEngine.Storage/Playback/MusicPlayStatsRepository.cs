@@ -37,7 +37,6 @@ public sealed class MusicPlayStatsRepository
         }
 
         using var conn = _db.CreateConnection();
-        EnsureTables(conn);
         var requestedIdHex = requestedIds
             .Select(id => Convert.ToHexString(GuidSql.ToBlob(id)))
             .ToArray();
@@ -70,7 +69,6 @@ public sealed class MusicPlayStatsRepository
 
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
-            EnsureTables(conn, tx);
             var now = _timeProvider.GetUtcNow();
             var active = conn.QueryFirstOrDefault<ActiveSegmentRow>("""
                 SELECT profile_id AS ProfileId,
@@ -243,34 +241,6 @@ public sealed class MusicPlayStatsRepository
             "DELETE FROM music_play_active_segments WHERE profile_id = @profileId;",
             new { profileId },
             transaction);
-    }
-
-    private static void EnsureTables(System.Data.IDbConnection conn, System.Data.IDbTransaction? tx = null)
-    {
-        conn.Execute("""
-            CREATE TABLE IF NOT EXISTS music_play_active_segments (
-                profile_id             BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-                work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                asset_id               BLOB REFERENCES media_assets(id) ON DELETE SET NULL,
-                queue_item_id          BLOB,
-                started_at             TEXT NOT NULL,
-                last_position_seconds  REAL NOT NULL DEFAULT 0.0,
-                listened_seconds       REAL NOT NULL DEFAULT 0.0,
-                duration_seconds       REAL,
-                qualified              INTEGER NOT NULL DEFAULT 0 CHECK (qualified IN (0, 1)),
-                last_heartbeat_at      TEXT NOT NULL
-            );
-            """, transaction: tx);
-
-        conn.Execute("""
-            CREATE TABLE IF NOT EXISTS music_play_stats (
-                profile_id             BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-                work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-                play_count             INTEGER NOT NULL DEFAULT 0,
-                last_played_at         TEXT NOT NULL,
-                PRIMARY KEY (profile_id, work_id)
-            );
-            """, transaction: tx);
     }
 
     private sealed record ActiveSegmentRow
