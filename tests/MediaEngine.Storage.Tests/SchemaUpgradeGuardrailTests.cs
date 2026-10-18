@@ -22,7 +22,7 @@ public sealed class SchemaUpgradeGuardrailTests(ITestOutputHelper output)
 
     /// <summary>
     /// The only tables the reference-data top-up may insert into (decision D12 of the data store upgrade-steps spec,
-    /// engineering/specs/data-store-upgrade-scripts.md). Adding a table here is a spec change, not a guardrail tweak.
+    /// engineering/specs/archive/data-store-upgrade-scripts.md). Adding a table here is a spec change, not a guardrail tweak.
     /// </summary>
     private static readonly string[] TopUpAllowedTables =
     [

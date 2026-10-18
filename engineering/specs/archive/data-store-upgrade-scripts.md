@@ -1,6 +1,6 @@
 # Spec: Numbered data store upgrades and contributor guide
 
-> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [ADR 0001 — SQLite and Dapper](../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../docs/reference/database-schema.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../../product/overview.md) · [ADR 0001 — SQLite and Dapper](../../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../../docs/reference/database-schema.md)
 
 ## 1. Goal
 
@@ -209,3 +209,15 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 
 **Open questions**
 - None. Q1–Q4 were answered by Shy on 2026-10-18 and are recorded as D8–D11.
+
+## 8. Gaps and drift (as built, 2026-10-18)
+
+- **Built and matches the spec:** D1–D12; the §4 situations; WP1–WP6. Before the old routine was deleted, a one-off test proved that a fresh data store built the old way and one built the new way were identical (204 tables, 250 indexes, 14 triggers, 2 views and every seeded row), apart from the four intended differences.
+- **Built differently (implementation details; Shy to confirm keeping them):**
+  - **Epoch:** the `storage_epoch` row is written by the baseline step itself, in the same transaction as the structure. A future epoch bump is an ordinary numbered step that updates it, and a test checks that the stored epoch equals the Engine's.
+  - **Exit code:** a refusal or failed step at startup exits the Engine with code 75, next to the existing 74 for a read-only data store.
+  - **CI:** the build-and-test job fetches full history (`fetch-depth: 0`), so CI can check that steps already on `main` were never edited.
+  - **Wider clean-up:** the new guardrail found four playback tables that the app created lazily at runtime. They were identical to the baseline and were removed, along with several dead "does this column or table exist?" checks.
+  - **Tests:** tests that only exercised conversions of old pre-release data shapes were deleted, per D8 and the "no compatibility shims" rule. Tests of current behaviour were kept or rewritten against a fresh data store.
+  - **Native apps' registration:** it is seed data in the baseline step, not part of the top-up, because it is written in SQL rather than as a list in code (D12).
+- **In the spec but not built:** nothing.

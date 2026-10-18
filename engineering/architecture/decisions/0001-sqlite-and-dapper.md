@@ -29,7 +29,7 @@ Shy asked whether moving to EF Core would make contributing easier, since Tuvima
 - numbered upgrade scripts for data structure changes, replacing the growing idempotent `SchemaMigrator`;
 - a contributor guide for data changes.
 
-Both are specified in [Spec: Numbered data store upgrades and contributor guide](../../specs/data-store-upgrade-scripts.md).
+Both are specified in [Spec: Numbered data store upgrades and contributor guide](../../specs/archive/data-store-upgrade-scripts.md).
 
 ## Revisit if
 - Pre-release ends and real users need versioned, reversible migrations that numbered upgrade scripts cannot provide.
