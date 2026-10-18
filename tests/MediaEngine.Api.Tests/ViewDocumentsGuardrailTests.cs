@@ -48,7 +48,6 @@ public sealed class ViewDocumentsGuardrailTests
         var root = FindRepoRoot();
         var offenders = Directory.EnumerateFiles(Path.Combine(root, "src", "MediaEngine.Storage"), "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .Where(path => !path.EndsWith("SchemaMigrator.cs", StringComparison.Ordinal))
             .Select(path => (path, text: File.ReadAllText(path)))
             .Where(file => Regex.IsMatch(file.text, @"\bsearch_index\b") && file.text.Contains("local_item", StringComparison.Ordinal))
             .Select(file => Path.GetFileName(file.path))

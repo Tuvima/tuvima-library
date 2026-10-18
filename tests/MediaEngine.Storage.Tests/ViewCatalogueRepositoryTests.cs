@@ -468,50 +468,6 @@ public sealed class ViewCatalogueRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingFreeTextTagsMoveIntoTheGlobalListOnceAndKeepTheirItems()
-    {
-        var alice = await CreatePerson();
-        var bob = await CreatePerson();
-        var first = await AddDocument(alice, 'a');
-        var second = await AddDocument(bob, 'b');
-        using (var connection = _database.CreateConnection())
-        {
-            // The shape every database had before the global list existed.
-            connection.Execute("""
-                CREATE TABLE local_item_tags (
-                    item_id BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
-                    tag TEXT NOT NULL COLLATE NOCASE,
-                    added_at TEXT NOT NULL,
-                    PRIMARY KEY (item_id, tag));
-                CREATE INDEX ix_local_item_tags_tag ON local_item_tags(tag, item_id);
-                """);
-            foreach (var (item, tag, at) in new[]
-                     {
-                         (first, "Holiday", "2026-01-01"), (second, "holiday", "2026-02-01"), (second, "Solo", "2026-02-01"),
-                         (first, "Ärzte", "2026-01-02"), (second, "ärzte", "2026-02-02"),
-                     })
-            {
-                connection.Execute("INSERT INTO local_item_tags (item_id, tag, added_at) VALUES (@item, @tag, @at);", new { item, tag, at });
-            }
-        }
-
-        _database.RunStartupChecks();
-        _database.RunStartupChecks();
-
-        using var check = _database.CreateConnection();
-        Assert.Equal(0, check.QuerySingle<int>("SELECT COUNT(*) FROM sqlite_master WHERE name = 'local_item_tags';"));
-        Assert.Equal(3, check.QuerySingle<int>("SELECT COUNT(*) FROM tags;"));
-        Assert.Equal(5, check.QuerySingle<int>("SELECT COUNT(*) FROM local_item_tag_links;"));
-        Assert.Equal("Holiday", check.QuerySingle<string>("SELECT name FROM tags WHERE name = 'holiday' COLLATE NOCASE;"));
-        Assert.Equal(["Holiday", "Ärzte"], _assets.Find(first)!.Tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray());
-        Assert.Equal(["Holiday", "Solo", "Ärzte"], _assets.Find(second)!.Tags.OrderBy(tag => tag, StringComparer.Ordinal).ToArray());
-        // The earliest use decides the creator, so it is the first owner's tag and Bob's alone is his.
-        Assert.Equal(alice.ProfileId, check.QuerySingle<Guid>("SELECT created_by_profile_id FROM tags WHERE name = 'Holiday';"));
-        Assert.Equal(bob.ProfileId, check.QuerySingle<Guid>("SELECT created_by_profile_id FROM tags WHERE name = 'Solo';"));
-        Assert.Contains(_database.StartupNotes, note => note.Contains("tag", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
     public async Task EveryNewCatalogueIdIsStoredAsABlob()
     {
         var alice = await CreatePerson();

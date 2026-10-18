@@ -20,6 +20,7 @@ using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.Storage.Schema.Upgrades;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -206,12 +207,12 @@ DatabaseBackupService.ApplyPendingRestore(configDirectory, dbPath, backupDirecto
 
 builder.Services.AddSingleton<IDatabaseConnection>(_ =>
 {
-    var database = new DatabaseConnection(dbPath);
+    var database = new DatabaseConnection(dbPath, new DataStoreStartupOptions { BackupDirectory = backupDirectory });
     database.InitializeSchema();
     database.RunStartupChecks();
     foreach (var note in database.StartupNotes)
     {
-        Log.Information("Data store migration: {Detail}", note);
+        Log.Information("Data store upgrade: {Detail}", note);
     }
 
     return database;
@@ -476,6 +477,14 @@ catch (DatabaseWriteAccessException exception)
 {
     Log.Error("{StartupFailure}", exception.Message);
     Environment.ExitCode = 74;
+    await app.DisposeAsync().ConfigureAwait(false);
+    return;
+}
+catch (DataStoreUpgradeException exception)
+{
+    // The message names the data store, the step and where to find a backup; the data store is left as it was.
+    Log.Fatal("{StartupFailure}", exception.Message);
+    Environment.ExitCode = 75;
     await app.DisposeAsync().ConfigureAwait(false);
     return;
 }

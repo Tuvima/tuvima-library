@@ -53,10 +53,8 @@ internal sealed class DatabaseIntegrityChecker
     /// <exception cref="InvalidOperationException">
     /// Thrown when <c>PRAGMA integrity_check</c> returns anything other than "ok".
     /// </exception>
-    public void RunStartupChecks(SqliteConnection conn, string databasePath)
+    public void EnsureIntact(SqliteConnection conn, string databasePath)
     {
-        EnsureWritable(conn, databasePath);
-
         using var integrityCmd = conn.CreateCommand();
         integrityCmd.CommandText = "PRAGMA integrity_check;";
         var result = integrityCmd.ExecuteScalar()?.ToString();
@@ -66,7 +64,10 @@ internal sealed class DatabaseIntegrityChecker
             throw new InvalidOperationException(
                 $"SQLite integrity_check failed for '{databasePath}': {result}");
         }
+    }
 
+    public void Optimize(SqliteConnection conn)
+    {
         using var optimizeCmd = conn.CreateCommand();
         optimizeCmd.CommandText = "PRAGMA optimize;";
         optimizeCmd.ExecuteNonQuery();

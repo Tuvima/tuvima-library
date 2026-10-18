@@ -16,7 +16,6 @@ public sealed class AccountCreationGuardrailTests
         ["src/MediaEngine.Api/Security/AccountPasskeyStore.cs"] = "identity-store adapter used for accounts that already exist",
         ["src/MediaEngine.Storage/AccountRepository.cs"] = "the data-store implementation behind the above",
         ["src/MediaEngine.Storage/HouseholdRepository.cs"] = "reads existing accounts back; creates none",
-        ["src/MediaEngine.Storage/SchemaMigrator.cs"] = "startup data-structure rebuild",
     };
 
     private static readonly Regex CreatesAccount = new(

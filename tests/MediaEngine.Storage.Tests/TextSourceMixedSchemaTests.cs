@@ -3,51 +3,11 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// Text recognition added the "mixed" text source. A data store created before that only accepts
-/// embedded, ocr and none, so startup widens the stored table definition in place.
+/// Text recognition has a "mixed" text source alongside embedded, ocr and none; a new data store accepts it.
 /// </summary>
-public sealed class TextSourceMixedMigrationTests : IDisposable
+public sealed class TextSourceMixedSchemaTests : IDisposable
 {
-    private const string NewCheck = "IN ('embedded', 'ocr', 'mixed', 'none')";
-    private const string OldCheck = "IN ('embedded', 'ocr', 'none')";
-
     private readonly List<string> _paths = [];
-
-    [Fact]
-    public void LegacyDataStoreAcceptsMixedAfterStartup()
-    {
-        var path = CreateStoreWithOldDefinition();
-        Assert.Throws<SqliteException>(() => InsertMetadata(path, "mixed"));
-
-        using (var database = new DatabaseConnection(path))
-        {
-            database.InitializeSchema();
-            database.RunStartupChecks();
-        }
-
-        SqliteConnection.ClearAllPools();
-        InsertMetadata(path, "mixed");
-        Assert.Equal("mixed", Scalar(path, "SELECT text_source FROM local_item_metadata;"));
-        Assert.Contains(NewCheck, Scalar(path, "SELECT sql FROM sqlite_master WHERE name = 'local_item_metadata';"), StringComparison.Ordinal);
-        Assert.Equal("ok", Scalar(path, "PRAGMA integrity_check;"));
-    }
-
-    [Fact]
-    public void RunningStartupTwiceChangesNothingFurther()
-    {
-        var path = CreateStoreWithOldDefinition();
-        for (var run = 0; run < 2; run++)
-        {
-            using var database = new DatabaseConnection(path);
-            database.InitializeSchema();
-            database.RunStartupChecks();
-        }
-
-        SqliteConnection.ClearAllPools();
-        var definition = Scalar(path, "SELECT sql FROM sqlite_master WHERE name = 'local_item_metadata';");
-        Assert.Contains(NewCheck, definition, StringComparison.Ordinal);
-        Assert.DoesNotContain(OldCheck, definition, StringComparison.Ordinal);
-    }
 
     [Fact]
     public void NewDataStoreAlreadyAcceptsMixed()
@@ -61,32 +21,6 @@ public sealed class TextSourceMixedMigrationTests : IDisposable
         SqliteConnection.ClearAllPools();
         InsertMetadata(path, "mixed");
         Assert.Equal("mixed", Scalar(path, "SELECT text_source FROM local_item_metadata;"));
-    }
-
-    private string CreateStoreWithOldDefinition()
-    {
-        var path = NewPath();
-        using (var database = new DatabaseConnection(path))
-        {
-            database.InitializeSchema();
-        }
-
-        SqliteConnection.ClearAllPools();
-        using var raw = new SqliteConnection($"Data Source={path};Pooling=False");
-        raw.Open();
-        var version = Convert.ToInt64(Execute(raw, "PRAGMA schema_version;", scalar: true), System.Globalization.CultureInfo.InvariantCulture);
-        Execute(raw, "PRAGMA writable_schema = ON;");
-        using (var update = raw.CreateCommand())
-        {
-            update.CommandText = "UPDATE sqlite_master SET sql = replace(sql, @new, @old) WHERE name = 'local_item_metadata';";
-            update.Parameters.AddWithValue("@new", NewCheck);
-            update.Parameters.AddWithValue("@old", OldCheck);
-            update.ExecuteNonQuery();
-        }
-
-        Execute(raw, $"PRAGMA schema_version = {version + 1};");
-        Execute(raw, "PRAGMA writable_schema = OFF;");
-        return path;
     }
 
     private string NewPath()

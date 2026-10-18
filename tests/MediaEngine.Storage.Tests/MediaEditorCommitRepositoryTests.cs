@@ -306,25 +306,6 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void StartupMigratesExistingDatabaseWithoutEditorReceiptTables()
-    {
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("DROP TABLE media_editor_commit_items; DROP TABLE media_editor_commits;");
-        }
-
-        _database.RunStartupChecks();
-
-        using var verify = _database.CreateConnection();
-        Assert.Equal(1, verify.QuerySingle<int>(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_editor_commits';"));
-        Assert.Equal(1, verify.QuerySingle<int>(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_editor_commit_items';"));
-        Assert.Equal(1, verify.QuerySingle<int>(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='media_editor_commit_artwork';"));
-    }
-
-    [Fact]
     public async Task BatchCanMoveOneEditionWhileUnselectedSiblingEditionKeepsSourceWork()
     {
         var siblingEdition = Guid.NewGuid();

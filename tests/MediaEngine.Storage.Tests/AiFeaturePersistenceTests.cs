@@ -407,35 +407,6 @@ public sealed class AiFeaturePersistenceTests : IDisposable
     }
 
     [Fact]
-    public void CurrentEpochStartup_AddsDecisionSourceColumnToExistingClaimsTable()
-    {
-        using (var conn = _db.CreateConnection())
-        {
-            conn.Execute("DROP TABLE metadata_claims;");
-            conn.Execute(
-                """
-                CREATE TABLE metadata_claims (
-                    id BLOB NOT NULL PRIMARY KEY,
-                    entity_id BLOB NOT NULL,
-                    provider_id BLOB NOT NULL REFERENCES metadata_providers(id),
-                    claim_key TEXT NOT NULL,
-                    claim_value TEXT NOT NULL,
-                    confidence REAL NOT NULL DEFAULT 1.0,
-                    claimed_at TEXT NOT NULL,
-                    is_user_locked INTEGER NOT NULL DEFAULT 0
-                );
-                """);
-        }
-
-        _db.RunStartupChecks();
-
-        using var verify = _db.CreateConnection();
-        var columns = verify.Query<string>(
-            "SELECT name FROM pragma_table_info('metadata_claims');").ToList();
-        Assert.Contains("decision_source_provider_id", columns);
-    }
-
-    [Fact]
     public async Task EnrichmentCandidateQuery_RecognizesArrayBackedFields()
     {
         var entityId = Guid.NewGuid();

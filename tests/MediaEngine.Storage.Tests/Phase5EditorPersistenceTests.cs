@@ -7,11 +7,11 @@ public sealed class Phase5EditorPersistenceTests
     {
         var root = FindRepoRoot();
         var reviewRepo = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/ReviewQueueRepository.cs"));
-        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/schema.sql"));
+        var schema = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/Schema/Upgrades/0001_baseline.sql"));
         var databaseConnection = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Storage/DatabaseConnection.cs"));
 
         Assert.Contains("UpdateStatusAsync", reviewRepo, StringComparison.Ordinal);
-        Assert.Contains("SchemaMigrator", databaseConnection, StringComparison.Ordinal);
+        Assert.Contains("DataStoreUpgradeRunner", databaseConnection, StringComparison.Ordinal);
         Assert.Contains("review_queue", schema, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("canonical_values", schema, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("metadata_claims", schema, StringComparison.OrdinalIgnoreCase);

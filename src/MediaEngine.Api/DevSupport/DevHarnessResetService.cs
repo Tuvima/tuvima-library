@@ -37,7 +37,7 @@ public sealed class DevHarnessResetService
     private static readonly HashSet<string> PreservedConfigurationTables = new(StringComparer.OrdinalIgnoreCase)
     {
         "storage_metadata",
-        "schema_migrations",
+        "data_store_upgrades",
         "profiles",
         "households",
         "accounts",
@@ -486,6 +486,26 @@ public sealed class DevHarnessResetService
             {
                 ftsCmd.CommandText = "DROP TABLE IF EXISTS search_index;";
                 ftsCmd.ExecuteNonQuery();
+            }
+
+            // Dropping tables takes their indexes and triggers with them but not views, and the baseline step
+            // creates the views again without IF NOT EXISTS.
+            var views = new List<string>();
+            using (var viewListCmd = conn.CreateCommand())
+            {
+                viewListCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='view';";
+                using var viewReader = viewListCmd.ExecuteReader();
+                while (viewReader.Read())
+                {
+                    views.Add(viewReader.GetString(0));
+                }
+            }
+
+            foreach (string view in views)
+            {
+                using var dropViewCmd = conn.CreateCommand();
+                dropViewCmd.CommandText = $"DROP VIEW IF EXISTS [{view}];";
+                dropViewCmd.ExecuteNonQuery();
             }
 
             using (var fkOn = conn.CreateCommand())

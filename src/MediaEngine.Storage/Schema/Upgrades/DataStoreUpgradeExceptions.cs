@@ -1,7 +1,7 @@
 namespace MediaEngine.Storage.Schema.Upgrades;
 
 /// <summary>Base type for every data store upgrade failure so the Engine can catch one type at startup.</summary>
-internal abstract class DataStoreUpgradeException : InvalidOperationException
+public abstract class DataStoreUpgradeException : InvalidOperationException
 {
     protected DataStoreUpgradeException(string message)
         : base(message)
