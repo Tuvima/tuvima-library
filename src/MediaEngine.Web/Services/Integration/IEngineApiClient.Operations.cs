@@ -117,7 +117,7 @@ public partial interface IEngineApiClient
 
     Task<PagedResponse<IngestionMediaGroupDto>?> GetRecentIngestionAdditionsAsync(
         string? search = null, string? lane = null, DateTimeOffset? start = null, DateTimeOffset? end = null,
-        int offset = 0, int limit = 50, string? sort = null, CancellationToken ct = default);
+        int offset = 0, int limit = 50, string? sort = null, string? status = null, CancellationToken ct = default);
 
     Task<IngestionMediaGroupDto?> GetIngestionMediaGroupAsync(
         Guid batchId, Guid groupId, CancellationToken ct = default);

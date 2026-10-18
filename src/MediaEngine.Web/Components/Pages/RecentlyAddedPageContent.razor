@@ -31,6 +31,15 @@
     {
         <AppProgressBar Indeterminate="true" />
     }
+    else if (_reviewsError is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">
+            <span class="review-load-error">
+                <span>Needs Review could not load. Nothing was changed.</span>
+                <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="RetryReviewsAsync" />
+            </span>
+        </AppAlert>
+    }
     else if (_reviews.Count == 0)
     {
         <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>No items need review</span></div>
@@ -63,7 +72,7 @@
                         <article class="review-row" @key="item.Id">
                             <span class="review-row__identity">
                                 <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
-                                <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small></span>
+                                <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small>@if (item.FromImportFolder || item.FromMerge){<span class="review-row__badges">@if (item.FromImportFolder){<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}@if (item.FromMerge){<AppStatusBadge Text="From merge" Tone="AppUiTone.Info" />}</span>}</span>
                             </span>
                             <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
                             <span class="review-row__actions">
@@ -164,6 +173,7 @@
     private string _sort = "newest";
     private bool _reviewExpanded;
     private bool _reviewsLoading = true;
+    private string? _reviewsError;
     private bool _historyLoading = true;
     private string? _historyError;
     private bool _initialized;
@@ -229,10 +239,26 @@
         {
             // The pinned section is the queue, not a preview. Ask the endpoint for
             // every unresolved record in one ordered result, then refresh the shell badge.
-            _reviews = await Orchestrator.GetPendingReviewsAsync(int.MaxValue);
-            await Orchestrator.RefreshReviewCountAsync();
+            var attempt = await Orchestrator.GetPendingReviewsAttemptAsync(int.MaxValue);
+            if (attempt.Items is { } items)
+            {
+                _reviews = items;
+                _reviewsError = null;
+                await Orchestrator.RefreshReviewCountAsync();
+            }
+            else
+            {
+                // A failed load is never shown as an empty queue.
+                _reviewsError = attempt.Error ?? "The Engine did not return the review list.";
+            }
         }
         finally { _reviewsLoading = false; }
+    }
+
+    private async Task RetryReviewsAsync()
+    {
+        await LoadReviewsAsync();
+        if (_reviews.Count > 0 && _reviewsError is null) _reviewExpanded = true;
     }
 
     private async Task LoadHistoryAsync(int offset)
@@ -248,7 +274,8 @@
         {
             var (start, end) = DateBounds();
             var page = await Api.GetRecentIngestionAdditionsAsync(
-                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, _sort, ct);
+                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, _sort,
+                _status == "added" ? "added" : null, ct);
             if (revision == _revision) _history = page;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
@@ -315,7 +342,12 @@
     private async Task DismissAsync(ReviewItemViewModel item)
     {
         _busyReviewIds.Add(item.Id);
-        try { if (await Orchestrator.DismissReviewAsync(item.Id)) _reviews.Remove(item); }
+        try
+        {
+            if (await Orchestrator.DismissReviewAsync(item.Id)) _reviews.Remove(item);
+            else Snackbar.Add($"'{DisplayTitle(item)}' could not be dismissed. It is still in Needs Review.", AppSeverity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"'{DisplayTitle(item)}' could not be dismissed: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 
@@ -359,7 +391,12 @@
     private async Task SkipUniverseAsync(ReviewItemViewModel item)
     {
         _busyReviewIds.Add(item.Id);
-        try { if (await Orchestrator.SkipUniverseAsync(item.Id)) _reviews.Remove(item); }
+        try
+        {
+            if (await Orchestrator.SkipUniverseAsync(item.Id)) _reviews.Remove(item);
+            else Snackbar.Add($"'{DisplayTitle(item)}' could not keep the provider match. It is still in Needs Review.", AppSeverity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"'{DisplayTitle(item)}' could not keep the provider match: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 

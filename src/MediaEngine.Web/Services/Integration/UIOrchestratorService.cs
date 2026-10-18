@@ -597,6 +597,11 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         int limit = 50, CancellationToken ct = default)
         => _api.GetPendingReviewsAsync(limit, ct);
 
+    /// <summary>Returns pending review queue items, or the reason they could not be loaded.</summary>
+    public Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(
+        int limit = 50, CancellationToken ct = default)
+        => _api.GetPendingReviewsAttemptAsync(limit, ct);
+
     /// <summary>Returns a single review item.</summary>
     public Task<ReviewItemViewModel?> GetReviewItemAsync(
         Guid id, CancellationToken ct = default)

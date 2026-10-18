@@ -17,7 +17,7 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("/settings/ingestion", operations, StringComparison.Ordinal);
         Assert.Contains("/settings/recently-added", operations, StringComparison.Ordinal);
         Assert.DoesNotContain("<MediaSectionShell", operations, StringComparison.Ordinal);
-        Assert.Contains("GetPendingReviewsAsync(int.MaxValue)", recent, StringComparison.Ordinal);
+        Assert.Contains("GetPendingReviewsAttemptAsync(int.MaxValue)", recent, StringComparison.Ordinal);
         Assert.Contains("RefreshReviewCountAsync", recent, StringComparison.Ordinal);
         Assert.Contains("AppCompactPager", recent, StringComparison.Ordinal);
         Assert.Contains("_reviewExpanded = false", recent, StringComparison.Ordinal);

@@ -939,6 +939,10 @@
   input limit | default=50 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   response | shape=ccfe36183e72e3e65f88ea8f3874b6d607308121447db319ffad62f9a43420db
 
+[method] GetPendingReviewsAttemptAsync
+  input limit | default=50 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
+  response | shape=56886bf7a96d1d71e665a728830ad7b8a96dc1ead11bcedf07ebfe475ab6dd28
+
 [method] GetPersonAliasesAsync
   input personId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=61bc616ba6ecc6976356e6b29528d81f2c96f4c185b3690f83f6ca8191e4d8d6
@@ -1094,6 +1098,7 @@
   input offset | default=0 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   input limit | default=50 | shape=a55c372cd3166c75252ed2c89a97613bcbf070662810c6de8de63bebabf716c4
   input sort | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  input status | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=89386cd28cc3fdcccdc486388cebbbe742dfba72293283252bb6fda8f8adc993
 
 [method] GetRelatedCollectionsAsync
@@ -5495,6 +5500,11 @@ property=memoryLimitMB | nullability=not-null | accessors=get,set | required=no 
 property=gpuAvailable | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 property=memoryProfile | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=isReady | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
+[shape] 56886bf7a96d1d71e665a728830ad7b8a96dc1ead11bcedf07ebfe475ab6dd28
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=items | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=ccfe36183e72e3e65f88ea8f3874b6d607308121447db319ffad62f9a43420db
+property=error | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] 56c0ac90b3bf5b1485c647dc9cc3d5d97ba210763088ac8b891dd1786fbbc1ea
 direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none

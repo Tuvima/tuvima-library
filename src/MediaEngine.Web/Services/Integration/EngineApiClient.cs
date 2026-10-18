@@ -310,6 +310,10 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
     public async Task<List<ReviewItemViewModel>> GetPendingReviewsAsync(
         int limit = 50, CancellationToken ct = default)
+        => (await GetPendingReviewsAttemptAsync(limit, ct)).Items ?? [];
+
+    public async Task<ReviewListAttempt> GetPendingReviewsAttemptAsync(
+        int limit = 50, CancellationToken ct = default)
     {
         const string endpoint = "GET /review/pending";
         try
@@ -318,20 +322,21 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 await RecordHttpFailureAsync(endpoint, response, ct);
-                return [];
+                return new ReviewListAttempt(null, $"The Engine answered {(int)response.StatusCode}.");
             }
 
             var raw = await response.Content.ReadFromJsonAsync<List<MediaEngine.Contracts.Review.ReviewItemDto>>(
                 cancellationToken: ct);
             ClearFailure(endpoint);
-            return raw?.Select(item => item.ToViewModel()).ToList() ?? [];
+            return new ReviewListAttempt(raw?.Select(item => item.ToViewModel()).ToList() ?? [], null);
         }
-        catch (OperationCanceledException) { return []; }
+        // Cancellation is not a failure: the caller abandoned the request.
+        catch (OperationCanceledException) { return new ReviewListAttempt([], null); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /review/pending failed");
             RecordExceptionFailure(endpoint, ex);
-            return [];
+            return new ReviewListAttempt(null, ex.Message);
         }
     }
 

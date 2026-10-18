@@ -450,6 +450,66 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RecentAdditions_StatusAddedExcludesNeedsReviewAndFailedGroups_AndKeepsTheTotalHonest()
+    {
+        var batchId = AddBatch("completed", 5, 5);
+        var added = AddStandalone(batchId, "Movies", "Calmly Added", presented: true);
+        var alsoAdded = AddStandalone(batchId, "Books", "Quietly Added", presented: true);
+        var review = AddStandalone(batchId, "Movies", "Needs A Look", presented: true);
+        var failedOperation = AddStandalone(batchId, "Movies", "Enrichment Failed", presented: true);
+        var failedFile = AddStandalone(batchId, "Music", "File Failed", presented: true);
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status, review_ready_at, created_at)
+                VALUES (@id, @work, 'Work', 'LowConfidence', 'Pending', @now, @now);
+                """, new { id = Guid.NewGuid(), work = review, now });
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.people','enrichment',@work,@batch,'failed_terminal',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), work = failedOperation, batch = batchId, now, key = Guid.NewGuid().ToString() });
+            var fileAsset = conn.QuerySingle<Guid>(
+                "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;",
+                new { work = failedFile });
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'ingestion.file','ingestion',@asset,@batch,'dead_lettered',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), asset = fileAsset, batch = batchId, now, key = Guid.NewGuid().ToString() });
+        }
+
+        var service = new IngestionPresentationReadService(_db);
+        var everything = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        Assert.Equal(5, everything.TotalCount);
+        Assert.Equal("Needs review", everything.Items.Single(item => item.GroupId == review).StatusLabel);
+        Assert.Equal("Failed", everything.Items.Single(item => item.GroupId == failedOperation).StatusLabel);
+        Assert.Equal("Failed", everything.Items.Single(item => item.GroupId == failedFile).StatusLabel);
+
+        var onlyAdded = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50, status: "added");
+        Assert.Equal([added, alsoAdded], onlyAdded.Items.Select(item => item.GroupId).Order());
+        Assert.All(onlyAdded.Items, item => Assert.NotEqual("Needs review", item.StatusLabel));
+        Assert.All(onlyAdded.Items, item => Assert.NotEqual("Failed", item.StatusLabel));
+        Assert.Equal(2, onlyAdded.TotalCount);
+        Assert.False(onlyAdded.HasMore);
+
+        var firstPage = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 1, status: "added");
+        var secondPage = await service.GetRecentAdditionsAsync(null, null, null, null, 1, 1, status: "added");
+        Assert.Single(firstPage.Items);
+        Assert.True(firstPage.HasMore);
+        Assert.Equal(2, firstPage.TotalCount);
+        Assert.Single(secondPage.Items);
+        Assert.False(secondPage.HasMore);
+        Assert.NotEqual(firstPage.Items[0].GroupId, secondPage.Items[0].GroupId);
+
+        var withLane = await service.GetRecentAdditionsAsync(null, "Read", null, null, 0, 50, status: "added");
+        Assert.Equal(alsoAdded, Assert.Single(withLane.Items).GroupId);
+        Assert.Equal(1, withLane.TotalCount);
+
+        var unknown = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50, status: "whatever");
+        Assert.Equal(5, unknown.TotalCount);
+    }
+
+    [Fact]
     public async Task OperationsArtwork_UsesSmallPreviewAndMediumGridRenditions()
     {
         var batchId = AddBatch("completed", 1, 1);
