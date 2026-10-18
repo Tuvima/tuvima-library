@@ -31,44 +31,13 @@ internal sealed partial class DetailCompositionOrchestrator
 {
     private async Task<IReadOnlyList<MediaGroupingViewModel>> BuildWorkMediaGroupsAsync(Guid workId, DetailEntityType entityType, Guid? profileId, CancellationToken ct)
     {
-        if (entityType == DetailEntityType.Audiobook)
-        {
-            var groups = new List<MediaGroupingViewModel>();
-            var chapterGroup = await BuildAudiobookChapterGroupAsync(workId, profileId, ct);
-            if (chapterGroup is not null)
-            {
-                groups.Add(chapterGroup);
-            }
-
-            var audioRecommendations = await _recommendations.LoadAsync(workId, entityType, ct);
-            if (audioRecommendations.Count > 0)
-            {
-                groups.Add(new MediaGroupingViewModel
-                {
-                    Key = "more-like-this",
-                    Title = "More Like This",
-                    Items = audioRecommendations,
-                });
-            }
-
-            return groups;
-        }
-
-        var recommendations = await _recommendations.LoadAsync(workId, entityType, ct);
-        if (recommendations.Count == 0)
+        if (entityType != DetailEntityType.Audiobook)
         {
             return [];
         }
 
-        return
-        [
-            new MediaGroupingViewModel
-            {
-                Key = "more-like-this",
-                Title = "More Like This",
-                Items = recommendations,
-            }
-        ];
+        var chapterGroup = await BuildAudiobookChapterGroupAsync(workId, profileId, ct);
+        return chapterGroup is null ? [] : [chapterGroup];
     }
 
     private async Task<MediaGroupingViewModel?> BuildAudiobookChapterGroupAsync(Guid workId, Guid? profileId, CancellationToken ct)

@@ -1,10 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
-using MediaEngine.Api.Services.Display;
-using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Characters;
-using MediaEngine.Contracts.Persons;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
@@ -12,14 +9,11 @@ using MediaEngine.Domain.Services;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Library character endpoints — character portraits, person character roles,
-/// universe character lists, entity assets, and manual Stage 3 trigger.
+/// Library character endpoints — the character portrait image stream,
+/// entity assets, and manual Stage 3 trigger.
 ///
 /// <list type="bullet">
-/// <item><c>GET  /library/characters/{fictionalEntityId}/portraits</c> — portraits for a character with actor info</item>
-/// <item><c>PUT  /library/characters/{fictionalEntityId}/portraits/{portraitId}/default</c> — set default portrait</item>
-/// <item><c>GET  /library/persons/{personId}/character-roles</c> — character roles for a person</item>
-/// <item><c>GET  /library/universes/{universeQid}/characters</c> — characters with default actor/portrait</item>
+/// <item><c>GET  /library/portraits/{portraitId}</c> — serves a character portrait image</item>
 /// <item><c>GET  /library/assets/{entityId}</c> — entity assets grouped by type</item>
 /// <item><c>POST /library/enrichment/universe/trigger</c> — manual Stage 3 trigger</item>
 /// </list>
@@ -93,155 +87,6 @@ public static class CharacterEndpoints
         .Produces(StatusCodes.Status200OK)
         .RequireClientScope(ApplicationPermissionIds.ArtworkRead.Value)
         .RequireCatalogueCharacterPortraitAccess(ApplicationPermissionIds.ArtworkRead);
-
-        // GET /library/characters/{fictionalEntityId}/portraits
-        // Returns all portraits for a character, enriched with actor name.
-        group.MapGet("/characters/{fictionalEntityId:guid}/portraits", async (
-            Guid fictionalEntityId,
-            ICharacterPortraitRepository portraitRepo,
-            IFictionalEntityRepository entityRepo,
-            IPersonRepository personRepo,
-            CancellationToken ct) =>
-        {
-            var portraits = await portraitRepo.GetByCharacterAsync(fictionalEntityId, ct);
-            var entity = await entityRepo.FindByIdAsync(fictionalEntityId, ct);
-
-            var result = new List<CharacterPortraitDto>(portraits.Count);
-            foreach (var p in portraits)
-            {
-                var person = await personRepo.FindByIdAsync(p.PersonId, ct);
-                result.Add(new CharacterPortraitDto(
-                    id: p.Id,
-                    person_id: p.PersonId,
-                    person_name: person?.Name,
-                    fictional_entity_id: p.FictionalEntityId,
-                    character_name: entity?.Label,
-                    image_url: ApiImageUrls.BuildCharacterPortraitUrl(p.Id, p.LocalImagePath, p.ImageUrl),
-                    is_default: p.IsDefault));
-            }
-
-            return Results.Ok(result);
-        })
-        .Produces<List<CharacterPortraitDto>>(StatusCodes.Status200OK)
-        .RequireClientScope(ApplicationPermissionIds.ArtworkRead.Value)
-        .RequireCatalogueEntityAccess(
-            ApplicationPermissionIds.ArtworkRead, "Character", "fictionalEntityId");
-
-        // PUT /library/characters/{fictionalEntityId}/portraits/{portraitId}/default
-        // Sets a portrait as the default for its character.
-        group.MapPut("/characters/{fictionalEntityId:guid}/portraits/{portraitId:guid}/default", async (
-            Guid fictionalEntityId,
-            Guid portraitId,
-            ICharacterPortraitRepository portraitRepo,
-            CancellationToken ct) =>
-        {
-            // Verify the portrait belongs to this character before setting default.
-            var portraits = await portraitRepo.GetByCharacterAsync(fictionalEntityId, ct);
-            var match = portraits.FirstOrDefault(p => p.Id == portraitId);
-            if (match is null)
-            {
-                return ApiErrors.NotFound($"Portrait '{portraitId}' not found for character '{fictionalEntityId}'.");
-            }
-
-            await portraitRepo.SetDefaultAsync(portraitId, ct);
-            return Results.Ok(new SetDefaultPortraitResponse(portrait_id: portraitId, is_default: true));
-        })
-        .Produces<SetDefaultPortraitResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
-        .RequireCatalogueEntityAccess(
-            ApplicationPermissionIds.MetadataWrite, "Character", "fictionalEntityId");
-
-        // GET /library/persons/{personId}/character-roles
-        // Returns all character roles for a person, with portraits and universe info.
-        group.MapGet("/persons/{personId:guid}/character-roles", async (
-            Guid personId,
-            IPersonRepository personRepo,
-            IPersonCreditReadService personCreditReadService,
-            IDisplayProjectionReadService display,
-            CancellationToken ct) =>
-        {
-            var person = await personRepo.FindByIdAsync(personId, ct);
-            if (person is null)
-            {
-                return ApiErrors.NotFound($"Person '{personId}' not found.");
-            }
-
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
-            var result = (await personCreditReadService.GetCharacterRolesAsync(personId, ct))
-                .Where(role => role.WorkId is { } workId && visibleWorkIds.Contains(workId))
-                .ToList();
-            return Results.Ok(result);
-        })
-        .Produces<List<PersonCharacterRoleDto>>(StatusCodes.Status200OK)
-        .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
-        .RequireCatalogueEntityAccess(
-            ApplicationPermissionIds.LibraryRead, "Person", "personId");
-
-        // GET /library/universes/{universeQid}/characters
-        // Returns characters in a universe with default actor/portrait.
-        group.MapGet("/universes/{universeQid}/characters", async (
-            string universeQid,
-            HttpContext httpContext,
-            IFictionalEntityRepository entityRepo,
-            ICharacterPortraitRepository portraitRepo,
-            IPersonRepository personRepo,
-            CatalogueResourceAuthorizationService resources,
-            CancellationToken ct) =>
-        {
-            var characters = await entityRepo.GetByUniverseAndTypeAsync(universeQid, "Character", ct);
-            var visibleCharacters = new List<MediaEngine.Domain.Entities.FictionalEntity>();
-            foreach (var character in characters)
-            {
-                if (await resources.EvaluateEntityAsync(
-                        httpContext, "Character", character.Id, ApplicationPermissionIds.LibraryRead, ct) ==
-                    CatalogueResourceAccess.Allowed)
-                {
-                    visibleCharacters.Add(character);
-                }
-            }
-            var entityIds = visibleCharacters.Select(e => e.Id).ToList();
-
-            // Batch-fetch all portraits for these characters.
-            var allPortraits = await portraitRepo.GetByCharacterBatchAsync(entityIds, ct);
-            var portraitsByChar = allPortraits.GroupBy(p => p.FictionalEntityId)
-                                              .ToDictionary(g => g.Key, g => g.ToList());
-
-            var result = new List<UniverseCharacterSummaryDto>(visibleCharacters.Count);
-            foreach (var character in visibleCharacters)
-            {
-                portraitsByChar.TryGetValue(character.Id, out var charPortraits);
-                var defaultPortrait = charPortraits?.FirstOrDefault(p => p.IsDefault)
-                                   ?? charPortraits?.FirstOrDefault();
-
-                string? actorName = null;
-                if (defaultPortrait is not null)
-                {
-                    var actor = await personRepo.FindByIdAsync(defaultPortrait.PersonId, ct);
-                    actorName = actor?.Name;
-                }
-
-                result.Add(new UniverseCharacterSummaryDto(
-                    fictional_entity_id: character.Id,
-                    character_name: character.Label,
-                    default_actor_name: actorName,
-                    default_actor_id: defaultPortrait?.PersonId,
-                    portrait_url: defaultPortrait is null
-                        ? null
-                        : ApiImageUrls.BuildCharacterPortraitUrl(
-                            defaultPortrait.Id,
-                            defaultPortrait.LocalImagePath,
-                            defaultPortrait.ImageUrl),
-                    actor_count: charPortraits?.Count ?? 0));
-            }
-
-            return Results.Ok(result);
-        })
-        .Produces<List<UniverseCharacterSummaryDto>>(StatusCodes.Status200OK)
-        .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
-        .RequireCatalogueQidAccess(
-            ApplicationPermissionIds.LibraryRead, "universeQid");
 
         // GET /library/assets/{entityId}
         // Returns all entity assets, grouped by type.

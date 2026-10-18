@@ -94,6 +94,8 @@
 @code {
     [Parameter] public Guid? CollectionId { get; set; }
     [Parameter] public EventCallback Changed { get; set; }
+    /// <summary>Raised once the attached sources have loaded, so the editor can count them as members.</summary>
+    [Parameter] public EventCallback Loaded { get; set; }
 
     private readonly HashSet<Guid> _selectedGalleryIds = [];
     private List<CollectionGalleryReferenceDto> _galleries = [];
@@ -108,6 +110,9 @@
     private CollectionRuleDefinitionViewModel _viewRuleDefinition = EmptyDefinition();
 
     public string? LastError => _loadError;
+
+    /// <summary>Gallery and smart-rule sources already attached to the collection; each is a member that keeps a curated collection from being empty.</summary>
+    public int AttachedSourceCount => _originalSources.Count;
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,6 +131,7 @@
         }
         _loadError = Client.LastError;
         _loading = false;
+        await Loaded.InvokeAsync();
     }
 
     public bool Validate(out string? error)

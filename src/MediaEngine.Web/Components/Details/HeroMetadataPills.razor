@@ -90,10 +90,6 @@
                         <EditableFieldPencil Keys="editKeys" Owner="hero" />
                     }
                 }
-                @if (IsAdminView)
-                {
-                    <span class="tl-detail-admin-health">@IdentityStatusLabel</span>
-                }
             </div>
         }
     }
@@ -103,8 +99,6 @@
 @code {
     [Parameter] public IReadOnlyList<MetadataPill> Metadata { get; set; } = [];
     [Parameter] public DetailEntityType EntityType { get; set; }
-    [Parameter] public CanonicalIdentityStatus IdentityStatus { get; set; }
-    [Parameter] public bool IsAdminView { get; set; }
     [Parameter] public bool IsWatchHero { get; set; }
     [Parameter] public bool UsePrimaryHeroChrome { get; set; }
     [Parameter] public HeroBrandViewModel? HeroBrand { get; set; }
@@ -163,15 +157,6 @@
             .OrderBy(PrimaryChromeStatSort)
             .Take(6)
             .ToList();
-
-    private string IdentityStatusLabel => IdentityStatus switch
-    {
-        CanonicalIdentityStatus.WikidataLinked => "Wikidata linked",
-        CanonicalIdentityStatus.ProviderMatched => "Provider matched",
-        CanonicalIdentityStatus.NeedsReview => "Needs review",
-        CanonicalIdentityStatus.LocalOnly => "Local only",
-        _ => "Identity unknown",
-    };
 
     private static readonly string[] GenreKeys = ["genre"];
 

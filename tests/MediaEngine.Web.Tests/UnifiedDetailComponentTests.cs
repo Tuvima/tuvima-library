@@ -282,7 +282,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ToggleFavoriteAsync(action)", source);
         Assert.Contains("MediaReactionService Reactions", source);
         Assert.Contains("SetReactionAsync(action)", source);
-        Assert.Contains("action.Key == \"my-list\"", source);
+        Assert.Contains("action.Key == DetailActionKeys.MyList", source);
     }
 
     [Fact]
@@ -291,11 +291,39 @@ public sealed class UnifiedDetailComponentTests
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
 
         Assert.DoesNotContain("EpisodesTab", source);
-        Assert.Contains("CurrentActiveTab is \"episodes\"", source);
-        Assert.Contains("<SequencePlacementPanel Placement=\"Model.SequencePlacement\"", source);
         Assert.DoesNotContain("FormatsTab", source);
-        Assert.Contains("SyncTab", source);
-        Assert.Contains("RegistryTab", source);
+        Assert.DoesNotContain("RegistryTab", source);
+        Assert.DoesNotContain("\"registry\"", source);
+
+        // Only tab keys the Engine sends have a panel; Sync and the unsent keys are gone.
+        Assert.DoesNotContain("SyncTab", source);
+        foreach (var unsentKey in new[] { "episodes", "series", "items", "issues", "media", "works", "albums", "contributors", "timeline", "sync" })
+        {
+            Assert.DoesNotContain($"\"{unsentKey}\"", source);
+        }
+    }
+
+    [Fact]
+    public void DetailPage_HasNoRegistryTabOrAdminAddressFlagPath()
+    {
+        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/RegistryTab.razor")));
+
+        foreach (var path in new[]
+        {
+            "src/MediaEngine.Web/Components/Details/DetailPage.razor",
+            "src/MediaEngine.Web/Components/Details/DetailHero.razor",
+            "src/MediaEngine.Web/Components/Details/HeroMetadataPills.razor",
+            "src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs",
+            "src/MediaEngine.Web/Services/Integration/EngineApiClient.cs",
+        })
+        {
+            var source = ReadSource(path);
+            Assert.DoesNotContain("IsAdminView", source);
+            Assert.DoesNotContain("IsAdminOnly", source);
+            Assert.DoesNotContain("tl-registry-panel", source);
+        }
+
+        Assert.DoesNotContain("tl-registry-panel", ReadDetailStyles());
     }
 
     [Fact]
@@ -329,8 +357,8 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("SeasonCountSummary", source);
         Assert.Contains("aria-label=\"@OwnershipSummaryLabel\"", source);
         Assert.Contains("item.Route", source);
-        Assert.Contains("CurrentActiveTab is \"episodes\"", detailPage);
-        Assert.Contains("SequencePlacementPanel", detailPage);
+        Assert.DoesNotContain("CurrentActiveTab is \"episodes\"", detailPage);
+        Assert.Contains("SequencePlacementPanel", ReadSource("src/MediaEngine.Web/Components/Details/DetailPrimaryModule.razor"));
         Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/EpisodesTab.razor")));
         Assert.Contains("var(--tl-accent-primary, #8852FC)", ReadSequenceStyles());
     }
@@ -354,14 +382,31 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void DetailPage_CastTabDoesNotInlineCharacters()
+    public void DetailPage_HasNoCharacterOrRelationshipPanelsAndCastKeepsRoleNames()
     {
+        var root = FindRepoRoot();
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var peopleTab = ReadSource("src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor");
+        var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
+        var group = ReadSource("src/MediaEngine.Web/Components/Details/CreditGroupSection.razor");
+        var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs");
 
-        Assert.Contains("IncludeCharacters=\"IncludeCharactersInPeopleTab\"", source);
-        Assert.Contains("CurrentActiveTab is not \"cast\"", source);
-        Assert.Contains("IncludeCharacters && CharacterGroups.Count > 0", peopleTab);
+        foreach (var removed in new[] { "CharactersSection", "CharacterCreditCard", "UniverseTab", "ChildrenListTab", "RelatedEntityChip" })
+        {
+            Assert.False(File.Exists(Path.Combine(root, $"src/MediaEngine.Web/Components/Details/{removed}.razor")), removed);
+        }
+
+        Assert.DoesNotContain("CharactersSection", source);
+        Assert.DoesNotContain("UniverseTab", source);
+        Assert.DoesNotContain("\"characters\"", source);
+        Assert.DoesNotContain("\"portrayals\"", source);
+        Assert.DoesNotContain("\"relationships\"", source);
+        Assert.DoesNotContain("CharacterGroups", peopleTab);
+        Assert.DoesNotContain("/details/character", card);
+        Assert.DoesNotContain("portrayals", navigation);
+        Assert.DoesNotContain("CharacterGroups", navigation);
+        Assert.Contains("Credit.CharacterName", card);
+        Assert.Contains("<CastCharacterPairCard Credit=\"credit\" />", group);
     }
 
     [Fact]
@@ -426,19 +471,18 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void RelatedContent_UsesItsOwnRenderableTab()
+    public void RelatedAndUniverseTabs_AreGoneFromTheDetailPage()
     {
         var detailPage = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        var overview = ReadSource("src/MediaEngine.Web/Components/Details/OverviewTab.razor");
-        var related = ReadSource("src/MediaEngine.Web/Components/Details/RelatedTab.razor");
         var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs");
 
-        Assert.Contains("CurrentActiveTab is \"related\"", detailPage);
-        Assert.Contains("<RelatedTab Model=\"Model\"", detailPage);
-        Assert.DoesNotContain("MoreLikeThisItems", overview);
-        Assert.Contains("More from your library", related);
-        Assert.Contains("item.EntityType is not DetailEntityType.TvEpisode", related);
-        Assert.Contains("\"related\" => model.MediaGroups.Any(IsRecommendationGroup)", navigation);
+        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Web/Components/Details/RelatedTab.razor")));
+        Assert.DoesNotContain("RelatedTab", detailPage);
+        Assert.DoesNotContain("\"related\"", detailPage);
+        Assert.DoesNotContain("\"universe\"", detailPage);
+        Assert.DoesNotContain("IsRecommendationGroup", navigation);
+        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Contracts/Details/DetailTabVisibility.cs")));
+        Assert.False(File.Exists(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Services/Details/DetailRecommendationService.cs")));
     }
 
     [Fact]
@@ -466,7 +510,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<AppMenuItem", menuItems);
         Assert.Contains("Disabled=\"@action.IsDisabled\"", menuItems);
         Assert.Contains("AppUiTone.Error", menuItems);
-        Assert.Contains("action.Key is \"edit-media\" or \"edit\"", detailPage);
+        Assert.Contains("action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit", detailPage);
         Assert.DoesNotContain("OverflowActions.Concat([InlineEditAction])", actions);
         Assert.Contains(".app-menu-popover.tl-popover", appStyles);
         Assert.Contains(".app-menu-item", appStyles);
@@ -548,7 +592,7 @@ public sealed class UnifiedDetailComponentTests
     {
         Assert.Contains("sequence: SequenceWindowQuery.Windowed", ReadSource("src/MediaEngine.Web/Components/Details/DetailRouteHost.razor"));
         var page = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
     }
 
     [Fact]
@@ -838,7 +882,6 @@ public sealed class UnifiedDetailComponentTests
             ReadSequenceMarkup(),
             ReadSource("src/MediaEngine.Api/Services/Display/DisplayCardBuilder.cs"),
             ReadSource("src/MediaEngine.Api/Services/ReadServices/UniversalSearchReadService.cs"),
-            ReadSource("src/MediaEngine.Api/Services/Details/DetailRecommendationService.cs"),
             ReadSource("src/MediaEngine.Api/Services/Details/Internals/DetailCompositionOrchestrator.CollectionBuilder.cs"));
 
         foreach (var legacyRoute in new[]
@@ -1074,16 +1117,14 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("private bool IsMusicAlbum", detailPage);
         Assert.Contains("private bool IsAudiobook", detailPage);
         Assert.Contains("<DetailPrimaryModule Model=\"Model\"", detailPage);
-        Assert.Contains("HasPrimaryModuleBeforeNavigation", detailPage);
-        Assert.Contains("HasPrimaryModuleBeforeNavigation => false", detailPage);
+        Assert.DoesNotContain("HasPrimaryModuleBeforeNavigation", detailPage);
         Assert.Contains("HasPrimaryModuleAfterNavigation", detailPage);
         Assert.Contains("ShowPrimaryModuleAfterNavigation", detailPage);
         Assert.Contains("CurrentActiveTab == \"overview\"", detailPage);
         Assert.DoesNotContain("IsEmbeddedPrimaryModuleTab", detailPage);
         Assert.Contains("CurrentActiveTab is \"tracks\" && IsAudiobook", detailPage);
         Assert.Contains("tl-detail-page__primary-content", detailPage);
-        Assert.Contains("Embedded=\"true\"", detailPage);
-        Assert.Contains("Embedded=\"false\"", detailPage);
+        Assert.DoesNotContain("Embedded=", detailPage);
         Assert.DoesNotContain("RequestedLane=", detailPage);
         Assert.DoesNotContain("action.Key is \"collection-read\" or \"collection-watch\" or \"collection-listen\"", detailPage);
         Assert.Contains("\"item_count\" or \"read_count\" or \"watch_count\" or \"listen_count\"", heroMetadata);
@@ -1428,6 +1469,59 @@ public sealed class UnifiedDetailComponentTests
         Assert.Equal(model.Tagline, presentation.HeroCopy);
         Assert.Null(presentation.SecondaryTitleText);
         Assert.False(presentation.HeroCopyHasMore);
+    }
+
+    [Fact]
+    public void MediaHero_ShowsARealTvShowTaglineBesideASummaryHeroParagraph()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvShow,
+            Title = "Example Show",
+            Tagline = "A summary of the whole series that fills the hero paragraph.",
+            SecondaryTitleText = "Winter is coming.",
+            SecondaryTitleTextKind = "tagline",
+            Description = "A summary of the whole series that fills the hero paragraph.",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Equal("Winter is coming.", presentation.SecondaryTitleText);
+        Assert.Equal(model.Tagline, presentation.HeroCopy);
+    }
+
+    [Fact]
+    public void MediaHero_HidesASecondaryLineThatRepeatsTheHeroParagraphIgnoringCaseAndSpacing()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.Movie,
+            Title = "Example Movie",
+            Tagline = "The truth is closer than it appears.",
+            SecondaryTitleText = "  THE TRUTH IS CLOSER THAN IT APPEARS. ",
+            SecondaryTitleTextKind = "tagline",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Null(presentation.SecondaryTitleText);
+        Assert.Equal(model.Tagline, presentation.HeroCopy);
+    }
+
+    [Fact]
+    public void MediaHero_ShowsNoSecondaryLineForATvEpisodeWithoutOne()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvEpisode,
+            Title = "Example Episode",
+            Description = "The episode synopsis.",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Null(presentation.SecondaryTitleText);
+        Assert.Equal(model.Description, presentation.HeroCopy);
     }
 
     public static IEnumerable<object[]> DescriptionLikeSecondaryTitleCases()

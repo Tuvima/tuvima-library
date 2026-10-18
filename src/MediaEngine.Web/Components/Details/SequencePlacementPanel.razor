@@ -1157,7 +1157,6 @@ else
             var page = await ApiClient.GetDetailPageAsync(
                 DetailEntityType.TvShow,
                 showId,
-                profileId: _activeProfileId,
                 sequence: SequenceWindowQuery.Page(
                     group.Key,
                     offset,

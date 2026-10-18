@@ -68,8 +68,7 @@ public sealed class SequenceContainerMetadataTests : IDisposable
             null!,
             null!,
             null!,
-            null!,
-            new DetailRecommendationService(_db));
+            null!);
         var implementation = typeof(DetailComposerService)
             .GetField("_composer", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(composer)!;

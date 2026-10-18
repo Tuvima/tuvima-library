@@ -12,17 +12,6 @@
     max-width: 100%;
 }
 
-:where(.tl-detail-page) .tl-detail-admin-health {
-    min-height: 4.25rem;
-    display: inline-flex;
-    align-items: center;
-    padding: 0.72rem 1rem;
-    border-left: 1px solid rgba(255,255,255,0.14);
-    color: rgba(255,255,255,0.64);
-    font-size: 0.78rem;
-    font-weight: 700;
-}
-
 :where(.tl-detail-page) .tl-detail-metadata-row {
     display: flex;
     flex-wrap: wrap;
@@ -59,14 +48,6 @@
 :where(.tl-detail-page) .tl-detail-metadata-stack {
         width: 100%;
         overflow-x: auto;
-    }
-}
-
-@media (max-width: 840px) {
-:where(.tl-detail-page) .tl-detail-admin-health {
-        min-height: 2.9rem;
-        border-left: 1px solid rgba(255,255,255,0.14);
-        border-top: 0;
     }
 }
 

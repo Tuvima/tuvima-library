@@ -340,6 +340,10 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/collections/catalog` | Collections catalog: system/user/managed collections plus broader rollups where trusted relationships connect multiple shelves | Required |
 | GET | `/collections/{id}/summary` | One Collections summary for a detail page without loading the full catalog | Required |
 | GET | `/collections/{id}/items` | Items for a collection detail page, including generated rollup aggregation | Required |
+| POST | `/collections` | Create a collection (`collection_type`, `membership_mode`, `rule_definition`, `work_ids`, ownership and audience). A manually curated collection (`Custom`, manual membership) must arrive with at least one `work_ids` entry, so an empty one never exists: otherwise `400` with "A collection needs at least one item." Playlists and rule-driven collections may be created without items. | Effective administrator or precise Application permission |
+| PUT | `/collections/{id}` | Update a collection's settings, rules or membership mode. `409` "A collection needs at least one item. Delete the collection instead." when the change would leave a curated collection with no items (for example switching a rule-driven collection to manual membership before anything is in it). | Effective administrator or precise Application permission |
+| POST | `/collections/{id}/items` | Add a work to a saved/manual collection | Effective administrator or precise Application permission |
+| DELETE | `/collections/{id}/items/{itemId}` | Remove an item from a saved/manual collection. `409` "A collection needs at least one item. Delete the collection instead." when it is the last item of a curated collection; playlists may be emptied. A curated collection whose last work leaves the library is deleted automatically by the Engine (an `AutoPurge` activity entry records it). | Effective administrator or precise Application permission |
 | POST | `/collections/reconcile` | Dry-run or run collection shelf repair for already-ingested media. Body: `dry_run`, `batch_size`, `max_items`. Returns candidate, processed, assigned, skipped, failed, and elapsed counts. | Effective administrator or precise Application permission |
 | GET | `/collections/{collectionId}/series-manifest` | Ordered Wikidata series checklist with total, owned, missing, provisional, ambiguous counts and named entries | Required |
 | GET | `/collections/search?q=` | SQL-backed search across visible library works, canonical values, and collection names. Returns up to 20 work results. | Required |
@@ -683,10 +687,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/characters/{id}/portraits` | Portrait images for a fictional character | Required |
-| PUT | `/library/characters/{id}/portraits/{portraitId}/default` | Set the default portrait for a fictional character | Effective administrator or precise Application permission |
-| GET | `/library/persons/{id}/character-roles` | Characters a person has performed, linked to works | Required |
-| GET | `/library/universes/{qid}/characters` | All characters in a universe | Required |
+| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
 | GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
 | POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
 

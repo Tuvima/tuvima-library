@@ -38,6 +38,8 @@ public sealed class WorkHierarchyMaintenanceService
                     break;
                 }
 
+                // Only parents with no collection_items rows are selected (EmptyParentSql), so deleting them
+                // can never empty a curated collection and no curated-collection cleanup is needed here.
                 foreach (var parentId in parentIds)
                 {
                     DeleteParentDerivedState(conn, tx, parentId);

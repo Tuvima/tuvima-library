@@ -640,13 +640,13 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             DetailEntityType.Movie => BuildWatchActions($"/watch/player/{id}", heroProgress),
             DetailEntityType.TvEpisode => BuildWatchActions($"/watch/player/{id}", heroProgress, episodePosition),
-            DetailEntityType.TvShow or DetailEntityType.TvSeason => BuildWatchActions(null, heroProgress),
             DetailEntityType.Book or DetailEntityType.ComicIssue => [new DetailAction { Key = "read", Label = heroProgress is null ? "Read" : "Continue Reading", Icon = "menu_book", IsPrimary = true }],
             DetailEntityType.Audiobook => [new DetailAction { Key = "listen", Label = heroProgress is null ? "Listen" : "Continue Listening", Icon = "headphones", IsPrimary = true }],
             DetailEntityType.Work when formats.Any(f => f.FormatType == MediaFormatType.Ebook) => [new DetailAction { Key = "read", Label = heroProgress is null ? "Read" : "Continue Reading", Icon = "menu_book", IsPrimary = true }],
             DetailEntityType.Work when formats.Any(f => f.FormatType == MediaFormatType.Audiobook) => [new DetailAction { Key = "listen", Label = HasAudiobookProgress(formats) ? "Continue Listening" : "Listen", Icon = "headphones", IsPrimary = true }],
             DetailEntityType.MusicAlbum => BuildMusicAlbumActions(),
-            _ => [new DetailAction { Key = "open", Label = "Open", Icon = "open_in_new", IsPrimary = true }],
+            // No button without a destination: an item with nothing playable or readable has no main button.
+            _ => [],
         };
     }
 
@@ -669,30 +669,14 @@ internal sealed partial class DetailCompositionOrchestrator
         },
     ];
 
-    private static IReadOnlyList<DetailAction> BuildSecondaryActions(Guid id, DetailEntityType entityType, bool isFavorite, IReadOnlyList<OwnedFormatViewModel>? formats = null)
+    private static IReadOnlyList<DetailAction> BuildSecondaryActions(Guid id, DetailEntityType entityType, bool isFavorite)
     {
         var actions = new List<DetailAction>();
-        var hasReadListenCompanion = HasReadListenCompanion(entityType, formats ?? []);
 
         if (CanFavoriteEntity(entityType))
         {
             actions.Add(BuildMyListAction(isFavorite));
             actions.Add(BuildReactionAction());
-        }
-
-        if (hasReadListenCompanion)
-        {
-            actions.Add(new DetailAction
-            {
-                Key = "read-listen",
-                Label = "Read + Listen",
-                Subtitle = "Continue seamlessly between reading and listening",
-                Icon = "read_listen",
-                Tooltip = "Unified Read + Listen is waiting on sync enablement",
-                IsDisabled = true,
-                IsStub = true,
-                DisplayStyle = "premium",
-            });
         }
 
         return actions;
@@ -724,7 +708,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ],
         };
 
-    private static IReadOnlyList<DetailAction> BuildWatchActions(string? route, ProgressViewModel? progress, string? episodePosition = null)
+    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null)
     {
         var verb = progress is null ? "Watch" : "Resume";
         var watch = new DetailAction
@@ -836,22 +820,11 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static IReadOnlyList<DetailTab> BuildTabs(
         DetailEntityType entityType,
-        DetailPresentationContext context,
-        bool isAdminView,
-        bool hasSeries = false,
-        bool hasUniverse = false,
-        bool hasChapters = true)
+        DetailPresentationContext context)
     {
-        _ = hasChapters;
-        var keys = DetailTabCatalog.KeysFor(entityType, hasUniverse, DetailTabVisibility.ShowUniverseAndRelatedTabs);
+        var keys = DetailTabCatalog.KeysFor(entityType);
 
-        var tabs = keys.Select(key => new DetailTab { Key = key, Label = ToTabLabel(key, entityType) }).ToList();
-        if (isAdminView)
-        {
-            tabs.Add(new DetailTab { Key = "registry", Label = "Registry", IsAdminOnly = true });
-        }
-
-        return tabs;
+        return keys.Select(key => new DetailTab { Key = key, Label = ToTabLabel(key, entityType) }).ToList();
     }
 
     private static DetailPrimaryModuleViewModel BuildPrimaryModule(
@@ -871,7 +844,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 => DetailPrimaryModuleKind.Episodes,
             DetailEntityType.Person when mediaGroups.Count > 0
                 => DetailPrimaryModuleKind.Works,
-            DetailEntityType.Character when mediaGroups.Count > 0 => DetailPrimaryModuleKind.Appearances,
             DetailEntityType.Collection when mediaGroups.Count > 0 => DetailPrimaryModuleKind.CollectionItems,
             DetailEntityType.Universe when mediaGroups.Count > 0 => DetailPrimaryModuleKind.CollectionItems,
             _ when sequencePlacement is not null => DetailPrimaryModuleKind.Sequence,
@@ -885,7 +857,6 @@ internal sealed partial class DetailCompositionOrchestrator
             DetailPrimaryModuleKind.Episodes => "Episodes",
             DetailPrimaryModuleKind.Works => "Works in Your Library",
             DetailPrimaryModuleKind.CollectionItems => "Items",
-            DetailPrimaryModuleKind.Appearances => "Appearances",
             DetailPrimaryModuleKind.Sequence => sequencePlacement?.ItemPluralLabel ?? "Series",
             _ => string.Empty,
         };
@@ -1209,29 +1180,6 @@ internal sealed partial class DetailCompositionOrchestrator
             MediaFormatType.Movie => [new DetailAction { Key = "play", Label = "Play", Icon = "play_arrow" }],
             _ => [new DetailAction { Key = "open", Label = "Open", Icon = "open_in_new" }],
         };
-
-    private static ReadingListeningSyncCapabilityViewModel? BuildSyncCapability(Guid workId, IReadOnlyList<OwnedFormatViewModel> formats, MultiFormatState state)
-    {
-        if (state == MultiFormatState.SingleFormat)
-        {
-            return null;
-        }
-
-        var ebook = formats.FirstOrDefault(f => f.FormatType == MediaFormatType.Ebook);
-        var audio = formats.FirstOrDefault(f => f.FormatType == MediaFormatType.Audiobook);
-        if (ebook is null || audio is null)
-        {
-            return new ReadingListeningSyncCapabilityViewModel
-            {
-                State = SyncCapabilityState.NotApplicable,
-                Reason = "Read + Listen Sync only applies when both ebook and audiobook formats are owned.",
-            };
-        }
-
-        // Cross-format position alignment remains a post-beta capability. Do not
-        // expose disabled actions until an alignment can be previewed and saved.
-        return null;
-    }
 
     private static DetailEntityType InferWorkEntityType(string mediaType, LibraryItemDetail detail)
     {

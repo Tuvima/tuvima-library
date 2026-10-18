@@ -186,6 +186,8 @@ public sealed class CollectionUpdateRequest
     [JsonPropertyName("secondary_sort_direction")] public string? SecondarySortDirection { get; init; }
     [JsonPropertyName("is_enabled")] public bool? IsEnabled { get; init; }
     [JsonPropertyName("is_featured")] public bool? IsFeatured { get; init; }
+    /// <summary>Works to add in the same save, used when a rule-driven Custom collection is switched to manual membership.</summary>
+    [JsonPropertyName("work_ids")] public List<Guid>? WorkIds { get; init; }
 }
 
 public sealed class CollectionPreviewRequest

@@ -1574,7 +1574,6 @@ public partial class ListenPage
                 new DetailTab { Key = "tracks", Label = "Tracks" },
                 new DetailTab { Key = "overview", Label = "Overview" },
                 new DetailTab { Key = "credits", Label = "Credits" },
-                new DetailTab { Key = "related", Label = "Related" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             MediaGroups =
@@ -1592,7 +1591,6 @@ public partial class ListenPage
                         : Math.Round((double)tracks.Count(track => track.IsOwned) / tracks.Count * 100d, 1),
                 },
             ],
-            IdentityStatus = CanonicalIdentityStatus.ProviderMatched,
             LibraryStatus = MediaEngine.Contracts.Details.LibraryStatus.Owned,
         };
     }

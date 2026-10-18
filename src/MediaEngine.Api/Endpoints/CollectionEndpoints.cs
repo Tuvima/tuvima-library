@@ -1839,6 +1839,15 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Item '{itemId}' not found in collection '{id}'.");
             }
 
+            if (CollectionAccessPolicy.IsCuratedCollection(collection))
+            {
+                // A curated collection keeps at least one member (a library item or an attached personal-media
+                // source); the repository checks and deletes in one write so two removals cannot both pass.
+                return await collectionRepo.RemoveCollectionItemUnlessLastMemberAsync(id, itemId, ct)
+                    ? Results.Ok()
+                    : ApiErrors.Conflict(CollectionAccessPolicy.CuratedCollectionNeedsItemMessage);
+            }
+
             await collectionRepo.RemoveCollectionItemAsync(itemId, ct);
             return Results.Ok();
         })
@@ -2470,6 +2479,12 @@ public static class CollectionEndpoints
                 }
             }
 
+            // A manually curated collection is never created empty: its items arrive with the create call.
+            if (isCuratedCollection && resolution == CollectionResolution.Materialized && resolvedWorkIds.Count == 0)
+            {
+                return ApiErrors.BadRequest("A collection needs at least one item. Choose something to add before saving.");
+            }
+
             var collection = new Collection
             {
                 Id = Guid.NewGuid(),
@@ -2563,6 +2578,8 @@ public static class CollectionEndpoints
             IProfileRepository profileRepo,
             HttpContext httpContext,
             Guid? profileId,
+            CollectionCatalogReadService catalogReadService,
+            IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
@@ -2713,8 +2730,48 @@ public static class CollectionEndpoints
             }
             collection.ReplaceAudienceProfiles(selectedAudienceProfileIds);
 
+            // Works that arrive with the save (a rule-driven collection switched to manual brings its staged items).
+            var resolvedWorkIds = new List<Guid>();
+            if (body.WorkIds is { Count: > 0 })
+            {
+                if (collection.Resolution != CollectionResolution.Materialized)
+                {
+                    return ApiErrors.BadRequest("Rule-driven collections cannot store direct item membership.");
+                }
+
+                foreach (var workId in body.WorkIds.Where(candidate => candidate != Guid.Empty).Distinct())
+                {
+                    resolvedWorkIds.Add(await catalogReadService.ResolveMembershipWorkIdAsync(workId, ct));
+                }
+                resolvedWorkIds = resolvedWorkIds.Distinct().ToList();
+                var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+                if (resolvedWorkIds.Any(workId => !allowedWorkIds.Contains(workId)))
+                {
+                    return ApiErrors.Forbidden("One or more requested works are outside the caller's available libraries.");
+                }
+            }
+
+            var addedItems = resolvedWorkIds
+                .Select((workId, index) => new CollectionItem
+                {
+                    Id = Guid.NewGuid(),
+                    CollectionId = id,
+                    WorkId = workId,
+                    SortOrder = index + 1,
+                    AddedAt = DateTimeOffset.UtcNow,
+                })
+                .ToList();
+
+            // The membership change and its items are saved together. An update must not leave a manually curated
+            // collection without a member (for example by switching a rule-driven collection to manual membership
+            // before anything has been added); a personal-media source counts as a member.
             collection.ModifiedAt = DateTimeOffset.UtcNow;
-            await collectionRepo.UpsertAsync(collection, ct);
+            if (!await collectionRepo.UpdateManagedCollectionAsync(
+                    collection, addedItems, CollectionAccessPolicy.IsCuratedCollection(collection), ct))
+            {
+                return ApiErrors.Conflict(CollectionAccessPolicy.CuratedCollectionNeedsItemMessage);
+            }
+
             await collectionRepo.ReplaceAudienceProfileIdsAsync(collection.Id, selectedAudienceProfileIds, ct);
             return Results.Ok();
         })

@@ -38,7 +38,6 @@ internal sealed partial class DetailCompositionOrchestrator
     private readonly ICanonicalValueArrayRepository _canonicalArrays;
     private readonly ISeriesManifestRepository _seriesManifests;
     private readonly IPersonCreditReadService _personCredits;
-    private readonly DetailRecommendationService _recommendations;
     private readonly PlaybackCapabilitiesService? _playback;
     private readonly ILogger<DetailComposerService>? _logger;
     private readonly ICollectionBrowseReadService? _collectionBrowse;
@@ -56,7 +55,6 @@ internal sealed partial class DetailCompositionOrchestrator
         ICanonicalValueArrayRepository canonicalArrays,
         ISeriesManifestRepository seriesManifests,
         IPersonCreditReadService personCredits,
-        DetailRecommendationService recommendations,
         PlaybackCapabilitiesService? playback = null,
         ILogger<DetailComposerService>? logger = null,
         ICollectionBrowseReadService? collectionBrowse = null,
@@ -72,7 +70,6 @@ internal sealed partial class DetailCompositionOrchestrator
         _canonicalArrays = canonicalArrays;
         _seriesManifests = seriesManifests;
         _personCredits = personCredits;
-        _recommendations = recommendations;
         _playback = playback;
         _logger = logger;
         _collectionBrowse = collectionBrowse;
@@ -96,19 +93,17 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
         SequenceWindowRequest? sequenceWindow = null)
     {
-        var isAdminView = context is DetailPresentationContext.Admin;
         var favoriteWorkIds = await _reader.LoadFavoriteWorkIdsAsync(profileId, ct);
 
         var model = entityType switch
         {
-            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, isAdminView, actionAuthorization, authorizedWorks, ct),
-            DetailEntityType.BookSeries => await BuildBookSeriesAsync(id, context, isAdminView, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct),
+            DetailEntityType.Person => await BuildPersonAsync(id, entityType, context, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.BookSeries => await BuildBookSeriesAsync(id, context, actionAuthorization, favoriteWorkIds, profileId, selectedContainerId, authorizedWorks, ct),
             DetailEntityType.Collection or DetailEntityType.TvShow or DetailEntityType.MovieSeries
                 or DetailEntityType.ComicSeries or DetailEntityType.MusicAlbum => await BuildCollectionAsync(
                     id,
                     entityType,
                     context,
-                    isAdminView,
                     actionAuthorization,
                     favoriteWorkIds,
                     ct,
@@ -116,13 +111,11 @@ internal sealed partial class DetailCompositionOrchestrator
                     selectedContainerId: selectedContainerId,
                     authorizedWorks: authorizedWorks,
                     sequenceWindow: sequenceWindow),
-            DetailEntityType.Character => await BuildCharacterAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
-            DetailEntityType.Universe => await BuildUniverseAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
+            DetailEntityType.Universe => await BuildUniverseAsync(id, context, actionAuthorization, authorizedWorks, ct),
             _ => await BuildWorkAsync(
                 id,
                 entityType,
                 context,
-                isAdminView,
                 actionAuthorization,
                 selectedContainerId,
                 favoriteWorkIds,
