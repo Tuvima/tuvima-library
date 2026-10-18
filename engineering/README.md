@@ -23,6 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
+| [Spec: Delete from library](specs/delete-from-library.md) | Draft (v1, 2026-10-17: questions for Shy) |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/first-run-ingestion-fixes.md) | In progress |
 | [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
