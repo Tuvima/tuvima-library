@@ -1,6 +1,6 @@
 # 0009 — Open from the start; apps always allowed
 
-**Date:** 2026-10-17 (Shy; spec `engineering/specs/open-from-the-start.md`) · **Status:** Accepted
+**Date:** 2026-10-17 (Shy; spec `engineering/specs/archive/open-from-the-start.md`) · **Status:** Accepted
 
 ## What
 Tuvima is open from the moment it is installed. Any device that can reach the server can sign in, and phone and TV apps can pair straight away; there is no "Who can connect" setting (This computer / Home network / Anywhere), no Anywhere checklist and no "Allow apps to connect" switch (D2, D6). Location checks had already been removed on 2026-10-11, so the setting only blocked apps and showed status text. Tuvima sign-in is always required (no guest access, no localhost administration), with one accepted exception: the no-password "use Tuvima on this computer" account stays as it is, so any device that reaches the server can use it, including a guest on the home Wi-Fi, with its administrator rights, until a password or passkey is added (D5). The server tells apps both its home address and, when the owner set one up in Settings → Network → Remote Access, its outside address (Tailscale or an HTTPS hostname) in the discovery answer; Android uses whichever works, home first (D8). Remote Access stays as an optional secure outside address with **Test remote access**, and unlocks nothing. Details: `docs/architecture/network-and-remote-access.md`, `docs/guides/remote-access.md`.

@@ -1,6 +1,6 @@
 # Spec: Open from the start — retire "Who can connect"
 
-> **Status:** In progress · **Version:** 3 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Network and remote access (public)](../../docs/architecture/network-and-remote-access.md) · [Remote access guide (public)](../../docs/guides/remote-access.md) · [Native clients (public)](../../docs/product/native-clients.md)
+> **Status:** Built · **Version:** 3 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../../product/overview.md) · [Network and remote access (public)](../../../docs/architecture/network-and-remote-access.md) · [Remote access guide (public)](../../../docs/guides/remote-access.md) · [Native clients (public)](../../../docs/product/native-clients.md)
 
 ## 1. Goal
 
