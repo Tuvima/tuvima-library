@@ -125,7 +125,6 @@ public static class NetworkEndpoints
             try
             {
                 configuration.SaveNetwork(current);
-                // Opening a router port lets others in, so it waits until the account has a password or passkey.
                 if (current.Remote.AutomaticRouterConfiguration
                     && current.Remote.ConnectionMode == NetworkConnectionModes.DirectOnly
                     && !await secureAccount.IsLockedAsync(ct))

@@ -77,10 +77,9 @@ public sealed class NetworkSettingsUiTests
         Assert.DoesNotContain("secure_account_first", panel, StringComparison.Ordinal);
         Assert.Contains("Address to type in the app", panel, StringComparison.Ordinal);
         Assert.Contains("GetNetworkRuntimeStatusAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("Status?.LocalAddresses", panel, StringComparison.Ordinal);
-        Assert.Contains("$\"http://{host}:{Settings.Local.Port}\"", panel, StringComparison.Ordinal);
+        Assert.Contains("Status?.PreferredLocalAddress", panel, StringComparison.Ordinal);
         Assert.Contains("Apps use this away from home", panel, StringComparison.Ordinal);
-        Assert.Contains("Settings?.Remote.PublicHostname", panel, StringComparison.Ordinal);
+        Assert.Contains("Status?.ExternalAddress", panel, StringComparison.Ordinal);
         Assert.DoesNotContain("<PairedDevicesSection", panel, StringComparison.Ordinal);
         Assert.Contains("<AppTable", devices, StringComparison.Ordinal);
         Assert.Contains("RevokeManagedDeviceAsync", devices, StringComparison.Ordinal);

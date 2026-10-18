@@ -84,7 +84,7 @@ Served from the Dashboard origin, the client needs nothing special. A packaged
 Tizen or webOS app runs from `file://`, `app://`, `tizen://` or `webos://` (or the
 `null` origin), so the Dashboard must answer cross-origin requests for exactly that
 case. That is **off by default**: set `native_app_access.allow_browser_apps` to
-`true` in `config/network.json` (and keep `native_app_access.enabled` on). Any
+`true` in `config/network.json`. Any
 website can claim the `null` origin, so with it on a website could reach the
 pairing surface; each pairing still needs a person to approve the code on the
 pairing page. Turn it on only for a TV web app. The permission covers

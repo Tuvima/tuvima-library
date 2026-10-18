@@ -57,27 +57,18 @@ else
     private bool _testing;
     private bool _testDialogOpen;
 
-    // The address a phone or TV on the home network types in: this computer's own address and the Dashboard port.
-    // IPv4 is preferred; an IPv6 address is bracketed so the port stays readable.
-    private string? HomeAddress
-    {
-        get
-        {
-            var local = Status?.LocalAddresses.FirstOrDefault(address => address.AddressFamily == "ipv4")
-                ?? Status?.LocalAddresses.FirstOrDefault();
-            if (local is null || Settings is null)
-            {
-                return null;
-            }
+    // The address a phone or TV on the home network types in: the Engine's preferred address on the adapter the owner
+    // chose (Settings > Network), with the Dashboard port.
+    private string? HomeAddress => string.IsNullOrWhiteSpace(Status?.PreferredLocalAddress) ? null : Status.PreferredLocalAddress;
 
-            var host = local.Address.Contains(':', StringComparison.Ordinal) ? $"[{local.Address}]" : local.Address;
-            return $"http://{host}:{Settings.Local.Port}";
-        }
-    }
+    // An outside address only counts once a way in from the internet is chosen (Tailscale or a reverse proxy); the Engine
+    // reports the tailnet address in Tailscale mode and the public hostname otherwise.
+    private bool HasOutsidePath =>
+        !string.Equals(Settings?.Remote.ConnectionMode?.Trim(), "local-only", StringComparison.OrdinalIgnoreCase);
 
-    private string? OutsideAddress => string.IsNullOrWhiteSpace(Settings?.Remote.PublicHostname)
-        ? null
-        : Settings.Remote.PublicHostname;
+    private string? OutsideAddress => HasOutsidePath && !string.IsNullOrWhiteSpace(Status?.ExternalAddress)
+        ? Status.ExternalAddress
+        : null;
 
     protected override async Task OnInitializedAsync()
     {

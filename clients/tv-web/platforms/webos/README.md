@@ -19,7 +19,7 @@ Packaging for the shared TV web client in `clients/tv-web`. Nothing here is a se
 ## Before you install: turn on app access
 
 The packaged app runs from a non-web origin, so the Dashboard rejects it until you set, in `config/network.json`,
-`native_app_access.enabled` and `native_app_access.allow_browser_apps` to `true`. Do this FIRST, then restart the Dashboard.
+`native_app_access.allow_browser_apps` to `true`. Do this FIRST, then restart the Dashboard.
 
 ## TV setup
 
