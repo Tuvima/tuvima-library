@@ -50,7 +50,7 @@ internal static class Q4LibraryItems
         }
 
         if (query.Search is not null || query.Status is not null || query.MinConfidence.HasValue || query.MatchSource is not null
-            || query.DuplicatesOnly || query.MissingUniverseOnly || query.MaxDays.HasValue || query.IncludeAll || query.Sort is not null)
+            || query.DuplicatesOnly || query.MaxDays.HasValue || query.IncludeAll || query.Sort is not null)
         {
             throw new NotSupportedException("The benchmark does not exercise these filters; extend the copy before using them.");
         }

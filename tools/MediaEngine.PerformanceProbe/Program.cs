@@ -41,6 +41,17 @@ sealed class ReadOnlyDatabase(string path) : IDatabaseConnection
         return connection;
     }
     public SqliteConnection Open() => CreateConnection();
+    public Task<T> ExecuteReadAsync<T>(Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ct.ThrowIfCancellationRequested();
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
+        var result = body(connection, transaction, ct);
+        ct.ThrowIfCancellationRequested();
+        transaction.Commit();
+        return Task.FromResult(result);
+    }
     public void Dispose() { }
     public void InitializeSchema() => throw new NotSupportedException();
     public void RunStartupChecks() => throw new NotSupportedException();

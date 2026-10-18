@@ -36,6 +36,12 @@ jobs:
       - name: Build (warnings as errors)
         run: dotnet build MediaEngine.slnx --no-restore --warnaserror
 
+      # Developer tools outside the solution; building them here stops them silently breaking when product APIs change.
+      - name: Build developer tools (warnings as errors)
+        run: |
+          dotnet build benchmarks/MediaEngine.Storage.Benchmarks/MediaEngine.Storage.Benchmarks.csproj --warnaserror
+          dotnet build tools/MediaEngine.PerformanceProbe/MediaEngine.PerformanceProbe.csproj --warnaserror
+
       - name: Verify formatting
         run: dotnet format MediaEngine.slnx --verify-no-changes --no-restore
 
