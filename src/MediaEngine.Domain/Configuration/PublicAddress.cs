@@ -44,4 +44,21 @@ public static class PublicAddress
             && !text.Contains('?')
             && !text.Contains('#');
     }
+
+    /// <summary>
+    /// Reduces an address an app can open to its origin (scheme, host and a non-default port; no path, query,
+    /// fragment or credentials), for example <c>https://tuvima.example.com</c>. Only http and https count.
+    /// Returns null for anything else, including a bare host name.
+    /// </summary>
+    public static string? ToOrigin(string? value)
+    {
+        if (!Uri.TryCreate(value?.Trim(), UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return null;
+        }
+
+        var host = uri.HostNameType == UriHostNameType.Dns ? uri.IdnHost : uri.Host;
+        return uri.IsDefaultPort ? $"{uri.Scheme}://{host}" : $"{uri.Scheme}://{host}:{uri.Port}";
+    }
 }

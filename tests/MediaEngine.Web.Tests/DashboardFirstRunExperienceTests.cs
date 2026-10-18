@@ -17,7 +17,7 @@ public sealed class DashboardFirstRunExperienceTests
 
         Assert.Contains("Results.Redirect(\"/setup\")", dashboard, StringComparison.Ordinal);
         Assert.Contains("BeginSetupAsync", setup, StringComparison.Ordinal);
-        Assert.Contains("Keep this Dashboard on your private network", preflight, StringComparison.Ordinal);
+        Assert.DoesNotContain("Keep this Dashboard on your private network", preflight, StringComparison.Ordinal);
         Assert.DoesNotContain("Claim this server", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("[Tuvima Setup] Claim token", setup, StringComparison.Ordinal);
         Assert.Contains("X-Tuvima-Setup-Session", setupSessions, StringComparison.Ordinal);

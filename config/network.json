@@ -1,6 +1,5 @@
 {
   "schema_version": "3.0",
-  "who_can_connect": "home_network",
   "local": {
     "port": 5016,
     "bind_mode": "automatic",
@@ -27,7 +26,6 @@
     "concurrent_remote_streams": "automatic"
   },
   "native_app_access": {
-    "enabled": false,
     "allow_browser_apps": false
   }
 }

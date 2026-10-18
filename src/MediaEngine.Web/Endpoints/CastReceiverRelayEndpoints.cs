@@ -9,8 +9,7 @@ namespace MediaEngine.Web.Endpoints;
 /// serves it one title at a time from a secret link, <c>/cast/v1/{grant}/...</c>, that carries its own signed grant. The Engine
 /// itself answers that address only on this computer; this relay is the one way a TV on the home network reaches it.
 /// <para>
-/// It exists only while app access is on, answers only a request that came from this computer or the home network, forwards
-/// only the range headers (never <c>Authorization</c> or a cookie, so a stray credential cannot ride along), and copies back
+/// It forwards only the range headers (never <c>Authorization</c> or a cookie, so a stray credential cannot ride along), and copies back
 /// only the media and CORS headers the receiver needs. The grant itself is checked by the Engine on every request.
 /// </para>
 /// </summary>
@@ -49,11 +48,7 @@ public static class CastReceiverRelayEndpoints
         IHttpClientFactory clients,
         CancellationToken ct)
     {
-        var gate = context.RequestServices.GetService<INativeAppAccessGate>();
-        var ingress = context.RequestServices.GetService<IngressClassifier>()?.Classify(context);
-        if (gate?.IsEnabled != true
-            || ingress is not (IngressKind.ThisComputer or IngressKind.HomeNetwork)
-            || !GrantShape.IsMatch(grant)
+        if (!GrantShape.IsMatch(grant)
             || string.IsNullOrEmpty(rest)
             || !NativeApiForwardPolicy.IsSafeSubPath(rest))
         {

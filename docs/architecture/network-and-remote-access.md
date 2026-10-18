@@ -23,25 +23,57 @@ Tuvima treats networking as an appliance-style workflow. Administrators use
 **Settings → Network & Remote Access** for a health overview, LAN settings,
 remote access, network-aware streaming, and advanced diagnostics. A new install
 uses the same panels in `/setup/network`; there is no second onboarding model.
-The default is local-network-only and requires no router, DNS, TLS, or tunnel
-knowledge.
+Tuvima is open from the start: any device that can reach the server can use it,
+and Tuvima sign-in is always required. The default needs no router, DNS, TLS, or
+tunnel knowledge, and a secure outside address is an optional extra.
 
 ## Source of truth
 
 Desired state lives in `config/network.json` and is validated against
-`config/schemas/network.schema.json`. `who_can_connect` (`this_computer`, `home_network` or `anywhere`; every shipped config, desktop and container, defaults to `home_network`, and only the no-password desktop setup or the administrator moves it to `this_computer`) is the single door rule that replaces the old remote on/off switch and the sign-in remote toggles: the Dashboard's exposure policy refuses any request from farther away than it allows, before routing, authentication or static files. Schema 2.0 includes the Dashboard port,
-binding, local discovery, remote mode, advanced router automation, custom HTTPS
-address, exact/CIDR trusted proxies, and remote-streaming policy. Supported
-remote modes are `tailscale`, `custom`, and the advanced `direct-only` mode.
-The removed `secure-provider` placeholder is rejected.
+`config/schemas/network.schema.json`. There is no rule about how far away a visitor may be: the
+Dashboard answers every request whatever its origin, and Tuvima sign-in decides
+who gets in. The only exception is the no-password "use Tuvima on this computer"
+account, which any device that reaches the server can use, with its administrator
+rights, until a password or passkey is added (see
+[Account security](../guides/account-security.md)). Closed router ports are the
+gatekeeper. The Dashboard serves plain http, so if its port is forwarded to the
+internet, sign-ins and pairing codes cross the internet unencrypted; for access
+from outside, use Tailscale or an HTTPS reverse proxy. Schema 2.0 includes the
+Dashboard port, binding, local discovery, remote mode, advanced router
+automation, custom HTTPS address, exact/CIDR trusted proxies, and
+remote-streaming policy. Supported remote modes are `tailscale`, `custom`, and
+the advanced `direct-only` mode. The removed `secure-provider` placeholder is
+rejected. Keys from the retired reach and app-switch settings left in a
+user's file are ignored.
 
-`native_app_access.enabled` (default `false`) switches the Dashboard's paired-app
-door on or off. It can only be saved as `true` while `who_can_connect` is `anywhere`,
-and turning remote access off or resetting network settings turns it off too.
-The Dashboard re-reads the file when it changes and treats a missing or
-unreadable file as off.
-`native_app_access.allow_browser_apps` (default `false`, config file only) is a second, separate switch for packaged TV web apps, whose page origin is `null` or an app scheme. Only with both switches on does the Dashboard give those origins cross-origin permission for `/api/v1/**` and `/.well-known/tuvima`. Because any web page can claim the `null` origin, it also lets a website reach the anonymous pairing surface; pairing still needs a person to approve the code on `/pair`. See [Configuration](../reference/configuration.md).
-While the door is off, its addresses (`/.well-known/tuvima`, `/pair`, `/api/v1/*` and `/application-events/*`) answer a plain 404 to every visitor, not a sign-in redirect.
+Phone and TV apps are always allowed; there is no app on/off switch. The paired-app
+door (`/.well-known/tuvima`, `/pair`, `/api/v1/**` and `/application-events/**`) and
+the cast relay always answer. `native_app_access.allow_browser_apps` (default
+`false`, config file only) is a separate switch for packaged TV web apps, whose
+page origin is `null` or an app scheme. Only with it on does the Dashboard give
+those origins cross-origin permission for `/api/v1/**` and `/.well-known/tuvima`.
+Because any web page can claim the `null` origin, it also lets a website reach the
+anonymous pairing surface; pairing still needs a person to approve the code on
+`/pair`. See [Configuration](../reference/configuration.md).
+
+## Addresses apps use
+
+The discovery answer `GET /.well-known/tuvima` (Dashboard, anonymous) always
+answers and carries an optional `outside_address` (an origin) when a secure
+outside address is set up: the Tailscale address or the public hostname. The
+Engine supplies it through `GET /network/outside-address` (Dashboard service
+credential only), which returns `{ outside_address }`. **Settings →
+Administration → Devices** shows both: the home address (the Engine's preferred
+address on the adapter chosen in Settings → Network, with the Dashboard port) and,
+when set, the outside address labelled "Apps use this away from home".
+
+The Android app saves the address typed at pairing as its home address and learns
+the outside address from discovery, at pairing and at app start only. It tries
+home first (about 1.5 seconds), falls back to the outside address, rechecks when
+the phone's network changes, rebases every request, stream and download to the
+current address, and sends its sign-in token only to those two addresses.
+Removing the outside address on the server reaches the phone after re-pairing.
+Apple, Roku and TV web apps do not do this yet.
 
 Observed state stays in memory: usable interfaces, topology, current
 Tuvima-owned router mapping, public address, latest tests, measured bandwidth,
@@ -58,9 +90,11 @@ external edges:
   Traefik.
 
 Tuvima authentication remains mandatory. Tailnet membership and forwarded
-identity headers do not replace the Dashboard sign-in boundary. Remote access
-cannot be enabled until an administrator exists, localhost bypass is off, and
-the selected HTTPS/tunnel route passes a Tuvima challenge probe.
+identity headers do not replace the Dashboard sign-in boundary. **Settings →
+Network → Remote Access** (**How the internet reaches Tuvima**) sets up that
+optional secure outside address, and **Test remote access** runs a Tuvima
+challenge probe against the selected HTTPS/tunnel route. Passing the test does
+not unlock anything; the page only chooses and checks the outside address.
 
 ## Connectivity lifecycle
 
@@ -119,9 +153,7 @@ client-address headers are accepted only from exact proxy IP addresses in
 forwarding hop allowed. The middleware runs before HSTS, redirection,
 authentication, and URL generation. Forwarded headers are honoured only on the
 optional proxy port (`remote.proxy_port`); on the main Dashboard port they are
-ignored. One `IngressClassifier` decides whether a request is from this
-computer, the home network, or remote (anything on the proxy port is remote),
-and requests classified as remote are rejected before authentication when the
-effective scheme is not HTTPS. A `Host` allow-list (`local.allowed_hostnames`
+ignored. Where a request comes from never decides whether the Dashboard answers
+it, and plain http is not refused. A `Host` allow-list (`local.allowed_hostnames`
 plus the machine, server and public names) refuses unknown host names to block
 DNS rebinding.

@@ -3,9 +3,14 @@ package com.tuvima.library.mobile
 import android.app.Application
 import android.os.Build
 import com.tuvima.library.core.ClientCapabilities
+import com.tuvima.library.core.NetworkChangeWatcher
+import com.tuvima.library.core.PreferencesServerAddressStore
 import com.tuvima.library.core.SecureTokenStore
 import com.tuvima.library.core.StorageCap
 import com.tuvima.library.core.TuvimaClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class TuvimaMobileApplication : Application() {
@@ -15,6 +20,10 @@ class TuvimaMobileApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         savedServer()?.let(::connect)
+        // Home or outside address: move to whichever answers whenever the phone changes network (Wi-Fi to mobile data and back).
+        NetworkChangeWatcher(this, CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+            client?.refreshServerAddress()
+        }.start()
     }
 
     /** Set when the Engine revoked this device's sign-in; the shell then returns to pairing and clears the flag. */
@@ -24,7 +33,7 @@ class TuvimaMobileApplication : Application() {
         getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putString("server", serverAddress).apply()
         return TuvimaClient(
             serverAddress = serverAddress,
-            clientId = "tuvima-android",
+            clientId = "tuvima-mobile",
             clientName = "Tuvima for Android",
             clientVersion = BuildConfig.VERSION_NAME,
             deviceName = Build.MODEL,
@@ -42,6 +51,7 @@ class TuvimaMobileApplication : Application() {
                 supportsOfflineDownloads = true,
             ),
             tokenStore = SecureTokenStore(this),
+            addressStore = PreferencesServerAddressStore(this),
         ).also { created ->
             // A revoked device behaves like a sign-out: the client has already cleared its tokens; the downloads and
             // unsent records of every person on this phone go with it, then the app returns to pairing.

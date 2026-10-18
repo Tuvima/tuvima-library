@@ -1,21 +1,26 @@
 package com.tuvima.library.core
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.InetAddress
-import java.net.URI
 import java.net.URLEncoder
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import kotlin.concurrent.thread
+import kotlin.coroutines.resume
 
 class TuvimaClient(
     serverAddress: String,
@@ -26,8 +31,25 @@ class TuvimaClient(
     private val deviceClass: String,
     private val capabilities: ClientCapabilities,
     private val tokenStore: SecureTokenStore,
+    private val addressStore: ServerAddressStore = ServerAddressStore.None,
 ) {
-    val serverOrigin: String = normalizeOrigin(serverAddress)
+    /**
+     * The home address: what the person typed at pairing. It is the server's stable identity (saved sign-in tokens are keyed
+     * to it), so it never changes when the app moves to the outside address and back.
+     */
+    val serverOrigin: String = ServerOrigins.normalize(serverAddress)
+    private val addresses = ServerAddresses(serverOrigin, addressStore.loadOutside(serverOrigin))
+    private val addressMutex = Mutex()
+
+    @Volatile
+    private var lastFruitlessRecheckMs = 0L
+
+    /** The address requests use right now: the home address while it answers, otherwise the outside address. */
+    val currentOrigin: String get() = addresses.current
+
+    /** The address the server announced for use away from home, or null when it announced none. */
+    val outsideOrigin: String? get() = addresses.outside
+
     private val refreshMutex = Mutex()
     private val session = SessionHolder(tokenStore.load()?.takeIf { it.first == serverOrigin }?.second)
 
@@ -40,7 +62,13 @@ class TuvimaClient(
     private var discovery: Discovery? = null
 
     suspend fun discover(): Discovery {
-        val json = requestJson("GET", "/.well-known/tuvima", authenticated = false)
+        // Settle on the address that answers first, so this and every later request go to it.
+        refreshServerAddress()
+        val json = requestJson("GET", DISCOVERY_PATH, authenticated = false)
+        // Pairing and app start are the only places the outside address is learned. While nobody is signed in (pairing) the
+        // answer is authoritative, so re-pairing picks up a removed outside address; once paired, an answer can only replace
+        // it with a new valid address, never clear it.
+        rememberOutside(json.optionalString("outside_address"), clearWhenNone = !isPaired())
         val value = Discovery(
             serverName = json.optString("server_name", "Tuvima Library"),
             apiBaseUrl = json.getString("api_base_url"),
@@ -49,10 +77,129 @@ class TuvimaClient(
             verificationUri = json.getString("verification_uri"),
             supportedApiVersions = json.optJSONArray("supported_api_versions")?.strings().orEmpty(),
             capabilities = json.optJSONArray("capabilities")?.strings().orEmpty().toSet(),
+            outsideAddress = addresses.outside,
         )
         require("1" in value.supportedApiVersions) { "This server does not advertise API v1." }
         discovery = value
         return value
+    }
+
+    /**
+     * Checks which of the two addresses answers and switches to it: home first (a short check), then the outside address.
+     * Call it on app start, when the phone's network changes, and after a connection failure. A request already running
+     * keeps the address it started with; the new address applies to the next one. Returns true when the address changed.
+     */
+    suspend fun refreshServerAddress(): Boolean = addressMutex.withLock {
+        val before = addresses.current
+        val chosen = ServerAddressSelector.choose(addresses.home, addresses.outside, before, ::isReachable)
+        addresses.select(chosen)
+        addresses.current != before
+    }
+
+    /**
+     * A URL for [url] on the address in use right now. Media3 data sources, download workers and image loaders call it for
+     * every request, so a URL built while the other address was in use (a playlist, a queued item, a saved artwork link)
+     * still reaches the server.
+     */
+    fun resolveUrl(url: String): String = addresses.rebase(url)
+
+    private fun rememberOutside(announced: String?, clearWhenNone: Boolean) {
+        if (addresses.updateOutside(announced, clearWhenNone)) addressStore.saveOutside(serverOrigin, addresses.outside)
+    }
+
+    /**
+     * A bearer token for a request to [url], or null when [url] is not on the home or outside address. Players ask per
+     * request, so a playlist, a redirect or a subtitle link that names another host never receives the device's token.
+     */
+    suspend fun streamBearerTokenFor(url: String): String? = if (addresses.owns(url)) authenticatedToken() else null
+
+    /**
+     * After a connection failure on [failedOrigin]: when an outside address is known and another request has not already
+     * moved on, checks the addresses once. Returns true when the address in use is now a different one.
+     */
+    private suspend fun switchAfterFailure(failedOrigin: String): Boolean {
+        if (addresses.outside == null) return false
+        return addressMutex.withLock {
+            if (addresses.current != failedOrigin) return@withLock true
+            // Several requests fail together when the phone leaves home; only the first one pays for the check.
+            val now = System.nanoTime() / 1_000_000
+            if (now - lastFruitlessRecheckMs < RECHECK_COOLDOWN_MS) return@withLock false
+            val chosen = ServerAddressSelector.choose(addresses.home, addresses.outside, failedOrigin, ::isReachable)
+            addresses.select(chosen)
+            val moved = addresses.current != failedOrigin
+            if (!moved) lastFruitlessRecheckMs = now
+            moved
+        }
+    }
+
+    /**
+     * Runs [block] against the address in use. A connection failure (not an HTTP error) triggers one recheck of the
+     * addresses; a GET is then tried once more on the address that answers. Other methods are not repeated: the next
+     * request simply uses the new address.
+     */
+    private suspend fun <T> withFailover(method: String, block: suspend (origin: String) -> T): T {
+        val origin = addresses.current
+        return try {
+            block(origin)
+        } catch (error: IOException) {
+            if (!switchAfterFailure(origin) || method != "GET") throw error
+            block(addresses.current)
+        }
+    }
+
+    /**
+     * Asks [origin] for its discovery answer within [ServerAddressSelector.PROBE_TIMEOUT_MS]; a bare 200 from a captive portal
+     * does not count. A check only answers "does it respond": it never changes the stored outside address.
+     */
+    private suspend fun isReachable(origin: String): Boolean {
+        val answer = fetchDiscoveryQuickly(origin) ?: return false
+        val json = try {
+            JSONObject(answer)
+        } catch (error: org.json.JSONException) {
+            Log.d(TAG, "$origin answered the address check with something that is not JSON", error)
+            return false
+        }
+        return json.has("api_base_url")
+    }
+
+    private suspend fun fetchDiscoveryQuickly(origin: String): String? {
+        var connection: HttpURLConnection? = null
+        return try {
+            val opened = (URL(origin + DISCOVERY_PATH).openConnection() as HttpURLConnection).apply {
+                connectTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
+                readTimeout = ServerAddressSelector.PROBE_TIMEOUT_MS
+                setRequestProperty("Accept", "application/json")
+            }
+            connection = opened
+            // Name resolution is not covered by the connection timeouts, so the whole check also has a budget; running out of
+            // it closes the connection, which ends the blocked read.
+            withTimeoutOrNull(ServerAddressSelector.PROBE_TIMEOUT_MS + PROBE_GRACE_MS) {
+                suspendCancellableCoroutine<String?> { waiting ->
+                    waiting.invokeOnCancellation { opened.disconnect() }
+                    thread(isDaemon = true, name = "tuvima-address-check") {
+                        val text = try {
+                            if (opened.responseCode in 200..299) opened.inputStream.bufferedReader().use { it.readText() } else null
+                        } catch (error: IOException) {
+                            // An unreachable address is the expected answer of this check.
+                            Log.d(TAG, "$origin did not answer the address check", error)
+                            null
+                        } catch (error: Exception) {
+                            // Anything else on this thread would crash the app; it counts as unreachable, and is logged.
+                            Log.w(TAG, "The address check for $origin failed unexpectedly", error)
+                            null
+                        }
+                        waiting.resume(text)
+                    }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "The address check for $origin could not be started", error)
+            null
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     suspend fun beginPairing(scopes: String): PairingSession {
@@ -440,13 +587,15 @@ class TuvimaClient(
         throw if (error.statusCode == 403) PhotoAccessDeniedException() else error
     }
 
-    suspend fun authenticatedBytes(path: String): ByteArray = withContext(Dispatchers.IO) {
-        val connection = openConnection(path, "GET", authenticatedToken())
-        try {
-            checkResponse(connection)
-            connection.inputStream.use { it.readBytes() }
-        } finally {
-            connection.disconnect()
+    suspend fun authenticatedBytes(path: String): ByteArray = withFailover("GET") { origin ->
+        withContext(Dispatchers.IO) {
+            val connection = openConnection(origin, path, "GET", authenticatedToken())
+            try {
+                checkResponse(connection)
+                connection.inputStream.use { it.readBytes() }
+            } finally {
+                connection.disconnect()
+            }
         }
     }
 
@@ -456,15 +605,18 @@ class TuvimaClient(
 
     suspend fun downloadToFile(path: String, destination: File, onProgress: (Long, Long?) -> Unit = { _, _ -> }): Unit =
         withContext(Dispatchers.IO) {
+            // The address is read once, when the download starts. A download that loses its connection checks the addresses
+            // and stops; the download worker's retry resumes the file (by range) on whichever address answers.
+            val origin = addresses.current
             destination.parentFile?.mkdirs()
             val existing = destination.takeIf(File::exists)?.length() ?: 0L
-            var connection = openConnection(path, "GET", authenticatedToken()).apply {
+            var connection = openConnection(origin, path, "GET", authenticatedToken()).apply {
                 if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
             }
             try {
                 if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
                     connection.disconnect()
-                    connection = openConnection(path, "GET", refreshToken(force = true)).apply {
+                    connection = openConnection(origin, path, "GET", refreshToken(force = true)).apply {
                         if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
                     }
                 }
@@ -491,6 +643,9 @@ class TuvimaClient(
                         }
                     }
                 }
+            } catch (error: IOException) {
+                switchAfterFailure(origin)
+                throw error
             } finally {
                 connection.disconnect()
             }
@@ -503,16 +658,18 @@ class TuvimaClient(
 
     /** Sends a request and returns only the HTTP status (no body is read); a 401 is retried once with a fresh token. */
     private suspend fun requestStatus(method: String, path: String, body: JSONObject?): Int =
-        withContext(Dispatchers.IO) {
-            var connection = openConnection(path, method, authenticatedToken(), body)
-            try {
-                if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+        withFailover(method) { origin ->
+            withContext(Dispatchers.IO) {
+                var connection = openConnection(origin, path, method, authenticatedToken(), body)
+                try {
+                    if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                        connection.disconnect()
+                        connection = openConnection(origin, path, method, refreshToken(force = true), body)
+                    }
+                    connection.responseCode
+                } finally {
                     connection.disconnect()
-                    connection = openConnection(path, method, refreshToken(force = true), body)
                 }
-                connection.responseCode
-            } finally {
-                connection.disconnect()
             }
         }
 
@@ -531,18 +688,20 @@ class TuvimaClient(
         path: String,
         body: JSONObject?,
         authenticated: Boolean,
-    ): String = withContext(Dispatchers.IO) {
-        val credential = if (authenticated) authenticatedToken() else null
-        var connection = openConnection(path, method, credential, body)
-        try {
-            if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED && authenticated) {
+    ): String = withFailover(method) { origin ->
+        withContext(Dispatchers.IO) {
+            val credential = if (authenticated) authenticatedToken() else null
+            var connection = openConnection(origin, path, method, credential, body)
+            try {
+                if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED && authenticated) {
+                    connection.disconnect()
+                    connection = openConnection(origin, path, method, refreshToken(force = true), body)
+                }
+                checkResponse(connection)
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } finally {
                 connection.disconnect()
-                connection = openConnection(path, method, refreshToken(force = true), body)
             }
-            checkResponse(connection)
-            connection.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            connection.disconnect()
         }
     }
 
@@ -612,11 +771,12 @@ class TuvimaClient(
     }
 
     private fun openConnection(
+        origin: String,
         path: String,
         method: String,
         bearer: String?,
         body: JSONObject? = null,
-    ): HttpURLConnection = (URL(absolute(path) ?: error("A request path is required.")).openConnection() as HttpURLConnection).apply {
+    ): HttpURLConnection = (URL(addresses.resolve(path, origin) ?: error("A request path is required.")).openConnection() as HttpURLConnection).apply {
         requestMethod = method
         connectTimeout = 15_000
         readTimeout = 30_000
@@ -691,30 +851,20 @@ class TuvimaClient(
         )
     }
 
-    private fun absolute(path: String?): String? {
-        if (path.isNullOrBlank()) return null
-        val uri = URI(path)
-        return if (uri.isAbsolute) uri.toString() else URI(serverOrigin).resolve(path).toString()
-    }
+    /** A server path as an absolute URL on the address in use now (parsed models carry these; [resolveUrl] fixes stale ones). */
+    private fun absolute(path: String?): String? = addresses.resolve(path)
 
     private companion object {
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
+        const val DISCOVERY_PATH = "/.well-known/tuvima"
+        const val TAG = "TuvimaClient"
 
-        fun normalizeOrigin(address: String): String {
-            val withScheme = address.trim().let { if (it.contains("://")) it else "https://$it" }
-            val uri = URI(withScheme)
-            val localHttp = uri.scheme == "http" && runCatching {
-                uri.host.endsWith(".local", ignoreCase = true) || InetAddress.getByName(uri.host).let {
-                    it.isLoopbackAddress || it.isSiteLocalAddress || it.isLinkLocalAddress
-                }
-            }.getOrDefault(false)
-            require(uri.scheme == "https" || localHttp) {
-                "Remote Tuvima connections require HTTPS; HTTP is accepted only on the local network."
-            }
-            require(!uri.host.isNullOrBlank()) { "Enter a valid Tuvima Dashboard address." }
-            return URI(uri.scheme, null, uri.host, uri.port, null, null, null).toString().trimEnd('/')
-        }
+        /** Budget on top of the connection timeouts for the whole address check, which name resolution can otherwise exceed. */
+        const val PROBE_GRACE_MS = 500L
+
+        /** After a check that found nothing better, requests failing in the same moment do not each repeat it. */
+        const val RECHECK_COOLDOWN_MS = 5_000L
 
         fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
     }

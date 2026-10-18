@@ -309,62 +309,25 @@ public sealed class NativeApiForwarderTests
         Assert.Equal(expected, NativeApiForwardPolicy.Evaluate(method, path, bearer));
 
     [Fact]
-    public async Task SwitchOff_RefusesEveryAppDoorWithoutContactingTheEngine()
+    public async Task AppDoor_IsOpenOnAFreshInstall_DiscoveryAnswersAndTheApiIsNotRefused()
     {
         var engineHits = 0;
         await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: false);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
         using var request = Bearer(HttpMethod.Get, "/api/v1/display/home");
 
+        using var discovery = await client.GetAsync("/.well-known/tuvima");
         using var api = await client.SendAsync(request);
         using var token = await client.PostAsync("/api/v1/oauth/token", null);
-        using var discovery = await client.GetAsync("/.well-known/tuvima");
 
-        Assert.Equal(HttpStatusCode.NotFound, api.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, token.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, discovery.StatusCode);
-        Assert.Equal(0, engineHits);
-    }
-
-    [Fact]
-    public async Task MissingGate_FailsClosed()
-    {
-        await using var engine = await TestApplication.StartEngineAsync();
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: null);
-        using var client = new HttpClient { BaseAddress = dashboard.Address };
-        using var response = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home"));
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public void NetworkSettingsGate_IsOffUnlessAppAccessIsOn()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "tuvima-gate-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        try
-        {
-            bool Read(string json)
-            {
-                File.WriteAllText(Path.Combine(dir, "network.json"), json);
-                // A fresh gate per case so the change-detection cache cannot hide a parse.
-                return new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir).IsEnabled;
-            }
-
-            var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
-            Assert.False(gate.IsEnabled); // no file
-            Assert.False(Read("{}"));
-            Assert.True(Read("{\"native_app_access\":{\"enabled\":true}}")); // where apps connect from is not checked
-            Assert.False(Read("{\"who_can_connect\":\"anywhere\"}")); // app access off
-            Assert.True(Read("{\"who_can_connect\":\"home_network\",\"native_app_access\":{\"enabled\":true}}"));
-            Assert.True(Read("{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":true}}"));
-            Assert.False(Read("{ not json")); // fails closed
-        }
-        finally
-        {
-            Directory.Delete(dir, recursive: true);
-        }
+        Assert.Equal(HttpStatusCode.OK, discovery.StatusCode);
+        var body = await discovery.Content.ReadFromJsonAsync<TuvimaDiscoveryResponse>();
+        Assert.Equal($"{dashboard.Address.Scheme}://{dashboard.Address.Authority}/api/v1", body!.ApiBaseUrl);
+        Assert.Equal($"{dashboard.Address.Scheme}://{dashboard.Address.Authority}/pair", body.VerificationUri);
+        Assert.Equal(HttpStatusCode.OK, api.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, token.StatusCode);
+        Assert.Equal(2, engineHits);
     }
 
     [Fact]
@@ -376,11 +339,12 @@ public sealed class NativeApiForwarderTests
         {
             var path = Path.Combine(dir, "network.json");
             var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
-            File.WriteAllText(path, "{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":true}}");
-            Assert.True(gate.IsEnabled);
-            File.WriteAllText(path, "{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":false}}");
+            Assert.False(gate.AllowBrowserApps); // no file
+            File.WriteAllText(path, "{\"native_app_access\":{\"allow_browser_apps\":true}}");
+            Assert.True(gate.AllowBrowserApps);
+            File.WriteAllText(path, "{\"native_app_access\":{\"allow_browser_apps\":false}}");
             File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
-            Assert.False(gate.IsEnabled);
+            Assert.False(gate.AllowBrowserApps);
         }
         finally
         {
@@ -389,7 +353,7 @@ public sealed class NativeApiForwarderTests
     }
 
     [Fact]
-    public async Task SwitchOn_ForwardsOnlyAllowListedPathsAndNeverLeaksDashboardCredentials()
+    public async Task AppDoor_ForwardsOnlyAllowListedPathsAndNeverLeaksDashboardCredentials()
     {
         var seen = new List<(string Path, string? Authorization, string? Cookie, string? ServiceKey)>();
         await using var engine = await TestApplication.StartEngineAsync(record: context =>
@@ -400,7 +364,7 @@ public sealed class NativeApiForwarderTests
                     context.Request.Headers["X-Tuvima-Service-Key"]));
             }
         });
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         using var allowed = Bearer(HttpMethod.Get, "/api/v1/display/home");
@@ -443,7 +407,7 @@ public sealed class NativeApiForwarderTests
                 seen.Add((context.Request.Method, context.Request.Path, context.Request.QueryString.Value ?? "", context.Request.Headers.Authorization));
             }
         });
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         using var timeline = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/view/timeline?limit=50&cursor=abc"));
@@ -482,7 +446,7 @@ public sealed class NativeApiForwarderTests
                 seen.Add((context.Request.Method, context.Request.Path));
             }
         });
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
         const string id = "6f0c2a3e-0000-0000-0000-000000000000";
 
@@ -520,7 +484,7 @@ public sealed class NativeApiForwarderTests
     {
         var engineHits = 0;
         await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         using var response = await client.SendAsync(Bearer(HttpMethod.Post, path));
@@ -534,7 +498,7 @@ public sealed class NativeApiForwarderTests
     {
         var seenPath = "";
         await using var engine = await TestApplication.StartEngineAsync(record: c => seenPath = c.Request.Path);
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         using var response = await client.SendAsync(Bearer(HttpMethod.Post, MediaEngine.Contracts.Authentication.ApplicationEventClientMethods.HubPath + "/negotiate"));
@@ -544,15 +508,15 @@ public sealed class NativeApiForwarderTests
     }
 
     [Fact]
-    public async Task SwitchOff_HidesThePairingPage()
+    public async Task PairingPage_IsNotHidden_OnAFreshInstall()
     {
         await using var engine = await TestApplication.StartEngineAsync();
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: false);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         using var response = await client.GetAsync("/pair?user_code=ABCD");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -569,7 +533,7 @@ public sealed class NativeApiForwarderTests
                 c.Response.Headers.Location = "/health/ready";
             }
         });
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = dashboard.Address };
 
         using var first = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home"));
@@ -587,7 +551,7 @@ public sealed class NativeApiForwarderTests
     {
         var engineHits = 0;
         await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         var statuses = new List<HttpStatusCode>();
@@ -614,7 +578,7 @@ public sealed class NativeApiForwarderTests
     {
         var engineHits = 0;
         await using var engine = await TestApplication.StartEngineAsync(engineHits: () => Interlocked.Increment(ref engineHits));
-        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address);
         using var client = new HttpClient { BaseAddress = dashboard.Address };
 
         for (var i = 0; i < 30; i++)
@@ -654,17 +618,12 @@ public sealed class NativeApiForwarderTests
         return request;
     }
 
-    private sealed class FixedGate(bool enabled) : INativeAppAccessGate
-    {
-        public bool IsEnabled => enabled;
-    }
-
     private sealed class TestApplication(WebApplication app, Uri address) : IAsyncDisposable
     {
         public Uri Address { get; } = address;
 
         public static Task<TestApplication> StartEngineAsync(Action<HttpContext>? record = null, Action? engineHits = null) =>
-            StartAsync(null, null, app => app.Run(context =>
+            StartAsync(null, app => app.Run(context =>
             {
                 engineHits?.Invoke();
                 record?.Invoke(context);
@@ -673,19 +632,14 @@ public sealed class NativeApiForwarderTests
                 return Task.CompletedTask;
             }));
 
-        public static Task<TestApplication> StartDashboardAsync(Uri engine, bool? enabled) =>
-            StartAsync(engine, enabled, app => app.MapClientApiEdge());
+        public static Task<TestApplication> StartDashboardAsync(Uri engine) =>
+            StartAsync(engine, app => app.MapClientApiEdge());
 
-        private static async Task<TestApplication> StartAsync(Uri? engine, bool? enabled, Action<WebApplication> configure)
+        private static async Task<TestApplication> StartAsync(Uri? engine, Action<WebApplication> configure)
         {
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Services.AddAntiforgery();
-            if (enabled is { } value)
-            {
-                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
-            }
-
             builder.Services.AddSingleton<NativeAppPairingThrottle>();
 
             builder.Services.AddClientApiProxyClient(engine!);

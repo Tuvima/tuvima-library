@@ -15,7 +15,7 @@ Commands below use the container name `tuvima-library`. A NAS manager provides e
 
 ## Finish setup safely
 
-Open the Dashboard's `/setup` page on a trusted private network. From another device on your home network, setup asks for a one-time code from `tuvima-admin setup code`. Afterward, setup requires administrator authentication.
+Open the Dashboard's `/setup` page from any device on your home network; no code is needed. Finish it before you open any router port. Afterward, setup requires administrator authentication.
 
 Save the recovery codes outside the server. If you lose password and recovery access, use the elevated host command:
 
@@ -122,7 +122,7 @@ Never delete or relocate user-owned source media as part of rollback.
 
 Expose only Dashboard port `5016` through a trusted HTTPS path. Never publish or proxy Engine port `61495`.
 
-Use [secure remote access](remote-access.md) to configure Tailscale Serve or reverse proxy trust, verify readiness, and enable remote sign-in. Keep normal Tuvima authentication enabled.
+Use [secure remote access](remote-access.md) to configure Tailscale Serve or reverse proxy trust, and run **Test remote access**. Keep normal Tuvima authentication enabled.
 
 <details>
 <summary>Technical details: verify an image signature</summary>

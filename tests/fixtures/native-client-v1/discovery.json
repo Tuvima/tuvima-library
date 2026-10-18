@@ -7,5 +7,6 @@
   "device_authorization_endpoint": "/api/v1/oauth/device_authorization",
   "token_endpoint": "/api/v1/oauth/token",
   "verification_uri": "/pair",
+  "outside_address": "https://library.example",
   "capabilities": ["browse", "search", "details", "artwork", "progress", "queues", "downloads", "playback"]
 }

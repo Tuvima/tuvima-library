@@ -86,7 +86,6 @@ public sealed class ThisComputerAccessTests : IDisposable
         Assert.Null(account.Email);
         Assert.Null(account.NormalizedEmail);
         Assert.Null(await _identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password));
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
     }
 
     [Theory]
@@ -109,7 +108,6 @@ public sealed class ThisComputerAccessTests : IDisposable
 
         Assert.Equal(StatusCodes.Status200OK, response.Status);
         Assert.True(await _identity.IsAdministratorConfiguredAsync());
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
     }
 
     [Fact]
@@ -235,7 +233,6 @@ public sealed class ThisComputerAccessTests : IDisposable
         var account = Assert.Single(await _accounts.GetAllAsync());
         Assert.False(account.IsThisComputerOnly);
         Assert.NotNull(await _identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password));
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
     }
 
     [Fact]
@@ -357,36 +354,18 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task KeepingThisComputer_AndResettingNetwork_BehaveSensibly()
+    public async Task APasswordlessAccount_CanSaveAndResetNetworkSettings_AndAnOldConnectionRuleIsIgnored()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
-        var network = _configuration.LoadNetwork();
-        network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
-        _configuration.SaveNetwork(network);
         await using var app = BuildNetworkApplication();
 
-        var keep = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.ThisComputer });
-        // Resetting puts the door back to the home network, which a passwordless account may use.
+        var save = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = "anywhere" });
         var reset = await SendAsync(app, "POST", "/network/reset");
 
-        Assert.Equal(StatusCodes.Status200OK, keep.Status);
+        Assert.Equal(StatusCodes.Status200OK, save.Status);
         Assert.Equal(StatusCodes.Status200OK, reset.Status);
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
-    }
-
-    [Fact]
-    public async Task RaisingWhoCanConnect_ToTheHomeNetwork_IsAllowedForAPasswordlessAccount()
-    {
-        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
-        var network = _configuration.LoadNetwork();
-        network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
-        _configuration.SaveNetwork(network);
-        await using var app = BuildNetworkApplication();
-
-        var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.HomeNetwork });
-
-        Assert.Equal(StatusCodes.Status200OK, response.Status);
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
+        Assert.False(save.Json.TryGetProperty("who_can_connect", out _));
+        Assert.DoesNotContain("who_can_connect", File.ReadAllText(Path.Combine(_configPath, "network.json")), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -399,22 +378,6 @@ public sealed class ThisComputerAccessTests : IDisposable
             extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
 
         Assert.Equal(StatusCodes.Status404NotFound, response.Status);
-    }
-
-    [Fact]
-    public async Task RaisingWhoCanConnect_IsAllowedOnceTheAccountIsSecured()
-    {
-        await _identity.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "d", "Browser", "Dashboard");
-        var network = _configuration.LoadNetwork();
-        network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
-        _configuration.SaveNetwork(network);
-        await using var app = BuildNetworkApplication();
-
-        var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.HomeNetwork });
-
-        Assert.Equal(StatusCodes.Status200OK, response.Status);
-        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
     }
 
     // ---- Harness ----
@@ -498,9 +461,6 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<IFirstPartyIdentityService>(_identity);
         builder.Services.AddScoped<MediaEngine.Api.Services.Security.RecentSignInGuard>();
         builder.Services.AddSingleton(CreateGate());
-        builder.Services.AddSingleton(new RemoteAccessReadinessService(
-            CreateUsableAdministrators(), Unused<INetworkTopologyService>(), [], new HttpClient(),
-            NullLogger<RemoteAccessReadinessService>.Instance));
         builder.Services.AddSingleton<NetworkStatusService>(_ => null!);
         builder.Services.AddSingleton<INetworkDiagnosticsService>(_ => null!);
         builder.Services.AddSingleton<RouterPortMappingCoordinator>(_ => null!);

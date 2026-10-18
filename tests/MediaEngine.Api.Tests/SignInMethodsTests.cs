@@ -9,8 +9,8 @@ public sealed class SignInMethodsTests
 {
     private const string PublicAddress = "https://library.example.com";
 
-    private static NetworkSettings Network(string whoCanConnect, string publicAddress = PublicAddress) =>
-        new() { WhoCanConnect = whoCanConnect, Remote = { PublicHostname = publicAddress } };
+    private static NetworkSettings Network(string publicAddress = PublicAddress) =>
+        new() { Remote = { PublicHostname = publicAddress } };
 
     private static AuthSettings Policy(bool withProvider = false, bool providerEnabled = true)
     {
@@ -44,9 +44,9 @@ public sealed class SignInMethodsTests
         var policy = Policy();
 
         var without = AuthenticationEndpoints.BuildSignInMethods(
-            policy, Network(WhoCanConnectModes.HomeNetwork, publicAddress: string.Empty), ClientIngressValues.HomeNetwork, false);
+            policy, Network(publicAddress: string.Empty), ClientIngressValues.HomeNetwork, false);
         var with = AuthenticationEndpoints.BuildSignInMethods(
-            policy, Network(WhoCanConnectModes.HomeNetwork), ClientIngressValues.HomeNetwork, false);
+            policy, Network(), ClientIngressValues.HomeNetwork, false);
 
         Assert.False(without.Passkey);
         Assert.True(without.Password);
@@ -57,7 +57,7 @@ public sealed class SignInMethodsTests
     public void Response_ContainsOnlyMethodFields_NeverAccountOrProfileDetails()
     {
         var json = JsonSerializer.Serialize(AuthenticationEndpoints.BuildSignInMethods(
-            Policy(withProvider: true), Network(WhoCanConnectModes.HomeNetwork), ClientIngressValues.HomeNetwork, false));
+            Policy(withProvider: true), Network(), ClientIngressValues.HomeNetwork, false));
 
         using var document = JsonDocument.Parse(json);
         var names = document.RootElement.EnumerateObject().Select(property => property.Name).Order().ToArray();

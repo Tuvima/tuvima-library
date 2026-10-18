@@ -15,16 +15,11 @@ public sealed partial class EngineApiClient
             return null;
         }
 
-        // Lowering "who can connect" sends screens open from farther away to sign-in at once.
-        _openScreens?.CloseWhereIngressNotAllowed(settings.WhoCanConnect);
         return settings;
     }
 
     public Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default) =>
         GetAsync<NetworkRuntimeStatusDto>("GET /network/status", "/network/status", ct: ct);
-
-    public Task<RemoteAccessReadinessDto?> GetRemoteAccessReadinessAsync(CancellationToken ct = default) =>
-        GetAsync<RemoteAccessReadinessDto>("GET /network/readiness", "/network/readiness", ct: ct);
 
     public Task<NetworkTestResultDto?> TestLocalNetworkAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkTestResultDto>("POST /network/tests/local", "/network/tests/local", new { }, ct);
@@ -51,13 +46,7 @@ public sealed partial class EngineApiClient
 
     public async Task<NetworkSettingsDto?> ResetNetworkSettingsAsync(CancellationToken ct = default)
     {
-        var reset = await PostNetworkAsync<NetworkSettingsDto>("POST /network/reset", "/network/reset", new { }, ct);
-        if (reset is not null)
-        {
-            _openScreens?.CloseWhereIngressNotAllowed(reset.WhoCanConnect);
-        }
-
-        return reset;
+        return await PostNetworkAsync<NetworkSettingsDto>("POST /network/reset", "/network/reset", new { }, ct);
     }
 
     public Task<NetworkRuntimeStatusDto?> RenewNetworkRouterMappingAsync(CancellationToken ct = default) =>

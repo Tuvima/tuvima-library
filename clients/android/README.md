@@ -4,8 +4,9 @@ This Gradle workspace contains the shared API/authentication layer, the Android
 TV pilot, the phone/tablet application, and the Android Auto media service.
 
 Requirements: JDK 17, Android SDK 37, Gradle 9.3.1, and an Android device or
-emulator. CI installs the pinned toolchain. This Windows checkout does not
-currently have a local Android toolchain.
+emulator. CI installs the pinned toolchain. Locally, point `local.properties`
+(gitignored) at the SDK with `sdk.dir=...`; there is no Gradle wrapper, so use an
+installed Gradle 9.3.1.
 
 Build from this directory with `gradle :tv:assembleDebug :mobile:assembleDebug`.
 Never place signing keys, service credentials, bearer tokens, or signed media
@@ -16,6 +17,25 @@ Orientation: the phone app is locked to portrait (`screenOrientation="portrait"`
 the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`.
 
 Picture-in-Picture, audio focus and keys: pressing Home while a video plays shrinks it to a floating window (`PictureInPicturePolicy`; not while preparing, on an error, paused, or when the next-episode countdown is about to advance). The window shows only the picture with a play/pause button; closing it stops and clears the video exactly like Close, expanding it returns to the full screen, and it is the one visible exception to "no video plays in the background" (a phone without the feature, or the screen turning off, still pauses). The media service player uses media audio attributes with audio focus handling (a call or another app pauses playback and gives it back) and pauses when headphones are unplugged. On the video screen Space and Media Play/Pause toggle, the arrow keys seek by the skip seconds, and Escape or Back closes the controls before the screen. For a screen reader the seek bar says "12 minutes of 45 minutes" and offers back/forward actions, the controls stay while touch exploration is on, the next-episode card is announced once politely, and the system caption style wins over the profile's when the person turned system captions on. The video and clip screens handle resize, fold, font and layout-direction changes without restarting.
+
+Home and outside address: the address typed at pairing is the server's home address and its stable identity (the
+saved sign-in is keyed to it). The Dashboard's discovery answer (`GET /.well-known/tuvima`) also carries an optional
+`outside_address` when the owner has set one up in Remote Access (a reverse-proxy address or a Tailscale address; nothing to type
+twice). The app saves it next to the home address (`PreferencesServerAddressStore`, refreshed whenever discovery runs;
+an answer that omits it never makes the app forget it, and only discovery at pairing or app start can set it, never the quick
+address checks; so removing the outside address on the server takes effect on the phone after re-pairing). The app uses the home address
+first: `TuvimaClient.refreshServerAddress()` asks the home address for its discovery answer with a short timeout
+(about 1.5 seconds), then the outside address, and otherwise stays where it is, so the usual "Can't reach your Tuvima server"
+with Retry appears. It rechecks on app start (`discover()`), when the phone's default network changes
+(`NetworkChangeWatcher`, registered in the phone and TV `Application`; it needs only the network-state permission, no
+Wi-Fi name and no location), and once after a request fails with a connection error (a GET is then repeated once on the address
+that answers; other requests simply use the new address next time). Each request reads the address in use once when it starts,
+so a switch never changes a request in flight, and sign-in, heartbeats, token refresh, downloads and artwork all keep
+working after a switch. URLs are never trusted to carry a fixed address: the media service, the Photos clip player and the TV
+player rebuild every URL at request time with `TuvimaClient.resolveUrl`, and artwork and download requests go through the client
+the same way, so a queued item, a playlist segment or a saved artwork link built on the other address still reaches the server. The
+rules live in `core` `ServerAddresses` and `ServerAddressSelector`. Paired from outside (the outside address typed)? Then that
+is the only address known, which is fine.
 
 Streaming and the short-lived token: the media service adds the bearer token to every request when the request is made (a fresh one, refreshed by `TuvimaClient` when it has expired), never once at start-up, so seeks, reconnects, the next item and sidecar subtitles keep working after the token's roughly ten minutes. If a streamed item still gets a 401 or 403 (for example the stream grant tied to the old token), the service asks for a fresh playback manifest, swaps the item in at the same position and play state, and tries once more; a second failure shows the normal error with Retry. Downloaded files read from the phone and never do this. Rules live in `core` `StreamRecovery`.
 
@@ -60,7 +80,7 @@ Video: the phone app declares MKV and M4V containers and SRT subtitles, and the 
 carries audio tracks, subtitle tracks, chapters and skip segments (`PlaybackTrackPicker` chooses the
 starting tracks from the profile's language preferences).
 
-Unit tests for the shared client (API v1 paths, typed profile-switch results, photo consent, photo grid layout,
+Unit tests for the shared client (home and outside address selection, API v1 paths, typed profile-switch results, photo consent, photo grid layout,
 and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results,
 plus kept photos: the cap with photos, the purge rule, kinds and the gallery plan)
 run with `gradle :core:testDebugUnitTest`. They use plain JUnit and cover logic that needs no Android

@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.Security;
 
 /// <summary>
 /// Who may start without a password: a visitor on this computer or on the home network. Without a password the
-/// account never works from outside, and cannot open the door to Anywhere.
+/// account never works from outside.
 /// </summary>
 public static class ThisComputerAccess
 {
@@ -15,20 +15,17 @@ public static class ThisComputerAccess
 }
 
 /// <summary>
-/// Keeps an account that only works on this computer from opening the door wider. While the only administrators
-/// have no password or passkey yet, anything that would let someone else in is refused with 409
-/// <c>secure_account_first</c>.
+/// The old "secure your account first" refusal (409 <c>secure_account_first</c>). It no longer refuses anything: the
+/// server is open from the start and a no-password account is usable from any device that reaches it (spec
+/// open-from-the-start, D5). Kept only for its remaining callers.
 /// </summary>
 public sealed class SecureAccountGate
 {
     public const string Code = "secure_account_first";
-    public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on your home network.";
+    public const string Message = "Add a password or passkey to your account first.";
 
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
     public Task<bool> IsLockedAsync(CancellationToken ct) => Task.FromResult(false);
-
-    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider than the home network (the widest a no-password account may use).</summary>
-    public static bool Raises(string? current, string? proposed) => false;
 
     public static IResult Refusal() => ApiErrors.Conflict(Code, Message);
 }

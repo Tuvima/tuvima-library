@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using MediaEngine.Contracts.Authentication;
-using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -12,26 +10,15 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>An open Dashboard screen follows access changes: a one-minute check, plus instant closing for big changes.</summary>
-public sealed class OpenScreensFollowAccessTests : IDisposable
+public sealed class OpenScreensFollowAccessTests
 {
-    private readonly string _dir = Path.Combine(Path.GetTempPath(), "tuvima-open-screens-" + Guid.NewGuid().ToString("N"));
-    private int _writes;
-
-    public OpenScreensFollowAccessTests() => Directory.CreateDirectory(_dir);
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_dir, recursive: true); }
-        catch (IOException) { /* Best-effort temp cleanup; a locked folder only leaves scratch files behind. */ }
-    }
-
     // ── The one-minute check ──────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Provider_ValidSession_StaysSignedIn()
     {
         var handler = new CountingHandler(_ => AllowedResponse());
-        var provider = NewProvider(handler, WhoCanConnect.Anywhere);
+        var provider = NewProvider(handler);
 
         Assert.True(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
         Assert.Equal(1, handler.Calls);
@@ -40,7 +27,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task Provider_RevokedSession_BecomesAnonymous()
     {
-        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)), WhoCanConnect.Anywhere);
+        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)));
 
         Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
     }
@@ -52,7 +39,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         {
             Content = JsonContent.Create(new { reason = ClientIngressValues.SignInAgainHere }),
         });
-        var provider = NewProvider(wrongPlace, WhoCanConnect.Anywhere);
+        var provider = NewProvider(wrongPlace);
 
         Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
     }
@@ -62,7 +49,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [InlineData(HttpStatusCode.TooManyRequests)]
     public async Task Provider_EngineHiccup_DoesNotSignAnyoneOut(HttpStatusCode status)
     {
-        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(status)), WhoCanConnect.Anywhere);
+        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(status)));
 
         Assert.True(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
     }
@@ -70,7 +57,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task Provider_ScreenWithoutASignIn_IsAnonymous()
     {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere);
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()));
 
         Assert.False(await provider.IsStillSignedInAsync(new ClaimsPrincipal(new ClaimsIdentity()), default));
     }
@@ -78,7 +65,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task Provider_SignOutScreen_PublishesAnAnonymousState()
     {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere);
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()));
         Task<AuthenticationState>? published = null;
         provider.AuthenticationStateChanged += state => published = state;
 
@@ -91,7 +78,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task Provider_RevokedSession_StopsForwardingItsSessionToken()
     {
-        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)), WhoCanConnect.Anywhere, out var session);
+        var provider = NewProvider(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)), out var session);
 
         Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
 
@@ -105,7 +92,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         {
             Content = JsonContent.Create(new { reason = ClientIngressValues.SignInAgainHere }),
         });
-        var provider = NewProvider(wrongPlace, WhoCanConnect.Anywhere, out var session);
+        var provider = NewProvider(wrongPlace, out var session);
 
         Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
 
@@ -115,7 +102,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task Provider_SignOutScreen_ClearsTheScreensCredentials()
     {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere, out var session);
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), out var session);
         Assert.True(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
         Assert.Equal("token", session.CurrentForwardingState().SessionToken);
 
@@ -127,7 +114,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task CircuitHandler_RegistersOnOpenAndUnregistersOnClose()
     {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere, out var session);
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), out var session);
         var user = Principal("token", ClientIngressValues.HomeNetwork);
         provider.SetAuthenticationState(Task.FromResult(new AuthenticationState(user)));
         var registry = new OpenScreenRegistry();
@@ -148,7 +135,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     [Fact]
     public async Task CircuitHandler_DoesNotRegisterAnAnonymousCircuit()
     {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.Anywhere);
+        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()));
         provider.SetAuthenticationState(Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()))));
         var registry = new OpenScreenRegistry();
 
@@ -275,43 +262,18 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         Assert.Empty(f.Closed());
     }
 
-    [Fact]
-    public async Task AFailedNetworkSave_ClosesNothing()
-    {
-        var registry = new OpenScreenRegistry();
-        var closed = 0;
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.Remote), () => closed++);
-        using var http = new HttpClient(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError))) { BaseAddress = new Uri("http://engine.test") };
-        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance, openScreens: registry);
-
-        Assert.Null(await client.UpdateNetworkSettingsAsync(new NetworkSettingsDto { WhoCanConnect = WhoCanConnect.ThisComputer }));
-        Assert.Equal(0, closed);
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────────────────────────
 
-    private static class WhoCanConnect
-    {
-        public const string ThisComputer = "this_computer";
-        public const string HomeNetwork = "home_network";
-        public const string Anywhere = "anywhere";
-    }
+    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler) =>
+        NewProvider(handler, out _);
 
-    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, string whoCanConnect) =>
-        NewProvider(handler, whoCanConnect, out _);
-
-    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, string whoCanConnect, out DashboardSessionAccessor session)
+    private SessionRevalidatingAuthenticationStateProvider NewProvider(HttpMessageHandler handler, out DashboardSessionAccessor session)
     {
         session = new DashboardSessionAccessor();
-        var path = Path.Combine(_dir, "network.json");
-        File.WriteAllText(path, $"{{\"who_can_connect\":\"{whoCanConnect}\"}}");
-        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(_writes++));
-        var exposure = new ExposureSettingsReader(new DashboardConfigurationReader(_dir), _dir);
         return new SessionRevalidatingAuthenticationStateProvider(
             NullLoggerFactory.Instance,
             new DashboardIdentityClient(new Factory(handler)),
-            session,
-            exposure);
+            session);
     }
 
     private static ClaimsPrincipal Principal(string token, string ingress) =>

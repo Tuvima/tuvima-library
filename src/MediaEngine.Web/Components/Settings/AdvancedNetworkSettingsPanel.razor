@@ -32,7 +32,7 @@
             <p class="network-supporting-copy">@(Status?.TopologyDetail ?? "Topology has not been inspected.")</p>
             <p class="network-supporting-copy">@(Status?.MappingDetail ?? "Router mapping has not been attempted.")</p>
 
-            <p class="network-supporting-copy">The public address now lives on <a href="/settings/network/remote">Remote Access</a>. Turn on Anywhere there once the checklist is ready.</p>
+            <p class="network-supporting-copy">The public address lives on <a href="/settings/network/remote">Remote Access</a>.</p>
             <AppTextField T="string" @bind-Value="_tlsPortText" Label="Local TLS reverse-proxy port" HelpText="The local Caddy/nginx/Traefik HTTPS listener. Never use the Dashboard HTTP port." />
             <AppTextField T="string" @bind-Value="_externalPortText" Label="External HTTPS port" HelpText="Normally 443." />
             <AppSwitchRow Label="Manage router mapping automatically"
@@ -127,8 +127,6 @@
 
     private async Task ChangeRouterAutomationAsync(bool value)
     {
-        if (Settings.WhoCanConnect == "anywhere")
-            Settings.WhoCanConnect = "home_network";
         Settings.Remote.ConnectionMode = "direct-only";
         Settings.Remote.AutomaticRouterConfiguration = value;
         if (value && !ApplyPortText())
@@ -140,8 +138,6 @@
     {
         if (!ApplyPortText())
             return;
-        if (Settings.WhoCanConnect == "anywhere")
-            Settings.WhoCanConnect = "home_network";
         Settings.Remote.ConnectionMode = "direct-only";
         await SaveRequested.InvokeAsync();
     }

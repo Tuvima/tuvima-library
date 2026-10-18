@@ -69,7 +69,7 @@ The page for a work, collection, book, movie, TV show, episode, person, or other
 
 ### Devices
 
-The **Settings → Administration → Devices** page. It lists the phones and TVs paired to this server (revoke one, or choose whose photos a phone backs up), shows the *Allow apps to connect* switch and address to type in an app (server administrators only), and lists the signed-in sessions of the people the viewer looks after, with **Sign out** for each. A household administrator sees only their own household's devices and sessions.
+The **Settings → Administration → Devices** page. It lists the phones and TVs paired to this server (revoke one, or choose whose photos a phone backs up), shows the *Address to type in the app* (the home address, plus the outside address when one is set; server administrators only), and lists the signed-in sessions of the people the viewer looks after, with **Sign out** for each. A household administrator sees only their own household's devices and sessions.
 
 ### Document type
 
@@ -183,6 +183,10 @@ The one place for items the Engine is not sure about: blocked, uncertain, low-co
 
 An email sign-in that belongs to one person in a household and opens straight to them, without the profile picker. The person stays in the household. An own sign-in is never an administrator, and it follows the library and lane access of the household's main sign-in, so later changes to the household reach the person. An administrator gives it from the person's page under **Settings → Profiles** (the **Sign-in** row) and can remove it at any time; removing it keeps the person and everything they have saved.
 
+### Outside address
+
+The secure address (a Tailscale address or an HTTPS reverse-proxy hostname) that phone and TV apps use away from home, chosen in Settings → Network → Remote Access. It is optional: Tuvima is open from the start, so apps pair at home with the home address and need no setup. The app learns the outside address from the discovery answer (`outside_address`).
+
 ## P
 
 ### Priority Cascade
@@ -273,11 +277,6 @@ Reading the words in a picture of text. Tuvima Library uses it for scanned PDF p
 A larger world or franchise that can connect multiple shelves. Tuvima uses universe-style relationships to decide when a broader Collection is useful.
 
 ## W
-
-### Who can connect
-
-The single setting under Settings > Network that decides how far from the server a visitor may be: **This computer**, **Home network** or **Anywhere**. It applies to every page, sign-in and app connection. Anywhere still requires a secure HTTPS path and sign-in.
-
 
 ### Wikidata
 

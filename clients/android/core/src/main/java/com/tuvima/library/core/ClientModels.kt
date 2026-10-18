@@ -11,6 +11,8 @@ data class Discovery(
     val verificationUri: String,
     val supportedApiVersions: List<String>,
     val capabilities: Set<String>,
+    /** The address the server announced for use away from home, when the owner has set one up. */
+    val outsideAddress: String? = null,
 )
 
 data class PairingSession(

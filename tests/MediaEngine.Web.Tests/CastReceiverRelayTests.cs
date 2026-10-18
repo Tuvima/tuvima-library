@@ -42,7 +42,7 @@ public sealed class CastReceiverRelayTests
             context.Response.Headers["Server"] = "engine";
             return context.Response.Body.WriteAsync(new byte[] { 1, 2, 3, 4 }).AsTask();
         });
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/cast/v1/{Grant}/media");
         request.Headers.Range = new RangeHeaderValue(0, 3);
         request.Headers.TryAddWithoutValidation("If-Range", "\"abc\"");
@@ -82,7 +82,7 @@ public sealed class CastReceiverRelayTests
             context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
             return Task.CompletedTask;
         });
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
         using var request = new HttpRequestMessage(HttpMethod.Options, $"/cast/v1/{Grant}/media");
         request.Headers.TryAddWithoutValidation("Origin", "https://tv.example");
 
@@ -103,7 +103,7 @@ public sealed class CastReceiverRelayTests
     {
         var hits = 0;
         await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
 
         using var response = await dashboard.Client.SendAsync(new HttpRequestMessage(new HttpMethod(method), $"/cast/v1/{Grant}/media"));
 
@@ -118,7 +118,7 @@ public sealed class CastReceiverRelayTests
     {
         var hits = 0;
         await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
 
         using var response = await dashboard.Client.GetAsync($"/cast/v1/{Grant}/{rest}");
 
@@ -133,7 +133,7 @@ public sealed class CastReceiverRelayTests
     {
         var hits = 0;
         await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
 
         using var response = await dashboard.Client.GetAsync($"/cast/v1/{grant}/media");
 
@@ -142,32 +142,16 @@ public sealed class CastReceiverRelayTests
     }
 
     [Fact]
-    public async Task NothingIsRelayedWhileAppAccessIsOffOrUnregistered()
+    public async Task TheRelayNeedsNeitherAnAppSwitchNorANetworkLocationCheck()
     {
         var hits = 0;
         await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
-        await using var off = await Host.StartDashboardAsync(engine.Address, enabled: false);
-        await using var missing = await Host.StartDashboardAsync(engine.Address, enabled: null);
-
-        using var offResponse = await off.Client.GetAsync($"/cast/v1/{Grant}/media");
-        using var missingResponse = await missing.Client.GetAsync($"/cast/v1/{Grant}/media");
-
-        Assert.Equal(HttpStatusCode.NotFound, offResponse.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, missingResponse.StatusCode);
-        Assert.Equal(0, hits);
-    }
-
-    [Fact]
-    public async Task WithoutAnIngressClassifierTheRelayFailsClosed()
-    {
-        var hits = 0;
-        await using var engine = await Host.StartEngineAsync(_ => Interlocked.Increment(ref hits));
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true, classifier: false);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address);
 
         using var response = await dashboard.Client.GetAsync($"/cast/v1/{Grant}/media");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal(0, hits);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, hits);
     }
 
     [Fact]
@@ -175,7 +159,7 @@ public sealed class CastReceiverRelayTests
     {
         var logs = new List<string>();
         await using var engine = await Host.StartEngineAsync(context => context.Response.StatusCode = StatusCodes.Status200OK);
-        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true, logs: logs);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address, logs: logs);
 
         using var response = await dashboard.Client.GetAsync($"/cast/v1/{Grant}/media");
 
@@ -208,15 +192,15 @@ public sealed class CastReceiverRelayTests
         public HttpClient Client { get; } = new() { BaseAddress = address };
 
         public static Task<Host> StartEngineAsync(Func<HttpContext, Task> handle) =>
-            StartAsync(null, null, true, application => application.Run(new RequestDelegate(handle)));
+            StartAsync(null, application => application.Run(new RequestDelegate(handle)));
 
         public static Task<Host> StartEngineAsync(Action<HttpContext> handle) =>
             StartEngineAsync(context => { handle(context); return Task.CompletedTask; });
 
-        public static Task<Host> StartDashboardAsync(Uri engine, bool? enabled, bool classifier = true, List<string>? logs = null) =>
-            StartAsync(engine, enabled, classifier, application => application.MapCastReceiverRelay(), logs);
+        public static Task<Host> StartDashboardAsync(Uri engine, List<string>? logs = null) =>
+            StartAsync(engine, application => application.MapCastReceiverRelay(), logs);
 
-        private static async Task<Host> StartAsync(Uri? engine, bool? enabled, bool classifier, Action<WebApplication> configure, List<string>? logs = null)
+        private static async Task<Host> StartAsync(Uri? engine, Action<WebApplication> configure, List<string>? logs = null)
         {
             var builder = WebApplication.CreateBuilder();
             if (logs is not null)
@@ -228,16 +212,6 @@ public sealed class CastReceiverRelayTests
             }
 
             builder.WebHost.UseUrls("http://127.0.0.1:0");
-            if (enabled is { } value)
-            {
-                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
-            }
-
-            if (classifier)
-            {
-                builder.Services.AddSingleton(new IngressClassifier(null, null));
-            }
-
             if (engine is not null)
             {
                 builder.Services.AddClientApiProxyClient(engine);
@@ -273,10 +247,5 @@ public sealed class CastReceiverRelayTests
                 lock (lines) { lines.Add(formatter(state, exception)); }
             }
         }
-    }
-
-    private sealed class FixedGate(bool enabled) : INativeAppAccessGate
-    {
-        public bool IsEnabled => enabled;
     }
 }

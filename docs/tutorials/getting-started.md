@@ -80,13 +80,13 @@ Tuvima's own library folder is created for you under the server's data location 
 
 ## Create your administrator
 
-1. Keep the server on a trusted private network during setup.
+1. Finish setup before you open any router port: until the administrator exists, anyone who can reach the server can claim it.
 2. Enter an email and password for your administrator account.
 3. Choose a separate profile display name and an optional profile PIN.
 4. Save the recovery codes in a password manager or another safe place outside this server.
 5. Continue through setup. Media folders and provider connections can be added later.
 
-Opened from the server itself, setup needs no code; from another device on your home network it asks for a one-time code (`tuvima-admin setup code`, see [Claim your server](../install/docker.md#claim-your-server)). Once the account exists, setup requires administrator sign-in. Profile PINs and administrator unlock are separate from your account password.
+Setup needs no code from any device on your home network (see [Claim your server](../install/docker.md#claim-your-server)). Once the account exists, setup requires administrator sign-in. Profile PINs and administrator unlock are separate from your account password.
 
 ## Choose your first media
 

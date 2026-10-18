@@ -45,7 +45,7 @@ public sealed class MappedEndpointInventoryTests
             [ApplicationPermissionIds.ProvidersConfigWrite] = ["UpdateProvider", "TestProviderCredentials", "SaveProviderCredentials", "RemoveProviderCredentials", "TestProvider", "SampleProvider", "UpdateProviderConfig", "DeleteProvider", "UploadProviderIcon"],
             [ApplicationPermissionIds.AiStatusRead] = ["GetAiStatus", "GetAiModelStatuses", "GetAiHardwareProfile", "GetAiResourceSnapshot"],
             [ApplicationPermissionIds.AiManage] = ["StartAiModelDownload", "CancelAiModelDownload", "LoadAiModel", "UnloadAiModel", "GetAiConfig", "SaveAiConfig", "RunAiHardwareBenchmark", "InvalidateAiHardwareBenchmark"],
-            [ApplicationPermissionIds.NetworkStatusRead] = ["GetNetworkSettings", "GetNetworkRuntimeStatus", "GetRemoteAccessReadiness"],
+            [ApplicationPermissionIds.NetworkStatusRead] = ["GetNetworkSettings", "GetNetworkRuntimeStatus"],
             [ApplicationPermissionIds.NetworkConfigWrite] = ["UpdateNetworkSettings", "TestLocalNetworkConnection", "TestRemoteNetworkConnection", "TestNetworkUploadBandwidth", "CheckNetworkPortAvailability", "ApplyNetworkPortChange", "RenewNetworkRouterMapping", "ResetNetworkSettings"],
             [ApplicationPermissionIds.StorageStatusRead] = ["GetLibraries", "GetOrganizationTemplate"],
             [ApplicationPermissionIds.StorageConfigWrite] = ["UpdateLibraries", "TestPath", "PreviewOrganizationTemplate", "UpdateOrganizationTemplate", "RunStorageMaintenance"],

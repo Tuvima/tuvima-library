@@ -53,7 +53,8 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("Not set up — Default", remote, StringComparison.Ordinal);
         Assert.Contains("Tailscale Serve", remote, StringComparison.Ordinal);
         Assert.Contains("HTTPS reverse proxy", remote, StringComparison.Ordinal);
-        Assert.Contains("GetRemoteAccessReadinessAsync", remote, StringComparison.Ordinal);
+        Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
+        Assert.Contains("TestRemoteNetworkAsync", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("secure-provider", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Automatic Router Configuration", remote, StringComparison.Ordinal);
         Assert.Contains("Port Forwarding &amp; Router Mapping", advanced, StringComparison.Ordinal);
@@ -62,7 +63,7 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
-    public void AppsAndDevicesPanelGatesTheSwitchOnAnywhereAndTheDevicesPageListsPairedDevices()
+    public void AppsAndDevicesPanelShowsTheHomeAddressWithNoSwitchAndTheDevicesPageListsPairedDevices()
     {
         var panel = Read(@"src/MediaEngine.Web/Components/Settings/AppsAndDevicesPanel.razor");
         var devices = Read(@"src/MediaEngine.Web/Components/Settings/PairedDevicesSection.razor");
@@ -70,12 +71,15 @@ public sealed class NetworkSettingsUiTests
         var account = Read(@"src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor");
         var page = Read(@"src/MediaEngine.Web/Components/Settings/DevicesTab.razor");
 
-        Assert.Contains("Disabled=\"@(!AllowsInternet || _saving)\"", panel, StringComparison.Ordinal);
-        Assert.Contains("Settings?.WhoCanConnect == \"anywhere\"", panel, StringComparison.Ordinal);
-        Assert.Contains("Apps connect over the internet address. Set Who can connect to Anywhere first.", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppSwitchRow", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("Allow apps", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("NativeAppAccess", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("secure_account_first", panel, StringComparison.Ordinal);
         Assert.Contains("Address to type in the app", panel, StringComparison.Ordinal);
-        Assert.Contains("TestRemoteNetworkAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("secure_account_first", panel, StringComparison.Ordinal);
+        Assert.Contains("GetNetworkRuntimeStatusAsync", panel, StringComparison.Ordinal);
+        Assert.Contains("Status?.PreferredLocalAddress", panel, StringComparison.Ordinal);
+        Assert.Contains("Apps use this away from home", panel, StringComparison.Ordinal);
+        Assert.Contains("Status?.ExternalAddress", panel, StringComparison.Ordinal);
         Assert.DoesNotContain("<PairedDevicesSection", panel, StringComparison.Ordinal);
         Assert.Contains("<AppTable", devices, StringComparison.Ordinal);
         Assert.Contains("RevokeManagedDeviceAsync", devices, StringComparison.Ordinal);
@@ -144,62 +148,54 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
-    public void WhoCanConnectOffersThreePlainChoicesAndAnywhereWaitsForTheChecklist()
+    public void RemoteAccessHasNoConnectionRuleChoiceOrOutsideChecklist()
     {
         var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
 
-        Assert.Contains("Only a browser on the computer that runs Tuvima. Other devices are turned away.", remote, StringComparison.Ordinal);
-        Assert.Contains("Phones, TVs and computers on your home Wi-Fi or network. This is the starting choice.", remote, StringComparison.Ordinal);
-        Assert.Contains("Also from the internet, through a secure address. Off until you turn it on.", remote, StringComparison.Ordinal);
-        Assert.Contains("!AnywhereReady", remote, StringComparison.Ordinal);
-        Assert.Contains("Disabled=\"@(disabled && Settings.WhoCanConnect != value)\"", remote, StringComparison.Ordinal);
-        Assert.Contains("Fix: @item.FixLabel", remote, StringComparison.Ordinal);
+        Assert.Contains("How the internet reaches Tuvima", remote, StringComparison.Ordinal);
         Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
-        Assert.Contains("ThisComputerRequests.SecureAccountFirstCode", remote, StringComparison.Ordinal);
+        Assert.DoesNotContain("Who can connect", remote, StringComparison.Ordinal);
+        Assert.DoesNotContain("Anywhere", remote, StringComparison.Ordinal);
+        Assert.DoesNotContain("network-checklist", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Security Check", remote, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void RemoteAccessHasNoSecondOnOffSwitchAndOverviewShowsWhoCanConnect()
+    public void NoNetworkSettingsPanelMentionsTheRemovedRuleOrAppSwitch()
+    {
+        foreach (var file in new[]
+        {
+            "NetworkOverviewPanel.razor", "RemoteAccessSettingsPanel.razor", "AppsAndDevicesPanel.razor", "AdvancedNetworkSettingsPanel.razor",
+        })
+        {
+            var source = Read($@"src/MediaEngine.Web/Components/Settings/{file}");
+
+            Assert.DoesNotContain("Who can connect", source, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("WhoCanConnect", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Anywhere", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Allow apps", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void RemoteAccessHasNoSecondOnOffSwitchAndOverviewShowsAddressesWithoutAMode()
     {
         var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
         var overview = Read(@"src/MediaEngine.Web/Components/Settings/NetworkOverviewPanel.razor");
 
         Assert.DoesNotContain("Enable direct remote access", advanced, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings.Remote.PublicHostname", advanced, StringComparison.Ordinal);
-        Assert.Contains("WhoCanConnectSummary", overview, StringComparison.Ordinal);
+        Assert.Contains("Server Address (Local)", overview, StringComparison.Ordinal);
+        Assert.Contains("Server Address (External)", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Who can connect", overview, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ChecklistUsesPlainLabelsAndFixLinks()
+    public void SetupServerStageNoLongerAsksToKeepTheDashboardPrivate()
     {
-        var readiness = new MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
-        {
-            Checks =
-            [
-                new() { Key = "authentication", Status = "failed", Detail = "Save recovery codes for an administrator before opening Tuvima to the internet." },
-                new() { Key = "public-address", Status = "failed", Detail = "Set the public address." },
-                new() { Key = "https-endpoint", Status = "passed", Detail = "Verified." },
-            ],
-        };
+        var stage = Read(@"src/MediaEngine.Web/Components/Setup/SetupServerStage.razor");
 
-        var items = RemoteAccessChecklist.Build(readiness);
-
-        Assert.Equal(["An administrator can sign in", "Recovery codes saved", "Public address set", "Secure connection"], items.Select(i => i.Label));
-        Assert.True(items[0].Passed);
-        Assert.False(items[1].Passed);
-        Assert.Equal(RemoteAccessChecklist.AccountHref, items[1].FixHref);
-        Assert.Equal(RemoteAccessChecklist.PublicAddressHref, items[2].FixHref);
-        Assert.True(items[3].Passed);
-
-        var noAdmin = new MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
-        {
-            Checks = [new() { Key = "authentication", Status = "failed", Detail = "No administrator can sign in yet. Add a password or passkey to an administrator account." }],
-        };
-        var noAdminItems = RemoteAccessChecklist.Build(noAdmin);
-        Assert.False(noAdminItems[0].Passed);
-        Assert.Equal(RemoteAccessChecklist.UsersHref, noAdminItems[0].FixHref);
-        Assert.Equal("This computer only", RemoteAccessChecklist.WhoCanConnectSummary("this_computer"));
+        Assert.DoesNotContain("private network until the first administrator", stage, StringComparison.Ordinal);
     }
 
     private static string Read(string relativePath) => File.ReadAllText(

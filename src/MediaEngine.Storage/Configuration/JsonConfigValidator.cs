@@ -143,11 +143,6 @@ public static class JsonConfigValidator
             }
         }
 
-        if (!Allowed(settings.WhoCanConnect, [.. WhoCanConnectModes.All]))
-        {
-            errors.Add("who_can_connect must be this_computer, home_network or anywhere.");
-        }
-
         if (!Allowed(settings.Remote.ConnectionMode,
                 NetworkConnectionModes.LocalOnly,
                 NetworkConnectionModes.Tailscale,
@@ -155,11 +150,6 @@ public static class JsonConfigValidator
                 NetworkConnectionModes.Custom))
         {
             errors.Add("remote.connection_mode is unsupported.");
-        }
-
-        if (settings.AllowsInternet && settings.Remote.ConnectionMode == NetworkConnectionModes.LocalOnly)
-        {
-            errors.Add("remote.connection_mode must select tailscale, custom, or direct-only when who_can_connect is anywhere.");
         }
 
         if (settings.Remote.ExternalPort is < 1 or > 65535)

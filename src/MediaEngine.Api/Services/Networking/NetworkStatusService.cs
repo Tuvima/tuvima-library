@@ -38,7 +38,7 @@ public sealed class NetworkStatusService
         var tailscale = _runtime.GetRemoteProvider("tailscale");
         var topology = _topology.GetSnapshot();
         var mappingState = EffectiveMappingState(mapping, _timeProvider.GetUtcNow());
-        var remoteState = !settings.AllowsInternet
+        var remoteState = !settings.Remote.HasOutsidePath
             ? "disabled"
             : settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
                 && tailscale is { State: RemoteProviderState.Connected, SecureHttps: true }
@@ -46,7 +46,7 @@ public sealed class NetworkStatusService
             : remoteTest?.Status == "passed"
                 ? "available"
                 : remoteTest?.Status == "failed" ? "needs-attention" : "unavailable";
-        var connectionType = !settings.AllowsInternet
+        var connectionType = !settings.Remote.HasOutsidePath
             ? "local-only"
             : settings.Remote.ConnectionMode switch
             {
@@ -62,11 +62,11 @@ public sealed class NetworkStatusService
                                                 && uri.Scheme == Uri.UriSchemeHttps => "enabled",
             NetworkConnectionModes.DirectOnly when remoteTest?.Status == "passed" => "enabled",
             NetworkConnectionModes.Tailscale when tailscale is { State: RemoteProviderState.Connected, SecureHttps: true } => "enabled",
-            _ when !settings.AllowsInternet => "not-configured",
+            _ when !settings.Remote.HasOutsidePath => "not-configured",
             _ => "needs-attention",
         };
         var localState = addresses.Count == 0 ? "unavailable" : "healthy";
-        var allGood = localState == "healthy" && (!settings.AllowsInternet || remoteState == "available");
+        var allGood = localState == "healthy" && (!settings.Remote.HasOutsidePath || remoteState == "available");
 
         return new NetworkRuntimeStatusDto
         {
@@ -76,9 +76,7 @@ public sealed class NetworkStatusService
             SecureConnection = secure,
             LocalAddresses = addresses,
             PreferredLocalAddress = selected is null ? null : NetworkDiagnosticsService.FormatAddress(selected.Address, settings.Local.Port),
-            ExternalAddress = settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
-                ? tailscale?.PublicAddress
-                : settings.Remote.PublicHostname,
+            ExternalAddress = ExternalAddressFor(settings, tailscale),
             PublicIp = mapping?.PublicAddress,
             RouterConfiguration = settings.Remote.AutomaticRouterConfiguration
                 ? "automatic"
@@ -108,16 +106,34 @@ public sealed class NetworkStatusService
             UptimeSeconds = Math.Max(0, (long)(DateTimeOffset.UtcNow - _startedAt).TotalSeconds),
             Ipv6Available = addresses.Any(address => address.AddressFamily == "ipv6"),
             CgnatSuspected = IsPrivateOrCarrierGradeAddress(mapping?.PublicAddress),
-            Headline = allGood ? "Everything looks good" : BuildHeadline(localState, remoteState, settings.AllowsInternet),
+            Headline = allGood ? "Everything looks good" : BuildHeadline(localState, remoteState, settings.Remote.HasOutsidePath),
             Guidance = allGood
-                ? settings.AllowsInternet
+                ? settings.Remote.HasOutsidePath
                     ? "Your server is accessible locally and through its configured remote path."
                     : "Your server is accessible on your local network. Remote access is turned off."
-                : BuildGuidance(localState, remoteState, settings.AllowsInternet),
+                : BuildGuidance(localState, remoteState, settings.Remote.HasOutsidePath),
             Bandwidth = CopyBandwidth(_runtime.Bandwidth, settings.Streaming.ReservedUploadMbps),
             HardwareAcceleration = _configuration.LoadTranscoding().HardwareAcceleration,
         };
     }
+
+    /// <summary>
+    /// The address apps use away from home, as an origin, or null while no way in from the internet is chosen.
+    /// The Dashboard hands this to apps in its discovery answer; it is the same value the Devices page shows.
+    /// </summary>
+    public string? GetOutsideAddress() =>
+        OutsideAddressFor(_configuration.LoadNetwork(), _runtime.GetRemoteProvider("tailscale"));
+
+    internal static string? OutsideAddressFor(NetworkSettings settings, RemoteProviderSnapshot? tailscale) =>
+        settings.Remote.HasOutsidePath
+            ? PublicAddress.ToOrigin(ExternalAddressFor(settings, tailscale))
+            : null;
+
+    // The tailnet address in Tailscale mode, the public hostname otherwise.
+    private static string? ExternalAddressFor(NetworkSettings settings, RemoteProviderSnapshot? tailscale) =>
+        settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
+            ? tailscale?.PublicAddress
+            : settings.Remote.PublicHostname;
 
     private static NetworkAddressDto? SelectPreferredAddress(NetworkSettings settings, IReadOnlyList<NetworkAddressDto> addresses)
     {

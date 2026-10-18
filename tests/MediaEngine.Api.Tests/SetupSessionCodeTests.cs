@@ -38,7 +38,7 @@ public sealed class SetupSessionCodeTests : IDisposable
     }
 
     [Fact]
-    public async Task ShippedDefault_IsHomeNetwork()
+    public async Task ShippedDefault_HasNoConnectionRule()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
@@ -48,7 +48,8 @@ public sealed class SetupSessionCodeTests : IDisposable
 
         var json = await File.ReadAllTextAsync(Path.Combine(dir!.FullName, "config", "network.json"));
         using var doc = JsonDocument.Parse(json);
-        Assert.Equal("home_network", doc.RootElement.GetProperty("who_can_connect").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("who_can_connect", out _));
+        Assert.False(doc.RootElement.GetProperty("native_app_access").TryGetProperty("enabled", out _));
     }
 
     [Fact]

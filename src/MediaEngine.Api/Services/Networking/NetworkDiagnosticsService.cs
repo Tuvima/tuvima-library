@@ -87,7 +87,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             },
         };
 
-        if (!settings.AllowsInternet)
+        if (!settings.Remote.HasOutsidePath)
         {
             checks.Add(new NetworkTestCheckDto
             {

@@ -39,7 +39,7 @@
                     @if (_thisComputerOnly && !Capabilities.HasPassword)
                     {
                         <li class="security-settings__item">
-                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Needed to use Tuvima on your phone or TV" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Anyone who can reach Tuvima can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                         </li>
                     }
                     <li class="security-settings__item">
@@ -389,7 +389,7 @@
     // A server administrator, or a household administrator looking after their own household.
     private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasAction("household.manage");
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
-        : _thisComputerOnly ? "Not set · works on this computer only" : "Not set";
+        : _thisComputerOnly ? "Not set · anyone who can reach Tuvima can use this account" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
     private string ExtraProtectionStatus
     {

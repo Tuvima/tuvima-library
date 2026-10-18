@@ -18,8 +18,8 @@ public sealed record OpenScreen(
     string Ingress);
 
 /// <summary>
-/// Knows which Dashboard screens are open so a big access change (a person removed, a device signed out,
-/// "who can connect" lowered) can send them to sign-in at once. The one-minute check on each screen remains the
+/// Knows which Dashboard screens are open so a big access change (a person removed, a device signed out)
+/// can send them to sign-in at once. The one-minute check on each screen remains the
 /// backstop for everything else. Screens register when a circuit opens and unregister when it closes.
 /// </summary>
 public sealed class OpenScreenRegistry(ILogger<OpenScreenRegistry>? logger = null)
@@ -61,16 +61,6 @@ public sealed class OpenScreenRegistry(ILogger<OpenScreenRegistry>? logger = nul
 
         return closed;
     }
-
-    /// <summary>Closes every screen opened from farther away than <paramref name="whoCanConnect"/> now allows.</summary>
-    public int CloseWhereIngressNotAllowed(string? whoCanConnect) =>
-        CloseWhere(screen => !IsIngressAllowed(whoCanConnect, screen.Ingress));
-
-    /// <summary>The Dashboard's one door rule, applied to a screen's remembered starting place.</summary>
-    public static bool IsIngressAllowed(string? whoCanConnect, string? ingress) =>
-        // HTTPS is not part of this check: the distance rule is what changes when the setting is lowered.
-        ExposurePolicy.Evaluate(whoCanConnect, IngressClassifierExtensions.FromWireValue(ingress), isHttps: true)
-            != ExposureDecision.NotAvailableHere;
 
     public static string HashToken(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));

@@ -7,8 +7,8 @@ namespace MediaEngine.Web.Services.Integration;
 /// <para>
 /// Off by default. Any web page (a sandboxed frame, a local file) can present the <c>null</c> origin, so while this is on
 /// a website could reach the anonymous pairing surface; a person must still approve the code on <c>/pair</c>. It is
-/// therefore a separate opt-in (<c>native_app_access.allow_browser_apps</c>, config file only) that must be on together
-/// with <c>native_app_access.enabled</c>, and should be on only for TV web apps.
+/// therefore a separate opt-in (<c>native_app_access.allow_browser_apps</c>, config file only) that should be on only
+/// for TV web apps.
 /// </para>
 /// <para>
 /// When on, the allowance is: only those origins, only <c>/api/v1/**</c> and <c>/.well-known/tuvima</c>, only the
@@ -86,7 +86,7 @@ public static class NativeAppCors
         if (origin.Length == 0
             || !IsCorsPath(context.Request.Path)
             || !IsAppOrigin(origin)
-            || context.RequestServices.GetService<INativeAppAccessGate>() is not { IsEnabled: true, AllowBrowserApps: true })
+            || context.RequestServices.GetService<INativeAppAccessGate>() is not { AllowBrowserApps: true })
         {
             await next(context);
             return;
