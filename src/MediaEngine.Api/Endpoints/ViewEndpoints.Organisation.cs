@@ -110,8 +110,8 @@ public static partial class ViewEndpoints
 
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -156,8 +156,8 @@ public static partial class ViewEndpoints
 
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, false, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    false, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -209,8 +209,8 @@ public static partial class ViewEndpoints
     private static ViewDocumentTypeDto ToDocumentTypeDto(ViewCatalogueEntry entry, bool canManage) =>
         new(entry.Id, entry.Name, entry.UsageCount, canManage);
 
-    private static async Task<(CatalogueAccess? Access, IResult? Refusal)> ResolveCatalogueAccessAsync(CatalogueServices services) =>
-        await ResolveCatalogueAccessAsync(null, null, true, services.Identity, services.Preferences,
+    private static async Task<(CatalogueAccess? Access, IResult? Refusal)> ResolveCatalogueChangeAccessAsync(CatalogueServices services) =>
+        await ResolveCatalogueChangeAccessAsync(true, services.Identity, services.Preferences,
             services.Resolver, services.Authorization, services.Ct);
 
     private static async Task<IResult> CreateCatalogueEntryAsync(ViewCatalogueKind kind,
@@ -218,7 +218,7 @@ public static partial class ViewEndpoints
     {
         try
         {
-            var (access, refusal) = await ResolveCatalogueAccessAsync(services);
+            var (access, refusal) = await ResolveCatalogueChangeAccessAsync(services);
             if (access is null)
             {
                 return refusal!;
@@ -241,7 +241,7 @@ public static partial class ViewEndpoints
     {
         try
         {
-            var (access, refusal) = await ResolveCatalogueAccessAsync(services);
+            var (access, refusal) = await ResolveCatalogueChangeAccessAsync(services);
             if (access is null)
             {
                 return refusal!;
@@ -272,7 +272,7 @@ public static partial class ViewEndpoints
     {
         try
         {
-            var (access, refusal) = await ResolveCatalogueAccessAsync(services);
+            var (access, refusal) = await ResolveCatalogueChangeAccessAsync(services);
             if (access is null)
             {
                 return refusal!;
@@ -307,8 +307,8 @@ public static partial class ViewEndpoints
         {
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -332,8 +332,8 @@ public static partial class ViewEndpoints
         {
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -373,8 +373,8 @@ public static partial class ViewEndpoints
         {
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -407,6 +407,34 @@ public static partial class ViewEndpoints
         new(entry.Id, entry.Name, entry.FieldKind ?? ViewDocumentFieldKinds.Text, entry.Choices, entry.UsageCount, canManage);
 
     private sealed record CatalogueAccess(RequestAuthority Authority, ViewCatalogueViewer Viewer);
+
+    /// <summary>
+    /// <see cref="ResolveCatalogueAccessAsync(string?, Guid?, bool, IViewRequestProfileContext, IViewProfileRepository, IViewScopeResolver, IViewResourceAuthorizationService, CancellationToken)"/>
+    /// for a route that changes something: tags, correspondents, types and fields, filing rules, Inbox filing and bulk
+    /// edits. It first asks the same question as changing the person's own View settings, so a person may and an app
+    /// (a paired device, whose photo scopes are read-only) is refused with 403 before anything is looked up.
+    /// </summary>
+    private static async Task<(CatalogueAccess? Access, IResult? Refusal)> ResolveCatalogueChangeAccessAsync(
+        bool documentsOnly,
+        IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
+        IViewResourceAuthorizationService authorization, CancellationToken ct)
+    {
+        var authority = await identity.ResolveAuthorityAsync(ct);
+        if (!authority.IsAuthenticated || authority.ActiveProfileId is null)
+        {
+            return (null, Unauthenticated());
+        }
+
+        var change = await authorization.AuthorizeAsync(authority,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null, ViewResourceAction.Manage), ct);
+        if (!change.IsAllowed)
+        {
+            return (null, Access(change.Outcome));
+        }
+
+        return await ResolveCatalogueAccessAsync(
+            null, null, documentsOnly, identity, preferences, resolver, authorization, ct);
+    }
 
     /// <summary>
     /// Decides who is asking and which libraries their catalogue reads may cover. With a scope that is the libraries

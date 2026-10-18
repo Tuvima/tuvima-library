@@ -365,6 +365,45 @@ public sealed class ViewResourceAuthorizationTests
     }
 
     [Fact]
+    public async Task DelegatedClientReadsButNeverChangesItsOwnersItemsWhileGalleryWritesKeepTheirScope()
+    {
+        var caller = State(access: true, include: false);
+        var itemId = Guid.NewGuid();
+        var galleryId = Guid.NewGuid();
+        var libraryId = caller.PersonalSpace!.LibraryId;
+        var evaluator = new AllowEvaluator();
+        var service = Create([caller], evaluator,
+            new ViewResourceDescriptor(ViewResourceKind.Asset, itemId, caller.Policy.ProfileId, libraryId),
+            new ViewResourceDescriptor(ViewResourceKind.Gallery, galleryId, caller.Policy.ProfileId, libraryId));
+        var app = new RequestAuthority(PrincipalKind.DelegatedUserClient, true,
+            Guid.NewGuid(), caller.Policy.ProfileId, ApplicationId: Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+
+        var read = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, itemId));
+        var manage = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, itemId, ViewResourceAction.Manage));
+        var contribute = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, itemId, ViewResourceAction.Contribute));
+        var ownerManage = await service.AuthorizeAsync(Identity(caller),
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, itemId, ViewResourceAction.Manage));
+        var galleryWrite = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Gallery, galleryId, ViewResourceAction.Manage));
+
+        Assert.True(read.IsAllowed);
+        Assert.Equal(ViewAccessOutcome.Forbidden, manage.Outcome);
+        Assert.Equal(ViewAccessOutcome.Forbidden, contribute.Outcome);
+        Assert.True(ownerManage.IsAllowed);
+        Assert.True(galleryWrite.IsAllowed);
+        Assert.Equal(ApplicationPermissionIds.ViewGalleriesWrite, evaluator.LastRequirement!.ApplicationPermission);
+
+        var upload = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Upload, null, ViewResourceAction.Contribute));
+        Assert.True(upload.IsAllowed);
+        Assert.Equal(ApplicationPermissionIds.ViewUpload, evaluator.LastRequirement!.ApplicationPermission);
+    }
+
+    [Fact]
     public async Task MissingAccountViewFeatureDoesNotEnumerateScopes()
     {
         var caller = State(access: true, include: false);

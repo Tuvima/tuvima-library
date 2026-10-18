@@ -71,7 +71,7 @@ Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, a
 8. Copy native AI runtimes or model weights into build outputs or the repo.
 9. Add a tool/library without a license check (AGPLv3-compatible only).
 10. Rewrite the body of a Locked spec, or go beyond a spec's scope without asking.
-11. `git add -A`, merge to main, or commit `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `tuvima_master.json`, `appsettings.*.json` with real keys, `.codex/`, `site/`, or QA screenshots (those stay in ignored `.tmp/`).
+11. `git add -A`, merge work Shy hasn't approved (see Agent workflow step 9), or commit `*.db`, `bin/`, `obj/`, `.vs/`, `.idea/`, `tuvima_master.json`, `appsettings.*.json` with real keys, `.codex/`, `site/`, or QA screenshots (those stay in ignored `.tmp/`).
 12. Present guesses as facts — name the options and ask Shy.
 
 ## Where things live
@@ -99,7 +99,9 @@ Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, a
 5. **After each wave:** merge the packets' work, run `dotnet build MediaEngine.slnx --no-restore` (the build-check hook also runs automatically when a turn ends with code changes), run the `reviewer` agent against the spec, and fix every must-fix before the next wave.
 6. **Stop and ask Shy** when a spec is unclear, contradicts the code, or the work would go outside the spec's scope. Helpers stop and report; they never decide.
 7. **Finish.** Run the full restore/build/test, update docs per `.claude/rules/docs.md`, set the spec's Status to `Built`, move it to `engineering/specs/archive/`, update the index, and give Shy a Plain English Summary.
-8. **Save points.** On a feature branch: `git add <specific files>`, commit with a short summary ending in `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, push the branch. Merging to main is Shy's call.
+8. **Save points.** On a feature branch: `git add <specific files>`, commit with a short summary ending in `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, push the branch. Turn on Auto-fix for every proposed change as soon as it is opened.
+9. **Merge without asking again.** Shy's approval of the work (a Locked spec, a "go ahead" on a plan, or a direct request) is the yes to merge it. When that work is finished, the CI-strength build (`dotnet build MediaEngine.slnx --no-restore --warnaserror --no-incremental`) and tests pass, CI is green, and the independent review the rules require has passed, merge it yourself: add the `ready-to-merge` label while checks are still running on a `claude/` branch, otherwise `gh pr merge N --merge --delete-branch`. This includes security, privacy and access changes that were part of the approved work. Ask Shy first only for changes Shy never approved: new scope, a decision the spec didn't make, or a security/access fix found along the way. Never leave approved work waiting for a second yes.
+10. **Close out.** A session's last message is one of two things: a single explicit question Shy must answer (one decision, with a recommendation, in the next-step box), or a close-out (what merged, what was built, anything left in a follow-up card). With nothing waiting on Shy, merge, clean up the session's worktrees and branches, and archive the session (`archive_session` with `self`; sessions with a merged proposed change archive automatically). Never end on "waiting for approval" for approved work.
 
 Escalate to a higher model only per `.claude/rules/model-routing.md`.
 

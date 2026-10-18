@@ -15,7 +15,7 @@ public sealed class ResponsivePwaGuardrailTests
         var phone = layout[layout.IndexOf("html[data-form-factor=\"phone\"] .layout-shell__intent-dock {\n    display: flex;", StringComparison.Ordinal)..];
 
         Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto;", phone, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto !important;", global, StringComparison.Ordinal);
+        Assert.Contains("--shell-topbar-columns: minmax(0, 1fr) 0 auto;", global, StringComparison.Ordinal);
         // The three dock tabs share the pill equally, each a 48 px target; labels wrap rather than clip.
         Assert.Contains("flex: 1 1 0;", phone, StringComparison.Ordinal);
         Assert.Contains("min-width: 48px;", phone, StringComparison.Ordinal);
@@ -30,10 +30,47 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.DoesNotContain("layout-shell__brand-lockup", phone, StringComparison.Ordinal);
         Assert.Contains(".layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,", phone, StringComparison.Ordinal);
         Assert.Contains(".system-activity-indicator__ring .tl-progress-circular {\n    width: 32px !important;\n    height: 32px !important;", phone, StringComparison.Ordinal);
-        var accountPhone = account[account.IndexOf("@media (max-width: 640px)", StringComparison.Ordinal)..];
+        var accountPhone = account[account.IndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
         Assert.Contains("width: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("height: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("width: 32px !important;", accountPhone, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TabletTopBar_KeepsItsNavigationLabelsClearOfTheIcons()
+    {
+        var global = Read("src/MediaEngine.Web/wwwroot/app.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+        var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+        var markup = Read("src/MediaEngine.Web/Shared/MainLayout.razor");
+        var account = Read("src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        // Only the phone shell drops the navigation column. A width query would also hit tablets and narrow desktop
+        // windows, which keep the top navigation, and their labels would then run under Search, My List and activity.
+        const string collapsedColumns = "--shell-topbar-columns: minmax(0, 1fr) 0 auto;";
+        var collapse = global.IndexOf(collapsedColumns, StringComparison.Ordinal);
+        Assert.True(collapse >= 0, "app.css should still collapse the navigation column for the phone shell.");
+        var collapseRule = global[(global.LastIndexOf('}', collapse) + 1)..collapse];
+        Assert.DoesNotContain("@media", collapseRule, StringComparison.Ordinal);
+        Assert.Contains("html[data-form-factor=\"phone\"] .layout-shell__appbar .tl-toolbar {", collapseRule, StringComparison.Ordinal);
+        Assert.Equal(collapse, global.LastIndexOf(collapsedColumns, StringComparison.Ordinal));
+
+        // At 840px and under, the logo and the icons keep their own width and the labels take what is left.
+        var compact = global[global.IndexOf("html:not([data-form-factor=\"phone\"]) .layout-shell__appbar .tl-toolbar {", StringComparison.Ordinal)..];
+        compact = compact[..compact.IndexOf('}', StringComparison.Ordinal)];
+        Assert.Contains("--shell-topbar-columns: auto minmax(0, 1fr) auto;", compact, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns: var(--shell-topbar-columns) !important;", global, StringComparison.Ordinal);
+
+        // The same width swaps the wordmark for the icon logo and lets the labels scroll inside their own column.
+        Assert.Contains("layout-shell__brand-icon-shell--compact", markup, StringComparison.Ordinal);
+        var shellCompact = layout[layout.IndexOf(".layout-shell__brand-icon-shell--compact {\n    display: none;", StringComparison.Ordinal)..];
+        shellCompact = shellCompact[shellCompact.IndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
+        Assert.Contains(".layout-shell__brand-lockup-shell {\n        display: none;", shellCompact, StringComparison.Ordinal);
+        Assert.Contains("justify-content: safe center;", shellCompact, StringComparison.Ordinal);
+        Assert.Contains("overflow-x: auto;", shellCompact, StringComparison.Ordinal);
+
+        // The account button is the avatar alone there, so a long display name cannot push into the labels.
+        var accountCompact = account[account.IndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
+        Assert.Contains(".top-nav-account-menu__trigger-copy {\n        display: none;", accountCompact, StringComparison.Ordinal);
     }
 
     [Fact]
