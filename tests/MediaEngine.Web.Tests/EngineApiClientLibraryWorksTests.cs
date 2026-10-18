@@ -115,6 +115,7 @@ public sealed class EngineApiClientLibraryWorksTests
         Assert.Equal(
             "http://localhost:61495/api/v1/details/work/11111111-1111-1111-1111-111111111111?context=read",
             capturedRequest!.RequestUri!.ToString());
+        Assert.DoesNotContain("profileId", capturedRequest.RequestUri!.Query, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("http://localhost:61495/stream/cover", detail!.Artwork.CoverUrl);
         Assert.Equal("http://localhost:61495/stream/backdrop", detail.Artwork.BackdropUrl);
         Assert.Equal("http://localhost:61495/stream/related", Assert.Single(detail.Artwork.RelatedArtworkUrls));

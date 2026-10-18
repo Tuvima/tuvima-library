@@ -30,7 +30,18 @@ public partial interface IEngineApiClient
         Guid id,
         DetailPresentationContext context = DetailPresentationContext.Default,
         string? containerId = null,
-        Guid? profileId = null,
+        SequenceWindowQuery? sequence = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Same request as <see cref="GetDetailPageAsync"/>, but says why a load failed (not found, not allowed,
+    /// or the Engine could not be reached) so the detail route can show a distinct state for each.
+    /// </summary>
+    Task<DetailPageLoadResult> LoadDetailPageAsync(
+        DetailEntityType entityType,
+        Guid id,
+        DetailPresentationContext context = DetailPresentationContext.Default,
+        string? containerId = null,
         SequenceWindowQuery? sequence = null,
         CancellationToken ct = default);
 

@@ -328,8 +328,7 @@
         if (Model is null || string.IsNullOrWhiteSpace(option.ContainerId) || !Guid.TryParse(Model.Id, out var id))
             return;
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, profile?.Id, SequenceWindowQuery.Windowed);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, SequenceWindowQuery.Windowed);
         if (updated is not null)
             Model = updated;
     }
@@ -713,8 +712,7 @@
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
             return;
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
         if (updated is not null)
         {
             Model = updated;
@@ -727,8 +725,7 @@
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
             return;
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
         if (updated is not null)
         {
             Model = updated;
