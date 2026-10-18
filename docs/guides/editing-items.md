@@ -44,6 +44,8 @@ For shelves that support edits, you can change the description and add a custom 
 
 The provider match and main artwork change first. Wikidata links and richer details may arrive later. Art you uploaded stays available.
 
+Beside the current match, **Matching** also lists the item's **Identity status** and **Artwork source** (user, provider or generated). They are read-only facts for checking a match, and they appear only where the editor opens for you.
+
 Episodes and tracks have **Parent & position** in Matching. Moving one has its own preview and confirm step. A normal text edit does not move it to a different show, season, or album.
 
 ## Change chapter titles and check past changes

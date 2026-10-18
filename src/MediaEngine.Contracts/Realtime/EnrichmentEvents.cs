@@ -54,11 +54,6 @@ public sealed record ReclassifiedMetadataHarvestedEvent(
     [property: JsonPropertyName("entity_id")] Guid EntityId,
     [property: JsonPropertyName("media_type")] string MediaType);
 
-public sealed record ReviewItemCreatedSupplementaryEvent(
-    [property: JsonPropertyName("review_item_id")] Guid ReviewItemId,
-    [property: JsonPropertyName("entity_id")] Guid EntityId,
-    [property: JsonPropertyName("trigger")] string Trigger);
-
 public sealed record ReviewItemResolvedSupplementaryEvent(
     [property: JsonPropertyName("review_item_id")] Guid ReviewItemId,
     [property: JsonPropertyName("entity_id")] Guid EntityId,
@@ -67,7 +62,3 @@ public sealed record ReviewItemResolvedSupplementaryEvent(
 public sealed record EntityReviewResolvedEvent(
     [property: JsonPropertyName("entity_id")] Guid EntityId,
     [property: JsonPropertyName("status")] string Status);
-
-public sealed record LibraryItemReviewActionEvent(
-    [property: JsonPropertyName("entity_id")] Guid EntityId,
-    [property: JsonPropertyName("action")] string Action);

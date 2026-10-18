@@ -24,46 +24,59 @@ public sealed class MediaAssetCoverageRepository : IMediaAssetCoverageRepository
         IReadOnlyList<MediaAssetCoverage> coverage,
         CancellationToken ct = default)
     {
+        return _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => ReplaceInTransaction(conn, tx, assetId, coverage, innerCt),
+            ct);
+    }
+
+    /// <summary>
+    /// Replaces the asset's coverage on a caller-owned write transaction and recomputes ownership of every
+    /// episode whose coverage changed. Validates the rows first; a failure rolls back with the caller.
+    /// </summary>
+    internal static void ReplaceInTransaction(
+        SqliteConnection conn,
+        SqliteTransaction tx,
+        Guid assetId,
+        IReadOnlyList<MediaAssetCoverage> coverage,
+        CancellationToken ct = default)
+    {
         Validate(assetId, coverage);
 
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        // Episodes whose ownership may change: the ones covered before and the ones covered now.
+        var affected = conn.Query<Guid>(
+            "SELECT work_id FROM media_asset_coverage WHERE asset_id = @assetId;",
+            new { assetId }, tx).ToList();
+        affected.AddRange(coverage.Select(row => row.WorkId));
+
+        using (var delete = conn.CreateCommand())
         {
-            // Episodes whose ownership may change: the ones covered before and the ones covered now.
-            var affected = conn.Query<Guid>(
-                "SELECT work_id FROM media_asset_coverage WHERE asset_id = @assetId;",
-                new { assetId }, tx).ToList();
-            affected.AddRange(coverage.Select(row => row.WorkId));
+            delete.Transaction = tx;
+            delete.CommandText = "DELETE FROM media_asset_coverage WHERE asset_id = @assetId;";
+            delete.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
+            delete.ExecuteNonQuery();
+        }
 
-            using (var delete = conn.CreateCommand())
-            {
-                delete.Transaction = tx;
-                delete.CommandText = "DELETE FROM media_asset_coverage WHERE asset_id = @assetId;";
-                delete.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
-                delete.ExecuteNonQuery();
-            }
+        foreach (var row in coverage)
+        {
+            ct.ThrowIfCancellationRequested();
+            using var insert = conn.CreateCommand();
+            insert.Transaction = tx;
+            insert.CommandText = """
+                INSERT INTO media_asset_coverage
+                    (asset_id, work_id, position, start_seconds, end_seconds, source)
+                VALUES
+                    (@assetId, @workId, @position, @start, @end, @source);
+                """;
+            insert.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
+            insert.Parameters.Add("@workId", SqliteType.Blob).Value = GuidSql.ToBlob(row.WorkId);
+            insert.Parameters.AddWithValue("@position", row.Position);
+            insert.Parameters.AddWithValue("@start", (object?)row.StartSeconds ?? DBNull.Value);
+            insert.Parameters.AddWithValue("@end", (object?)row.EndSeconds ?? DBNull.Value);
+            insert.Parameters.AddWithValue("@source", row.Source);
+            insert.ExecuteNonQuery();
+        }
 
-            foreach (var row in coverage)
-            {
-                innerCt.ThrowIfCancellationRequested();
-                using var insert = conn.CreateCommand();
-                insert.Transaction = tx;
-                insert.CommandText = """
-                    INSERT INTO media_asset_coverage
-                        (asset_id, work_id, position, start_seconds, end_seconds, source)
-                    VALUES
-                        (@assetId, @workId, @position, @start, @end, @source);
-                    """;
-                insert.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
-                insert.Parameters.Add("@workId", SqliteType.Blob).Value = GuidSql.ToBlob(row.WorkId);
-                insert.Parameters.AddWithValue("@position", row.Position);
-                insert.Parameters.AddWithValue("@start", (object?)row.StartSeconds ?? DBNull.Value);
-                insert.Parameters.AddWithValue("@end", (object?)row.EndSeconds ?? DBNull.Value);
-                insert.Parameters.AddWithValue("@source", row.Source);
-                insert.ExecuteNonQuery();
-            }
-
-            WorkOwnershipSync.Recompute(conn, tx, affected);
-        }, ct);
+        WorkOwnershipSync.Recompute(conn, tx, affected);
     }
 
     public Task<IReadOnlyList<MediaAssetCoverage>> ListByAssetAsync(Guid assetId, CancellationToken ct = default)

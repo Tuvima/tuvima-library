@@ -340,6 +340,10 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/collections/catalog` | Collections catalog: system/user/managed collections plus broader rollups where trusted relationships connect multiple shelves | Required |
 | GET | `/collections/{id}/summary` | One Collections summary for a detail page without loading the full catalog | Required |
 | GET | `/collections/{id}/items` | Items for a collection detail page, including generated rollup aggregation | Required |
+| POST | `/collections` | Create a collection (`collection_type`, `membership_mode`, `rule_definition`, `work_ids`, ownership and audience). A manually curated collection (`Custom`, manual membership) must arrive with at least one `work_ids` entry, so an empty one never exists: otherwise `400` with "A collection needs at least one item." Playlists and rule-driven collections may be created without items. | Effective administrator or precise Application permission |
+| PUT | `/collections/{id}` | Update a collection's settings, rules or membership mode. `409` "A collection needs at least one item. Delete the collection instead." when the change would leave a curated collection with no items (for example switching a rule-driven collection to manual membership before anything is in it). | Effective administrator or precise Application permission |
+| POST | `/collections/{id}/items` | Add a work to a saved/manual collection | Effective administrator or precise Application permission |
+| DELETE | `/collections/{id}/items/{itemId}` | Remove an item from a saved/manual collection. `409` "A collection needs at least one item. Delete the collection instead." when it is the last item of a curated collection; playlists may be emptied. A curated collection whose last work leaves the library is deleted automatically by the Engine (an `AutoPurge` activity entry records it). | Effective administrator or precise Application permission |
 | POST | `/collections/reconcile` | Dry-run or run collection shelf repair for already-ingested media. Body: `dry_run`, `batch_size`, `max_items`. Returns candidate, processed, assigned, skipped, failed, and elapsed counts. | Effective administrator or precise Application permission |
 | GET | `/collections/{collectionId}/series-manifest` | Ordered Wikidata series checklist with total, owned, missing, provisional, ambiguous counts and named entries | Required |
 | GET | `/collections/search?q=` | SQL-backed search across visible library works, canonical values, and collection names. Returns up to 20 work results. | Required |
@@ -355,12 +359,10 @@ unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/items` | Paginated item list for current browse/detail surfaces. Includes projection-backed fields such as `pipelineStep`, `libraryVisibility`, `isReadyForLibrary`, `artworkState`, `artworkSource`, and `artworkSettledAt`. Supports filtering by status, media type, collection, and search term. | Required |
-| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Required |
+| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Server administrator or Application with `review.read`, plus catalogue access |
+| GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Server administrator or Application with `review.read`, plus catalogue access |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
-| GET | `/library/items/counts` | Status counts for tab badges and compatibility counters such as review, auto-approved, duplicate, staging, and missing-image counts | Required |
-| GET | `/library/items/state-counts?batchId=` | Four-state counts scoped to a specific ingestion batch | Required |
 
 ---
 
@@ -456,7 +458,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |
 | POST | `/review/{id}/dismiss` | Dismiss a review item without resolving it | Effective administrator or precise Application permission |
-| POST | `/review/{id}/move-to-tv` | Accept a "Found as a TV title" suggestion: re-file the film as Season 0, Episode 1 (Specials) of the matched TMDB show in the TV library and re-run identity as TV. The file on disk is never moved. | Effective administrator or precise Application permission |
+| POST | `/review/{id}/move-to-tv` | Accept a "Found as a TV title" suggestion: re-file the film under the matched TMDB show in the TV library and re-run identity as TV. When TMDB lists the parts as one season of at most six episodes numbered from 1, the file is placed on Season 1, Episode 1 and covers every part; otherwise it falls back to Season 0, Episode 1 (Specials). The response carries `season_number`, `episode_numbers` and `placement_reason` (why it fell back, else null). The file on disk is never moved. | Effective administrator or precise Application permission |
 | POST | `/review/{id}/skip-universe` | Accept the item without a Wikidata QID. The item can still remain browse surfaces-visible if it passes the browse readiness gate. | Effective administrator or precise Application permission |
 
 ---
@@ -681,25 +683,11 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 
 ---
 
-## Reports
-
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| POST | `/reports` | Submit a metadata quality report for an entity | Required |
-| GET | `/reports/entity/{id}` | All reports for a specific entity | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/resolve` | Mark a report as resolved | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/dismiss` | Dismiss a report | Effective administrator or precise Application permission |
-
----
-
 ## Library Character and Asset Data
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/characters/{id}/portraits` | Portrait images for a fictional character | Required |
-| PUT | `/library/characters/{id}/portraits/{portraitId}/default` | Set the default portrait for a fictional character | Effective administrator or precise Application permission |
-| GET | `/library/persons/{id}/character-roles` | Characters a person has performed, linked to works | Required |
-| GET | `/library/universes/{qid}/characters` | All characters in a universe | Required |
+| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
 | GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
 | POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
 

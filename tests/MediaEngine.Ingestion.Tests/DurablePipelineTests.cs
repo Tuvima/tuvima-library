@@ -2395,6 +2395,9 @@ public sealed class DurablePipelineTests : IDisposable
         public Task UpdateCollectionFeaturedAsync(Guid collectionId, bool featured, CancellationToken ct = default) => Task.CompletedTask;
         public Task AddCollectionItemAsync(CollectionItem item, CancellationToken ct = default) => Task.CompletedTask;
         public Task RemoveCollectionItemAsync(Guid itemId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> RemoveCollectionItemUnlessLastMemberAsync(Guid collectionId, Guid itemId, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<bool> UpdateManagedCollectionAsync(Collection collection, IReadOnlyList<CollectionItem> newItems, bool requireMember, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<RemovedCollection>>([]);
         public Task ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<Collection>> GetContentGroupsAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
         public Task<Collection?> GetCollectionWithWorksAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);

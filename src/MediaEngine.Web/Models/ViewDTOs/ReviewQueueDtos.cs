@@ -128,6 +128,12 @@ public sealed class FieldOverrideDto
 /// </summary>
 public sealed record ReviewMoveToTvAttempt(MediaEngine.Contracts.Review.ReviewMoveToTvResponse? Response, string? Error);
 
+/// <summary>
+/// Outcome of loading the pending review list: the items, or the reason the Engine could not supply them, so a
+/// failed load is never mistaken for an empty queue. Dashboard-only.
+/// </summary>
+public sealed record ReviewListAttempt(List<ReviewItemViewModel>? Items, string? Error);
+
 /// <summary>Pending review count returned by <c>GET /review/count</c>.</summary>
 public sealed record ReviewCountDto(
     [property: JsonPropertyName("pending_count")] int PendingCount);

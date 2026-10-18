@@ -23,13 +23,20 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Plan: First-run ingestion fixes (2026-10-10)](specs/first-run-ingestion-fixes.md) | In progress |
-| [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
-| [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
+| [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Draft (v1, 2026-10-17; 4 open questions) |
-| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Draft (as-built) |
-| [Archive](specs/archive/README.md) | Built specs move here (none yet) |
+| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP2–WP8 docs in #245; WP1 and the guardrail ship with Item Detail) |
+| [Archive](specs/archive/README.md) | Built specs |
+| [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
+| [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
+
+## Handoffs
+
+| Doc | Status |
+|---|---|
+| [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
 
@@ -52,11 +59,10 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Tuvima design system](design/design-system.md) | Current |
 | [Mockups](design/mockups/) | Historical — 18 HTML previews and a Dashboard UI kit from spring 2026; older token values (see design system) |
 
-## Reports and handoffs
+## Reports
 
 | Doc | Status |
 |---|---|
-| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 
 ## History (pre-2026-10-17 engineering records)

@@ -84,6 +84,56 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task MovingAMovieToTv_KeepsItsCuratedCollectionAndPointsItAtTheEpisode()
+    {
+        var (assetId, movieWorkId) = await IngestMovieAsync();
+        var collectionId = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
+                VALUES (@collectionId, 'Musicals', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@itemId, @collectionId, @movieWorkId, 1);
+                """, new { collectionId, itemId = Guid.NewGuid(), movieWorkId });
+        }
+
+        var result = await _repository.ReassignToTvShowSpecialAsync(assetId, ShowName, null);
+
+        Assert.True(result.PreviousWorkRemoved);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collections WHERE id = @collectionId;", new { collectionId }));
+        Assert.Equal(
+            [result.EpisodeWorkId],
+            conn.Query<Guid>("SELECT work_id FROM collection_items WHERE collection_id = @collectionId;", new { collectionId }).ToList());
+    }
+
+    [Fact]
+    public async Task MovingAMovieToTv_WhenTheCollectionAlreadyHoldsTheEpisode_LeavesOneMembership()
+    {
+        var (first, _) = await IngestMovieAsync(@"C:\Temp\real_import\movies\a.mkv");
+        var (second, secondMovieWorkId) = await IngestMovieAsync(@"C:\Temp\real_import\movies\b.mkv");
+        var firstMove = await _repository.ReassignToTvShowSpecialAsync(first, ShowName, null);
+        var collectionId = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
+                VALUES (@collectionId, 'Specials', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@itemA, @collectionId, @episodeWorkId, 1), (@itemB, @collectionId, @secondMovieWorkId, 2);
+                """, new { collectionId, itemA = Guid.NewGuid(), itemB = Guid.NewGuid(), episodeWorkId = firstMove.EpisodeWorkId, secondMovieWorkId });
+        }
+
+        await _repository.ReassignToTvShowSpecialAsync(second, ShowName, null);
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(
+            [firstMove.EpisodeWorkId],
+            conn.Query<Guid>("SELECT work_id FROM collection_items WHERE collection_id = @collectionId;", new { collectionId }).ToList());
+    }
+
+    [Fact]
     public async Task Reassigning_IsIdempotent()
     {
         var (assetId, _) = await IngestMovieAsync();
@@ -122,10 +172,10 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         var reviewId = await InsertReviewAsync(assetId);
 
         var request = new TvMoveRequest(
-            assetId, ShowName, null, "tv-library", reviewId, "user",
+            assetId, ShowName, null, 0, [1], "tv-library", reviewId, "user",
             _ => throw new IOException("injected failure after the hierarchy was created"));
 
-        await Assert.ThrowsAsync<IOException>(() => _repository.MoveToTvShowSpecialAsync(request));
+        await Assert.ThrowsAsync<IOException>(() => _repository.MoveToTvShowAsync(request));
 
         using var conn = _db.CreateConnection();
         Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
@@ -148,10 +198,10 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         }
 
         var request = new TvMoveRequest(
-            assetId, ShowName, null, "tv-library", reviewId, "user",
+            assetId, ShowName, null, 0, [1], "tv-library", reviewId, "user",
             _ => new TvMoveDecision([], [], []));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.MoveToTvShowSpecialAsync(request));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.MoveToTvShowAsync(request));
 
         using var verify = _db.CreateConnection();
         Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
@@ -164,7 +214,7 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
         var (assetId, movieWorkId) = await IngestMovieAsync();
         var reviewId = await InsertReviewAsync(assetId);
         var request = new TvMoveRequest(
-            assetId, ShowName, null, "tv-library", reviewId, "user",
+            assetId, ShowName, null, 0, [1], "tv-library", reviewId, "user",
             placement => new TvMoveDecision(
                 [],
                 [new MediaEngine.Domain.Entities.CanonicalValue
@@ -173,7 +223,7 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
                 }],
                 []));
 
-        var result = await _repository.MoveToTvShowSpecialAsync(request);
+        var result = await _repository.MoveToTvShowAsync(request);
 
         Assert.True(result.PreviousWorkRemoved);
         using var conn = _db.CreateConnection();
@@ -185,6 +235,77 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
             "SELECT status FROM review_queue WHERE id = @id;", new { id = reviewId }));
         Assert.Equal(3, conn.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM works WHERE media_type = 'TV' AND ownership = 'Owned' AND is_catalog_only = 0;"));
+    }
+
+    [Fact]
+    public async Task MoveToTv_CoveringThreeEpisodes_WritesManualCoverageAndOwnsEveryEpisodeInOneTransaction()
+    {
+        var (assetId, _) = await IngestMovieAsync();
+        var reviewId = await InsertReviewAsync(assetId);
+        var request = new TvMoveRequest(
+            assetId, ShowName, null, 1, [1, 2, 3], "tv-library", reviewId, "user",
+            _ => new TvMoveDecision([], [], []));
+
+        var result = await _repository.MoveToTvShowAsync(request);
+
+        Assert.Equal(3, result.CoveredEpisodeWorkIds.Count);
+        Assert.Equal(result.EpisodeWorkId, result.CoveredEpisodeWorkIds[0]);
+        using var conn = _db.CreateConnection();
+        var coverage = conn.Query<(Guid Work, int Position, string Source, int Ordinal)>(
+            """
+            SELECT c.work_id AS Work, c.position AS Position, c.source AS Source, w.ordinal AS Ordinal
+            FROM media_asset_coverage c JOIN works w ON w.id = c.work_id
+            WHERE c.asset_id = @id ORDER BY c.position;
+            """, new { id = assetId }).ToList();
+        Assert.Equal(
+            [(result.CoveredEpisodeWorkIds[0], 1, "manual", 1), (result.CoveredEpisodeWorkIds[1], 2, "manual", 2), (result.CoveredEpisodeWorkIds[2], 3, "manual", 3)],
+            coverage);
+        Assert.Equal(result.EpisodeWorkId, conn.ExecuteScalar<Guid>(
+            "SELECT work_id FROM editions WHERE id = @id;", new { id = result.EditionId }));
+        Assert.Equal(3, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM works WHERE parent_work_id = @season AND ownership = 'Owned' AND is_catalog_only = 0;",
+            new { season = result.SeasonWorkId }));
+        Assert.Equal(ReviewStatus.Resolved, conn.ExecuteScalar<string>(
+            "SELECT status FROM review_queue WHERE id = @id;", new { id = reviewId }));
+    }
+
+    [Fact]
+    public async Task MoveToTv_CoveringOneEpisode_LeavesNoCoverageRows()
+    {
+        var (assetId, _) = await IngestMovieAsync();
+        var reviewId = await InsertReviewAsync(assetId);
+        var request = new TvMoveRequest(
+            assetId, ShowName, null, 1, [1], "tv-library", reviewId, "user",
+            _ => new TvMoveDecision([], [], []));
+
+        var result = await _repository.MoveToTvShowAsync(request);
+
+        Assert.Single(result.CoveredEpisodeWorkIds);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(0, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM media_asset_coverage WHERE asset_id = @id;", new { id = assetId }));
+    }
+
+    [Fact]
+    public async Task MoveToTv_CoveringThreeEpisodes_WhenTheReviewItemIsNoLongerPending_LeavesNoCoverageOrEpisodeWorks()
+    {
+        var (assetId, movieWorkId) = await IngestMovieAsync();
+        var reviewId = await InsertReviewAsync(assetId);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE review_queue SET status = 'Dismissed' WHERE id = @id;", new { id = reviewId });
+        }
+
+        var request = new TvMoveRequest(
+            assetId, ShowName, null, 1, [1, 2, 3], "tv-library", reviewId, "user",
+            _ => new TvMoveDecision([], [], []));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.MoveToTvShowAsync(request));
+
+        using var verify = _db.CreateConnection();
+        Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM media_asset_coverage;"));
+        Assert.Equal(0, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'TV';"));
+        Assert.Equal(1, verify.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @id;", new { id = movieWorkId }));
     }
 
     [Fact]

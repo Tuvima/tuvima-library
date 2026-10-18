@@ -58,6 +58,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
 
     private readonly IDatabaseConnection _db;
     private readonly ISystemActivityRepository _activityRepo;
+    private readonly ICollectionRepository _collections;
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<RejectedFileCleanupService> _logger;
 
@@ -67,16 +68,19 @@ public sealed class RejectedFileCleanupService : BackgroundService
     public RejectedFileCleanupService(
         IDatabaseConnection db,
         ISystemActivityRepository activityRepo,
+        ICollectionRepository collections,
         IConfigurationLoader configLoader,
         ILogger<RejectedFileCleanupService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(activityRepo);
+        ArgumentNullException.ThrowIfNull(collections);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(logger);
 
         _db = db;
         _activityRepo = activityRepo;
+        _collections = collections;
         _configLoader = configLoader;
         _logger = logger;
     }
@@ -328,6 +332,21 @@ public sealed class RejectedFileCleanupService : BackgroundService
                     Detail = $"Rejected file '{workTitle ?? Path.GetFileName(filePath)}' expired after {retentionDays} days and was permanently deleted.",
                     ChangesJson = $"{{\"asset_id\":\"{assetId}\",\"retention_days\":{retentionDays}}}",
                 }, ct);
+
+                // 8. Deleting the work removed its collection_items rows; a curated collection it was the last
+                // item of is removed too (and logged by the repository). This runs after the expiry log so a
+                // failure here cannot skip it; the asset is already gone, so a failure is logged and the sweep
+                // retries it the next time any code path runs the curated cleanup.
+                try
+                {
+                    await _collections.DeleteEmptyCuratedCollectionsAsync(ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex,
+                        "RejectedFileCleanupService: removed asset {AssetId} but could not remove emptied curated collections",
+                        assetId);
+                }
 
                 cleaned++;
             }

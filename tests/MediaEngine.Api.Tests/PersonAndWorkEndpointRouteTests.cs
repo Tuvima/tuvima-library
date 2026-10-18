@@ -26,20 +26,18 @@ public sealed class PersonAndWorkEndpointRouteTests
     }
 
     [Fact]
-    public void CharacterRoleQuery_UsesStoredWorkQidInsteadOfInferringFirstWork()
+    public void CharacterEndpoints_KeepOnlyThePortraitStreamAndAssetActions()
     {
         var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CharacterEndpoints.cs"));
         var querySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
-        Assert.Contains("group.MapGet(\"/persons/{personId:guid}/character-roles\"", endpointSource, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/portraits/{portraitId:guid}\"", endpointSource, StringComparison.Ordinal);
-        Assert.Contains("ApiImageUrls.BuildCharacterPortraitUrl", endpointSource, StringComparison.Ordinal);
-        Assert.Contains("IPersonCreditReadService personCreditReadService", endpointSource, StringComparison.Ordinal);
-        Assert.Contains("personCreditReadService.GetCharacterRolesAsync(personId, ct)", endpointSource, StringComparison.Ordinal);
-        Assert.Contains("INNER JOIN works w", querySource, StringComparison.Ordinal);
-        Assert.Contains("ON cpl.work_qid = COALESCE(", querySource, StringComparison.Ordinal);
-        Assert.Contains("NULLIF(TRIM(w.wikidata_qid), '')", querySource, StringComparison.Ordinal);
-        Assert.Contains("cpl.work_qid IS NOT NULL", querySource, StringComparison.Ordinal);
+        Assert.Contains("group.MapGet(\"/assets/{entityId}\"", endpointSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("character-roles", endpointSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("/characters/", endpointSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("/characters\"", endpointSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetCharacterRolesAsync", querySource, StringComparison.Ordinal);
+        // Person credits still carry each role's character name and portrait.
         Assert.Contains("ApiImageUrls.BuildCharacterPortraitUrl", querySource, StringComparison.Ordinal);
     }
 

@@ -1,6 +1,6 @@
 # Spec: Profiles and setup (as built)
 
-> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [First-run ingestion fixes](first-run-ingestion-fixes.md) · [Product overview](../product/overview.md) · [0007 — Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md)
+> **Status:** Built · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [First-run ingestion fixes](archive/first-run-ingestion-fixes.md) · [Product overview](../product/overview.md) · [0007 — Accounts own access; profiles own experience](../architecture/decisions/0007-accounts-and-profiles-access.md)
 > _Version 2 replaces the 2026-10-10 Draft (a plan written before the spec template existed). Nearly everything that Draft proposed was built by the Netflix-style profiles work (PRs 56 to 66) and the Settings and Profiles work (PRs 108 to 161). This version records what exists and the decisions Shy made on 2026-10-17. Nothing is left to build._
 
 ## 1. Goal

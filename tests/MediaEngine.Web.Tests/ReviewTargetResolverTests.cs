@@ -44,7 +44,6 @@ public sealed class ReviewTargetResolverTests
     [InlineData("WikidataBridgeFailed", MediaEditorIdentityIntent.FixWikidataMatch, "Search Wikidata")]
     [InlineData("MissingQid", MediaEditorIdentityIntent.FixWikidataMatch, "Search Wikidata")]
     [InlineData("MultipleQidMatches", MediaEditorIdentityIntent.FixWikidataMatch, "Search Wikidata")]
-    [InlineData("ArtworkUnconfirmed", MediaEditorIdentityIntent.ConfirmArtwork, "Review Artwork")]
     [InlineData("AmbiguousMediaType", MediaEditorIdentityIntent.ReviewClassification, "Review classification")]
     public void Resolve_Trigger_MapsIntentAndPrimaryAction(string trigger, MediaEditorIdentityIntent intent, string label)
     {

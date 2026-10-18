@@ -146,6 +146,24 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         }
     }
 
+    [Theory]
+    [InlineData("desktop")]
+    [InlineData("phone")]
+    public async Task TheDetailsTabShowsNoIdentityRowToAnyViewer(string formFactor)
+    {
+        _versions = OneFile("movie.mkv", "MKV");
+        _detail = Detail("movie.mkv");
+        await UseAsync(formFactor);
+
+        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+
+        var labels = cut.FindAll(".tl-detail-dl dt").Select(label => label.TextContent).ToList();
+        Assert.Contains("Library Status", labels);
+        Assert.DoesNotContain("Identity", labels);
+        Assert.DoesNotContain("ProviderMatched", cut.Markup);
+        Assert.DoesNotContain("WikidataLinked", cut.Markup);
+    }
+
     [Fact]
     public async Task AFailedLoadShowsADegradedNoteInTheSamePanelAndKeepsTheRestOfTheTab()
     {

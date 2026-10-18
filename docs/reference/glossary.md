@@ -47,7 +47,7 @@ A grouping of media with explicit purpose and access. Automatic Collections conn
 
 ### Combined file
 
-One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`).
+One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`). A whole miniseries in one film file becomes a combined file when it is moved to TV.
 
 ### Correspondent
 
@@ -97,11 +97,11 @@ The **Extra protection** row under **Settings → Security**, which opens one sh
 
 ### Found as a TV title
 
-A Review Queue reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film.
+A Needs Review reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film. Move to TV attaches the file to every part TMDB lists (at most six, in one season), so a show of several parts becomes a combined file; only when the parts cannot be listed that clearly is it filed as a special, and the item's History says why.
 
 ### From merge
 
-A Review Queue reason for a file that arrived in a managed folder through a folder merge but could not be named yet (it was not identified, was waiting in Review, or had no confirmed title). It waits in a folder called From merge inside the target until you confirm what it is.
+A Needs Review reason for a file that arrived in a managed folder through a folder merge but could not be named yet (it was not identified, was waiting in Review, or had no confirmed title). It waits in a folder called From merge inside the target until you confirm what it is.
 
 ## H
 
@@ -173,6 +173,10 @@ Artwork copied into Tuvima Library's managed `.data/assets` store and served bac
 through Engine media URLs. Provider image URLs are source inputs, not stable UI
 display URLs.
 
+### Needs Review
+
+The one place for items the Engine is not sure about: blocked, uncertain, low-confidence, or unresolved items that need a person to confirm them. It is pinned at the top of Settings → Recently Added and opens from the account menu. Only server administrators, and apps a server administrator has given review permission, can see and resolve it.
+
 ## O
 
 ### Own sign-in
@@ -213,9 +217,9 @@ A plain-English status summary such as Ready, Pending artwork, Needs review, or 
 
 The provider stage that searches external catalogues for practical metadata such as covers, descriptions, ratings, and bridge IDs.
 
-### Review Queue
+### Review queue
 
-The exception workflow for blocked, uncertain, low-confidence, or unresolved items that need human confirmation.
+The Engine's internal store behind [Needs Review](#needs-review). People see it as Needs Review.
 
 ## S
 
@@ -354,7 +358,7 @@ Optional compiled code loaded by the Engine to add behavior. Plugins run in-proc
 
 ### Removed all-in-one workspace
 
-Old management concepts that should not be reintroduced. Current browse and correction flows use Home, Read, Watch, Listen, Collections, Search, detail pages, Review Queue, and Settings/Admin.
+Old management concepts that should not be reintroduced. Current browse and correction flows use Home, Read, Watch, Listen, Collections, Search, detail pages, Needs Review, and Settings/Admin. The retired all-in-one management screen was once called the Registry; that name is no longer used.
 
 ## Next steps
 

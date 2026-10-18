@@ -128,10 +128,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         int offset,
         int limit,
         string? sort = null,
+        string? status = null,
         CancellationToken ct = default)
     {
         var request = PagedRequest.From(offset, limit, 50, 100);
-        return await LoadHistoryGroupPageAsync(search, lane, start, end, sort, request, ct).ConfigureAwait(false);
+        return await LoadHistoryGroupPageAsync(search, lane, start, end, sort, status, request, ct).ConfigureAwait(false);
     }
 
     public async Task<IngestionMediaGroupDto?> GetMediaGroupAsync(
@@ -654,6 +655,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         DateTimeOffset? start,
         DateTimeOffset? end,
         string? sort,
+        string? status,
         PagedRequest request,
         CancellationToken ct)
     {
@@ -665,6 +667,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             request.Offset,
             request.Limit + 1,
             sort,
+            status,
             ct).ConfigureAwait(false);
         var pageKeys = keys.Take(request.Limit).ToList();
         var batchIds = pageKeys.Select(key => key.BatchId).Distinct().ToArray();
@@ -705,6 +708,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         int offset,
         int limit,
         string? sort,
+        string? status,
         CancellationToken ct)
     {
         var searchFilter = string.IsNullOrWhiteSpace(search) ? "" : $"AND {HistorySearchSql}";
@@ -721,6 +725,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             "comics" => $"AND {NormalizedMediaTypeSql} IN ('comic','comics','cbz','cbr')",
             _ => "",
         };
+        var addedOnly = NormalizeHistoryStatus(status) == "added";
+        var attentionCte = addedOnly ? AttentionGroupsCte : "";
+        var addedFilter = addedOnly
+            ? """
+              WHERE NOT EXISTS (
+                  SELECT 1 FROM attention_groups ag
+                  WHERE ag.BatchId = grouped.BatchId AND ag.GroupId = grouped.GroupId)
+              """
+            : "";
         var startFilter = start.HasValue ? $"AND julianday({AddedAtSql}) >= julianday(@start)" : "";
         var endFilter = end.HasValue ? $"AND julianday({AddedAtSql}) <= julianday(@end)" : "";
         var orderBy = NormalizeHistorySort(sort) switch
@@ -791,6 +804,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                   {startFilter}
                   {endFilter}
             ),
+            {attentionCte}
             grouped AS (
                 SELECT BatchId, GroupId, MIN(SortTitle) AS SortTitle, MIN(SortMediaType) AS SortMediaType, MAX(UpdatedAt) AS UpdatedAt
                 FROM scoped
@@ -800,6 +814,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                    GroupId,
                    COUNT(*) OVER () AS TotalCount
             FROM grouped
+            {addedFilter}
             ORDER BY {orderBy}
             LIMIT @limit OFFSET @offset;
             """, new
@@ -2057,6 +2072,10 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ? null
             : value.Trim().ToLowerInvariant();
 
+    // Only "added" narrows the history; absent or unknown values keep every group, like lane and sort.
+    private static string? NormalizeHistoryStatus(string? value) =>
+        string.Equals(value?.Trim(), "added", StringComparison.OrdinalIgnoreCase) ? "added" : null;
+
     private static string NormalizeHistorySort(string? value) =>
         value?.Trim().ToLowerInvariant() switch
         {
@@ -2191,6 +2210,44 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ORDER BY julianday(prior_log.created_at) DESC, julianday(prior_log.updated_at) DESC
             LIMIT 1
         )
+        """;
+
+    // History groups whose BuildGroup availability would be "review" or "failed" (StatusLabel
+    // "Needs review" / "Failed"). It is evaluated over every row of the group, as BuildGroup does,
+    // so the search, lane and date filters on the key query cannot change a group's status. Keep these
+    // conditions in step with BuildGroup (needsReview / terminalFailure) and LoadOperationsAsync.
+    private static readonly string AttentionGroupsCte = $"""
+        attention_groups AS (
+            SELECT ll.ingestion_run_id AS BatchId,
+                   {PresentationGroupSql} AS GroupId
+            FROM latest_logs ll
+            JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
+            JOIN media_assets ma ON ma.id = ll.media_asset_id
+            JOIN editions e ON e.id = ma.edition_id
+            JOIN works w ON w.id = e.work_id
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            LEFT JOIN latest_file_operations lfo
+              ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
+            WHERE {AdditionBatchPredicate}
+              AND (
+                  EXISTS (SELECT 1 FROM review_queue rq
+                          WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
+                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
+                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
+                     IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                  OR lfo.status IN ('failed_terminal','dead_lettered')
+                  OR EXISTS (SELECT 1 FROM media_operations mo
+                             WHERE mo.batch_id = ll.ingestion_run_id
+                               AND mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                               AND mo.status IN ('failed_terminal','dead_lettered'))
+                  OR EXISTS (SELECT 1 FROM identity_jobs fj
+                             WHERE fj.ingestion_run_id = ll.ingestion_run_id
+                               AND fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                               AND fj.state = 'Failed'))
+            GROUP BY ll.ingestion_run_id, {PresentationGroupSql}
+        ),
         """;
 
     private enum GroupScope { Current, History, Batch, BatchAdditions, BatchAdditionsSet }

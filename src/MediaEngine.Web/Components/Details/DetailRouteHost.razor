@@ -2,7 +2,6 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
-@inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
 @implements IDisposable
 
@@ -37,10 +36,31 @@ else if (_loading)
 else
 {
     <div class="tl-detail-page tl-detail-route-state">
-        <AppPageState Kind="AppPageStateKind.Unavailable"
-                      Title="@Request.NotFoundTitle"
-                      Message="@Request.NotFoundMessage"
-                      Class="tl-detail-route-state__content" />
+        @switch (_failure)
+        {
+            case DetailPageLoadFailure.NotAllowed:
+                <AppPageState Kind="AppPageStateKind.Unavailable"
+                              Title="You don't have access to this"
+                              Message="Your account can't open this item. Ask a server administrator if you think this is wrong."
+                              Class="tl-detail-route-state__content" />
+                break;
+            case DetailPageLoadFailure.Unreachable:
+                <AppPageState Kind="AppPageStateKind.Error"
+                              Title="Can't reach the Engine"
+                              Message="The Engine didn't respond. Check that it's running, then try again."
+                              Class="tl-detail-route-state__content">
+                    <Actions>
+                        <AppButton Label="Retry" OnClick="RetryAsync" />
+                    </Actions>
+                </AppPageState>
+                break;
+            default:
+                <AppPageState Kind="AppPageStateKind.Unavailable"
+                              Title="@Request.NotFoundTitle"
+                              Message="@Request.NotFoundMessage"
+                              Class="tl-detail-route-state__content" />
+                break;
+        }
     </div>
 }
 
@@ -50,6 +70,7 @@ else
         DetailRouteRequest.ForUnified(string.Empty, Guid.Empty, null);
 
     private DetailPageViewModel? _detail;
+    private DetailPageLoadFailure _failure;
     private bool _loading = true;
     private string? _activeTab;
     private int _loadVersion;
@@ -63,7 +84,11 @@ else
     private string PageTitleText =>
         $"{(_loading ? null : _detail?.Title) ?? Request.PageTitleFallback} - {Request.ProductTitle}";
 
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private Task RetryAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         var loadVersion = ++_loadVersion;
 
@@ -75,31 +100,31 @@ else
 
         // The previous page (if any) stays visible, dimmed, until the new payload replaces it.
         _loading = true;
+        _failure = DetailPageLoadFailure.None;
 
         if (Request.EntityType is not { } entityType)
         {
             _detail = null;
+            _failure = DetailPageLoadFailure.NotFound;
             _loading = false;
             return;
         }
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        if (ct.IsCancellationRequested || loadVersion != _loadVersion)
-            return;
-
-        var detail = await ApiClient.GetDetailPageAsync(
+        var result = await ApiClient.LoadDetailPageAsync(
             entityType,
             Request.EntityId,
             Request.PresentationContext,
             containerId: Request.ContainerId,
-            profileId: profile?.Id,
             sequence: SequenceWindowQuery.Windowed,
             ct: ct);
 
         if (ct.IsCancellationRequested || loadVersion != _loadVersion)
             return;
 
-        _detail = detail;
+        _detail = result.Detail;
+        _failure = result.Detail is null && result.Failure == DetailPageLoadFailure.None
+            ? DetailPageLoadFailure.NotFound
+            : result.Failure;
         _detailVersion++;
         ApplyDetailTabRoute();
         _loading = false;

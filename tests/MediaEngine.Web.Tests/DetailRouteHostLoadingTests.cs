@@ -39,12 +39,12 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
             {
                 new(_profile, "One", "#aaa", "RestrictedProfile", DateTimeOffset.UtcNow),
             }));
-            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), args =>
+            stub.SetHandler(nameof(IEngineApiClient.LoadDetailPageAsync), args =>
             {
                 var id = (Guid)args![EntityIdIndex]!;
                 var source = new TaskCompletionSource<DetailPageViewModel?>();
                 _pending[id] = source;
-                return source.Task;
+                return AsLoadResultAsync(source.Task);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), args => Task.FromResult<MediaEditorContextDto?>(new MediaEditorContextDto
             {
@@ -299,6 +299,11 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         Assert.DoesNotContain("Edit details", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Edit on a computer", cut.Markup, StringComparison.Ordinal);
     }
+
+    private static async Task<DetailPageLoadResult> AsLoadResultAsync(Task<DetailPageViewModel?> detail) =>
+        await detail is { } loaded
+            ? DetailPageLoadResult.Loaded(loaded)
+            : DetailPageLoadResult.Failed(DetailPageLoadFailure.NotFound);
 
     private static DetailRouteRequest Request(Guid id) => DetailRouteRequest.ForUnified("musicalbum", id, null);
 

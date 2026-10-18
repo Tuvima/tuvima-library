@@ -13,4 +13,17 @@ public sealed record ReviewDismissResponse(bool dismissed, Guid review_item_id);
 
 public sealed record ReviewSkipUniverseResponse(bool skipped, Guid review_item_id);
 
-public sealed record ReviewMoveToTvResponse(bool moved, Guid review_item_id, Guid entity_id, string show_name, string? tv_library_id);
+/// <summary>
+/// The result of "Move to TV". <c>season_number</c> and <c>episode_numbers</c> say where the file landed
+/// (Season 1 with every part it covers, or Season 0 Episode 1 for Specials); <c>placement_reason</c> is
+/// the plain-English reason it fell back to Specials, or null when every part was matched.
+/// </summary>
+public sealed record ReviewMoveToTvResponse(
+    bool moved,
+    Guid review_item_id,
+    Guid entity_id,
+    string show_name,
+    string? tv_library_id,
+    int season_number,
+    IReadOnlyList<int> episode_numbers,
+    string? placement_reason);

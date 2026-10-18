@@ -125,6 +125,22 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Fact]
+    public void HeroActionRow_WithNothingPlayable_ShowsNoMainButtonAndNoEmptyPrimarySlot()
+    {
+        var cut = Render<HeroActionRow>(parameters => parameters
+            .Add(component => component.PrimaryActions, Array.Empty<DetailAction>())
+            .Add(component => component.SecondaryActions, new[]
+            {
+                new DetailAction { Key = "my-list", Label = "Add to My List", Icon = "add" },
+            }));
+
+        // No generic "Open" fallback and no empty slot that would push the round buttons off the left edge.
+        Assert.Empty(cut.FindAll(".tl-detail-action--primary"));
+        Assert.Empty(cut.FindAll(".tl-detail-primary-actions"));
+        Assert.Contains(cut.FindAll(".tl-detail-secondary-actions .hero-icon-circle"), circle => circle.GetAttribute("data-phone-label") == "My List");
+    }
+
+    [Fact]
     public void HeroActionRow_EmbedsProgressInTheMainAction()
     {
         var cut = Render<HeroActionRow>(parameters => parameters

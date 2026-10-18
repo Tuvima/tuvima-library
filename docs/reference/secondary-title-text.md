@@ -30,9 +30,13 @@ The detail UI has one visual slot beneath the title, but the stored metadata rem
 | Audiobook | `subtitle` | Edition metadata, then literary Work subtitle | Edition then Work | Subtitle |
 | Comic issue | `subtitle` | Explicit provider field only | Issue Work | Subtitle |
 | Music | none | — | — | No tagline/subtitle |
+| Book, movie and comic series | none | — | — | No line |
+| Collection | none | — | — | No line |
+| Universe | none | — | — | No line |
+| Person | none | — | — | No line |
 
 TMDB's dedicated tagline is high-confidence provider metadata. Descriptions, plots, annotations, solicitation copy, and AI output are never persisted as taglines or subtitles.
 
-For presentation only, an empty preferred field falls back to `short_description`, then to a bounded excerpt of `description`. The API reports the selected source in `SecondaryTitleTextKind`; the Dashboard adds “more in overview” when the fallback does not contain the complete overview. This fallback does not create or lock a canonical tagline/subtitle claim.
+For presentation only, an empty preferred field falls back to `short_description`, then to a bounded excerpt of `description`. The API reports the selected source in `SecondaryTitleTextKind`; the Dashboard adds “more in overview” when the fallback does not contain the complete overview. This fallback does not create or lock a canonical tagline/subtitle claim. Movies, TV shows, books, audiobooks, comic issues and works use this fallback. TV episodes, music albums, series, collections, universes and people have no line under the title and no presentation fallback, so their description is never repeated there.
 
 Missing tagline or subtitle is optional and does not create Needs Review work. Existing items acquire newly supported values through normal versioned enrichment refresh rather than library re-import.

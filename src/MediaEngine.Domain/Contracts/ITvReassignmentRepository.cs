@@ -4,7 +4,7 @@ namespace MediaEngine.Domain.Contracts;
 
 /// <summary>
 /// Where a whole-series file (for example a miniseries stored as one film file) is filed under its
-/// TV show until multi-episode files are supported: Season 0 (Specials), Episode 1.
+/// TV show when its parts cannot be matched to the show's episodes: Season 0 (Specials), Episode 1.
 /// </summary>
 public static class TvSpecialPlacement
 {
@@ -28,23 +28,24 @@ public interface ITvReassignmentRepository
     /// <param name="showName">The TV show to file it under.</param>
     /// <param name="episodeTitle">Title of the episode Work, normally the file's own title.</param>
     /// <exception cref="InvalidOperationException">The asset is unknown, or is not currently a Movies asset.</exception>
-    Task<TvSpecialReassignment> ReassignToTvShowSpecialAsync(
+    Task<TvReassignment> ReassignToTvShowSpecialAsync(
         Guid assetId,
         string showName,
         string? episodeTitle,
         CancellationToken ct = default);
 
     /// <summary>
-    /// The whole "Move to TV" decision as one all-or-nothing change: finds or creates the show,
-    /// Season 0 and episode Work, re-parents the asset's Edition, removes the empty movie Work,
-    /// marks the TV containers owned, moves the asset to the TV library, writes the decision's
-    /// claims, canonical values and bridge ids, and resolves the review item. If any step fails,
-    /// nothing is written and the review item stays pending. The file is never touched.
+    /// The whole "Move to TV" decision as one all-or-nothing change: finds or creates the show, the
+    /// requested season and its episode Works, re-parents the asset's Edition under the first episode,
+    /// records every further episode as covered by the asset (manual coverage), removes the empty movie
+    /// Work, marks the covered episodes and TV containers owned, moves the asset to the TV library,
+    /// writes the decision's claims, canonical values and bridge ids, and resolves the review item.
+    /// If any step fails, nothing is written and the review item stays pending. The file is never touched.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     /// The asset is unknown or not a Movies asset, or the review item is no longer pending.
     /// </exception>
-    Task<TvSpecialReassignment> MoveToTvShowSpecialAsync(
+    Task<TvReassignment> MoveToTvShowAsync(
         TvMoveRequest request,
         CancellationToken ct = default);
 }
@@ -53,6 +54,11 @@ public interface ITvReassignmentRepository
 /// <param name="AssetId">The media asset to re-file.</param>
 /// <param name="ShowName">The TV show to file it under.</param>
 /// <param name="EpisodeTitle">Title of the episode Work, normally the file's own title.</param>
+/// <param name="SeasonNumber">The season to file it under (0 is Specials).</param>
+/// <param name="EpisodeNumbers">
+/// The episodes the file covers, in episode order. The first is the host episode that holds the
+/// Edition; any further ones are recorded as coverage.
+/// </param>
 /// <param name="LibraryId">The TV library the asset moves into (data only).</param>
 /// <param name="ReviewItemId">The pending review item resolved by the move.</param>
 /// <param name="ResolvedBy">Who made the decision.</param>
@@ -64,10 +70,12 @@ public sealed record TvMoveRequest(
     Guid AssetId,
     string ShowName,
     string? EpisodeTitle,
+    int SeasonNumber,
+    IReadOnlyList<int> EpisodeNumbers,
     string LibraryId,
     Guid ReviewItemId,
     string ResolvedBy,
-    Func<TvSpecialReassignment, TvMoveDecision> BuildDecision);
+    Func<TvReassignment, TvMoveDecision> BuildDecision);
 
 /// <summary>The records written for a "Move to TV" decision.</summary>
 public sealed record TvMoveDecision(
@@ -75,12 +83,17 @@ public sealed record TvMoveDecision(
     IReadOnlyList<CanonicalValue> Values,
     IReadOnlyList<BridgeIdEntry> BridgeIds);
 
-/// <summary>Outcome of <see cref="ITvReassignmentRepository.ReassignToTvShowSpecialAsync"/>.</summary>
-public sealed record TvSpecialReassignment(
+/// <summary>
+/// Outcome of <see cref="ITvReassignmentRepository.ReassignToTvShowSpecialAsync"/> and
+/// <see cref="ITvReassignmentRepository.MoveToTvShowAsync"/>.
+/// </summary>
+/// <param name="CoveredEpisodeWorkIds">Every episode Work the file covers, in episode order, host first.</param>
+public sealed record TvReassignment(
     Guid AssetId,
     Guid EditionId,
     Guid PreviousWorkId,
     bool PreviousWorkRemoved,
     Guid ShowWorkId,
     Guid SeasonWorkId,
-    Guid EpisodeWorkId);
+    Guid EpisodeWorkId,
+    IReadOnlyList<Guid> CoveredEpisodeWorkIds);

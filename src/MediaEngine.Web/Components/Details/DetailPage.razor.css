@@ -128,8 +128,7 @@
 }
 
 ::deep .tl-detail-panel,
-::deep .tl-series-placement,
-::deep .tl-registry-panel {
+::deep .tl-series-placement {
     width: min(100rem, calc(100% - 2rem));
     margin: clamp(1.25rem, 3vw, 2rem) auto 0;
     padding: clamp(1rem, 2.6vw, 1.6rem);
@@ -185,8 +184,7 @@
     font-weight: 800;
 }
 
-::deep .tl-series-strip,
-::deep .tl-child-list {
+::deep .tl-series-strip {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(11rem, 15rem);
@@ -197,9 +195,7 @@
 }
 
 ::deep .tl-credit-card,
-::deep .tl-character-card,
-::deep .tl-series-item,
-::deep .tl-child-card {
+::deep .tl-series-item {
     border: 1px solid rgba(246, 240, 232, 0.1);
     border-radius: 0.85rem;
     background: rgba(246, 240, 232, 0.055);
@@ -208,30 +204,24 @@
 }
 
 ::deep .tl-credit-card img,
-::deep .tl-character-card img,
-::deep .tl-series-item img,
-::deep .tl-child-card img {
+::deep .tl-series-item img {
     width: 100%;
     aspect-ratio: 1 / 1;
     object-fit: cover;
     display: block;
 }
 
-::deep .tl-credit-card__body,
-::deep .tl-child-card__body {
+::deep .tl-credit-card__body {
     padding: 0.72rem;
 }
 
 ::deep .tl-series-item__title,
-::deep .tl-credit-card__name,
-::deep .tl-character-card__name {
+::deep .tl-credit-card__name {
     font-weight: 700;
     line-height: 1.25;
 }
 
 ::deep .tl-credit-card__role,
-::deep .tl-character-card__role,
-::deep .tl-child-card__meta,
 ::deep .tl-detail-copy,
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
@@ -256,7 +246,6 @@
     border: 0;
 }
 
-::deep .tl-child-card__art img,
 ::deep .tl-series-item__art img {
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -339,8 +328,7 @@
     text-align: center;
 }
 
-::deep .tl-series-panel--portrait .tl-series-item__art img,
-::deep .tl-child-card__art img {
+::deep .tl-series-panel--portrait .tl-series-item__art img {
     aspect-ratio: 2 / 3;
     object-fit: contain;
 }
@@ -395,8 +383,7 @@
 
 @media (max-width: 840px) {
 ::deep .tl-detail-panel,
-::deep .tl-series-placement,
-::deep .tl-registry-panel {
+::deep .tl-series-placement {
         margin-inline: 1rem;
         border-radius: 0.8rem;
     }
@@ -489,8 +476,7 @@
     padding: clamp(1.5rem, 2.4vw, 2.6rem) clamp(1.25rem, 4vw, 5rem);
 }
 
-::deep .tl-detail-tab-panel > .tl-detail-panel,
-::deep .tl-detail-tab-panel > .tl-registry-panel {
+::deep .tl-detail-tab-panel > .tl-detail-panel {
     max-width: none;
     border: 0;
     border-radius: 0;
@@ -726,8 +712,7 @@
    shared viewport hero, the structural Overview array, and the separate content
    tabs without inheriting the earlier compact-in-hero sequence treatment. */
 
-::deep .tl-overview-section__heading > span,
-::deep .tl-related-tab__header > span {
+::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: 0.75rem;
     font-weight: 700;
@@ -735,8 +720,7 @@
     text-transform: uppercase;
 }
 
-::deep .tl-overview-section__empty,
-::deep .tl-related-tab__empty {
+::deep .tl-overview-section__empty {
     margin: 0;
     color: rgba(226, 232, 240, 0.5);
 }

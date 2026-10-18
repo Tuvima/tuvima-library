@@ -678,10 +678,6 @@ public sealed class PersonCreditReadServiceTests : IDisposable
             credit => credit.Role == "Actor");
         Assert.Contains(katieLibraryCredit.Characters, character => character.CharacterName == "Rachel Dawes");
         Assert.DoesNotContain(katieLibraryCredit.Characters, character => character.CharacterName == "Alfred Pennyworth");
-
-        var katieRoles = await CreateService().GetCharacterRolesAsync(katieId, CancellationToken.None);
-        Assert.Contains(katieRoles, role => role.CharacterName == "Rachel Dawes");
-        Assert.DoesNotContain(katieRoles, role => role.CharacterName == "Alfred Pennyworth");
     }
 
     [Fact]

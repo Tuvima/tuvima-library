@@ -191,10 +191,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/LibraryItems/ReportProblemDialog.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
       "important": 0,
       "deep": 19
@@ -306,10 +302,6 @@
     "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css": {
       "important": 37,
@@ -658,10 +650,6 @@
     "src/MediaEngine.Web/Components/Settings/SettingsAdvancedLinkRow.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css": {
-      "important": 0,
-      "deep": 12
     },
     "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css": {
       "important": 0,
@@ -1221,10 +1209,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/LibraryItems/ReportProblemDialog.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Listen/ListenContextSidebar.razor.css": {
       "important": 0,
       "deep": 19
@@ -1334,10 +1318,6 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor.css": {
       "important": 0,
       "deep": 0
     },
@@ -1688,10 +1668,6 @@
     "src/MediaEngine.Web/Components/Settings/SettingsAdvancedLinkRow.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css": {
-      "important": 0,
-      "deep": 12
     },
     "src/MediaEngine.Web/Components/Settings/UserOverviewTab.razor.css": {
       "important": 0,

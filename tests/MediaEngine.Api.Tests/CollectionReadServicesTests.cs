@@ -654,7 +654,6 @@ public sealed class CollectionReadServicesTests : IDisposable
             new CanonicalValueArrayRepository(_database),
             new SeriesManifestRepository(_database),
             null!,
-            new DetailRecommendationService(_database),
             collectionBrowse: _browse);
 
         foreach (var rootId in new[] { first.AlbumWorkId, second.AlbumWorkId })

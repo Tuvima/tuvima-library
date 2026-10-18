@@ -1,6 +1,6 @@
 # Spec: Item Detail page
 
-> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../docs/architecture/dashboard-ui.md)
+> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Dashboard UI architecture (public)](../../docs/architecture/dashboard-ui.md)
 
 > Version 5 replaces the "as built" v4. It records what the page does today (including PR 222, merged, and PR 223 Editing Mode, assumed merged before packets start) and every decision Shy made on 2026-10-17 about what to change, remove or leave to other plans. Anything labelled "to be confirmed by Claude Code" is a fact I could not check from the planning side.
 
@@ -49,6 +49,16 @@ New on 2026-10-17 (Shy):
 - **D22. Editor start tabs** (G11) are dropped: superseded by Editing Mode.
 - **D23. Remove the unused profile ID** the Dashboard sends. (G14)
 - **D24. Standard breakpoints** (600, 840, 1180 px) on the Details pages. (G15)
+- **D25. WP10 carries Registry retirement WP1** (Shy, 2026-10-17): the Registry tab and `?context=admin` removal, and moving identity status and artwork source into the editor's Match & Identity section, are built once, here, right after WP2.
+
+Answers to the WP1 report (Shy, 2026-10-17):
+- **D26. A curated collection whose last item leaves the library is deleted automatically.** The editor still refuses to save or empty a collection to zero items (D17). Deleting a library item that sits in a manually curated collection must warn first; automatic collections need no warning because they follow the canonical metadata. The app has no delete action for library items today; the Engine's unused delete actions are removed by Registry retirement WP3, and the warning belongs to a future "Delete from library" spec that rebuilds deletion (Shy, 2026-10-17).
+- **D27. Character-only Engine actions are removed** (character portraits, a universe's character list, a person's character roles), with their Dashboard wrappers and tests. Actions shared with Universe Explore and the entity editor stay.
+- **D28. Person pages drop the separate "characters played" section;** role names stay on their credits.
+- **D29. "Copy library link" on the Home hero and the Listen page's own Related tab are removed too**, matching D11 and D12.
+- **D30. Series, collections, universes and people have no line under the title** (built in WP9; recorded in `docs/reference/secondary-title-text.md`).
+- **D31. The Details tab drops its "Identity" status line** (Shy, 2026-10-17); identity status lives in the editor's Match section for server administrators (Registry D4).
+- **D32. Playlists are exempt from D17 and D26** (Shy, 2026-10-17): only manually curated collections must never be empty and are removed when their last item leaves the library. Playlists may be empty and are never removed automatically.
 
 ## 4. UI behaviour
 

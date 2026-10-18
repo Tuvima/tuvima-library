@@ -7,68 +7,6 @@ namespace MediaEngine.Api.Endpoints;
 
 internal static class LibraryItemContractMapper
 {
-    public static LibraryItemsPageDto ToContract(this LibraryItemsPage source) => new()
-    {
-        Items = source.Items.Select(ToContract).ToList(),
-        TotalCount = source.TotalCount,
-        HasMore = source.HasMore,
-    };
-
-    public static LibraryCatalogItemDto ToContract(this LibraryCatalogItem source) => new()
-    {
-        EntityId = source.EntityId,
-        Title = source.Title,
-        Year = source.Year,
-        MediaType = source.MediaType,
-        CoverUrl = source.CoverUrl,
-        BackgroundUrl = source.BackgroundUrl,
-        BannerUrl = source.BannerUrl,
-        MatchSource = source.MatchSource,
-        MatchMethod = source.MatchMethod,
-        Confidence = source.Confidence,
-        Status = source.Status,
-        HasDuplicate = source.HasDuplicate,
-        DuplicateOf = source.DuplicateOf,
-        ReviewItemId = source.ReviewItemId,
-        ReviewTrigger = source.ReviewTrigger,
-        HasUserLocks = source.HasUserLocks,
-        CreatedAt = source.CreatedAt,
-        FileName = source.FileName,
-        FileSizeBytes = source.FileSizeBytes,
-        Author = source.Author,
-        Director = source.Director,
-        Artist = source.Artist,
-        Series = source.Series,
-        SeriesPosition = source.SeriesPosition,
-        Narrator = source.Narrator,
-        Genre = source.Genre,
-        Runtime = source.Runtime,
-        Rating = source.Rating,
-        Album = source.Album,
-        TrackNumber = source.TrackNumber,
-        SeasonNumber = source.SeasonNumber,
-        EpisodeNumber = source.EpisodeNumber,
-        ShowName = source.ShowName,
-        EpisodeTitle = source.EpisodeTitle,
-        Network = source.Network,
-        TopCast = source.TopCast,
-        Duration = source.Duration,
-        FilePath = source.FilePath,
-        WikidataStatus = source.WikidataStatus,
-        WikidataMatch = source.WikidataMatch,
-        RetailMatch = source.RetailMatch,
-        RetailMatchDetail = source.RetailMatchDetail,
-        WikidataQid = source.WikidataQid,
-        QidResolutionMethod = source.QidResolutionMethod,
-        HeroUrl = source.HeroUrl,
-        PipelineStep = source.PipelineStep,
-        LibraryVisibility = source.LibraryVisibility,
-        IsReadyForLibrary = source.IsReadyForLibrary,
-        ArtworkState = source.ArtworkState,
-        ArtworkSource = source.ArtworkSource,
-        ArtworkSettledAt = source.ArtworkSettledAt,
-    };
-
     public static LibraryItemDetailDto ToContract(this LibraryItemDetail source) => new()
     {
         EntityId = source.EntityId,
@@ -168,31 +106,6 @@ internal static class LibraryItemContractMapper
             RelationshipCount = source.UniverseSummary.RelationshipCount,
             PortraitCount = source.UniverseSummary.PortraitCount,
         },
-    };
-
-    public static LibraryItemStatusCountsDto ToContract(this LibraryItemStatusCounts source) => new()
-    {
-        Total = source.Total,
-        NeedsReview = source.NeedsReview,
-        AutoApproved = source.AutoApproved,
-        Edited = source.Edited,
-        Duplicate = source.Duplicate,
-        Staging = source.Staging,
-        MissingImages = source.MissingImages,
-        RecentlyUpdated = source.RecentlyUpdated,
-        LowConfidence = source.LowConfidence,
-        Rejected = source.Rejected,
-    };
-
-    public static LibraryItemLifecycleCountsDto ToContract(this LibraryItemLifecycleCounts source) => new()
-    {
-        Identified = source.Identified,
-        InReview = source.InReview,
-        Provisional = source.Provisional,
-        Rejected = source.Rejected,
-        PersonCount = source.PersonCount,
-        CollectionCount = source.CollectionCount,
-        TriggerCounts = new Dictionary<string, int>(source.TriggerCounts),
     };
 
     public static LibraryItemHistoryDto ToContract(this LibraryItemHistoryEntry source) => new()

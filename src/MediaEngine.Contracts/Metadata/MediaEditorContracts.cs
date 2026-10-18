@@ -34,6 +34,14 @@ public sealed class MediaEditorContextDto
     [JsonPropertyName("identity_summary")]
     public MediaEditorIdentitySummaryDto? IdentitySummary { get; set; }
 
+    /// <summary>Canonical identity status of the launch item (for example "WikidataLinked"); null when the item has no library detail.</summary>
+    [JsonPropertyName("identity_status")]
+    public string? IdentityStatus { get; set; }
+
+    /// <summary>Where the launch item's artwork came from ("User", "Provider" or "Generated"); null when the item has no library detail.</summary>
+    [JsonPropertyName("artwork_source")]
+    public string? ArtworkSource { get; set; }
+
     [JsonPropertyName("field_lock_map")]
     public Dictionary<string, bool> FieldLockMap { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 

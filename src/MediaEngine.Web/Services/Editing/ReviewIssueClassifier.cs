@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -14,23 +15,20 @@ public sealed record ReviewIssuePresentation(
     ReviewIssueBucket Bucket,
     string Label,
     string Explanation,
-    bool HighPriority);
+    bool HighPriority,
+    string? Category = null);
 
 public static class ReviewIssueClassifier
 {
-    public const string CategoryAll = "all";
-    public const string CategoryQuickFix = "quick";
-    public const string CategoryManualReview = "manual";
-    public const string CategoryNoProviderMatch = "no-provider-match";
-    public const string CategoryIncompleteMetadata = "incomplete-metadata";
-    public const string CategoryDuplicates = "duplicates";
+    /// <summary>The label, bucket and explanation for a review trigger, plus its shared <see cref="ReviewCategory"/> key.</summary>
+    public static ReviewIssuePresentation Classify(string? trigger) =>
+        Describe(trigger) with { Category = ReviewCategory.For(trigger) };
 
-    public static ReviewIssuePresentation Classify(string? trigger)
+    private static ReviewIssuePresentation Describe(string? trigger)
     {
         var rootCause = ReviewRootCauseExtensions.FromTrigger(trigger);
         return trigger switch
         {
-            "ArtworkUnconfirmed" => new(ReviewIssueBucket.QuickFix, "Confirm artwork", "The artwork came from a less precise search and needs confirmation.", false),
             "MissingQid" or "WikidataBridgeFailed" => new(ReviewIssueBucket.QuickFix, "No canonical identity found", "The retail match is retained, but no Wikidata identity could be confirmed.", false),
             "WritebackFailed" => new(ReviewIssueBucket.HighPriority, "File write-back failed", "Metadata could not be written to the physical file after retrying.", true),
             "StagedUnidentifiable" => new(ReviewIssueBucket.HighPriority, "Item could not be identified", "The file is blocked in staging because there is not enough reliable identity evidence.", true),
@@ -48,23 +46,4 @@ public static class ReviewIssueClassifier
             _ => new(ReviewIssueBucket.ManualReview, "Manual review needed", "The ingestion pipeline could not safely make this decision automatically.", false),
         };
     }
-
-    public static string CategoryFor(string? trigger) => trigger switch
-    {
-        "RetailMatchFailed" => CategoryNoProviderMatch,
-        "PlaceholderTitle" or "StagedUnidentifiable" => CategoryIncompleteMetadata,
-        _ when trigger?.Contains("Duplicate", StringComparison.OrdinalIgnoreCase) == true => CategoryDuplicates,
-        _ => Classify(trigger).Bucket == ReviewIssueBucket.QuickFix ? CategoryQuickFix : CategoryManualReview,
-    };
-
-    public static bool MatchesCategory(string? trigger, string category) => category switch
-    {
-        CategoryAll => true,
-        CategoryQuickFix => Classify(trigger).Bucket == ReviewIssueBucket.QuickFix,
-        CategoryManualReview => Classify(trigger).Bucket is ReviewIssueBucket.ManualReview or ReviewIssueBucket.HighPriority,
-        CategoryNoProviderMatch => CategoryFor(trigger) == CategoryNoProviderMatch,
-        CategoryIncompleteMetadata => CategoryFor(trigger) == CategoryIncompleteMetadata,
-        CategoryDuplicates => CategoryFor(trigger) == CategoryDuplicates,
-        _ => true,
-    };
 }

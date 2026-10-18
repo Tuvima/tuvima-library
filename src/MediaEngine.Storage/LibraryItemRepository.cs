@@ -79,11 +79,6 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             conditions.Add("fd.has_duplicate = 1");
         }
 
-        if (query.MissingUniverseOnly)
-        {
-            conditions.Add("(fd.wikidata_status IN ('missing', 'manual') OR fd.status = 'QidNoMatch')");
-        }
-
         if (query.MaxDays.HasValue)
         {
             conditions.Add($"fd.created_at >= datetime('now', '-{query.MaxDays.Value} days')");
@@ -734,37 +729,6 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         return Task.FromResult<LibraryItemDetail?>(detail);
     }
 
-    public Task<LibraryItemStatusCounts> GetStatusCountsAsync(CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-        var row = conn.QueryFirst<StatusCountsRow>(BuildProjectionSql() + """
-            SELECT
-                COUNT(*) AS Total,
-                SUM(CASE WHEN fd.status = 'InReview' OR fd.library_visibility = 'review_only' THEN 1 ELSE 0 END) AS NeedsReview,
-                SUM(CASE WHEN fd.status IN ('Identified', 'Confirmed', 'RetailMatched', 'QidNoMatch', 'Edited') AND fd.library_visibility = 'visible' THEN 1 ELSE 0 END) AS AutoApproved,
-                SUM(CASE WHEN fd.status = 'Edited' THEN 1 ELSE 0 END) AS Edited,
-                SUM(CASE WHEN fd.has_duplicate = 1 THEN 1 ELSE 0 END) AS Duplicate,
-                SUM(CASE WHEN fd.library_visibility = 'hidden' THEN 1 ELSE 0 END) AS Staging,
-                SUM(CASE WHEN fd.artwork_state != 'present' THEN 1 ELSE 0 END) AS MissingImages,
-                SUM(CASE WHEN fd.artwork_settled_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) AS RecentlyUpdated,
-                SUM(CASE WHEN fd.confidence BETWEEN 0.40 AND 0.85 AND fd.library_visibility != 'review_only' THEN 1 ELSE 0 END) AS LowConfidence,
-                SUM(CASE WHEN fd.status = 'Rejected' THEN 1 ELSE 0 END) AS Rejected
-            FROM full_data fd;
-            """);
-
-        return Task.FromResult(new LibraryItemStatusCounts(
-            row.Total,
-            row.NeedsReview,
-            row.AutoApproved,
-            row.Edited,
-            row.Duplicate,
-            row.Staging,
-            row.MissingImages,
-            row.RecentlyUpdated,
-            row.LowConfidence,
-            row.Rejected));
-    }
-
     public Task<LibraryItemProjectionSummary> GetProjectionSummaryAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
@@ -889,20 +853,6 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
 
         return Task.FromResult(new LibraryItemLifecycleCounts(
             identified, inReview, provisional, rejected, personCount, collectionCount, triggerCounts));
-    }
-
-    public Task<Dictionary<string, int>> GetMediaTypeCountsAsync(CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<(string MediaType, int Count)>(BuildProjectionSql() + """
-            SELECT fd.media_type AS MediaType, COUNT(*) AS Count
-            FROM full_data fd
-            WHERE fd.media_type IS NOT NULL AND fd.media_type != ''
-              AND fd.status NOT IN ('Rejected', 'Provisional', 'InReview')
-              AND fd.library_visibility = 'visible'
-            GROUP BY fd.media_type;
-            """);
-        return Task.FromResult(rows.ToDictionary(r => r.MediaType, r => r.Count));
     }
 
     public Task<Dictionary<string, int>> GetOwnedMediaTypeCountsAsync(CancellationToken ct = default)
@@ -2043,20 +1993,6 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         public string? ArtworkSource { get; set; }
         public string? ArtworkSettledAt { get; set; }
         public string? QidResolutionMethod { get; set; }
-    }
-
-    private sealed class StatusCountsRow
-    {
-        public int Total { get; set; }
-        public int NeedsReview { get; set; }
-        public int AutoApproved { get; set; }
-        public int Edited { get; set; }
-        public int Duplicate { get; set; }
-        public int Staging { get; set; }
-        public int MissingImages { get; set; }
-        public int RecentlyUpdated { get; set; }
-        public int LowConfidence { get; set; }
-        public int Rejected { get; set; }
     }
 
     private sealed class ProjectionSummaryRow

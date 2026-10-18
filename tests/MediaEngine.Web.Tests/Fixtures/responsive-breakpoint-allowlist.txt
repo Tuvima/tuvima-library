@@ -145,10 +145,6 @@ src/MediaEngine.Web/Components/Settings/ProfileDetailPage.razor.css:641px
 src/MediaEngine.Web/Components/Settings/ProfilesTab.razor.css:1600px
 src/MediaEngine.Web/Components/Settings/ProfilesTab.razor.css:641px
 src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css:560px
-src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css:1450px
-src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css:34px
-src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css:480px
-src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor.css:900px
 src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor.css:700px
 src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css:1200px
 src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor.css:700px

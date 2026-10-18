@@ -814,8 +814,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new PersonCreditReadService(
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
-                _database),
-            new DetailRecommendationService(_database));
+                _database));
 
         var detail = await composer.BuildAuthorizedAsync(
             MediaEngine.Contracts.Details.DetailEntityType.Book,
@@ -1197,7 +1196,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task UniverseDetailFiltersCharactersByVisibleWorkProvenance()
+    public async Task UniverseDetailListsOnlyVisibleItemsAndOffersOnlyOverviewAndDetails()
     {
         var collectionId = Guid.NewGuid();
         var visibleCharacter = Guid.NewGuid();
@@ -1251,9 +1250,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             ]);
 
         Assert.NotNull(detail);
-        var character = Assert.Single(detail!.CharacterGroups.SelectMany(group => group.Characters));
-        Assert.Equal(visibleCharacter.ToString("D"), character.EntityId);
-        Assert.DoesNotContain(detail.PreviewCharacters, item => item.EntityId == hiddenCharacter.ToString("D"));
+        Assert.Equal(["overview", "details"], detail!.Tabs.Select(tab => tab.Key));
+        Assert.Empty(detail.ContributorGroups);
+        var items = detail.MediaGroups.SelectMany(group => group.Items).ToList();
+        Assert.Contains(items, item => item.Title == "Visible universe work");
+        Assert.DoesNotContain(items, item => item.Title == "Hidden universe work");
     }
 
     private DetailComposerService CreateComposer() =>
@@ -1267,8 +1268,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new PersonCreditReadService(
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
-                _database),
-            new DetailRecommendationService(_database));
+                _database));
 
     private DetailComposerService CreateCollectionComposer()
     {
@@ -1293,7 +1293,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
                 _database),
-            new DetailRecommendationService(_database),
             collectionCatalog: collectionCatalog,
             profiles: new ProfileRepository(_database));
     }

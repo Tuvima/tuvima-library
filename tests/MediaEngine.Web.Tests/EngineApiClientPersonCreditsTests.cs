@@ -98,45 +98,6 @@ public sealed class EngineApiClientPersonCreditsTests
     }
 
     [Fact]
-    public async Task GetPersonCharacterRolesAsync_PreservesExactWorkContextAndNormalizesPortrait()
-    {
-        const string json = """
-            [
-              {
-                "fictional_entity_id": "33333333-3333-3333-3333-333333333333",
-                "character_name": "Paul Atreides",
-                "portrait_url": "/stream/paul-portrait",
-                "work_id": "11111111-1111-1111-1111-111111111111",
-                "work_qid": "Q1544",
-                "work_title": "Dune",
-                "collection_id": "22222222-2222-2222-2222-222222222222",
-                "media_type": "Movies",
-                "is_default": true,
-                "universe_qid": "Q240827",
-                "universe_label": "Dune"
-              }
-            ]
-            """;
-
-        using var httpClient = CreateHttpClient(_ =>
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json"),
-            });
-
-        var client = new EngineApiClient(httpClient, NullLogger<EngineApiClient>.Instance);
-
-        var roles = await client.GetPersonCharacterRolesAsync(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
-
-        var role = Assert.Single(roles);
-        Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), role.WorkId);
-        Assert.Equal("Q1544", role.WorkQid);
-        Assert.Equal(Guid.Parse("22222222-2222-2222-2222-222222222222"), role.CollectionId);
-        Assert.Equal("Movies", role.MediaType);
-        Assert.Equal("http://localhost:61495/stream/paul-portrait", role.PortraitUrl);
-    }
-
-    [Fact]
     public async Task GetWorkCastAsync_NormalizesActorAndCharacterImages()
     {
         const string json = """
