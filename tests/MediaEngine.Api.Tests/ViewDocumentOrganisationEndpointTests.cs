@@ -1153,6 +1153,58 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task APairedAppWithThePhotoScopesCannotFavouriteHideArchiveTrashOrRestoreTheOwnersPhoto()
+    {
+        var owner = await CreatePerson("StandardUser");
+        var photo = await AddItem(owner, '7', LocalAssetMediaKinds.Image, "Beach");
+        // The owner's own phone: same account and profile, signed in as a paired app. The evaluator allows every
+        // permission, as if the device holds view.personal.read and the other photo scopes.
+        _actor.Current = new RequestAuthority(
+            PrincipalKind.DelegatedUserClient, true, AccountId: owner.Authority.AccountId,
+            ActiveProfileId: owner.ProfileId, ApplicationId: Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+
+        var refused = new (HttpMethod Method, string Route, HttpContent? Body)[]
+        {
+            (HttpMethod.Put, $"/view/items/{photo:D}/favorite", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Put, $"/view/items/{photo:D}/hidden", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Post, $"/view/items/{photo:D}/archive", null),
+            (HttpMethod.Post, $"/view/items/{photo:D}/trash", null),
+            (HttpMethod.Post, $"/view/items/{photo:D}/restore", null),
+        };
+        foreach (var (method, route, content) in refused)
+        {
+            using var request = new HttpRequestMessage(method, route) { Content = content };
+            using var response = await _client.SendAsync(request);
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+        }
+
+        var unchanged = _assets.Find(photo)!;
+        Assert.False(unchanged.Favorite);
+        Assert.False(unchanged.Hidden);
+        Assert.Null(unchanged.ArchivedAt);
+        Assert.Null(unchanged.TrashedAt);
+
+        // The owner signed in to the Dashboard still does all of it.
+        _actor.Current = owner.Authority;
+        using var favourite = await _client.PutAsJsonAsync($"/view/items/{photo:D}/favorite", new SetLocalAssetFlagRequest(true));
+        Assert.Equal(HttpStatusCode.NoContent, favourite.StatusCode);
+        using var hidden = await _client.PutAsJsonAsync($"/view/items/{photo:D}/hidden", new SetLocalAssetFlagRequest(true));
+        Assert.Equal(HttpStatusCode.NoContent, hidden.StatusCode);
+        using var archive = await _client.PostAsync($"/view/items/{photo:D}/archive", null);
+        Assert.Equal(HttpStatusCode.NoContent, archive.StatusCode);
+        using var trash = await _client.PostAsync($"/view/items/{photo:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, trash.StatusCode);
+        Assert.NotNull(_assets.Find(photo)!.TrashedAt);
+        using var restore = await _client.PostAsync($"/view/items/{photo:D}/restore", null);
+        Assert.Equal(HttpStatusCode.NoContent, restore.StatusCode);
+        var changed = _assets.Find(photo)!;
+        Assert.True(changed.Favorite);
+        Assert.True(changed.Hidden);
+        Assert.Null(changed.TrashedAt);
+    }
+
+    [Fact]
     public async Task TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments()
     {
         var household = Guid.NewGuid();
