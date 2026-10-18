@@ -3,7 +3,6 @@ using Bunit;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Library;
 using MediaEngine.Web.Components.Pages;
-using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -16,7 +15,7 @@ namespace MediaEngine.Web.Tests;
 
 /// <summary>
 /// "Found as a TV title": a Movies item that TMDB lists as a short TV series shows a suggestion card in the
-/// Review Queue with Move to TV, Search again and Keep as unmatched film.
+/// Needs Review list with Move to TV, Search again and Keep as unmatched film.
 /// </summary>
 public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
 {
@@ -67,50 +66,6 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
 
         cut.Render(p => p.Add(c => c.Busy, true));
         Assert.All(cut.FindAll(".movie-as-tv-card__actions button"), button => Assert.True(button.HasAttribute("disabled")));
-    }
-
-    [Fact]
-    public void ReviewQueueRow_ForTheTrigger_ShowsTheCardInsteadOfTheReviewButton_AndMoveToTvResolvesTheRow()
-    {
-        var moved = new List<Guid>();
-        var api = EngineApiClientStub.Create(stub =>
-        {
-            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAsync), _ =>
-                Task.FromResult(new List<ReviewItemViewModel> { Item() }));
-            stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
-            {
-                moved.Add((Guid)args![0]!);
-                return Task.FromResult<ReviewMoveToTvResponse?>(
-                    new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library"));
-            });
-        });
-        Services.AddSingleton(api);
-        Services.AddSingleton(provider => new UIOrchestratorService(
-            api,
-            new UniverseStateContainer(),
-            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
-            new ConfigurationBuilder().Build(),
-            NullLogger<UIOrchestratorService>.Instance));
-        Services.AddScoped<MediaEditorLauncherService>();
-        JSInterop.Mode = JSRuntimeMode.Loose;
-
-        var cut = Render<SettingsReviewQueueTab>();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Contains("Found as a TV title", cut.Markup, StringComparison.Ordinal);
-            Assert.NotEmpty(cut.FindAll(".movie-as-tv-card"));
-        });
-        // The suggestion card replaces the generic Review button for this reason.
-        Assert.DoesNotContain(cut.FindAll(".settings-review-row__actions button"), b => b.TextContent.Trim() == "Review");
-
-        cut.FindAll(".movie-as-tv-card__actions button")[0].Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal([ReviewId], moved);
-            Assert.Empty(cut.FindAll(".movie-as-tv-card"));
-        });
     }
 
     private void RegisterReviewServices(List<ReviewItemViewModel> reviews, List<Guid>? moved = null, List<Guid>? dismissed = null)

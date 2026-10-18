@@ -7066,25 +7066,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.WikidataMetadataHa
   ProviderName: System.String | nullability=not-null | accessors=get,init
   UpdatedFields: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.ReportEntryResponse
-  Id: System.Int64 | nullability=not-null | accessors=get,set
-  OccurredAt: System.String | nullability=not-null | accessors=get,set
-  Category: System.String | nullability=not-null | accessors=get,set
-  Note: System.String | nullability=not-null | accessors=get,set
-  ReporterName: System.String | nullability=not-null | accessors=get,set
-  Detail: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.SubmitReportRequest
-  EntityId: System.Guid | nullability=not-null | accessors=get,set
-  ItemTitle: System.String | nullability=nullable | accessors=get,set
-  Category: System.String | nullability=nullable | accessors=get,set
-  Note: System.String | nullability=nullable | accessors=get,set
-  ReporterName: System.String | nullability=nullable | accessors=get,set
-
-MediaEngine.Contracts.Reports.MediaEngine.Contracts.Reports.SubmitReportResponse
-  Success: System.Boolean | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=not-null | accessors=get,set
-
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.FieldOverrideDto
   Key: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=not-null | accessors=get,init

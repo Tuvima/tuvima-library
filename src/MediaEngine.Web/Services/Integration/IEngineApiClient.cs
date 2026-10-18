@@ -3,7 +3,6 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -164,18 +163,6 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);
-
-    /// <summary>Submit a problem report on a media item.</summary>
-    Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default);
-
-    /// <summary>Get all problem reports for a specific entity.</summary>
-    Task<List<ReportEntryResponse>> GetReportsForEntityAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>Resolve a problem report.</summary>
-    Task<bool> ResolveReportAsync(long activityId, CancellationToken ct = default);
-
-    /// <summary>Dismiss a problem report.</summary>
-    Task<bool> DismissReportAsync(long activityId, CancellationToken ct = default);
 
     // ── Universe Alignment ──
 

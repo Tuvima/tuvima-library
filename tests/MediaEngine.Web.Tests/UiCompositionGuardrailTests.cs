@@ -15,14 +15,12 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
         "src/MediaEngine.Web/Components/Pages/Settings.razor",
         "src/MediaEngine.Web/Components/Settings/OverviewTab.razor",
-        "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor",
         "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor",
         "src/MediaEngine.Web/Components/Pages/Collections.razor",
         "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor",
         "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor",
         "src/MediaEngine.Web/Components/Library/StatusPill.razor",
         "src/MediaEngine.Web/Components/Details/DetailPage.razor",
-        "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor",
         "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor",
     ];
 
@@ -198,7 +196,7 @@ public sealed class UiCompositionGuardrailTests
     public void SharedMediaEditorLauncher_RemainsCanonicalEditingPath()
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "SettingsReviewQueueTab.razor"));
+        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "RecentlyAddedPageContent.razor"));
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
         Assert.Contains("MediaEditorLauncher.OpenAsync", detailPage);
@@ -214,12 +212,12 @@ public sealed class UiCompositionGuardrailTests
     public void InlineEditingSurfaces_RefreshOnlyAfterSuccessfulEditorResult()
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "SettingsReviewQueueTab.razor"));
+        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "RecentlyAddedPageContent.razor"));
         var listenPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
 
         Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);
-        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadAsync", reviewTab);
+        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadReviewsAsync", reviewTab);
         Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadAsync", listenPage);
     }
 
@@ -231,7 +229,6 @@ public sealed class UiCompositionGuardrailTests
         Assert.Contains("request.EntityIds.Count == 0", launcher);
         Assert.Contains("return false", launcher);
         Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher);
-        Assert.DoesNotContain("SharedMediaBatchConfirmDialog", launcher);
     }
 
     private static string Sanitize(string contents)

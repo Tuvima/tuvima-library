@@ -3,7 +3,6 @@ using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Development;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Progress;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Timeline;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
@@ -13,48 +12,6 @@ namespace MediaEngine.Contracts.Tests;
 
 public sealed class ResidualBoundaryContractTests
 {
-    [Fact]
-    public void ReportContracts_PreserveSnakeCaseShapeDefaultsAndMutability()
-    {
-        var request = new SubmitReportRequest
-        {
-            EntityId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            ItemTitle = "Dune",
-            Category = "Metadata",
-            Note = "Wrong year",
-            ReporterName = "StandardUser",
-        };
-        var response = new SubmitReportResponse { Success = true };
-        var entry = new ReportEntryResponse
-        {
-            Id = 42,
-            OccurredAt = "2026-07-26T12:00:00.0000000Z",
-            Category = "Metadata",
-            Note = "Wrong year",
-            ReporterName = "StandardUser",
-            Detail = "Submitted",
-        };
-
-        Assert.Equal("", new SubmitReportResponse().Message);
-        Assert.Equal("", new ReportEntryResponse().OccurredAt);
-        AssertJsonProperties(
-            request,
-            "entity_id",
-            "item_title",
-            "category",
-            "note",
-            "reporter_name");
-        AssertJsonProperties(response, "success", "message");
-        AssertJsonProperties(
-            entry,
-            "id",
-            "occurred_at",
-            "category",
-            "note",
-            "reporter_name",
-            "detail");
-    }
-
     [Fact]
     public void DebugContracts_RoundTripTheCompleteEnrichmentGraph()
     {
@@ -130,7 +87,6 @@ public sealed class ResidualBoundaryContractTests
     public void ApiAndDashboardBoundaries_UseContractsAndExplicitMappings()
     {
         var root = FindRepoRoot();
-        var reportEndpoint = Read(root, "src", "MediaEngine.Api", "Endpoints", "ReportEndpoints.cs");
         var debugEndpoint = Read(root, "src", "MediaEngine.Api", "Endpoints", "DebugEndpoints.cs");
         var canonEndpoint = Read(root, "src", "MediaEngine.Api", "Endpoints", "CanonEndpoints.cs");
         var timelineEndpoint = Read(root, "src", "MediaEngine.Api", "Endpoints", "TimelineEndpoints.cs");
@@ -140,8 +96,6 @@ public sealed class ResidualBoundaryContractTests
         var debugTool = Read(root, "src", "MediaEngine.Web", "Components", "Settings", "EnrichmentTesterToolTab.razor");
         var devSeed = Read(root, "src", "MediaEngine.Api", "DevSupport", "DevSeedEndpoints.cs");
 
-        Assert.Contains("using MediaEngine.Contracts.Reports;", reportEndpoint, StringComparison.Ordinal);
-        Assert.DoesNotContain("public sealed class SubmitReport", reportEndpoint, StringComparison.Ordinal);
         Assert.Contains("using MediaEngine.Contracts.Development;", debugEndpoint, StringComparison.Ordinal);
         Assert.False(File.Exists(Path.Combine(root, "src", "MediaEngine.Api", "Models", "DebugLookupRequest.cs")));
         Assert.False(File.Exists(Path.Combine(root, "src", "MediaEngine.Api", "Models", "DebugLookupResponse.cs")));
@@ -157,8 +111,6 @@ public sealed class ResidualBoundaryContractTests
 
         Assert.Contains("GetFromJsonAsync<List<JourneyItemDto>>", client, StringComparison.Ordinal);
         Assert.DoesNotContain("JourneyItemRaw", clientPartials, StringComparison.Ordinal);
-        Assert.Contains("ReadFromJsonAsync<SubmitReportResponse>", client, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReportEntryDto", client, StringComparison.Ordinal);
         Assert.Contains("@using MediaEngine.Contracts.Development", debugTool, StringComparison.Ordinal);
         Assert.DoesNotContain("private sealed record Debug", debugTool, StringComparison.Ordinal);
         Assert.Contains("MapResetResult(resetResult)", devSeed, StringComparison.Ordinal);

@@ -680,17 +680,6 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 
 ---
 
-## Reports
-
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| POST | `/reports` | Submit a metadata quality report for an entity | Required |
-| GET | `/reports/entity/{id}` | All reports for a specific entity | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/resolve` | Mark a report as resolved | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/dismiss` | Dismiss a report | Effective administrator or precise Application permission |
-
----
-
 ## Library Character and Asset Data
 
 | Method | Path | Description | Auth |

@@ -8,7 +8,6 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Realtime;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -1485,18 +1484,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<bool> ApplyCoverFromUrlAsync(
         Guid entityId, string imageUrl, CancellationToken ct = default)
         => _api.ApplyCoverFromUrlAsync(entityId, imageUrl, ct);
-
-    public Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default)
-        => _api.SubmitReportAsync(request, ct);
-
-    public Task<List<ReportEntryResponse>> GetReportsForEntityAsync(Guid entityId, CancellationToken ct = default)
-        => _api.GetReportsForEntityAsync(entityId, ct);
-
-    public Task<bool> ResolveReportAsync(long activityId, CancellationToken ct = default)
-        => _api.ResolveReportAsync(activityId, ct);
-
-    public Task<bool> DismissReportAsync(long activityId, CancellationToken ct = default)
-        => _api.DismissReportAsync(activityId, ct);
 
     // -- AI Hardware Profile ---------------------------------------------------
 
