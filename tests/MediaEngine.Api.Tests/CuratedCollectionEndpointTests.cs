@@ -103,6 +103,21 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task TakingOutTheLastWorkItem_IsAllowedWhenAPersonalMediaSourceRemains()
+    {
+        var collection = SeedCollection("Film and photos", "Custom", SeedWork("Arrival"));
+        SeedViewSource(collection);
+        var itemId = ItemIds(collection).Single();
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.DeleteAsync($"/collections/{collection:D}/items/{itemId:D}");
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal(0, Count("SELECT COUNT(*) FROM collection_items WHERE collection_id = @collection", new { collection }));
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM collections WHERE id = @collection", new { collection }));
+    }
+
+    [Fact]
     public async Task TakingOutAnItemWhileOthersRemain_Works()
     {
         var collection = SeedCollection("Two films", "Custom", SeedWork("Arrival"), SeedWork("Dune"));
@@ -133,18 +148,7 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
     {
         SeedWork("Arrival");
         var ruleDriven = SeedCollection("Every movie", "Custom", resolution: "query", membership: "Smart");
-        using (var connection = _database.CreateConnection())
-        {
-            // The rule matches the movie above, so the caller is allowed to see (and edit) the collection.
-            connection.Execute(
-                "UPDATE collections SET rule_json = @ruleJson WHERE id = @ruleDriven;",
-                new
-                {
-                    ruleDriven,
-                    ruleJson = System.Text.Json.JsonSerializer.Serialize(CollectionRuleDefinition.SingleGroup(
-                        [new CollectionRulePredicate { Field = "media_type", Op = "eq", Value = "Movies" }])),
-                });
-        }
+        SetMovieRule(ruleDriven);
 
         await using var app = await StartAsync();
 
@@ -157,6 +161,66 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
         await AssertStatusAsync(HttpStatusCode.Conflict, response);
         Assert.Contains("A collection needs at least one item.", await response.Content.ReadAsStringAsync());
         Assert.Equal("query", Scalar<string>("SELECT resolution FROM collections WHERE id = @ruleDriven", new { ruleDriven }));
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManualMembership_SavesTheStagedItemsInTheSameCall()
+    {
+        var arrival = SeedWork("Arrival");
+        var dune = SeedWork("Dune");
+        var ruleDriven = SeedCollection("Every movie", "Custom", resolution: "query", membership: "Smart");
+        SetMovieRule(ruleDriven);
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PutAsJsonAsync($"/collections/{ruleDriven:D}", new CollectionUpdateRequest
+        {
+            MembershipMode = "Manual",
+            RuleDefinition = new CollectionRuleDefinitionDto(),
+            WorkIds = [arrival, dune],
+        });
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal("materialized", Scalar<string>("SELECT resolution FROM collections WHERE id = @ruleDriven", new { ruleDriven }));
+        Assert.Equal("Manual", Scalar<string>("SELECT membership_mode FROM collections WHERE id = @ruleDriven", new { ruleDriven }));
+        Assert.Equal(2, Count("SELECT COUNT(*) FROM collection_items WHERE collection_id = @ruleDriven", new { ruleDriven }));
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManualMembership_IsAllowedWhenAPersonalMediaSourceIsAttached()
+    {
+        SeedWork("Arrival");
+        var ruleDriven = SeedCollection("Every movie", "Custom", resolution: "query", membership: "Smart");
+        SetMovieRule(ruleDriven);
+        SeedViewSource(ruleDriven);
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PutAsJsonAsync($"/collections/{ruleDriven:D}", new CollectionUpdateRequest
+        {
+            MembershipMode = "Manual",
+            RuleDefinition = new CollectionRuleDefinitionDto(),
+        });
+
+        await AssertStatusAsync(HttpStatusCode.OK, response);
+        Assert.Equal("materialized", Scalar<string>("SELECT resolution FROM collections WHERE id = @ruleDriven", new { ruleDriven }));
+    }
+
+    [Fact]
+    public async Task StagedItemsSentToACollectionThatStaysRuleDriven_AreRefusedAndNothingIsSaved()
+    {
+        var arrival = SeedWork("Arrival");
+        var ruleDriven = SeedCollection("Every movie", "Custom", resolution: "query", membership: "Smart");
+        SetMovieRule(ruleDriven);
+        await using var app = await StartAsync();
+
+        using var response = await app.Client.PutAsJsonAsync($"/collections/{ruleDriven:D}", new CollectionUpdateRequest
+        {
+            Name = "Renamed",
+            WorkIds = [arrival],
+        });
+
+        await AssertStatusAsync(HttpStatusCode.BadRequest, response);
+        Assert.Equal(0, Count("SELECT COUNT(*) FROM collection_items WHERE collection_id = @ruleDriven", new { ruleDriven }));
+        Assert.Equal("Every movie", Scalar<string>("SELECT display_name FROM collections WHERE id = @ruleDriven", new { ruleDriven }));
     }
 
     [Fact]
@@ -237,6 +301,33 @@ public sealed class CuratedCollectionEndpointTests : IDisposable
         }
 
         return collection;
+    }
+
+    /// <summary>The rule matches the seeded movies, so the caller is allowed to see (and edit) the collection.</summary>
+    private void SetMovieRule(Guid collection)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE collections SET rule_json = @ruleJson WHERE id = @collection;",
+            new
+            {
+                collection,
+                ruleJson = System.Text.Json.JsonSerializer.Serialize(CollectionRuleDefinition.SingleGroup(
+                    [new CollectionRulePredicate { Field = "media_type", Op = "eq", Value = "Movies" }])),
+            });
+    }
+
+    private void SeedViewSource(Guid collection)
+    {
+        var profile = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO profiles (id, display_name, avatar_color, role, created_at)
+            VALUES (@profile, 'Owner', '#7C4DFF', 'StandardUser', CURRENT_TIMESTAMP);
+            INSERT INTO collection_view_sources
+                (id, collection_id, owner_profile_id, source_kind, rule_version, rule_json, position, created_at, updated_at)
+            VALUES (@id, @collection, @profile, 'smart_rule', 1, '{}', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+            """, new { id = Guid.NewGuid(), collection, profile });
     }
 
     private List<Guid> ItemIds(Guid collection)

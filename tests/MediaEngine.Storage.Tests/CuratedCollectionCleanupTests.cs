@@ -1,5 +1,8 @@
 using Dapper;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -106,6 +109,164 @@ public sealed class CuratedCollectionCleanupTests : IDisposable
             "SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @emptyId", new { emptyId }));
         Assert.Equal(1, verify.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM profile_saved_items WHERE entity_id = @kept", new { kept }));
+    }
+
+    [Fact]
+    public async Task ACuratedCollectionWithOneWorkAndOneViewSource_SurvivesTheWorksRemoval()
+    {
+        var leaving = SeedWorkWithoutEdition("Leaving");
+        var withSource = SeedCollection("Film and photos", "Custom", "materialized", "Manual", leaving);
+        SeedViewSource(withSource);
+        var withoutSource = SeedCollection("Film only", "Custom", "materialized", "Manual", leaving);
+
+        await new CollectionRepository(_db).PruneOrphanedHierarchyAsync();
+
+        Assert.True(CollectionExists(withSource));
+        Assert.Equal(0, ItemCount(withSource));
+        Assert.False(CollectionExists(withoutSource));
+        Assert.Equal("Film only", Assert.Single(await new SystemActivityRepository(_db).GetRecentAsync()).CollectionName);
+    }
+
+    [Fact]
+    public async Task ACuratedCollectionHoldingOnlyAViewSource_IsNotRemovedByTheCleanup()
+    {
+        var onlySource = SeedCollection("Photos", "Custom", "materialized", "Manual");
+        SeedViewSource(onlySource);
+
+        var removed = await new CollectionRepository(_db).DeleteEmptyCuratedCollectionsAsync();
+
+        Assert.Empty(removed);
+        Assert.True(CollectionExists(onlySource));
+    }
+
+    [Fact]
+    public async Task RemovingTheLastWorkItemOfACuratedCollection_IsRefusedAndTheItemStays()
+    {
+        var work = SeedWork("Only").WorkId;
+        var collectionId = SeedCollection("Just one", "Custom", "materialized", "Manual", work);
+        var itemId = ItemIds(collectionId).Single();
+
+        var removed = await new CollectionRepository(_db).RemoveCollectionItemUnlessLastMemberAsync(collectionId, itemId);
+
+        Assert.False(removed);
+        Assert.Equal(1, ItemCount(collectionId));
+    }
+
+    [Fact]
+    public async Task RemovingTheLastWorkItemOfACuratedCollection_IsAllowedWhenAViewSourceRemains()
+    {
+        var work = SeedWork("Only").WorkId;
+        var collectionId = SeedCollection("Film and photos", "Custom", "materialized", "Manual", work);
+        SeedViewSource(collectionId);
+        var itemId = ItemIds(collectionId).Single();
+
+        var removed = await new CollectionRepository(_db).RemoveCollectionItemUnlessLastMemberAsync(collectionId, itemId);
+
+        Assert.True(removed);
+        Assert.Equal(0, ItemCount(collectionId));
+        Assert.Empty(await new CollectionRepository(_db).DeleteEmptyCuratedCollectionsAsync());
+        Assert.True(CollectionExists(collectionId));
+    }
+
+    [Fact]
+    public async Task RemovingOneOfTwoWorkItems_LeavesTheOtherAndSucceeds()
+    {
+        var collectionId = SeedCollection("Two", "Custom", "materialized", "Manual", SeedWork("A").WorkId, SeedWork("B").WorkId);
+        var repository = new CollectionRepository(_db);
+        var items = ItemIds(collectionId);
+
+        Assert.True(await repository.RemoveCollectionItemUnlessLastMemberAsync(collectionId, items[0]));
+        Assert.False(await repository.RemoveCollectionItemUnlessLastMemberAsync(collectionId, items[1]));
+
+        Assert.Equal([items[1]], ItemIds(collectionId));
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManual_SavesTheStagedItemsInTheSameWrite()
+    {
+        var first = SeedWork("First").WorkId;
+        var second = SeedWork("Second").WorkId;
+        var collectionId = SeedCollection("Everything new", "Custom", "query", "Smart");
+        var repository = new CollectionRepository(_db);
+        var collection = (await repository.GetByIdAsync(collectionId))!;
+        collection.ChangeResolution(CollectionResolution.Materialized);
+        collection.MembershipMode = ContainerMembershipMode.Manual;
+
+        var saved = await repository.UpdateManagedCollectionAsync(
+            collection,
+            [NewItem(collectionId, first), NewItem(collectionId, second), NewItem(collectionId, first)],
+            requireMember: true);
+
+        Assert.True(saved);
+        var stored = (await repository.GetByIdAsync(collectionId))!;
+        Assert.Equal(ContainerMembershipMode.Manual, stored.MembershipMode);
+        Assert.Equal(CollectionResolution.Materialized, stored.Resolution);
+        using var verify = _db.CreateConnection();
+        Assert.Equal(
+            [first, second],
+            verify.Query<Guid>(
+                "SELECT work_id FROM collection_items WHERE collection_id = @collectionId ORDER BY sort_order",
+                new { collectionId }).ToList());
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManualWithNothingInIt_WritesNothingAndIsRefused()
+    {
+        var collectionId = SeedCollection("Everything new", "Custom", "query", "Smart");
+        var repository = new CollectionRepository(_db);
+        var collection = (await repository.GetByIdAsync(collectionId))!;
+        collection.ChangeResolution(CollectionResolution.Materialized);
+        collection.MembershipMode = ContainerMembershipMode.Manual;
+
+        var saved = await repository.UpdateManagedCollectionAsync(collection, [], requireMember: true);
+
+        Assert.False(saved);
+        var stored = (await repository.GetByIdAsync(collectionId))!;
+        Assert.Equal(ContainerMembershipMode.Smart, stored.MembershipMode);
+        Assert.Equal(CollectionResolution.Query, stored.Resolution);
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManual_IsAllowedWhenAViewSourceIsAttached()
+    {
+        var collectionId = SeedCollection("Everything new", "Custom", "query", "Smart");
+        SeedViewSource(collectionId);
+        var repository = new CollectionRepository(_db);
+        var collection = (await repository.GetByIdAsync(collectionId))!;
+        collection.ChangeResolution(CollectionResolution.Materialized);
+        collection.MembershipMode = ContainerMembershipMode.Manual;
+
+        Assert.True(await repository.UpdateManagedCollectionAsync(collection, [], requireMember: true));
+        Assert.Equal(ContainerMembershipMode.Manual, (await repository.GetByIdAsync(collectionId))!.MembershipMode);
+    }
+
+    private static CollectionItem NewItem(Guid collectionId, Guid workId) => new()
+    {
+        Id = Guid.NewGuid(),
+        CollectionId = collectionId,
+        WorkId = workId,
+        AddedAt = DateTimeOffset.UtcNow,
+    };
+
+    private void SeedViewSource(Guid collectionId)
+    {
+        var profileId = Guid.NewGuid();
+        using var connection = _db.CreateConnection();
+        connection.Execute("""
+            INSERT INTO profiles (id, display_name, avatar_color, role, created_at)
+            VALUES (@profileId, 'Owner', '#7C4DFF', 'StandardUser', CURRENT_TIMESTAMP);
+            INSERT INTO collection_view_sources
+                (id, collection_id, owner_profile_id, source_kind, rule_version, rule_json, position, created_at, updated_at)
+            VALUES (@id, @collectionId, @profileId, 'smart_rule', 1, '{}', 0, @now, @now);
+            """, new { id = Guid.NewGuid(), collectionId, profileId, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    private List<Guid> ItemIds(Guid collectionId)
+    {
+        using var connection = _db.CreateConnection();
+        return connection.Query<Guid>(
+            "SELECT id FROM collection_items WHERE collection_id = @collectionId ORDER BY sort_order",
+            new { collectionId }).ToList();
     }
 
     private (Guid WorkId, Guid AssetId) SeedWork(string title)

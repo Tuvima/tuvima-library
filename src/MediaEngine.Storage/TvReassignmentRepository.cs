@@ -152,7 +152,7 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
                 MarkWorkOwned(connection, transaction, workId);
             }
 
-            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId);
+            var removed = moved && RemoveWorkIfEmpty(connection, transaction, current.WorkId, resolved.WorkId);
             var placement = new TvReassignment(
                 assetId, current.EditionId, current.WorkId, removed, showWorkId, seasonWorkId, resolved.WorkId,
                 coveredWorkIds);
@@ -259,8 +259,11 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
     /// <summary>
     /// Deletes a standalone Work that no longer holds any Edition, with the entity-keyed rows that
     /// described only that Work. Parent containers and Works that still hold an Edition are kept.
+    /// The Work's curated-collection memberships move to <paramref name="replacementWorkId"/> first, so a
+    /// collection that held the movie now holds the episode instead of being emptied and removed.
     /// </summary>
-    private static bool RemoveWorkIfEmpty(SqliteConnection connection, SqliteTransaction transaction, Guid workId)
+    private static bool RemoveWorkIfEmpty(
+        SqliteConnection connection, SqliteTransaction transaction, Guid workId, Guid replacementWorkId)
     {
         var removable = connection.ExecuteScalar<int>("""
             SELECT EXISTS (
@@ -274,6 +277,17 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
         {
             return false;
         }
+
+        // Memberships follow the file to its new work. collection_items has no unique (collection, work) key,
+        // so rows in a collection that already holds the replacement are dropped first, then the rest re-point.
+        connection.Execute("""
+            DELETE FROM collection_items
+            WHERE work_id = @workId
+              AND collection_id IN (SELECT collection_id FROM collection_items WHERE work_id = @replacementWorkId);
+            """, new { workId, replacementWorkId }, transaction);
+        connection.Execute(
+            "UPDATE collection_items SET work_id = @replacementWorkId WHERE work_id = @workId;",
+            new { workId, replacementWorkId }, transaction);
 
         foreach (var statement in new[]
                  {

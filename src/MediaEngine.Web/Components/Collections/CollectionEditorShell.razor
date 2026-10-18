@@ -124,7 +124,8 @@ else
                         <div hidden="@(!string.Equals(_activeTab, "companions", StringComparison.OrdinalIgnoreCase))">
                             <CollectionPersonalMediaSection @ref="_personalMediaSection"
                                                             CollectionId="@(EditingCollection?.Id ?? _createdCollectionId)"
-                                                            Changed="MarkDirtyAsync" />
+                                                            Changed="MarkDirtyAsync"
+                                                            Loaded="OnPersonalMediaLoadedAsync" />
                         </div>
                     }
                 </div>
@@ -281,6 +282,9 @@ else
     private List<ManualCollectionItem> _manualItems = [];
     private CollectionPersonalMediaSection? _personalMediaSection;
     private Guid? _createdCollectionId;
+    // A new collection, and a stored rule-driven one being switched to manual, hold no items yet: the chosen items
+    // stay in this editor and travel with the save instead of being added one by one.
+    private bool _storedRuleDriven;
     private readonly MediaEditorOwnedChildBrowserSession _ownedChildBrowserSession = new();
     private int _ownedChildBrowserVersion;
     private MediaEditorLaunchRequest? _inlineIssueRequest;
@@ -292,12 +296,14 @@ else
     private bool SupportsManualItems => !_rulesEnabled;
 
     // A manually curated collection (Custom with stored members) is never allowed to be empty: the Engine refuses
-    // to create or save one, and takes the collection away when its last item leaves the library.
+    // to create or save one, and takes the collection away when its last item leaves the library. An attached
+    // Gallery or smart-rule source counts as a member, so it keeps the collection from being empty.
     private bool IsEmptyCuratedCollection => !IsStructuralCollection
         && !IsPlaylistDialog
         && string.Equals(_collectionType, "Custom", StringComparison.OrdinalIgnoreCase)
         && SupportsManualItems
-        && _manualItems.Count == 0;
+        && _manualItems.Count == 0
+        && (_personalMediaSection?.AttachedSourceCount ?? 0) == 0;
     private string EmptyCuratedCollectionMessage => EditingCollection is null
         ? "A collection needs at least one item. Add something to save it."
         : "A collection needs at least one item. Delete the collection instead.";
@@ -406,6 +412,7 @@ else
         _secondarySortDirection = EditingCollection.SecondarySortDirection;
         _rulesEnabled = string.Equals(EditingCollection.MembershipMode, "Smart", StringComparison.OrdinalIgnoreCase)
             || !string.Equals(EditingCollection.Resolution, "materialized", StringComparison.OrdinalIgnoreCase);
+        _storedRuleDriven = _rulesEnabled;
 
         if (string.IsNullOrWhiteSpace(EditingCollection.RuleJson))
             return;
@@ -522,6 +529,9 @@ else
         MarkDirty();
         return Task.CompletedTask;
     }
+
+    // The callback re-renders this editor, so the footer and Save button see the sources that were just loaded.
+    private Task OnPersonalMediaLoadedAsync() => Task.CompletedTask;
 
     private Task OnNameChanged(string value)
     {
@@ -669,9 +679,11 @@ else
 
         try
         {
-            if (EditingCollection is null)
+            if (EditingCollection is null || _storedRuleDriven)
             {
-                _manualItems = [];
+                // Nothing is stored to load. A new collection starts empty; a rule-driven one keeps what is staged.
+                if (EditingCollection is null)
+                    _manualItems = [];
                 return;
             }
 
@@ -752,7 +764,7 @@ else
         if (SelectedWorkIds.Contains(work.WorkId))
             return;
 
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
@@ -783,7 +795,7 @@ else
 
     private async Task RemoveManualItemAsync(ManualCollectionItem item)
     {
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.RemoveCollectionItemAsync(EditingCollection.Id, item.Id, Request.ActiveProfileId);
             if (!ok)
@@ -821,7 +833,7 @@ else
             .Select((existing, order) => existing with { SortOrder = order + 1 })
             .ToList();
 
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var itemIds = _manualItems
                 .OrderBy(existing => existing.SortOrder)
@@ -952,7 +964,10 @@ else
                     primaryArea: _primaryArea,
                     ownerKind: _ownerKind,
                     audience: _ownerKind == "Library" ? "Everyone" : _audience,
-                    selectedProfileIds: _selectedProfileIds.ToList());
+                    selectedProfileIds: _selectedProfileIds.ToList(),
+                    // Switching a rule-driven collection to manual brings its staged items in the same save, so it
+                    // is never manual and empty at any point.
+                    workIds: _storedRuleDriven && !_rulesEnabled ? _manualItems.Select(item => item.WorkId).ToList() : null);
             }
             else
             {

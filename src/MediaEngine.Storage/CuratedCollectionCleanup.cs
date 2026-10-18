@@ -7,9 +7,10 @@ using MediaEngine.Domain.Entities;
 namespace MediaEngine.Storage;
 
 /// <summary>
-/// Removes manually curated collections that have no items left. A curated collection is a
+/// Removes manually curated collections that have no members left. A curated collection is a
 /// <c>Custom</c> collection with manual membership whose members are stored (materialized), so it is never allowed to be
-/// empty; rule-driven Custom collections hold no stored members and playlists, playlist folders and
+/// empty; a member is a library work in <c>collection_items</c> or a personal-media source (gallery or smart rule)
+/// in <c>collection_view_sources</c>; rule-driven Custom collections hold no stored members and playlists, playlist folders and
 /// system groupings follow their own rules, so none of those are touched.
 ///
 /// <para>
@@ -32,7 +33,8 @@ internal static class CuratedCollectionCleanup
             WHERE c.collection_type = 'Custom'
               AND c.resolution = 'materialized'
               AND c.membership_mode = 'Manual'
-              AND NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.collection_id = c.id);
+              AND NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.collection_id = c.id)
+              AND NOT EXISTS (SELECT 1 FROM collection_view_sources s WHERE s.collection_id = c.id);
             """, transaction: transaction).ToList();
         if (empty.Count == 0)
         {

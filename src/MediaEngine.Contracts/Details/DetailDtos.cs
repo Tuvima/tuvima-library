@@ -43,7 +43,6 @@ public sealed class DetailPageViewModel
     public DetailPrimaryModuleViewModel PrimaryModule { get; init; } = new();
     public MusicAlbumCompanionViewModel? MusicAlbumCompanion { get; init; }
 
-    public CanonicalIdentityStatus IdentityStatus { get; init; } = CanonicalIdentityStatus.Unknown;
     public LibraryStatus LibraryStatus { get; init; } = LibraryStatus.Unknown;
 }
 

@@ -84,6 +84,56 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task MovingAMovieToTv_KeepsItsCuratedCollectionAndPointsItAtTheEpisode()
+    {
+        var (assetId, movieWorkId) = await IngestMovieAsync();
+        var collectionId = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
+                VALUES (@collectionId, 'Musicals', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@itemId, @collectionId, @movieWorkId, 1);
+                """, new { collectionId, itemId = Guid.NewGuid(), movieWorkId });
+        }
+
+        var result = await _repository.ReassignToTvShowSpecialAsync(assetId, ShowName, null);
+
+        Assert.True(result.PreviousWorkRemoved);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM collections WHERE id = @collectionId;", new { collectionId }));
+        Assert.Equal(
+            [result.EpisodeWorkId],
+            conn.Query<Guid>("SELECT work_id FROM collection_items WHERE collection_id = @collectionId;", new { collectionId }).ToList());
+    }
+
+    [Fact]
+    public async Task MovingAMovieToTv_WhenTheCollectionAlreadyHoldsTheEpisode_LeavesOneMembership()
+    {
+        var (first, _) = await IngestMovieAsync(@"C:\Temp\real_import\movies\a.mkv");
+        var (second, secondMovieWorkId) = await IngestMovieAsync(@"C:\Temp\real_import\movies\b.mkv");
+        var firstMove = await _repository.ReassignToTvShowSpecialAsync(first, ShowName, null);
+        var collectionId = Guid.NewGuid();
+        using (var seed = _db.CreateConnection())
+        {
+            seed.Execute("""
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience)
+                VALUES (@collectionId, 'Specials', 'Custom', 'library', 'materialized', 'Manual', 'Library', 'Everyone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@itemA, @collectionId, @episodeWorkId, 1), (@itemB, @collectionId, @secondMovieWorkId, 2);
+                """, new { collectionId, itemA = Guid.NewGuid(), itemB = Guid.NewGuid(), episodeWorkId = firstMove.EpisodeWorkId, secondMovieWorkId });
+        }
+
+        await _repository.ReassignToTvShowSpecialAsync(second, ShowName, null);
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(
+            [firstMove.EpisodeWorkId],
+            conn.Query<Guid>("SELECT work_id FROM collection_items WHERE collection_id = @collectionId;", new { collectionId }).ToList());
+    }
+
+    [Fact]
     public async Task Reassigning_IsIdempotent()
     {
         var (assetId, _) = await IngestMovieAsync();

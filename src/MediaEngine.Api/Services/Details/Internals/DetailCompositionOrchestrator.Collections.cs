@@ -507,7 +507,6 @@ internal sealed partial class DetailCompositionOrchestrator
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             MusicAlbumCompanion = musicAlbumCompanion,
-            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
         };
     }

@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
@@ -671,6 +672,13 @@ public sealed class CollectionRepository : ICollectionRepository
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
+        UpsertCollectionRow(conn, transaction: null, collection);
+        return Task.FromResult(collection.Id);
+    }
+
+    /// <summary>Inserts the collection row when it is new, otherwise rewrites its stored fields.</summary>
+    private static void UpsertCollectionRow(IDbConnection conn, IDbTransaction? transaction, Collection collection)
+    {
         conn.Execute("""
             INSERT OR IGNORE INTO collections(id, universe_id, parent_collection_id, display_name, created_at,
                 universe_status, wikidata_qid, collection_type, description, icon_name,
@@ -744,9 +752,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 sortDirection = collection.SortDirection.ToStorageValue(),
                 secondarySortField = collection.SecondarySortField,
                 secondarySortDirection = collection.SecondarySortDirection?.ToStorageValue(),
-            });
-
-        return Task.FromResult(collection.Id);
+            }, transaction);
     }
 
     /// <inheritdoc/>
@@ -849,6 +855,66 @@ public sealed class CollectionRepository : ICollectionRepository
                 innerCt.ThrowIfCancellationRequested();
                 return CuratedCollectionCleanup.DeleteEmpty(conn, tx);
             }, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> UpdateManagedCollectionAsync(
+        Collection collection,
+        IReadOnlyList<CollectionItem> newItems,
+        bool requireMember,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(collection);
+        ArgumentNullException.ThrowIfNull(newItems);
+        ct.ThrowIfCancellationRequested();
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+
+            var stored = conn.Query<(Guid WorkId, int SortOrder)>(
+                "SELECT work_id AS WorkId, sort_order AS SortOrder FROM collection_items WHERE collection_id = @id;",
+                new { id = collection.Id }, tx).ToList();
+            var storedWorkIds = stored.Select(item => item.WorkId).ToHashSet();
+            var additions = newItems
+                .Where(item => storedWorkIds.Add(item.WorkId))
+                .ToList();
+
+            if (requireMember
+                && stored.Count == 0
+                && additions.Count == 0
+                && conn.ExecuteScalar<int>(
+                    "SELECT EXISTS (SELECT 1 FROM collection_view_sources WHERE collection_id = @id);",
+                    new { id = collection.Id }, tx) == 0)
+            {
+                return false;
+            }
+
+            UpsertCollectionRow(conn, tx, collection);
+
+            var nextSortOrder = stored.Count == 0 ? 1 : stored.Max(item => item.SortOrder) + 1;
+            foreach (var item in additions)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                conn.Execute("""
+                    INSERT INTO collection_items (id, collection_id, work_id, sort_order, progress_state, progress_position, added_at)
+                    VALUES (@Id, @CollectionId, @WorkId, @SortOrder, @ProgressState, @ProgressPosition, @AddedAt)
+                    """,
+                    new
+                    {
+                        Id = item.Id == Guid.Empty ? Guid.NewGuid() : item.Id,
+                        CollectionId = collection.Id,
+                        item.WorkId,
+                        SortOrder = nextSortOrder++,
+                        item.ProgressState,
+                        item.ProgressPosition,
+                        AddedAt = item.AddedAt == default ? DateTimeOffset.UtcNow.ToString("o") : item.AddedAt.ToString("o"),
+                    },
+                    transaction: tx);
+            }
+
+            return true;
+        }, ct);
     }
 
     /// <inheritdoc/>
@@ -1559,6 +1625,31 @@ public sealed class CollectionRepository : ICollectionRepository
                 "DELETE FROM collection_items WHERE id = @Id",
                 new { Id = itemId },
                 transaction: tx);
+        }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> RemoveCollectionItemUnlessLastMemberAsync(Guid collectionId, Guid itemId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+
+            // One conditional DELETE: the row goes only while another member (a different item, or an attached
+            // personal-media source) remains, so two concurrent removals cannot both succeed and empty the collection.
+            var removed = conn.Execute(
+                """
+                DELETE FROM collection_items
+                WHERE id = @itemId
+                  AND collection_id = @collectionId
+                  AND (EXISTS (SELECT 1 FROM collection_items other
+                               WHERE other.collection_id = @collectionId AND other.id <> @itemId)
+                       OR EXISTS (SELECT 1 FROM collection_view_sources s WHERE s.collection_id = @collectionId));
+                """,
+                new { itemId, collectionId },
+                transaction: tx);
+            return removed == 1;
         }, ct);
     }
 

@@ -1591,7 +1591,6 @@ public partial class ListenPage
                         : Math.Round((double)tracks.Count(track => track.IsOwned) / tracks.Count * 100d, 1),
                 },
             ],
-            IdentityStatus = CanonicalIdentityStatus.ProviderMatched,
             LibraryStatus = MediaEngine.Contracts.Details.LibraryStatus.Owned,
         };
     }

@@ -764,7 +764,8 @@ public sealed partial class EngineApiClient
         string? primaryArea = null,
         string? ownerKind = null,
         string? audience = null,
-        IReadOnlyList<Guid>? selectedProfileIds = null)
+        IReadOnlyList<Guid>? selectedProfileIds = null,
+        IReadOnlyList<Guid>? workIds = null)
     {
         try
         {
@@ -786,6 +787,7 @@ public sealed partial class EngineApiClient
                 SecondarySortDirection = secondarySortDirection,
                 IsEnabled = isEnabled,
                 IsFeatured = isFeatured,
+                WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList(),
             };
             var url = AppendCollectionProfileQuery($"/collections/{collectionId}", profileId);
             var response = await _http.PutAsJsonAsync(url, body, ct);

@@ -55,8 +55,19 @@ public interface ICollectionRepository
     /// Call it after any code path that deletes works: a curated collection is never allowed to be
     /// empty. Playlists, playlist folders, rule-driven and system collections are never touched.
     /// </summary>
-    Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default) =>
-        throw new NotSupportedException("This collection repository does not support removing empty curated collections.");
+    Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Saves a managed collection's changes and appends <paramref name="newItems"/> (works already in the
+    /// collection are skipped) in one transaction. When <paramref name="requireMember"/> is set and the collection
+    /// would hold no library item and no personal-media source afterwards, nothing is written and the result is
+    /// <c>false</c>. Used for a curated collection, for example when a rule-driven one is switched to manual.
+    /// </summary>
+    Task<bool> UpdateManagedCollectionAsync(
+        Collection collection,
+        IReadOnlyList<CollectionItem> newItems,
+        bool requireMember,
+        CancellationToken ct = default);
 
     /// <summary>Replaces the selected-profile audience for one managed collection.</summary>
     Task ReplaceAudienceProfileIdsAsync(
@@ -238,6 +249,12 @@ public interface ICollectionRepository
 
     /// <summary>Removes a curated item from a collection.</summary>
     Task RemoveCollectionItemAsync(Guid itemId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Removes a curated item in one conditional write, refusing (<c>false</c>) when it is the collection's only
+    /// member. An attached personal-media source (gallery or smart rule) counts as a member.
+    /// </summary>
+    Task<bool> RemoveCollectionItemUnlessLastMemberAsync(Guid collectionId, Guid itemId, CancellationToken ct = default);
 
     /// <summary>Persists the display order for curated collection items.</summary>
     Task ReorderCollectionItemsAsync(Guid collectionId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default);

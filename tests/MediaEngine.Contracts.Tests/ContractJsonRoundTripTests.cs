@@ -130,7 +130,6 @@ public sealed class ContractJsonRoundTripTests
                     ],
                 },
             ],
-            IdentityStatus = CanonicalIdentityStatus.ProviderMatched,
             LibraryStatus = LibraryStatus.Owned,
         };
 

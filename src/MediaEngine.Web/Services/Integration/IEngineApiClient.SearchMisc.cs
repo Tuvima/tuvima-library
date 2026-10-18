@@ -117,7 +117,7 @@ public partial interface IEngineApiClient
     Task<bool> CreateCollectionAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null);
 
     /// <summary>PUT /collections/{id} — update a collection.</summary>
-    Task<bool> UpdateCollectionAsync(Guid collectionId, string? name, string? description, string? iconName, CollectionRuleDefinitionViewModel? definition, string? visibility, string? sortField, string? sortDirection, bool? isEnabled, bool? isFeatured, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string? membershipMode = null, string? primaryArea = null, string? ownerKind = null, string? audience = null, IReadOnlyList<Guid>? selectedProfileIds = null);
+    Task<bool> UpdateCollectionAsync(Guid collectionId, string? name, string? description, string? iconName, CollectionRuleDefinitionViewModel? definition, string? visibility, string? sortField, string? sortDirection, bool? isEnabled, bool? isFeatured, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string? membershipMode = null, string? primaryArea = null, string? ownerKind = null, string? audience = null, IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null);
 
     Task<bool> DeleteCollectionAsync(Guid collectionId, Guid? profileId = null, CancellationToken ct = default);
 

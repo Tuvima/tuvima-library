@@ -89,7 +89,6 @@ public sealed class EngineApiClientLibraryWorksTests
               "relationshipStrip": [],
               "tabs": [],
               "mediaGroups": [],
-              "identityStatus": 0,
               "libraryStatus": 1,
               "isAdminView": false
             }
@@ -160,7 +159,6 @@ public sealed class EngineApiClientLibraryWorksTests
               "relationshipStrip": [],
               "tabs": [],
               "mediaGroups": [],
-              "identityStatus": 0,
               "libraryStatus": 1,
               "isAdminView": false
             }
@@ -211,7 +209,6 @@ public sealed class EngineApiClientLibraryWorksTests
               "relationshipStrip": [],
               "tabs": [],
               "mediaGroups": [],
-              "identityStatus": 0,
               "libraryStatus": 1,
               "isAdminView": false
             }

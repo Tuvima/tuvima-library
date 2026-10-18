@@ -1689,7 +1689,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                     ProgressState = item.ProgressState,
                 }).ToList(),
             }).ToList(),
-            IdentityStatus = detail.IdentityStatus,
             LibraryStatus = detail.LibraryStatus,
         };
     }

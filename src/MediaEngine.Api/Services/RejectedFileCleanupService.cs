@@ -308,10 +308,6 @@ public sealed class RejectedFileCleanupService : BackgroundService
                     cmd.ExecuteNonQuery();
                 }
 
-                // 5b. Deleting the work removed its collection_items rows; a curated collection it was the
-                // last item of is removed too (and logged).
-                await _collections.DeleteEmptyCuratedCollectionsAsync(ct);
-
                 // 6. Remove the collection if it has no remaining works.
                 if (collectionId is not null)
                 {
@@ -336,6 +332,21 @@ public sealed class RejectedFileCleanupService : BackgroundService
                     Detail = $"Rejected file '{workTitle ?? Path.GetFileName(filePath)}' expired after {retentionDays} days and was permanently deleted.",
                     ChangesJson = $"{{\"asset_id\":\"{assetId}\",\"retention_days\":{retentionDays}}}",
                 }, ct);
+
+                // 8. Deleting the work removed its collection_items rows; a curated collection it was the last
+                // item of is removed too (and logged by the repository). This runs after the expiry log so a
+                // failure here cannot skip it; the asset is already gone, so a failure is logged and the sweep
+                // retries it the next time any code path runs the curated cleanup.
+                try
+                {
+                    await _collections.DeleteEmptyCuratedCollectionsAsync(ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex,
+                        "RejectedFileCleanupService: removed asset {AssetId} but could not remove emptied curated collections",
+                        assetId);
+                }
 
                 cleaned++;
             }

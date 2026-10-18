@@ -268,7 +268,6 @@ internal sealed partial class DetailCompositionOrchestrator
             Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
-            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(detail.WikidataQid, detail.Status, detail.Confidence),
             LibraryStatus = LibraryStatus.Owned,
         };
     }
@@ -423,7 +422,6 @@ internal sealed partial class DetailCompositionOrchestrator
                     CompletionPercent = knownItems <= 0 ? 0 : ownedItems.Count * 100d / knownItems,
                 },
             ],
-            IdentityStatus = seedDetail.IdentityStatus,
             LibraryStatus = hasMissingItems ? LibraryStatus.PartiallyOwned : LibraryStatus.Owned,
         };
     }

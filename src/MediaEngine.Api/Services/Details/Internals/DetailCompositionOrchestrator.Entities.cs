@@ -168,7 +168,6 @@ internal sealed partial class DetailCompositionOrchestrator
             Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, null, mediaGroups),
-            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(person.WikidataQid, null, null),
             LibraryStatus = credits.Count > 0 ? LibraryStatus.Owned : LibraryStatus.Unknown,
         };
     }
@@ -253,7 +252,6 @@ internal sealed partial class DetailCompositionOrchestrator
             Tabs = BuildTabs(DetailEntityType.Universe, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(DetailEntityType.Universe, null, mediaGroups),
-            IdentityStatus = DetailPresentationPolicy.ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
         };
     }

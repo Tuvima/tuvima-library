@@ -24,6 +24,8 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
 
     private readonly List<IReadOnlyList<Guid>?> _createdWorkIds = [];
     private readonly List<string> _createdTypes = [];
+    private readonly List<IReadOnlyList<Guid>?> _updatedWorkIds = [];
+    private IReadOnlyList<CollectionPersonalMediaSourceDto> _attachedSources = [];
     private EngineApiClientStub _stub = default!;
 
     public CuratedCollectionEditorTests()
@@ -35,7 +37,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
-        Services.AddSingleton<ICollectionPersonalMediaClient>(new EmptyPersonalMediaClient());
+        Services.AddSingleton<ICollectionPersonalMediaClient>(new EmptyPersonalMediaClient(() => _attachedSources));
     }
 
     [Fact]
@@ -144,6 +146,76 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         Assert.Single(items);
     }
 
+    [Fact]
+    public void AnExistingCuratedCollectionWithOnlyAnAttachedGallery_CanStillBeSaved()
+    {
+        _attachedSources = [new CollectionPersonalMediaSourceDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), CollectionPersonalMediaSourceKinds.Gallery, Guid.NewGuid(), null, null, 0)];
+        var editor = RenderExisting(Guid.NewGuid(), membershipMode: "Manual", resolution: "materialized");
+
+        editor.WaitForAssertion(() => Assert.False(SaveButton(editor).HasAttribute("disabled")));
+        Assert.DoesNotContain(EmptyMessage, editor.Find(".collection-editor-footer-copy").TextContent);
+    }
+
+    [Fact]
+    public void ACuratedCollectionWithNoItemsAndNoAttachedSource_CannotBeSaved()
+    {
+        var editor = RenderExisting(Guid.NewGuid(), membershipMode: "Manual", resolution: "materialized");
+
+        editor.WaitForAssertion(() => Assert.True(SaveButton(editor).HasAttribute("disabled")));
+    }
+
+    [Fact]
+    public async Task SwitchingARuleDrivenCollectionToManual_StagesItemsHereAndSendsThemWithTheSave()
+    {
+        var collectionId = Guid.NewGuid();
+        var editor = RenderExisting(collectionId, membershipMode: "Smart", resolution: "query");
+        var setMode = editor.Instance.GetType().GetMethod("SetMembershipModeAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await editor.InvokeAsync(() => (Task)setMode.Invoke(editor.Instance, [false])!);
+
+        // Switching to manual with nothing chosen leaves Save off, so the collection is never manual and empty.
+        Assert.True(SaveButton(editor).HasAttribute("disabled"));
+
+        await AddItemAsync(editor, FirstWork);
+        await AddItemAsync(editor, SecondWork);
+        editor.WaitForAssertion(() => Assert.False(SaveButton(editor).HasAttribute("disabled")));
+        await editor.InvokeAsync(() => SaveButton(editor).Click());
+
+        editor.WaitForAssertion(() => Assert.Single(_updatedWorkIds));
+        Assert.Equal([FirstWork, SecondWork], _updatedWorkIds[0]);
+        // The items travel with the save; none is added to the still rule-driven collection one by one.
+        Assert.DoesNotContain(nameof(IEngineApiClient.AddCollectionItemAsync), _stub.Calls);
+    }
+
+    private IRenderedComponent<CollectionEditorShell> RenderExisting(Guid collectionId, string membershipMode, string resolution)
+    {
+        var client = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ => Task.FromResult(new List<CollectionItemDto>()));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateCollectionAsync), args =>
+            {
+                _updatedWorkIds.Add((IReadOnlyList<Guid>?)args![^1]);
+                return Task.FromResult(true);
+            });
+        });
+        _stub = (EngineApiClientStub)(object)client;
+        Services.AddSingleton(client);
+        return Render<CollectionEditorShell>(parameters => parameters
+            .Add(shell => shell.Inline, true)
+            .Add(shell => shell.Request, new CollectionEditorLaunchRequest
+            {
+                EditingCollection = new CollectionListItemViewModel
+                {
+                    Id = collectionId,
+                    Name = "Existing",
+                    CollectionType = "Custom",
+                    Resolution = resolution,
+                    MembershipMode = membershipMode,
+                    OwnerKind = "Library",
+                    Audience = "Everyone",
+                },
+            }));
+    }
+
     private IRenderedComponent<CollectionEditorShell> RenderCreateEditor(Action<bool>? closed = null) =>
         RenderEditor(new CollectionEditorLaunchRequest
         {
@@ -185,11 +257,11 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     private static AngleSharp.Dom.IElement SaveButton(IRenderedComponent<CollectionEditorShell> editor) =>
         editor.FindAll(".collection-editor-footer-actions button").Last();
 
-    private sealed class EmptyPersonalMediaClient : ICollectionPersonalMediaClient
+    private sealed class EmptyPersonalMediaClient(Func<IReadOnlyList<CollectionPersonalMediaSourceDto>> sources) : ICollectionPersonalMediaClient
     {
         public string? LastError => null;
         public Task<IReadOnlyList<CollectionGalleryReferenceDto>> GetEligibleGalleriesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionGalleryReferenceDto>>([]);
-        public Task<IReadOnlyList<CollectionPersonalMediaSourceDto>> GetSourcesAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionPersonalMediaSourceDto>>([]);
+        public Task<IReadOnlyList<CollectionPersonalMediaSourceDto>> GetSourcesAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult(sources());
         public Task<CollectionPersonalMediaSourceDto?> AddSourceAsync(Guid collectionId, CollectionPersonalMediaSourceWriteRequest request, CancellationToken ct = default) => Task.FromResult<CollectionPersonalMediaSourceDto?>(null);
         public Task<CollectionPersonalMediaSourceDto?> UpdateSourceAsync(Guid collectionId, Guid sourceId, CollectionPersonalMediaSourceWriteRequest request, CancellationToken ct = default) => Task.FromResult<CollectionPersonalMediaSourceDto?>(null);
         public Task<bool> RemoveSourceAsync(Guid collectionId, Guid sourceId, CancellationToken ct = default) => Task.FromResult(false);

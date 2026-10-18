@@ -1711,6 +1711,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionUp
   SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
   IsEnabled: System.Boolean? | nullability=nullable | accessors=get,init
   IsFeatured: System.Boolean? | nullability=nullable | accessors=get,init
+  WorkIds: System.Collections.Generic.List<System.Guid> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ContentGroupDto
   CollectionId: System.Guid | nullability=not-null | accessors=get,init
@@ -2106,7 +2107,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   MediaGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingViewModel> | nullability=not-null | accessors=get,init
   PrimaryModule: MediaEngine.Contracts.Details.DetailPrimaryModuleViewModel | nullability=not-null | accessors=get,init
   MusicAlbumCompanion: MediaEngine.Contracts.Details.MusicAlbumCompanionViewModel | nullability=nullable | accessors=get,init
-  IdentityStatus: MediaEngine.Contracts.Details.CanonicalIdentityStatus | nullability=not-null | accessors=get,init
   LibraryStatus: MediaEngine.Contracts.Details.LibraryStatus | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
