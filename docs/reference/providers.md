@@ -102,7 +102,7 @@ File languages written as names (`English`), ISO 639-2 codes (`eng`) or culture 
 
 **Notes:** Year is optional but included when available from file metadata. TV jobs are grouped by show and season: the worker searches the show, fetches show details, then fetches the season episode list and distributes episode-level claims to queued files. Returns poster paths that are expanded to `https://image.tmdb.org/t/p/w500{path}`.
 
-A Movies-library item with no TMDB movie match is checked against TMDB's TV catalogue. A strong miniseries or short-season match is never applied automatically; it becomes a Review Queue suggestion, "Found as a TV title", with Move to TV, Search again, or Keep as unmatched film. Move to TV re-files the item under TV as a Season 0 special without moving the file.
+A Movies-library item with no TMDB movie match is checked against TMDB's TV catalogue. A strong miniseries or short-season match is never applied automatically; it becomes a Review Queue suggestion, "Found as a TV title", with Move to TV, Search again, or Keep as unmatched film. Move to TV re-files the item under TV without moving the file: when TMDB lists the show's parts as one season of at most six episodes numbered from Episode 1, the file covers all of them (for example Season 1, Episodes 1 to 3); otherwise it falls back to Specials (Season 0, Episode 1) and the item's History records why.
 
 #### MusicBrainz
 

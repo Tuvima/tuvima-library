@@ -52,4 +52,23 @@ public static class MovieTvSuggestionReader
         var detail = facts.Count > 0 ? $" ({string.Join(", ", facts)})" : string.Empty;
         return $"TMDB lists this as the {kind} '{suggestion.Name}'{detail}. Move it to TV?";
     }
+
+    /// <summary>
+    /// The confirmation after a move. For example <c>Moved to TV: 'Dr. Horrible's Sing-Along Blog' Season 1,
+    /// Episodes 1–3.</c>, or, when the parts could not be matched, the Specials fallback with the Engine's reason.
+    /// </summary>
+    public static string DescribeMove(ReviewMoveToTvResponse moved)
+    {
+        ArgumentNullException.ThrowIfNull(moved);
+        if (!string.IsNullOrWhiteSpace(moved.placement_reason))
+        {
+            return $"Moved to TV as a special of '{moved.show_name}'. {moved.placement_reason}";
+        }
+
+        var episodes = moved.episode_numbers;
+        var where = episodes.Count > 1
+            ? $"Episodes {episodes[0].ToString(CultureInfo.InvariantCulture)}–{episodes[^1].ToString(CultureInfo.InvariantCulture)}"
+            : $"Episode {(episodes.Count == 1 ? episodes[0] : 1).ToString(CultureInfo.InvariantCulture)}";
+        return $"Moved to TV: '{moved.show_name}' Season {moved.season_number.ToString(CultureInfo.InvariantCulture)}, {where}.";
+    }
 }

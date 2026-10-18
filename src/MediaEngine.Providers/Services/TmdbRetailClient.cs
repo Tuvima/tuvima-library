@@ -204,7 +204,11 @@ public sealed class TmdbRetailClient
         }
     }
 
-    public async Task<IReadOnlyList<JsonNode>> FetchSeasonEpisodesAsync(
+    /// <summary>
+    /// Fetches TMDB's season document (<c>/tv/{id}/season/{n}</c>). Returns null when the season does not
+    /// exist or the request fails (logged), so a caller can tell "unavailable" apart from "no episodes".
+    /// </summary>
+    public async Task<JsonNode?> FetchSeasonDetailsAsync(
         string tvId,
         int seasonNumber,
         string apiKey,
@@ -225,36 +229,48 @@ public sealed class TmdbRetailClient
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                return [];
+                return null;
             }
 
             response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct)
+            return await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct)
                 .ConfigureAwait(false);
-            var episodes = json?["episodes"]?.AsArray();
-            if (episodes is null)
-            {
-                return [];
-            }
-
-            var result = new List<JsonNode>();
-            foreach (var ep in episodes)
-            {
-                if (ep is not null)
-                {
-                    result.Add(ep);
-                }
-            }
-            return result;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
+            // An HttpClient timeout surfaces as a cancellation the caller did not ask for; treat it as a failed fetch.
             _logger.LogWarning(ex,
-                "RetailMatchWorker: TMDB season fetch failed for tv_id={TvId} season={Season}",
+                "TMDB season detail fetch failed for tv_id={TvId} season={Season}",
                 tvId, seasonNumber);
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<JsonNode>> FetchSeasonEpisodesAsync(
+        string tvId,
+        int seasonNumber,
+        string apiKey,
+        string language,
+        string country,
+        CancellationToken ct)
+    {
+        var season = await FetchSeasonDetailsAsync(tvId, seasonNumber, apiKey, language, country, ct)
+            .ConfigureAwait(false);
+        if (season is not JsonObject document || document["episodes"] is not JsonArray episodes)
+        {
             return [];
         }
+
+        var result = new List<JsonNode>();
+        foreach (var ep in episodes)
+        {
+            if (ep is not null)
+            {
+                result.Add(ep);
+            }
+        }
+
+        return result;
     }
 
     public async Task<JsonNode?> FetchEpisodeCreditsAsync(string tvId, int season, int episode,
