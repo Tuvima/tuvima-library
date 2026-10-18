@@ -92,9 +92,6 @@ public partial interface IEngineApiClient
 
     // ── Library items (/library/items) ─────────────────────────────────────────
 
-    /// <summary>POST /library/items/batch/delete - bulk-delete library items.</summary>
-    Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default);
-
     /// <summary>GET /library/items/{entityId}/detail - full detail for expanded row.</summary>
     Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(Guid entityId, CancellationToken ct = default);
 

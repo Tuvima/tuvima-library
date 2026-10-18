@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1011; api=0; web-client=79
+# scopes: contracts=1009; api=0; web-client=78
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4052,18 +4052,6 @@
   HasMore: System.Boolean | json=has_more | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextCursor: System.String | json=next_cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"watch_directory":"sample","files":[],"offset":7,"limit":7,"has_more":true,"next_cursor":"sample"}
-
-[contracts] MediaEngine.Contracts.Items.BatchLibraryItemRequest
-  kind=class | converter=default | number-handling=default | unmapped=default
-  EntityIds: System.Guid[] | json=entity_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"entity_ids":[]}
-
-[contracts] MediaEngine.Contracts.Items.BatchLibraryItemResponse
-  kind=class | converter=default | number-handling=default | unmapped=default
-  ProcessedCount: System.Int32 | json=processed_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  TotalRequested: System.Int32 | json=total_requested | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"processed_count":7,"total_requested":7,"message":"sample"}
 
 [contracts] MediaEngine.Contracts.Items.ItemDisplayOverridesRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10359,13 +10347,6 @@
   Detail: System.String | json=detail | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BlockingReasons: System.Collections.Generic.List<System.String> | json=blockingReasons | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"type":"sample","title":"sample","status":7,"detail":"sample","blockingReasons":[]}
-
-[web-client] MediaEngine.Web.Models.ViewDTOs.BatchLibraryItemResponse
-  kind=class | converter=default | number-handling=default | unmapped=default
-  ProcessedCount: System.Int32 | json=processed_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  TotalRequested: System.Int32 | json=total_requested | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"processed_count":7,"total_requested":7,"message":"sample"}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.CanonicalValueViewModel
   kind=class | converter=default | number-handling=default | unmapped=default

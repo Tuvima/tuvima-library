@@ -2,24 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Contracts.Items;
 
-public sealed class BatchLibraryItemRequest
-{
-    [JsonPropertyName("entity_ids")]
-    public Guid[] EntityIds { get; init; } = [];
-}
-
-public sealed class BatchLibraryItemResponse
-{
-    [JsonPropertyName("processed_count")]
-    public int ProcessedCount { get; init; }
-
-    [JsonPropertyName("total_requested")]
-    public int TotalRequested { get; init; }
-
-    [JsonPropertyName("message")]
-    public string Message { get; init; } = string.Empty;
-}
-
 public sealed class LibraryItemDetailDto
 {
     [JsonPropertyName("entity_id")] public Guid EntityId { get; init; }

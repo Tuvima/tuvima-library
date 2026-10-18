@@ -251,19 +251,6 @@ public sealed class LibraryItemClaimRecordDto
     public DateTimeOffset ClaimedAt { get; set; }
 }
 
-/// <summary>Response from batch libraryItem operations.</summary>
-public sealed class BatchLibraryItemResponse
-{
-    [JsonPropertyName("processed_count")]
-    public int ProcessedCount { get; set; }
-
-    [JsonPropertyName("total_requested")]
-    public int TotalRequested { get; set; }
-
-    [JsonPropertyName("message")]
-    public string Message { get; set; } = "";
-}
-
 /// <summary>A single entry in the processing history timeline for a libraryItem item.</summary>
 public sealed class LibraryItemHistoryDto
 {

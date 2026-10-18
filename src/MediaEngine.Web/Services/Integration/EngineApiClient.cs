@@ -1081,7 +1081,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //     keeps `LastFailureKind` classification (not_found/unauthorized/http_failure vs
     //     engine_unavailable/unexpected_failure) identical to today. Do not mechanically retarget shape-2 GETs
     //     at GetAsync<T> — the failure classification would silently change.
-    //   - Methods with no failure-state bookkeeping at all (e.g. BatchDeleteLibraryCatalogItemsAsync): a single
+    //   - Methods with no failure-state bookkeeping at all: a single
     //     catch(Exception) that only logs and returns false/null, never calling ClearFailure/
     //     RecordHttpFailureAsync/RecordExceptionFailure. Leave these as-is unless deliberately upgrading them.
     //   - Methods whose catch(Exception) interpolates additional structured arguments beyond the endpoint

@@ -16,131 +16,6 @@ namespace MediaEngine.Storage;
 /// </summary>
 public sealed class LibraryItemCurationRepository(IDatabaseConnection db) : ILibraryItemCurationRepository
 {
-    public Task<IReadOnlyDictionary<Guid, LibraryItemRemovalTarget>> GetRemovalTargetsAsync(
-        IReadOnlyCollection<Guid> workIds,
-        CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        if (workIds.Count == 0)
-        {
-            return Task.FromResult<IReadOnlyDictionary<Guid, LibraryItemRemovalTarget>>(
-                new Dictionary<Guid, LibraryItemRemovalTarget>());
-        }
-
-        using var connection = db.CreateConnection();
-        var parameters = new { workIds = ToBlobArray(workIds) };
-        var rows = connection.Query<RemovalRow>(new CommandDefinition("""
-            SELECT w.id AS WorkId,
-                   w.collection_id AS CollectionId,
-                   w.parent_work_id AS ParentWorkId,
-                   ma.file_path_root AS FilePath,
-                   (
-                       SELECT cv.value
-                       FROM canonical_values cv
-                       WHERE cv.entity_id IN (w.id, ma.id)
-                         AND cv.key IN ('title', 'show_name', 'episode_title')
-                         AND NULLIF(cv.value, '') IS NOT NULL
-                       ORDER BY CASE cv.key WHEN 'title' THEN 0 WHEN 'show_name' THEN 1 ELSE 2 END
-                       LIMIT 1
-                   ) AS Title
-            FROM works w
-            INNER JOIN editions e ON e.work_id = w.id
-            INNER JOIN media_assets ma ON ma.edition_id = e.id
-            WHERE w.id IN @workIds
-            ORDER BY w.id, ma.file_path_root;
-            """, parameters, cancellationToken: ct)).ToList();
-
-        var assetRows = connection.Query<ManagedAssetPathRow>(new CommandDefinition("""
-            SELECT entity_id AS WorkId,
-                   local_image_path AS LocalImagePath,
-                   local_image_path_s AS LocalImagePathSmall,
-                   local_image_path_m AS LocalImagePathMedium,
-                   local_image_path_l AS LocalImagePathLarge
-            FROM entity_assets
-            WHERE entity_id IN @workIds;
-            """, parameters, cancellationToken: ct));
-
-        var managedPaths = assetRows
-            .GroupBy(row => row.WorkId)
-            .ToDictionary(
-                group => group.Key,
-                group => (IReadOnlyList<string>)group
-                    .SelectMany(row => new[]
-                    {
-                        row.LocalImagePath,
-                        row.LocalImagePathSmall,
-                        row.LocalImagePathMedium,
-                        row.LocalImagePathLarge,
-                    })
-                    .Where(path => !string.IsNullOrWhiteSpace(path))
-                    .Select(path => path!)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList());
-
-        IReadOnlyDictionary<Guid, LibraryItemRemovalTarget> targets = rows
-            .GroupBy(row => row.WorkId)
-            .ToDictionary(
-                group => group.Key,
-                group =>
-                {
-                    var first = group.First();
-                    return new LibraryItemRemovalTarget(
-                        first.WorkId,
-                        first.CollectionId,
-                        first.ParentWorkId,
-                        group.Select(row => row.FilePath)
-                            .Where(path => !string.IsNullOrWhiteSpace(path))
-                            .Select(path => path!)
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .ToList(),
-                        managedPaths.GetValueOrDefault(first.WorkId) ?? [],
-                        group.Select(row => row.Title).FirstOrDefault(title => !string.IsNullOrWhiteSpace(title)));
-                });
-        return Task.FromResult(targets);
-    }
-
-    public Task DeleteWorkRecordsAsync(LibraryItemRemovalTarget target, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        return db.ExecuteWriteAsync((connection, transaction, innerCt) =>
-        {
-            innerCt.ThrowIfCancellationRequested();
-            connection.Execute(new CommandDefinition("""
-                DELETE FROM review_queue
-                WHERE entity_id IN (
-                    SELECT ma.id
-                    FROM editions e
-                    INNER JOIN media_assets ma ON ma.edition_id = e.id
-                    WHERE e.work_id = @workId
-                );
-                """, new { workId = target.WorkId }, transaction, cancellationToken: innerCt));
-
-            connection.Execute(new CommandDefinition(
-                "DELETE FROM entity_assets WHERE entity_id = @workId;",
-                new { workId = target.WorkId },
-                transaction,
-                cancellationToken: innerCt));
-
-            connection.Execute(new CommandDefinition(
-                "DELETE FROM works WHERE id = @workId;",
-                new { workId = target.WorkId },
-                transaction,
-                cancellationToken: innerCt));
-
-            if (target.CollectionId.HasValue)
-            {
-                connection.Execute(new CommandDefinition("""
-                    DELETE FROM collections
-                    WHERE id = @collectionId
-                      AND NOT EXISTS (SELECT 1 FROM works WHERE collection_id = @collectionId);
-                    """,
-                    new { collectionId = target.CollectionId.Value },
-                    transaction,
-                    cancellationToken: innerCt));
-            }
-        }, ct);
-    }
-
     public Task<IReadOnlyList<LibraryItemHistoryEntry>> GetHistoryAsync(
         Guid workId,
         CancellationToken ct = default)
@@ -285,8 +160,6 @@ public sealed class LibraryItemCurationRepository(IDatabaseConnection db) : ILib
             .ToList();
         return Task.FromResult(history);
     }
-
-    private static byte[][] ToBlobArray(IEnumerable<Guid> values) => values.Select(GuidSql.ToBlob).ToArray();
 
     private static string FormatActionTypeLabel(string actionType) => actionType switch
     {
@@ -440,24 +313,6 @@ public sealed class LibraryItemCurationRepository(IDatabaseConnection db) : ILib
         var spaced = actionType.Replace('_', ' ').Replace('-', ' ');
         spaced = Regex.Replace(spaced, "(?<=[a-z0-9])(?=[A-Z])", " ");
         return char.ToUpperInvariant(spaced[0]) + spaced[1..].ToLowerInvariant();
-    }
-
-    private sealed class RemovalRow
-    {
-        public Guid WorkId { get; init; }
-        public Guid? CollectionId { get; init; }
-        public Guid? ParentWorkId { get; init; }
-        public string? FilePath { get; init; }
-        public string? Title { get; init; }
-    }
-
-    private sealed class ManagedAssetPathRow
-    {
-        public Guid WorkId { get; init; }
-        public string? LocalImagePath { get; init; }
-        public string? LocalImagePathSmall { get; init; }
-        public string? LocalImagePathMedium { get; init; }
-        public string? LocalImagePathLarge { get; init; }
     }
 
     private sealed class HistoryRow

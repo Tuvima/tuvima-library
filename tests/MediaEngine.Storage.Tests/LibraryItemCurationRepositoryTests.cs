@@ -25,55 +25,6 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task RemovalReads_AreSetBased_AndDeleteUsesOneTransactionalBoundary()
-    {
-        var first = await SeedWorkAsync("First", "C:/library/a.epub", "Books");
-        var secondAssetId = Guid.NewGuid();
-        var second = await SeedWorkAsync("Second", "C:/library/c.epub", "Movies");
-        var managedPath = "C:/library/.data/assets/work/cover.jpg";
-
-        using (var connection = _database.CreateConnection())
-        {
-            await connection.ExecuteAsync("""
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
-                VALUES (@secondAssetId, @editionId, @hash, 'C:/library/b.epub', 'Normal');
-                INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path)
-                VALUES (@entityAssetId, @workId, 'Work', 'CoverArt', @managedPath);
-                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status)
-                VALUES (@reviewId, @assetId, 'MediaAsset', 'LowConfidence', 'Pending');
-                """, new
-            {
-                secondAssetId,
-                editionId = first.EditionId,
-                hash = Guid.NewGuid().ToString("N"),
-                entityAssetId = Guid.NewGuid(),
-                workId = first.WorkId,
-                managedPath,
-                reviewId = Guid.NewGuid(),
-                assetId = first.AssetId,
-            });
-        }
-
-        var removals = await _repository.GetRemovalTargetsAsync([first.WorkId, second.WorkId]);
-
-        Assert.Equal(2, removals.Count);
-        Assert.Equal("First", removals[first.WorkId].Title);
-        var removal = removals[first.WorkId];
-        Assert.Equal(2, removal.FilePaths.Count);
-        Assert.Contains(managedPath, removal.ManagedAssetPaths);
-
-        await _repository.DeleteWorkRecordsAsync(removal);
-
-        using var verify = _database.CreateConnection();
-        Assert.Equal(0, await verify.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM works WHERE id = @workId", new { workId = first.WorkId }));
-        Assert.Equal(0, await verify.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM review_queue WHERE entity_id = @assetId", new { assetId = first.AssetId }));
-        Assert.Equal(0, await verify.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM entity_assets WHERE entity_id = @workId", new { workId = first.WorkId }));
-    }
-
-    [Fact]
     public async Task History_IsTypedForAWorkWithAssetActivity()
     {
         var seeded = await SeedWorkAsync("History", "C:/library/history.epub", "Books");

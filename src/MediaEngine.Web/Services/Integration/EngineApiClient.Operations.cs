@@ -568,23 +568,6 @@ public sealed partial class EngineApiClient
 
     // -- Library items (/library/items) -------------------------------------------
 
-    public async Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var request = new MediaEngine.Contracts.Items.BatchLibraryItemRequest { EntityIds = entityIds };
-            var response = await _http.PostAsJsonAsync("/library/items/batch/delete", request, ct);
-            response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.BatchLibraryItemResponse>(ct))
-                ?.ToViewModel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Batch delete failed");
-            return null;
-        }
-    }
-
     public async Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(
         Guid entityId, CancellationToken ct = default)
     {

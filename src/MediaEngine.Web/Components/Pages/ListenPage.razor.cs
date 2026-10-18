@@ -1729,26 +1729,6 @@ public partial class ListenPage
         await OpenTrackEditorAsync(work, navigateBackToTrackContext: false);
     }
 
-    private async Task DeleteTrackAsync(WorkViewModel work)
-    {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete {work.Title} from the library?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync([work.Id]);
-        if (response is null)
-        {
-            Snackbar.Add("Delete failed.", AppSeverity.Error);
-            return;
-        }
-
-        CloseTrackContextMenu();
-        await LoadAsync();
-        Snackbar.Add($"{work.Title} deleted.", AppSeverity.Success);
-    }
-
     private async Task OpenTrackEditorAsync(WorkViewModel work, bool navigateBackToTrackContext)
     {
         var applied = await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest

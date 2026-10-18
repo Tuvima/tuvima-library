@@ -6,14 +6,6 @@ namespace MediaEngine.Web.Services.Integration;
 
 internal static class CurationContractMapper
 {
-    public static MediaEngine.Web.Models.ViewDTOs.BatchLibraryItemResponse ToViewModel(
-        this MediaEngine.Contracts.Items.BatchLibraryItemResponse source) => new()
-        {
-            ProcessedCount = source.ProcessedCount,
-            TotalRequested = source.TotalRequested,
-            Message = source.Message,
-        };
-
     public static LibraryItemDetailViewModel ToViewModel(this LibraryItemDetailDto source) => new()
     {
         EntityId = source.EntityId,

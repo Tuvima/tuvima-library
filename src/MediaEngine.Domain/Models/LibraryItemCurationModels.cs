@@ -2,14 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Domain.Models;
 
-public sealed record LibraryItemRemovalTarget(
-    Guid WorkId,
-    Guid? CollectionId,
-    Guid? ParentWorkId,
-    IReadOnlyList<string> FilePaths,
-    IReadOnlyList<string> ManagedAssetPaths,
-    string? Title);
-
 public sealed record LibraryItemHistoryEntry(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("entity_id")] Guid EntityId,

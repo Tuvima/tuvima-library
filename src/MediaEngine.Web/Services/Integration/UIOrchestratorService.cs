@@ -967,10 +967,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     // -- LibraryItem ------------------------------------------------------------
 
-    /// <summary>Bulk-deletes libraryItem items by entity ID.</summary>
-    public Task<BatchLibraryItemResponse?> BatchDeleteLibraryCatalogItemsAsync(Guid[] entityIds, CancellationToken ct = default)
-        => _api.BatchDeleteLibraryCatalogItemsAsync(entityIds, ct);
-
     /// <summary>Returns full detail for a single libraryItem item.</summary>
     public Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(Guid entityId, CancellationToken ct = default)
         => _api.GetLibraryItemDetailAsync(entityId, ct);

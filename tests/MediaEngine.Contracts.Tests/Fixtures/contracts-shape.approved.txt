@@ -3351,14 +3351,6 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.WatchFolderPageR
   HasMore: System.Boolean | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.BatchLibraryItemRequest
-  EntityIds: System.Guid[] | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.BatchLibraryItemResponse
-  ProcessedCount: System.Int32 | nullability=not-null | accessors=get,init
-  TotalRequested: System.Int32 | nullability=not-null | accessors=get,init
-  Message: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemDisplayOverridesRequest
   Fields: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
 

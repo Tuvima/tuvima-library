@@ -189,7 +189,7 @@
 }
 
 .listen-song-table__time,
-.listen-song-table__edit-delete,
+.listen-song-table__edit,
 .listen-song-table__options {
     justify-self: end;
 }
@@ -200,7 +200,7 @@
 }
 
 .listen-song-table__queue,
-.listen-song-table__edit-delete,
+.listen-song-table__edit,
 .listen-song-table__options {
     display: inline-flex;
     align-items: center;
@@ -227,11 +227,6 @@
 .listen-song-table__icon-button:hover {
     color: var(--tl-text-primary);
     background: var(--tl-bg-surface-raised);
-}
-
-.listen-song-table__icon-button--danger:hover {
-    color: var(--tl-status-danger);
-    background: var(--tl-status-danger-soft);
 }
 
 .listen-song-table__favorite-button.is-active {
@@ -357,11 +352,6 @@
 ::deep .listen-song-table__icon-button:hover {
     color: var(--tl-text-primary);
     background: var(--tl-bg-surface-raised);
-}
-
-::deep .listen-song-table__icon-button--danger:hover {
-    color: var(--tl-status-danger);
-    background: var(--tl-status-danger-soft);
 }
 
 ::deep .listen-song-table__favorite-button.is-active {
