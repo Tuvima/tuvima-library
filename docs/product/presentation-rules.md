@@ -35,7 +35,7 @@ A detail page never shows a button that goes nowhere: the main button exists onl
 
 Current presentation rules: the Collections landing route is labeled **Discovery**, while Automatic, Curated, Shelves, and People retain their names. Shelves opens with Read, Watch, and Listen preview lanes and filters by Books, Movies, and Audiobooks. Albums and comic issue series remain native lane groups. Same-name duplicate contributor records collapse into one enriched shelf presentation. Discover rows show a small title and optional year for individual items, but group tiles do not repeat text they already embed. TV Shows rows keep episode counts but omit the redundant `TV Show` pill. Completed TV shows show a provider-backed premiere-to-finale year range; TV detail pages always keep the season selector visible, including when only one season is owned.
 
-A curated collection (a manually built Custom collection) can never be empty. The editor does not let it be created or saved without at least one item and sends the chosen items with the create request; the Engine refuses to take out its last item ("A collection needs at least one item. Delete the collection instead.") and refuses an update that would leave it empty. When the last item of a curated collection leaves the library the collection is deleted automatically and a "Removed the collection 'X' because its last item left the library." entry is written to the activity history. Playlists, playlist folders and rule-driven (live) collections are not affected, and automatic collections follow the canonical metadata. Warning before deleting a library item that sits in a curated collection belongs to the future "Delete from library" work.
+A curated collection (a manually built Custom collection) can never be empty. The editor does not let it be created or saved without at least one item and sends the chosen items with the create request; the Engine refuses to take out its last item or its last attached personal-media source ("A collection needs at least one item. Delete the collection instead.") and refuses an update that would leave it empty. When the last item of a curated collection leaves the library the collection is deleted automatically and a "Removed the collection 'X' because its last item left the library." entry is written to the activity history. Playlists, playlist folders and rule-driven (live) collections are not affected, and automatic collections follow the canonical metadata. Warning before deleting a library item that sits in a curated collection belongs to the future "Delete from library" work.
 
 ## Series rails and app shell
 
@@ -113,6 +113,12 @@ same page. The chosen season is part of the address, so reloading keeps it, and 
 season control and episode list behave the same on phones, tablets and desktops. A
 season whose episodes the active profile cannot see reads as not found, like any other
 item the profile may not see.
+
+### No shareable links; titles open over the current page; the tab is remembered
+
+A library is private, so detail pages have no shareable links and the More menu has no "Copy library link" (not on a detail page, the Home hero or the Listen page). Links between items inside the app use the item's ID (`/details/{type}/{id}`). Target behaviour, built with the detail overlay: a title opens as an overlay over the page you were on; Back, the close button and Esc dismiss it and return to the page underneath; reloading while a title is open reopens that same title over Home so you keep your place.
+
+The tab you choose on a detail page (and, on a show, the season) is written into the page address as `tab` and `season` by replacing the current history entry, so it never adds a Back step. Reloading, or coming back to the page, reopens that tab and season; a `tab` value that does not exist or is hidden for that title opens the default tab. Choosing a tab or season never reloads the page from the Engine, and a personal action such as marking something watched keeps the chosen tab and season.
 
 ### One file, several episodes: the editor picker
 

@@ -19,7 +19,8 @@ public sealed record CollectionPersonalMediaWriteResult(
     bool Found,
     bool Allowed,
     CollectionPersonalMediaSourceDto? Source = null,
-    string? Error = null);
+    string? Error = null,
+    bool WouldEmptyCollection = false);
 
 /// <summary>
 /// Coordinates Custom Collection personal-media sources without resolving or
@@ -243,6 +244,20 @@ public sealed class CollectionPersonalMediaService(
 
         try
         {
+            // A manually curated collection keeps at least one member: the last personal-media source stays, and the
+            // person is told to delete the collection instead (D17, D26). Playlists and rule-driven collections are not curated.
+            var collection = await collections.GetByIdAsync(collectionId, ct);
+            if (collection is not null && CollectionAccessPolicy.IsCuratedCollection(collection))
+            {
+                return await sources.RemoveUnlessLastMemberAsync(collectionId, sourceId, ownerProfileId, ct) switch
+                {
+                    CollectionViewSourceRemoval.Removed => new(true, true),
+                    CollectionViewSourceRemoval.WouldLeaveCollectionEmpty => new(
+                        true, true, Error: CollectionAccessPolicy.CuratedCollectionNeedsItemMessage, WouldEmptyCollection: true),
+                    _ => new(false, true),
+                };
+            }
+
             var removed = await sources.RemoveAsync(collectionId, sourceId, ownerProfileId, ct);
             return new(removed, true);
         }

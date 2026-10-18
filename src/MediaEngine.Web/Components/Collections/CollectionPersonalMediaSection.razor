@@ -204,7 +204,15 @@
         {
             if (!await Client.RemoveSourceAsync(collectionId, removed.SourceId, ct))
             {
+                // The Engine refuses to take out a curated collection's last member; the source is still attached,
+                // so show it as chosen again beside the Engine's reason.
+                if (removed.Kind == CollectionPersonalMediaSourceKinds.Gallery && removed.GalleryId.HasValue)
+                    _selectedGalleryIds.Add(removed.GalleryId.Value);
+                else if (removed.Kind == CollectionPersonalMediaSourceKinds.SmartRule)
+                    _smartRuleEnabled = true;
+
                 _loadError = Client.LastError;
+                await InvokeAsync(StateHasChanged);
                 return false;
             }
         }

@@ -592,7 +592,8 @@ public sealed class UnifiedDetailComponentTests
     {
         Assert.Contains("sequence: SequenceWindowQuery.Windowed", ReadSource("src/MediaEngine.Web/Components/Details/DetailRouteHost.razor"));
         var page = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
+        // The container pick, the refresh, and the refresh that keeps the chosen season.
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
     }
 
     [Fact]
@@ -797,7 +798,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("return episodeRoute;", sequence);
         Assert.Contains("&episode={episodeId:D}", sequence);
         Assert.Contains("SupplyParameterFromQuery(Name = \"episode\")", showPage);
-        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId)", showPage);
+        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId, Tab)", showPage);
         Assert.Contains("parsedEntityType == DetailEntityType.TvShow", routeRequest);
         Assert.Contains("DetailEntityType.TvEpisode", routeRequest);
         Assert.Contains("containerId: id.ToString(\"D\")", routeRequest);

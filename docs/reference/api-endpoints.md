@@ -349,7 +349,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/collections/search?q=` | SQL-backed search across visible library works, canonical values, and collection names. Returns up to 20 work results. | Required |
 | GET | `/collections/personal-media/galleries` | List Galleries eligible for the administrator's Collection editor without exposing individual assets | Administrator + trusted profile |
 | GET | `/collections/{id}/personal-media` | Return count-free Gallery/rule sources after reapplying the viewer's View authorization | Required + trusted profile |
-| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected | Administrator + trusted profile |
+| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected. DELETE answers `409` "A collection needs at least one item. Delete the collection instead." when the source is the last member (no items, no other source) of a curated collection | Administrator + trusted profile |
 | GET | `/persons?catalog=true&q=&role=&lane=&sort=&offset=&limit=` | Paged canonical primary contributors on owned works for Collections / People | Required |
 | GET | `/persons/role-counts?catalog=true` | Canonical owned-library contributor counts grouped by role | Required |
 

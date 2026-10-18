@@ -55,7 +55,8 @@ public sealed partial class UiShellRenderTests
         var cut = RenderOpenAccountMenu(
             ShellAuthority(true, ["settings.administration"], ["access.manage"]), AdultProfile("Shy"));
 
-        Assert.Single(cut.FindAll(NeedsReviewLink));
+        // Administrator access is confirmed with the Engine after the menu opens, so the entry can arrive a render later.
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(NeedsReviewLink)));
     }
 
     [Fact]

@@ -22,7 +22,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
-@inject IJSRuntime Js
 @inject IAppDialogService Dialogs
 @inject ILogger<DetailPage> Logger
 @implements IDisposable
@@ -51,6 +50,8 @@
         {
             <section class="tl-detail-page__primary-content">
             <DetailPrimaryModule Model="Model"
+                                 SelectedSeasonId="SelectedSeasonId"
+                                 OnSeasonSelected="SelectedSeasonChanged"
                                  OnContainerSelected="HandleContainerSelectedAsync"
                                  OnEditItem="OpenEpisodeEditorAsync" />
             </section>
@@ -98,6 +99,13 @@
     [Parameter, EditorRequired] public DetailPageViewModel? Model { get; set; }
     [Parameter] public string? ActiveTab { get; set; }
     [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
+
+    /// <summary>The season of a show the page address names; a refresh asks the Engine for the show on that season.</summary>
+    [Parameter] public Guid? SelectedSeasonId { get; set; }
+    [Parameter] public EventCallback<Guid> SelectedSeasonChanged { get; set; }
+
+    /// <summary>Raised with each payload this page fetches itself, so the host keeps the newest one.</summary>
+    [Parameter] public EventCallback<DetailPageViewModel> ModelRefreshed { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     private IReadOnlyList<DetailTab> VisibleTabs =>
         Model is null ? [] : DetailTabNavigation.GetVisibleTabs(Model);
@@ -252,7 +260,10 @@
 
         var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, SequenceWindowQuery.Windowed);
         if (updated is not null)
+        {
             Model = updated;
+            await ModelRefreshed.InvokeAsync(updated);
+        }
     }
 
     private async Task HandleDetailActionAsync(DetailAction action)
@@ -297,12 +308,6 @@
         if (DetailActionKeys.IsPersonalStatus(action.Key))
         {
             await HandlePersonalStatusAsync(action);
-            return;
-        }
-        if (action.Key == DetailActionKeys.CopyLink)
-        {
-            try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri); Snackbar.Add("Library link copied.", AppSeverity.Success); }
-            catch { Snackbar.Add("The browser could not copy the link.", AppSeverity.Error); }
             return;
         }
         if (action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit)
@@ -626,10 +631,14 @@
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
             return;
 
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
+        // A show page the person moved to a season asks for that season again, so the refresh keeps it (D19).
+        var updated = SelectedSeasonId is { } seasonId && Model.EntityType == DetailEntityType.TvShow
+            ? await ApiClient.GetDetailPageAsync(DetailEntityType.TvSeason, seasonId, Model.PresentationContext, containerId: entityId.ToString("D"), sequence: SequenceWindowQuery.Windowed)
+            : await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
         if (updated is not null)
         {
             Model = updated;
+            await ModelRefreshed.InvokeAsync(updated);
             StateHasChanged();
         }
     }

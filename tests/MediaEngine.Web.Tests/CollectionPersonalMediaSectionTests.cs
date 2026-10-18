@@ -51,6 +51,34 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TakingOutTheLastSourceOfACuratedCollection_ShowsTheEnginesRefusalAndKeepsTheSource()
+    {
+        Render<AppPopoverHost>();
+        var collectionId = Guid.NewGuid();
+        var gallery = new CollectionGalleryReferenceDto(Guid.NewGuid(), "Family Trip", "manual", DateTimeOffset.UtcNow);
+        _client.Galleries.Add(gallery);
+        _client.Sources.Add(new CollectionPersonalMediaSourceDto(
+            Guid.NewGuid(), collectionId, Guid.NewGuid(), CollectionPersonalMediaSourceKinds.Gallery, gallery.GalleryId, null, null, 0));
+        _client.RefuseRemovalWith = "A collection needs at least one item. Delete the collection instead.";
+
+        var cut = Render<CollectionPersonalMediaSection>(parameters => parameters.Add(c => c.CollectionId, collectionId));
+        cut.WaitForState(() => cut.Markup.Contains("Family Trip", StringComparison.Ordinal));
+        cut.FindAll("button")
+            .Single(button => button.TextContent.Contains("Family Trip", StringComparison.Ordinal))
+            .Click();
+
+        Assert.False(await cut.InvokeAsync(() => cut.Instance.SaveAsync(collectionId)));
+
+        Assert.Equal("A collection needs at least one item. Delete the collection instead.", cut.Instance.LastError);
+        cut.WaitForAssertion(() => Assert.Contains(
+            "A collection needs at least one item. Delete the collection instead.",
+            cut.Find(".collection-personal-media__notice").TextContent));
+        Assert.Single(_client.Sources);
+        Assert.Contains("is-selected", cut.FindAll("button")
+            .Single(button => button.TextContent.Contains("Family Trip", StringComparison.Ordinal)).ClassName);
+    }
+
+    [Fact]
     public void SmartSourceUsesViewRuleBuilderBackedBySharedInteractiveCore()
     {
         Render<AppPopoverHost>();
@@ -79,6 +107,7 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
         public List<CollectionPersonalMediaSourceDto> Sources { get; } = [];
         public List<CollectionPersonalMediaSourceWriteRequest> AddRequests { get; } = [];
         public string? LastError { get; private set; }
+        public string? RefuseRemovalWith { get; set; }
 
         public Task<IReadOnlyList<CollectionGalleryReferenceDto>> GetEligibleGalleriesAsync(CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<CollectionGalleryReferenceDto>>(Galleries);
@@ -114,6 +143,12 @@ public sealed class CollectionPersonalMediaSectionTests : AsyncBunitContext
 
         public Task<bool> RemoveSourceAsync(Guid collectionId, Guid sourceId, CancellationToken ct = default)
         {
+            if (RefuseRemovalWith is not null)
+            {
+                LastError = RefuseRemovalWith;
+                return Task.FromResult(false);
+            }
+
             Sources.RemoveAll(source => source.SourceId == sourceId);
             return Task.FromResult(true);
         }

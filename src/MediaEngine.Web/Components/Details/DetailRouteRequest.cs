@@ -17,8 +17,11 @@ public sealed record DetailRouteRequest
         string productTitle,
         string notFoundTitle,
         string notFoundMessage,
+        string loadKey,
         string? containerId = null,
-        DetailRouteOriginNavigation? originNavigation = null)
+        DetailRouteOriginNavigation? originNavigation = null,
+        string? requestedTab = null,
+        Guid? selectedSeasonId = null)
     {
         EntityType = entityType;
         EntityId = entityId;
@@ -29,6 +32,9 @@ public sealed record DetailRouteRequest
         NotFoundMessage = notFoundMessage;
         ContainerId = containerId;
         OriginNavigation = originNavigation;
+        LoadKey = loadKey;
+        RequestedTab = requestedTab;
+        SelectedSeasonId = selectedSeasonId;
     }
 
     public DetailEntityType? EntityType { get; }
@@ -40,6 +46,20 @@ public sealed record DetailRouteRequest
     public string NotFoundMessage { get; }
     public string? ContainerId { get; }
     public DetailRouteOriginNavigation? OriginNavigation { get; }
+
+    /// <summary>
+    /// Names the Engine payload this request loads. Two requests with the same key show the same page, so a change
+    /// that only touches <see cref="RequestedTab"/> or <see cref="SelectedSeasonId"/> never reloads it (D19).
+    /// A season opened through its show (<c>?season=</c>) shares the show's key.
+    /// </summary>
+    public string LoadKey { get; }
+
+    /// <summary>The <c>tab</c> in the page address; null when the address names none (the default tab opens).</summary>
+    public string? RequestedTab { get; }
+
+    /// <summary>The season named by the page address (<c>?season=</c>, or a <c>/details/tvseason/{id}</c> address).</summary>
+    public Guid? SelectedSeasonId { get; }
+
     public bool CanLoad => EntityType.HasValue;
 
     public static DetailRouteRequest ForUnified(
@@ -47,8 +67,10 @@ public sealed record DetailRouteRequest
         Guid id,
         string? contextValue,
         Guid? episodeId = null,
-        Guid? seasonId = null)
+        Guid? seasonId = null,
+        string? tab = null)
     {
+        var requestedTab = string.IsNullOrWhiteSpace(tab) ? null : tab.Trim();
         var context = ParseContext(contextValue);
         var hasParsedEntityType = TryParseEntityType(entityType, out var parsedEntityType);
         if (hasParsedEntityType
@@ -63,8 +85,10 @@ public sealed record DetailRouteRequest
                 productTitle: "Tuvima Library",
                 notFoundTitle: "Episode not found",
                 notFoundMessage: "This episode could not be loaded from your library.",
+                loadKey: $"tvepisode|{episodeId.Value:D}|{id:D}",
                 containerId: id.ToString("D"),
-                originNavigation: OriginFor(DetailPresentationContext.Watch));
+                originNavigation: OriginFor(DetailPresentationContext.Watch),
+                requestedTab: requestedTab);
         }
 
         // A season has no page of its own (D13): its two addresses, /details/tvshow/{show}?season={season} and
@@ -83,8 +107,11 @@ public sealed record DetailRouteRequest
                 productTitle: "Tuvima Library",
                 notFoundTitle: "Season not found",
                 notFoundMessage: "This season could not be loaded from your library.",
+                loadKey: viaShow ? TvShowKey(id) : $"tvseason|{id:D}",
                 containerId: viaShow ? id.ToString("D") : null,
-                originNavigation: OriginFor(DetailPresentationContext.Watch));
+                originNavigation: OriginFor(DetailPresentationContext.Watch),
+                requestedTab: requestedTab,
+                selectedSeasonId: viaShow ? seasonId!.Value : id);
         }
 
         return new(
@@ -95,8 +122,15 @@ public sealed record DetailRouteRequest
             productTitle: "Tuvima Library",
             notFoundTitle: "Detail page not found",
             notFoundMessage: "This item could not be loaded from your library.",
-            originNavigation: OriginFor(context));
+            loadKey: hasParsedEntityType
+                ? (parsedEntityType == DetailEntityType.TvShow ? TvShowKey(id) : $"{parsedEntityType}|{id:D}|{context}")
+                : $"unknown|{entityType}|{id:D}",
+            originNavigation: OriginFor(context),
+            requestedTab: requestedTab);
     }
+
+    /// <summary>The load key of a show's page, however it was reached (with or without a season, in any context).</summary>
+    public static string TvShowKey(Guid showId) => $"tvshow|{showId:D}";
 
     private static bool TryParseEntityType(string value, out DetailEntityType entityType)
     {

@@ -3,7 +3,7 @@
 
 @namespace MediaEngine.Web.Components.Pages
 
-<DetailRouteHost Request="@DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId)" />
+<DetailRouteHost Request="@DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId, Tab)" />
 
 @code {
     [Parameter] public string EntityType { get; set; } = string.Empty;
@@ -17,4 +17,7 @@
 
     [SupplyParameterFromQuery(Name = "season")]
     public Guid? SeasonId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? Tab { get; set; }
 }

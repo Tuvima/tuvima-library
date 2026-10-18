@@ -51,11 +51,11 @@ public sealed class SeasonSelectionTests : AsyncBunitContext
         Assert.Equal(["Season 1", "Season 2"], chips.Select(ChipLabel));
         var selected = Assert.Single(chips, chip => chip.ClassList.Contains("is-selected"));
         Assert.Equal("Season 2", ChipLabel(selected));
-        Assert.True(selected.HasAttribute("aria-selected"));
+        Assert.Equal("true", selected.GetAttribute("aria-selected"));
         Assert.True(selected.HasAttribute("aria-current"));
         Assert.All(chips.Where(chip => !ReferenceEquals(chip, selected)), chip =>
         {
-            Assert.False(chip.HasAttribute("aria-selected"));
+            Assert.Equal("false", chip.GetAttribute("aria-selected"));
             Assert.False(chip.HasAttribute("aria-current"));
         });
     }

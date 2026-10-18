@@ -101,7 +101,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.Contains("return $\"/details/tvshow/{row.WorkId:D}?context=watch\";", lookupSource, StringComparison.Ordinal);
         Assert.Contains("MapGet(\"/{entityType}/{id:guid}\"", detailsSource, StringComparison.Ordinal);
         Assert.Contains("DetailEntityType.TvShow", composerSource, StringComparison.Ordinal);
-        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId)", watchPageSource, StringComparison.Ordinal);
+        Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId, Tab)", watchPageSource, StringComparison.Ordinal);
         Assert.Contains("parsedEntityType == DetailEntityType.TvShow", detailRouteRequestSource, StringComparison.Ordinal);
         Assert.Contains("DetailPresentationContext.Watch", detailRouteRequestSource, StringComparison.Ordinal);
     }
