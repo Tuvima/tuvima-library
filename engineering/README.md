@@ -23,6 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
+| [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Locked (v1, 2026-10-18) |
 | [Archive](specs/archive/README.md) | Built specs |
