@@ -1228,6 +1228,25 @@ public sealed class IngestionOperationsPageGuardrailTests
     }
 
     [Fact]
+    public void LibraryUpdateAttention_NamesEverySharedReviewCategory()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var categories = MediaEngine.Domain.Constants.ReviewCategory.All;
+        var snapshot = new IngestionOperationsSnapshotDto
+        {
+            Summary = new IngestionOperationsSummaryDto { TotalItems = 50, ItemsNeedingReview = categories.Count },
+            ReviewReasons = categories.Select(category => new IngestionReviewReasonDto { Key = category.Key, Count = 1 }).ToList(),
+        };
+
+        var status = IngestionLiveDashboardState.BuildLibraryUpdateStatus(
+            snapshot, [], [], [], [], new IngestionDashboardMetrics(50, 0, 0, categories.Count), null, now, now);
+
+        Assert.Equal(categories.Count, status.AttentionReasons.Count(reason => reason.Count == 1));
+        Assert.Contains(status.AttentionReasons, reason => reason.Label == "naming issues");
+        Assert.Contains(status.AttentionReasons, reason => reason.Label == "metadata conflicts");
+    }
+
+    [Fact]
     public void LiveDashboardState_ClampsOverlappingWorkerQueuesToRunSize()
     {
         var now = DateTimeOffset.UtcNow;

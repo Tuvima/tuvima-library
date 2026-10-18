@@ -330,8 +330,8 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             ClearFailure(endpoint);
             return new ReviewListAttempt(raw?.Select(item => item.ToViewModel()).ToList() ?? [], null);
         }
-        // Cancellation is not a failure: the caller abandoned the request.
-        catch (OperationCanceledException) { return new ReviewListAttempt([], null); }
+        // Cancellation is not a failure: the caller abandoned the request. A timeout is a failure.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return new ReviewListAttempt([], null); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GET /review/pending failed");
