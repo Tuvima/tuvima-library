@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Draft (v1, 2026-10-17; 4 open questions) |
+| [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Locked (v1, 2026-10-18) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP2–WP8 docs in #245; WP1 and the guardrail ship with Item Detail) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |

@@ -171,5 +171,5 @@ Most of the join/aggregate and SQLite-specific ~40% would stay hand-written SQL 
 
 ## Follow-up
 
-- **Decided (Shy, 2026-10-17): stay on Dapper.** Recorded in [ADR 0001](../architecture/decisions/0001-sqlite-and-dapper.md). The numbered upgrade scripts and the contributor guide are drafted in [Spec: Numbered data store upgrades and contributor guide](../specs/data-store-upgrade-scripts.md).
+- **Decided (Shy, 2026-10-17): stay on Dapper.** Recorded in [ADR 0001](../architecture/decisions/0001-sqlite-and-dapper.md). The numbered upgrade scripts and the contributor guide are specified (Locked 2026-10-18) in [Spec: Numbered data store upgrades and contributor guide](../specs/data-store-upgrade-scripts.md).
 - **Proposed separately, independent of this decision:** investigate why the library list (Q4) and Home projection (Q5) take seconds at 4,000 works and minutes at 100,000, including whether real libraries are affected. This is diagnosis only, with no changes. It can use this harness: `seed --works N`, `explain --query q4`.

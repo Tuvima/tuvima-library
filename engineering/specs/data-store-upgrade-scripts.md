@@ -1,6 +1,6 @@
 # Spec: Numbered data store upgrades and contributor guide
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [ADR 0001 — SQLite and Dapper](../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../docs/reference/database-schema.md)
+> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [ADR 0001 — SQLite and Dapper](../architecture/decisions/0001-sqlite-and-dapper.md) · [EF benchmark results](../proposals/ef-vs-dapper-benchmark-results-2026-10.md) · [ADR 0003 — Storage epoch](../architecture/decisions/0003-storage-epoch-guid-blob.md) · [Database schema reference (public)](../../docs/reference/database-schema.md)
 
 ## 1. Goal
 
@@ -16,6 +16,7 @@ Make changing Tuvima's data store easy for contributors and safe for people's li
 - **Clear refusals.** The Engine refuses to start, with a plain message, when a step fails, when the data store is newer than this Engine, or when an already-applied step has been edited.
 - **A readable "current structure" file** for contributors, kept in step with the numbered steps by an automatic check and a refresh command.
 - **Guardrail tests** for numbering, one-time application and the structure snapshot.
+- **A read-only data store version line** in Settings for administrators (D10).
 - **The contributor guide** on the public docs site (Develop section), plus updates to the internal rules and developer docs that describe today's routine.
 
 **Out of scope**
@@ -37,6 +38,10 @@ Make changing Tuvima's data store easy for contributors and safe for people's li
   - the data store has a step this Engine doesn't know (it is newer than the Engine);
   - an applied step's content no longer matches what was recorded.
 - **D7.** The readable current-structure file is **generated** from the steps, never hand-edited. An automatic test fails when it is out of date, and a refresh command regenerates it. This matches how wire snapshots are handled today.
+- **D8 (Q1).** (Shy, 2026-10-18) When this lands, the storage epoch is bumped. Existing data stores, Shy's test library included, are backed up and reingested once into the new baseline. Nothing recognises or adopts an older data store. *Reason: follows the "resets are acceptable, no compatibility shims" rule and leaves no special-case code behind.*
+- **D9 (Q2).** (Shy, 2026-10-18) The Engine keeps the **2** newest safety copies. *Reason: covers "the last upgrade went wrong and I only noticed after the next one" without using more disk.*
+- **D10 (Q3).** (Shy, 2026-10-18) Administrators see a read-only line in Settings: "Data store version: step N, upgraded on DATE". *Reason: it answers support questions ("which version are you on?"), and it is operational state, which belongs in Settings.*
+- **D11 (Q4).** (Shy, 2026-10-18) The generated structure file is called `schema.snapshot.sql` and starts with a comment saying it is generated and how to refresh it. *Reason: the new name makes clear it isn't an editable source.*
 
 ## 4. UI behaviour
 
@@ -49,15 +54,17 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 | A step fails | The Engine doesn't start. The log and console give the step's number and name, what went wrong, that the data store was left unchanged by that step, and the safety copy's location. Docker, the Windows installer and `dotnet run` all show this in their normal Engine output. |
 | Data store newer than this Engine (e.g. after going back to an older release) | The Engine doesn't start. The message says the data store was upgraded by a newer Tuvima, to install that version or restore an older backup, and where the backups are. |
 | An applied step was edited (a contributor mistake) | The Engine doesn't start. The message names the step and says applied steps must never be edited; add a new step instead. |
-| Administrator wants to see the data store version | Out of scope unless Shy decides otherwise (Q3). |
+| Administrator opens Settings (desktop, tablet or phone) | Settings shows a read-only line, "Data store version: step N, upgraded on DATE", next to the backups (D10). Before any step has been recorded, which only happens briefly on a brand-new install, it says "Data store version: setting up". Household members and profiles without administrator access don't see it. |
+| Settings can't reach the Engine | That line is hidden, and the Dashboard's usual "Engine unreachable" message shows instead. |
 
 ## 5. Data / model changes
 
 - **New record of applied steps.** For each step: its number, name, a fingerprint of its content, when it ran, and which Engine version ran it.
 - **The baseline step** creates exactly the structure a fresh install has today, with no new or removed tables or columns.
-- **Existing libraries (pre-release).** Following the "resets are acceptable" rule, the storage epoch is bumped, so existing data stores are backed up and reingested into the new baseline (Q1). Shy's own test library would need one reingest.
+- **Existing libraries (pre-release).** The storage epoch is bumped, so existing data stores are backed up and reingested once into the new baseline (D8). Shy's own test library needs one reingest.
 - **Retired conversions.** One-time conversions of old pre-release data (packed values, local-only accounts, legacy profile lists and similar) are deleted, not carried forward.
-- **Safety copies** are kept next to the existing backups. Each is about the size of the data store; how many to keep is Q2.
+- **Safety copies** are kept next to the existing backups, 2 at most (D9). Each is about the size of the data store.
+- **The data store version** (latest step number and when it ran) becomes available to the Dashboard for the Settings line (D10).
 
 ## 6. Work packets
 
@@ -86,13 +93,13 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
   - **Proof.** A one-off comparison test proves a fresh data store built the old way and the new way have identical normalised `sqlite_master` and `pragma_table_info` output. Run it once, then delete it with the old path.
   - **Wiring.** Connects the runner into `DatabaseConnection.InitializeSchema` / `RunStartupChecks`, in this order: epoch guard → writable check → integrity check → pending steps (safety copy from WP4 once it lands) → `PRAGMA optimize`.
   - **Retirement.** Removes `SchemaMigrator` (its `Ensure*`, `AddColumnIfMissing` and data-conversion steps) and the whole-file `SchemaInitializer` execution.
-  - **Epoch.** Bumps `StorageEpochGuard.CurrentEpoch` (Q1).
+  - **Epoch.** Bumps `StorageEpochGuard.CurrentEpoch` (D8).
 - **Files likely touched:**
   - `src/MediaEngine.Storage/SchemaMigrator.cs` (deleted)
   - `src/MediaEngine.Storage/SchemaInitializer.cs`
   - `src/MediaEngine.Storage/DatabaseConnection.cs`
   - `src/MediaEngine.Storage/StorageEpochGuard.cs`
-  - `src/MediaEngine.Storage/Schema/schema.sql` (becomes the baseline source or is replaced by the WP3 snapshot)
+  - `src/MediaEngine.Storage/Schema/schema.sql` (its content moves into `0001_baseline.sql`; the file is deleted once WP3 adds `schema.snapshot.sql`)
   - tests that call the migrator directly (to be confirmed by Claude Code)
   - `tests/MediaEngine.Storage.Tests/DatabaseStartupSafetyTests.cs`
 - **Depends on:** WP1
@@ -105,7 +112,7 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 
 ### WP3 — Generated structure snapshot and guardrails
 - **What it does:**
-  - **Snapshot.** Generates a readable, deterministic structure file (normalised `sqlite_master` SQL, sorted) by applying every step to an empty data store, plus a refresh script.
+  - **Snapshot.** Generates `schema.snapshot.sql` (D11), a readable, deterministic structure file (normalised `sqlite_master` SQL, sorted, with a "generated — do not edit; refresh with `pwsh -File tools/Update-SchemaSnapshot.ps1`" header), by applying every step to an empty data store. Also adds the refresh script.
   - **Guardrail tests:**
     - the snapshot is current;
     - step numbers are contiguous;
@@ -113,7 +120,8 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
     - no new code reintroduces "add column if missing" style startup patching outside the step folder.
 - **Files likely touched:**
   - new `tools/Update-SchemaSnapshot.ps1`
-  - the snapshot file under `src/MediaEngine.Storage/Schema/`
+  - new `src/MediaEngine.Storage/Schema/schema.snapshot.sql`
+  - every reference to `schema.sql` in code, tests, docs and rules (to be confirmed by Claude Code)
   - new `tests/MediaEngine.Storage.Tests/SchemaUpgradeGuardrailTests.cs`
 - **Depends on:** WP2
 - **Size:** Standard
@@ -124,7 +132,7 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 ### WP4 — Safety copy before upgrades
 - **What it does:**
   - Before the first pending step runs (and only then), it writes a consistent copy of the data store (`VACUUM INTO`) into the existing backups location, named with the date and the from/to step numbers.
-  - It keeps the newest copies (count from Q2) and deletes older safety copies only, never user-made backups.
+  - It keeps the 2 newest safety copies (D9) and deletes older safety copies only, never user-made backups.
   - It refuses to upgrade, with a clear message, if there isn't enough free disk space for the copy.
 - **Files likely touched:**
   - the runner from WP1
@@ -135,7 +143,7 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
 - **Done when:** tests show:
   - a copy appears only when steps are pending;
   - it opens as a valid data store at the "from" step;
-  - old safety copies are pruned to the limit;
+  - old safety copies are pruned to 2;
   - user backups are untouched;
   - low disk space refuses with a message.
 
@@ -168,30 +176,34 @@ The upgrade itself has no Dashboard screen; the Engine applies it during startup
   - no current doc mentions `SchemaMigrator` or "idempotent startup migrations" as the way to change the data store;
   - a reviewer following the guide alone can add a test column in a scratch branch and pass all guardrails.
 
+### WP6 — Data store version in Settings
+- **What it does:**
+  - **Engine:** reports the latest applied step number and when it ran, read from the applied-steps record (WP1). It goes either on the existing system status information or a new administrator-only system read; Claude Code decides which, matching how comparable system facts are exposed. The permission check is the Engine's: administrators only.
+  - **Dashboard:** Settings shows the read-only line from section 4 next to the backups and recovery panel. It also handles the "setting up" and "Engine unreachable" states.
+  - **Wire type:** owned by `MediaEngine.Contracts`, with Contracts tests and fixtures refreshed.
+- **Files likely touched:**
+  - `src/MediaEngine.Api/Endpoints/SystemEndpoints.cs`
+  - a Contracts type in `src/MediaEngine.Contracts/`
+  - the Dashboard system client (`src/MediaEngine.Web/Services/Integration/Clients/SystemClient.cs`)
+  - `src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor` (or the Settings section that hosts it)
+  - Contracts wire fixtures (`pwsh -File tools/Update-ContractFixtures.ps1`)
+  - `docs/reference/api-endpoints.md` if a new Engine action is added
+  - Dashboard and Api tests (all to be confirmed by Claude Code)
+- **Depends on:** WP2
+- **Size:** Standard
+- **Done when:**
+  - an administrator's Settings shows "Data store version: step 1, upgraded on DATE" after a fresh start;
+  - a non-administrator neither sees the line nor can read the value from the Engine (an Api test proves the refusal);
+  - Contracts tests pass with refreshed fixtures;
+  - the Dashboard visual checks in `src/MediaEngine.Web/CLAUDE.md` pass at phone and desktop widths.
+
 ## 7. Risks and open questions
 
 **Risks**
 - **The baseline could silently differ from today's structure,** for example a column or index added only by the old routine. *Noticed by:* the WP2 old-vs-new comparison test, which must pass before the old path is deleted.
 - **A long code step on a big library could make startup slow.** *Mitigation:* the guide says code steps must work in batches and log progress; the Engine log shows step timings.
-- **Safety copies use disk space,** about the data store's size each, which matters on a NAS. *Mitigation:* the free-space check and the pruning limit (Q2).
+- **Safety copies use disk space,** about the data store's size each, which matters on a NAS. *Mitigation:* the free-space check and the 2-copy limit (D9).
 - **SQLite table rebuilds need foreign keys switched off and back on,** and a mistake there can leave orphaned rows. *Mitigation:* the per-step flag in WP1, plus a `PRAGMA foreign_key_check` after such steps that fails the step if anything is wrong.
 
 **Open questions**
-- **Q1. Existing data stores when this lands.**
-  - Options:
-    - (a) bump the storage epoch, so existing data stores are backed up and reingested once (Shy's test library included);
-    - (b) recognise a data store whose structure exactly matches the baseline and mark it as already at step 1, so there is no reingest; anything else still resets.
-  - Recommendation: **(a)**. It follows the "resets are acceptable, no compatibility shims" rule and keeps no special-case code. (b) avoids one reingest but adds code that exists only for that moment.
-- **Q2. How many safety copies to keep.**
-  - Options: 1, 2 or 3; or a size cap.
-  - Recommendation: **2**. That covers "the last upgrade went wrong and I only noticed after the next one" without doubling disk use further.
-- **Q3. Show the data store version to administrators?**
-  - Options:
-    - (a) no UI; the log only;
-    - (b) a read-only "Data store version: step N, upgraded on date" line in the existing Settings system/about information.
-  - Recommendation: **(b)**, as a small extra packet after WP2. It helps with support questions ("which version are you on?") and is operational state, which belongs in Settings.
-- **Q4. Where the readable structure file lives.**
-  - Options:
-    - (a) keep the name `schema.sql`, now generated, so existing links and habits keep working;
-    - (b) a new name such as `schema.snapshot.sql`, so nobody mistakes it for an editable source.
-  - Recommendation: **(b)**, with a header comment saying it is generated and how to refresh it.
+- None. Q1–Q4 were answered by Shy on 2026-10-18 and are recorded as D8–D11.
