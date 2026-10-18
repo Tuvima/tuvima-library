@@ -140,7 +140,7 @@
     grid-template-rows: auto auto minmax(3.25rem, auto);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header {
         border-right: 0;
         border-bottom: 1px solid rgba(255,255,255,0.09);
@@ -484,7 +484,7 @@
     font-size: 0.92rem;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-control-row {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -694,7 +694,7 @@
     align-content: start;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-placement:not(.tl-series-placement--compact) .tl-series-layout {
         grid-template-columns: 1fr;
     }
@@ -1225,7 +1225,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 .tl-detail-page .tl-series-detail__controls,
 .tl-detail-page .tl-series-detail__selectors {
         align-items: stretch;
@@ -1246,7 +1246,7 @@
 
 }
 
-@media (max-width: 840px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-page__primary-content .tl-series-placement:not(.tl-series-placement--compact) {
         width: min(100% - 2rem, 106rem);
     }
@@ -1659,7 +1659,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 
     .tl-season-browser {
         grid-template-columns: minmax(0, 1fr);
@@ -1684,4 +1684,4 @@
 .tl-series-detail__footer-utilities { display:flex; align-items:center; margin-left:auto; }
 .tl-series-detail__ownership .tl-series-detail__missing { min-height:0; height:auto; }
 .tl-series-detail__footer-utilities .tl-series-detail__missing { font-size:inherit; line-height:inherit; }
-@media(max-width:840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }
+@media(width < 840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }

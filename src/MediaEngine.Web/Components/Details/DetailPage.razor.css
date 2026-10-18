@@ -381,7 +381,7 @@
     color: #f7bf4f;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-panel,
 ::deep .tl-series-placement {
         margin-inline: 1rem;
@@ -406,7 +406,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-metadata-item {
         min-height: 2.9rem;
         padding: 0.5rem 0.72rem;
@@ -414,7 +414,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-watch-metadata-row {
         gap: 0.52rem;
         font-size: 0.96rem;
@@ -448,7 +448,7 @@
     font-size: 0.92rem;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-hero--watch .tl-detail-metadata-stack,
 ::deep .tl-detail-hero--watch .tl-detail-hero__tagline {
         width: 100%;
@@ -490,7 +490,7 @@
 /* The sequence rail owns clipping, while the item grid remains as wide as its
    contents. This matches the Read/Watch/Listen shelves and avoids artificial rows. */
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-tab-panel,
 ::deep .tl-series-placement:not(.tl-series-placement--compact) {
         padding-inline: 1.25rem;
@@ -679,7 +679,7 @@
 
 }
 
-@media (max-width: 840px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-stage {
         min-height: 100svh;
     }
@@ -761,7 +761,7 @@
         linear-gradient(180deg, #080d14, #070b11 40rem);
 }
 
-@media (max-width: 840px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-stage {
         height: auto;
         max-height: none;
@@ -981,7 +981,7 @@
 /* Final phone contract: detail content owns normal vertical scrolling, audio
    rows become compact cards, and every direct action remains touchable. */
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 .tl-detail-stage {
         height: auto;
         min-height: 0;

@@ -140,4 +140,20 @@ public sealed class DetailRouteRequestTests
         Assert.Null(request.EntityType);
         Assert.Equal("Detail page not found", request.NotFoundTitle);
     }
+
+    [Fact]
+    public void TvShowRoute_ReloadsWhenTheContextChangesButNotWhenOnlyASeasonIsPicked()
+    {
+        var season = Guid.NewGuid();
+
+        var plain = DetailRouteRequest.ForUnified("tvshow", EntityId, null);
+        var listen = DetailRouteRequest.ForUnified("tvshow", EntityId, "listen");
+        var withSeason = DetailRouteRequest.ForUnified("tvshow", EntityId, null, seasonId: season);
+        var seasonInListen = DetailRouteRequest.ForUnified("tvshow", EntityId, "listen", seasonId: season);
+
+        Assert.NotEqual(plain.LoadKey, listen.LoadKey);
+        Assert.Equal(plain.LoadKey, withSeason.LoadKey);
+        Assert.Equal(listen.LoadKey, seasonInListen.LoadKey);
+        Assert.Equal(plain.LoadKey, DetailRouteRequest.ForUnified("tvseason", season, null).ShowLoadKey(EntityId));
+    }
 }

@@ -11,6 +11,7 @@
 
 @if (_detail is not null)
 {
+    var version = _detailVersion;
     @* While the next item loads, the previous page stays on screen but dimmed and inert, so the wrong
        item's actions can never be used; DetailPage is re-created (via @key) only when the new payload lands. *@
     <div class="@ShellClass" inert="@_loading" aria-busy="@(_loading ? "true" : null)">
@@ -20,7 +21,7 @@
                     ActiveTabChanged="HandleTabChangedAsync"
                     SelectedSeasonId="_selectedSeasonId"
                     SelectedSeasonChanged="HandleSeasonSelectedAsync"
-                    ModelRefreshed="HandleModelRefreshed"
+                    ModelRefreshed="@(refreshed => HandleModelRefreshed(version, refreshed))"
                     OnActionSelected="HandleActionAsync" />
     </div>
 
@@ -159,7 +160,7 @@ else
         _detailVersion++;
         // A season opened by its own address answers with its show's page; later requests name the show.
         if (_detail is { EntityType: DetailEntityType.TvShow } && Guid.TryParse(_detail.Id, out var showId))
-            _pageKey = DetailRouteRequest.TvShowKey(showId);
+            _pageKey = Request.ShowLoadKey(showId);
         ApplyDetailTabRoute();
         _loading = false;
     }
@@ -223,7 +224,15 @@ else
 
     // A personal action refreshed the page inside DetailPage; keep that payload so a later re-render of this host
     // does not hand the stale one back.
-    private void HandleModelRefreshed(DetailPageViewModel refreshed) => _detail = refreshed;
+    // The callback is bound to the page version it was rendered for, so a refresh that lands after the person moved
+    // to another item (or while the next one loads) is ignored instead of replacing the newer page.
+    private void HandleModelRefreshed(int version, DetailPageViewModel refreshed)
+    {
+        if (version != _detailVersion || _loading)
+            return;
+
+        _detail = refreshed;
+    }
 
     /// <summary>
     /// Writes the chosen tab or season into the page address by replacing the current history entry, so reload

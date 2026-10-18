@@ -66,6 +66,10 @@ public sealed class UiCompositionGuardrailTests
         new(@"<(?:button|input|select|textarea|table|dialog|details|summary)\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // A C# string literal: raw ("""..."""), verbatim (@"..." / $@"..."), or regular ("..." / $"...").
+    private static readonly Regex StringLiteralRegex =
+        new(@"""""""[\s\S]*?""""""|[$@]{1,2}""(?:[^""]|"""")*""|""(?:[^""\\\r\n]|\\.)*""", RegexOptions.Compiled);
+
     private static readonly Regex RazorCommentRegex =
         new(@"@\*.*?\*@", RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -168,6 +172,18 @@ public sealed class UiCompositionGuardrailTests
     [Fact]
     public void UserFacingText_DoesNotUseTheRetiredRegistryLabel()
     {
+        // A missing folder would silently scan nothing, so the scan proves it saw each source it claims to cover.
+        Assert.True(Directory.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components")), "src/MediaEngine.Web/Components must exist.");
+        Assert.True(Directory.Exists(Path.Combine(RepoRoot, "docs")), "docs must exist.");
+        var scanned = RegistryScanFiles(RepoRoot);
+        foreach (var extension in new[] { ".razor", ".resx", ".md", ".cs" })
+        {
+            Assert.Contains(scanned, path => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Contains(scanned, path => path.Contains($"{Path.DirectorySeparatorChar}MediaEngine.Api{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            && path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase));
+
         var offenders = FindRetiredRegistryLabels(RepoRoot);
 
         Assert.True(
@@ -218,16 +234,22 @@ public sealed class UiCompositionGuardrailTests
             WriteFile(planted, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"<h1>{RetiredRegistryLabel}</h1>");
             WriteFile(planted, "src/MediaEngine.Web/Resources/Sample.resx", $"<data name=\"Nav\"><value>{RetiredRegistryLabel}</value></data>");
             WriteFile(planted, "docs/guides/sample.md", $"Open the {RetiredRegistryLabel} to fix an item.");
+            WriteFile(planted, "src/MediaEngine.Web/Services/Sample.cs", $"class A {{ string Label = \"Open {RetiredRegistryLabel}\"; }}");
+            WriteFile(planted, "src/MediaEngine.Api/Services/Sample.cs", $"class B {{ string Title = $@\"The {RetiredRegistryLabel} {{x}}\"; }}");
 
             WriteFile(clean, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"@inject Permission{RetiredRegistryLabel} Permissions\r\n<h1>Needs Review</h1>");
             WriteFile(clean, "src/MediaEngine.Web/Resources/Sample.resx", "<data name=\"Nav\"><value>Needs Review</value></data>");
             WriteFile(clean, "docs/guides/sample.md", "Start without pulling the registry image.");
+            WriteFile(clean, "src/MediaEngine.Web/Services/Sample.cs", $"// the old {RetiredRegistryLabel} screen\r\nclass A {{ IPermission{RetiredRegistryLabel} Source; string Label = \"capability registry\"; }}");
+            WriteFile(clean, "src/MediaEngine.Api/Services/Sample.cs", "class B { string Title = \"Needs Review\"; }");
 
             Assert.Equal(
                 [
                     "docs/guides/sample.md",
+                    "src/MediaEngine.Api/Services/Sample.cs",
                     "src/MediaEngine.Web/Components/Pages/Sample.razor",
                     "src/MediaEngine.Web/Resources/Sample.resx",
+                    "src/MediaEngine.Web/Services/Sample.cs",
                 ],
                 FindRetiredRegistryLabels(planted).Order(StringComparer.Ordinal));
             Assert.Empty(FindRetiredRegistryLabels(clean));
@@ -239,7 +261,9 @@ public sealed class UiCompositionGuardrailTests
         }
     }
 
-    private static List<string> FindRetiredRegistryLabels(string repoRoot)
+    // Everything a person can read: Dashboard markup and resources, docs, and the C# string literals of the Dashboard
+    // and the Engine (labels, messages and titles built in code).
+    private static List<string> RegistryScanFiles(string repoRoot)
     {
         var webRoot = Path.Combine(repoRoot, "src", "MediaEngine.Web");
         var files = new List<string>();
@@ -251,12 +275,24 @@ public sealed class UiCompositionGuardrailTests
         files.AddRange(EnumerateFiles(Path.Combine(webRoot, "Resources"), "*.resx"));
         files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.md"));
         files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.mdx"));
+        files.AddRange(EnumerateFiles(webRoot, "*.cs"));
+        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "src", "MediaEngine.Api"), "*.cs"));
 
-        return files
-            .Where(path => !IsGeneratedOrBuildOutput(path))
+        return files.Where(path => !IsGeneratedOrBuildOutput(path)).ToList();
+    }
+
+    private static List<string> FindRetiredRegistryLabels(string repoRoot)
+    {
+        return RegistryScanFiles(repoRoot)
             .Where(path =>
             {
                 var contents = File.ReadAllText(path);
+                if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StringLiteralRegex.Matches(LineCommentRegex.Replace(contents, string.Empty))
+                        .Any(literal => RetiredRegistryLabelRegex.IsMatch(literal.Value));
+                }
+
                 return RetiredRegistryLabelRegex.IsMatch(
                     path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) ? Sanitize(contents) : contents);
             })

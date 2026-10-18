@@ -126,6 +126,27 @@ public sealed class TvSeasonDetailTests : IDisposable
     }
 
     [Fact]
+    public async Task ASeasonThatWasMergedIntoAnotherOpensTheShowOfTheSeasonItBecame()
+    {
+        var show = SeedShow("Northwatch");
+        var mergedAway = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@mergedAway, 'merged_into_work_id', @target, CURRENT_TIMESTAMP);
+                """, new { mergedAway, target = show.SeasonTwo.ToString("D") });
+        }
+
+        var page = await ComposeAsync(DetailEntityType.TvSeason, mergedAway);
+
+        Assert.NotNull(page);
+        Assert.Equal(DetailEntityType.TvShow, page!.EntityType);
+        Assert.Equal(show.Id.ToString("D"), page.Id);
+        Assert.Equal("season-2", page.SequencePlacement!.CurrentGroupKey);
+    }
+
+    [Fact]
     public async Task AnIdThatIsNotASeasonIsNotFoundInsteadOfAShowPage()
     {
         var show = SeedShow("Northwatch");

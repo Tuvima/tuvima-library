@@ -309,7 +309,7 @@
     box-shadow: none;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-primary-module {
         width: min(100% - 2rem, 106rem);
     }
@@ -615,7 +615,7 @@
     font-size: clamp(0.76rem, 0.78vw, 0.84rem);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-primary-module__controls {
         align-items: stretch;
         flex-direction: column;
@@ -746,7 +746,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-primary-module__header,
     .tl-detail-primary-module--works .tl-detail-primary-module__header,
     .tl-detail-primary-module__controls {

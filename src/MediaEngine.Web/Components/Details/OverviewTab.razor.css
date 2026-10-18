@@ -226,7 +226,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-overview-section,
 :where(.tl-detail-page) .tl-overview-section--secondary {
         padding: 1.25rem 0;
@@ -354,7 +354,7 @@
     text-transform: uppercase;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-overview-surface {
         grid-template-columns: minmax(0, 1fr);
         width: calc(100% - 2rem);
@@ -498,13 +498,13 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-overview-credit-group--cast .tl-overview-credit-rows ::deep .tl-credit-card--compact:nth-child(n + 6) {
         display: none;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-overview-credit-groups {
         display: grid;
     }

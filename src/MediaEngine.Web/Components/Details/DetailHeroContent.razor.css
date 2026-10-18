@@ -237,7 +237,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-hero__inner {
         align-items: flex-end;
         padding: 2rem 1.25rem 1.5rem;
@@ -457,38 +457,38 @@
     font-weight: 700;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__inner {
         grid-template-columns: 1fr;
         padding: 5rem 1rem 2rem;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__inner {
         padding: 2rem 1rem 1.5rem;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__copy {
         max-width: 100%;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
         font-size: 1.02rem;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__inner {
         padding: 6.25rem 1.25rem 2.35rem;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__copy {
         max-width: 100%;
         gap: 0.58rem;
@@ -496,13 +496,13 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__copy h1 {
         font-size: clamp(3rem, 17vw, 5.6rem);
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy,
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy {
         gap: 0.5rem;
@@ -510,21 +510,21 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1 {
         font-size: clamp(2.25rem, 11.8vw, 4.2rem);
         line-height: 0.95;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-dense .tl-detail-hero__copy h1 {
         font-size: clamp(1.95rem, 9.8vw, 3.35rem);
         line-height: 0.98;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__logo {
         width: min(90vw, 30rem);
         max-height: 9rem;
@@ -579,14 +579,14 @@
     text-transform: none;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero.tl-detail-hero--title-medium:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
         max-width: 18ch;
         font-size: clamp(2.15rem, 10vw, 3.35rem);
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy h1 {
         font-size: clamp(2.35rem, 12vw, 4rem);
     }
@@ -680,7 +680,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__synopsis {
         width: 100%;
     }
@@ -899,14 +899,14 @@
     justify-items: start;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__content {
         align-items: flex-end !important;
         padding: clamp(17rem, 48svh, 25rem) 1.25rem 1.5rem !important;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-hero__content .tl-detail-hero__copy {
         width: 100%;
         max-width: 100%;
@@ -952,7 +952,7 @@
     z-index: 10;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__inner {
         align-items: flex-end;
         min-height: clamp(30rem, 68svh, 36rem);
@@ -963,7 +963,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy {
         align-content: end;
         width: 100%;
@@ -973,7 +973,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch .tl-detail-hero__copy h1,
 :where(.tl-detail-page) .tl-detail-stage .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy h1,

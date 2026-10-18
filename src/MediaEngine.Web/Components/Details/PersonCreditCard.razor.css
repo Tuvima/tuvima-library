@@ -116,7 +116,7 @@
     aspect-ratio: 1 / 1;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-credit-card {
         min-width: 0;
         grid-template-columns: 4rem minmax(0, 1fr);

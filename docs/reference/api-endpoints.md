@@ -122,6 +122,8 @@ Removal of an expired variant also removes its list row, so a device that still 
 
 `GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). **Windowing is opt-in:** a request with no `sequence*` parameter receives the whole list exactly as before (`orderedItems` and every group's `items` complete), so older clients keep working. A client opts in by sending `sequenceLimit` (the Dashboard sends `sequenceLimit=50`). Up to 100 episodes in total a windowed request still lists every episode. A longer show then lists every season but fills `items` for one season only (the season being watched, starting at the window that holds the current episode); `orderedItems` is empty because the episodes are carried once, inside their season.
 
+**A season by its own address.** `GET /api/v1/details/tvseason/{id}` answers with the page of the season's show, opened on that season: the payload's `entityType` is the show and its `sequencePlacement` selects the season. The optional `containerId` is the show's id; when it is omitted the Engine resolves the show from the season. A season id that does not exist, or that the profile may not see (library grants and the content limit apply as on the other details routes), answers `404`; so does a season whose show cannot be resolved.
+
 Optional query parameters on the same route:
 
 | Parameter | Meaning |

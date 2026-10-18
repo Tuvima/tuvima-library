@@ -44,14 +44,14 @@
     clip: rect(0, 0, 0, 0);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-metadata-stack {
         width: 100%;
         overflow-x: auto;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-metadata-row {
         width: max-content;
         max-width: none;

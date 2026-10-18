@@ -31,6 +31,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
     private readonly Guid _profile = Guid.NewGuid();
     private readonly List<(DetailEntityType Type, Guid Id, string? Container)> _loads = [];
     private readonly List<(DetailEntityType Type, Guid Id, string? Container)> _refreshes = [];
+    private TaskCompletionSource<DetailPageViewModel?>? _refreshGate;
 
     public DetailAddressStateTests()
     {
@@ -46,8 +47,11 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
             }));
             stub.SetHandler(nameof(IEngineApiClient.LoadDetailPageAsync), args =>
             {
-                _loads.Add(((DetailEntityType)args![0]!, (Guid)args[1]!, (string?)args[3]));
-                return Task.FromResult(DetailPageLoadResult.Loaded(ShowPage("season-1")));
+                var loadedId = (Guid)args![1]!;
+                _loads.Add(((DetailEntityType)args[0]!, loadedId, (string?)args[3]));
+                return Task.FromResult(DetailPageLoadResult.Loaded(loadedId == Show
+                    ? ShowPage("season-1")
+                    : ShowPage("season-1", loadedId, "Other show")));
             });
             // A refresh that asks for a season gets the show opened on it; one that does not gets the default season.
             stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), args =>
@@ -55,6 +59,8 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
                 var type = (DetailEntityType)args![0]!;
                 var id = (Guid)args[1]!;
                 _refreshes.Add((type, id, (string?)args[3]));
+                if (_refreshGate is { } gate)
+                    return gate.Task;
                 return Task.FromResult<DetailPageViewModel?>(ShowPage(type == DetailEntityType.TvSeason && id == SeasonTwoId ? "season-2" : "season-1"));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetPersonalStatusAsync), _ =>
@@ -182,6 +188,28 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         Assert.Single(_loads);
     }
 
+    [Fact]
+    public async Task ARefreshThatLandsAfterNavigatingToAnotherItemDoesNotReplaceTheNewPage()
+    {
+        _refreshGate = new TaskCompletionSource<DetailPageViewModel?>();
+        var cut = RenderShow();
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        // The handler waits on the refresh, which waits on the gate: do not await the click itself.
+        var click = cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Mark as watched")).ClickAsync(new());
+        cut.WaitForAssertion(() => Assert.NotEmpty(_refreshes));
+
+        var other = Guid.NewGuid();
+        cut.Render(parameters => parameters.Add(c => c.Request, DetailRouteRequest.ForUnified("tvshow", other, null)));
+        cut.WaitForAssertion(() => Assert.Contains("Other show", cut.Markup));
+
+        _refreshGate.SetResult(ShowPage("season-2"));
+        await click;
+        cut.Render(parameters => parameters.Add(c => c.Request, DetailRouteRequest.ForUnified("tvshow", other, null, tab: "cast")));
+
+        Assert.Contains("Other show", cut.Markup);
+        Assert.DoesNotContain("Northwatch", cut.Markup);
+    }
+
     private IRenderedComponent<DetailRouteHost> RenderShow(string? tab = null)
     {
         var cut = Render<DetailRouteHost>(parameters => parameters.Add(c => c.Request, Request(tab)));
@@ -191,15 +219,15 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
 
     private static DetailRouteRequest Request(string? tab) => DetailRouteRequest.ForUnified("tvshow", Show, null, tab: tab);
 
-    private static DetailPageViewModel ShowPage(string currentGroupKey)
+    private static DetailPageViewModel ShowPage(string currentGroupKey, Guid? id = null, string title = "Northwatch")
     {
         var seasonOne = new[] { Episode("11", "season-1", "1", "First season opener"), Episode("12", "season-1", "2", "First season finale") };
         var seasonTwo = new[] { Episode("21", "season-2", "1", "Second season opener"), Episode("22", "season-2", "2", "Second season finale") };
         return new DetailPageViewModel
         {
-            Id = Show.ToString("D"),
+            Id = (id ?? Show).ToString("D"),
             EntityType = DetailEntityType.TvShow,
-            Title = "Northwatch",
+            Title = title,
             Facts = new DetailFactsViewModel { MediaKind = "TV" },
             Tabs =
             [
@@ -214,7 +242,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
             {
                 ContainerId = Show.ToString("D"),
                 SelectedContainerId = Show.ToString("D"),
-                ContainerTitle = "Northwatch",
+                ContainerTitle = title,
                 ContainerLabel = "Show",
                 ItemLabel = "Episode",
                 ItemPluralLabel = "Episodes",

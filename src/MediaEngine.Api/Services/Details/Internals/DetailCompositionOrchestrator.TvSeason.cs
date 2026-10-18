@@ -24,6 +24,12 @@ internal sealed partial class DetailCompositionOrchestrator
         CancellationToken ct,
         SequenceWindowRequest? sequenceWindow)
     {
+        // A season id that was merged into another follows the redirect, as the access filter does, so it opens its show.
+        using (var redirectConnection = _db.CreateConnection())
+        {
+            seasonId = WorkRedirects.Resolve(redirectConnection, seasonId);
+        }
+
         var showId = Guid.TryParse(selectedContainerId, out var requestedShowId) && requestedShowId != Guid.Empty
             ? requestedShowId
             : await ResolveTvSeasonShowIdAsync(seasonId, ct);

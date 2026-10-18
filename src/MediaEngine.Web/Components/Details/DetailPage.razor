@@ -145,8 +145,11 @@
 
     protected override void OnParametersSet() => UpdateEditingEligibility();
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        _disposed = true;
         if (_editing is null)
         {
             return;
@@ -259,7 +262,7 @@
             return;
 
         var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, SequenceWindowQuery.Windowed);
-        if (updated is not null)
+        if (updated is not null && IsStillShowing(id))
         {
             Model = updated;
             await ModelRefreshed.InvokeAsync(updated);
@@ -635,13 +638,18 @@
         var updated = SelectedSeasonId is { } seasonId && Model.EntityType == DetailEntityType.TvShow
             ? await ApiClient.GetDetailPageAsync(DetailEntityType.TvSeason, seasonId, Model.PresentationContext, containerId: entityId.ToString("D"), sequence: SequenceWindowQuery.Windowed)
             : await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
-        if (updated is not null)
+        if (updated is not null && IsStillShowing(entityId))
         {
             Model = updated;
             await ModelRefreshed.InvokeAsync(updated);
             StateHasChanged();
         }
     }
+
+    // A refresh that lands after the person moved on (this page disposed, or a different item put in its place)
+    // must not replace what they are looking at now.
+    private bool IsStillShowing(Guid entityId) =>
+        !_disposed && Model is not null && Guid.TryParse(Model.Id, out var currentId) && currentId == entityId;
 
     private async Task OpenReaderAsync(DetailAction action, bool restart = false)
     {

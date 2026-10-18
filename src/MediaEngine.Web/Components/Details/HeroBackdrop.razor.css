@@ -353,7 +353,7 @@
     box-shadow: 0 1.6rem 3.2rem rgba(0,0,0,0.56);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__background {
         top: 0;
         right: 0;
@@ -371,7 +371,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__overlays,
 :where(.tl-detail-page) .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
         background:
@@ -384,7 +384,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage__cover-atmosphere {
         inset: -24%;
         transform: scale(1.45);
@@ -392,7 +392,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage__cover-wrap {
         position: absolute;
         right: 1rem;
@@ -405,7 +405,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage__cover-wrap,
 :where(.tl-detail-page) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         width: auto;
@@ -415,13 +415,13 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--fallback-generated:not(.tl-detail-hero--watch) .tl-detail-media-stage--book.tl-detail-media-stage--cover-fallback .tl-detail-media-stage__cover-wrap {
         height: min(42vh, 23rem);
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage--cover-fallback .tl-detail-media-stage__overlay {
         background:
             linear-gradient(
@@ -433,27 +433,27 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero-brand {
         right: 1rem;
         bottom: 1.25rem;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage__foreground--album {
         width: min(62vw, 18rem);
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-media-stage__vinyl {
         right: -10%;
         width: 68%;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__overlays,
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-media-stage--background .tl-detail-media-stage__overlay {
         background:
@@ -693,7 +693,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage--music-album .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap {
         top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
         right: 4vw !important;
@@ -707,7 +707,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage--audiobook .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap {
         top: calc(var(--app-topbar-height, 65px) + 1rem) !important;
         right: 4vw !important;
@@ -894,7 +894,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-media-stage__cover-wrap {
         top: calc(var(--app-topbar-height, 65px) + 1rem);
         right: 1rem;
@@ -919,4 +919,4 @@
 
 .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(69svh, 47rem); }
 @media (max-height: 760px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(58svh, 47rem); } }
-@media (max-width: 840px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(48svh, 26rem); } }
+@media (width < 840px) { .tl-detail-media-stage__cover-wrap--book { --hero-book-cover-height: min(48svh, 26rem); } }

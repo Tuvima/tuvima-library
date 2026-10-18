@@ -63,7 +63,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
     .tl-detail-collection-artwork {
         top: calc(var(--app-topbar-height, 65px) + 2rem);
         right: 1rem;
@@ -239,14 +239,14 @@
     backdrop-filter: blur(10px);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-portrait {
         width: min(58vw, 13rem);
         justify-self: start;
     }
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__eyebrow {
         font-size: var(--tl-font-size-xs);
     }
@@ -333,7 +333,7 @@
     transform: translateY(-50%);
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero--person .tl-detail-person-portrait {
         top: calc(var(--app-topbar-height, 65px) + 1rem);
         right: 1.25rem;
