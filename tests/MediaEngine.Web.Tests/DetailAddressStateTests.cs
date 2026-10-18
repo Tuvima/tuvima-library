@@ -60,7 +60,10 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
                 var id = (Guid)args[1]!;
                 _refreshes.Add((type, id, (string?)args[3]));
                 if (_refreshGate is { } gate)
+                {
                     return gate.Task;
+                }
+
                 return Task.FromResult<DetailPageViewModel?>(ShowPage(type == DetailEntityType.TvSeason && id == SeasonTwoId ? "season-2" : "season-1"));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetPersonalStatusAsync), _ =>
