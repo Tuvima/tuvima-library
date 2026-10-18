@@ -51,6 +51,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [0006 — All-in-one management workspace retired; shared editor + Needs Review](architecture/decisions/0006-management-workspace-retired.md) | Accepted |
 | [0007 — Accounts own access; profiles own experience; no guest keys](architecture/decisions/0007-accounts-and-profiles-access.md) | Accepted |
 | [0008 — Public docs site in `docs/`; internal planning in `engineering/`](architecture/decisions/0008-public-docs-vs-engineering-docs.md) | Accepted |
+| [0009 — Open from the start; apps always allowed](architecture/decisions/0009-open-from-the-start.md) | Accepted |
 
 ## Design
 

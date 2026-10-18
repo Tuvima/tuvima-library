@@ -122,7 +122,7 @@ Never delete or relocate user-owned source media as part of rollback.
 
 Expose only Dashboard port `5016` through a trusted HTTPS path. Never publish or proxy Engine port `61495`.
 
-Use [secure remote access](remote-access.md) to configure Tailscale Serve or reverse proxy trust, verify readiness, and enable remote sign-in. Keep normal Tuvima authentication enabled.
+Use [secure remote access](remote-access.md) to configure Tailscale Serve or reverse proxy trust, and run **Test remote access**. Keep normal Tuvima authentication enabled.
 
 <details>
 <summary>Technical details: verify an image signature</summary>

@@ -12,5 +12,6 @@ One short record per major decision: what, why, when, and when to revisit. New d
 | [0006](0006-management-workspace-retired.md) | All-in-one management workspace retired; shared editor + Needs Review | 2026-04-25 | Accepted |
 | [0007](0007-accounts-and-profiles-access.md) | Accounts own access; profiles own experience; no guest keys | 2026-09-08 | Accepted |
 | [0008](0008-public-docs-vs-engineering-docs.md) | Public docs site in `docs/`; internal planning in `engineering/` | 2026-10-17 | Accepted |
+| [0009](0009-open-from-the-start.md) | Open from the start; apps always allowed | 2026-10-17 | Accepted |
 
 Also see the published [hybrid asset storage decision](../../../docs/architecture/storage-policy-adr.md).
