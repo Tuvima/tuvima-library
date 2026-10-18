@@ -206,6 +206,7 @@
   input ownerKind | default="Profile" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input audience | default="Private" | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input selectedProfileIds | default=null | shape=669627897819297c582cb890d507da27054999f0d4457da67b6f05bcde168c72
+  input workIds | default=null | shape=669627897819297c582cb890d507da27054999f0d4457da67b6f05bcde168c72
   response | shape=fa732800436bb922fdef0649716c5800f2bfab6b8effb0646ed72920974345d7
 
 [method] CreateCollectionAsync

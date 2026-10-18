@@ -282,7 +282,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("ToggleFavoriteAsync(action)", source);
         Assert.Contains("MediaReactionService Reactions", source);
         Assert.Contains("SetReactionAsync(action)", source);
-        Assert.Contains("action.Key == \"my-list\"", source);
+        Assert.Contains("action.Key == DetailActionKeys.MyList", source);
     }
 
     [Fact]
@@ -510,7 +510,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<AppMenuItem", menuItems);
         Assert.Contains("Disabled=\"@action.IsDisabled\"", menuItems);
         Assert.Contains("AppUiTone.Error", menuItems);
-        Assert.Contains("action.Key is \"edit-media\" or \"edit\"", detailPage);
+        Assert.Contains("action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit", detailPage);
         Assert.DoesNotContain("OverflowActions.Concat([InlineEditAction])", actions);
         Assert.Contains(".app-menu-popover.tl-popover", appStyles);
         Assert.Contains(".app-menu-item", appStyles);

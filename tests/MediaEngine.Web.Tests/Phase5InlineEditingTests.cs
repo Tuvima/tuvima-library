@@ -9,7 +9,7 @@ public sealed class Phase5InlineEditingTests
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
 
         // A single item edits in place: the More entry toggles Editing Mode, and the device rule is checked at the handler.
-        Assert.Contains("action.Key is \"edit-media\" or \"edit\"", source, StringComparison.Ordinal);
+        Assert.Contains("action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit", source, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", source, StringComparison.Ordinal);
         Assert.Contains("await _editing.ToggleAsync()", source, StringComparison.Ordinal);
         Assert.Contains("<EditingDrawer", source, StringComparison.Ordinal);

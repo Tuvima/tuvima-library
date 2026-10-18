@@ -250,6 +250,10 @@ public sealed class LibraryItemCurationRepository(IDatabaseConnection db) : ILib
                     transaction,
                     cancellationToken: innerCt));
             }
+
+            // Deleting the work removed its collection_items rows; a curated collection it was
+            // the last item of goes with it, in the same transaction.
+            CuratedCollectionCleanup.DeleteEmpty(connection, transaction);
         }, ct);
     }
 

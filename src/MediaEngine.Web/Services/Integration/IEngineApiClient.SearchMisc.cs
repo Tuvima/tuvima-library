@@ -110,7 +110,7 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<string>> GetCollectionFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default);
 
     /// <summary>POST /collections — create a new collection.</summary>
-    Task<Guid?> CreateCollectionAndReturnIdAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string membershipMode = "Manual", string primaryArea = "Mixed", string ownerKind = "Profile", string audience = "Private", IReadOnlyList<Guid>? selectedProfileIds = null);
+    Task<Guid?> CreateCollectionAndReturnIdAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string membershipMode = "Manual", string primaryArea = "Mixed", string ownerKind = "Profile", string audience = "Private", IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null);
 
     Task<Guid?> CreateCollectionWithItemsAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, IReadOnlyList<Guid> workIds, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null);
 

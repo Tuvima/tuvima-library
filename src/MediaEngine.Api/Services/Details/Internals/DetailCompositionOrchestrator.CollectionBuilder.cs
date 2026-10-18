@@ -1141,7 +1141,8 @@ internal sealed partial class DetailCompositionOrchestrator
         var episode = SelectActiveTvEpisode(works) ?? SelectFirstOwnedTvEpisode(works);
         if (episode is null || !Guid.TryParse(episode.Id, out var episodeId))
         {
-            return BuildWatchActions(null, heroProgress);
+            // No owned episode to play, so no main button.
+            return [];
         }
 
         if (works.Where(work => work.IsOwned).All(work => work.ProgressPercent >= 99.5))

@@ -445,7 +445,14 @@ public sealed partial class EngineApiClient
         {
             var url = AppendCollectionProfileQuery($"/collections/{collectionId}/items/{itemId}", profileId);
             var resp = await _http.DeleteAsync(url, ct);
-            return resp.IsSuccessStatusCode;
+            if (!resp.IsSuccessStatusCode)
+            {
+                // Keep the Engine's reason (a curated collection cannot lose its last item) for the caller to show.
+                LastError = await ReadCollectionFailureAsync(resp, ct);
+                return false;
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
@@ -615,7 +622,8 @@ public sealed partial class EngineApiClient
         string primaryArea = "Mixed",
         string ownerKind = "Profile",
         string audience = "Private",
-        IReadOnlyList<Guid>? selectedProfileIds = null)
+        IReadOnlyList<Guid>? selectedProfileIds = null,
+        IReadOnlyList<Guid>? workIds = null)
     {
         try
         {
@@ -636,6 +644,7 @@ public sealed partial class EngineApiClient
                 SortDirection = sortDirection,
                 SecondarySortField = secondarySortField,
                 SecondarySortDirection = secondarySortDirection,
+                WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? [],
             };
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections", profileId), body, ct);
             if (!response.IsSuccessStatusCode)

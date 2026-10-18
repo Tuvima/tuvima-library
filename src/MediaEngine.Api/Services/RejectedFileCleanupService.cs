@@ -58,6 +58,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
 
     private readonly IDatabaseConnection _db;
     private readonly ISystemActivityRepository _activityRepo;
+    private readonly ICollectionRepository _collections;
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<RejectedFileCleanupService> _logger;
 
@@ -67,16 +68,19 @@ public sealed class RejectedFileCleanupService : BackgroundService
     public RejectedFileCleanupService(
         IDatabaseConnection db,
         ISystemActivityRepository activityRepo,
+        ICollectionRepository collections,
         IConfigurationLoader configLoader,
         ILogger<RejectedFileCleanupService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(activityRepo);
+        ArgumentNullException.ThrowIfNull(collections);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(logger);
 
         _db = db;
         _activityRepo = activityRepo;
+        _collections = collections;
         _configLoader = configLoader;
         _logger = logger;
     }
@@ -303,6 +307,10 @@ public sealed class RejectedFileCleanupService : BackgroundService
                     cmd.Parameters.Add("@workId", SqliteType.Blob).Value = GuidSql.ToBlob(workId.Value);
                     cmd.ExecuteNonQuery();
                 }
+
+                // 5b. Deleting the work removed its collection_items rows; a curated collection it was the
+                // last item of is removed too (and logged).
+                await _collections.DeleteEmptyCuratedCollectionsAsync(ct);
 
                 // 6. Remove the collection if it has no remaining works.
                 if (collectionId is not null)

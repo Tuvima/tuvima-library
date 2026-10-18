@@ -6,6 +6,9 @@ namespace MediaEngine.Domain.Contracts;
 
 public sealed record CollectionBackfillCandidate(Guid WorkId, Guid MediaAssetId);
 
+/// <summary>A collection deleted by <see cref="ICollectionRepository.DeleteEmptyCuratedCollectionsAsync"/>.</summary>
+public sealed record RemovedCollection(Guid Id, string Name);
+
 /// <summary>
 /// Persistence contract for loading <see cref="Collection"/> aggregates with their
 /// child Works, Relationships, and associated CanonicalValues.
@@ -45,6 +48,15 @@ public interface ICollectionRepository
         IReadOnlyList<CollectionItem> items,
         CancellationToken ct = default) =>
         throw new NotSupportedException("This collection repository does not support atomic managed-collection creation.");
+
+    /// <summary>
+    /// Deletes every manually curated collection (a <c>Custom</c> collection with stored members) that
+    /// has no items left, writes one system activity entry for each, and returns what was removed.
+    /// Call it after any code path that deletes works: a curated collection is never allowed to be
+    /// empty. Playlists, playlist folders, rule-driven and system collections are never touched.
+    /// </summary>
+    Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default) =>
+        throw new NotSupportedException("This collection repository does not support removing empty curated collections.");
 
     /// <summary>Replaces the selected-profile audience for one managed collection.</summary>
     Task ReplaceAudienceProfileIdsAsync(

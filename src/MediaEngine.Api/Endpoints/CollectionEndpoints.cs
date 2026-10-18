@@ -1839,6 +1839,11 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Item '{itemId}' not found in collection '{id}'.");
             }
 
+            if (CollectionAccessPolicy.IsCuratedCollection(collection) && existingItems.Count <= 1)
+            {
+                return ApiErrors.Conflict(CollectionAccessPolicy.CuratedCollectionNeedsItemMessage);
+            }
+
             await collectionRepo.RemoveCollectionItemAsync(itemId, ct);
             return Results.Ok();
         })
@@ -2470,6 +2475,12 @@ public static class CollectionEndpoints
                 }
             }
 
+            // A manually curated collection is never created empty: its items arrive with the create call.
+            if (isCuratedCollection && resolution == CollectionResolution.Materialized && resolvedWorkIds.Count == 0)
+            {
+                return ApiErrors.BadRequest("A collection needs at least one item. Choose something to add before saving.");
+            }
+
             var collection = new Collection
             {
                 Id = Guid.NewGuid(),
@@ -2712,6 +2723,14 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest("Choose at least one other profile for the selected-profile audience.");
             }
             collection.ReplaceAudienceProfiles(selectedAudienceProfileIds);
+
+            // An update must not leave a manually curated collection without items (for example by switching
+            // a rule-driven collection to manual membership before anything has been added to it).
+            if (CollectionAccessPolicy.IsCuratedCollection(collection)
+                && await collectionRepo.GetCollectionItemCountAsync(id, ct) == 0)
+            {
+                return ApiErrors.Conflict(CollectionAccessPolicy.CuratedCollectionNeedsItemMessage);
+            }
 
             collection.ModifiedAt = DateTimeOffset.UtcNow;
             await collectionRepo.UpsertAsync(collection, ct);

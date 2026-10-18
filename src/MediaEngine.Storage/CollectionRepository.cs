@@ -840,6 +840,18 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<RemovedCollection>> DeleteEmptyCuratedCollectionsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return await _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) =>
+            {
+                innerCt.ThrowIfCancellationRequested();
+                return CuratedCollectionCleanup.DeleteEmpty(conn, tx);
+            }, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
     public Task ReplaceAudienceProfileIdsAsync(
         Guid collectionId,
         IReadOnlyCollection<Guid> profileIds,
@@ -983,9 +995,15 @@ public sealed class CollectionRepository : ICollectionRepository
             );
             """);
 
+        // Pass 2 can delete the last work in a curated collection (its collection_items rows cascade).
+        // A curated collection is never empty, so remove any that just became so.
+        CuratedCollectionCleanup.DeleteEmpty(conn, transaction: null);
+
         // Pass 3: Remove empty auto-created parents from the bottom up. This
         // removes empty seasons before their shows, and empty albums after their
         // last track disappears. User-retained parents are preserved.
+        // Parents that hold collection_items rows are excluded below, so this pass can never empty a
+        // curated collection.
         while (true)
         {
             var emptyParentIds = conn.Query<Guid>("""

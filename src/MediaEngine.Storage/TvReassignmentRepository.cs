@@ -228,6 +228,9 @@ public sealed class TvReassignmentRepository(IDatabaseConnection database, Hiera
             connection.Execute(statement, new { workId }, transaction);
         }
 
+        // The deleted work's collection_items rows went with it; a curated collection it was the
+        // last item of goes too.
+        CuratedCollectionCleanup.DeleteEmpty(connection, transaction);
         return true;
     }
 }

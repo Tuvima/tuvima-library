@@ -640,13 +640,13 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             DetailEntityType.Movie => BuildWatchActions($"/watch/player/{id}", heroProgress),
             DetailEntityType.TvEpisode => BuildWatchActions($"/watch/player/{id}", heroProgress, episodePosition),
-            DetailEntityType.TvShow or DetailEntityType.TvSeason => BuildWatchActions(null, heroProgress),
             DetailEntityType.Book or DetailEntityType.ComicIssue => [new DetailAction { Key = "read", Label = heroProgress is null ? "Read" : "Continue Reading", Icon = "menu_book", IsPrimary = true }],
             DetailEntityType.Audiobook => [new DetailAction { Key = "listen", Label = heroProgress is null ? "Listen" : "Continue Listening", Icon = "headphones", IsPrimary = true }],
             DetailEntityType.Work when formats.Any(f => f.FormatType == MediaFormatType.Ebook) => [new DetailAction { Key = "read", Label = heroProgress is null ? "Read" : "Continue Reading", Icon = "menu_book", IsPrimary = true }],
             DetailEntityType.Work when formats.Any(f => f.FormatType == MediaFormatType.Audiobook) => [new DetailAction { Key = "listen", Label = HasAudiobookProgress(formats) ? "Continue Listening" : "Listen", Icon = "headphones", IsPrimary = true }],
             DetailEntityType.MusicAlbum => BuildMusicAlbumActions(),
-            _ => [new DetailAction { Key = "open", Label = "Open", Icon = "open_in_new", IsPrimary = true }],
+            // No button without a destination: an item with nothing playable or readable has no main button.
+            _ => [],
         };
     }
 
@@ -708,7 +708,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ],
         };
 
-    private static IReadOnlyList<DetailAction> BuildWatchActions(string? route, ProgressViewModel? progress, string? episodePosition = null)
+    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null)
     {
         var verb = progress is null ? "Watch" : "Resume";
         var watch = new DetailAction

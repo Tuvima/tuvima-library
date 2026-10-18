@@ -258,30 +258,30 @@
     private async Task HandleDetailActionAsync(DetailAction action)
     {
         if (Model is null) return;
-        if (action.Key == "play-from-beginning")
+        if (action.Key == DetailActionKeys.PlayFromBeginning)
         {
             if (IsAudiobook) { await PlayAudiobookAsync(preferResume: false); return; }
             if (Model.EntityType == DetailEntityType.MusicAlbum) { await PlayAlbumAsync(shuffle: false); return; }
             if (Model.EntityType is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.Work)
             { await OpenReaderAsync(action, restart: true); return; }
         }
-        if (action.Key == "read")
+        if (action.Key == DetailActionKeys.Read)
         {
             await OpenReaderAsync(action);
             return;
         }
 
-        if (action.Key is "play-next" or "add-queue")
+        if (action.Key is DetailActionKeys.PlayNext or DetailActionKeys.AddQueue)
         {
             var tracks = Model.MediaGroups.SelectMany(g => g.Items)
                 .Where(item => item.EntityType == DetailEntityType.Work && item.IsOwned)
                 .OrderBy(TrackSortKey).Select(ToQueueItem).Where(item => item.WorkId != Guid.Empty).ToList();
-            if (action.Key == "play-next") tracks.Reverse();
-            foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == "play-next");
+            if (action.Key == DetailActionKeys.PlayNext) tracks.Reverse();
+            foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == DetailActionKeys.PlayNext);
             Snackbar.Add($"Added {tracks.Count} tracks to the queue.", AppSeverity.Success);
             return;
         }
-        if (action.Key == "add-playlist")
+        if (action.Key == DetailActionKeys.AddPlaylist)
         {
             IReadOnlyList<Guid> works = Model.MediaGroups.SelectMany(g => g.Items)
                 .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
@@ -294,18 +294,18 @@
             });
             return;
         }
-        if (action.Key.StartsWith("status-", StringComparison.Ordinal))
+        if (DetailActionKeys.IsPersonalStatus(action.Key))
         {
             await HandlePersonalStatusAsync(action);
             return;
         }
-        if (action.Key == "copy-link")
+        if (action.Key == DetailActionKeys.CopyLink)
         {
             try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri); Snackbar.Add("Library link copied.", AppSeverity.Success); }
             catch { Snackbar.Add("The browser could not copy the link.", AppSeverity.Error); }
             return;
         }
-        if (action.Key is "edit-media" or "edit")
+        if (action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit)
         {
             if (action.IsDisabled) return;
             if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
@@ -322,37 +322,37 @@
             return;
         }
 
-        if (action.Key == "my-list")
+        if (action.Key == DetailActionKeys.MyList)
         {
             await ToggleFavoriteAsync(action);
             return;
         }
 
-        if (action.Key is "reaction-dislike" or "reaction-like" or "reaction-love")
+        if (action.Key is DetailActionKeys.ReactionDislike or DetailActionKeys.ReactionLike or DetailActionKeys.ReactionLove)
         {
             await SetReactionAsync(action);
             return;
         }
 
-        if (action.Key == "details")
+        if (action.Key == DetailActionKeys.Details)
         {
             await SetActiveTabAsync("details");
             return;
         }
 
-        if (Model?.EntityType == DetailEntityType.MusicAlbum && action.Key is "play-album" or "shuffle")
+        if (Model?.EntityType == DetailEntityType.MusicAlbum && action.Key is DetailActionKeys.PlayAlbum or DetailActionKeys.Shuffle)
         {
-            await PlayAlbumAsync(shuffle: action.Key == "shuffle");
+            await PlayAlbumAsync(shuffle: action.Key == DetailActionKeys.Shuffle);
             return;
         }
 
-        if (action.Key == "shuffle-collection")
+        if (action.Key == DetailActionKeys.ShuffleCollection)
         {
             await ShuffleStructuralContainerAsync();
             return;
         }
 
-        var isAudiobookListenAction = string.Equals(action.Key, "listen", StringComparison.OrdinalIgnoreCase)
+        var isAudiobookListenAction = string.Equals(action.Key, DetailActionKeys.Listen, StringComparison.OrdinalIgnoreCase)
             || string.Equals(action.Label, "Listen", StringComparison.OrdinalIgnoreCase);
         if (Model is not null && IsAudiobook && !action.IsDisabled
             && (isAudiobookListenAction || IsContinueAction(action)))
@@ -377,7 +377,7 @@
         _changingPersonalStatus = true;
         try
         {
-            if (action.Key == "status-history")
+            if (action.Key == DetailActionKeys.StatusHistory)
             {
                 var items = await ApiClient.GetPersonalHistoryAsync(Model.EntityType, Guid.Parse(Model.Id));
                 await Dialogs.ShowAsync<PersonalHistoryDialog>(action.Label,
@@ -385,10 +385,10 @@
                 return;
             }
             var command = action.Key switch {
-                "status-complete" => PersonalStatusAction.Complete,
-                "status-reset" => PersonalStatusAction.Reset,
-                "status-hide" => PersonalStatusAction.HideContinue,
-                "status-show" => PersonalStatusAction.ShowContinue,
+                DetailActionKeys.StatusComplete => PersonalStatusAction.Complete,
+                DetailActionKeys.StatusReset => PersonalStatusAction.Reset,
+                DetailActionKeys.StatusHide => PersonalStatusAction.HideContinue,
+                DetailActionKeys.StatusShow => PersonalStatusAction.ShowContinue,
                 _ => throw new InvalidOperationException("Unknown personal status action."),
             };
             var status = await ApiClient.GetPersonalStatusAsync(Model.EntityType, Guid.Parse(Model.Id))

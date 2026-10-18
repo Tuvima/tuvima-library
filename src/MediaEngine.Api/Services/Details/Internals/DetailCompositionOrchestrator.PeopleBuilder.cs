@@ -672,9 +672,6 @@ internal sealed partial class DetailCompositionOrchestrator
         return parts.Length == 2 ? $"https://{parts[1]}/@{parts[0]}" : value;
     }
 
-    private static IReadOnlyList<DetailAction> BuildPersonActions(Guid personId, DetailEntityType entityType, DetailPresentationContext context)
-        => [new DetailAction { Key = "view-works", Label = "View Works", Icon = "collections", IsPrimary = true }];
-
     private static string? PreferredAssetUrl(IReadOnlyList<MediaEngine.Domain.Entities.EntityAsset> assets, string assetType)
         => assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase) && a.IsPreferred)?.ImageUrl
            ?? assets.FirstOrDefault(a => a.AssetTypeValue.Equals(assetType, StringComparison.OrdinalIgnoreCase))?.ImageUrl;

@@ -160,7 +160,7 @@ internal sealed partial class DetailCompositionOrchestrator
             Metadata = BuildPersonMetadata(displayRoles, ownedWorkCount)
                 .Concat(personTags.Select(tag => new MetadataPill { Label = tag, Kind = "custom_tag" }))
                 .ToList(),
-            PrimaryActions = BuildPersonActions(personId, entityType, context),
+            PrimaryActions = [],
             SecondaryActions = [],
             OverflowActions = BuildOverflowActions(personId, entityType, actionAuthorization),
             ContributorGroups = groups,
@@ -245,7 +245,10 @@ internal sealed partial class DetailCompositionOrchestrator
             SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null, null),
             Artwork = BuildArtwork(DetailEntityType.Universe, row.BackgroundUrl, row.BannerUrl, row.CoverUrl, row.CoverUrl, null, new Dictionary<string, string>(), relatedArt, 0, null),
             Metadata = [new MetadataPill { Label = "Universe" }, new MetadataPill { Label = $"{works.Count} items" }],
-            PrimaryActions = [new DetailAction { Key = "timeline", Label = "Explore Timeline", Icon = "account_tree", Route = string.IsNullOrWhiteSpace(row.WikidataQid) ? null : $"/universe/{row.WikidataQid}/explore", IsPrimary = true }],
+            // The timeline button only exists when there is a timeline to open.
+            PrimaryActions = string.IsNullOrWhiteSpace(row.WikidataQid)
+                ? []
+                : [new DetailAction { Key = "timeline", Label = "Explore Timeline", Icon = "account_tree", Route = $"/universe/{row.WikidataQid}/explore", IsPrimary = true }],
             OverflowActions = BuildOverflowActions(id, DetailEntityType.Universe, actionAuthorization),
             Tabs = BuildTabs(DetailEntityType.Universe, context),
             MediaGroups = mediaGroups,
