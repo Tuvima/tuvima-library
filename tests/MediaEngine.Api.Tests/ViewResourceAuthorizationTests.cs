@@ -396,6 +396,11 @@ public sealed class ViewResourceAuthorizationTests
         Assert.True(ownerManage.IsAllowed);
         Assert.True(galleryWrite.IsAllowed);
         Assert.Equal(ApplicationPermissionIds.ViewGalleriesWrite, evaluator.LastRequirement!.ApplicationPermission);
+
+        var upload = await service.AuthorizeAsync(app,
+            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Upload, null, ViewResourceAction.Contribute));
+        Assert.True(upload.IsAllowed);
+        Assert.Equal(ApplicationPermissionIds.ViewUpload, evaluator.LastRequirement!.ApplicationPermission);
     }
 
     [Fact]
