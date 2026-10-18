@@ -202,7 +202,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         [
             new("overview", "Overview"),
             new("cast", "Cast"),
-            new("related", "Related"),
+            new("credits", "Credits"),
             new("details", "Details"),
         ];
 

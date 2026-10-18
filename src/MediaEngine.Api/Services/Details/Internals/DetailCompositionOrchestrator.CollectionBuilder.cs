@@ -143,11 +143,6 @@ internal sealed partial class DetailCompositionOrchestrator
         _ => "default",
     };
 
-    private static bool HasUniverseRelationship(IReadOnlyList<RelationshipGroup> relationships) =>
-        relationships.Any(group =>
-            string.Equals(group.Title, "Universe", StringComparison.OrdinalIgnoreCase) ||
-            group.Items.Any(item => item.EntityType == RelatedEntityType.Universe));
-
     private static HeroBrandViewModel? BuildHeroBrand(DetailEntityType entityType, string? label, string? imageUrl)
     {
         if (entityType is not (DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode))

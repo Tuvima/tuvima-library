@@ -264,7 +264,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 ownedFormats,
                 heroProgress,
                 FormatSeasonEpisode(detail.SeasonNumber, detail.EpisodeNumber)),
-            SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId), ownedFormats),
+            SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId)),
             OverflowActions = BuildOverflowActions(workId, entityType, actionAuthorization,
                 await IngestionAvailability.IsUpdatingAsync(_db, workId, ct)),
             ContributorGroups = contributorGroups,
@@ -273,12 +273,7 @@ internal sealed partial class DetailCompositionOrchestrator
             CharacterGroups = characters,
             PreviewCharacters = characters.SelectMany(g => g.Characters).Take(12).ToList(),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(
-                entityType,
-                context,
-                isAdminView,
-                sequencePlacement is not null,
-                HasUniverseRelationship(relationships)),
+            Tabs = BuildTabs(entityType, context, isAdminView),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             IdentityStatus = ResolveIdentityStatus(detail.WikidataQid, detail.Status, detail.Confidence),
@@ -425,12 +420,7 @@ internal sealed partial class DetailCompositionOrchestrator
             OverflowActions = BuildOverflowActions(seriesId, DetailEntityType.BookSeries, actionAuthorization),
             ContributorGroups = seedDetail.ContributorGroups,
             PreviewContributors = seedDetail.PreviewContributors,
-            Tabs = BuildTabs(
-                DetailEntityType.BookSeries,
-                context,
-                isAdminView,
-                placement is not null,
-                hasUniverse: false),
+            Tabs = BuildTabs(DetailEntityType.BookSeries, context, isAdminView),
             PrimaryModule = BuildPrimaryModule(DetailEntityType.BookSeries, placement, []),
             MediaGroups =
             [

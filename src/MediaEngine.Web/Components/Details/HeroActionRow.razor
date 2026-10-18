@@ -89,7 +89,7 @@
         => action.Key == "my-list" ? "My List" : action.Label;
 
     private static string TooltipFor(DetailAction action)
-        => action.Tooltip ?? (action.IsStub ? $"{action.Label} (coming soon)" : action.Label);
+        => action.Tooltip ?? action.Label;
 
     private static string ActionKeyClass(DetailAction action)
         => new string(action.Key.Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-').ToArray()).Trim('-');
@@ -122,7 +122,6 @@
         "arrow_back" => AppMaterialIcons.Outlined.ArrowBack,
         "account_tree" => AppMaterialIcons.Outlined.AccountTree,
         "auto_stories" => AppMaterialIcons.Outlined.AutoStories,
-        "read_listen" => AppMaterialIcons.Outlined.Sync,
         "settings" => AppMaterialIcons.Outlined.Settings,
         _ => AppMaterialIcons.Outlined.OpenInNew,
     };

@@ -1574,7 +1574,6 @@ public partial class ListenPage
                 new DetailTab { Key = "tracks", Label = "Tracks" },
                 new DetailTab { Key = "overview", Label = "Overview" },
                 new DetailTab { Key = "credits", Label = "Credits" },
-                new DetailTab { Key = "related", Label = "Related" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             MediaGroups =

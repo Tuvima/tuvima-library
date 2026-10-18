@@ -38,7 +38,6 @@ internal sealed partial class DetailCompositionOrchestrator
     private readonly ICanonicalValueArrayRepository _canonicalArrays;
     private readonly ISeriesManifestRepository _seriesManifests;
     private readonly IPersonCreditReadService _personCredits;
-    private readonly DetailRecommendationService _recommendations;
     private readonly PlaybackCapabilitiesService? _playback;
     private readonly ILogger<DetailComposerService>? _logger;
     private readonly ICollectionBrowseReadService? _collectionBrowse;
@@ -56,7 +55,6 @@ internal sealed partial class DetailCompositionOrchestrator
         ICanonicalValueArrayRepository canonicalArrays,
         ISeriesManifestRepository seriesManifests,
         IPersonCreditReadService personCredits,
-        DetailRecommendationService recommendations,
         PlaybackCapabilitiesService? playback = null,
         ILogger<DetailComposerService>? logger = null,
         ICollectionBrowseReadService? collectionBrowse = null,
@@ -72,7 +70,6 @@ internal sealed partial class DetailCompositionOrchestrator
         _canonicalArrays = canonicalArrays;
         _seriesManifests = seriesManifests;
         _personCredits = personCredits;
-        _recommendations = recommendations;
         _playback = playback;
         _logger = logger;
         _collectionBrowse = collectionBrowse;

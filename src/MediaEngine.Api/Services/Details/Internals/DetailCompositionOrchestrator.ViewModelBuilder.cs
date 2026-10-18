@@ -669,30 +669,14 @@ internal sealed partial class DetailCompositionOrchestrator
         },
     ];
 
-    private static IReadOnlyList<DetailAction> BuildSecondaryActions(Guid id, DetailEntityType entityType, bool isFavorite, IReadOnlyList<OwnedFormatViewModel>? formats = null)
+    private static IReadOnlyList<DetailAction> BuildSecondaryActions(Guid id, DetailEntityType entityType, bool isFavorite)
     {
         var actions = new List<DetailAction>();
-        var hasReadListenCompanion = HasReadListenCompanion(entityType, formats ?? []);
 
         if (CanFavoriteEntity(entityType))
         {
             actions.Add(BuildMyListAction(isFavorite));
             actions.Add(BuildReactionAction());
-        }
-
-        if (hasReadListenCompanion)
-        {
-            actions.Add(new DetailAction
-            {
-                Key = "read-listen",
-                Label = "Read + Listen",
-                Subtitle = "Continue seamlessly between reading and listening",
-                Icon = "read_listen",
-                Tooltip = "Unified Read + Listen is waiting on sync enablement",
-                IsDisabled = true,
-                IsStub = true,
-                DisplayStyle = "premium",
-            });
         }
 
         return actions;
@@ -837,13 +821,9 @@ internal sealed partial class DetailCompositionOrchestrator
     private static IReadOnlyList<DetailTab> BuildTabs(
         DetailEntityType entityType,
         DetailPresentationContext context,
-        bool isAdminView,
-        bool hasSeries = false,
-        bool hasUniverse = false,
-        bool hasChapters = true)
+        bool isAdminView)
     {
-        _ = hasChapters;
-        var keys = DetailTabCatalog.KeysFor(entityType, hasUniverse, DetailTabVisibility.ShowUniverseAndRelatedTabs);
+        var keys = DetailTabCatalog.KeysFor(entityType);
 
         var tabs = keys.Select(key => new DetailTab { Key = key, Label = ToTabLabel(key, entityType) }).ToList();
         if (isAdminView)

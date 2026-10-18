@@ -2052,7 +2052,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailAction
   IsDestructive: System.Boolean | nullability=not-null | accessors=get,init
   IsAdminOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsDisabled: System.Boolean | nullability=not-null | accessors=get,init
-  IsStub: System.Boolean | nullability=not-null | accessors=get,init
   IsSelected: System.Boolean | nullability=not-null | accessors=get,set
   DisplayStyle: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | nullability=not-null | accessors=get,init
@@ -2171,8 +2170,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTab
   Key: System.String | nullability=not-null | accessors=get,init
   Label: System.String | nullability=not-null | accessors=get,init
   IsAdminOnly: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTabVisibility
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel
   IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set

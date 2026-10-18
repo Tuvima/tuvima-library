@@ -46,7 +46,6 @@
     protected override void OnParametersSet()
     {
         var items = Model.MediaGroups
-            .Where(group => group.Key is not ("related" or "recommendations" or "more-like-this"))
             .SelectMany(group => group.Items).Where(item => item.IsOwned).ToList();
         if (items.Count == 0 && Model.SequencePlacement is { } placement)
             items.AddRange(placement.OrderedItems.Where(item => item.IsOwned).Select(item => new MediaGroupingItemViewModel

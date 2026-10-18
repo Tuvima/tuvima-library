@@ -37,14 +37,6 @@
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
 
-            @if (HasPrimaryModuleBeforeNavigation)
-            {
-                <DetailPrimaryModule Model="Model"
-                                     Embedded="true"
-                                     OnContainerSelected="HandleContainerSelectedAsync"
-                                     OnEditItem="OpenEpisodeEditorAsync" />
-            }
-
             @if (ShowDetailNavigation)
             {
                 <div class="tl-detail-stage__navigation">
@@ -59,7 +51,6 @@
         {
             <section class="tl-detail-page__primary-content">
             <DetailPrimaryModule Model="Model"
-                                 Embedded="false"
                                  OnContainerSelected="HandleContainerSelectedAsync"
                                  OnEditItem="OpenEpisodeEditorAsync" />
             </section>
@@ -79,53 +70,11 @@
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
             }
-            else if (CurrentActiveTab is "episodes")
-            {
-                @if (Model.SequencePlacement is not null)
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
             else if (CurrentActiveTab is "tracks" && IsAudiobook)
             {
                 <AudiobookTracksContent Model="Model" />
             }
-            else if (CurrentActiveTab is "series")
-            {
-                @if (Model.SequencePlacement is not null)
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
-            else if (CurrentActiveTab is "items" or "issues" or "media" or "works" or "albums")
-            {
-                @if (Model.SequencePlacement is not null && CurrentActiveTab is "issues" or "media" or "works")
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
-            else if (CurrentActiveTab is "contributors" or "people" or "credits" or "cast")
+            else if (CurrentActiveTab is "people" or "credits" or "cast")
             {
                 <PeopleAndCharactersTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
                                         EpisodeId="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.Id : null)"
@@ -137,17 +86,9 @@
             {
                 <CharactersSection Groups="Model.CharacterGroups" />
             }
-            else if (CurrentActiveTab is "universe" or "timeline" or "relationships")
+            else if (CurrentActiveTab is "relationships")
             {
                 <UniverseTab Relationships="Model.RelationshipStrip" Groups="Model.MediaGroups" />
-            }
-            else if (CurrentActiveTab is "related")
-            {
-                <RelatedTab Model="Model" />
-            }
-            else if (CurrentActiveTab is "sync")
-            {
-                <SyncTab Sync="Model.ReadingListeningSync" Capability="Model.SyncCapability" />
             }
             else if (CurrentActiveTab is "registry")
             {
@@ -305,8 +246,6 @@
         }
     }
 
-    private bool HasPrimaryModuleBeforeNavigation => false;
-
     private bool HasPrimaryModuleAfterNavigation => Model?.PrimaryModule.Kind is not
         (DetailPrimaryModuleKind.None or DetailPrimaryModuleKind.Tracks or DetailPrimaryModuleKind.Chapters);
 
@@ -315,8 +254,7 @@
         && CurrentActiveTab == "overview";
 
     private string DetailStageClass =>
-        $"tl-detail-stage{(HasPrimaryModuleBeforeNavigation || HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
-        $"{(HasPrimaryModuleBeforeNavigation ? " tl-detail-stage--primary-before-navigation" : string.Empty)}" +
+        $"tl-detail-stage{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
         $"{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--primary-after-navigation" : string.Empty)}" +
         $"{(string.IsNullOrWhiteSpace(PresentationCapabilities.StageModifier) ? string.Empty : $" {PresentationCapabilities.StageModifier}")}" +
         $"{(Model?.EntityType == DetailEntityType.Person ? " tl-detail-stage--person" : string.Empty)}";
@@ -415,14 +353,6 @@
         if (action.Key == "details")
         {
             await SetActiveTabAsync("details");
-            return;
-        }
-
-        if (action.Key == "sync-settings")
-        {
-            if (Model?.Tabs.Any(tab => tab.Key == "sync" && (!tab.IsAdminOnly || Model.IsAdminView)) == true)
-                await SetActiveTabAsync("sync");
-
             return;
         }
 
@@ -594,7 +524,7 @@
             HeaderTitle = Model.Title,
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
-            OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
+            OnArtworkChanged = RefreshCurrentDetailAsync,
             PreviewItems =
             [
                 new MediaEditorPreviewItem
@@ -630,7 +560,7 @@
                 HeaderTitle = item.Title,
                 HeaderSubtitle = item.GroupTitle ?? item.PositionText ?? Model.Title,
                 CoverUrl = item.ArtworkUrl,
-                OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
+                OnArtworkChanged = RefreshCurrentDetailAsync,
                 PreviewItems =
                 [
                     new MediaEditorPreviewItem
@@ -708,19 +638,6 @@
         };
 
     private async Task RefreshCurrentDetailAsync()
-    {
-        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
-            return;
-
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
-        if (updated is not null)
-        {
-            Model = updated;
-            StateHasChanged();
-        }
-    }
-
-    private async Task RefreshAfterEditorArtworkChangeAsync()
     {
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
             return;
@@ -908,7 +825,6 @@
             return;
 
         var candidates = Model.MediaGroups
-            .Where(group => group.Key is not ("related" or "recommendations" or "more-like-this"))
             .SelectMany(group => group.Items)
             .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
             .DistinctBy(item => $"{item.EntityType}:{item.Id}", StringComparer.OrdinalIgnoreCase)

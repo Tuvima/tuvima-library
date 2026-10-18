@@ -814,8 +814,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new PersonCreditReadService(
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
-                _database),
-            new DetailRecommendationService(_database));
+                _database));
 
         var detail = await composer.BuildAuthorizedAsync(
             MediaEngine.Contracts.Details.DetailEntityType.Book,
@@ -1267,8 +1266,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             new PersonCreditReadService(
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
-                _database),
-            new DetailRecommendationService(_database));
+                _database));
 
     private DetailComposerService CreateCollectionComposer()
     {
@@ -1293,7 +1291,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
                 new CanonicalValueArrayRepository(_database),
                 new PersonRepository(_database),
                 _database),
-            new DetailRecommendationService(_database),
             collectionCatalog: collectionCatalog,
             profiles: new ProfileRepository(_database));
     }

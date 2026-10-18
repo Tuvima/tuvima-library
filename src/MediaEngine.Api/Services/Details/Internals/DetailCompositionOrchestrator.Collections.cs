@@ -514,7 +514,7 @@ internal sealed partial class DetailCompositionOrchestrator
             CharacterGroups = characterGroups,
             PreviewCharacters = characterGroups.SelectMany(g => g.Characters).Take(12).ToList(),
             RelationshipStrip = relationships,
-            Tabs = BuildTabs(entityType, context, isAdminView, hasUniverse: HasUniverseRelationship(relationships)),
+            Tabs = BuildTabs(entityType, context, isAdminView),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             MusicAlbumCompanion = musicAlbumCompanion,

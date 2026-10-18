@@ -726,8 +726,7 @@
    shared viewport hero, the structural Overview array, and the separate content
    tabs without inheriting the earlier compact-in-hero sequence treatment. */
 
-::deep .tl-overview-section__heading > span,
-::deep .tl-related-tab__header > span {
+::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: 0.75rem;
     font-weight: 700;
@@ -735,8 +734,7 @@
     text-transform: uppercase;
 }
 
-::deep .tl-overview-section__empty,
-::deep .tl-related-tab__empty {
+::deep .tl-overview-section__empty {
     margin: 0;
     color: rgba(226, 232, 240, 0.5);
 }

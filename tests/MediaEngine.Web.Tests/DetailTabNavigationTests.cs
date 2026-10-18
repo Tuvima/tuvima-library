@@ -217,61 +217,19 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void GetVisibleTabs_HidesUniverseAndRelatedWhileTheSharedSwitchIsOff()
+    public void Resolve_RequestedUniverseOrRelatedTabRedirectsToTheFirstTab()
     {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
-
-        Assert.False(DetailTabVisibility.ShowUniverseAndRelatedTabs);
-        Assert.Equal(["overview", "cast", "details"], DetailTabNavigation.GetVisibleTabs(model).Select(tab => tab.Key));
-        Assert.Equal(["overview", "cast", "details"], DetailTabNavigation.GetVisibleTabs(model, showUniverseAndRelated: false).Select(tab => tab.Key));
-    }
-
-    [Fact]
-    public void GetVisibleTabs_RestoresUniverseAndRelatedWhenTheSwitchIsOn()
-    {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
-
-        Assert.Equal(
-            ["overview", "cast", "universe", "related", "details"],
-            DetailTabNavigation.GetVisibleTabs(model, showUniverseAndRelated: true).Select(tab => tab.Key));
-    }
-
-    [Fact]
-    public void Resolve_RequestedUniverseOrRelatedTabRedirectsToTheFirstTabWhileOffAndOpensItWhenOn()
-    {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
+        var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
         foreach (var requested in new[] { "universe", "related" })
         {
-            var hidden = DetailTabNavigation.Resolve(model, requested, showUniverseAndRelated: false);
-            Assert.Equal("overview", hidden.ActiveTab);
-            Assert.False(hidden.IsRequestedTabValid);
-            Assert.True(hidden.ShouldRedirect);
+            var resolution = DetailTabNavigation.Resolve(model, requested);
 
-            var restored = DetailTabNavigation.Resolve(model, requested, showUniverseAndRelated: true);
-            Assert.Equal(requested, restored.ActiveTab);
-            Assert.True(restored.IsRequestedTabValid);
+            Assert.Equal("overview", resolution.ActiveTab);
+            Assert.False(resolution.IsRequestedTabValid);
+            Assert.True(resolution.ShouldRedirect);
         }
     }
-
-    [Fact]
-    public void GetVisibleTabs_HoldsADashboardBuiltTabListToTheSameSwitch()
-    {
-        // A tab list the Dashboard assembled itself (not one the Engine built) follows the same rule.
-        var model = ModelWithRelatedContent("tracks", "overview", "credits", "related", "details");
-
-        Assert.DoesNotContain(DetailTabNavigation.GetVisibleTabs(model), tab => tab.Key == "related");
-    }
-
-    private static DetailPageViewModel ModelWithRelatedContent(params string[] tabs) => new()
-    {
-        Id = Guid.NewGuid().ToString("D"),
-        EntityType = DetailEntityType.Movie,
-        Title = "Test",
-        Tabs = tabs.Select(tab => new DetailTab { Key = tab, Label = tab }).ToList(),
-        ContributorGroups = [new CreditGroupViewModel { Title = "Cast", GroupType = CreditGroupType.Cast }],
-        MediaGroups = [new MediaGroupingViewModel { Key = "related", Title = "More like this" }],
-    };
 
     private static DetailPageViewModel CreateModel(params string[] tabs) =>
         CreateModel(tabs, withCast: false);

@@ -2450,11 +2450,10 @@
   IsDestructive: System.Boolean | json=isDestructive | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsAdminOnly: System.Boolean | json=isAdminOnly | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsDisabled: System.Boolean | json=isDisabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsStub: System.Boolean | json=isStub | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsSelected: System.Boolean | json=isSelected | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayStyle: System.String | json=displayStyle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | json=children | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","label":"sample","subtitle":"sample","icon":"sample","route":"sample","tooltip":"sample","isPrimary":true,"isDestructive":true,"isAdminOnly":true,"isDisabled":true,"isStub":true,"isSelected":true,"displayStyle":"sample","children":[]}
+  sample={"key":"sample","label":"sample","subtitle":"sample","icon":"sample","route":"sample","tooltip":"sample","isPrimary":true,"isDestructive":true,"isAdminOnly":true,"isDisabled":true,"isSelected":true,"displayStyle":"sample","children":[]}
 
 [contracts] MediaEngine.Contracts.Details.DetailEditorTarget
   kind=class | converter=default | number-handling=default | unmapped=default
