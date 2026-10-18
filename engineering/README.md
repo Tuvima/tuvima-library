@@ -27,8 +27,15 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Draft (as-built) |
+| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Locked (v5, 2026-10-17) |
 | [Archive](specs/archive/README.md) | Built specs move here (none yet) |
+
+## Handoffs
+
+| Doc | Status |
+|---|---|
+| [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Current — decision pending |
 
 ## Architecture decisions
 
