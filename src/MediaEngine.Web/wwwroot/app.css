@@ -1508,15 +1508,20 @@ body,
     overflow: visible !important;
 }
 
+/* The bar's columns, gap and edges come from three variables, so the narrower layouts below change them without
+   adding priority rules of their own. */
 .layout-shell__appbar .tl-toolbar {
+    --shell-topbar-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    --shell-topbar-gap: 1.25rem;
+    --shell-topbar-inline: 1.25rem;
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
-    column-gap: 1.25rem !important;
+    grid-template-columns: var(--shell-topbar-columns) !important;
+    column-gap: var(--shell-topbar-gap) !important;
     width: 100% !important;
     height: var(--app-topbar-height) !important;
     min-height: var(--app-topbar-height) !important;
     align-items: center !important;
-    padding: 0 1.25rem !important;
+    padding: 0 var(--shell-topbar-inline) !important;
     overflow: visible !important;
 }
 
@@ -1576,23 +1581,34 @@ body,
 
 @media (max-width: 1100px){
     .layout-shell__appbar .tl-toolbar {
-        column-gap: 0.9rem !important;
+        --shell-topbar-gap: 0.9rem;
     }
 }
 
-@media (max-width: 840px){
-    .layout-shell__appbar .tl-toolbar {
-        grid-template-columns: minmax(0, 1fr) 0 auto !important;
-        column-gap: 4px !important;
-        padding: 0 8px !important;
-        box-sizing: border-box;
-        min-width: 0;
-        max-width: 100%;
-    }
+/* Only the phone shell drops the top navigation column (it uses the menu, chips and dock instead). Tablets and narrow
+   desktop windows keep the top navigation at every width, so this follows the form factor, not a width query. */
+html[data-form-factor="phone"] .layout-shell__appbar .tl-toolbar {
+    --shell-topbar-columns: minmax(0, 1fr) 0 auto;
+    --shell-topbar-gap: 4px;
+    --shell-topbar-inline: 8px;
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+}
 
-    .layout-shell__brand-link {
-        max-width: 100%;
-        flex-shrink: 1;
+html[data-form-factor="phone"] .layout-shell__brand-link {
+    max-width: 100%;
+    flex-shrink: 1;
+}
+
+/* Compact top bar for tablets and narrow desktop windows: the logo and the icons take their own width and the labels get
+   what is left, with tighter edges and gaps, so nothing sits on top of anything else. MainLayout.razor.css swaps in the
+   icon logo and lets the labels scroll inside their column at the same width. */
+@media (max-width: 840px) {
+    html:not([data-form-factor="phone"]) .layout-shell__appbar .tl-toolbar {
+        --shell-topbar-columns: auto minmax(0, 1fr) auto;
+        --shell-topbar-gap: 0.5rem;
+        --shell-topbar-inline: 0.75rem;
     }
 }
 

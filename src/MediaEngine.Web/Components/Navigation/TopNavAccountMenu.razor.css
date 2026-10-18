@@ -208,7 +208,9 @@
     background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
 }
 
-@media (max-width: 640px) {
+/* Phones, tablets and narrow desktop windows: the trigger is the avatar alone (its aria-label still names the profile),
+   so a long display name never pushes into the top navigation labels. */
+@media (max-width: 840px) {
     .top-nav-account-menu-shell ::deep .top-nav-account-menu__trigger {
         width: 48px;
         min-width: 48px;
