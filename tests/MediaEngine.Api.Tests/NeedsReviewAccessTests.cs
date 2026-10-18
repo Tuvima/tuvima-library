@@ -147,6 +147,25 @@ public sealed class NeedsReviewAccessTests : IDisposable
     }
 
     [Fact]
+    public async Task ReviewRoutes_ForAnAppActingForAPerson_AllowOnlyAServerAdministrator()
+    {
+        // D15: an app signed in as a person needs that person to be a server administrator too.
+        var routes = await MapReviewRoutesAsync();
+        var app = await CreateApplicationAsync(
+            ApplicationType.UserClient, ApplicationPermissionIds.ReviewRead, ApplicationPermissionIds.ReviewResolve);
+        var serverAdmin = await CreateAccountAsync(administrator: true);
+        var householdAdmin = await CreateAccountAsync(administrator: false);
+        await _accounts.SetHouseholdAdminAsync(householdAdmin, true, _clock.GetUtcNow());
+        var person = await CreateAccountAsync(administrator: false);
+        var kidsProfile = await AddKidsProfileAsync(serverAdmin, adminEnabled: true);
+
+        await AssertAllRoutesAsync(routes, DelegatedContext(app, serverAdmin), allowed: true, "app for a server administrator");
+        await AssertAllRoutesAsync(routes, DelegatedContext(app, householdAdmin), allowed: false, "app for a household administrator");
+        await AssertAllRoutesAsync(routes, DelegatedContext(app, person), allowed: false, "app for a signed-in person");
+        await AssertAllRoutesAsync(routes, DelegatedContext(app, serverAdmin, kidsProfile), allowed: false, "app for a Kids profile");
+    }
+
+    [Fact]
     public async Task ReviewRoutes_RefuseAnAppThatWasNeverGrantedReviewPermission()
     {
         var routes = await MapReviewRoutesAsync();
@@ -228,7 +247,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
             _accounts, new PasswordHasher<GrantAdminProtection>(), _clock));
         var evaluator = new AuthorizationEvaluator(
             decisions, _applications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts),
-            new HttpContextAccessor());
+            new HttpContextAccessor { HttpContext = http });
         var handler = new AdministratorOrApplicationHandler(Resolver(), decisions, evaluator);
         var context = new AuthorizationHandlerContext([requirement], http.User, http);
         await handler.HandleAsync(context);
@@ -355,6 +374,20 @@ public sealed class NeedsReviewAccessTests : IDisposable
 
     private static DefaultHttpContext AppContext(MediaEngine.Domain.Entities.Application application) =>
         ContextWithClaims(PrincipalKind.ServiceApplication, Guid.Empty, Guid.Empty, application.Id);
+
+    private static DefaultHttpContext DelegatedContext(
+        MediaEngine.Domain.Entities.Application application, Guid accountId, Guid? profileId = null)
+    {
+        var http = ContextWithClaims(
+            PrincipalKind.DelegatedUserClient, accountId, profileId ?? Profile.SeedProfileId, application.Id);
+        // The person consented to both review scopes, so only the person's own standing decides.
+        ((ClaimsIdentity)http.User.Identity!).AddClaims(
+        [
+            new Claim(TuvimaClaimTypes.Scope, ApplicationPermissionIds.ReviewRead.Value),
+            new Claim(TuvimaClaimTypes.Scope, ApplicationPermissionIds.ReviewResolve.Value),
+        ]);
+        return http;
+    }
 
     private static DefaultHttpContext ContextWithClaims(
         PrincipalKind kind,
