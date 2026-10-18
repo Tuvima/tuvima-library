@@ -33,7 +33,7 @@ class TuvimaMobileApplication : Application() {
         getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putString("server", serverAddress).apply()
         return TuvimaClient(
             serverAddress = serverAddress,
-            clientId = "tuvima-android",
+            clientId = "tuvima-mobile",
             clientName = "Tuvima for Android",
             clientVersion = BuildConfig.VERSION_NAME,
             deviceName = Build.MODEL,

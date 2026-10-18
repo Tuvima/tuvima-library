@@ -27,7 +27,7 @@ class TuvimaTvApplication : Application() {
         getSharedPreferences("tuvima_tv", MODE_PRIVATE).edit().putString("server", serverAddress).apply()
         return TuvimaClient(
             serverAddress = serverAddress,
-            clientId = "tuvima-android-tv",
+            clientId = "tuvima-tv",
             clientName = "Tuvima for Android TV",
             clientVersion = BuildConfig.VERSION_NAME,
             deviceName = Build.MODEL,
