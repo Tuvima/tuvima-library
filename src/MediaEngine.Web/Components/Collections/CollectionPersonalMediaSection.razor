@@ -94,6 +94,8 @@
 @code {
     [Parameter] public Guid? CollectionId { get; set; }
     [Parameter] public EventCallback Changed { get; set; }
+    /// <summary>Raised once the attached sources have loaded, so the editor can count them as members.</summary>
+    [Parameter] public EventCallback Loaded { get; set; }
 
     private readonly HashSet<Guid> _selectedGalleryIds = [];
     private List<CollectionGalleryReferenceDto> _galleries = [];
@@ -109,23 +111,51 @@
 
     public string? LastError => _loadError;
 
+    /// <summary>Gallery and smart-rule sources already attached to the collection; each is a member that keeps a curated collection from being empty.</summary>
+    public int AttachedSourceCount => _originalSources.Count;
+
     protected override async Task OnInitializedAsync()
     {
         _galleries = (await Client.GetEligibleGalleriesAsync()).ToList();
         if (CollectionId.HasValue)
             _originalSources = (await Client.GetSourcesAsync(CollectionId.Value)).ToList();
 
-        _selectedGalleryIds.UnionWith(_originalSources
-            .Where(source => source.Kind == CollectionPersonalMediaSourceKinds.Gallery && source.GalleryId.HasValue)
-            .Select(source => source.GalleryId!.Value));
-        var smart = _originalSources.FirstOrDefault(source => source.Kind == CollectionPersonalMediaSourceKinds.SmartRule);
-        if (smart?.RuleDefinition is not null)
-        {
-            _smartRuleEnabled = true;
-            _viewRuleDefinition = ToViewModel(smart.RuleDefinition);
-        }
+        ApplySources(_originalSources);
         _loadError = Client.LastError;
         _loading = false;
+        await Loaded.InvokeAsync();
+    }
+
+    // The picks mirror what the Engine says is attached: the chosen galleries, and the smart rule when there is one.
+    private void ApplySources(List<CollectionPersonalMediaSourceDto> sources)
+    {
+        _originalSources = sources;
+        _selectedGalleryIds.Clear();
+        _selectedGalleryIds.UnionWith(sources
+            .Where(source => source.Kind == CollectionPersonalMediaSourceKinds.Gallery && source.GalleryId.HasValue)
+            .Select(source => source.GalleryId!.Value));
+        var smart = sources.FirstOrDefault(source => source.Kind == CollectionPersonalMediaSourceKinds.SmartRule);
+        _smartRuleEnabled = smart?.RuleDefinition is not null;
+        if (smart?.RuleDefinition is not null)
+            _viewRuleDefinition = ToViewModel(smart.RuleDefinition);
+    }
+
+    // A save that stops part-way leaves some changes made and some not, so what this section remembers about the
+    // collection is stale. Ask the Engine again and show the failure beside what is really attached. If the Engine
+    // cannot be asked, the picks stay as the person left them.
+    private async Task ResyncAfterFailureAsync(Guid collectionId, string? failure, bool keepPicks, CancellationToken ct)
+    {
+        var reloaded = (await Client.GetSourcesAsync(collectionId, ct)).ToList();
+        if (string.IsNullOrWhiteSpace(Client.LastError))
+        {
+            if (keepPicks)
+                _originalSources = reloaded;
+            else
+                ApplySources(reloaded);
+        }
+
+        _loadError = failure;
+        await InvokeAsync(StateHasChanged);
     }
 
     public bool Validate(out string? error)
@@ -165,7 +195,7 @@
                 : await Client.UpdateSourceAsync(collectionId, existing.SourceId, request, ct);
             if (saved is null)
             {
-                _loadError = Client.LastError;
+                await ResyncAfterFailureAsync(collectionId, Client.LastError, keepPicks: true, ct);
                 return false;
             }
             if (existing is not null)
@@ -187,7 +217,7 @@
                 : await Client.UpdateSourceAsync(collectionId, existing.SourceId, request, ct);
             if (saved is null)
             {
-                _loadError = Client.LastError;
+                await ResyncAfterFailureAsync(collectionId, Client.LastError, keepPicks: true, ct);
                 return false;
             }
             if (existing is not null)
@@ -198,7 +228,9 @@
         {
             if (!await Client.RemoveSourceAsync(collectionId, removed.SourceId, ct))
             {
-                _loadError = Client.LastError;
+                // The Engine refuses to take out a curated collection's last member, and a source before it in this
+                // list may already be gone: show exactly what is attached beside the Engine's reason.
+                await ResyncAfterFailureAsync(collectionId, Client.LastError, keepPicks: false, ct);
                 return false;
             }
         }

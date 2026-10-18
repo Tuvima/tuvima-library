@@ -122,6 +122,8 @@ Removal of an expired variant also removes its list row, so a device that still 
 
 `GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). **Windowing is opt-in:** a request with no `sequence*` parameter receives the whole list exactly as before (`orderedItems` and every group's `items` complete), so older clients keep working. A client opts in by sending `sequenceLimit` (the Dashboard sends `sequenceLimit=50`). Up to 100 episodes in total a windowed request still lists every episode. A longer show then lists every season but fills `items` for one season only (the season being watched, starting at the window that holds the current episode); `orderedItems` is empty because the episodes are carried once, inside their season.
 
+**A season by its own address.** `GET /api/v1/details/tvseason/{id}` answers with the page of the season's show, opened on that season: the payload's `entityType` is the show and its `sequencePlacement` selects the season. The optional `containerId` is the show's id; when it is omitted the Engine resolves the show from the season. A season id that does not exist, or that the profile may not see (library grants and the content limit apply as on the other details routes), answers `404`; so does a season whose show cannot be resolved.
+
 Optional query parameters on the same route:
 
 | Parameter | Meaning |
@@ -340,12 +342,16 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/collections/catalog` | Collections catalog: system/user/managed collections plus broader rollups where trusted relationships connect multiple shelves | Required |
 | GET | `/collections/{id}/summary` | One Collections summary for a detail page without loading the full catalog | Required |
 | GET | `/collections/{id}/items` | Items for a collection detail page, including generated rollup aggregation | Required |
+| POST | `/collections` | Create a collection (`collection_type`, `membership_mode`, `rule_definition`, `work_ids`, ownership and audience). A manually curated collection (`Custom`, manual membership) must arrive with at least one `work_ids` entry, so an empty one never exists: otherwise `400` with "A collection needs at least one item." Playlists and rule-driven collections may be created without items. | Effective administrator or precise Application permission |
+| PUT | `/collections/{id}` | Update a collection's settings, rules or membership mode. `409` "A collection needs at least one item. Delete the collection instead." when the change would leave a curated collection with no items (for example switching a rule-driven collection to manual membership before anything is in it). | Effective administrator or precise Application permission |
+| POST | `/collections/{id}/items` | Add a work to a saved/manual collection | Effective administrator or precise Application permission |
+| DELETE | `/collections/{id}/items/{itemId}` | Remove an item from a saved/manual collection. `409` "A collection needs at least one item. Delete the collection instead." when it is the last item of a curated collection; playlists may be emptied. A curated collection whose last work leaves the library is deleted automatically by the Engine (an `AutoPurge` activity entry records it). | Effective administrator or precise Application permission |
 | POST | `/collections/reconcile` | Dry-run or run collection shelf repair for already-ingested media. Body: `dry_run`, `batch_size`, `max_items`. Returns candidate, processed, assigned, skipped, failed, and elapsed counts. | Effective administrator or precise Application permission |
 | GET | `/collections/{collectionId}/series-manifest` | Ordered Wikidata series checklist with total, owned, missing, provisional, ambiguous counts and named entries | Required |
 | GET | `/collections/search?q=` | SQL-backed search across visible library works, canonical values, and collection names. Returns up to 20 work results. | Required |
 | GET | `/collections/personal-media/galleries` | List Galleries eligible for the administrator's Collection editor without exposing individual assets | Administrator + trusted profile |
 | GET | `/collections/{id}/personal-media` | Return count-free Gallery/rule sources after reapplying the viewer's View authorization | Required + trusted profile |
-| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected | Administrator + trusted profile |
+| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected. DELETE answers `409` "A collection needs at least one item. Delete the collection instead." when the source is the last member (no items, no other source) of a curated collection | Administrator + trusted profile |
 | GET | `/persons?catalog=true&q=&role=&lane=&sort=&offset=&limit=` | Paged canonical primary contributors on owned works for Collections / People | Required |
 | GET | `/persons/role-counts?catalog=true` | Canonical owned-library contributor counts grouped by role | Required |
 
@@ -355,12 +361,10 @@ unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/items` | Paginated item list for current browse/detail surfaces. Includes projection-backed fields such as `pipelineStep`, `libraryVisibility`, `isReadyForLibrary`, `artworkState`, `artworkSource`, and `artworkSettledAt`. Supports filtering by status, media type, collection, and search term. | Required |
-| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Required |
+| GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Server administrator or Application with `review.read`, plus catalogue access |
+| GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Server administrator or Application with `review.read`, plus catalogue access |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
-| GET | `/library/items/counts` | Status counts for tab badges and compatibility counters such as review, auto-approved, duplicate, staging, and missing-image counts | Required |
-| GET | `/library/items/state-counts?batchId=` | Four-state counts scoped to a specific ingestion batch | Required |
 
 ---
 
@@ -681,25 +685,11 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 
 ---
 
-## Reports
-
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| POST | `/reports` | Submit a metadata quality report for an entity | Required |
-| GET | `/reports/entity/{id}` | All reports for a specific entity | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/resolve` | Mark a report as resolved | Effective administrator or precise Application permission |
-| POST | `/reports/{id}/dismiss` | Dismiss a report | Effective administrator or precise Application permission |
-
----
-
 ## Library Character and Asset Data
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/characters/{id}/portraits` | Portrait images for a fictional character | Required |
-| PUT | `/library/characters/{id}/portraits/{portraitId}/default` | Set the default portrait for a fictional character | Effective administrator or precise Application permission |
-| GET | `/library/persons/{id}/character-roles` | Characters a person has performed, linked to works | Required |
-| GET | `/library/universes/{qid}/characters` | All characters in a universe | Required |
+| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
 | GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
 | POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
 

@@ -124,7 +124,8 @@ else
                         <div hidden="@(!string.Equals(_activeTab, "companions", StringComparison.OrdinalIgnoreCase))">
                             <CollectionPersonalMediaSection @ref="_personalMediaSection"
                                                             CollectionId="@(EditingCollection?.Id ?? _createdCollectionId)"
-                                                            Changed="MarkDirtyAsync" />
+                                                            Changed="MarkDirtyAsync"
+                                                            Loaded="OnPersonalMediaLoadedAsync" />
                         </div>
                     }
                 </div>
@@ -142,7 +143,7 @@ else
                                    Tone="AppUiTone.Primary"
                                    StartIcon="@AppMaterialIcons.Outlined.Save"
                                    OnClick="SaveCollection"
-                                   Disabled="@_saving">
+                                   Disabled="@(_saving || IsEmptyCuratedCollection)">
                             @if (_saving)
                             {
                                 <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
@@ -281,6 +282,9 @@ else
     private List<ManualCollectionItem> _manualItems = [];
     private CollectionPersonalMediaSection? _personalMediaSection;
     private Guid? _createdCollectionId;
+    // A new collection, and a stored rule-driven one being switched to manual, hold no items yet: the chosen items
+    // stay in this editor and travel with the save instead of being added one by one.
+    private bool _storedRuleDriven;
     private readonly MediaEditorOwnedChildBrowserSession _ownedChildBrowserSession = new();
     private int _ownedChildBrowserVersion;
     private MediaEditorLaunchRequest? _inlineIssueRequest;
@@ -290,6 +294,19 @@ else
     private Guid StructuralOwnedChildParentId => EditingCollection?.Id ?? Guid.Empty;
     private string PersistenceVisibility => string.Equals(_audience, "Everyone", StringComparison.OrdinalIgnoreCase) ? "shared" : "private";
     private bool SupportsManualItems => !_rulesEnabled;
+
+    // A manually curated collection (Custom with stored members) is never allowed to be empty: the Engine refuses
+    // to create or save one, and takes the collection away when its last item leaves the library. An attached
+    // Gallery or smart-rule source counts as a member, so it keeps the collection from being empty.
+    private bool IsEmptyCuratedCollection => !IsStructuralCollection
+        && !IsPlaylistDialog
+        && string.Equals(_collectionType, "Custom", StringComparison.OrdinalIgnoreCase)
+        && SupportsManualItems
+        && _manualItems.Count == 0
+        && (_personalMediaSection?.AttachedSourceCount ?? 0) == 0;
+    private string EmptyCuratedCollectionMessage => EditingCollection is null
+        ? "A collection needs at least one item. Add something to save it."
+        : "A collection needs at least one item. Delete the collection instead.";
     private bool CanDeleteCollection => EditingCollection is not null
         && EditingCollection.CollectionType is "Custom" or "Playlist" or "Smart";
     private string CollectionTypeIcon => !string.IsNullOrWhiteSpace(_iconName)
@@ -337,6 +354,8 @@ else
             ? "Changes apply to the shelf, not an individual item."
             : IsPlaylistDialog
             ? null
+            : IsEmptyCuratedCollection
+                ? EmptyCuratedCollectionMessage
             : SupportsManualItems
                 ? $"{_manualItems.Count} item(s) staged for this collection."
                 : _previewResult is null
@@ -393,6 +412,7 @@ else
         _secondarySortDirection = EditingCollection.SecondarySortDirection;
         _rulesEnabled = string.Equals(EditingCollection.MembershipMode, "Smart", StringComparison.OrdinalIgnoreCase)
             || !string.Equals(EditingCollection.Resolution, "materialized", StringComparison.OrdinalIgnoreCase);
+        _storedRuleDriven = _rulesEnabled;
 
         if (string.IsNullOrWhiteSpace(EditingCollection.RuleJson))
             return;
@@ -509,6 +529,9 @@ else
         MarkDirty();
         return Task.CompletedTask;
     }
+
+    // The callback re-renders this editor, so the footer and Save button see the sources that were just loaded.
+    private Task OnPersonalMediaLoadedAsync() => Task.CompletedTask;
 
     private Task OnNameChanged(string value)
     {
@@ -656,9 +679,11 @@ else
 
         try
         {
-            if (EditingCollection is null)
+            if (EditingCollection is null || _storedRuleDriven)
             {
-                _manualItems = [];
+                // Nothing is stored to load. A new collection starts empty; a rule-driven one keeps what is staged.
+                if (EditingCollection is null)
+                    _manualItems = [];
                 return;
             }
 
@@ -739,7 +764,7 @@ else
         if (SelectedWorkIds.Contains(work.WorkId))
             return;
 
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
@@ -770,12 +795,17 @@ else
 
     private async Task RemoveManualItemAsync(ManualCollectionItem item)
     {
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var ok = await ApiClient.RemoveCollectionItemAsync(EditingCollection.Id, item.Id, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to remove the item from this collection.", AppSeverity.Error);
+                // The Engine says why when it refuses, for example when this is the collection's last item.
+                Snackbar.Add(
+                    string.IsNullOrWhiteSpace(ApiClient.LastError)
+                        ? "Failed to remove the item from this collection."
+                        : ApiClient.LastError,
+                    AppSeverity.Error);
                 return;
             }
 
@@ -803,7 +833,7 @@ else
             .Select((existing, order) => existing with { SortOrder = order + 1 })
             .ToList();
 
-        if (EditingCollection is not null)
+        if (EditingCollection is not null && !_storedRuleDriven)
         {
             var itemIds = _manualItems
                 .OrderBy(existing => existing.SortOrder)
@@ -882,6 +912,13 @@ else
             return;
         }
 
+        if (IsEmptyCuratedCollection)
+        {
+            Snackbar.Add(EmptyCuratedCollectionMessage, AppSeverity.Warning);
+            _activeTab = "membership";
+            return;
+        }
+
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
             Snackbar.Add("Choose at least one other profile to share this collection with.", AppSeverity.Warning);
@@ -927,7 +964,10 @@ else
                     primaryArea: _primaryArea,
                     ownerKind: _ownerKind,
                     audience: _ownerKind == "Library" ? "Everyone" : _audience,
-                    selectedProfileIds: _selectedProfileIds.ToList());
+                    selectedProfileIds: _selectedProfileIds.ToList(),
+                    // Switching a rule-driven collection to manual brings its staged items in the same save, so it
+                    // is never manual and empty at any point.
+                    workIds: _storedRuleDriven && !_rulesEnabled ? _manualItems.Select(item => item.WorkId).ToList() : null);
             }
             else
             {
@@ -947,7 +987,9 @@ else
                     primaryArea: _primaryArea,
                     ownerKind: _ownerKind,
                     audience: _ownerKind == "Library" ? "Everyone" : _audience,
-                    selectedProfileIds: _selectedProfileIds.ToList());
+                    selectedProfileIds: _selectedProfileIds.ToList(),
+                    // Curated items travel with the create call, so an empty curated collection never exists.
+                    workIds: SupportsManualItems ? _manualItems.Select(item => item.WorkId).ToList() : null);
                 _createdCollectionId = savedCollectionId;
                 ok = savedCollectionId.HasValue;
             }
@@ -983,9 +1025,6 @@ else
                         Snackbar.Add($"Collection saved, but {slot} artwork could not be uploaded.", AppSeverity.Warning);
                 }
             }
-
-            if (EditingCollection is null && SupportsManualItems && _manualItems.Count > 0)
-                await AttachStagedManualItemsAsync();
 
             Snackbar.Add(
                 EditingCollection is not null
@@ -1051,33 +1090,6 @@ else
             DialogContext?.Close(AppDialogResult.Ok(true));
         else
             DialogContext?.Cancel();
-    }
-
-    private async Task AttachStagedManualItemsAsync()
-    {
-        var collections = await ApiClient.GetManagedCollectionsAsync(Request.ActiveProfileId);
-        var createdCollection = collections
-            .Where(collection => string.Equals(collection.Name, _name, StringComparison.OrdinalIgnoreCase))
-            .Where(collection => string.Equals(collection.CollectionType, _collectionType, StringComparison.OrdinalIgnoreCase))
-            .Where(collection => string.Equals(collection.Visibility, PersistenceVisibility, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(collection => collection.CreatedAt)
-            .FirstOrDefault();
-
-        if (createdCollection is null)
-        {
-            Snackbar.Add("The collection was created, but staged items will need to be added after reopening it.", AppSeverity.Info);
-            return;
-        }
-
-        var failures = 0;
-        foreach (var item in _manualItems)
-        {
-            if (!await ApiClient.AddCollectionItemAsync(createdCollection.Id, item.WorkId, Request.ActiveProfileId))
-                failures++;
-        }
-
-        if (failures > 0)
-            Snackbar.Add($"{failures} item(s) could not be added automatically. Reopen the collection to finish curation.", AppSeverity.Warning);
     }
 
     private static string FormatWorkMeta(CollectionMediaLookupDto work)

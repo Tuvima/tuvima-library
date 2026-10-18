@@ -1888,7 +1888,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
                     "1965",
                     null,
                     null,
-                    "/book/30000000-0000-0000-0000-000000000101",
+                    "/details/work/30000000-0000-0000-0000-000000000101",
                     "Read",
                     "Exact title match",
                     1)

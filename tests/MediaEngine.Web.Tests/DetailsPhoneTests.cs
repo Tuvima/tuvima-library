@@ -41,7 +41,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
     private static readonly DetailAction[] OverflowActions =
     [
         Action("status-complete", "Mark as watched", "check"),
-        Action("copy-link", "Copy library link", "link"),
+        Action("status-history", "Viewing history", "history"),
     ];
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
 
         await items[1].ClickAsync(new());
 
-        Assert.Equal("copy-link", chosen?.Key);
+        Assert.Equal("status-history", chosen?.Key);
         menu.WaitForAssertion(() => Assert.Empty(menu.FindAll("dialog")));
     }
 
@@ -202,7 +202,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         [
             new("overview", "Overview"),
             new("cast", "Cast"),
-            new("related", "Related"),
+            new("credits", "Credits"),
             new("details", "Details"),
         ];
 

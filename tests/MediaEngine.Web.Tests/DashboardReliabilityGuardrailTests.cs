@@ -31,7 +31,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor", "@key=\"item.Id\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor", "@key=\"item.Id\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor", "@key=\"operation.BatchId\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor", "@key=\"StageDetailKey(detail)\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
@@ -45,15 +45,14 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void ReviewQueue_KeepsExistingRowsVisibleDuringRefresh()
     {
-        var source = Read(@"src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
-        Assert.Contains("_loading && _items.Count == 0", source, StringComparison.Ordinal);
-        Assert.Contains("settings-review-refresh-bar", source, StringComparison.Ordinal);
-        var catchStart = normalized.IndexOf("catch (Exception ex)", StringComparison.Ordinal);
-        var finallyStart = normalized.IndexOf("finally", catchStart, StringComparison.Ordinal);
-        Assert.True(catchStart >= 0 && finallyStart > catchStart);
-        Assert.DoesNotContain("_items = [];", normalized[catchStart..finallyStart], StringComparison.Ordinal);
+        Assert.Contains("_reviewsLoading && _reviews.Count == 0", source, StringComparison.Ordinal);
+        var loadStart = normalized.IndexOf("private async Task LoadReviewsAsync()", StringComparison.Ordinal);
+        var loadEnd = normalized.IndexOf("private async Task LoadHistoryAsync", loadStart, StringComparison.Ordinal);
+        Assert.True(loadStart >= 0 && loadEnd > loadStart);
+        Assert.DoesNotContain("_reviews = [];", normalized[loadStart..loadEnd], StringComparison.Ordinal);
     }
 
     [Fact]

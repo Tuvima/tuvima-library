@@ -640,7 +640,8 @@ internal sealed partial class DetailCompositionOrchestrator
             return new SecondaryTitleSelection(semanticText.Trim(), kind, HasMore: false);
         }
 
-        if (entityType == DetailEntityType.MusicAlbum)
+        // Music albums and TV episodes have no tagline or subtitle, and no description stands in for one.
+        if (entityType is DetailEntityType.MusicAlbum or DetailEntityType.TvEpisode)
         {
             return new SecondaryTitleSelection(null, null, HasMore: false);
         }

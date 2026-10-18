@@ -16,7 +16,7 @@ namespace MediaEngine.Web.Tests;
 /// <summary>Leaving a page, or moving to another item, must cancel the Engine calls the old view still has in flight.</summary>
 public sealed class StaleFetchCancellationTests : AsyncBunitContext
 {
-    private const int DetailTokenIndex = 6;
+    private const int DetailTokenIndex = 5;
     private const int RecentTokenIndex = 3;
 
     private readonly Guid _profile = Guid.NewGuid();
@@ -35,10 +35,10 @@ public sealed class StaleFetchCancellationTests : AsyncBunitContext
             {
                 new(_profile, "One", "#aaa", "RestrictedProfile", DateTimeOffset.UtcNow),
             }));
-            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), args =>
+            stub.SetHandler(nameof(IEngineApiClient.LoadDetailPageAsync), args =>
             {
                 _detailTokens.Add((CancellationToken)args![DetailTokenIndex]!);
-                return new TaskCompletionSource<DetailPageViewModel?>().Task;
+                return new TaskCompletionSource<DetailPageLoadResult>().Task;
             });
             stub.SetHandler(nameof(IEngineApiClient.GetDisplayRecentAsync), args =>
             {

@@ -1574,7 +1574,6 @@ public partial class ListenPage
                 new DetailTab { Key = "tracks", Label = "Tracks" },
                 new DetailTab { Key = "overview", Label = "Overview" },
                 new DetailTab { Key = "credits", Label = "Credits" },
-                new DetailTab { Key = "related", Label = "Related" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             MediaGroups =
@@ -1592,7 +1591,6 @@ public partial class ListenPage
                         : Math.Round((double)tracks.Count(track => track.IsOwned) / tracks.Count * 100d, 1),
                 },
             ],
-            IdentityStatus = CanonicalIdentityStatus.ProviderMatched,
             LibraryStatus = MediaEngine.Contracts.Details.LibraryStatus.Owned,
         };
     }
@@ -1727,26 +1725,6 @@ public partial class ListenPage
         }
 
         await OpenTrackEditorAsync(work, navigateBackToTrackContext: false);
-    }
-
-    private async Task DeleteTrackAsync(WorkViewModel work)
-    {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete {work.Title} from the library?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync([work.Id]);
-        if (response is null)
-        {
-            Snackbar.Add("Delete failed.", AppSeverity.Error);
-            return;
-        }
-
-        CloseTrackContextMenu();
-        await LoadAsync();
-        Snackbar.Add($"{work.Title} deleted.", AppSeverity.Success);
     }
 
     private async Task OpenTrackEditorAsync(WorkViewModel work, bool navigateBackToTrackContext)
@@ -2120,34 +2098,6 @@ public partial class ListenPage
         }
 
         await EditTrackAsync(target);
-    }
-
-    private async Task DeleteSelectedTracksAsync()
-    {
-        if (SelectedTrackWorks.Count == 0)
-        {
-            return;
-        }
-
-        var deleteCount = SelectedTrackWorks.Count;
-
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete {deleteCount} selected song(s) from the library?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync(SelectedTrackWorks.Select(track => track.Id).ToArray());
-        if (response is null)
-        {
-            Snackbar.Add("Delete failed.", AppSeverity.Error);
-            return;
-        }
-
-        _selectedTrackIds.Clear();
-        CloseTrackContextMenu();
-        await LoadAsync();
-        Snackbar.Add($"{deleteCount} songs deleted.", AppSeverity.Success);
     }
 
     private async Task AddSelectedTracksToPlaylistAsync(Guid? collectionId = null)

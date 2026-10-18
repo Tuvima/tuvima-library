@@ -15,14 +15,12 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
         "src/MediaEngine.Web/Components/Pages/Settings.razor",
         "src/MediaEngine.Web/Components/Settings/OverviewTab.razor",
-        "src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor",
         "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor",
         "src/MediaEngine.Web/Components/Pages/Collections.razor",
         "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor",
         "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor",
         "src/MediaEngine.Web/Components/Library/StatusPill.razor",
         "src/MediaEngine.Web/Components/Details/DetailPage.razor",
-        "src/MediaEngine.Web/Components/MediaEditor/SharedMediaBatchConfirmDialog.razor",
         "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor",
     ];
 
@@ -32,6 +30,14 @@ public sealed class UiCompositionGuardrailTests
     private static readonly string RemovedCssPrefix = "va" + "ult-";
     private static readonly string RemovedPageComponent = "Library" + "Page";
     private static readonly string RemovedSurfaceType = "LibrarySurface" + "Preset";
+
+    // The old all-in-one screen's name is retired entirely (Registry retirement D2). Only the bare word is refused:
+    // technical identifiers such as PermissionRegistry or CapabilityRegistry, and lowercase "registry" (a Docker
+    // image registry), stay legal.
+    private static readonly string RetiredRegistryLabel = "Reg" + "istry";
+
+    private static readonly Regex RetiredRegistryLabelRegex =
+        new($@"(?<!\w){RetiredRegistryLabel}(?!\w)", RegexOptions.Compiled);
 
     private static readonly string[] RemovedAllInOneWorkspaceFiles =
     [
@@ -59,6 +65,10 @@ public sealed class UiCompositionGuardrailTests
     private static readonly Regex RawInteractiveHtmlRegex =
         new(@"<(?:button|input|select|textarea|table|dialog|details|summary)\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // A C# string literal: raw ("""..."""), verbatim (@"..." / $@"..."), or regular ("..." / $"...").
+    private static readonly Regex StringLiteralRegex =
+        new(@"""""""[\s\S]*?""""""|[$@]{1,2}""(?:[^""]|"""")*""|""(?:[^""\\\r\n]|\\.)*""", RegexOptions.Compiled);
 
     private static readonly Regex RazorCommentRegex =
         new(@"@\*.*?\*@", RegexOptions.Singleline | RegexOptions.Compiled);
@@ -159,6 +169,157 @@ public sealed class UiCompositionGuardrailTests
         Assert.Empty(offenders);
     }
 
+    [Fact]
+    public void UserFacingText_DoesNotUseTheRetiredRegistryLabel()
+    {
+        // A missing folder would silently scan nothing, so the scan proves it saw each source it claims to cover.
+        Assert.True(Directory.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components")), "src/MediaEngine.Web/Components must exist.");
+        Assert.True(Directory.Exists(Path.Combine(RepoRoot, "docs")), "docs must exist.");
+        var scanned = RegistryScanFiles(RepoRoot);
+        foreach (var extension in new[] { ".razor", ".resx", ".md", ".cs" })
+        {
+            Assert.Contains(scanned, path => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Contains(scanned, path => path.Contains($"{Path.DirectorySeparatorChar}MediaEngine.Api{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+            && path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase));
+
+        var offenders = FindRetiredRegistryLabels(RepoRoot);
+
+        Assert.True(
+            offenders.Count == 0,
+            "The retired all-in-one screen name must not return in Dashboard markup, Dashboard resources or docs; say Needs Review or Editing Mode instead: "
+            + string.Join("; ", offenders));
+    }
+
+    [Theory]
+    [InlineData("<AppTab Label=\"{0}\" />")]
+    [InlineData("<h2>{0}</h2>")]
+    [InlineData("<value>{0}</value>")]
+    [InlineData("Open the {0} tab to see the item's state.")]
+    [InlineData("<a href=\"/details/book/1\">{0}</a>")]
+    public void RetiredRegistryLabelMatcher_FlagsAPlantedLabel(string template)
+    {
+        Assert.Matches(RetiredRegistryLabelRegex, string.Format(template, RetiredRegistryLabel));
+    }
+
+    [Theory]
+    [InlineData("Permission")]
+    [InlineData("Capability")]
+    [InlineData("OpenScreen")]
+    [InlineData("IntercomAudience")]
+    public void RetiredRegistryLabelMatcher_AllowsTechnicalRegistryTypeNames(string prefix)
+    {
+        Assert.DoesNotMatch(RetiredRegistryLabelRegex, $"@inject {prefix}{RetiredRegistryLabel} {prefix}Source");
+        Assert.DoesNotMatch(RetiredRegistryLabelRegex, $"I{prefix}{RetiredRegistryLabel}");
+    }
+
+    [Theory]
+    [InlineData("Start without pulling the registry image.")]
+    [InlineData("var registry = new ApplicationEventRegistry(permissions);")]
+    [InlineData("{0}Tab")]
+    [InlineData("{0}_CloseWhere")]
+    public void RetiredRegistryLabelMatcher_AllowsLowercaseWordsAndCodeOnlyIdentifiers(string template)
+    {
+        Assert.DoesNotMatch(RetiredRegistryLabelRegex, string.Format(template, RetiredRegistryLabel));
+    }
+
+    [Fact]
+    public void RegistryLabelScan_FailsOnAPlantedLabelAndPassesOnACleanTree()
+    {
+        var planted = Path.Combine(Path.GetTempPath(), "tuvima-registry-label-" + Guid.NewGuid().ToString("N"));
+        var clean = Path.Combine(Path.GetTempPath(), "tuvima-registry-clean-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            WriteFile(planted, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"<h1>{RetiredRegistryLabel}</h1>");
+            WriteFile(planted, "src/MediaEngine.Web/Resources/Sample.resx", $"<data name=\"Nav\"><value>{RetiredRegistryLabel}</value></data>");
+            WriteFile(planted, "docs/guides/sample.md", $"Open the {RetiredRegistryLabel} to fix an item.");
+            WriteFile(planted, "src/MediaEngine.Web/Services/Sample.cs", $"class A {{ string Label = \"Open {RetiredRegistryLabel}\"; }}");
+            WriteFile(planted, "src/MediaEngine.Api/Services/Sample.cs", $"class B {{ string Title = $@\"The {RetiredRegistryLabel} {{x}}\"; }}");
+
+            WriteFile(clean, "src/MediaEngine.Web/Components/Pages/Sample.razor", $"@inject Permission{RetiredRegistryLabel} Permissions\r\n<h1>Needs Review</h1>");
+            WriteFile(clean, "src/MediaEngine.Web/Resources/Sample.resx", "<data name=\"Nav\"><value>Needs Review</value></data>");
+            WriteFile(clean, "docs/guides/sample.md", "Start without pulling the registry image.");
+            WriteFile(clean, "src/MediaEngine.Web/Services/Sample.cs", $"// the old {RetiredRegistryLabel} screen\r\nclass A {{ IPermission{RetiredRegistryLabel} Source; string Label = \"capability registry\"; }}");
+            WriteFile(clean, "src/MediaEngine.Api/Services/Sample.cs", "class B { string Title = \"Needs Review\"; }");
+
+            Assert.Equal(
+                [
+                    "docs/guides/sample.md",
+                    "src/MediaEngine.Api/Services/Sample.cs",
+                    "src/MediaEngine.Web/Components/Pages/Sample.razor",
+                    "src/MediaEngine.Web/Resources/Sample.resx",
+                    "src/MediaEngine.Web/Services/Sample.cs",
+                ],
+                FindRetiredRegistryLabels(planted).Order(StringComparer.Ordinal));
+            Assert.Empty(FindRetiredRegistryLabels(clean));
+        }
+        finally
+        {
+            DeleteDirectory(planted);
+            DeleteDirectory(clean);
+        }
+    }
+
+    // Everything a person can read: Dashboard markup and resources, docs, and the C# string literals of the Dashboard
+    // and the Engine (labels, messages and titles built in code).
+    private static List<string> RegistryScanFiles(string repoRoot)
+    {
+        var webRoot = Path.Combine(repoRoot, "src", "MediaEngine.Web");
+        var files = new List<string>();
+        foreach (var folder in new[] { Path.Combine(webRoot, "Components"), Path.Combine(webRoot, "Shared") })
+        {
+            files.AddRange(EnumerateFiles(folder, "*.razor"));
+        }
+
+        files.AddRange(EnumerateFiles(Path.Combine(webRoot, "Resources"), "*.resx"));
+        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.md"));
+        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "docs"), "*.mdx"));
+        files.AddRange(EnumerateFiles(webRoot, "*.cs"));
+        files.AddRange(EnumerateFiles(Path.Combine(repoRoot, "src", "MediaEngine.Api"), "*.cs"));
+
+        return files.Where(path => !IsGeneratedOrBuildOutput(path)).ToList();
+    }
+
+    private static List<string> FindRetiredRegistryLabels(string repoRoot)
+    {
+        return RegistryScanFiles(repoRoot)
+            .Where(path =>
+            {
+                var contents = File.ReadAllText(path);
+                if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StringLiteralRegex.Matches(LineCommentRegex.Replace(contents, string.Empty))
+                        .Any(literal => RetiredRegistryLabelRegex.IsMatch(literal.Value));
+                }
+
+                return RetiredRegistryLabelRegex.IsMatch(
+                    path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase) ? Sanitize(contents) : contents);
+            })
+            .Select(path => Path.GetRelativePath(repoRoot, path).Replace('\\', '/'))
+            .ToList();
+    }
+
+    private static IEnumerable<string> EnumerateFiles(string folder, string pattern) =>
+        Directory.Exists(folder)
+            ? Directory.EnumerateFiles(folder, pattern, SearchOption.AllDirectories)
+            : [];
+
+    private static void WriteFile(string root, string relativePath, string contents)
+    {
+        var path = Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, contents);
+    }
+
+    private static void DeleteDirectory(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
     private static IEnumerable<string> EnumerateTextFiles(string root)
     {
         if (File.Exists(root))
@@ -198,7 +359,7 @@ public sealed class UiCompositionGuardrailTests
     public void SharedMediaEditorLauncher_RemainsCanonicalEditingPath()
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "SettingsReviewQueueTab.razor"));
+        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "RecentlyAddedPageContent.razor"));
         var launcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Editing", "MediaEditorLauncherService.cs"));
 
         Assert.Contains("MediaEditorLauncher.OpenAsync", detailPage);
@@ -214,12 +375,12 @@ public sealed class UiCompositionGuardrailTests
     public void InlineEditingSurfaces_RefreshOnlyAfterSuccessfulEditorResult()
     {
         var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "SettingsReviewQueueTab.razor"));
+        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "RecentlyAddedPageContent.razor"));
         var listenPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
 
         Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);
-        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadAsync", reviewTab);
+        Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadReviewsAsync", reviewTab);
         Assert.Matches(@"if\s*\(\s*applied\s*\)\s*\{[^}]*LoadAsync", listenPage);
     }
 
@@ -231,7 +392,6 @@ public sealed class UiCompositionGuardrailTests
         Assert.Contains("request.EntityIds.Count == 0", launcher);
         Assert.Contains("return false", launcher);
         Assert.Contains("request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1", launcher);
-        Assert.DoesNotContain("SharedMediaBatchConfirmDialog", launcher);
     }
 
     private static string Sanitize(string contents)

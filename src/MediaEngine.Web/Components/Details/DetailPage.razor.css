@@ -128,8 +128,7 @@
 }
 
 ::deep .tl-detail-panel,
-::deep .tl-series-placement,
-::deep .tl-registry-panel {
+::deep .tl-series-placement {
     width: min(100rem, calc(100% - 2rem));
     margin: clamp(1.25rem, 3vw, 2rem) auto 0;
     padding: clamp(1rem, 2.6vw, 1.6rem);
@@ -185,8 +184,7 @@
     font-weight: 800;
 }
 
-::deep .tl-series-strip,
-::deep .tl-child-list {
+::deep .tl-series-strip {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(11rem, 15rem);
@@ -197,9 +195,7 @@
 }
 
 ::deep .tl-credit-card,
-::deep .tl-character-card,
-::deep .tl-series-item,
-::deep .tl-child-card {
+::deep .tl-series-item {
     border: 1px solid rgba(246, 240, 232, 0.1);
     border-radius: 0.85rem;
     background: rgba(246, 240, 232, 0.055);
@@ -208,30 +204,24 @@
 }
 
 ::deep .tl-credit-card img,
-::deep .tl-character-card img,
-::deep .tl-series-item img,
-::deep .tl-child-card img {
+::deep .tl-series-item img {
     width: 100%;
     aspect-ratio: 1 / 1;
     object-fit: cover;
     display: block;
 }
 
-::deep .tl-credit-card__body,
-::deep .tl-child-card__body {
+::deep .tl-credit-card__body {
     padding: 0.72rem;
 }
 
 ::deep .tl-series-item__title,
-::deep .tl-credit-card__name,
-::deep .tl-character-card__name {
+::deep .tl-credit-card__name {
     font-weight: 700;
     line-height: 1.25;
 }
 
 ::deep .tl-credit-card__role,
-::deep .tl-character-card__role,
-::deep .tl-child-card__meta,
 ::deep .tl-detail-copy,
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
@@ -256,7 +246,6 @@
     border: 0;
 }
 
-::deep .tl-child-card__art img,
 ::deep .tl-series-item__art img {
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -339,8 +328,7 @@
     text-align: center;
 }
 
-::deep .tl-series-panel--portrait .tl-series-item__art img,
-::deep .tl-child-card__art img {
+::deep .tl-series-panel--portrait .tl-series-item__art img {
     aspect-ratio: 2 / 3;
     object-fit: contain;
 }
@@ -393,10 +381,9 @@
     color: #f7bf4f;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-panel,
-::deep .tl-series-placement,
-::deep .tl-registry-panel {
+::deep .tl-series-placement {
         margin-inline: 1rem;
         border-radius: 0.8rem;
     }
@@ -419,7 +406,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-metadata-item {
         min-height: 2.9rem;
         padding: 0.5rem 0.72rem;
@@ -427,7 +414,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 ::deep .tl-detail-watch-metadata-row {
         gap: 0.52rem;
         font-size: 0.96rem;
@@ -461,7 +448,7 @@
     font-size: 0.92rem;
 }
 
-@media (max-width: 720px) {
+@media (width < 840px) {
 ::deep .tl-detail-hero--watch .tl-detail-metadata-stack,
 ::deep .tl-detail-hero--watch .tl-detail-hero__tagline {
         width: 100%;
@@ -489,8 +476,7 @@
     padding: clamp(1.5rem, 2.4vw, 2.6rem) clamp(1.25rem, 4vw, 5rem);
 }
 
-::deep .tl-detail-tab-panel > .tl-detail-panel,
-::deep .tl-detail-tab-panel > .tl-registry-panel {
+::deep .tl-detail-tab-panel > .tl-detail-panel {
     max-width: none;
     border: 0;
     border-radius: 0;
@@ -504,7 +490,7 @@
 /* The sequence rail owns clipping, while the item grid remains as wide as its
    contents. This matches the Read/Watch/Listen shelves and avoids artificial rows. */
 
-@media (max-width: 900px) {
+@media (width < 840px) {
 ::deep .tl-detail-tab-panel,
 ::deep .tl-series-placement:not(.tl-series-placement--compact) {
         padding-inline: 1.25rem;
@@ -648,11 +634,7 @@
 /* Portrait covers remain restrained inside the larger identity-only hero.
    The added viewport height belongs to the cinematic field, not oversized art. */
 
-@media (min-width: 721px) and (max-height: 800px) {
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
-        gap: 0.22rem;
-    }
+@media (min-width: 840px) and (max-height: 800px) {
 
 .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-hero__copy,
 .tl-detail-stage--primary-after-navigation ::deep .tl-detail-hero:not(.tl-detail-hero--person) .tl-detail-metadata-stack {
@@ -667,7 +649,7 @@
    viewport, the global app bar floats above it, and the transparent section
    navigation occupies the lower fade. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage {
         --detail-navigation-height: 3.75rem;
 
@@ -695,15 +677,9 @@
         min-height: var(--detail-navigation-height);
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-
-        bottom: var(--detail-navigation-height);
-
-    }
-
 }
 
-@media (max-width: 720px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-stage {
         min-height: 100svh;
     }
@@ -711,11 +687,6 @@
 .tl-detail-stage__navigation {
         background: rgba(5, 8, 14, 0.58);
         backdrop-filter: blur(1rem);
-    }
-
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        width: calc(100% - 2rem);
-        margin-inline: auto;
     }
 
 }
@@ -726,8 +697,7 @@
    shared viewport hero, the structural Overview array, and the separate content
    tabs without inheriting the earlier compact-in-hero sequence treatment. */
 
-::deep .tl-overview-section__heading > span,
-::deep .tl-related-tab__header > span {
+::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
     font-size: 0.75rem;
     font-weight: 700;
@@ -735,8 +705,7 @@
     text-transform: uppercase;
 }
 
-::deep .tl-overview-section__empty,
-::deep .tl-related-tab__empty {
+::deep .tl-overview-section__empty {
     margin: 0;
     color: rgba(226, 232, 240, 0.5);
 }
@@ -746,7 +715,7 @@
 
 /* Final cascade lock for the viewport cinematic contract. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage__navigation {
 
         right: 0;
@@ -771,7 +740,7 @@
    Episode cards need their own unconstrained layout; the numbered portrait rail
    grid otherwise collapses landscape metadata into the artwork row. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content
         ::deep .tl-series-detail.tl-series-panel--landscape .tl-series-item__description.is-expanded {
         display: block;
@@ -792,7 +761,7 @@
         linear-gradient(180deg, #080d14, #070b11 40rem);
 }
 
-@media (max-width: 720px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-stage {
         height: auto;
         max-height: none;
@@ -816,7 +785,7 @@
    full-width surfaces below it. Audio is the only primary module composed
    inside the hero and receives the remaining height after its identity block. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage {
 
         overflow: hidden;
@@ -865,12 +834,6 @@
         margin: 0;
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        width: calc(100% - clamp(10rem, 12vw, 14rem));
-        margin-inline: auto;
-        padding-bottom: 1rem;
-    }
-
 }
 
 /* The target keeps useful card proportions on shorter desktop windows. The
@@ -881,7 +844,7 @@
 
 /* CINEMATIC_CONTRACT_EOF: keep these current-state declarations at EOF. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage,
 .tl-detail-stage--with-primary {
         height: 95svh;
@@ -908,19 +871,6 @@
         backdrop-filter: none;
     }
 
-.tl-detail-stage--primary-before-navigation ::deep .tl-detail-primary-module--embedded {
-        position: absolute;
-        right: clamp(2rem, 4.5vw, 5.5rem);
-        bottom: 3.75rem;
-        left: clamp(2rem, 4.5vw, 5.5rem);
-        z-index: 7;
-        width: auto;
-        height: clamp(19rem, 38svh, 28rem);
-        min-height: 0;
-        margin: 0;
-        padding: 0 0 clamp(0.75rem, 1.5svh, 1.15rem);
-    }
-
 .tl-detail-stage ::deep .tl-detail-hero--collection .tl-detail-media-stage__cover-wrap,
 .tl-detail-stage ::deep .tl-detail-titlebar {
         display: none;
@@ -930,11 +880,7 @@
 
 /* FOLLOWUP_CONTRACT_EOF: final overrides for the 95svh composition. */
 
-@media (min-width: 721px) {
-.tl-detail-stage--primary-before-navigation
-        ::deep .tl-detail-primary-module--embedded {
-        height: clamp(14rem, 28svh, 21rem);
-    }
+@media (min-width: 840px) {
 
 .tl-detail-stage__navigation
         ::deep .detail-surface-navigation .surface-navigation-bar__tab {
@@ -1018,7 +964,7 @@
 
 /* Keep long audiobook identities readable without crowding the cover. */
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-stage--audiobook ::deep .tl-detail-hero__copy,
 .tl-detail-stage--audiobook ::deep .tl-detail-hero__identity,
 .tl-detail-stage--audiobook ::deep .tl-detail-metadata-stack,
@@ -1035,7 +981,7 @@
 /* Final phone contract: detail content owns normal vertical scrolling, audio
    rows become compact cards, and every direct action remains touchable. */
 
-@media (max-width: 720px) {
+@media (width < 840px) {
 .tl-detail-stage {
         height: auto;
         min-height: 0;

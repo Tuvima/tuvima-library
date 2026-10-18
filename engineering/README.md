@@ -24,12 +24,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
-| [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP1 built inside Item Detail WP10) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
+| [Spec: Item Detail page](specs/archive/item-detail.md) | Built (v5, archived 2026-10-17) |
+| [Spec: Registry retirement — Needs Review is the home for exceptions](specs/archive/registry-retirement.md) | Built (v5, archived 2026-10-17) |
 
 ## Handoffs
 

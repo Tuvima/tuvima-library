@@ -39,7 +39,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
     private const int MaxItemsPerSweep = 100;
     private const double AutoAcceptThreshold = 0.90;
 
-    // User-locked claim provider GUID (matches the pattern in LibraryItemEndpoints)
+    // User-locked claim provider GUID (the provider that owns user-entered, locked claims)
     private static readonly Guid UserProviderId = WellKnownProviders.UserManual;
 
     private readonly IDatabaseConnection _db;

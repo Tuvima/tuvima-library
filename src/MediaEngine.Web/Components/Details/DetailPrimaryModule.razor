@@ -59,6 +59,8 @@
             {
                 <SequencePlacementPanel Placement="Model.SequencePlacement"
                                         DetailSurface="true"
+                                        RequestedSeasonId="SelectedSeasonId"
+                                        OnSeasonSelected="OnSeasonSelected"
                                         OnContainerSelected="OnContainerSelected"
                                         OnEditItem="OnEditItem" />
             }
@@ -103,7 +105,8 @@
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
-    [Parameter] public bool Embedded { get; set; }
+    [Parameter] public Guid? SelectedSeasonId { get; set; }
+    [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
     [Parameter] public EventCallback<SequenceItemViewModel> OnEditItem { get; set; }
 
@@ -225,7 +228,7 @@
     private string? ArtworkUrl => Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.HeroArtwork.Url;
 
     private string RootClass =>
-        $"tl-detail-primary-module tl-detail-primary-module--{Model.PrimaryModule.Kind.ToString().ToLowerInvariant()} {(Embedded ? "tl-detail-primary-module--embedded" : "tl-detail-primary-module--below-hero")}";
+        $"tl-detail-primary-module tl-detail-primary-module--{Model.PrimaryModule.Kind.ToString().ToLowerInvariant()} tl-detail-primary-module--below-hero";
 
     private static string FilterClass(string selected, string key)
         => $"tl-detail-primary-module__filter tl-detail-primary-module__filter--{key}{(string.Equals(selected, key, StringComparison.OrdinalIgnoreCase) ? " is-active" : string.Empty)}";

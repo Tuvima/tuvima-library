@@ -56,7 +56,7 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void Resolve_SeriesTabUsesSequencePlacementAndRemainsFirst()
+    public void Resolve_WithoutARequestedTabOpensOverviewAndNeverASeriesTab()
     {
         var model = new DetailPageViewModel
         {
@@ -64,8 +64,8 @@ public sealed class DetailTabNavigationTests
             EntityType = DetailEntityType.Book,
             Title = "Leviathan Wakes",
             Tabs = [
-                new DetailTab { Key = "series", Label = "Series" },
                 new DetailTab { Key = "overview", Label = "Overview" },
+                new DetailTab { Key = "credits", Label = "Credits" },
                 new DetailTab { Key = "details", Label = "Details" },
             ],
             SequencePlacement = new SequencePlacementViewModel
@@ -77,9 +77,12 @@ public sealed class DetailTabNavigationTests
         };
 
         var resolution = DetailTabNavigation.Resolve(model, null);
+        var requestedSeries = DetailTabNavigation.Resolve(model, "series");
 
-        Assert.Equal("series", resolution.ActiveTab);
+        Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.ShouldRedirect);
+        Assert.Equal("overview", requestedSeries.ActiveTab);
+        Assert.True(requestedSeries.ShouldRedirect);
     }
 
     [Fact]
@@ -217,61 +220,65 @@ public sealed class DetailTabNavigationTests
     }
 
     [Fact]
-    public void GetVisibleTabs_HidesUniverseAndRelatedWhileTheSharedSwitchIsOff()
+    public void Resolve_RequestedUniverseOrRelatedTabRedirectsToTheFirstTab()
     {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
-
-        Assert.False(DetailTabVisibility.ShowUniverseAndRelatedTabs);
-        Assert.Equal(["overview", "cast", "details"], DetailTabNavigation.GetVisibleTabs(model).Select(tab => tab.Key));
-        Assert.Equal(["overview", "cast", "details"], DetailTabNavigation.GetVisibleTabs(model, showUniverseAndRelated: false).Select(tab => tab.Key));
-    }
-
-    [Fact]
-    public void GetVisibleTabs_RestoresUniverseAndRelatedWhenTheSwitchIsOn()
-    {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
-
-        Assert.Equal(
-            ["overview", "cast", "universe", "related", "details"],
-            DetailTabNavigation.GetVisibleTabs(model, showUniverseAndRelated: true).Select(tab => tab.Key));
-    }
-
-    [Fact]
-    public void Resolve_RequestedUniverseOrRelatedTabRedirectsToTheFirstTabWhileOffAndOpensItWhenOn()
-    {
-        var model = ModelWithRelatedContent("overview", "cast", "universe", "related", "details");
+        var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
         foreach (var requested in new[] { "universe", "related" })
         {
-            var hidden = DetailTabNavigation.Resolve(model, requested, showUniverseAndRelated: false);
-            Assert.Equal("overview", hidden.ActiveTab);
-            Assert.False(hidden.IsRequestedTabValid);
-            Assert.True(hidden.ShouldRedirect);
+            var resolution = DetailTabNavigation.Resolve(model, requested);
 
-            var restored = DetailTabNavigation.Resolve(model, requested, showUniverseAndRelated: true);
-            Assert.Equal(requested, restored.ActiveTab);
-            Assert.True(restored.IsRequestedTabValid);
+            Assert.Equal("overview", resolution.ActiveTab);
+            Assert.False(resolution.IsRequestedTabValid);
+            Assert.True(resolution.ShouldRedirect);
         }
     }
 
-    [Fact]
-    public void GetVisibleTabs_HoldsADashboardBuiltTabListToTheSameSwitch()
+    [Theory]
+    [InlineData("characters")]
+    [InlineData("portrayals")]
+    [InlineData("relationships")]
+    public void Resolve_RequestedCharacterTabRedirectsToTheFirstTab(string requested)
     {
-        // A tab list the Dashboard assembled itself (not one the Engine built) follows the same rule.
-        var model = ModelWithRelatedContent("tracks", "overview", "credits", "related", "details");
+        var model = CreateModel(["overview", "cast", "details"], withCast: true);
 
-        Assert.DoesNotContain(DetailTabNavigation.GetVisibleTabs(model), tab => tab.Key == "related");
+        var resolution = DetailTabNavigation.Resolve(model, requested);
+
+        Assert.Equal("overview", resolution.ActiveTab);
+        Assert.False(resolution.IsRequestedTabValid);
+        Assert.True(resolution.ShouldRedirect);
     }
 
-    private static DetailPageViewModel ModelWithRelatedContent(params string[] tabs) => new()
+    [Fact]
+    public void Resolve_RequestedRegistryTabRedirectsToTheFirstTab()
     {
-        Id = Guid.NewGuid().ToString("D"),
-        EntityType = DetailEntityType.Movie,
-        Title = "Test",
-        Tabs = tabs.Select(tab => new DetailTab { Key = tab, Label = tab }).ToList(),
-        ContributorGroups = [new CreditGroupViewModel { Title = "Cast", GroupType = CreditGroupType.Cast }],
-        MediaGroups = [new MediaGroupingViewModel { Key = "related", Title = "More like this" }],
-    };
+        var model = CreateModel("overview", "details");
+
+        var resolution = DetailTabNavigation.Resolve(model, "registry");
+
+        Assert.Equal("overview", resolution.ActiveTab);
+        Assert.False(resolution.IsRequestedTabValid);
+        Assert.True(resolution.ShouldRedirect);
+    }
+
+    [Fact]
+    public void UnifiedRoute_ForACharacterAddressCannotLoadSoThePageReadsNotFound()
+    {
+        var request = DetailRouteRequest.ForUnified("character", Guid.NewGuid(), "universe");
+
+        Assert.False(request.CanLoad);
+        Assert.Equal("Detail page not found", request.NotFoundTitle);
+    }
+
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("ADMIN")]
+    public void UnifiedRoute_TreatsTheAdminAddressFlagAsTheDefaultContext(string contextValue)
+    {
+        var request = DetailRouteRequest.ForUnified("work", Guid.NewGuid(), contextValue);
+
+        Assert.Equal(DetailPresentationContext.Default, request.PresentationContext);
+    }
 
     private static DetailPageViewModel CreateModel(params string[] tabs) =>
         CreateModel(tabs, withCast: false);

@@ -1,6 +1,6 @@
 # Spec: Delete from library
 
-> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Locked · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](archive/item-detail.md) (D17, D26) · [Registry retirement](archive/registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
 
 > Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Versions 2–5 (same day) record Shy's answers as D12–D24. Version 4 drops the recycle bin for library media: films, books, audiobooks, music, comics and TV can be downloaded again, so they are deleted straight away after the confirmation. A recycle bin applies only to personal files in View (D23), which get their own View spec (D24). No questions are left; Shy Locked the spec on 2026-10-17. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
 

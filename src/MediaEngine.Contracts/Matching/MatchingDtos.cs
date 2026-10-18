@@ -3,60 +3,6 @@ using MediaEngine.Contracts.Search;
 
 namespace MediaEngine.Contracts.Matching;
 
-public sealed class ApplyMatchRequestDto
-{
-    [JsonPropertyName("qid")]
-    public string? Qid { get; set; }
-
-    [JsonPropertyName("title")]
-    public string? Title { get; set; }
-
-    [JsonPropertyName("year")]
-    public string? Year { get; set; }
-
-    [JsonPropertyName("author")]
-    public string? Author { get; set; }
-
-    [JsonPropertyName("director")]
-    public string? Director { get; set; }
-
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
-
-    [JsonPropertyName("cover_url")]
-    public string? CoverUrl { get; set; }
-
-    [JsonPropertyName("retail_provider_name")]
-    public string? RetailProviderName { get; set; }
-
-    [JsonPropertyName("retail_provider_item_id")]
-    public string? RetailProviderItemId { get; set; }
-
-    [JsonPropertyName("retail_bridge_ids")]
-    public Dictionary<string, string>? RetailBridgeIds { get; set; }
-
-    [JsonPropertyName("retail_description")]
-    public string? RetailDescription { get; set; }
-}
-
-public sealed class ApplyMatchResponseDto
-{
-    [JsonPropertyName("entity_id")]
-    public Guid EntityId { get; set; }
-
-    [JsonPropertyName("wikidata_status")]
-    public string WikidataStatus { get; set; } = string.Empty;
-
-    [JsonPropertyName("claims_written")]
-    public int ClaimsWritten { get; set; }
-
-    [JsonPropertyName("hydration_triggered")]
-    public bool HydrationTriggered { get; set; }
-
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
-}
-
 public sealed class ItemCanonicalSearchRequestDto
 {
     [JsonPropertyName("media_type")]
@@ -488,37 +434,4 @@ public sealed class ReplaceWikidataMatchRequestDto
 
     [JsonPropertyName("review_item_id")]
     public Guid? ReviewItemId { get; set; }
-}
-
-public sealed class CreateManualRequestDto
-{
-    [JsonPropertyName("title")]
-    public string Title { get; set; } = string.Empty;
-
-    [JsonPropertyName("media_type")]
-    public string? MediaType { get; set; }
-
-    [JsonPropertyName("author")]
-    public string? Author { get; set; }
-
-    [JsonPropertyName("year")]
-    public string? Year { get; set; }
-
-    [JsonPropertyName("description")]
-    public string? Description { get; set; }
-}
-
-public sealed class CreateManualResponseDto
-{
-    [JsonPropertyName("entity_id")]
-    public Guid EntityId { get; set; }
-
-    [JsonPropertyName("wikidata_status")]
-    public string WikidataStatus { get; set; } = "manual";
-
-    [JsonPropertyName("claims_written")]
-    public int ClaimsWritten { get; set; }
-
-    [JsonPropertyName("message")]
-    public string? Message { get; set; }
 }

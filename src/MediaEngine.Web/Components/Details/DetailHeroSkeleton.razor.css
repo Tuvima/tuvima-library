@@ -98,7 +98,7 @@
     min-height: 0;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
     .tl-detail-skeleton {
         padding-inline: clamp(1.5rem, 4vw, 4rem);
     }

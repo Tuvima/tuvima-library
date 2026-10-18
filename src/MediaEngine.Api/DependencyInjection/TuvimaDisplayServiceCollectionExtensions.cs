@@ -45,7 +45,6 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddScoped<RecentCatalogueReadService>();
         services.AddScoped<DisplayRecentComposerService>();
         services.AddScoped<ProfileStateAccessService>();
-        services.AddSingleton<DetailRecommendationService>();
         services.AddSingleton<DetailComposerService>();
         services.AddSingleton<ContributorReadiness>();
         return services;

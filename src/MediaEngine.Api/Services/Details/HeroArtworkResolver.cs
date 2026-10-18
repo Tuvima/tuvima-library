@@ -12,7 +12,6 @@ public static class HeroArtworkResolver
         string? coverUrl,
         string? posterUrl,
         string? portraitUrl,
-        string? characterImageUrl,
         IReadOnlyList<string> relatedArtworkUrls,
         string? logoUrl = null,
         string? smallUrl = null,
@@ -42,7 +41,6 @@ public static class HeroArtworkResolver
             posterUrl,
             coverUrl,
             portraitUrl,
-            characterImageUrl,
             relatedArtworkUrls.FirstOrDefault());
 
         if (!string.IsNullOrWhiteSpace(cover))
@@ -74,7 +72,7 @@ public static class HeroArtworkResolver
     {
         DetailEntityType.MusicAlbum => 1d,
         DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => 2d / 3d,
-        DetailEntityType.Person or DetailEntityType.Character => 3d / 4d,
+        DetailEntityType.Person => 3d / 4d,
         _ => 2d / 3d,
     };
 

@@ -67,7 +67,6 @@ public static class ReviewIssuePresentationBuilder
         "MetadataConflict" => "Local and provider metadata disagree",
         "AmbiguousMediaType" or "RootWatchFolder" => "The correct media type could not be determined",
         "WritebackFailed" => "Updated metadata could not be written to the file",
-        "ArtworkUnconfirmed" => "Artwork came from a less precise search",
         _ => ReviewIssueClassifier.Classify(item.Trigger).Explanation,
     };
 
@@ -88,7 +87,6 @@ public static class ReviewIssuePresentationBuilder
             "AmbiguousMediaType" or "RootWatchFolder" => new[] { "The file type and folder context were compatible with more than one media type." },
             "WritebackFailed" => new[] { "The metadata write operation failed after the configured retry attempts." },
             "LanguageMismatch" => new[] { "The embedded language conflicts with the configured library language." },
-            "ArtworkUnconfirmed" => new[] { "The artwork was found through a broad text search and could not be confirmed from a precise identifier." },
             _ => new[] { $"The ingestion pipeline could not safely complete the decision for this {media}." },
         };
 

@@ -34,7 +34,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid workId,
         DetailEntityType requestedType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         string? selectedContainerId,
         IReadOnlySet<Guid> favoriteWorkIds,
@@ -102,7 +101,6 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         var contributors = await BuildWorkContributorsAsync(workId, detail, entityType, ct);
-        var characters = BuildCharacterGroupsFromCast(contributors.CastCredits);
         var contributorGroups = await BuildContributorGroupsAsync(workId, detail, entityType, contributors.CastCredits, values, ct);
         var managedCurrentArtworkUrl = await _reader.LoadManagedWorkCoverUrlAsync(
                 workId,
@@ -129,7 +127,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 showId,
                 DetailEntityType.TvShow,
                 context,
-                isAdminView,
                 actionAuthorization,
                 favoriteWorkIds,
                 ct,
@@ -221,7 +218,6 @@ internal sealed partial class DetailCompositionOrchestrator
         var descriptionAttribution = displayDescription is null
             ? BuildDescriptionAttribution(descriptionSelection, detail, values)
             : BuildLocalDescriptionAttribution();
-        var relationships = BuildRelationshipStrip(detail, sequencePlacement);
 
         return new DetailPageViewModel
         {
@@ -236,7 +232,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 InitialTab = "details",
             },
             Title = resolvedTitle,
-            Subtitle = BuildSubtitle(detail, entityType, values, multiFormatState),
+            Subtitle = BuildSubtitle(detail, entityType, values),
             Tagline = semanticTagline,
             SecondaryTitleText = secondaryTitle.Text,
             SecondaryTitleTextKind = secondaryTitle.Kind,
@@ -254,7 +250,6 @@ internal sealed partial class DetailCompositionOrchestrator
             Progress = heroProgress,
             OwnedFormats = ownedFormats,
             MultiFormatState = multiFormatState,
-            SyncCapability = BuildSyncCapability(workId, ownedFormats, multiFormatState),
             SequencePlacement = sequencePlacement,
             Metadata = BuildMetadataPills(factsDetail, entityType, factValues, ownedFormats),
             PrimaryActions = BuildPrimaryActions(
@@ -264,33 +259,22 @@ internal sealed partial class DetailCompositionOrchestrator
                 ownedFormats,
                 heroProgress,
                 FormatSeasonEpisode(detail.SeasonNumber, detail.EpisodeNumber)),
-            SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId), ownedFormats),
+            SecondaryActions = BuildSecondaryActions(workId, entityType, favoriteWorkIds.Contains(workId)),
             OverflowActions = BuildOverflowActions(workId, entityType, actionAuthorization,
                 await IngestionAvailability.IsUpdatingAsync(_db, workId, ct)),
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,
             PreviewContributors = BuildPreviewContributors(entityType, contributorGroups),
-            CharacterGroups = characters,
-            PreviewCharacters = characters.SelectMany(g => g.Characters).Take(12).ToList(),
-            RelationshipStrip = relationships,
-            Tabs = BuildTabs(
-                entityType,
-                context,
-                isAdminView,
-                sequencePlacement is not null,
-                HasUniverseRelationship(relationships)),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(detail.WikidataQid, detail.Status, detail.Confidence),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 
     private async Task<DetailPageViewModel?> BuildBookSeriesAsync(
         Guid seriesId,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlySet<Guid> favoriteWorkIds,
         Guid? profileId,
@@ -302,7 +286,6 @@ internal sealed partial class DetailCompositionOrchestrator
             seriesId,
             DetailEntityType.BookSeries,
             context,
-            isAdminView,
             actionAuthorization,
             favoriteWorkIds,
             ct,
@@ -329,7 +312,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 preview.WorkId,
                 DetailEntityType.Book,
                 context,
-                isAdminView,
                 actionAuthorization,
                 selectedContainerId: selectedContainerId,
                 favoriteWorkIds: favoriteWorkIds,
@@ -425,12 +407,7 @@ internal sealed partial class DetailCompositionOrchestrator
             OverflowActions = BuildOverflowActions(seriesId, DetailEntityType.BookSeries, actionAuthorization),
             ContributorGroups = seedDetail.ContributorGroups,
             PreviewContributors = seedDetail.PreviewContributors,
-            Tabs = BuildTabs(
-                DetailEntityType.BookSeries,
-                context,
-                isAdminView,
-                placement is not null,
-                hasUniverse: false),
+            Tabs = BuildTabs(DetailEntityType.BookSeries, context),
             PrimaryModule = BuildPrimaryModule(DetailEntityType.BookSeries, placement, []),
             MediaGroups =
             [
@@ -445,9 +422,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     CompletionPercent = knownItems <= 0 ? 0 : ownedItems.Count * 100d / knownItems,
                 },
             ],
-            IdentityStatus = seedDetail.IdentityStatus,
             LibraryStatus = hasMissingItems ? LibraryStatus.PartiallyOwned : LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

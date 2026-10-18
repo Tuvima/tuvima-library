@@ -42,7 +42,8 @@ public sealed class IntercomAudienceTests : IDisposable
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch), TimeProvider.System);
+            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            new ProfileRepository(_database), TimeProvider.System);
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
 
@@ -98,11 +99,39 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
+    public async Task LiveAudience_KidsProfileOfAnAdministratorGetsNoAdministratorEvents()
+    {
+        await SeedHumanAsync();
+        using (var database = _database.CreateConnection())
+        {
+            database.Execute("""
+                UPDATE accounts SET is_administrator=1 WHERE id=@accountId;
+                UPDATE account_profile_grants SET admin_enabled=1 WHERE account_id=@accountId AND profile_id=@profileId;
+                UPDATE profiles SET role='RestrictedProfile' WHERE id=@profileId;
+                """, new { accountId = _accountId, profileId = Profile.SeedProfileId });
+        }
+
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            new ProfileRepository(_database), TimeProvider.System);
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemCreated,
+            new ReviewItemCreatedEvent(Guid.NewGuid(), Guid.NewGuid(), "LowConfidence", "Title")));
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ProviderStatusChanged,
+            new ProviderStatusChangedEvent("provider", "healthy", string.Empty)));
+        // Media events fall back to the account's own library and feature grants.
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded,
+            new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId)));
+    }
+
+    [Fact]
     public async Task LiveAudience_StopsAfterSessionRevocation()
     {
         await SeedHumanAsync();
         var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch), TimeProvider.System);
+            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            new ProfileRepository(_database), TimeProvider.System);
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
 

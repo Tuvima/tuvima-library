@@ -16,14 +16,12 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
             new DetailPageViewModel
             {
                 MediaGroups = [new MediaGroupingViewModel { Key = "items", Items = [book, movie, album, book,
-                    new MediaGroupingItemViewModel { Id = Guid.NewGuid().ToString(), Title = "Missing", IsOwned = false }] },
-                    new MediaGroupingViewModel { Key = "related", Items = [Item(DetailEntityType.Book, "Recommendation")] }],
+                    new MediaGroupingItemViewModel { Id = Guid.NewGuid().ToString(), Title = "Missing", IsOwned = false }] }],
             }));
         Assert.Equal(new[] { "Read membership", "Watch membership", "Listen membership" },
             cut.FindAll("section").Select(section => section.GetAttribute("aria-label")));
         Assert.Equal(3, cut.FindAll("a").Count);
         Assert.DoesNotContain("Missing", cut.Markup);
-        Assert.DoesNotContain("Recommendation", cut.Markup);
         Assert.All(cut.FindAll("img"), image =>
         {
             Assert.EndsWith("size=s", image.GetAttribute("src"));

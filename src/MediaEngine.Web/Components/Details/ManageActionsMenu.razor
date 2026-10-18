@@ -15,7 +15,7 @@
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
-    private static int Group(DetailAction action) => action.Key switch { "play-from-beginning" or "restart" or "status-complete" or "status-reset" => 0, "status-hide" or "status-show" or "status-history" or "copy-link" => 1, "edit" or "edit-unavailable" => 3, _ => 2 };
+    private static int Group(DetailAction action) => action.Key switch { "play-from-beginning" or "restart" or "status-complete" or "status-reset" => 0, "status-hide" or "status-show" or "status-history" => 1, "edit" or "edit-unavailable" => 3, _ => 2 };
     private IReadOnlyList<DetailAction> OrderedActions => Actions.OrderBy(Group).ThenBy(action => action.Key == "play-from-beginning" ? 0 : 1).ToList();
     private Task SelectAsync(DetailAction action)
         => action.IsDisabled ? Task.CompletedTask : OnActionSelected.InvokeAsync(action);

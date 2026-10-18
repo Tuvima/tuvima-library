@@ -7,13 +7,16 @@ namespace MediaEngine.Api.Services.Details.Internals;
 /// (or enriched) in one piece: the response lists every season with its counts and carries only one window of
 /// episodes, and the Dashboard asks for other windows through the same detail endpoint
 /// (<c>sequenceGroup</c>, <c>sequenceOffset</c>, <c>sequenceLimit</c>, <c>sequenceCurrent</c>, <c>sequenceOnly</c>).
+/// <c>SelectedSeasonId</c> is not a query parameter: a season opened on its own (D13) sets it so the show page opens
+/// on that season instead of the one being watched.
 /// </summary>
 internal sealed record SequenceWindowRequest(
     string? GroupKey = null,
     int Offset = 0,
     int Limit = SequenceWindowRequest.DefaultLimit,
     Guid? CurrentWorkId = null,
-    bool PlacementOnly = false)
+    bool PlacementOnly = false,
+    Guid? SelectedSeasonId = null)
 {
     /// <summary>Episodes per window. A normal season fits in one window, so only very long seasons ever page.</summary>
     public const int DefaultLimit = 50;

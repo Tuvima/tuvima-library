@@ -57,12 +57,6 @@ public sealed class CatalogueEndpointPolicyTests
         Require(routes, "/library/portraits/{portraitId:guid}", HttpMethods.Get)
             .HasApplicationPermission(ApplicationPermissionIds.ArtworkRead)
             .HasCharacterPortraitResource(ApplicationPermissionIds.ArtworkRead);
-        Require(routes, "/library/characters/{fictionalEntityId:guid}/portraits", HttpMethods.Get)
-            .HasApplicationPermission(ApplicationPermissionIds.ArtworkRead)
-            .HasEntityResource(ApplicationPermissionIds.ArtworkRead);
-        Require(routes, "/library/universes/{universeQid}/characters", HttpMethods.Get)
-            .HasApplicationPermission(ApplicationPermissionIds.LibraryRead)
-            .HasQidResource(ApplicationPermissionIds.LibraryRead);
         Require(routes, "/library/assets/{entityId}", HttpMethods.Get)
             .HasApplicationPermission(ApplicationPermissionIds.MetadataRead)
             .HasEntityAssetContainerResource(ApplicationPermissionIds.MetadataRead);

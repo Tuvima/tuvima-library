@@ -25,7 +25,6 @@ public sealed class SettingsNavTests
         Assert.Contains("settings-mobile-navigation", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settingsSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("<SettingsReviewQueueTab", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<SidebarPageHeader", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SidebarPageShell", settingsSource, StringComparison.Ordinal);

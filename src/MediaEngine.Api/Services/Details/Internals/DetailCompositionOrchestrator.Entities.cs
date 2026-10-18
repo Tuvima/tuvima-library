@@ -34,7 +34,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid personId,
         DetailEntityType entityType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
@@ -80,14 +79,9 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         var credits = await _personCredits.GetLibraryCreditsAsync(personId, ct);
-        var characterRoles = await _personCredits.GetCharacterRolesAsync(personId, ct);
         if (authorizedWorks is not null)
         {
-            var visibleWorkIds = authorizedWorks.Select(work => work.WorkId).ToHashSet();
             credits = PersonLibraryCreditAuthorizationPolicy.Filter(credits, authorizedWorks);
-            characterRoles = characterRoles
-                .Where(role => role.WorkId.HasValue && visibleWorkIds.Contains(role.WorkId.Value))
-                .ToList();
             if (credits.Count == 0)
             {
                 return null;
@@ -166,127 +160,21 @@ internal sealed partial class DetailCompositionOrchestrator
             Metadata = BuildPersonMetadata(displayRoles, ownedWorkCount)
                 .Concat(personTags.Select(tag => new MetadataPill { Label = tag, Kind = "custom_tag" }))
                 .ToList(),
-            PrimaryActions = BuildPersonActions(personId, entityType, context),
+            PrimaryActions = [],
             SecondaryActions = [],
             OverflowActions = BuildOverflowActions(personId, entityType, actionAuthorization),
             ContributorGroups = groups,
             PreviewContributors = groups.SelectMany(g => g.Credits).Take(12).ToList(),
-            CharacterGroups = BuildPersonCharacterGroups(characterRoles),
-            PreviewCharacters = BuildPersonCharacterGroups(characterRoles).SelectMany(g => g.Characters).Take(12).ToList(),
-            Tabs = BuildTabs(entityType, context, isAdminView),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, null, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(person.WikidataQid, null, null),
             LibraryStatus = credits.Count > 0 ? LibraryStatus.Owned : LibraryStatus.Unknown,
-            IsAdminView = isAdminView,
-        };
-    }
-
-    private async Task<DetailPageViewModel?> BuildCharacterAsync(
-        Guid characterId,
-        DetailPresentationContext context,
-        bool isAdminView,
-        DetailActionAuthorizationContext actionAuthorization,
-        IReadOnlyList<DisplayWorkRow>? authorizedWorks,
-        CancellationToken ct)
-    {
-        using var conn = _db.CreateConnection();
-        var row = await conn.QueryFirstOrDefaultAsync<CharacterDetailRow>(new CommandDefinition(
-            """
-            SELECT id AS Id,
-                   label AS Label,
-                   wikidata_qid AS WikidataQid,
-                   fictional_universe_qid AS UniverseQid,
-                   fictional_universe_label AS UniverseLabel,
-                   image_url AS ImageUrl,
-                   entity_sub_type AS EntitySubType
-            FROM fictional_entities
-            WHERE id = @id
-            LIMIT 1;
-            """,
-            new { id = characterId },
-            cancellationToken: ct));
-
-        if (row is null)
-        {
-            return null;
-        }
-
-        if (authorizedWorks is not null)
-        {
-            var visibleWorkQids = authorizedWorks
-                .Select(work => work.IdentityQid)
-                .Where(qid => !string.IsNullOrWhiteSpace(qid))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var hasVisibleAppearance = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT EXISTS(SELECT 1 FROM fictional_entity_work_links WHERE entity_id = @id AND work_qid IN @workQids);",
-                new
-                {
-                    id = characterId,
-                    workQids = visibleWorkQids.Count > 0 ? visibleWorkQids : ["__none__"],
-                },
-                cancellationToken: ct));
-            if (hasVisibleAppearance == 0)
-            {
-                return null;
-            }
-        }
-
-        var portraits = await conn.QueryAsync<CharacterPortraitRow>(new CommandDefinition(
-            """
-            SELECT id AS Id,
-                   image_url AS ImageUrl,
-                   local_image_path AS LocalImagePath,
-                   is_default AS IsDefault
-            FROM character_portraits
-            WHERE fictional_entity_id = @id
-            ORDER BY is_default DESC, updated_at DESC
-            LIMIT 1;
-            """,
-            new { id = characterId },
-            cancellationToken: ct));
-
-        var portrait = portraits.Select(p => ApiImageUrls.BuildCharacterPortraitUrl(p.Id, p.LocalImagePath, p.ImageUrl)).FirstOrDefault();
-        var artwork = BuildArtwork(DetailEntityType.Character, null, null, null, null, portrait ?? row.ImageUrl, new Dictionary<string, string>(), [], 0, null);
-        var universeQid = ExtractQid(row.UniverseQid);
-        IReadOnlyList<RelationshipGroup> relationships = string.IsNullOrWhiteSpace(row.UniverseQid)
-            ? []
-            : [new RelationshipGroup
-            {
-                Title = "Universe",
-                Items = [new RelatedEntityChip
-                {
-                    Id = universeQid ?? row.UniverseQid!,
-                    EntityType = RelatedEntityType.Universe,
-                    Label = row.UniverseLabel ?? row.UniverseQid!,
-                    Route = BuildUniverseExploreRoute(universeQid),
-                }],
-            }];
-
-        return new DetailPageViewModel
-        {
-            Id = characterId.ToString("D"),
-            EntityType = DetailEntityType.Character,
-            PresentationContext = context,
-            Title = row.Label,
-            Subtitle = StringHelpers.FirstNonBlankOr(string.Empty, row.EntitySubType, "Character") + (string.IsNullOrWhiteSpace(row.UniverseLabel) ? "" : $" • {row.UniverseLabel}"),
-            SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null, null),
-            Artwork = artwork,
-            Metadata = [new MetadataPill { Label = "Character" }, .. MaybePill(row.UniverseLabel)],
-            PrimaryActions = [new DetailAction { Key = "appearances", Label = "View Appearances", Icon = "auto_stories", IsPrimary = true }],
-            OverflowActions = BuildOverflowActions(characterId, DetailEntityType.Character, actionAuthorization),
-            RelationshipStrip = relationships,
-            Tabs = BuildTabs(DetailEntityType.Character, context, isAdminView, hasUniverse: HasUniverseRelationship(relationships)),
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
-            LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 
     private async Task<DetailPageViewModel?> BuildUniverseAsync(
         Guid id,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct)
@@ -343,9 +231,6 @@ internal sealed partial class DetailCompositionOrchestrator
             return null;
         }
         var relatedArt = works.Select(w => w.ArtworkUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Cast<string>().Take(10).ToList();
-        var characterGroups = await BuildCollectionCharactersAsync(id, row.WikidataQid, authorizedWorks, ct);
-        var contributorGroups = await BuildUniverseCastGroupsAsync(row.WikidataQid, authorizedWorks, ct);
-        var relationships = await BuildUniverseRelationshipGroupsAsync(row.WikidataQid, ct);
         var mediaGroups = BuildCollectionMediaGroups(DetailEntityType.Universe, works, new HashSet<Guid>(), expectedTotal: null);
 
         return new DetailPageViewModel
@@ -359,19 +244,15 @@ internal sealed partial class DetailCompositionOrchestrator
             SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null, null),
             Artwork = BuildArtwork(DetailEntityType.Universe, row.BackgroundUrl, row.BannerUrl, row.CoverUrl, row.CoverUrl, null, new Dictionary<string, string>(), relatedArt, 0, null),
             Metadata = [new MetadataPill { Label = "Universe" }, new MetadataPill { Label = $"{works.Count} items" }],
-            PrimaryActions = [new DetailAction { Key = "timeline", Label = "Explore Timeline", Icon = "account_tree", Route = string.IsNullOrWhiteSpace(row.WikidataQid) ? null : $"/universe/{row.WikidataQid}/explore", IsPrimary = true }],
+            // The timeline button only exists when there is a timeline to open.
+            PrimaryActions = string.IsNullOrWhiteSpace(row.WikidataQid)
+                ? []
+                : [new DetailAction { Key = "timeline", Label = "Explore Timeline", Icon = "account_tree", Route = $"/universe/{row.WikidataQid}/explore", IsPrimary = true }],
             OverflowActions = BuildOverflowActions(id, DetailEntityType.Universe, actionAuthorization),
-            ContributorGroups = contributorGroups,
-            PreviewContributors = BuildPreviewContributors(DetailEntityType.Universe, contributorGroups),
-            CharacterGroups = characterGroups,
-            PreviewCharacters = characterGroups.SelectMany(g => g.Characters).Take(12).ToList(),
-            RelationshipStrip = relationships,
-            Tabs = BuildTabs(DetailEntityType.Universe, context, isAdminView, hasUniverse: true),
+            Tabs = BuildTabs(DetailEntityType.Universe, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(DetailEntityType.Universe, null, mediaGroups),
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

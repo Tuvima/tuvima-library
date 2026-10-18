@@ -9,7 +9,6 @@ using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Reading;
-using MediaEngine.Contracts.Reports;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -822,68 +821,4 @@ public sealed partial class EngineApiClient
         }
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
-
-    public async Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync("/reports", request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
-            }
-
-            return await response.Content.ReadFromJsonAsync<SubmitReportResponse>(cancellationToken: ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /reports failed");
-            return null;
-        }
-    }
-
-    public async Task<List<ReportEntryResponse>> GetReportsForEntityAsync(Guid entityId, CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<List<ReportEntryResponse>>($"/reports/entity/{entityId}", ct) ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /reports/entity/{EntityId} failed", entityId);
-            return [];
-        }
-    }
-
-    public async Task<bool> ResolveReportAsync(long activityId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsync($"/reports/{activityId}/resolve", null, ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /reports/{ActivityId}/resolve failed", activityId);
-            return false;
-        }
-    }
-
-    public async Task<bool> DismissReportAsync(long activityId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsync($"/reports/{activityId}/dismiss", null, ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /reports/{ActivityId}/dismiss failed", activityId);
-            return false;
-        }
-    }
-
 }
