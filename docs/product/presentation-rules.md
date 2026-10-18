@@ -111,6 +111,20 @@ beyond the picker staying out of the way when the season has one episode. On pho
 the chips stack full width with 44px touch targets and the actions stay reachable
 inside the modal.
 
+### Whole miniseries moved to TV
+
+When a Movies item turns out to be a TMDB miniseries and **Move to TV** is used from
+its "Found as a TV title" review card, the show appears under TV and the file covers
+every part TMDB lists, for example Season 1, Episodes 1 to 3, all shown as owned. The
+file is attached to the first episode, the others carry the "Same file as Episode 1"
+chip, and the file on disk is never moved or renamed. The same safety rules as any
+combined file apply: at most six parts, all in one season, numbered as an unbroken
+run from Episode 1. Only when TMDB's parts cannot be listed that clearly (more than
+six, several seasons, a gap, or the episode list could not be fetched) is the file
+filed as a special instead (Specials, Season 0, Episode 1), the other episodes show
+as not owned, and the move's message and the item's History say why. The range can
+be corrected later with the **This file covers** picker.
+
 ## Current Collections and linked-identity clarifications
 
 - Collections has one padded, viewport-bounded content scroller beside its anchored rail, with no second document scrollbar.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Review;
@@ -7,6 +8,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Providers.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Review;
@@ -14,8 +16,11 @@ namespace MediaEngine.Api.Services.Review;
 /// <summary>
 /// "Move to TV": a film file that TMDB lists as a short TV series (for example a web miniseries)
 /// becomes a TV item. The change is logical only. The file is never moved, renamed or written: the asset
-/// is re-filed as Season 0, Episode 1 (Specials) of the matched show, its library becomes the TV library,
-/// user-locked claims record the decision, and identity re-runs as TV (TMDB/TVDB, then Wikidata).
+/// is re-filed under the matched show, its library becomes the TV library, user-locked claims record the
+/// decision, and identity re-runs as TV (TMDB/TVDB, then Wikidata). When TMDB lists the show as one
+/// season whose parts are an unbroken run 1..N (N within the per-file limit), the file sits on Season 1
+/// Episode 1 and covers every part; otherwise it stays in Season 0, Episode 1 (Specials) and the reason
+/// is shown to the user.
 /// Everything that changes the data store commits in one transaction; only the identity re-queue,
 /// history entry and notification follow the commit.
 /// </summary>
@@ -23,6 +28,7 @@ public sealed class ReviewMoveToTvService(
     IReviewQueueRepository reviews,
     IMediaAssetRepository assets,
     ITvReassignmentRepository reassignments,
+    ITmdbSeasonEpisodeCatalogue seasonEpisodes,
     ICanonicalValueRepository canonicals,
     IConfigurationLoader configuration,
     IHydrationPipelineService pipeline,
@@ -73,23 +79,28 @@ public sealed class ReviewMoveToTvService(
             .ToDictionary(c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
         existing.TryGetValue(MetadataFieldConstants.Title, out var fileTitle);
 
+        var target = await ChoosePlacementAsync(suggestion, ct).ConfigureAwait(false);
+        var hostEpisode = target.Episodes[0];
+
         // One all-or-nothing change: the show/season/episode hierarchy, the edition move, the empty
         // movie Work removal, the library reassignment, the user's locked claims and the review
         // resolution commit together. A failure rolls everything back and the item stays pending.
         var now = DateTimeOffset.UtcNow;
-        TvSpecialReassignment placement;
+        TvReassignment placement;
         try
         {
             placement = await reassignments
-                .MoveToTvShowSpecialAsync(
+                .MoveToTvShowAsync(
                     new TvMoveRequest(
                         asset.Id,
                         suggestion.Name,
                         fileTitle,
+                        target.Season,
+                        target.Episodes,
                         tvLibrary.Id,
                         reviewItemId,
                         resolvedBy,
-                        reassignment => BuildDecision(asset.Id, reassignment, suggestion, now)),
+                        reassignment => BuildDecision(asset.Id, reassignment, suggestion, target, now)),
                     ct)
                 .ConfigureAwait(false);
         }
@@ -103,8 +114,8 @@ public sealed class ReviewMoveToTvService(
         existing[MetadataFieldConstants.MediaTypeField] = nameof(MediaType.TV);
         existing[MetadataFieldConstants.ShowName] = suggestion.Name;
         existing[MetadataFieldConstants.Series] = suggestion.Name;
-        existing[MetadataFieldConstants.SeasonNumber] = TvSpecialPlacement.SeasonNumber.ToString();
-        existing[MetadataFieldConstants.EpisodeNumber] = TvSpecialPlacement.EpisodeNumber.ToString();
+        existing[MetadataFieldConstants.SeasonNumber] = target.Season.ToString(CultureInfo.InvariantCulture);
+        existing[MetadataFieldConstants.EpisodeNumber] = hostEpisode.ToString(CultureInfo.InvariantCulture);
         existing[BridgeIdKeys.TmdbId] = suggestion.TmdbTvId;
         await pipeline.EnqueueAsync(new HarvestRequest
         {
@@ -126,12 +137,13 @@ public sealed class ReviewMoveToTvService(
                 action = "moved_to_tv",
                 show_name = suggestion.Name,
                 tmdb_tv_id = suggestion.TmdbTvId,
-                season_number = TvSpecialPlacement.SeasonNumber,
-                episode_number = TvSpecialPlacement.EpisodeNumber,
+                season_number = target.Season,
+                episode_number = hostEpisode,
+                episode_numbers = target.Episodes,
+                placement_reason = target.Reason,
                 tv_library_id = tvLibrary.Id,
             }),
-            Detail = $"Moved to TV as '{suggestion.Name}' Season {TvSpecialPlacement.SeasonNumber}, "
-                     + $"Episode {TvSpecialPlacement.EpisodeNumber} (Specials). The file was not moved.",
+            Detail = DescribePlacement(suggestion.Name, target),
         }, ct).ConfigureAwait(false);
 
         await publisher.PublishAsync(
@@ -141,7 +153,52 @@ public sealed class ReviewMoveToTvService(
 
         return new(
             ReviewMoveToTvOutcome.Moved,
-            Response: new ReviewMoveToTvResponse(true, reviewItemId, asset.Id, suggestion.Name, tvLibrary.Id));
+            Response: new ReviewMoveToTvResponse(
+                true,
+                reviewItemId,
+                asset.Id,
+                suggestion.Name,
+                tvLibrary.Id,
+                target.Season,
+                target.Episodes,
+                target.Reason));
+    }
+
+    /// <summary>Where the file is filed and, when it is a special, why.</summary>
+    private sealed record MovePlacement(int Season, IReadOnlyList<int> Episodes, string? Reason);
+
+    /// <summary>
+    /// Season 1 with every part TMDB lists when the show is one season of an unbroken run within the
+    /// per-file limit; otherwise Specials, with the plain-English reason.
+    /// </summary>
+    private async Task<MovePlacement> ChoosePlacementAsync(MovieTvSuggestionDto suggestion, CancellationToken ct)
+    {
+        IReadOnlySet<int>? seasonOne = null;
+        if (suggestion.Seasons == 1)
+        {
+            seasonOne = await seasonEpisodes
+                .GetSeasonEpisodeNumbersAsync(suggestion.TmdbTvId, 1, ct)
+                .ConfigureAwait(false);
+        }
+
+        var decision = TvEpisodeRangeCoverage.EvaluateWholeShow(suggestion.Seasons, seasonOne);
+        return decision.Kind == EpisodeRangeKind.Clean
+            ? new MovePlacement(1, decision.Episodes, null)
+            : new MovePlacement(TvSpecialPlacement.SeasonNumber, [TvSpecialPlacement.EpisodeNumber], decision.Reason);
+    }
+
+    private static string DescribePlacement(string showName, MovePlacement target)
+    {
+        if (target.Reason is not null)
+        {
+            return $"Moved to TV as '{showName}' Specials (Season {TvSpecialPlacement.SeasonNumber}, "
+                   + $"Episode {TvSpecialPlacement.EpisodeNumber}). {target.Reason} The file was not moved.";
+        }
+
+        var episodes = target.Episodes.Count == 1
+            ? $"Episode {target.Episodes[0]}"
+            : $"Episodes {target.Episodes[0]}\u2013{target.Episodes[^1]}";
+        return $"Moved to TV as '{showName}' Season {target.Season}, {episodes}. The file was not moved.";
     }
 
     /// <summary>
@@ -152,8 +209,9 @@ public sealed class ReviewMoveToTvService(
     /// </summary>
     private static TvMoveDecision BuildDecision(
         Guid assetId,
-        TvSpecialReassignment placement,
+        TvReassignment placement,
         MovieTvSuggestionDto suggestion,
+        MovePlacement target,
         DateTimeOffset now)
     {
         var locked = new List<MetadataClaim>();
@@ -184,8 +242,8 @@ public sealed class ReviewMoveToTvService(
                 LastScoredAt = now,
             });
 
-        var season = TvSpecialPlacement.SeasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var episode = TvSpecialPlacement.EpisodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var season = target.Season.ToString(CultureInfo.InvariantCulture);
+        var episode = target.Episodes[0].ToString(CultureInfo.InvariantCulture);
 
         // The file itself.
         Locked(assetId, MetadataFieldConstants.MediaTypeField, nameof(MediaType.TV));
@@ -205,7 +263,7 @@ public sealed class ReviewMoveToTvService(
         var tmdbClaims = new List<(string Key, string Value)> { (MetadataFieldConstants.Title, suggestion.Name) };
         if (suggestion.FirstAirYear is { } year)
         {
-            tmdbClaims.Add((MetadataFieldConstants.Year, year.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            tmdbClaims.Add((MetadataFieldConstants.Year, year.ToString(CultureInfo.InvariantCulture)));
         }
 
         if (!string.IsNullOrWhiteSpace(suggestion.Overview))

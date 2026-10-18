@@ -75,6 +75,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<MusicBrainzReleaseClient>();
         services.AddSingleton<TmdbRetailClient>();
         services.AddSingleton<TmdbTvSuggestionService>();
+        services.AddSingleton<ITmdbSeasonEpisodeCatalogue, TmdbSeasonEpisodeCatalogue>();
         services.AddSingleton<ITvEpisodeCrosswalk, TvEpisodeCrosswalk>();
         services.AddSingleton<TvdbRetailClient>();
         services.AddSingleton<IExternalMetadataProvider, TvdbMetadataProvider>();
