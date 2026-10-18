@@ -2129,16 +2129,12 @@ public sealed partial class IngestionLiveDashboardState
         var uncertain = SumReasonCounts(reasons, "low_confidence");
         var unmatched = SumReasonCounts(reasons, "unmatched");
         var missingIdentity = SumReasonCounts(reasons, "missing_wikidata");
-        var duplicates = SumReasonCounts(reasons, "duplicates");
-        var missingArtwork = SumReasonCounts(reasons, "missing_artwork");
         var providerFailures = SumReasonCounts(reasons, "provider_failures");
         var rows = new List<LibraryUpdateAttentionReasonViewModel>();
 
         AddReason(rows, uncertain, "uncertain matches");
         AddReason(rows, unmatched, "unmatched items");
         AddReason(rows, missingIdentity, "missing identity");
-        AddReason(rows, duplicates, "possible duplicates");
-        AddReason(rows, missingArtwork, "missing artwork");
         AddReason(rows, providerFailures, "provider failures");
 
         if (rows.Count == 0)

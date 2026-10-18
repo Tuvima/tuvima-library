@@ -6936,7 +6936,6 @@ public partial class SharedMediaEditorShell
             MediaEditorIdentityIntent.ConfirmRetailMatch => "Confirm Retail Match",
             MediaEditorIdentityIntent.FixWikidataMatch => "Replace Wikidata Match",
             MediaEditorIdentityIntent.MarkWikidataMissing => "Mark Provider-Only",
-            MediaEditorIdentityIntent.ConfirmArtwork => "Confirm Artwork",
             MediaEditorIdentityIntent.ReviewClassification => "Review classification",
             MediaEditorIdentityIntent.ResolveWriteback => "Retry Writeback",
             _ => "Save Local Changes",
