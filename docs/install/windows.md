@@ -86,7 +86,7 @@ The script publishes self-contained `win-x64` apps and writes `dist\TuvimaLibrar
 Tuvima is open from the start: phones, TVs and computers on your Wi-Fi can reach the Dashboard and pair apps straight away, and Tuvima sign-in is always required. Keep your router's ports closed, since that is what keeps the internet out; for access from outside, set up Tailscale or an HTTPS reverse proxy under **Settings → Network → Remote Access** (see [Secure remote access](../guides/remote-access.md)). First-run setup needs no code from this computer or your home network.
 
 - Opening `/setup` from this computer or any device on your home network needs no code. You can start with just a name, using **Start without a password**. That account has no password, so any device that can reach the server can use it, with administrator rights, until you add an email and a password under **Settings → Security**.
-- Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
+- Setup is open to any device that can reach the server until the administrator exists, so finish it before you open any router port.
 - Once the administrator exists, setup closes for good.
 
 ## Next steps

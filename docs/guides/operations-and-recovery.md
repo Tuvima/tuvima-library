@@ -15,7 +15,7 @@ Commands below use the container name `tuvima-library`. A NAS manager provides e
 
 ## Finish setup safely
 
-Open the Dashboard's `/setup` page on a trusted private network. From another device on your home network, setup asks for a one-time code from `tuvima-admin setup code`. Afterward, setup requires administrator authentication.
+Open the Dashboard's `/setup` page from any device on your home network; no code is needed. Finish it before you open any router port. Afterward, setup requires administrator authentication.
 
 Save the recovery codes outside the server. If you lose password and recovery access, use the elevated host command:
 
