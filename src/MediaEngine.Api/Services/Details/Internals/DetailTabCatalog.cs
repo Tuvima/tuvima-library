@@ -13,7 +13,7 @@ internal static class DetailTabCatalog
         DetailEntityType.TvSeason => ["overview", "cast", "details"],
         DetailEntityType.Movie => ["overview", "cast", "details"],
         DetailEntityType.MovieSeries => ["overview", "details"],
-        DetailEntityType.TvEpisode => ["overview", "cast", "characters", "details"],
+        DetailEntityType.TvEpisode => ["overview", "cast", "details"],
         DetailEntityType.Book => ["overview", "credits", "details"],
         DetailEntityType.Audiobook => ["overview", "tracks", "details"],
         DetailEntityType.BookSeries => ["overview", "details"],
@@ -23,8 +23,7 @@ internal static class DetailTabCatalog
         DetailEntityType.MusicAlbum => ["overview", "details"],
         DetailEntityType.Person => ["overview"],
         DetailEntityType.Collection => ["overview", "details"],
-        DetailEntityType.Character => ["overview", "portrayals", "relationships", "details"],
-        DetailEntityType.Universe => ["overview", "characters", "people", "relationships", "details"],
-        _ => ["overview", "people", "characters", "details"],
+        DetailEntityType.Universe => ["overview", "details"],
+        _ => ["overview", "people", "details"],
     };
 }

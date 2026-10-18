@@ -163,6 +163,17 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
+    public void TryParseEntityType_DoesNotKnowCharacterPages()
+    {
+        // The detail action answers 400 for an unsupported type, which the Dashboard shows as "not found".
+        Assert.False(DetailComposerService.TryParseEntityType("character", out _));
+        Assert.False(DetailComposerService.TryParseEntityType("Character", out _));
+        Assert.DoesNotContain("Character", Enum.GetNames<DetailEntityType>());
+        var endpoint = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Endpoints/DetailEndpoints.cs"));
+        Assert.Contains("return ApiErrors.BadRequest($\"Unsupported detail entity type '{entityType}'.\");", endpoint);
+    }
+
+    [Fact]
     public void TryParseEntityType_ParsesSupportedKebabCaseTypes()
     {
         Assert.True(DetailComposerService.TryParseEntityType("tv-show", out var entityType));
@@ -254,7 +265,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: "/cover.jpg",
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.BackdropWithRenderedTitle, artwork.Mode);
@@ -272,7 +282,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: "/cover.jpg",
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.ArtworkFallback, artwork.Mode);
@@ -290,7 +299,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: null,
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.Placeholder, artwork.Mode);
@@ -634,20 +642,19 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
-    public void DetailComposer_PopulatesCastCharactersAndRelationshipsForCollectionSurfaces()
+    public void DetailComposer_PopulatesCastForCollectionSurfacesAndNoCharacterOrRelationshipGroups()
     {
         var source = ReadDetailComposerSource();
         var creditSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
         Assert.Contains("BuildCollectionCreditsAsync(collectionId, rootWorkId, works, entityType, values, ct)", source);
         Assert.Contains("IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType)", source);
-        Assert.Contains("var characterGroups = IsStructuralContainer(entityType)", source);
-        Assert.Contains(": await BuildCollectionCharactersAsync(collectionId, row.WikidataQid, authorizedWorks, ct)", source);
-        Assert.Contains("BuildUniverseCastGroupsAsync(row.WikidataQid, authorizedWorks, ct)", source);
-        Assert.Contains("BuildUniverseRelationshipGroupsAsync(row.WikidataQid, ct)", source);
-        Assert.Contains("ApiImageUrls.BuildCharacterPortraitUrl(row.PortraitId", source);
-        Assert.Contains("private sealed class CollectionCharacterRow", source);
-        Assert.Contains("private sealed class UniversePerformerRow", source);
+        Assert.DoesNotContain("BuildCollectionCharactersAsync", source);
+        Assert.DoesNotContain("BuildUniverseCastGroupsAsync", source);
+        Assert.DoesNotContain("BuildUniverseRelationshipGroupsAsync", source);
+        Assert.DoesNotContain("BuildCharacterAsync", source);
+        Assert.DoesNotContain("CharacterGroups", source);
+        Assert.DoesNotContain("RelationshipStrip", source);
         Assert.Contains("DetailEntityType.Movie => directors.Take(1).Concat(cast.Take(5)).ToList()", source);
         Assert.Contains("DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => cast.Take(5).ToList()", source);
         Assert.Contains("Title = \"Actors\"", source);
@@ -1363,28 +1370,6 @@ public sealed class DetailComposerServiceTests
             DetailPresentationContext.Watch);
 
         Assert.Equal("Director · 1979", item.Subtitle);
-    }
-
-    [Fact]
-    public void DetailComposer_RelationshipChipRoutesOnlyUseKnownDestinations()
-    {
-        Assert.Equal("/universe/Q12345/explore", InvokePrivateString("BuildUniverseExploreRoute", "Q12345"));
-        Assert.Equal("/universe/Q12345/explore", InvokePrivateString("BuildUniverseExploreRoute", "https://www.wikidata.org/wiki/Q12345"));
-        Assert.Null(InvokePrivateString("BuildUniverseExploreRoute", "Sony Pictures"));
-
-        var containerId = Guid.NewGuid();
-        var sequence = new SequencePlacementViewModel
-        {
-            ContainerId = containerId.ToString("D"),
-            CurrentItem = new SequenceItemViewModel { EntityType = DetailEntityType.Movie },
-        };
-
-        Assert.Equal($"/details/movieseries/{containerId:D}?context=watch", InvokePrivateString("BuildSequenceContainerRoute", sequence));
-        Assert.Null(InvokePrivateString("BuildSequenceContainerRoute", new SequencePlacementViewModel
-        {
-            ContainerId = "Q999",
-            CurrentItem = new SequenceItemViewModel { EntityType = DetailEntityType.Movie },
-        }));
     }
 
     [Fact]

@@ -844,7 +844,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 => DetailPrimaryModuleKind.Episodes,
             DetailEntityType.Person when mediaGroups.Count > 0
                 => DetailPrimaryModuleKind.Works,
-            DetailEntityType.Character when mediaGroups.Count > 0 => DetailPrimaryModuleKind.Appearances,
             DetailEntityType.Collection when mediaGroups.Count > 0 => DetailPrimaryModuleKind.CollectionItems,
             DetailEntityType.Universe when mediaGroups.Count > 0 => DetailPrimaryModuleKind.CollectionItems,
             _ when sequencePlacement is not null => DetailPrimaryModuleKind.Sequence,
@@ -858,7 +857,6 @@ internal sealed partial class DetailCompositionOrchestrator
             DetailPrimaryModuleKind.Episodes => "Episodes",
             DetailPrimaryModuleKind.Works => "Works in Your Library",
             DetailPrimaryModuleKind.CollectionItems => "Items",
-            DetailPrimaryModuleKind.Appearances => "Appearances",
             DetailPrimaryModuleKind.Sequence => sequencePlacement?.ItemPluralLabel ?? "Series",
             _ => string.Empty,
         };
@@ -1182,29 +1180,6 @@ internal sealed partial class DetailCompositionOrchestrator
             MediaFormatType.Movie => [new DetailAction { Key = "play", Label = "Play", Icon = "play_arrow" }],
             _ => [new DetailAction { Key = "open", Label = "Open", Icon = "open_in_new" }],
         };
-
-    private static ReadingListeningSyncCapabilityViewModel? BuildSyncCapability(Guid workId, IReadOnlyList<OwnedFormatViewModel> formats, MultiFormatState state)
-    {
-        if (state == MultiFormatState.SingleFormat)
-        {
-            return null;
-        }
-
-        var ebook = formats.FirstOrDefault(f => f.FormatType == MediaFormatType.Ebook);
-        var audio = formats.FirstOrDefault(f => f.FormatType == MediaFormatType.Audiobook);
-        if (ebook is null || audio is null)
-        {
-            return new ReadingListeningSyncCapabilityViewModel
-            {
-                State = SyncCapabilityState.NotApplicable,
-                Reason = "Read + Listen Sync only applies when both ebook and audiobook formats are owned.",
-            };
-        }
-
-        // Cross-format position alignment remains a post-beta capability. Do not
-        // expose disabled actions until an alignment can be previewed and saved.
-        return null;
-    }
 
     private static DetailEntityType InferWorkEntityType(string mediaType, LibraryItemDetail detail)
     {

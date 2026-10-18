@@ -696,10 +696,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/characters/{id}/portraits` | Portrait images for a fictional character | Required |
-| PUT | `/library/characters/{id}/portraits/{portraitId}/default` | Set the default portrait for a fictional character | Effective administrator or precise Application permission |
-| GET | `/library/persons/{id}/character-roles` | Characters a person has performed, linked to works | Required |
-| GET | `/library/universes/{qid}/characters` | All characters in a universe | Required |
+| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
 | GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
 | POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
 

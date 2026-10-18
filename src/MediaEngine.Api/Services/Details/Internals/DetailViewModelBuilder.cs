@@ -56,7 +56,6 @@ internal static class DetailViewModelBuilder
             portraitUrl,
             relatedArtwork.Count,
             ownedFormatCount);
-        var characterImageUrl = entityType == DetailEntityType.Character ? portraitUrl : null;
         var resolvedLogoUrl = StringHelpers.FirstNonBlankOr(
             string.Empty,
             logoUrl,
@@ -89,7 +88,6 @@ internal static class DetailViewModelBuilder
             coverUrl,
             posterUrl,
             portraitUrl,
-            characterImageUrl,
             relatedArtwork,
             resolvedLogoUrl,
             heroSmallUrl,
@@ -104,7 +102,6 @@ internal static class DetailViewModelBuilder
             CoverUrl = coverUrl,
             LogoUrl = resolvedLogoUrl,
             PortraitUrl = portraitUrl,
-            CharacterImageUrl = characterImageUrl,
             RelatedArtworkUrls = relatedArtwork,
             DominantColors = [primary, secondary, accent],
             PrimaryColor = primary,

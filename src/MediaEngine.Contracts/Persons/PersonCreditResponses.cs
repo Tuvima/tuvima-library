@@ -111,39 +111,3 @@ public sealed class PersonGroupMemberDto
     [JsonPropertyName("headshot_url")]
     public string? HeadshotUrl { get; init; }
 }
-
-public sealed class PersonCharacterRoleDto
-{
-    [JsonPropertyName("fictional_entity_id")]
-    public Guid FictionalEntityId { get; init; }
-
-    [JsonPropertyName("character_name")]
-    public string? CharacterName { get; init; }
-
-    [JsonPropertyName("portrait_url")]
-    public string? PortraitUrl { get; init; }
-
-    [JsonPropertyName("work_id")]
-    public Guid? WorkId { get; init; }
-
-    [JsonPropertyName("work_qid")]
-    public string? WorkQid { get; init; }
-
-    [JsonPropertyName("work_title")]
-    public string? WorkTitle { get; init; }
-
-    [JsonPropertyName("collection_id")]
-    public Guid? CollectionId { get; init; }
-
-    [JsonPropertyName("media_type")]
-    public string? MediaType { get; init; }
-
-    [JsonPropertyName("is_default")]
-    public bool IsDefault { get; init; }
-
-    [JsonPropertyName("universe_qid")]
-    public string? UniverseQid { get; init; }
-
-    [JsonPropertyName("universe_label")]
-    public string? UniverseLabel { get; init; }
-}

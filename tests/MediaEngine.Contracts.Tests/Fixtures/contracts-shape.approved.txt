@@ -1306,15 +1306,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.CharacterPortraitDto
-  id: System.Guid | nullability=not-null | accessors=get,init
-  person_id: System.Guid | nullability=not-null | accessors=get,init
-  person_name: System.String | nullability=nullable | accessors=get,init
-  fictional_entity_id: System.Guid | nullability=not-null | accessors=get,init
-  character_name: System.String | nullability=nullable | accessors=get,init
-  image_url: System.String | nullability=nullable | accessors=get,init
-  is_default: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.EntityAssetSummaryDto
   id: System.Guid | nullability=not-null | accessors=get,init
   entity_id: System.String | nullability=not-null | accessors=get,init
@@ -1322,18 +1313,6 @@ MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.EntityAssetSum
   image_url: System.String | nullability=nullable | accessors=get,init
   is_preferred: System.Boolean | nullability=not-null | accessors=get,init
   source_provider: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.SetDefaultPortraitResponse
-  portrait_id: System.Guid | nullability=not-null | accessors=get,init
-  is_default: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseCharacterSummaryDto
-  fictional_entity_id: System.Guid | nullability=not-null | accessors=get,init
-  character_name: System.String | nullability=not-null | accessors=get,init
-  default_actor_name: System.String | nullability=nullable | accessors=get,init
-  default_actor_id: System.Guid? | nullability=nullable | accessors=get,init
-  portrait_url: System.String | nullability=nullable | accessors=get,init
-  actor_count: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   triggered: System.Boolean | nullability=not-null | accessors=get,init
@@ -1988,7 +1967,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ArtworkSet
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   LogoUrl: System.String | nullability=nullable | accessors=get,init
   PortraitUrl: System.String | nullability=nullable | accessors=get,init
-  CharacterImageUrl: System.String | nullability=nullable | accessors=get,init
   RelatedArtworkUrls: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   DominantColors: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   PrimaryColor: System.String | nullability=nullable | accessors=get,init
@@ -2003,23 +1981,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ArtworkSet
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ArtworkSource
 
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.AudioPositionViewModel
-  Label: System.String | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.CanonicalIdentityStatus
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ChapterSyncRowViewModel
-  Title: System.String | nullability=not-null | accessors=get,init
-  TextPosition: System.String | nullability=nullable | accessors=get,init
-  AudioPosition: System.String | nullability=nullable | accessors=get,init
-  Status: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.CharacterGroupType
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.CharacterGroupViewModel
-  Title: System.String | nullability=not-null | accessors=get,init
-  GroupType: MediaEngine.Contracts.Details.CharacterGroupType | nullability=not-null | accessors=get,init
-  Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.EntityCreditViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.CreditGroupType
 
@@ -2131,8 +2093,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   Progress: MediaEngine.Contracts.Details.ProgressViewModel | nullability=nullable | accessors=get,init
   OwnedFormats: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.OwnedFormatViewModel> | nullability=not-null | accessors=get,init
   MultiFormatState: MediaEngine.Contracts.Details.MultiFormatState | nullability=not-null | accessors=get,init
-  ReadingListeningSync: MediaEngine.Contracts.Details.ReadingListeningSyncViewModel | nullability=nullable | accessors=get,init
-  SyncCapability: MediaEngine.Contracts.Details.ReadingListeningSyncCapabilityViewModel | nullability=nullable | accessors=get,init
   SequencePlacement: MediaEngine.Contracts.Details.SequencePlacementViewModel | nullability=nullable | accessors=get,init
   Metadata: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MetadataPill> | nullability=not-null | accessors=get,init
   PrimaryActions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailAction> | nullability=not-null | accessors=get,init
@@ -2142,9 +2102,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   ContributorGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.CreditGroupViewModel> | nullability=not-null | accessors=get,init
   FullContributorGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.CreditGroupViewModel> | nullability=not-null | accessors=get,init
   PreviewContributors: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.EntityCreditViewModel> | nullability=not-null | accessors=get,init
-  CharacterGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.CharacterGroupViewModel> | nullability=not-null | accessors=get,init
-  PreviewCharacters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.EntityCreditViewModel> | nullability=not-null | accessors=get,init
-  RelationshipStrip: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.RelationshipGroup> | nullability=not-null | accessors=get,init
   Tabs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailTab> | nullability=not-null | accessors=get,init
   MediaGroups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.MediaGroupingViewModel> | nullability=not-null | accessors=get,init
   PrimaryModule: MediaEngine.Contracts.Details.DetailPrimaryModuleViewModel | nullability=not-null | accessors=get,init
@@ -2348,39 +2305,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ProgressViewModel
   RemainingLabel: System.String | nullability=nullable | accessors=get,init
   SecondaryLabel: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ReadingListeningSyncCapabilityViewModel
-  State: MediaEngine.Contracts.Details.SyncCapabilityState | nullability=not-null | accessors=get,init
-  Reason: System.String | nullability=nullable | accessors=get,init
-  EstimatedConfidence: System.Double? | nullability=nullable | accessors=get,init
-  TextEditionId: System.String | nullability=nullable | accessors=get,init
-  AudioEditionId: System.String | nullability=nullable | accessors=get,init
-  EnableAction: MediaEngine.Contracts.Details.DetailAction | nullability=nullable | accessors=get,init
-  PreviewAction: MediaEngine.Contracts.Details.DetailAction | nullability=nullable | accessors=get,init
-  SettingsAction: MediaEngine.Contracts.Details.DetailAction | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.ReadingListeningSyncViewModel
-  WorkId: System.String | nullability=not-null | accessors=get,init
-  TextEditionId: System.String | nullability=not-null | accessors=get,init
-  AudioEditionId: System.String | nullability=not-null | accessors=get,init
-  Status: MediaEngine.Contracts.Details.SyncCapabilityState | nullability=not-null | accessors=get,init
-  Confidence: System.Double | nullability=not-null | accessors=get,init
-  CurrentChapterTitle: System.String | nullability=nullable | accessors=get,init
-  PercentComplete: System.Double | nullability=not-null | accessors=get,init
-  TextPosition: MediaEngine.Contracts.Details.TextPositionViewModel | nullability=nullable | accessors=get,init
-  AudioPosition: MediaEngine.Contracts.Details.AudioPositionViewModel | nullability=nullable | accessors=get,init
-  ChapterMap: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.ChapterSyncRowViewModel> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.RelatedEntityChip
-  Id: System.String | nullability=not-null | accessors=get,init
-  EntityType: MediaEngine.Contracts.Details.RelatedEntityType | nullability=not-null | accessors=get,init
-  Label: System.String | nullability=not-null | accessors=get,init
-  Route: System.String | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.RelatedEntityType
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.RelationshipGroup
-  Title: System.String | nullability=not-null | accessors=get,init
-  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.RelatedEntityChip> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceContainerOptionViewModel
   ContainerId: System.String | nullability=not-null | accessors=get,init
@@ -2478,11 +2403,6 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
   ContainerId: System.String | nullability=not-null | accessors=get,init
   ContainerTitle: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SyncCapabilityState
-
-MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TextPositionViewModel
-  Label: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TvEpisodeDetailRoute
 
@@ -5652,19 +5572,6 @@ MediaEngine.Contracts.Persons.MediaEngine.Contracts.Persons.PersonAliasResponse
   PersonName: System.String | nullability=not-null | accessors=get,init
   IsPseudonym: System.Boolean | nullability=not-null | accessors=get,init
   Aliases: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Persons.PersonAliasItemResponse> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Persons.MediaEngine.Contracts.Persons.PersonCharacterRoleDto
-  FictionalEntityId: System.Guid | nullability=not-null | accessors=get,init
-  CharacterName: System.String | nullability=nullable | accessors=get,init
-  PortraitUrl: System.String | nullability=nullable | accessors=get,init
-  WorkId: System.Guid? | nullability=nullable | accessors=get,init
-  WorkQid: System.String | nullability=nullable | accessors=get,init
-  WorkTitle: System.String | nullability=nullable | accessors=get,init
-  CollectionId: System.Guid? | nullability=nullable | accessors=get,init
-  MediaType: System.String | nullability=nullable | accessors=get,init
-  IsDefault: System.Boolean | nullability=not-null | accessors=get,init
-  UniverseQid: System.String | nullability=nullable | accessors=get,init
-  UniverseLabel: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Persons.MediaEngine.Contracts.Persons.PersonDetailResponse
   Id: System.Guid | nullability=not-null | accessors=get,init

@@ -1708,7 +1708,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 CoverUrl = NormalizeOptionalUrl(artwork.CoverUrl),
                 LogoUrl = NormalizeOptionalUrl(artwork.LogoUrl),
                 PortraitUrl = NormalizeOptionalUrl(artwork.PortraitUrl),
-                CharacterImageUrl = NormalizeOptionalUrl(artwork.CharacterImageUrl),
                 RelatedArtworkUrls = artwork.RelatedArtworkUrls.Select(AbsoluteUrl).ToList(),
                 DominantColors = artwork.DominantColors,
                 PrimaryColor = artwork.PrimaryColor,
@@ -1738,8 +1737,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 Actions = format.Actions,
             }).ToList(),
             MultiFormatState = detail.MultiFormatState,
-            ReadingListeningSync = detail.ReadingListeningSync,
-            SyncCapability = detail.SyncCapability,
             SequencePlacement = NormalizeSequencePlacement(detail.SequencePlacement),
             Metadata = detail.Metadata,
             PrimaryActions = detail.PrimaryActions,
@@ -1747,14 +1744,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             OverflowActions = detail.OverflowActions,
             ContributorGroups = detail.ContributorGroups.Select(NormalizeCreditGroup).ToList(),
             PreviewContributors = detail.PreviewContributors.Select(NormalizeCredit).ToList(),
-            CharacterGroups = detail.CharacterGroups.Select(group => new CharacterGroupViewModel
-            {
-                Title = group.Title,
-                GroupType = group.GroupType,
-                Characters = group.Characters.Select(NormalizeCredit).ToList(),
-            }).ToList(),
-            PreviewCharacters = detail.PreviewCharacters.Select(NormalizeCredit).ToList(),
-            RelationshipStrip = detail.RelationshipStrip,
             Tabs = detail.Tabs,
             PrimaryModule = detail.PrimaryModule,
             MusicAlbumCompanion = NormalizeMusicAlbumCompanion(detail.MusicAlbumCompanion),
@@ -2225,40 +2214,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         {
             _logger.LogWarning(ex, "GET /universe/{Qid}/health failed", qid);
             return null;
-        }
-    }
-
-    public async Task<IReadOnlyList<CharacterRoleDto>> GetPersonCharacterRolesAsync(Guid personId, CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<List<PersonCharacterRoleDto>>(
-                $"/library/persons/{personId}/character-roles", ct);
-            if (raw is null)
-            {
-                return [];
-            }
-
-            return raw.Select(r => new CharacterRoleDto
-            {
-                FictionalEntityId = r.FictionalEntityId,
-                CharacterName = r.CharacterName,
-                PortraitUrl = r.PortraitUrl is not null ? AbsoluteUrl(r.PortraitUrl) : null,
-                WorkId = r.WorkId,
-                WorkQid = r.WorkQid,
-                WorkTitle = r.WorkTitle,
-                CollectionId = r.CollectionId,
-                MediaType = r.MediaType,
-                IsDefault = r.IsDefault,
-                UniverseQid = r.UniverseQid,
-                UniverseLabel = r.UniverseLabel,
-            }).ToList();
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/persons/{PersonId}/character-roles failed", personId);
-            return [];
         }
     }
 

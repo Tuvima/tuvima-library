@@ -52,9 +52,7 @@ public static class DetailTabNavigation
         return key switch
         {
             "cast" or "people" or "credits" =>
-                model.ContributorGroups.Count > 0 || model.CharacterGroups.Count > 0,
-            "characters" or "portrayals" =>
-                model.CharacterGroups.Count > 0,
+                model.ContributorGroups.Count > 0,
             "tracks" => model.MediaGroups.Any(group =>
                 string.Equals(group.Key, "tracks", StringComparison.OrdinalIgnoreCase)
                 && group.Items.Count > 0),

@@ -127,7 +127,7 @@
         DetailEntityType.Book or DetailEntityType.Work => HeroForegroundTreatment.Book,
         DetailEntityType.Audiobook => HeroForegroundTreatment.Cover,
         DetailEntityType.MusicAlbum => HeroForegroundTreatment.Album,
-        DetailEntityType.Person or DetailEntityType.Character => HeroForegroundTreatment.Portrait,
+        DetailEntityType.Person => HeroForegroundTreatment.Portrait,
         _ => HeroForegroundTreatment.Poster,
     };
     private string ForegroundClass => $"tl-detail-media-stage__foreground tl-detail-media-stage__foreground--{ForegroundTreatment.ToString().ToLowerInvariant()}";
@@ -151,7 +151,7 @@
                 DetailEntityType.MusicAlbum => "tl-detail-media-stage--square",
                 DetailEntityType.Book or DetailEntityType.Work or DetailEntityType.ComicIssue or DetailEntityType.ComicSeries => "tl-detail-media-stage--book",
                 DetailEntityType.Audiobook => "tl-detail-media-stage--audiobook",
-                DetailEntityType.Person or DetailEntityType.Character => "tl-detail-media-stage--portrait",
+                DetailEntityType.Person => "tl-detail-media-stage--portrait",
                 _ => "tl-detail-media-stage--poster",
             };
 

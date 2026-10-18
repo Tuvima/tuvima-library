@@ -101,7 +101,6 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         var contributors = await BuildWorkContributorsAsync(workId, detail, entityType, ct);
-        var characters = BuildCharacterGroupsFromCast(contributors.CastCredits);
         var contributorGroups = await BuildContributorGroupsAsync(workId, detail, entityType, contributors.CastCredits, values, ct);
         var managedCurrentArtworkUrl = await _reader.LoadManagedWorkCoverUrlAsync(
                 workId,
@@ -219,7 +218,6 @@ internal sealed partial class DetailCompositionOrchestrator
         var descriptionAttribution = displayDescription is null
             ? BuildDescriptionAttribution(descriptionSelection, detail, values)
             : BuildLocalDescriptionAttribution();
-        var relationships = BuildRelationshipStrip(detail, sequencePlacement);
 
         return new DetailPageViewModel
         {
@@ -234,7 +232,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 InitialTab = "details",
             },
             Title = resolvedTitle,
-            Subtitle = BuildSubtitle(detail, entityType, values, multiFormatState),
+            Subtitle = BuildSubtitle(detail, entityType, values),
             Tagline = semanticTagline,
             SecondaryTitleText = secondaryTitle.Text,
             SecondaryTitleTextKind = secondaryTitle.Kind,
@@ -252,7 +250,6 @@ internal sealed partial class DetailCompositionOrchestrator
             Progress = heroProgress,
             OwnedFormats = ownedFormats,
             MultiFormatState = multiFormatState,
-            SyncCapability = BuildSyncCapability(workId, ownedFormats, multiFormatState),
             SequencePlacement = sequencePlacement,
             Metadata = BuildMetadataPills(factsDetail, entityType, factValues, ownedFormats),
             PrimaryActions = BuildPrimaryActions(
@@ -268,9 +265,6 @@ internal sealed partial class DetailCompositionOrchestrator
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,
             PreviewContributors = BuildPreviewContributors(entityType, contributorGroups),
-            CharacterGroups = characters,
-            PreviewCharacters = characters.SelectMany(g => g.Characters).Take(12).ToList(),
-            RelationshipStrip = relationships,
             Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),

@@ -5,7 +5,8 @@ using MediaEngine.Contracts.Details;
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
-/// The tab set each detail page type offers. No page offers a Universe or Related tab.
+/// The tab set each detail page type offers (item-detail spec, section 4). No page offers a Universe,
+/// Related, Characters, Portrayals or Relationships tab.
 /// </summary>
 public sealed class DetailTabCatalogTests
 {
@@ -14,7 +15,7 @@ public sealed class DetailTabCatalogTests
         { DetailEntityType.Movie, ["overview", "cast", "details"] },
         { DetailEntityType.TvShow, ["overview", "cast", "details"] },
         { DetailEntityType.TvSeason, ["overview", "cast", "details"] },
-        { DetailEntityType.TvEpisode, ["overview", "cast", "characters", "details"] },
+        { DetailEntityType.TvEpisode, ["overview", "cast", "details"] },
         { DetailEntityType.MusicAlbum, ["overview", "details"] },
         { DetailEntityType.Audiobook, ["overview", "tracks", "details"] },
         { DetailEntityType.Book, ["overview", "credits", "details"] },
@@ -24,6 +25,8 @@ public sealed class DetailTabCatalogTests
         { DetailEntityType.BookSeries, ["overview", "details"] },
         { DetailEntityType.ComicSeries, ["overview", "details"] },
         { DetailEntityType.Collection, ["overview", "details"] },
+        { DetailEntityType.Universe, ["overview", "details"] },
+        { DetailEntityType.Person, ["overview"] },
     };
 
     [Theory]
@@ -46,6 +49,27 @@ public sealed class DetailTabCatalogTests
         Assert.Equal(DetailPresentationContext.Default, context);
         Assert.Equal(expected, tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "registry");
+    }
+
+    [Fact]
+    public void EveryKindOfPageHasItsTabSetListedHere()
+    {
+        var listed = ExpectedSets.Select(row => (DetailEntityType)row[0]).ToHashSet();
+
+        Assert.Equal(Enum.GetValues<DetailEntityType>().OrderBy(type => type), listed.OrderBy(type => type));
+    }
+
+    [Fact]
+    public void NoKindOfPageEverListsCharacterTabs()
+    {
+        string[] removed = ["characters", "portrayals", "relationships", "people"];
+
+        foreach (var entityType in Enum.GetValues<DetailEntityType>())
+        {
+            var keys = DetailTabCatalog.KeysFor(entityType);
+
+            Assert.Empty(keys.Intersect(removed));
+        }
     }
 
     [Fact]

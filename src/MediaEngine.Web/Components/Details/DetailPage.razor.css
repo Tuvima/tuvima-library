@@ -184,8 +184,7 @@
     font-weight: 800;
 }
 
-::deep .tl-series-strip,
-::deep .tl-child-list {
+::deep .tl-series-strip {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(11rem, 15rem);
@@ -196,9 +195,7 @@
 }
 
 ::deep .tl-credit-card,
-::deep .tl-character-card,
-::deep .tl-series-item,
-::deep .tl-child-card {
+::deep .tl-series-item {
     border: 1px solid rgba(246, 240, 232, 0.1);
     border-radius: 0.85rem;
     background: rgba(246, 240, 232, 0.055);
@@ -207,30 +204,24 @@
 }
 
 ::deep .tl-credit-card img,
-::deep .tl-character-card img,
-::deep .tl-series-item img,
-::deep .tl-child-card img {
+::deep .tl-series-item img {
     width: 100%;
     aspect-ratio: 1 / 1;
     object-fit: cover;
     display: block;
 }
 
-::deep .tl-credit-card__body,
-::deep .tl-child-card__body {
+::deep .tl-credit-card__body {
     padding: 0.72rem;
 }
 
 ::deep .tl-series-item__title,
-::deep .tl-credit-card__name,
-::deep .tl-character-card__name {
+::deep .tl-credit-card__name {
     font-weight: 700;
     line-height: 1.25;
 }
 
 ::deep .tl-credit-card__role,
-::deep .tl-character-card__role,
-::deep .tl-child-card__meta,
 ::deep .tl-detail-copy,
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
@@ -255,7 +246,6 @@
     border: 0;
 }
 
-::deep .tl-child-card__art img,
 ::deep .tl-series-item__art img {
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -338,8 +328,7 @@
     text-align: center;
 }
 
-::deep .tl-series-panel--portrait .tl-series-item__art img,
-::deep .tl-child-card__art img {
+::deep .tl-series-panel--portrait .tl-series-item__art img {
     aspect-ratio: 2 / 3;
     object-fit: contain;
 }

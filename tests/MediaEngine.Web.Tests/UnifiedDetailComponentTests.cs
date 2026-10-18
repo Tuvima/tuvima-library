@@ -382,14 +382,31 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void DetailPage_CastTabDoesNotInlineCharacters()
+    public void DetailPage_HasNoCharacterOrRelationshipPanelsAndCastKeepsRoleNames()
     {
+        var root = FindRepoRoot();
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var peopleTab = ReadSource("src/MediaEngine.Web/Components/Details/PeopleAndCharactersTab.razor");
+        var card = ReadSource("src/MediaEngine.Web/Components/Details/PersonCreditCard.razor");
+        var group = ReadSource("src/MediaEngine.Web/Components/Details/CreditGroupSection.razor");
+        var navigation = ReadSource("src/MediaEngine.Web/Services/Navigation/DetailTabNavigation.cs");
 
-        Assert.Contains("IncludeCharacters=\"IncludeCharactersInPeopleTab\"", source);
-        Assert.Contains("CurrentActiveTab is not \"cast\"", source);
-        Assert.Contains("IncludeCharacters && CharacterGroups.Count > 0", peopleTab);
+        foreach (var removed in new[] { "CharactersSection", "CharacterCreditCard", "UniverseTab", "ChildrenListTab", "RelatedEntityChip" })
+        {
+            Assert.False(File.Exists(Path.Combine(root, $"src/MediaEngine.Web/Components/Details/{removed}.razor")), removed);
+        }
+
+        Assert.DoesNotContain("CharactersSection", source);
+        Assert.DoesNotContain("UniverseTab", source);
+        Assert.DoesNotContain("\"characters\"", source);
+        Assert.DoesNotContain("\"portrayals\"", source);
+        Assert.DoesNotContain("\"relationships\"", source);
+        Assert.DoesNotContain("CharacterGroups", peopleTab);
+        Assert.DoesNotContain("/details/character", card);
+        Assert.DoesNotContain("portrayals", navigation);
+        Assert.DoesNotContain("CharacterGroups", navigation);
+        Assert.Contains("Credit.CharacterName", card);
+        Assert.Contains("<CastCharacterPairCard Credit=\"credit\" />", group);
     }
 
     [Fact]

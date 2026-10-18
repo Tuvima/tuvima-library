@@ -231,6 +231,21 @@ public sealed class DetailTabNavigationTests
         }
     }
 
+    [Theory]
+    [InlineData("characters")]
+    [InlineData("portrayals")]
+    [InlineData("relationships")]
+    public void Resolve_RequestedCharacterTabRedirectsToTheFirstTab(string requested)
+    {
+        var model = CreateModel(["overview", "cast", "details"], withCast: true);
+
+        var resolution = DetailTabNavigation.Resolve(model, requested);
+
+        Assert.Equal("overview", resolution.ActiveTab);
+        Assert.False(resolution.IsRequestedTabValid);
+        Assert.True(resolution.ShouldRedirect);
+    }
+
     [Fact]
     public void Resolve_RequestedRegistryTabRedirectsToTheFirstTab()
     {
@@ -241,6 +256,15 @@ public sealed class DetailTabNavigationTests
         Assert.Equal("overview", resolution.ActiveTab);
         Assert.False(resolution.IsRequestedTabValid);
         Assert.True(resolution.ShouldRedirect);
+    }
+
+    [Fact]
+    public void UnifiedRoute_ForACharacterAddressCannotLoadSoThePageReadsNotFound()
+    {
+        var request = DetailRouteRequest.ForUnified("character", Guid.NewGuid(), "universe");
+
+        Assert.False(request.CanLoad);
+        Assert.Equal("Detail page not found", request.NotFoundTitle);
     }
 
     [Theory]

@@ -1196,7 +1196,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     }
 
     [Fact]
-    public async Task UniverseDetailFiltersCharactersByVisibleWorkProvenance()
+    public async Task UniverseDetailListsOnlyVisibleItemsAndOffersOnlyOverviewAndDetails()
     {
         var collectionId = Guid.NewGuid();
         var visibleCharacter = Guid.NewGuid();
@@ -1250,9 +1250,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             ]);
 
         Assert.NotNull(detail);
-        var character = Assert.Single(detail!.CharacterGroups.SelectMany(group => group.Characters));
-        Assert.Equal(visibleCharacter.ToString("D"), character.EntityId);
-        Assert.DoesNotContain(detail.PreviewCharacters, item => item.EntityId == hiddenCharacter.ToString("D"));
+        Assert.Equal(["overview", "details"], detail!.Tabs.Select(tab => tab.Key));
+        Assert.Empty(detail.ContributorGroups);
+        var items = detail.MediaGroups.SelectMany(group => group.Items).ToList();
+        Assert.Contains(items, item => item.Title == "Visible universe work");
+        Assert.DoesNotContain(items, item => item.Title == "Hidden universe work");
     }
 
     private DetailComposerService CreateComposer() =>

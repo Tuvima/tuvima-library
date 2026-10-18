@@ -14,25 +14,6 @@ namespace MediaEngine.Contracts.Characters;
 /// compile-time collision, only a naming echo worth flagging.
 /// </para>
 /// </summary>
-public sealed record CharacterPortraitDto(
-    Guid id,
-    Guid person_id,
-    string? person_name,
-    Guid fictional_entity_id,
-    string? character_name,
-    string? image_url,
-    bool is_default);
-
-public sealed record SetDefaultPortraitResponse(Guid portrait_id, bool is_default);
-
-public sealed record UniverseCharacterSummaryDto(
-    Guid fictional_entity_id,
-    string character_name,
-    string? default_actor_name,
-    Guid? default_actor_id,
-    string? portrait_url,
-    int actor_count);
-
 public sealed record EntityAssetSummaryDto(
     Guid id,
     string entity_id,
