@@ -27,6 +27,8 @@
     <!-- Embed DDL so DatabaseConnection can initialise a fresh database without
          requiring the .sql file to be present at runtime. -->
     <EmbeddedResource Include="Schema\schema.sql" />
+    <!-- Numbered data store upgrade steps (NNNN_short_name.sql), applied once each by the upgrade runner. -->
+    <EmbeddedResource Include="Schema\Upgrades\*.sql" />
   </ItemGroup>
 
 </Project>

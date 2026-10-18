@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Sample upgrade steps for the catalog tests. -->
+    <EmbeddedResource Include="UpgradeSteps\**\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 
