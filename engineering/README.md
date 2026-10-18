@@ -27,6 +27,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
+| [Spec: Numbered data store upgrades and contributor guide](specs/data-store-upgrade-scripts.md) | Draft (v1, 2026-10-17; 4 open questions) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Draft (as-built) |
 | [Archive](specs/archive/README.md) | Built specs move here (none yet) |
 
@@ -35,7 +36,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Decision | Status |
 |---|---|
 | [Architecture decisions](architecture/decisions/README.md) | Current — list of all decisions |
-| [0001 — SQLite with hand-written SQL (Dapper), not Entity Framework](architecture/decisions/0001-sqlite-and-dapper.md) | Accepted — Shy asked to revisit this after 2026-10-17 (follow-up session) |
+| [0001 — SQLite with hand-written SQL (Dapper), not Entity Framework](architecture/decisions/0001-sqlite-and-dapper.md) | Accepted — reaffirmed by Shy 2026-10-17 after the EF benchmark |
 | [0002 — First-party `App*` UI components; MudBlazor removed](architecture/decisions/0002-first-party-ui-components.md) | Accepted |
 | [0003 — Storage epoch `guid-blob-v1`; reset instead of migrate](architecture/decisions/0003-storage-epoch-guid-blob.md) | Accepted |
 | [0004 — `MediaEngine.Contracts` alone owns Engine↔Dashboard wire types](architecture/decisions/0004-contracts-own-the-wire.md) | Accepted |
@@ -55,8 +56,8 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Doc | Status |
 |---|---|
-| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — results below; ADR 0001 decision pending with Shy |
-| [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — recommends staying on Dapper; awaiting Shy's decision |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
+| [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 
 ## History (pre-2026-10-17 engineering records)
 

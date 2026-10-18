@@ -2,7 +2,7 @@
 
 > **Status:** Current · **Last updated:** 2026-10-17 · **Related docs:** [Handoff](../handoffs/2026-10-17-ef-vs-dapper-benchmark.md) · [ADR 0001 — SQLite and Dapper](../architecture/decisions/0001-sqlite-and-dapper.md) · [Benchmark harness README](../../benchmarks/README.md)
 
-This report answers the handoff's question: how much faster or slower is EF Core than Tuvima's current Dapper code on its heaviest reads, and how much of the code would a move touch? This was a measurement only. Nothing that ships changed, and ADR 0001 stays **Accepted** until Shy decides.
+This report answers the handoff's question: how much faster or slower is EF Core than Tuvima's current Dapper code on its heaviest reads, and how much of the code would a move touch? This was a measurement only; nothing that ships changed. **Outcome:** on 2026-10-17 Shy chose to stay on Dapper, and ADR 0001 is reaffirmed.
 
 ## Plain English summary
 
@@ -171,5 +171,5 @@ Most of the join/aggregate and SQLite-specific ~40% would stay hand-written SQL 
 
 ## Follow-up
 
-- **For Shy:** decide stay / mix / move, then update ADR 0001 (its status is unchanged by this report). If "stay", the numbered upgrade scripts and the contributor guide become a spec of their own.
+- **Decided (Shy, 2026-10-17): stay on Dapper.** Recorded in [ADR 0001](../architecture/decisions/0001-sqlite-and-dapper.md). The numbered upgrade scripts and the contributor guide are drafted in [Spec: Numbered data store upgrades and contributor guide](../specs/data-store-upgrade-scripts.md).
 - **Proposed separately, independent of this decision:** investigate why the library list (Q4) and Home projection (Q5) take seconds at 4,000 works and minutes at 100,000, including whether real libraries are affected. This is diagnosis only, with no changes. It can use this harness: `seed --works N`, `explain --query q4`.
