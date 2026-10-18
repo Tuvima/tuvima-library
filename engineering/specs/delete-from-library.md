@@ -1,8 +1,8 @@
 # Spec: Delete from library
 
-> **Status:** Draft · **Version:** 4 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Draft · **Version:** 5 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
 
-> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Versions 2–4 (same day) record Shy's answers as D12–D23. Version 4 drops the recycle bin for library media: films, books, audiobooks, music, comics and TV can be downloaded again, so they are deleted straight away after the confirmation. A recycle bin applies only to personal files in View (D23). One question is left (Q11), so the spec stays Draft. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
+> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Versions 2–5 (same day) record Shy's answers as D12–D24. Version 4 drops the recycle bin for library media: films, books, audiobooks, music, comics and TV can be downloaded again, so they are deleted straight away after the confirmation. A recycle bin applies only to personal files in View (D23), which get their own View spec (D24). No questions are left; the spec waits only for Shy to Lock it. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
 
 ## 1. Goal
 
@@ -23,7 +23,7 @@ An administrator at a desktop can delete a title they no longer want: it leaves 
 
 **Out of scope**
 - A recycle bin for library media (D22).
-- Deleting personal files (photos, home videos, documents in View) from disk. They are not Works; the rule they follow is D23, and where it is built is Q11.
+- Deleting personal files (photos, home videos, documents in View) from disk. They are not Works; the rule they follow is D23, and they get their own View spec (D24).
 - Multi-select delete anywhere other than the Listen song table (browse rows, collections, search results) (D14).
 - Deleting a whole group in one go: a TV show or season, a book or comic series, an album or a Universe (D14). Groups disappear on their own when their last title goes, through the existing empty-group clean-up. Deleting a film, an episode, a book, an audiobook, a comic issue or a song is in scope because each is one Work.
 - Deleting just one Edition or one file while keeping the title (for example, dropping the 1080p copy and keeping the 4K one) (D14).
@@ -57,7 +57,8 @@ Shy's answers (2026-10-17). To Q1–Q9: "go with your recommendations except Q5 
 - **D20. (Q9) Progress is removed with the title** (D7).
 - **D21. (Q10) Replaced by D22.** Version 3 offered "Delete immediately" or "Move to recycle bin" in the dialog for library media. Shy then decided library media needs no recycle bin.
 - **D22. No recycle bin for library media.** Films, TV, books, audiobooks, comics and music can be downloaded again, so the confirmation dialog is the safety step and deletion is immediate. The dialog says plainly that files removed from disk can't be recovered.
-- **D23. Personal files get a recycle bin.** Photos, home videos and documents in View can't be downloaded again. Deleting one from disk always moves it to a recycle bin first (building on View's existing Trash), and the file leaves the disk only when the recycle bin is emptied. "Delete immediately" is never offered for personal files. This spec only records the rule; where it is built is Q11.
+- **D23. Personal files get a recycle bin.** Photos, home videos and documents in View can't be downloaded again. Deleting one from disk always moves it to a recycle bin first (building on View's existing Trash), and the file leaves the disk only when the recycle bin is emptied. "Delete immediately" is never offered for personal files. This spec only records the rule (D24).
+- **D24. (Q11) Personal files get their own View spec** (Shy, 2026-10-17: "build the personal-files recycle bin in its own View spec; this spec covers library media only"). That spec builds deleting personal files from disk on View's Trash, with **Empty Trash** as the only step that removes a file, and proves ownership and gets a fresh confirmation as the View architecture requires. This spec covers library media only.
 
 ## 4. UI behaviour
 
@@ -183,9 +184,7 @@ Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass
 
 **Open questions**
 
-Q1–Q10 were answered on 2026-10-17 (D12–D22).
-
-- **Q11. Where is the recycle bin for personal files (D23) built?** (a) Its own View spec: deleting personal files from disk, building on View's Trash (the Trash gets **Empty Trash**, which is the only step that removes the file). (b) Added to this spec as more work packets. **Recommendation: (a)**: View has its own owners, Personal Spaces, read-only linked folders and an existing Trash. Today that Trash never touches the file, and the architecture asks any permanent file removal there to prove ownership and get a fresh confirmation. That is a separate design, and this spec can then be Locked and built for library media now.
+None. Q1–Q11 were answered on 2026-10-17 (D12–D24).
 
 ## 8. Gaps and drift
 

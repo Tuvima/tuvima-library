@@ -23,7 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Delete from library](specs/delete-from-library.md) | Draft (v4, 2026-10-17: one question left) |
+| [Spec: Delete from library](specs/delete-from-library.md) | Draft (v5, 2026-10-17: all questions answered; ready for Shy to Lock) |
 | [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP1 built inside Item Detail WP10) |
