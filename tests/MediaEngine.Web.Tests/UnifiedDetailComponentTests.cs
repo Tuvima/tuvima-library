@@ -1430,6 +1430,59 @@ public sealed class UnifiedDetailComponentTests
         Assert.False(presentation.HeroCopyHasMore);
     }
 
+    [Fact]
+    public void MediaHero_ShowsARealTvShowTaglineBesideASummaryHeroParagraph()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvShow,
+            Title = "Example Show",
+            Tagline = "A summary of the whole series that fills the hero paragraph.",
+            SecondaryTitleText = "Winter is coming.",
+            SecondaryTitleTextKind = "tagline",
+            Description = "A summary of the whole series that fills the hero paragraph.",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Equal("Winter is coming.", presentation.SecondaryTitleText);
+        Assert.Equal(model.Tagline, presentation.HeroCopy);
+    }
+
+    [Fact]
+    public void MediaHero_HidesASecondaryLineThatRepeatsTheHeroParagraphIgnoringCaseAndSpacing()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.Movie,
+            Title = "Example Movie",
+            Tagline = "The truth is closer than it appears.",
+            SecondaryTitleText = "  THE TRUTH IS CLOSER THAN IT APPEARS. ",
+            SecondaryTitleTextKind = "tagline",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Null(presentation.SecondaryTitleText);
+        Assert.Equal(model.Tagline, presentation.HeroCopy);
+    }
+
+    [Fact]
+    public void MediaHero_ShowsNoSecondaryLineForATvEpisodeWithoutOne()
+    {
+        var model = new DetailPageViewModel
+        {
+            EntityType = DetailEntityType.TvEpisode,
+            Title = "Example Episode",
+            Description = "The episode synopsis.",
+        };
+
+        var presentation = DetailHeroPresentation.From(model);
+
+        Assert.Null(presentation.SecondaryTitleText);
+        Assert.Equal(model.Description, presentation.HeroCopy);
+    }
+
     public static IEnumerable<object[]> DescriptionLikeSecondaryTitleCases()
     {
         foreach (var entityType in Enum.GetValues<DetailEntityType>())

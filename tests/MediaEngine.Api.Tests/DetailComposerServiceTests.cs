@@ -1667,6 +1667,111 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("CreateConnection", facadeSource, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SecondaryTitleText_TvEpisodeWithShortDescriptionGetsNoLine()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short episode synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvEpisode, values, null, null, "A long episode synopsis.");
+
+        Assert.Null(text);
+        Assert.Null(kind);
+        Assert.False(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_TvShowWithATaglineShowsItAsATagline()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short series synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvShow, values, " Winter is coming. ", null, "A long series synopsis.");
+
+        Assert.Equal("Winter is coming.", text);
+        Assert.Equal("tagline", kind);
+        Assert.False(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_TvShowWithoutATaglineFallsBackToTheShortDescription()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short series synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvShow, values, null, null, "A short series synopsis. And a good deal more.");
+
+        Assert.Equal("A short series synopsis.", text);
+        Assert.Equal(MetadataFieldConstants.ShortDescription, kind);
+        Assert.True(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_MusicAlbumGetsNoLineEvenWithADescription()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short album note."));
+
+        var (text, kind, _) = ResolveSecondaryTitle(DetailEntityType.MusicAlbum, values, null, null, "A long album note.");
+
+        Assert.Null(text);
+        Assert.Null(kind);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_MovieKeepsItsTaglineAndItsDescriptionFallback()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short film synopsis."));
+
+        var withTagline = ResolveSecondaryTitle(DetailEntityType.Movie, values, "The truth is closer.", null, "A long film synopsis.");
+        var withoutTagline = ResolveSecondaryTitle(DetailEntityType.Movie, values, null, null, "A long film synopsis.");
+
+        Assert.Equal(("The truth is closer.", "tagline"), (withTagline.Text, withTagline.Kind));
+        Assert.Equal(("A short film synopsis.", MetadataFieldConstants.ShortDescription), (withoutTagline.Text, withoutTagline.Kind));
+    }
+
+    [Fact]
+    public void SecondaryTitleText_BookKeepsItsSubtitleAndIgnoresTaglines()
+    {
+        var values = Values();
+
+        var (text, kind, _) = ResolveSecondaryTitle(DetailEntityType.Book, values, "Not a book line.", "A Novel of the Sea", null);
+
+        Assert.Equal("A Novel of the Sea", text);
+        Assert.Equal("subtitle", kind);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_IsOnlyComposedForTvShowsOnCollectionPages()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "MediaEngine.Api", "Services", "Details", "Internals",
+            "DetailCompositionOrchestrator.Collections.cs"));
+
+        Assert.Contains("var secondaryTitle = entityType == DetailEntityType.TvShow", source, StringComparison.Ordinal);
+        Assert.Contains("ResolveSecondaryTitleText(", source, StringComparison.Ordinal);
+        Assert.Equal(1, source.Split("ResolveSecondaryTitleText(").Length - 1);
+    }
+
+    private static Dictionary<string, string> Values(params (string Key, string Value)[] pairs)
+        => pairs.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+    private static (string? Text, string? Kind, bool HasMore) ResolveSecondaryTitle(
+        DetailEntityType entityType,
+        IReadOnlyDictionary<string, string> values,
+        string? explicitTagline,
+        string? explicitSubtitle,
+        string? longDescription)
+    {
+        var method = DetailComposerImplementationType.GetMethod(
+            "ResolveSecondaryTitleText",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        var selection = method!.Invoke(null, [entityType, values, explicitTagline, explicitSubtitle, longDescription]);
+        Assert.NotNull(selection);
+        var type = selection!.GetType();
+        return (
+            (string?)type.GetProperty("Text")!.GetValue(selection),
+            (string?)type.GetProperty("Kind")!.GetValue(selection),
+            (bool)type.GetProperty("HasMore")!.GetValue(selection)!);
+    }
+
     private static string? InvokePrivateString(string methodName, params object?[] args)
     {
         var method = DetailComposerImplementationType.GetMethod(

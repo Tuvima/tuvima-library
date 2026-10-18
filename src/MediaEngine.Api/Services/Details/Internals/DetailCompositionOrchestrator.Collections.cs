@@ -452,6 +452,16 @@ internal sealed partial class DetailCompositionOrchestrator
                       || (isAdminView
                           && string.Equals(row.CollectionType, CollectionTypeNames.Custom, StringComparison.OrdinalIgnoreCase));
 
+        // Only TV shows carry the line under the title; series, albums and collections keep none (D20).
+        var secondaryTitle = entityType == DetailEntityType.TvShow
+            ? ResolveSecondaryTitleText(
+                entityType,
+                values,
+                StringHelpers.FirstNonBlank(ResolveDisplayOverride(displayOverrides, "tagline"), GetValue(values, MetadataFieldConstants.Tagline)),
+                null,
+                longDescription)
+            : null;
+
         return new DetailPageViewModel
         {
             Id = collectionId.ToString("D"),
@@ -475,6 +485,9 @@ internal sealed partial class DetailCompositionOrchestrator
             Tagline = entityType == DetailEntityType.TvShow
                 ? tvInProgressEpisode?.Description ?? heroSummary
                 : heroSummary,
+            SecondaryTitleText = secondaryTitle?.Text,
+            SecondaryTitleTextKind = secondaryTitle?.Kind,
+            SecondaryTitleTextHasMore = secondaryTitle?.HasMore ?? false,
             UsesEpisodeArtwork = tvInProgressEpisode is not null,
             Description = longDescription,
             DescriptionAttribution = displayDescription is not null ? BuildLocalDescriptionAttribution() : entityType == DetailEntityType.TvShow
