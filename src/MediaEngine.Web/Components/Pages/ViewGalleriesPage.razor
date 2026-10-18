@@ -10,7 +10,7 @@
 <ViewSectionShell>
     <ViewContentPage Title="Galleries" Subtitle="Organize personal photos and videos without changing their source files.">
         <HeaderActions>
-            @if (!DeviceContext.IsPhone)
+            @if (DeviceContext.CanEdit)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" /> Smart Gallery</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /> New Gallery</AppButton>

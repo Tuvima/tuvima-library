@@ -1,4 +1,5 @@
 ﻿@namespace MediaEngine.Web.Components.Details
+@implements IDisposable
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
@@ -18,6 +19,15 @@
                                       Layout="MediaArtworkGroupPreviewLayout.Cluster"
                                       ShowOverflowCount="false"
                                       AriaLabel="@($"{Model.Title} representative artwork")" />
+        </div>
+    }
+
+    @if (Model.EntityType != DetailEntityType.Person)
+    {
+        @* Editing Mode controls: Edit / Done, Manage Artwork, Match and Identity, More, and the hero art buttons. *@
+        <div class="tl-editing-hero-controls">
+            <EditingModeBar Mode="Editing" MoreActions="EditingMoreActions" OnActionSelected="OnActionSelected" />
+            <EditingHeroArtworkButtons />
         </div>
     }
 
@@ -96,6 +106,7 @@
     else
     {
         <DetailHeroContent AllowAiSummary="@(Model.EntityType is not (DetailEntityType.TvEpisode or DetailEntityType.TvShow or DetailEntityType.TvSeason))" Title="@Presentation.Title"
+                           Class="@EditingClass"
                            UseLogo="@Presentation.UseLogo"
                            LogoUrl="@Presentation.LogoUrl"
                            Subtitle="@Presentation.Subtitle"
@@ -103,6 +114,9 @@
                            Synopsis="@Presentation.HeroCopy"
                            SynopsisHeading="@WatchEpisodeHeading"
                            SynopsisClass="@HeroSummaryClass">
+            <TitleTrailingContent>
+                <EditableFieldPencil Heading="true" ExpectedText="@Presentation.Title" Owner="hero" />
+            </TitleTrailingContent>
             <IdentityBeforeTitle>
                 @if (!(Presentation.IsWatchHero && HasHeroBrand) && !string.IsNullOrWhiteSpace(Presentation.Eyebrow))
                 {
@@ -176,6 +190,7 @@
                        @onclick="OpenOverviewAsync"
                        @onclick:preventDefault="true">(more in overview)</a>
                 }
+                <EditableFieldPencil Keys="@HeroCopyKeys" Owner="hero" />
             </SynopsisTrailingContent>
         </DetailHeroContent>
     }
@@ -186,6 +201,53 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public EventCallback<string> OnTabRequested { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
+
+    [CascadingParameter] private EditingModeContext? Editing { get; set; }
+
+    private EditingModeContext? _subscribedEditing;
+
+    // While Editing Mode is on the hero gives up its reserved headroom so open field editors still fit inside it.
+    private string EditingClass => Editing is { IsOn: true } ? "tl-detail-hero__inner--editing" : string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribedEditing, Editing))
+        {
+            return;
+        }
+
+        if (_subscribedEditing is not null)
+        {
+            _subscribedEditing.Changed -= OnEditingChanged;
+        }
+
+        _subscribedEditing = Editing;
+        if (_subscribedEditing is not null)
+        {
+            _subscribedEditing.Changed += OnEditingChanged;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribedEditing is not null)
+        {
+            _subscribedEditing.Changed -= OnEditingChanged;
+        }
+    }
+
+    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>The hero copy is the tagline when the item has one, otherwise the description.</summary>
+    private string[] HeroCopyKeys => !string.IsNullOrWhiteSpace(Model.Tagline)
+        ? ["tagline"]
+        : ["description", "episode_description", "issue_description"];
+
+    /// <summary>Editing Mode's own More list: the hero's shared list without Edit, which the Done button replaces.</summary>
+    private IReadOnlyList<DetailAction> EditingMoreActions => HeroActionRow
+        .OverflowMenu(Model.PrimaryActions, Model.OverflowActions)
+        .Where(action => action.Key is not ("edit" or "edit-media"))
+        .ToList();
 
     private DetailHeroPresentation Presentation => DetailHeroPresentation.From(Model);
     private string? SeriesContextLabel => BuildSeriesContextLabel(Model.EntityType, Model.SequencePlacement);

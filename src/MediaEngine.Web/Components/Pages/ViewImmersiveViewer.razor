@@ -110,8 +110,8 @@
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
     [Parameter] public EventCallback<LocalAssetDto> OnItemUpdated { get; set; }
     [Parameter] public bool CanEdit { get; set; }
-    // Phones are consumption devices: photo metadata editing stays on tablets and computers.
-    private bool CanEditHere => CanEdit && !DeviceContext.IsPhone;
+    // Editing is desktop-only (EditorDeviceRule): phones and tablets only view photo details.
+    private bool CanEditHere => CanEdit && DeviceContext.CanEdit;
     [Parameter] public bool CanManage { get; set; }
     private Guid _editingItemId; private string? _description, _locationName, _locationCity, _locationRegion, _locationCountry, _latitude, _longitude, _capturedAt, _personToAdd; private bool _saving, _showMotion, _editingDescription, _editingDate, _editingLocation; private ViewPlaceDto? _selectedPlace; private List<string> _people = []; private List<string> _tagValues = [];
     private string Title => string.IsNullOrWhiteSpace(Item.Title) ? Item.FileName : Item.Title;

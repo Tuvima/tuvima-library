@@ -56,7 +56,7 @@ Formats of the same title (ebook + audiobook) are variants of one Work, not a co
 4. **Private by default.** Everything stays on the person's machine; profiles can't see each other's private spaces; outside requests only for providers the person enabled.
 5. **One way to do each thing.** Shared components and patterns across every surface; a new screen reuses existing building blocks.
 6. **Every state is designed.** Empty, loading, error and "still processing" states are part of the feature, not afterthoughts.
-7. **Works on every screen.** Phone, tablet, desktop and TV are all first-class; phones favour browsing and playing over editing.
+7. **Works on every screen.** Phone, tablet, desktop and TV are all first-class; editing is desktop-only (a mouse or trackpad), so phones, tablets and TVs are for browsing and playing.
 8. **Calm and cinematic.** Dark, artwork-led, restrained motion; the media is the star (see the [design system](../design/design-system.md)).
 
 ## Current status (October 2026)

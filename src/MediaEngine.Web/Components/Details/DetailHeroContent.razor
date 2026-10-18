@@ -14,6 +14,11 @@
                 <h1>@Title</h1>
             }
 
+            @if (TitleTrailingContent is not null)
+            {
+                <div class="tl-detail-hero__edit-slot">@TitleTrailingContent</div>
+            }
+
             @if (!string.IsNullOrWhiteSpace(SecondaryTitleText))
             {
                 <div class="tl-detail-hero__secondary-title-text">
@@ -65,6 +70,8 @@
     [Parameter] public string SynopsisClass { get; set; } = "tl-detail-hero__tagline tl-detail-hero__tagline--ai";
     [Parameter] public string Class { get; set; } = string.Empty;
     [Parameter] public string CopyClass { get; set; } = string.Empty;
+    /// <summary>Editing Mode only: the pencil for the title, under the title or logo.</summary>
+    [Parameter] public RenderFragment? TitleTrailingContent { get; set; }
     [Parameter] public RenderFragment? IdentityBeforeTitle { get; set; }
     [Parameter] public RenderFragment? IdentityAfterTitle { get; set; }
     [Parameter] public RenderFragment? SecondaryTitleTrailingContent { get; set; }

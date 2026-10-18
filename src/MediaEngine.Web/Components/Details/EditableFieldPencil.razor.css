@@ -1,0 +1,57 @@
+/* The small pencil (or lock) beside an editable field, and the inline editor it opens. */
+
+.tl-editing-pencil {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-1);
+    vertical-align: middle;
+}
+
+.tl-editing-pencil__saved {
+    color: var(--tl-status-success);
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-editing-lock {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-text-muted);
+    vertical-align: middle;
+}
+
+.tl-editing-lock:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.tl-editing-field,
+.tl-editing-field__error {
+    width: min(100%, 34rem);
+}
+
+.tl-editing-field {
+    margin-block: var(--tl-space-2);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    background: color-mix(in srgb, var(--tl-bg-shell) 86%, transparent);
+    color: var(--tl-text-primary);
+    text-align: left;
+}
+
+.tl-editing-field__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--tl-space-2);
+}
+
+.tl-editing-field__error {
+    margin: 0 0 var(--tl-space-2);
+    color: var(--tl-status-danger);
+    font-size: var(--tl-font-size-sm);
+}

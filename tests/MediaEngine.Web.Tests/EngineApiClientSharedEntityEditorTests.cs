@@ -5,13 +5,23 @@ using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 
 public sealed class EngineApiClientSharedEntityEditorTests
 {
+    // Editing is desktop-only, so a launcher without a qualifying device refuses before it does anything else.
+    private static DeviceContextService DesktopWithAMouse()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)).GetAwaiter().GetResult();
+        return device;
+    }
+
     [Fact]
     public async Task SharedEntityContext_RecordsHttpNotFoundFailureSemantics()
     {
@@ -104,7 +114,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     {
         var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy);
+        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
 
         var opened = await launcher.OpenAsync(new MediaEditorLaunchRequest
         {
@@ -129,7 +139,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     {
         var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy);
+        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
         var mediaId = Guid.Parse("22222222-3333-4444-5555-666666666666");
         var sharedTarget = new SharedEntityEditorTargetDto(SharedEntityEditorTargetKinds.Universe, "Q42", null, "Q42");
         var request = new MediaEditorLaunchRequest
@@ -157,7 +167,7 @@ public sealed class EngineApiClientSharedEntityEditorTests
     {
         var dialogProxy = DispatchProxy.Create<IAppDialogService, DialogServiceProxy>();
         var dialogState = (DialogServiceProxy)(object)dialogProxy;
-        var launcher = new MediaEditorLauncherService(dialogProxy);
+        var launcher = new MediaEditorLauncherService(dialogProxy, null, DesktopWithAMouse(), null);
         var targets = new List<Guid> { Guid.NewGuid(), Guid.NewGuid() };
 
         Assert.False(await launcher.OpenAsync(new MediaEditorLaunchRequest

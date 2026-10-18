@@ -1,12 +1,14 @@
 using System.Security.Claims;
 using Bunit;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +46,29 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
                 _pending[id] = source;
                 return source.Task;
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), args => Task.FromResult<MediaEditorContextDto?>(new MediaEditorContextDto
+            {
+                LaunchEntityId = (Guid)args![0]!,
+                MediaType = "Audiobooks",
+                InitialScope = "audiobook",
+                Scopes =
+                [
+                    new MediaEditorScopeDto
+                    {
+                        ScopeId = "audiobook",
+                        Label = "Audiobook",
+                        FieldEntityId = (Guid)args[0]!,
+                        CanEditFields = true,
+                        CanEditArtwork = true,
+                        ArtworkSlots = ["CoverArt"],
+                        FieldSnapshot = new MediaEditorScopeFieldSnapshotDto
+                        {
+                            CanonicalFields = [new MediaEditorScopedFieldValueDto { Key = "title", Value = "First album", ProviderName = "apple_api" }],
+                            AllowedOverrideKeys = ["title"],
+                        },
+                    },
+                ],
+            }));
         }));
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UniverseStateContainer>();
@@ -162,6 +187,117 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         cut.WaitForState(() => _pending.ContainsKey(id));
 
         Assert.Empty(cut.FindAll(".tl-detail-skeleton [style]"));
+    }
+
+    // -- Editing Mode on a loaded page ---------------------------------------------------------
+
+    private async Task UseDesktopWithAMouseAsync()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        Services.AddSingleton(device);
+    }
+
+    private static DetailPageViewModel EditableModel(Guid id, string title, bool allowEdit = true) => new()
+    {
+        Id = id.ToString("D"),
+        EntityType = DetailEntityType.Work,
+        Title = title,
+        Facts = new DetailFactsViewModel { MediaKind = "Audiobook" },
+        Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
+        OverflowActions = allowEdit ? [new DetailAction { Key = "edit", Label = "Edit details", Icon = "edit" }] : [],
+    };
+
+    [Fact]
+    public async Task ALoadedPageNeverStartsInEditingModeAndOnlyShowsEditToAnEditor()
+    {
+        await UseDesktopWithAMouseAsync();
+        var id = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(id)));
+        cut.WaitForState(() => _pending.ContainsKey(id));
+
+        _pending[id].SetResult(EditableModel(id, "First album"));
+
+        cut.WaitForAssertion(() => Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Empty(cut.FindAll(".tl-editing-pencil"));
+        Assert.Empty(cut.FindAll(".tl-editing-drawer"));
+    }
+
+    [Fact]
+    public async Task APageWithoutTheEditActionShowsNoEditingControlAtAll()
+    {
+        await UseDesktopWithAMouseAsync();
+        var id = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(id)));
+        cut.WaitForState(() => _pending.ContainsKey(id));
+
+        _pending[id].SetResult(EditableModel(id, "First album", allowEdit: false));
+
+        cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
+        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+    }
+
+    [Fact]
+    public async Task EditingModeEndsWhenTheNextItemOpens()
+    {
+        await UseDesktopWithAMouseAsync();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(first)));
+        cut.WaitForState(() => _pending.ContainsKey(first));
+        _pending[first].SetResult(EditableModel(first, "First album"));
+        cut.WaitForAssertion(() => Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+
+        cut.Find("button.tl-editing-toggle").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+
+        cut.Render(p => p.Add(c => c.Request, Request(second)));
+        cut.WaitForState(() => _pending.ContainsKey(second));
+        _pending[second].SetResult(EditableModel(second, "Second album"));
+
+        cut.WaitForAssertion(() => Assert.Contains("Second album", cut.Markup));
+        Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+    }
+
+    [Fact]
+    public async Task TheMoreEntryThatOpenedTheModalNowTogglesEditingMode()
+    {
+        await UseDesktopWithAMouseAsync();
+        var id = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(id)));
+        cut.WaitForState(() => _pending.ContainsKey(id));
+        _pending[id].SetResult(EditableModel(id, "First album"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
+
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        await cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit details")).ClickAsync(new());
+
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Empty(cut.FindAll(".sme-dialog"));
+    }
+
+    [Fact]
+    public async Task APageOnATabletOffersNoEditingControlsEvenWithPermission()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true));
+        Services.AddSingleton(device);
+        var id = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(id)));
+        cut.WaitForState(() => _pending.ContainsKey(id));
+
+        _pending[id].SetResult(EditableModel(id, "First album"));
+
+        cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
+        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+        Assert.DoesNotContain("Edit details", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Edit on a computer", cut.Markup, StringComparison.Ordinal);
     }
 
     private static DetailRouteRequest Request(Guid id) => DetailRouteRequest.ForUnified("musicalbum", id, null);

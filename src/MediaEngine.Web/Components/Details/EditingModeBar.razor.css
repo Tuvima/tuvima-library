@@ -1,0 +1,42 @@
+/* Editing Mode controls on the hero: Edit / Done, Manage Artwork, Match and Identity, More, and the unsaved-input question. */
+
+.tl-editing-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    background: color-mix(in srgb, var(--tl-bg-shell) 78%, transparent);
+    backdrop-filter: blur(0.75rem);
+    box-shadow: var(--tl-shadow-md);
+}
+
+.tl-editing-decision {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2) var(--tl-space-3);
+    max-width: 34rem;
+    margin-top: var(--tl-space-2);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-status-warning-border);
+    border-radius: var(--tl-radius-lg);
+    background: color-mix(in srgb, var(--tl-bg-surface-elevated) 92%, transparent);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-lg);
+}
+
+.tl-editing-decision__copy {
+    display: grid;
+    flex: 1 1 14rem;
+    gap: 0.15rem;
+}
+
+.tl-editing-decision__copy span {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}

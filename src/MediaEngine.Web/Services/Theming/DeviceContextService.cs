@@ -6,9 +6,17 @@ namespace MediaEngine.Web.Services.Theming;
 /// <summary>
 /// What the browser reports about the device: the Engine settings key
 /// (<c>mobile</c>, <c>web</c>, <c>television</c>), the form factor
-/// (<c>phone</c>, <c>tablet</c>, <c>desktop</c>, <c>tv</c>) and whether the primary input is touch.
+/// (<c>phone</c>, <c>tablet</c>, <c>desktop</c>, <c>tv</c>), whether the primary input is touch,
+/// and the two pointer signals the editing rule needs: whether the primary pointer is fine
+/// (<c>pointer: fine</c>) and whether it can hover (<c>hover: hover</c>). A browser that does not report
+/// the pointer signals is treated as having neither, so it can never edit.
 /// </summary>
-public sealed record DeviceContextSnapshot(string DeviceClass, string FormFactor, bool Touch);
+public sealed record DeviceContextSnapshot(
+    string DeviceClass,
+    string FormFactor,
+    bool Touch,
+    bool FinePointer = false,
+    bool Hover = false);
 
 /// <summary>
 /// Per-circuit (scoped) service that holds the active device class and the
@@ -45,11 +53,23 @@ public sealed class DeviceContextService
     /// <summary>The active device class for this circuit (web, mobile, television).</summary>
     public string DeviceClass { get; private set; } = "web";
 
-    /// <summary>The form factor for this circuit: phone, tablet, desktop or tv.</summary>
+    /// <summary>The form factor for this circuit: phone, tablet, desktop, tv, or unknown for a value the Dashboard does not recognise.</summary>
     public string FormFactor { get; private set; } = "desktop";
 
     /// <summary>Whether the primary input is touch (hover: none or pointer: coarse).</summary>
     public bool IsTouch { get; private set; }
+
+    /// <summary>Whether the primary pointer is fine, such as a mouse or trackpad (<c>pointer: fine</c>).</summary>
+    public bool HasFinePointer { get; private set; }
+
+    /// <summary>Whether the primary pointer can hover (<c>hover: hover</c>).</summary>
+    public bool CanHover { get; private set; }
+
+    /// <summary>
+    /// Whether this device may edit library items: desktop form factor with a fine, hover-capable primary pointer.
+    /// The one rule is <see cref="MediaEngine.Web.Services.Editing.EditorDeviceRule"/>; this is a shorthand for it.
+    /// </summary>
+    public bool CanEdit => Editing.EditorDeviceRule.CanEdit(this);
 
     /// <summary>
     /// The fully-resolved UI settings for the current device class and profile.
@@ -118,14 +138,30 @@ public sealed class DeviceContextService
     private bool ApplyFormFactor(DeviceContextSnapshot snapshot)
     {
         var formFactor = NormalizeFormFactor(snapshot.FormFactor, snapshot.DeviceClass);
-        var changed = !string.Equals(FormFactor, formFactor, StringComparison.Ordinal) || IsTouch != snapshot.Touch;
+        var changed = !string.Equals(FormFactor, formFactor, StringComparison.Ordinal)
+            || IsTouch != snapshot.Touch
+            || HasFinePointer != snapshot.FinePointer
+            || CanHover != snapshot.Hover;
         FormFactor = formFactor;
         IsTouch = snapshot.Touch;
+        HasFinePointer = snapshot.FinePointer;
+        CanHover = snapshot.Hover;
         return changed;
     }
 
     private static string NormalizeFormFactor(string? formFactor, string? deviceClass)
     {
+        // A form factor the Dashboard does not know (for example a native shell reporting its own name) stays
+        // "unknown" instead of being guessed as a desktop, so the editing allow-list can refuse it.
+        if (!string.IsNullOrWhiteSpace(formFactor)
+            && !string.Equals(formFactor, "phone", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(formFactor, "tablet", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(formFactor, "tv", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(formFactor, "desktop", StringComparison.OrdinalIgnoreCase))
+        {
+            return "unknown";
+        }
+
         if (string.Equals(formFactor, "phone", StringComparison.OrdinalIgnoreCase))
         {
             return "phone";

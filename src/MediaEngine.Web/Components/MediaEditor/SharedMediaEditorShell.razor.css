@@ -182,8 +182,9 @@
 }
 
 ::deep .sme-section-nav__item {
+    flex: var(--sme-nav-flex, 0 1 auto);
     width: 100%;
-    min-height: 46px;
+    min-height: var(--sme-nav-min-height, 46px);
     justify-content: flex-start;
     border-radius: 10px;
     text-transform: none;
@@ -192,10 +193,12 @@
 
 ::deep .sme-section-nav__item .tl-button-label {
     display: flex;
+    flex-direction: var(--sme-nav-direction, row);
     align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
+    justify-content: var(--sme-nav-justify, flex-start);
+    gap: var(--sme-nav-gap, 12px);
     width: 100%;
+    text-align: var(--sme-nav-text-align, start);
 }
 
 ::deep .sme-section-nav__item:hover,
@@ -1949,3 +1952,36 @@
 }
 
 .sme-movie-tv-suggestion { margin-bottom: 1rem; }
+
+/* Editing Mode drawer: the same shell in a narrow column. A tab strip replaces the section rail; the drawer owns the header. */
+.sme-shell.sme-shell--drawer {
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    background: var(--tl-bg-surface);
+}
+
+.sme-shell--drawer .sme-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.sme-shell--drawer .sme-section-nav {
+    --sme-nav-flex: 1 1 0;
+    --sme-nav-min-height: 3.5rem;
+    --sme-nav-direction: column;
+    --sme-nav-justify: center;
+    --sme-nav-gap: 0.15rem;
+    --sme-nav-text-align: center;
+    flex-direction: row;
+    gap: var(--tl-space-1);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--tl-divider);
+}
+
+.sme-shell--drawer .sme-body,
+.sme-shell--drawer .sme-footer {
+    padding: var(--tl-space-3) var(--tl-space-4);
+}

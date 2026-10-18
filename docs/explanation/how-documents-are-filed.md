@@ -26,7 +26,7 @@ Each Inbox card shows the thumbnail, the title, the date found in the document, 
 - **Tap a chip** to change it first: pick another name, clear it, or switch a suggested tag off.
 - **File without changes** only marks the document as filed.
 
-You can file from a phone. Editing everything about a document, and editing rules, happens on a computer or tablet.
+You can file from a phone. Editing everything about a document, and editing rules, happens on a computer with a mouse or trackpad.
 
 ## Suggestions
 
@@ -40,7 +40,7 @@ Suggestions are shown, never applied silently. They only draw on documents in th
 
 ## Auto-filing rules
 
-A rule says "when a document looks like this, do that". Make them from the **Auto-filing rules** button on the Documents page (on a computer or tablet; a phone can see them but not change them). Administrators find the same list in Settings, Libraries, View.
+A rule says "when a document looks like this, do that". Make them from the **Auto-filing rules** button on the Documents page (on a computer with a mouse or trackpad; a phone or tablet can see them but not change them). Administrators find the same list in Settings, Libraries, View.
 
 - **Conditions:** the words contain a word or phrase, the file name contains text, the folder path contains text, the document came from a chosen View source, or the file is a PDF, image or Office document. Matching ignores letter case. There are no patterns or wildcards. Choose whether **all** or **any** of the conditions must hold.
 - **Actions:** add tags, set the correspondent, set the document type, set a custom field's value, and optionally **file automatically**.

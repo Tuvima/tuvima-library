@@ -410,3 +410,19 @@
     color: #fff !important;
     box-shadow: var(--tl-shadow-focus) !important;
 }
+
+/* Editing Mode: the Edit / Done controls float at the top right of the hero, above the hero content. */
+.tl-editing-hero-controls {
+    position: absolute;
+    /* The detail hero runs full-bleed behind the fixed top bar, so the controls start below it. */
+    top: calc(var(--app-topbar-height, 65px) + var(--tl-space-3));
+    right: clamp(1rem, 3vw, 2.5rem);
+    z-index: 7;
+    display: grid;
+    justify-items: end;
+    gap: var(--tl-space-2);
+}
+
+.tl-editing-hero-controls:empty {
+    display: none;
+}

@@ -47,7 +47,7 @@
                 @if (IsOwner)
                 {
                     <div class="view-feature-page__actions" role="group" aria-label="Gallery management">
-                        @if (_gallery.Kind == ViewGalleryKind.Smart && !DeviceContext.IsPhone)
+                        @if (_gallery.Kind == ViewGalleryKind.Smart && DeviceContext.CanEdit)
                         {
                             <AppButton Label="Edit Gallery" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenEdit" />
                         }

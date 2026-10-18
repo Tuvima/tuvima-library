@@ -20,24 +20,27 @@ How Tuvima lets users correct media from the surface where they find the issue.
 ## Where this lives in the code
 
 - `src/MediaEngine.Web/Services/Editing/MediaEditorLauncherService.cs`
+- `src/MediaEngine.Web/Services/Editing/EditorDeviceRule.cs`
+- `src/MediaEngine.Web/Services/Editing/EditingModeContext.cs`
+- `src/MediaEngine.Web/Components/Details/EditingDrawer.razor`
 - `src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor`
 - `src/MediaEngine.Api/Endpoints/MetadataEndpoints.cs`
 
-Tuvima no longer uses a separate media management workbench. Users browse through Home, Read, Watch, Listen, Search, and detail pages. When a media item needs correction, the edit action appears on that same surface and opens the shared media editor.
+Tuvima no longer uses a separate media management workbench. Users browse through Home, Read, Watch, Listen, Search, and detail pages. When a media item needs correction, the edit action appears on that same surface: on a single item's detail page it turns on Editing Mode, elsewhere it opens the shared media editor in a dialog.
 
 ## Product model
 
-- Normal detail-page correction opens `SharedMediaEditorShell` in a modal through `MediaEditorLauncherService.OpenAsync`; the current detail page and URL remain underneath it.
-- Review and batch correction use the same editor shell in a dialog because they originate outside a single detail-page context.
+- Normal single-item correction happens in **Editing Mode** on the detail page: the hero Edit / Done toggle adds per-field pencils and a right-hand drawer (`EditingDrawer`) that hosts the same `SharedMediaEditorShell` sections beside the unchanged detail page and URL. See [Editing Mode](#editing-mode).
+- Review, browse-row and Recently Added correction, and the people, series-shelf and curated-collection editors, open the same editor shell in a dialog through `MediaEditorLauncherService.OpenAsync` because they originate outside a single item's detail page.
 - Review Queue is only for blocked, uncertain, or low-confidence items that need human confirmation.
 - Settings/Admin is for folders, providers, profiles, ingestion status, system health, logs, and configuration.
 - No current feature should route users to a separate media library workspace.
 
 ## Shared editor
 
-**Phone rule.** `MediaEditorLauncherService`, `CollectionEditorLauncherService` and `GalleryEditorLauncherService` check `DeviceContextService.IsPhone` before anything else (before the administrator unlock). On a phone `TryOpenAsync` returns `EditorLaunchResult.NotAvailableOnPhone`, shows the toast "Edit on a computer or tablet" and opens no dialog; `OpenAsync` keeps its boolean contract (true only when a change was applied). Entry points are also hidden on phones, so the refusal is a safety net for deep links and query-string launches. Tablets and desktops open the same shell as before.
+**Desktop-only rule.** `EditorDeviceRule.CanEdit` is the one device rule: the form factor is desktop AND the primary pointer is fine and can hover (`DeviceContextService.CanEdit`, fed by the same four signals the browser snapshot reports). `MediaEditorLauncherService`, `CollectionEditorLauncherService` and `GalleryEditorLauncherService` check it before anything else (before the administrator unlock). Where it is false `TryOpenAsync` returns `EditorLaunchResult.NotAvailableOnThisDevice`, shows the toast "Edit on a computer" and opens no dialog; `OpenAsync` keeps its boolean contract (true only when a change was applied). A missing device context also refuses. Entry points are hidden off the desktop too, so the refusal is a safety net for deep links and query-string launches. Phone, tablet, TV, a native shell, an unknown form factor and an undetectable pointer cannot edit in the Dashboard. This is a Dashboard rule: the Engine never receives the device, its permission check (the Edit action it offers and the authorization on each save) still decides who may edit, and the Engine does not block coarse-pointer or touch devices.
 
-All media editing should launch through `MediaEditorLauncherService.OpenAsync` and render `SharedMediaEditorShell`. Detail pages, Review, and Batch use the same modal shell; Review supplies its review context and Batch is limited to a real selection. `MediaEditorSurface` supplies the common shell without duplicating editor state or persistence logic.
+All media editing renders `SharedMediaEditorShell`: through `MediaEditorLauncherService.OpenAsync` as a dialog for Review, Batch and the callers listed above, and inside the Editing Mode drawer on a single item's detail page. Review supplies its review context and Batch is limited to a real selection. `MediaEditorSurface` supplies the common shell without duplicating editor state or persistence logic.
 
 The launch request should include the current context:
 
@@ -74,9 +77,23 @@ TV shows, seasons, music albums, and other structural containers use the media C
 
 Canonical presentation overrides are limited to `title`, `description`, `tagline`, `sort_title`, and `genre`. The Engine atomically saves those durable work-level overrides together with profile-owned notes and tags using an optimistic revision. A stale revision returns `409 Conflict`; the editor stays open, preserves the user's input, and offers an explicit reload action.
 
+## Editing Mode
+
+Editing Mode is the detail page's in-page editor. It is a state of the page, not a new management area, and it does not add a route.
+
+- **Toggle.** `EditingModeToggle` (inside `EditingModeBar` on the hero) shows **Edit** when off and **Done** when on. It renders only when `EditingModeContext.CanEdit` is true: the Engine offered the Edit action (edit permission, so a Kids or other non-edit profile never sees it) and `EditorDeviceRule.CanEdit` is true. The state lives in `DetailPage` and ends on Done or when the page is left; a deep link never starts in Editing Mode. If the Edit action is disabled while ingestion runs, the button is disabled with the reason.
+- **Pencils.** `EditableFieldPencil` renders nothing unless the mode is on. It resolves its field from `ItemFieldEditSession`, which loads the same editor context the Details section uses and builds the same `MediaEditorDetailsPresenter` presentation, so "editable", "provider fact" and "inherited" mean what they mean in the editor. An editable field shows one pencil; a provider fact that cannot be changed here shows a lock with the reason; an inherited field is locked with the parent named. Pressing a pencil opens `EditorDetailsInlineField` (or `MediaEditorTagEditor` for genres and tags) in place. Enter or the check saves one field through `PUT /library/items/{id}/display-overrides` (or the profile preference layer when the value is already a profile override), Esc cancels, success shows "Saved" inline, and a failed save keeps the typed value with the error beside it. The hero title pencil only appears when the editor field shows the same text as the hero, so it never edits something else.
+- **Hero art.** `EditingHeroArtworkButtons` offers Edit Background, Edit Logo and Edit Cover for the slots the active scope can hold; each opens the drawer on Artwork for that slot.
+- **Top buttons.** Manage Artwork (drawer on Artwork), Match and Identity (drawer on the existing matching and rematch flow, with its preview and review gating) and More (the existing shared action list). The details More entry that used to open the modal now toggles Editing Mode.
+- **Drawer.** `EditingDrawer` is a right-hand panel of about 380px beside the unchanged page. It hosts `SharedMediaEditorShell` with `Drawer="true"`: the shell hides its own header and section rail and History, and shows a Details / Artwork / Match and Identity tab strip over the existing sections. It uses the shell's own save, discard and navigation-guard behaviour (`Closed`, `DirtyChanged` and `Committed` tell the page what happened). The drawer closes with X, Esc or Done; focus returns to the control that opened it; Esc closes an open field first and the drawer second.
+- **Dirty guard.** `EditingModeBar` registers a `NavigationLock` with a `MediaEditorNavigationGuard` for a field typed into on the page; the shell inside the drawer keeps its own lock. Leaving the page, Done or closing the drawer with unsaved input asks first (Keep editing, Discard, or Save and finish/leave). Opening the drawer is refused while a field is mid-edit, and fields refuse to open while the drawer has unsaved input, so only one source of unsaved input exists at a time.
+- **No undo.** There is no change journal and no undo: single-field edits save straight away and can be edited again, and History is read-only.
+- **Scope.** Series shelves, curated collections and people keep their own editor dialogs; every other single item uses Editing Mode, the same drawer for every media type.
+- **Device rule.** Everything above is guarded by `EditorDeviceRule.CanEdit` in the Dashboard's handlers as well as in the markup (the Engine does not see the device; its permission check still decides who may edit): `EditingModeContext.EnterAsync`, `OpenDrawer`, `ItemFieldEditSession.Begin` and `SaveAsync` each refuse when it is false, and the mode ends by itself when the device stops qualifying.
+
 ## After save
 
-After an edit is applied, the detail surface refreshes after the dialog closes with a successful result. The modal editor scrolls internally; Cancel returns to the unchanged detail. Save failures and structural confirmations keep the editor visible. Dirty target and route changes are guarded, focus enters the editor on open and returns to the Edit action on close, and editing never changes the detail URL or navigates to a management workspace.
+After an edit is applied, the detail surface refreshes after the dialog closes with a successful result (in Editing Mode it refreshes as soon as each field or drawer change is saved). The modal editor scrolls internally; Cancel returns to the unchanged detail. Save failures and structural confirmations keep the editor visible. Dirty target and route changes are guarded, focus enters the editor on open and returns to the Edit action on close, and editing never changes the detail URL or navigates to a management workspace.
 
 Applying a different retail match is a two-speed operation. The selected provider identity and its primary artwork are committed synchronously: stale provider-managed artwork is removed, the replacement cover is downloaded into managed storage, and the detail hero refreshes while the editor remains open. User-uploaded artwork remains available. Wikidata alignment and deeper enrichment are then queued and may finish in the background. The manual update and queued identity job must both be visible in application logs and item History.
 

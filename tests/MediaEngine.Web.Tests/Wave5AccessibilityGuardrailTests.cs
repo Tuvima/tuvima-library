@@ -34,6 +34,44 @@ public sealed class Wave5AccessibilityGuardrailTests
     }
 
     [Fact]
+    public void EditingMode_ReusesTheEditorGuardsAndKeepsEveryControlKeyboardReachable()
+    {
+        var details = "src/MediaEngine.Web/Components/Details/";
+        var bar = Read(details + "EditingModeBar.razor");
+        var drawer = Read(details + "EditingDrawer.razor");
+        var pencil = Read(details + "EditableFieldPencil.razor");
+        var hero = Read(details + "EditingHeroArtworkButtons.razor");
+        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+
+        // One unsaved-input guard for the page (the editor's own lock and guard) and the shell's lock inside the drawer.
+        Assert.Contains("<NavigationLock", bar);
+        Assert.Contains("MediaEditorNavigationGuard", bar);
+        Assert.Contains("OnBeforeInternalNavigation", bar);
+        Assert.Contains("<NavigationLock", shell);
+        Assert.Contains("role=\"group\" aria-label=\"Editing\"", bar);
+        Assert.Contains("role=\"alert\"", bar);
+
+        // The drawer is a labelled region; Esc closes it and focus returns to the control that opened it.
+        Assert.Contains("aria-labelledby=\"tl-editing-drawer-title\"", drawer);
+        Assert.Contains("string.Equals(args.Key, \"Escape\", StringComparison.Ordinal)", drawer);
+        Assert.Contains("tuvimaFocusReturn.remember", drawer);
+        Assert.Contains("tuvimaFocusReturn.restore", drawer);
+        Assert.Contains("AriaLabel=\"Close editor drawer\"", drawer);
+
+        // Pencils are real buttons with names, locks are focusable with the reason, and results are announced.
+        Assert.Contains("AriaLabel=\"@($\"Edit {field.Label.ToLowerInvariant()}\")\"", pencil);
+        Assert.Contains("tabindex=\"0\" role=\"img\" aria-label=\"@($\"{field.Label} is locked. {why}\")\"", pencil);
+        Assert.Contains("role=\"alert\"", pencil);
+        Assert.Contains("role=\"status\"", pencil);
+        Assert.Contains("Escape", pencil);
+        Assert.Contains("role=\"group\" aria-label=\"Edit hero artwork\"", hero);
+
+        // Motion is optional and the drawer never traps a pointer-free user.
+        Assert.Contains("prefers-reduced-motion", Read(details + "EditingDrawer.razor.css"));
+        Assert.DoesNotContain("<AppFocusTrap", drawer);
+    }
+
+    [Fact]
     public void EditorFieldActions_ExposeTheirTooltipLabelsToAssistiveTechnology()
     {
         var source = Read("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor");

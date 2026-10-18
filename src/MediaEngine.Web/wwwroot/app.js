@@ -115,6 +115,24 @@ window.tuvimaEditorFocus = function (selector) {
     });
 };
 
+// Editing Mode drawer: remember the control that opened it and give focus back when it closes.
+window.tuvimaFocusReturn = (function () {
+    var opener = null;
+    return {
+        remember: function () {
+            var active = document.activeElement;
+            opener = active && active !== document.body ? active : null;
+        },
+        restore: function () {
+            var target = opener;
+            opener = null;
+            if (target && target.isConnected && typeof target.focus === 'function') {
+                window.requestAnimationFrame(function () { target.focus({ preventScroll: true }); });
+            }
+        }
+    };
+})();
+
 window.tuvimaEditorScrollTop = function () {
     window.requestAnimationFrame(function () {
         var pane = document.querySelector('.sme-body, .person-editor__main');
@@ -398,6 +416,7 @@ window.tuvimaResponsive = (function () {
     var breakpointMediaQuery = null;
     var breakpointMediaHandler = null;
     var viewportResizeObserver = null;
+    var pointerMediaQueries = [];
     var observerOwnerKey = null;
     var observerWantsSnapshot = false;
 
@@ -444,13 +463,23 @@ window.tuvimaResponsive = (function () {
         return !!window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches;
     }
 
+    // The editing rule needs the primary pointer exactly: fine (mouse, trackpad) and able to hover.
+    // A browser without matchMedia reports neither, which means "cannot edit".
+    function hasFinePointer() {
+        return !!window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+    }
+
+    function canHover() {
+        return !!window.matchMedia && window.matchMedia('(hover: hover)').matches;
+    }
+
     function deviceClassFor(formFactor) {
         return formFactor === 'phone' ? 'mobile' : formFactor === 'tv' ? 'television' : 'web';
     }
 
     function snapshot() {
         var formFactor = classifyFormFactor();
-        return { deviceClass: deviceClassFor(formFactor), formFactor: formFactor, touch: isTouch() };
+        return { deviceClass: deviceClassFor(formFactor), formFactor: formFactor, touch: isTouch(), finePointer: hasFinePointer(), hover: canHover() };
     }
 
     function applyAttributes(state) {
@@ -488,6 +517,17 @@ window.tuvimaResponsive = (function () {
             }
         }
 
+        // Plugging in or removing a mouse changes the primary pointer without any resize.
+        if (window.matchMedia) {
+            ['(pointer: fine)', '(hover: hover)'].forEach(function (query) {
+                var mediaQuery = window.matchMedia(query);
+                if (mediaQuery.addEventListener) {
+                    mediaQuery.addEventListener('change', onResize);
+                    pointerMediaQueries.push(mediaQuery);
+                }
+            });
+        }
+
         if (window.ResizeObserver && document.documentElement) {
             var owner = observer;
             viewportResizeObserver = new window.ResizeObserver(function () {
@@ -513,7 +553,7 @@ window.tuvimaResponsive = (function () {
         var state = snapshot();
         applyAttributes(state);
         var next = observerWantsSnapshot
-            ? state.deviceClass + '|' + state.formFactor + '|' + state.touch
+            ? state.deviceClass + '|' + state.formFactor + '|' + state.touch + '|' + state.finePointer + '|' + state.hover
             : state.deviceClass;
         if (next === pendingObservedClass
             || next === lastObservedClass && pendingObservedClass === null) return;
@@ -555,6 +595,10 @@ window.tuvimaResponsive = (function () {
                 breakpointMediaQuery.removeListener(breakpointMediaHandler);
             }
         }
+        pointerMediaQueries.forEach(function (mediaQuery) {
+            mediaQuery.removeEventListener('change', onResize);
+        });
+        pointerMediaQueries = [];
         if (viewportResizeObserver) {
             viewportResizeObserver.disconnect();
         }
@@ -590,7 +634,7 @@ window.detectDeviceClass = function () {
 
 /**
  * Returns the full responsive snapshot and stamps data-form-factor / data-touch on <html>.
- * @returns {{deviceClass: string, formFactor: string, touch: boolean}}
+ * @returns {{deviceClass: string, formFactor: string, touch: boolean, finePointer: boolean, hover: boolean}}
  */
 window.detectDeviceSnapshot = function () {
     return window.tuvimaResponsive.resolveDeviceSnapshot();

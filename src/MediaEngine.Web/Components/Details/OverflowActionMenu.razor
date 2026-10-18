@@ -6,7 +6,7 @@
 @implements IDisposable
 @inject DeviceContextService DeviceContext
 
-@if (DeviceContext.IsPhone ? PhoneActions.Count > 0 : Actions.Count > 0)
+@if (DeviceContext.IsPhone ? PhoneActions.Count > 0 : MenuActions.Count > 0)
 {
     @* Phones list the same actions in a bottom sheet instead of a popover; everything else keeps the popover. *@
     @if (DeviceContext.IsPhone)
@@ -47,7 +47,7 @@
                 else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
             </TriggerContent>
             <ChildContent>
-            <ManageActionsMenu Actions="Actions" OnActionSelected="OnActionSelected" />
+            <ManageActionsMenu Actions="MenuActions" OnActionSelected="OnActionSelected" />
             </ChildContent>
         </AppOverflowMenu>
     }
@@ -65,6 +65,13 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
     /// <summary>
+    /// Editing is desktop-only. Where the device cannot edit (tablet, TV, unknown) the edit actions simply
+    /// disappear, and a menu that held only edit actions disappears with them.
+    /// </summary>
+    private IReadOnlyList<DetailAction> MenuActions =>
+        DeviceContext.CanEdit ? Actions : Actions.Where(action => action.Key is not ("edit" or "edit-media")).ToList();
+
+    /// <summary>
     /// Phones are consumption devices: edit actions are replaced by one disabled note row.
     /// A menu that held only edit actions disappears instead of showing just the note.
     /// </summary>
@@ -78,13 +85,13 @@
                 return kept;
             }
 
-            kept.Add(new DetailAction { Key = EditUnavailableKey, Label = EditorPhoneRule.Message, Icon = "edit", IsDisabled = true });
+            kept.Add(new DetailAction { Key = EditUnavailableKey, Label = EditorDeviceRule.Message, Icon = "edit", IsDisabled = true });
             return kept;
         }
     }
 
     private string PopoverRootClass =>
-        $"tl-detail-overflow-popover {(Actions.Count == 1 ? "tl-detail-overflow-popover--compact" : null)}";
+        $"tl-detail-overflow-popover {(MenuActions.Count == 1 ? "tl-detail-overflow-popover--compact" : null)}";
 
     protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
 

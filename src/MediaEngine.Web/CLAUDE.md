@@ -20,7 +20,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Branding/` | `StreamingServiceLogoResolver.cs` | Streaming-service logos for display chips |
 | `Configuration/` | `DashboardConfigurationReader.cs`, `DashboardPaletteReloadService.cs` | Dashboard-side config read + palette hot-reload |
 | `MediaTiles/` | `MediaTileComposerService.cs`, `MediaTileArtworkResolver.cs` | Shared browse tile shelves and sized artwork for Home, Read, Watch, Listen, Collections |
-| `Editing/` | `MediaEditorLauncherService.cs`, `CollectionEditorLauncherService.cs`, `*Models.cs` | Editor open/close state and presentation models; wire DTOs remain in Contracts. Batch launches are refused today. |
+| `Editing/` | `MediaEditorLauncherService.cs`, `CollectionEditorLauncherService.cs`, `EditorDeviceRule.cs`, `EditingModeContext.cs`, `ItemFieldEditSession.cs`, `*Models.cs` | Editor open/close state and presentation models; `EditorDeviceRule` is the one desktop-only editing rule; `EditingModeContext` and `ItemFieldEditSession` hold a detail page's Editing Mode; wire DTOs remain in Contracts. Batch launches are refused today. |
 | `Integration/` | `EngineApiClient*.cs` + `IEngineApiClient.cs`, `UIOrchestratorService.cs`, `UniverseStateContainer.cs`, `UniverseMapper.cs`, `ProviderCatalogueService.cs`, `IntercomEvents.cs` | All HTTP + SignalR communication with the Engine and explicit mapping into Dashboard presentation state |
 | `Formatting/` | `DisplayFormat.cs` | Single home for UI duration/count/speed formatting |
 | `Narration/` | `PhraseTemplateService.cs` + interface | Narrated-copy phrase templates |
@@ -37,7 +37,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Browse/` | `MediaBrowseShell`, `BrowseQueryBuilder`, `BrowseState`, `BrowseArtworkRules` — browse shell for Read / Watch / Listen subroutes |
 | `Cinematic/` | `CinematicHeroCarousel`, `CinematicHeroSurface`, `SurfaceNavigationBar` |
 | `Collections/` | `CollectionsPage`, section configuration/layout, `PeopleCatalogList`, `CollectionEditorShell` |
-| `Details/` | Detail-page composition: `DetailPage`, `DetailHero*`, `DetailTabs`, tab panels (`OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `RelatedTab`, `UniverseTab`, …), `AudioItemTable`, music album pieces, credit cards, `HeroActionRow`, `OverflowActionMenu`. `RegistryTab` is scheduled for removal — see `engineering/specs/registry-retirement.md`. |
+| `Details/` | Detail-page composition: `DetailPage`, `DetailHero*`, `DetailTabs`, tab panels (`OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `RelatedTab`, `UniverseTab`, …), `AudioItemTable`, music album pieces, credit cards, `HeroActionRow`, `OverflowActionMenu`; Editing Mode: `EditingModeToggle`, `EditingModeBar`, `EditableFieldPencil`, `EditingHeroArtworkButtons`, `EditingLibraryFields`, `EditingDrawer`. `RegistryTab` is scheduled for removal — see `engineering/specs/registry-retirement.md`. |
 | `Layout/` | `MainLayout`, `ReconnectModal` |
 | `Library/` | Legacy-named shared helpers still used by browse/list surfaces (configurable tables, status pills). Do not add all-in-one management workflow components here. |
 | `LibraryItems/` | Small helpers used by Library + Universe surfaces |
