@@ -57,6 +57,8 @@ Answers to the WP1 report (Shy, 2026-10-17):
 - **D28. Person pages drop the separate "characters played" section;** role names stay on their credits.
 - **D29. "Copy library link" on the Home hero and the Listen page's own Related tab are removed too**, matching D11 and D12.
 - **D30. Series, collections, universes and people have no line under the title** (built in WP9; recorded in `docs/reference/secondary-title-text.md`).
+- **D31. The Details tab drops its "Identity" status line** (Shy, 2026-10-17); identity status lives in the editor's Match section for server administrators (Registry D4).
+- **D32. Playlists are exempt from D17 and D26** (Shy, 2026-10-17): only manually curated collections must never be empty and are removed when their last item leaves the library. Playlists may be empty and are never removed automatically.
 
 ## 4. UI behaviour
 
