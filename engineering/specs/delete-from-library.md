@@ -176,7 +176,7 @@ Security and data-loss risk: WP1 and WP2 run at high effort with a reviewer pass
 What the old delete actions did (found 2026-10-17; the single one is removed on the Registry retirement branch, the batch one is still in use):
 
 - **Built, and worth keeping:** administrator-only access; the empty Series and Universe clean-up after the last title goes; one activity record per deleted title; removing the title's Needs Review rows and Tuvima's own artwork files.
-- **Built unsafely:** files were deleted directly, without the shared safety gate, so a file in an as-is folder or a merge original could be deleted (D5 fixes this). No preview, no fingerprint check, a plain browser confirm. No live update, so other screens kept showing the title. The Listen page did not apply the desktop-only editing rule.
+- **Built unsafely:** files were deleted directly, without the shared safety gate, so a file in an as-is folder or a merge original could be deleted (D5 fixes this). No preview, no fingerprint check, a plain browser confirm. No live update, so other screens kept showing the title. The Listen page hides its Delete on narrow screens, but neither the button nor its handler checks the desktop-only editing rule.
 - **Left behind:** metadata claims, chosen values, identity jobs and artwork links for the deleted title stayed in the data store (D11).
 - **Wrong rule for collections:** a collection was removed when no title pointed at it as its Series, whatever its kind; hand-picked memberships were ignored and automatic collections could be removed too (D4 replaces this).
 - **Not covered by tests:** neither delete action had an Engine test.
