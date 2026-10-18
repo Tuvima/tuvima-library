@@ -1,8 +1,8 @@
 # Spec: Delete from library
 
-> **Status:** Draft · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Draft · **Version:** 3 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
 
-> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Version 2 (same day) records Shy's answers to Q1–Q9 as D12–D20: the recommendations, except that deleting means deleting (Q5), with a recycle bin as an option. One question is left (Q10), so the spec stays Draft. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
+> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Version 2 (same day) records Shy's answers to Q1–Q9 as D12–D20: the recommendations, except that deleting means deleting (Q5), with a recycle bin as an option. Version 3 (same day) records Shy's answer to Q10 as D21; no questions are left, and the spec waits only for Shy to Lock it. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
 
 ## 1. Goal
 
@@ -15,7 +15,7 @@ An administrator at a desktop can delete a title they no longer want: it leaves 
 - **Delete** for one song or several selected songs from the Listen page's song table (D13), using the same dialog. Songs have no detail page of their own, so this is the only way to delete music.
 - A preview the Engine works out first, shown in a confirmation dialog: each file and what will happen to it, the hand-picked collections the title will leave, and any hand-picked collection that will be deleted because it would be empty.
 - What happens to files in **managed** folders, **as-is** folders, and **protected originals** (files a merge left in place).
-- **Delete immediately**, or optionally **Move to recycle bin**, for files in managed folders, and **Empty recycle bin** (D16, Q10).
+- **Delete immediately**, or optionally **Move to recycle bin**, for files in managed folders, and **Empty recycle bin** (D16, D21).
 - What happens to watch/read/listen progress, bookmarks, history, Needs Review entries, background jobs and artwork for the deleted title.
 - Stopping files left on disk from being added back by the next scan, and an **Excluded files** list to add them back (D10, D15).
 - Two Engine actions (preview, delete), their permission checks, a live update so open screens drop the title, and the tests.
@@ -50,11 +50,12 @@ Shy's answers to the version 1 questions (2026-10-17): "go with your recommendat
 - **D13. (Q2) The Listen song table gets Delete back** with the new dialog, for one song and for selected songs. The Engine actions take a list from the start.
 - **D14. (Q3) Titles and songs only.** Deleting a whole show, season, album or series, multi-select elsewhere, and deleting one Edition or file are each a follow-up spec.
 - **D15. (Q4) Files left on disk are excluded from scans**, with an **Excluded files** list and **Add back** in Settings → Libraries.
-- **D16. (Q5, amended) Deleting means deleting.** In a managed folder, **Delete immediately** removes the files for good straight away and frees the space. A **recycle bin** is an option: **Move to recycle bin** moves the files into a hidden recycle-bin folder inside the same managed folder (a quick move on the same drive), and **Empty recycle bin** frees that space whenever you want. Delete immediately is always the normal choice. Where the choice is made, and whether the recycle bin also empties itself, is Q10.
+- **D16. (Q5, amended) Deleting means deleting.** In a managed folder, **Delete immediately** removes the files for good straight away and frees the space. A **recycle bin** is an option: **Move to recycle bin** moves the files into a hidden recycle-bin folder inside the same managed folder (a quick move on the same drive), and **Empty recycle bin** frees that space whenever you want. Delete immediately is always the normal choice. How the choice is made is D21.
 - **D17. (Q6) On the detail page, Delete is the last entry, in red, of the editing bar's More menu.**
 - **D18. (Q7) Effective administrators only**; no app or native-client permission.
 - **D19. (Q8) Sidecars go with the title.** Files that share the title's file name or that Tuvima wrote (subtitles, .nfo, posters) are deleted or recycled with it; any other file is left; folders the delete leaves empty are removed.
 - **D20. (Q9) Progress is removed with the title** (D7).
+- **D21. (Q10) The choice is made in the dialog, every time** (Shy, 2026-10-17: "choose in the dialog each time, Delete immediately selected; the recycle bin empties only when I press Empty recycle bin"). The dialog offers **Delete immediately** (already selected) and **Move to recycle bin**; there is no per-library default setting. The recycle bin never empties itself: files stay there until an administrator presses **Empty recycle bin**.
 
 ## 4. UI behaviour
 
@@ -67,7 +68,7 @@ Shy's answers to the version 1 questions (2026-10-17): "go with your recommendat
 
 ### The confirmation dialog
 
-Opening it asks the Engine for a preview ("Checking what will be deleted…"). Then, for one title (shown with Q10's recommended answer):
+Opening it asks the Engine for a preview ("Checking what will be deleted…"). Then, for one title:
 
 > **Delete "Dune: Part One" from your library?**
 >
@@ -140,14 +141,14 @@ Security and data-loss risk: WP1, WP2 and WP3 run at high effort with a reviewer
 - **Done when:** tests pass for: stale fingerprint → 409 and nothing changed; as-is and merge-original files untouched on disk after delete; with `delete`, managed files are gone from disk; with `recycle`, they are in the recycle-bin folder and recorded; no row for the deleted Work, Editions or Assets remains in any table (a test walks every table with a work, edition, asset or entity column); per-profile state removed; empty Manual collection deleted, Smart collection kept; activity row written; live event published; a locked file leaves the title deleted and the file excluded; non-administrator → 403; old batch delete route absent.
 
 ### WP3 — Scans skip excluded files and the recycle bin; emptying the recycle bin
-- **What it does:** the scanner and folder watcher skip excluded files and every recycle-bin folder. An excluded file whose fingerprint changes (a new file at the same place) is scanned again. **Empty recycle bin** (Engine action, administrator only, per library) deletes the recycled files through the gate and reports the space freed. If Q10 adds automatic emptying, a daily clean-up following `RejectedFileCleanupService` empties files older than the setting.
-- **Files likely touched:** `src/MediaEngine.Ingestion/` (scan and watcher filters), `src/MediaEngine.Api/Endpoints/` (empty action), `src/MediaEngine.Api/Services/` (empty service; hosted clean-up only if Q10 adds it), `src/MediaEngine.Domain/Configuration/` and the library config file (only if Q10 adds a setting; to be confirmed), `docs/reference/configuration.md`.
+- **What it does:** the scanner and folder watcher skip excluded files and every recycle-bin folder. An excluded file whose fingerprint changes (a new file at the same place) is scanned again. **Empty recycle bin** (Engine action, administrator only, per library) deletes the recycled files through the gate and reports the space freed. Nothing empties the recycle bin automatically (D21).
+- **Files likely touched:** `src/MediaEngine.Ingestion/` (scan and watcher filters), `src/MediaEngine.Api/Endpoints/` (empty action), `src/MediaEngine.Api/Services/` (empty service; no hosted clean-up and no setting, D21).
 - **Depends on:** WP2.
 - **Size:** Standard.
 - **Done when:** a rescan after deleting an as-is title does not add it back; Empty recycle bin removes every recycled file and reports the space; the recycle-bin folder never appears as media; non-administrator → 403.
 
 ### WP4 — Dashboard: the dialog and the detail page entry
-- **What it does:** a `DeleteFromLibraryDialog` (shared `App*` dialog primitives) that loads the preview, shows the sections in section 4 including the disk choice (D16, Q10), handles 409 by showing the new preview, and every state in the table. A red **Delete from library…** entry at the end of the editing bar's More list, shown only when Editing Mode is on, `EditorDeviceRule.CanEdit` is true and the Engine says the viewer is an administrator; the handler checks `CanEdit` again. On success the detail page closes back to its origin and a toast shows. Browse rows, Home and collection pages react to the live event.
+- **What it does:** a `DeleteFromLibraryDialog` (shared `App*` dialog primitives) that loads the preview, shows the sections in section 4 including the disk choice (D16, D21), handles 409 by showing the new preview, and every state in the table. A red **Delete from library…** entry at the end of the editing bar's More list, shown only when Editing Mode is on, `EditorDeviceRule.CanEdit` is true and the Engine says the viewer is an administrator; the handler checks `CanEdit` again. On success the detail page closes back to its origin and a toast shows. Browse rows, Home and collection pages react to the live event.
 - **Files likely touched:** `src/MediaEngine.Web/Components/Details/DetailHero.razor` (`EditingMoreActions`), `EditingModeBar.razor`, a new dialog under `src/MediaEngine.Web/Components/LibraryItems/` or `Components/Shared/`, a state service for the live event, `tests/MediaEngine.Web.Tests`.
 - **Depends on:** WP1, WP2.
 - **Size:** Standard.
@@ -161,14 +162,14 @@ Security and data-loss risk: WP1, WP2 and WP3 run at high effort with a reviewer
 - **Done when:** component tests show no Delete icon for a non-administrator or a touch device; selecting 3 songs opens one dialog for all 3; no browser `confirm` is used.
 
 ### WP6 — Excluded files and recycle bin in Settings (D15, D16)
-- **What it does:** Settings → Libraries gets, per library, an **Excluded files** list (file, folder, when, by whom) with **Add back**, which removes the exclusion and queues a scan of that file, and a **Recycle bin** line (files, space) with **Empty recycle bin** behind a confirmation, plus any setting Q10 adds. Engine actions to list and remove exclusions and to read recycle-bin totals, administrator only.
+- **What it does:** Settings → Libraries gets, per library, an **Excluded files** list (file, folder, when, by whom) with **Add back**, which removes the exclusion and queues a scan of that file, and a **Recycle bin** line (files, space) with **Empty recycle bin** behind a confirmation. No recycle-bin setting (D21). Engine actions to list and remove exclusions and to read recycle-bin totals, administrator only.
 - **Files likely touched:** `src/MediaEngine.Api/Endpoints/` (settings or library endpoints), `src/MediaEngine.Contracts/Settings/`, `src/MediaEngine.Web/Components/Settings/` (libraries tab), tests.
 - **Depends on:** WP3.
 - **Size:** Standard.
 - **Done when:** adding back an excluded as-is file brings the title back after its scan; the recycle-bin total matches its files and drops to zero after emptying; non-administrator → 403.
 
 ### WP7 — Docs
-- **What it does:** `docs/reference/api-endpoints.md` (new and removed actions), `docs/reference/database-schema.md` (new tables), `docs/architecture/library-model-and-intake.md` (delete, recycle bin and excluded files under Managed and As-is), `docs/guides/library-settings.md` (excluded files, recycle bin), `docs/product/presentation-rules.md` (where Delete appears), `docs/reference/configuration.md` (any setting from Q10), `docs/reference/glossary.md` (excluded file, recycle bin).
+- **What it does:** `docs/reference/api-endpoints.md` (new and removed actions), `docs/reference/database-schema.md` (new tables), `docs/architecture/library-model-and-intake.md` (delete, recycle bin and excluded files under Managed and As-is), `docs/guides/library-settings.md` (excluded files, recycle bin), `docs/product/presentation-rules.md` (where Delete appears), `docs/reference/glossary.md` (excluded file, recycle bin).
 - **Depends on:** WP2–WP6.
 - **Size:** Mechanical.
 - **Done when:** the docs build passes and each page matches the built behaviour.
@@ -183,9 +184,7 @@ Security and data-loss risk: WP1, WP2 and WP3 run at high effort with a reviewer
 
 **Open questions**
 
-Q1–Q9 were answered on 2026-10-17 and are recorded as D12–D20.
-
-- **Q10. Where is "Delete immediately" or "Move to recycle bin" chosen, and does the recycle bin empty itself?** (a) In the dialog, every time: two choices, with Delete immediately already selected. (b) A setting per library ("When deleting files: Delete immediately / Move to recycle bin", default Delete immediately); the dialog just says which will happen. (c) Both: the setting picks which choice the dialog starts on, and you can change it each time. Separately, the recycle bin could also empty itself after a number of days you set (off by default), or only when you press **Empty recycle bin**. **Recommendation: (a), emptied only when you press the button.** The choice is in front of you when it matters, space comes back straight away unless you choose otherwise, and nothing is held for a fixed time.
+None. Q1–Q10 were answered on 2026-10-17 and are recorded as D12–D21.
 
 ## 8. Gaps and drift
 
