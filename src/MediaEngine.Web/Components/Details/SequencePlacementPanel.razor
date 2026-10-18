@@ -166,7 +166,7 @@
                                  OnClick="@(() => SelectSeason(season.Key))"
                                  data-sequence-index="@index"
                                  role="option"
-                                 aria-selected="@selected"
+                                 aria-selected="@(selected ? "true" : "false")"
                                  aria-current="@(selected ? "true" : null)">
                     <span class="tl-season-card__art">
                         @if (!string.IsNullOrWhiteSpace(season.ArtworkUrl))
@@ -609,6 +609,12 @@ else
     [Parameter, EditorRequired] public SequencePlacementViewModel Placement { get; set; } = default!;
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
     [Parameter] public EventCallback<SequenceItemViewModel> OnEditItem { get; set; }
+
+    /// <summary>The season the page address names; a change to it (for example a link to another season of this show) selects that season.</summary>
+    [Parameter] public Guid? RequestedSeasonId { get; set; }
+
+    /// <summary>Raised with the season's id when a season is picked, so the page address can remember it (D19).</summary>
+    [Parameter] public EventCallback<Guid> OnSeasonSelected { get; set; }
     [Parameter] public bool Compact { get; set; }
     [Parameter] public bool DetailSurface { get; set; }
 
@@ -619,6 +625,7 @@ else
     private string? _placementKey;
     private SequencePlacementViewModel? _placementReference;
     private string? _selectedGroupKey;
+    private Guid? _appliedRequestedSeasonId;
     private string? _jumpSelectionValue;
     private int _windowCenterIndex;
     private bool _canCurateSequence;
@@ -1060,6 +1067,19 @@ else
             _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
             ResetWindowToCurrentItem();
         }
+
+        // The page address named another season of this show (the person's own pick arrives here already selected).
+        if (RequestedSeasonId != _appliedRequestedSeasonId)
+        {
+            _appliedRequestedSeasonId = RequestedSeasonId;
+            if (RequestedSeasonId is { } requestedSeasonId
+                && IsSeasonContainer
+                && Placement.Groups.FirstOrDefault(group => Guid.TryParse(group.EntityId, out var groupSeasonId) && groupSeasonId == requestedSeasonId) is { } requested
+                && !string.Equals(requested.Key, SelectedGroupKey, StringComparison.OrdinalIgnoreCase))
+            {
+                await SelectGroup(requested.Key);
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1116,6 +1136,7 @@ else
         _windowRequestId++;
         CancelWindowLoad();
         _loadingWindow = false;
+        var changed = !string.Equals(SelectedGroupKey, value, StringComparison.OrdinalIgnoreCase);
         _selectedGroupKey = value;
         _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
         _windowFailed = false;
@@ -1127,6 +1148,14 @@ else
             && LoadedWindow(chosen).Items.Count == 0)
         {
             await LoadWindowAsync(chosen, 0);
+        }
+
+        if (changed
+            && IsSeasonContainer
+            && Placement.Groups.FirstOrDefault(group => string.Equals(group.Key, value, StringComparison.OrdinalIgnoreCase)) is { } picked
+            && Guid.TryParse(picked.EntityId, out var pickedSeasonId))
+        {
+            await OnSeasonSelected.InvokeAsync(pickedSeasonId);
         }
     }
 

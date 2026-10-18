@@ -66,4 +66,3 @@ Core browsing, playback/reading, identification and administration work today. P
 ## Open product questions
 
 - The public site calls the cross-format page **Collections** while the concept is a **Universe** — confirm the user-facing name for each place it appears.
-- Decisions pending in the Draft specs: [Item Detail](../specs/item-detail.md) and [Registry retirement](../specs/registry-retirement.md).

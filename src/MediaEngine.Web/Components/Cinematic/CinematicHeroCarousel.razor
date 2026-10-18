@@ -578,7 +578,6 @@ else if (Slides.Count > 0)
             await reactions.SetReactionAsync(identity.Id, MediaReactionService.ToggleRating(current, action.Key == "reaction-like" ? MediaReaction.Like : MediaReaction.Dislike), profile, identity.Kind);
             _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); return;
         }
-        if (action.Key == "copy-link") { await JS.InvokeVoidAsync("navigator.clipboard.writeText", new Uri(new Uri(Nav.BaseUri), ActiveDetailsUrl).AbsoluteUri); return; }
         if (action.Key.StartsWith("status-")) {
             var status = await ApiClient.GetPersonalStatusAsync(LandingEntityType, identity.Id);
             if (status is null || identity != LandingIdentity) return;
@@ -728,7 +727,6 @@ else if (Slides.Count > 0)
             // The hero has no history dialog; the status handler sends unknown status-* keys to the details page, which has it.
             actions.Add(new() { Key = "status-history", Label = history, Icon = "history" });
         }
-        actions.Add(new() { Key = "copy-link", Label = "Copy library link", Icon = "link" });
         return actions;
     }
     private (ProfileEntityKind Kind, Guid Id) LandingIdentity => (LandingEntityType switch { DetailEntityType.TvShow or DetailEntityType.TvEpisode => ProfileEntityKind.TvShow, DetailEntityType.Movie => ProfileEntityKind.Movie, DetailEntityType.Audiobook => ProfileEntityKind.Audiobook, DetailEntityType.MusicAlbum => ProfileEntityKind.Album, DetailEntityType.ComicIssue => ProfileEntityKind.Comic, _ => ProfileEntityKind.Book }, ActiveHero.EpisodeContext?.ShowWorkId ?? ActiveHero.CollectionId ?? ActiveHero.WorkId ?? ActiveHero.RepresentativeEntityId ?? Guid.Empty);

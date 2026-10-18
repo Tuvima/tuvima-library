@@ -7,7 +7,11 @@
 .tl-detail-actions ::deep .hero-icon-circle:hover,.tl-detail-actions ::deep .hero-icon-circle:focus-visible { border-color:var(--tl-accent-primary); }
 .tl-detail-action-progress__track { position:absolute; left:10px; right:10px; bottom:6px; height:3px; border-radius:999px; background:rgba(255,255,255,.25); }
 .tl-detail-action-progress__track ::deep .tl-detail-action-progress__fill { display:block; height:100%; background:#fff; border-radius:inherit; }
-@media(max-width:479px) { .tl-detail-actions { flex-wrap:wrap; } .tl-detail-primary-actions { width:100%; } .tl-detail-actions ::deep .tl-detail-action--primary { flex-basis:auto; width:22rem; } }
+@media (max-width: 600px) {
+    .tl-detail-actions { flex-wrap:wrap; }
+    .tl-detail-primary-actions { width:100%; }
+    .tl-detail-actions ::deep .tl-detail-action--primary { flex-basis:auto; width:22rem; }
+}
 
 .tl-detail-actions ::deep .tl-detail-action-label { display:flex; flex-direction:column; min-width:0; line-height:1.15; text-align:left; }
 .tl-detail-actions ::deep .tl-detail-action-progress__label { font-size:var(--tl-font-size-sm); font-weight:var(--tl-font-weight-regular); margin-top:2px; }

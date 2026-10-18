@@ -5932,7 +5932,6 @@ html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scro
 }
 
 /* Details page, phone pass: the episode and sequence panel, credits, people and lists. */
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-stage--primary-before-navigation .tl-detail-primary-module--embedded,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module {
     width: 100%;
     margin-inline: 0;

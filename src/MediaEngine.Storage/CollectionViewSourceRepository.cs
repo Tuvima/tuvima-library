@@ -191,6 +191,49 @@ public sealed class CollectionViewSourceRepository(IDatabaseConnection database)
         }, ct);
     }
 
+    public Task<CollectionViewSourceRemoval> RemoveUnlessLastMemberAsync(
+        Guid collectionId,
+        Guid sourceId,
+        Guid ownerProfileId,
+        CancellationToken ct = default)
+    {
+        ValidateId(collectionId, nameof(collectionId));
+        ValidateId(sourceId, nameof(sourceId));
+        ValidateId(ownerProfileId, nameof(ownerProfileId));
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            RequireCollectionOwner(connection, transaction, collectionId, ownerProfileId, token);
+
+            // One conditional DELETE: the source goes only while another member (a collection item, or a different
+            // source) remains, so two concurrent removals cannot both succeed and empty the collection.
+            var removed = connection.Execute(new CommandDefinition("""
+                DELETE FROM collection_view_sources
+                 WHERE id = @sourceId AND collection_id = @collectionId
+                   AND owner_profile_id = @ownerProfileId
+                   AND (EXISTS (SELECT 1 FROM collection_items i WHERE i.collection_id = @collectionId)
+                        OR EXISTS (SELECT 1 FROM collection_view_sources other
+                                    WHERE other.collection_id = @collectionId AND other.id <> @sourceId));
+                """, new { sourceId, collectionId, ownerProfileId },
+                transaction, cancellationToken: token));
+            if (removed != 0)
+            {
+                return CollectionViewSourceRemoval.Removed;
+            }
+
+            // Nothing was deleted: either there is no such source, or it is the last member.
+            var exists = connection.ExecuteScalar<long>(new CommandDefinition("""
+                SELECT COUNT(1) FROM collection_view_sources
+                 WHERE id = @sourceId AND collection_id = @collectionId
+                   AND owner_profile_id = @ownerProfileId;
+                """, new { sourceId, collectionId, ownerProfileId },
+                transaction, cancellationToken: token)) != 0;
+            return exists
+                ? CollectionViewSourceRemoval.WouldLeaveCollectionEmpty
+                : CollectionViewSourceRemoval.NotFound;
+        }, ct);
+    }
+
     public Task<IReadOnlyList<CollectionViewSourceProjection>> GetAuthorizedProjectionAsync(
         IReadOnlyCollection<Guid> collectionIds,
         Guid viewerProfileId,

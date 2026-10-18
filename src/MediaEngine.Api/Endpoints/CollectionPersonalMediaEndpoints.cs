@@ -139,6 +139,11 @@ public static class CollectionPersonalMediaEndpoints
                 return ApiErrors.Forbidden("Only an administrator profile may edit personal-media Collection sources.");
             }
 
+            if (result.WouldEmptyCollection)
+            {
+                return ApiErrors.Conflict(result.Error!);
+            }
+
             if (!string.IsNullOrWhiteSpace(result.Error))
             {
                 return ApiErrors.BadRequest(result.Error);
@@ -147,11 +152,12 @@ public static class CollectionPersonalMediaEndpoints
             return Results.NoContent();
         })
         .WithName("RemoveCollectionPersonalMediaSource")
-        .WithSummary("Removes a personal-media source reference without changing its Gallery or personal assets.")
+        .WithSummary("Removes a personal-media source reference without changing its Gallery or personal assets; refused while it is a manually curated collection's last member.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 

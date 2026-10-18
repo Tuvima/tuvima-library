@@ -122,6 +122,8 @@ Removal of an expired variant also removes its list row, so a device that still 
 
 `GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). **Windowing is opt-in:** a request with no `sequence*` parameter receives the whole list exactly as before (`orderedItems` and every group's `items` complete), so older clients keep working. A client opts in by sending `sequenceLimit` (the Dashboard sends `sequenceLimit=50`). Up to 100 episodes in total a windowed request still lists every episode. A longer show then lists every season but fills `items` for one season only (the season being watched, starting at the window that holds the current episode); `orderedItems` is empty because the episodes are carried once, inside their season.
 
+**A season by its own address.** `GET /api/v1/details/tvseason/{id}` answers with the page of the season's show, opened on that season: the payload's `entityType` is the show and its `sequencePlacement` selects the season. The optional `containerId` is the show's id; when it is omitted the Engine resolves the show from the season. A season id that does not exist, or that the profile may not see (library grants and the content limit apply as on the other details routes), answers `404`; so does a season whose show cannot be resolved.
+
 Optional query parameters on the same route:
 
 | Parameter | Meaning |
@@ -349,7 +351,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/collections/search?q=` | SQL-backed search across visible library works, canonical values, and collection names. Returns up to 20 work results. | Required |
 | GET | `/collections/personal-media/galleries` | List Galleries eligible for the administrator's Collection editor without exposing individual assets | Administrator + trusted profile |
 | GET | `/collections/{id}/personal-media` | Return count-free Gallery/rule sources after reapplying the viewer's View authorization | Required + trusted profile |
-| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected | Administrator + trusted profile |
+| POST, PUT, DELETE | `/collections/{id}/personal-media[/{sourceId}]` | Manage whole-Gallery references or a versioned View rule; individual asset identifiers are rejected. DELETE answers `409` "A collection needs at least one item. Delete the collection instead." when the source is the last member (no items, no other source) of a curated collection | Administrator + trusted profile |
 | GET | `/persons?catalog=true&q=&role=&lane=&sort=&offset=&limit=` | Paged canonical primary contributors on owned works for Collections / People | Required |
 | GET | `/persons/role-counts?catalog=true` | Canonical owned-library contributor counts grouped by role | Required |
 
