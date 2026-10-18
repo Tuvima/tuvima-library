@@ -146,11 +146,6 @@ public partial interface IEngineApiClient
     Task<RetailCandidateDetailDto?> GetRetailCandidateDetailAsync(
         RetailCandidateDetailRequestDto request, CancellationToken ct = default);
 
-    /// <summary>POST /library/items/{entityId}/apply-match - apply a match to a library item.</summary>
-    Task<ApplyMatchResponseDto?> ApplyLibraryItemMatchAsync(
-        Guid entityId, ApplyMatchRequestDto request,
-        CancellationToken ct = default);
-
     /// <summary>POST /library/items/{entityId}/canonical-search - targeted canonical search for a field group.</summary>
     Task<ItemCanonicalSearchResponseDto?> SearchItemCanonicalAsync(
         Guid entityId, ItemCanonicalSearchRequestDto request, CancellationToken ct = default);
@@ -169,14 +164,6 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);
-
-    /// <summary>POST /library/items/{entityId}/create-manual - create a manual metadata entry.</summary>
-    Task<CreateManualResponseDto?> CreateManualEntryAsync(
-        Guid entityId, CreateManualRequestDto request,
-        CancellationToken ct = default);
-
-    /// <summary>DELETE /library/items/{entityId} - permanently remove a work and all its files.</summary>
-    Task<bool> DeleteLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default);
 
     /// <summary>Submit a problem report on a media item.</summary>
     Task<SubmitReportResponse?> SubmitReportAsync(SubmitReportRequest request, CancellationToken ct = default);

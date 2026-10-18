@@ -25,7 +25,7 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task TargetAndRemovalReads_AreSetBased_AndDeleteUsesOneTransactionalBoundary()
+    public async Task RemovalReads_AreSetBased_AndDeleteUsesOneTransactionalBoundary()
     {
         var first = await SeedWorkAsync("First", "C:/library/a.epub", "Books");
         var secondAssetId = Guid.NewGuid();
@@ -54,15 +54,10 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
             });
         }
 
-        var resolved = await _repository.ResolveTargetAsync(first.WorkId);
-        var batch = await _repository.ResolveWorkTargetsAsync([first.WorkId, second.WorkId]);
         var removals = await _repository.GetRemovalTargetsAsync([first.WorkId, second.WorkId]);
 
-        Assert.NotNull(resolved);
-        Assert.Equal(first.AssetId, resolved.AssetId);
-        Assert.Equal("First", resolved.Title);
-        Assert.Equal(2, batch.Count);
-        Assert.Equal("Movies", batch[second.WorkId].MediaType);
+        Assert.Equal(2, removals.Count);
+        Assert.Equal("First", removals[first.WorkId].Title);
         var removal = removals[first.WorkId];
         Assert.Equal(2, removal.FilePaths.Count);
         Assert.Contains(managedPath, removal.ManagedAssetPaths);
@@ -79,145 +74,26 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task CanonicalAndReviewUpdates_AreAppliedTogetherWithCurrentGuidStorage()
-    {
-        var seeded = await SeedWorkAsync("Before", "C:/library/book.epub", "Books");
-        var now = DateTimeOffset.UtcNow;
-        var claims = new[]
-        {
-            new MetadataClaim
-            {
-                Id = Guid.NewGuid(),
-                EntityId = seeded.AssetId,
-                ProviderId = WellKnownProviders.UserManual,
-                ClaimKey = MetadataFieldConstants.Title,
-                ClaimValue = "After",
-                ClaimedAt = now,
-                Confidence = 1,
-                IsUserLocked = true,
-            },
-        };
-
-        using (var connection = _database.CreateConnection())
-        {
-            await connection.ExecuteAsync("""
-                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status)
-                VALUES (@assetReviewId, @assetId, 'MediaAsset', 'LowConfidence', 'Pending');
-                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status)
-                VALUES (@workReviewId, @workId, 'Work', 'LowConfidence', 'Pending');
-                """, new
-            {
-                assetReviewId = Guid.NewGuid(),
-                workReviewId = Guid.NewGuid(),
-                assetId = seeded.AssetId,
-                workId = seeded.WorkId,
-            });
-        }
-
-        await _repository.UpsertCanonicalValuesAsync(seeded.AssetId, claims);
-        await _repository.MarkWorkRegisteredAsync(seeded.WorkId);
-        await _repository.CompletePendingReviewsAsync(
-            seeded.AssetId, seeded.WorkId, "Resolved", "user:test", now);
-
-        using var verify = _database.CreateConnection();
-        Assert.Equal("After", await verify.ExecuteScalarAsync<string>("""
-            SELECT value FROM canonical_values WHERE entity_id = @assetId AND key = 'title'
-            """, new { assetId = seeded.AssetId }));
-        Assert.Equal("registered", await verify.ExecuteScalarAsync<string>(
-            "SELECT curator_state FROM works WHERE id = @workId", new { workId = seeded.WorkId }));
-        Assert.Equal(2, await verify.ExecuteScalarAsync<int>("""
-            SELECT COUNT(*) FROM review_queue
-            WHERE entity_id IN (@assetId, @workId) AND status = 'Resolved' AND resolved_by = 'user:test'
-            """, new { assetId = seeded.AssetId, workId = seeded.WorkId }));
-    }
-
-    [Fact]
-    public async Task BatchApprovalAndRejection_UpdateSetsWithoutPerItemReads()
-    {
-        var first = await SeedWorkAsync("First", "C:/library/first.epub", "Books");
-        var second = await SeedWorkAsync("Second", "C:/library/second.epub", "Books");
-        using (var connection = _database.CreateConnection())
-        {
-            await connection.ExecuteAsync("""
-                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status)
-                VALUES (@firstReview, @firstAsset, 'MediaAsset', 'LowConfidence', 'Pending');
-                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status)
-                VALUES (@secondReview, @secondAsset, 'MediaAsset', 'LowConfidence', 'Pending');
-                """, new
-            {
-                firstReview = Guid.NewGuid(),
-                secondReview = Guid.NewGuid(),
-                firstAsset = first.AssetId,
-                secondAsset = second.AssetId,
-            });
-        }
-
-        var processed = await _repository.ApproveWorksAsync(
-            [first.WorkId, second.WorkId], DateTimeOffset.UtcNow);
-        var firstTarget = Assert.IsType<LibraryItemTarget>(await _repository.ResolveTargetAsync(first.WorkId));
-        await _repository.MarkRejectedAsync(
-            firstTarget, "C:/library/.data/staging/rejected/first.epub", DateTimeOffset.UtcNow);
-
-        using var verify = _database.CreateConnection();
-        Assert.Equal(2, processed);
-        Assert.Equal(2, await verify.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM works WHERE wikidata_status = 'missing'"));
-        Assert.Equal(2, await verify.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM review_queue WHERE status = 'Resolved'"));
-        Assert.Equal("rejected", await verify.ExecuteScalarAsync<string>(
-            "SELECT curator_state FROM works WHERE id = @workId", new { workId = first.WorkId }));
-        Assert.Equal("C:/library/.data/staging/rejected/first.epub", await verify.ExecuteScalarAsync<string>(
-            "SELECT file_path_root FROM media_assets WHERE id = @assetId", new { assetId = first.AssetId }));
-    }
-
-    [Fact]
-    public async Task RecoverProvisionalAndHistory_AreTypedAndTransactional()
+    public async Task History_IsTypedForAWorkWithAssetActivity()
     {
         var seeded = await SeedWorkAsync("History", "C:/library/history.epub", "Books");
         using (var connection = _database.CreateConnection())
         {
             await connection.ExecuteAsync("""
-                UPDATE works SET curator_state = 'rejected', rejected_at = @now WHERE id = @workId;
-                INSERT OR IGNORE INTO metadata_providers (id, name, version, is_enabled)
-                VALUES (@providerId, 'Local Processor', '1', 1);
                 INSERT INTO system_activity (occurred_at, action_type, entity_id, entity_type, detail)
                 VALUES (@now, 'FileDetected', @assetId, 'MediaAsset', 'Detected for test');
                 """, new
             {
                 now = DateTimeOffset.UtcNow.ToString("O"),
-                workId = seeded.WorkId,
                 assetId = seeded.AssetId,
-                providerId = WellKnownProviders.LocalProcessor,
             });
         }
 
-        var recovered = await _repository.RecoverAsync(seeded.WorkId, DateTimeOffset.UtcNow);
-        var provisional = await _repository.MarkProvisionalAsync(
-            seeded.WorkId,
-            new LibraryItemProvisionalMetadata { Title = "Curated", Creator = "Author" },
-            DateTimeOffset.UtcNow);
         var history = await _repository.GetHistoryAsync(seeded.WorkId);
 
-        Assert.NotNull(recovered);
-        Assert.Equal(seeded.AssetId, recovered.AssetId);
-        Assert.NotNull(recovered.ReviewId);
-        Assert.NotNull(provisional);
-        Assert.Equal(2, provisional.ClaimsWritten);
         var entry = Assert.Single(history);
         Assert.Equal("File detected", entry.Label);
         Assert.Equal(seeded.AssetId, entry.EntityId);
-
-        using var verify = _database.CreateConnection();
-        Assert.Equal("provisional", await verify.ExecuteScalarAsync<string>(
-            "SELECT curator_state FROM works WHERE id = @workId", new { workId = seeded.WorkId }));
-        var provisionalJson = await verify.ExecuteScalarAsync<string>(
-            "SELECT provisional_metadata_json FROM works WHERE id = @workId",
-            new { workId = seeded.WorkId });
-        Assert.Contains("\"title\":\"Curated\"", provisionalJson, StringComparison.Ordinal);
-        Assert.Contains("\"creator\":\"Author\"", provisionalJson, StringComparison.Ordinal);
-        Assert.Equal("Curated", await verify.ExecuteScalarAsync<string>("""
-            SELECT value FROM canonical_values WHERE entity_id = @assetId AND key = 'title'
-            """, new { assetId = seeded.AssetId }));
     }
 
     [Fact]
@@ -351,7 +227,7 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            _repository.ResolveTargetAsync(Guid.NewGuid(), cancellation.Token));
+            _repository.GetHistoryAsync(Guid.NewGuid(), cancellation.Token));
     }
 
     private async Task<SeededWork> SeedWorkAsync(string title, string filePath, string mediaType)

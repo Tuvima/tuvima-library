@@ -2122,34 +2122,6 @@ public partial class ListenPage
         await EditTrackAsync(target);
     }
 
-    private async Task DeleteSelectedTracksAsync()
-    {
-        if (SelectedTrackWorks.Count == 0)
-        {
-            return;
-        }
-
-        var deleteCount = SelectedTrackWorks.Count;
-
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete {deleteCount} selected song(s) from the library?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        var response = await ApiClient.BatchDeleteLibraryCatalogItemsAsync(SelectedTrackWorks.Select(track => track.Id).ToArray());
-        if (response is null)
-        {
-            Snackbar.Add("Delete failed.", AppSeverity.Error);
-            return;
-        }
-
-        _selectedTrackIds.Clear();
-        CloseTrackContextMenu();
-        await LoadAsync();
-        Snackbar.Add($"{deleteCount} songs deleted.", AppSeverity.Success);
-    }
-
     private async Task AddSelectedTracksToPlaylistAsync(Guid? collectionId = null)
     {
         if (SelectedTrackWorks.Count == 0)

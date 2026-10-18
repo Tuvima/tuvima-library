@@ -11,7 +11,6 @@ public sealed class ItemEndpointRouteTests
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs"));
 
         Assert.Contains("var group = app.MapGroup(\"/library/items\")", source, StringComparison.Ordinal);
-        Assert.Contains("group.MapGet(\"\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/{entityId}/detail\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/{entityId:guid}/history\", async (", source, StringComparison.Ordinal);
         Assert.DoesNotContain("group.MapGet(\"/items\", async (", source, StringComparison.Ordinal);
@@ -79,17 +78,11 @@ public sealed class ItemEndpointRouteTests
     {
         var canonical = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
         var canonicalData = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/ItemCanonicalRepository.cs"));
-        var libraryItems = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs"));
-        var libraryItemData = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/LibraryItemCurationRepository.cs"));
 
         Assert.Contains("ResolveWorkAssetContextAsync", canonical, StringComparison.Ordinal);
         Assert.Contains("No current media asset or work target found", canonical, StringComparison.Ordinal);
         Assert.Contains("GuidSql.ToBlob(entityId)", canonicalData, StringComparison.Ordinal);
-        Assert.Contains("store.ResolveTargetAsync(entityId, ct)", libraryItems, StringComparison.Ordinal);
-        Assert.Contains("WHERE ma.id = @entityId", libraryItemData, StringComparison.Ordinal);
-        Assert.Contains("OR e.work_id = @entityId", libraryItemData, StringComparison.Ordinal);
         Assert.DoesNotContain("No media asset found for work", canonical, StringComparison.Ordinal);
-        Assert.DoesNotContain("No media asset found for work", libraryItems, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -842,30 +842,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<ApplyMatchResponseDto?> ApplyLibraryItemMatchAsync(
-        Guid entityId, ApplyMatchRequestDto request,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var resp = await _http.PostAsJsonAsync(
-                $"/library/items/{entityId}/apply-match", request, ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                LastError = $"POST /library/items/.../apply-match failed: {resp.StatusCode}";
-                return null;
-            }
-            return await resp.Content.ReadFromJsonAsync<ApplyMatchResponseDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /library/items/{EntityId}/apply-match failed", entityId);
-            return null;
-        }
-    }
-
     public async Task<ItemCanonicalSearchResponseDto?> SearchItemCanonicalAsync(
         Guid entityId, ItemCanonicalSearchRequestDto request, CancellationToken ct = default)
     {
@@ -973,50 +949,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<CreateManualResponseDto?> CreateManualEntryAsync(
-        Guid entityId, CreateManualRequestDto request,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var resp = await _http.PostAsJsonAsync(
-                $"/library/items/{entityId}/create-manual", request, ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                LastError = $"POST /library/items/.../create-manual failed: {resp.StatusCode}";
-                return null;
-            }
-            return await resp.Content.ReadFromJsonAsync<CreateManualResponseDto>(ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "POST /library/items/{EntityId}/create-manual failed", entityId);
-            return null;
-        }
-    }
-
-    public async Task<bool> DeleteLibraryCatalogItemAsync(Guid entityId, CancellationToken ct = default)
-    {
-        try
-        {
-            var resp = await _http.DeleteAsync($"/library/items/{entityId}", ct);
-            return resp.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            LastError = ex.Message;
-            _logger.LogWarning(ex, "DELETE /library/items/{EntityId} failed", entityId);
-            return false;
-        }
-    }
-
-    public async Task<List<LibraryItemHistoryDto>> GetItemHistoryAsync(
-        Guid entityId, CancellationToken ct = default) =>
-        (await GetItemHistoryWithStatusAsync(entityId, ct)).Items;
-
     public async Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetItemHistoryWithStatusAsync(
         Guid entityId, CancellationToken ct = default)
     {
@@ -1043,39 +975,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             return ([], ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden }
                 ? "You do not have permission to view this item's history."
                 : "History could not be loaded. Try again later.");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<bool> MarkProvisionalAsync(Guid entityId, ProvisionalMetadataRequestDto metadata, CancellationToken ct = default)
-    {
-        try
-        {
-            var request = new MediaEngine.Contracts.Items.ProvisionalMetadataRequestDto
-            {
-                MediaType = metadata.MediaType,
-                Title = metadata.Title,
-                Creator = metadata.Creator,
-                Year = metadata.Year,
-                Description = metadata.Description,
-                Narrator = metadata.Narrator,
-                Isbn = metadata.Isbn,
-                Director = metadata.Director,
-                Runtime = metadata.Runtime,
-                Seasons = metadata.Seasons,
-                TrackCount = metadata.TrackCount,
-                Host = metadata.Host,
-                Writer = metadata.Writer,
-                Artist = metadata.Artist,
-                PageCount = metadata.PageCount,
-            };
-            var response = await _http.PostAsJsonAsync($"/library/items/{entityId}/provisional", request, ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "MarkProvisionalAsync failed for entity {EntityId}", entityId);
-            return false;
         }
     }
 
@@ -1177,7 +1076,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     //     keeps `LastFailureKind` classification (not_found/unauthorized/http_failure vs
     //     engine_unavailable/unexpected_failure) identical to today. Do not mechanically retarget shape-2 GETs
     //     at GetAsync<T> — the failure classification would silently change.
-    //   - Methods with no failure-state bookkeeping at all (e.g. MarkProvisionalAsync): a single
+    //   - Methods with no failure-state bookkeeping at all (e.g. BatchDeleteLibraryCatalogItemsAsync): a single
     //     catch(Exception) that only logs and returns false/null, never calling ClearFailure/
     //     RecordHttpFailureAsync/RecordExceptionFailure. Leave these as-is unless deliberately upgrading them.
     //   - Methods whose catch(Exception) interpolates additional structured arguments beyond the endpoint

@@ -13,7 +13,7 @@ public sealed class LibraryPipelineStage
     public string Label { get; init; } = "";
 }
 
-/// <summary>Wraps LibraryCatalogItemViewModel with library-specific computed properties.</summary>
+/// <summary>A library item row with library-specific computed properties.</summary>
 public sealed class LibraryItemViewModel
 {
     public Guid? ArtistPersonId { get; init; }
@@ -140,65 +140,6 @@ public sealed class LibraryItemViewModel
         !string.IsNullOrWhiteSpace(Album) ? Album :
         !string.IsNullOrWhiteSpace(Series) ? Series :
         null;
-
-    /// <summary>Factory: convert a LibraryCatalogItemViewModel to LibraryItemViewModel.</summary>
-    public static LibraryItemViewModel From(LibraryCatalogItemViewModel r) => new()
-    {
-        EntityId = r.EntityId,
-        Title = r.Title,
-        OriginalTitle = r.OriginalTitle,
-        Author = r.Author,
-        Director = r.Director,
-        Artist = r.Artist,
-        Series = r.Series,
-        SeriesPosition = r.SeriesPosition,
-        Narrator = r.Narrator,
-        Genre = r.Genre,
-        Runtime = r.Runtime,
-        Rating = r.Rating,
-        Album = r.Album,
-        TrackNumber = r.TrackNumber,
-        Season = r.Season,
-        Episode = r.Episode,
-        Duration = r.Duration,
-        DiscNumber = r.DiscNumber,
-        ShowName = r.ShowName,
-        EpisodeTitle = r.EpisodeTitle,
-        Network = r.Network,
-        TopCast = r.TopCast,
-        TrackCount = r.TrackCount,
-        Year = r.Year,
-        MediaType = r.MediaType,
-        CoverUrl = r.CoverUrl,
-        CoverThumbUrl = !string.IsNullOrEmpty(r.CoverUrl)
-            ? r.CoverUrl.Replace("/cover", "/cover-thumb")
-            : null,
-        BackgroundUrl = r.BackgroundUrl,
-        BannerUrl = r.BannerUrl,
-        Confidence = r.Confidence,
-        Status = r.Status,
-        ReviewTrigger = r.ReviewTrigger,
-        WikidataQid = r.WikidataQid,
-        WikidataStatus = r.WikidataStatus,
-        RetailMatch = r.RetailMatch,
-        RetailMatchDetail = r.RetailMatchDetail,
-        WikidataMatch = r.WikidataMatch,
-        CreatedAt = r.CreatedAt,
-        FileName = r.FileName,
-        FilePath = r.FilePath,
-        FileSizeBytes = r.FileSizeBytes,
-        ReviewItemId = r.ReviewItemId,
-        HasUserLocks = r.HasUserLocks,
-        HeroUrl = r.HeroUrl,
-        MissingUniverse = r.MissingUniverse,
-        PipelineStep = r.PipelineStep,
-        LibraryVisibility = r.LibraryVisibility,
-        IsReadyForLibrary = r.IsReadyForLibrary,
-        ArtworkState = r.ArtworkState,
-        ArtworkSource = r.ArtworkSource,
-        ArtworkSettledAt = r.ArtworkSettledAt,
-        FailedProviderName = r.FailedProviderName,
-    };
 
     private LibraryStatus ComputeLibraryStatus()
     {

@@ -184,7 +184,6 @@ public partial class SharedMediaEditorShell
     private string? _fileMetadataRereadMessage;
     private string _historyFilter = "all";
     private bool _confirmDiscard;
-    private bool _showQuarantineConfirm;
     private string? _dragTargetArtworkType;
     private string? _loadError;
     private string? _saveError;
@@ -870,7 +869,6 @@ public partial class SharedMediaEditorShell
             await LoadEditorSuggestionsAsync();
             await LoadAudiobookChapterOverrideStateAsync(CurrentEntityId);
             _dragTargetArtworkType = null;
-            _showQuarantineConfirm = false;
             _pendingMembershipPreview = null;
             NormalizeArtworkSelection();
 
@@ -1157,7 +1155,6 @@ public partial class SharedMediaEditorShell
         _tvdbSearchCancellation?.Cancel();
         _tvdbCandidates = null;
         _selectedTvdbCandidate = null;
-        _showQuarantineConfirm = false;
         _pendingMembershipPreview = null;
         EnsureActiveTabVisible();
         NormalizeArtworkSelection();
@@ -7340,120 +7337,6 @@ public partial class SharedMediaEditorShell
         }
 
         return descendants;
-    }
-
-    private IReadOnlyList<MediaEditorNavigatorNodeDto> GetQuarantineTargetNodes(MediaEditorNavigatorNodeDto node)
-    {
-        if (_navigator is null)
-        {
-            return [];
-        }
-
-        if (node.IsLeaf)
-        {
-            return node.CanQuarantine ? [node] : [];
-        }
-
-        var descendants = new List<MediaEditorNavigatorNodeDto>();
-        foreach (var child in GetNavigatorChildren(node.NodeId))
-        {
-            descendants.AddRange(GetQuarantineTargetNodes(child));
-        }
-
-        return descendants
-            .Where(item => item.CanQuarantine)
-            .GroupBy(item => item.EntityId)
-            .Select(group => group.First())
-            .ToList();
-    }
-
-    private IReadOnlyList<Guid> GetQuarantineTargetEntityIds()
-    {
-        if (IsBatchMode || ActiveScope is null)
-        {
-            return [];
-        }
-
-        if (IsContainerEditor && SelectedNavigatorNode is not null)
-        {
-            return GetQuarantineTargetNodes(SelectedNavigatorNode).Select(node => node.EntityId).ToList();
-        }
-
-        return CurrentEntityId == Guid.Empty ? [] : [CurrentEntityId];
-    }
-
-    protected async Task ToggleQuarantineConfirmAsync()
-    {
-        _showQuarantineConfirm = !_showQuarantineConfirm;
-        if (!_showQuarantineConfirm)
-        {
-            return;
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    protected async Task QuarantineCurrentSelectionAsync()
-    {
-        var entityIds = GetQuarantineTargetEntityIds();
-        if (entityIds.Count == 0)
-        {
-            return;
-        }
-
-        StateHasChanged();
-
-        try
-        {
-            var response = entityIds.Count == 1
-                ? await ApiClient.RejectLibraryCatalogItemAsync(entityIds[0])
-                : await ApiClient.BatchRejectLibraryCatalogItemsAsync(entityIds.ToArray());
-
-            if (response is null)
-            {
-                Snackbar.Add("Quarantine failed.", AppSeverity.Error);
-                return;
-            }
-
-            Snackbar.Add(entityIds.Count == 1 ? "Item quarantined." : $"{entityIds.Count} items quarantined.", AppSeverity.Success);
-
-            if (IsContainerEditor)
-            {
-                var fallbackEntityId = ResolveNavigatorFallbackEntityAfterQuarantine();
-                if (fallbackEntityId != Guid.Empty)
-                {
-                    await LoadSingleItemAsync(fallbackEntityId, resetEditorState: false);
-                    return;
-                }
-            }
-
-            await CloseEditorAsync(applied: true);
-        }
-        finally
-        {
-            _showQuarantineConfirm = false;
-            StateHasChanged();
-        }
-    }
-
-    private Guid ResolveNavigatorFallbackEntityAfterQuarantine()
-    {
-        var currentNode = SelectedNavigatorNode;
-        if (currentNode is null || _navigator is null)
-        {
-            return Guid.Empty;
-        }
-
-        if (currentNode.ParentNodeId is Guid parentNodeId)
-        {
-            var parentNode = _navigator.Nodes.FirstOrDefault(node => node.NodeId == parentNodeId);
-            if (parentNode is not null)
-            {
-                return parentNode.EntityId;
-            }
-        }
-
-        return NavigatorRootNode?.EntityId ?? Guid.Empty;
     }
 
     protected string GetDisplayOverrideLabel(string key) =>

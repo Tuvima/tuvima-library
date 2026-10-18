@@ -355,12 +355,11 @@ unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/library/items` | Paginated item list for current browse/detail surfaces. Includes projection-backed fields such as `pipelineStep`, `libraryVisibility`, `isReadyForLibrary`, `artworkState`, `artworkSource`, and `artworkSettledAt`. Supports filtering by status, media type, collection, and search term. | Required |
 | GET | `/library/items/{entityId}/detail` | Full item detail including claims, canonical values, pipeline projection fields, artwork truth, and linked persons | Required |
+| GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Required |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
-| GET | `/library/items/counts` | Status counts for tab badges and compatibility counters such as review, auto-approved, duplicate, staging, and missing-image counts | Required |
-| GET | `/library/items/state-counts?batchId=` | Four-state counts scoped to a specific ingestion batch | Required |
+| POST | `/library/items/batch/delete` | Permanently delete one or more items and their files; returns processed and requested counts | Effective administrator |
 
 ---
 
