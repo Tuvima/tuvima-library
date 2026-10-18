@@ -179,13 +179,13 @@ Additional tab components composed inside those sections: `EncodeSettingsTab`, `
 
 Supporting components used inside tabs: `CuratorsDrawer`, `FolderBrowserDialog`, `SettingsSectionPanel`, `SettingsStatusBadge`, `MediaRail`, `MediaRailCard`, `IngestionLiveDashboard`, `ProviderStageSelector`.
 
-Navigation is URL-driven: `/settings/review` deep-links straight into the review queue, `/settings/ingestion` opens the ingestion admin view, and `/settings/dev-harness` opens the temporary development wipe/reingest harness.
+Navigation is URL-driven: `/settings/review` redirects to Needs Review in `/settings/recently-added`, `/settings/ingestion` opens the ingestion admin view, and `/settings/dev-harness` opens the temporary development wipe/reingest harness.
 
-## Review Queue (inside Settings)
+## Needs Review (inside Settings)
 
-The Review Queue is the Engine's safety net for uncertain matches. It lives in Settings → Recently Added → Needs Review (`/settings/recently-added`, rendered by `RecentlyAddedPageContent`; the old `/settings/review` address redirects there). It opens the shared media editor in review mode for blocked or uncertain items.
+Needs Review (stored in the Engine's review queue) is the Engine's safety net for uncertain matches. Only server administrators, and apps a server administrator has given review permission, can list or resolve it. It lives in Settings → Recently Added → Needs Review (`/settings/recently-added`, rendered by `RecentlyAddedPageContent`; the old `/settings/review` address redirects there). It opens the shared media editor in review mode for blocked or uncertain items.
 
-The queue surfaces items that need human attention: failed retail matches, ambiguous Wikidata candidates, low-confidence matches, missing titles, and items that fell through during enrichment. Review rows can launch the shared editor in review mode, dismiss an item, skip universe matching where supported, or retry/resolve according to existing Engine rules. `PostPipelineService` auto-resolves queue items when a later enrichment pass pushes confidence above threshold.
+The queue surfaces items that need human attention: failed retail matches, ambiguous Wikidata candidates, low-confidence matches, missing titles, and items that fell through during enrichment. Review rows can launch the shared editor in review mode, dismiss an item, skip universe matching where supported, keep a provider match, move a film to TV, or retry a failed write-back according to existing Engine rules. `PostPipelineService` auto-resolves queue items when a later enrichment pass pushes confidence above threshold.
 
 Browsing lives on Home, Read, Watch, Listen, Collections, Search, and detail pages; review lives inside Settings/Admin. Do not add all-in-one management routes, components, docs, or navigation. Normal media correction opens `SharedMediaEditorShell` from media pages and details through `MediaEditorLauncherService.OpenAsync`; Review uses the same modal editor in review mode.
 
