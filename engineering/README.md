@@ -24,6 +24,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Item Detail page](specs/item-detail.md) | In progress (v5, started 2026-10-17) |
+| [Spec: Open from the start — retire "Who can connect"](specs/open-from-the-start.md) | In progress (v3, locked and started 2026-10-17) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | In progress (v5, started 2026-10-17; WP2–WP8 docs in #245; WP1 and the guardrail ship with Item Detail) |
 | [Archive](specs/archive/README.md) | Built specs |
