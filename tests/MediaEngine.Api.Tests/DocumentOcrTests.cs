@@ -365,7 +365,8 @@ public sealed class DocumentOcrTests
         var worker = Worker(fixture, ocr, probe);
 
         var run = worker.RunOnceAsync(CancellationToken.None);
-        await Task.Delay(300);
+        // Wait for the polls themselves rather than a fixed delay, so a slow machine cannot fail the test.
+        await probe.WaitForChecksAsync(3).WaitAsync(TimeSpan.FromSeconds(20));
 
         Assert.False(run.IsCompleted, "The worker must hold back while media is playing.");
         Assert.Equal(0, ocr.Calls);
@@ -407,11 +408,13 @@ public sealed class DocumentOcrTests
         }
 
         Assert.True(await fixture.OcrQueue!.StartRereadAsync(CancellationToken.None));
-        for (var wait = 0; wait < 100 && fixture.OcrQueue.RereadProgress.Running; wait++)
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
+        while (fixture.OcrQueue.RereadProgress.Running && DateTime.UtcNow < deadline)
         {
-            await Task.Delay(50);
+            await Task.Delay(20);
         }
 
+        Assert.False(fixture.OcrQueue.RereadProgress.Running, "The reread finishes.");
         Assert.Equal(2, fixture.OcrQueue.RereadProgress.Queued);
         var waiting = (await fixture.Operations.GetQueueAsync(DocumentOcrQueue.QueueName, 20))
             .Count(operation => operation.Status == MediaOperationStatus.Queued);

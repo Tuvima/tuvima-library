@@ -30,6 +30,13 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Archive](specs/archive/README.md) | Built specs |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
 
+## Handoffs
+
+| Doc | Status |
+|---|---|
+| [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Current — decision pending |
+
 ## Architecture decisions
 
 | Decision | Status |
