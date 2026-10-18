@@ -1,6 +1,6 @@
 # Spec: First run and prerequisites
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Windows install (public)](../../docs/install/windows.md) · [Install from source (public)](../../docs/install/from-source.md) · [Configuration reference (public)](../../docs/reference/configuration.md)
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Windows install (public)](../../docs/install/windows.md) · [Install from source (public)](../../docs/install/from-source.md) · [Configuration reference (public)](../../docs/reference/configuration.md)
 
 > Written 2026-10-18 after Shy's first test run on a fresh data store, Group 1 of the bug list (bugs 25, 26, 3, 1, 2). Everything below was checked against the code on main (merge of PR 259). Where something is inferred rather than seen, it says so. Shy answered every question and Locked the spec on 2026-10-18. Nothing is built. Shy said not to download FFmpeg by hand during the test, then asked whether the Library should fetch missing tools itself at start-up and clarified that privacy first means not sharing data, not refusing to download what the app needs. Options are in section 7 (Q5); the recommended one is WP7.
 
