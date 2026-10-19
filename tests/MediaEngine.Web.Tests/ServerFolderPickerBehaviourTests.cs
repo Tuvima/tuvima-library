@@ -59,7 +59,11 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
                 if (request.ManualPath is { } typed)
                 {
                     // The Engine refuses a path outside what it allows with no result, and reports a missing folder with a code.
-                    if (typed.Contains("outside", StringComparison.Ordinal)) return Task.FromResult<ServerFolderValidationResultDto?>(null);
+                    if (typed.Contains("outside", StringComparison.Ordinal))
+                    {
+                        return Task.FromResult<ServerFolderValidationResultDto?>(null);
+                    }
+
                     if (typed.Contains("missing", StringComparison.Ordinal))
                     {
                         return Task.FromResult<ServerFolderValidationResultDto?>(new()
