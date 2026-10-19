@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0012 series_identity_by_media_type).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0013 companion_live_states).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -561,6 +561,20 @@ CREATE TABLE collections (
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 , resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT);
+
+CREATE TABLE companion_sessions (
+    profile_id              BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    companion_device_id     TEXT NOT NULL,
+    mode                    TEXT NOT NULL CHECK (mode IN ('follow','manual')),
+    followed_device_id      TEXT,
+    manual_work_id          BLOB REFERENCES works(id) ON DELETE CASCADE,
+    manual_chapter_index    INTEGER CHECK (manual_chapter_index IS NULL OR manual_chapter_index >= 0),
+    manual_position_seconds REAL CHECK (manual_position_seconds IS NULL OR manual_position_seconds >= 0),
+    updated_at              TEXT NOT NULL,
+    PRIMARY KEY (profile_id, companion_device_id),
+    CHECK ((mode = 'follow' AND followed_device_id IS NOT NULL AND manual_work_id IS NULL)
+        OR (mode = 'manual' AND manual_work_id IS NOT NULL AND followed_device_id IS NULL))
+);
 
 CREATE TABLE consumption_history (
     id BLOB PRIMARY KEY,
@@ -1771,6 +1785,20 @@ CREATE TABLE playback_telemetry_sessions (
     client_version TEXT,
     CHECK((ended_at IS NULL AND completion_reason IS NULL AND state IN('playing','paused'))
         OR (ended_at IS NOT NULL AND completion_reason IS NOT NULL AND state IN('stopped','completed')))
+);
+
+CREATE TABLE player_device_states (
+    profile_id        BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    device_id         TEXT NOT NULL,
+    client            TEXT NOT NULL,
+    player_session_id BLOB,
+    asset_id          BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    work_id           BLOB REFERENCES works(id) ON DELETE SET NULL,
+    playback_state    TEXT NOT NULL CHECK (playback_state IN ('playing','paused','ended')),
+    position_seconds  REAL NOT NULL DEFAULT 0 CHECK (position_seconds >= 0),
+    duration_seconds  REAL CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+    updated_at        TEXT NOT NULL,
+    PRIMARY KEY (profile_id, device_id)
 );
 
 CREATE TABLE player_queue_items (
