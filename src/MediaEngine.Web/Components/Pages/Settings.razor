@@ -7,6 +7,7 @@
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
@@ -45,6 +46,7 @@ else
 <MediaSectionShell Title="Settings"
                    NavigationGroups="@SettingsNavigationGroups"
                    AccordionNavigation="true"
+                   FixedColumnTree="true"
                    ShowMobileNavigation="false">
     <div class="settings-shell-content" @ref="_contentElement">
         <nav class="settings-mobile-navigation" aria-label="Settings page selector">
@@ -56,9 +58,14 @@ else
                                  Value="@MobileNavigationValue"
                                  OnChange="@OnMobilePageChanged"
                                  aria-label="Settings page">
-                    @foreach (var option in MobileNavigationOptions)
+                    @foreach (var group in PhoneMenuGroups)
                     {
-                        <option value="@option.Value" selected="@IsMobileNavigationOptionSelected(option)">@option.Label</option>
+                        <optgroup label="@group.Label">
+                            @foreach (var option in group.Options)
+                            {
+                                <option value="@option.Route" selected="@IsMobileNavigationOptionSelected(option.Route)">@PhoneOptionLabel(option)</option>
+                            }
+                        </optgroup>
                     }
                 </AppNativeSelect>
             </div>
@@ -118,6 +125,9 @@ else
                             case SettingsSection.AdminOverview:
                                 <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
                                 break;
+                            case SettingsSection.Preferences:
+                                <PreferencesSummaryPage />
+                                break;
                             case SettingsSection.Playback:
                                 <PlaybackSettingsPage @key="@PlaybackProfileId"
                                                       ProfileId="@PlaybackProfileId"
@@ -132,9 +142,6 @@ else
                                 <ReadingSettingsPage @key="@PlaybackProfileId"
                                                      ProfileId="@PlaybackProfileId"
                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
-                                break;
-                            case SettingsSection.Privacy:
-                                <PrivacyHistoryTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" />
@@ -253,24 +260,24 @@ else
     private Guid? _loadedBreadcrumbBatchId;
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
-    private IReadOnlyList<SettingsTreeGroupDef> VisibleTreeGroups =>
-        SettingsNav.FilteredTreeGroups(CanManageAdministration, CanManageHousehold).ToList();
+    private SettingsMenuContext MenuContext => new(
+        CanManageAdministration,
+        CanManageHousehold,
+        DeviceContext.IsMobile,
+        _reviewCount,
+        ShowSecurityAttentionDot,
+        IsSectionEnabledByUiSettings);
 
-    private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups =>
-        VisibleTreeGroups
-            .Select(group => new MediaSectionNavigationGroup(
-                group.Label,
-                BuildTreeNavigationItems(group)))
-            .ToList();
+    // One menu tree: the desktop rail and the phone page selector are both built from it.
+    private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
 
-    private IReadOnlyList<AppSelectOption> MobileNavigationOptions =>
-        SettingsNavigationGroups
-            .SelectMany(group => group.Items)
-            .SelectMany(item => item.Children is { Count: > 0 } ? item.Children : [item])
-            .Select(item => new AppSelectOption(item.Route, item.Label, item.Icon))
-            .ToList();
+    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups);
 
-    private SettingsGroupDef CurrentGroup => SettingsNav.GetGroup(_activeSection);
+    private SettingsMenuLocation? CurrentLocation => SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+
+    private SettingsGroupDef CurrentGroup => CurrentLocation is { } location
+        ? SettingsNav.AllGroups.First(group => group.Key == location.Group.Key)
+        : SettingsNav.GetGroup(_activeSection);
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
@@ -278,9 +285,9 @@ else
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
         : _activeSection == SettingsSection.Libraries
         ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Tuvima Library"
-        : string.IsNullOrWhiteSpace(_activeSubsection)
-        ? $"{GetHeroTitle()} - Tuvima Library"
-        : $"{GetSubsectionLabel()} - {GetHeroTitle()} - Tuvima Library";
+        : CurrentLocation?.Parent is { } parent
+        ? $"{GetHeroTitle()} - {parent.Label} - Tuvima Library"
+        : $"{GetHeroTitle()} - Tuvima Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -299,9 +306,15 @@ else
             ? "settings-mobile-summary"
             : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string MobileNavigationValue => IsMobileRouteUnavailable ? MobileFallbackRoute : SettingsNav.RouteFor(_activeSection);
-    private bool IsMobileNavigationOptionSelected(AppSelectOption option) =>
-        string.Equals(option.Value, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
+    private string MobileNavigationValue => IsMobileRouteUnavailable
+        ? MobileFallbackRoute
+        : CurrentLocation?.Node.Route ?? SettingsNav.RouteFor(_activeSection);
+    private bool IsMobileNavigationOptionSelected(string route) =>
+        string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
+
+    // Indents a sub-page under its parent in the native phone selector, which cannot nest rows.
+    private static string PhoneOptionLabel(SettingsPhoneMenuOption option) =>
+        option.Depth == 0 ? option.Label : new string('\u00A0', option.Depth * 3) + option.Label;
     private string MobileUnavailableMessage => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
         ? $"{GetHeroTitle()} is intentionally withheld from mobile because it contains complex configuration or diagnostic tools. Use a desktop or tablet for this workflow."
         : $"This part of {GetHeroTitle()} contains configuration or diagnostic tools that are safer and easier to use on a desktop or tablet. The mobile overview remains available.";
@@ -510,7 +523,7 @@ else
             return;
         }
 
-        if (!IsItemEnabledByUiSettings(SettingsNav.GetItem(_activeSection)))
+        if (!IsSectionEnabledByUiSettings(_activeSection))
         {
             Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration, CanManageHousehold)), replace: true);
             return;
@@ -627,63 +640,9 @@ else
         StateHasChanged();
     }
 
-    private IReadOnlyList<SettingsItemDef> GetVisibleTreeItems(SettingsTreeGroupDef group) =>
-        SettingsNav.FilteredTreeItems(group, CanManageAdministration, CanManageHousehold)
-            .Where(item => !DeviceContext.IsMobile || SettingsNav.IsVisibleOnMobile(item.Value))
-            .Where(item => item.Value is not SettingsSection.Review)
-            .Where(IsItemEnabledByUiSettings)
-            .ToList();
-
-    private IReadOnlyList<MediaSectionNavigationItem> BuildTreeNavigationItems(SettingsTreeGroupDef group)
-    {
-        var items = new List<MediaSectionNavigationItem>();
-        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration, CanManageHousehold).ToList();
-
-        foreach (var item in GetVisibleTreeItems(group))
-        {
-            items.Add(BuildNavigationItem(item));
-            foreach (var childGroup in childGroups.Where(child => child.InsertAfter == item.Value))
-            {
-                items.Add(BuildNavigationBranch(childGroup));
-            }
-        }
-
-        foreach (var childGroup in childGroups.Where(child => child.InsertAfter is null))
-        {
-            items.Add(BuildNavigationBranch(childGroup));
-        }
-
-        return items;
-    }
-
-    private MediaSectionNavigationItem BuildNavigationBranch(SettingsTreeGroupDef group) => new(
-        group.Label,
-        SettingsNav.RouteFor(group.DefaultSection),
-        group.Icon,
-        Exact: true,
-        Children: GetVisibleTreeItems(group).Select(BuildNavigationItem).ToList());
-
     private void OnDeviceContextChanged() => InvokeAsync(StateHasChanged);
 
-    private MediaSectionNavigationItem BuildNavigationItem(SettingsItemDef item)
-    {
-        var showReviewNotification = item.Value == SettingsSection.RecentlyAdded && _reviewCount > 0;
-
-        return new(
-            item.Label,
-            SettingsNav.RouteFor(item.Value),
-            item.Icon,
-            Meta: showReviewNotification ? DisplayFormat.FormatCount(_reviewCount) : null,
-            Exact: true,
-            SectionBreakBefore: item.SectionBreakBefore,
-            MetaIsNotification: showReviewNotification,
-            MetaAriaLabel: showReviewNotification
-                ? $"{DisplayFormat.FormatCount(_reviewCount)} item{(_reviewCount == 1 ? "" : "s")} need review"
-                : null,
-            AttentionDot: item.Value == SettingsSection.Security && ShowSecurityAttentionDot);
-    }
-
-    private bool IsItemEnabledByUiSettings(SettingsItemDef item) => item.Value switch
+    private bool IsSectionEnabledByUiSettings(SettingsSection section) => section switch
     {
         SettingsSection.DevHarness => DeviceContext.Settings.Features.InternalTools
             && !DeviceContext.IsFeatureDisabled("internal_tools"),
@@ -755,38 +714,33 @@ else
             CurrentGroup.Label,
             SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
 
+        // Group > parent > page, straight from the menu tree.
+        var trail = CurrentLocation?.Trail ?? [];
+        foreach (var ancestor in trail.Take(Math.Max(trail.Count - 1, 0)))
+            breadcrumbs.Add(new SettingsBreadcrumb(ancestor.Label, ancestor.Route));
+
+        var pageLabel = trail.Count > 0 ? trail[^1].Label : GetHeroTitle();
+        var pageRoute = trail.Count > 0 ? trail[^1].Route : SettingsNav.RouteFor(_activeSection);
+
         if (_activeSection == SettingsSection.Libraries)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb("Libraries", string.IsNullOrWhiteSpace(_activeSubsection) ? null : "/settings/libraries"));
-            if (!string.IsNullOrWhiteSpace(_activeSubsection))
+            var hasView = !string.IsNullOrWhiteSpace(_activeSubsection);
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasView ? pageRoute : null));
+            if (hasView)
                 breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : "Library", null));
             return breadcrumbs;
         }
 
         if (IsProfileDetailRoute)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, pageRoute));
             breadcrumbs.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", null));
             return breadcrumbs;
         }
 
-        var hasNestedLocation = !string.IsNullOrWhiteSpace(_activeSubsection) || !string.IsNullOrWhiteSpace(Detail);
-        breadcrumbs.Add(new SettingsBreadcrumb(
-            GetHeroTitle(),
-            hasNestedLocation ? SettingsNav.RouteFor(_activeSection) : null));
-
-        if (!string.IsNullOrWhiteSpace(_activeSubsection))
-        {
-            var subsectionLabel = SettingsNav.ResolveSubsection(_activeSection, _activeSubsection)?.Label
-                                  ?? FormatRouteLabel(_activeSubsection);
-            breadcrumbs.Add(new SettingsBreadcrumb(
-                subsectionLabel,
-                string.IsNullOrWhiteSpace(Detail)
-                    ? null
-                    : SettingsNav.RouteFor(_activeSection, _activeSubsection)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(Detail))
+        var hasDetail = !string.IsNullOrWhiteSpace(Detail);
+        breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasDetail ? pageRoute : null));
+        if (hasDetail)
             breadcrumbs.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
 
         return breadcrumbs;
@@ -836,23 +790,19 @@ else
 
     private string GetHeroTitle()
     {
-        if (_activeSection != SettingsSection.Providers || string.IsNullOrWhiteSpace(Detail))
-            return SettingsNav.GetItem(_activeSection).Label;
-        return "Provider Configuration";
+        if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
+            return "Provider Configuration";
+        return CurrentLocation?.Node.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
-
-    private string GetSubsectionLabel() => string.IsNullOrWhiteSpace(_activeSubsection)
-        ? GetHeroTitle()
-        : SettingsNav.ResolveSubsection(_activeSection, _activeSubsection)?.Label ?? GetHeroTitle();
 
     private string GetSectionDescription(SettingsSection section) => section switch
     {
         SettingsSection.Profiles => "Your profile and the people in your household.",
+        SettingsSection.Preferences => "How you watch, listen and read.",
         SettingsSection.Playback => "How you watch.",
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
         SettingsSection.Security => "Password, email and extra protection.",
-        SettingsSection.Privacy => "Personal history and export controls are not yet available.",
         SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "Configure how Tuvima Library discovers, processes, retries, and adds media to your library.",
