@@ -291,7 +291,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Personal", "Server", "Manage", "Developer"], groups.Select(group => group.Label));
 
         Assert.Equal(["Profiles", "Preferences", "Security"], Labels(groups, "personal"));
-        Assert.Equal(["Library and Ingestion", "Network and Remote Access", "Streaming", "Devices"], Labels(groups, "server"));
+        Assert.Equal(["Library and Ingestion", "Network and Remote Access", "Streaming"], Labels(groups, "server"));
         Assert.Equal(["Users and Sign-in", "System"], Labels(groups, "manage"));
         Assert.Equal(["Local AI", "Integrations", "Plugins", "Developer Tools"], Labels(groups, "developer"));
 
@@ -407,7 +407,6 @@ public sealed class SettingsNavTests
     [InlineData("recently-added", SettingsSection.RecentlyAdded, "/settings/recently-added")]
     [InlineData("metadata", SettingsSection.Providers, "/settings/metadata/providers")]
     [InlineData("network", SettingsSection.Network, "/settings/network/overview")]
-    [InlineData("devices", SettingsSection.Devices, "/settings/devices")]
     [InlineData("delivery", SettingsSection.Delivery, "/settings/delivery")]
     [InlineData("tools", SettingsSection.Tools, "/settings/tools")]
     [InlineData("access", SettingsSection.Access, "/settings/access/users")]
@@ -472,12 +471,11 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesPersonalAndOnlyDevicesUnderServer()
+    public void HouseholdAdministrator_SeesOnlyThePersonalGroup()
     {
         var groups = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true);
 
-        Assert.Equal(["personal", "server"], groups.Select(group => group.Key));
-        Assert.Equal(["Devices"], groups[1].Nodes.Select(node => node.Label));
+        Assert.Equal(["personal"], groups.Select(group => group.Key));
     }
 
     private static string[] Labels(IReadOnlyList<SettingsMenuGroup> groups, string groupKey) =>
@@ -599,7 +597,7 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void NonAdmin_PersonalTree_IsProfilesPreferencesWithItsThreePagesAndSecurity()
+    public void NonAdmin_PersonalTree_IsProfilesPreferencesWithItsThreePagesAndSecurityWithItsDevices()
     {
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
@@ -609,6 +607,7 @@ public sealed class SettingsNavTests
             [
                 SettingsSection.Profiles, SettingsSection.Preferences, SettingsSection.Playback,
                 SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security,
+                SettingsSection.Security,
             ],
             sections);
     }

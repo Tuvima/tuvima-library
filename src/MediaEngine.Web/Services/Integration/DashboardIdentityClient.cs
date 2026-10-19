@@ -453,6 +453,10 @@ public sealed class DashboardIdentityClient(
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 
+    /// <summary>The households the Engine lets this administrator see: every household for a server administrator, their own otherwise.</summary>
+    public async Task<List<HouseholdResponse>> GetManagedHouseholdsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<HouseholdResponse>>("/access/households", ct).ConfigureAwait(false) ?? [];
+
     public async Task<List<AccessLibraryOptionDto>> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         await GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct).ConfigureAwait(false) ?? [];
 

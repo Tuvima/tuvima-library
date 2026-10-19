@@ -83,11 +83,11 @@ A working tunnel or proxy does not grant library access.
 
 ## Let phone and TV apps connect
 
-Phone and TV apps are always allowed; there is no switch to turn them on. Open **Settings → Administration → Devices**:
+Phone and TV apps are always allowed; there is no switch to turn them on.
 
-1. **Address to type in the app** shows your home address (this server's address on the adapter chosen in **Settings → Network**, with the Dashboard port) with **Copy** and **Test** buttons. Type it into the app when it asks for your server.
-2. When you have chosen a way in from outside (Tailscale or an HTTPS address), the panel also shows the outside address, labelled "Apps use this away from home". The Android app learns it when it pairs and when it starts, tries your home address first, and switches to the outside address on its own when you are away. If you later remove the outside address, re-pair the phone so it forgets it. The Apple, Roku and TV web apps do not switch addresses yet.
-3. **Paired devices** lists each paired phone or TV with who it belongs to and when it was last seen. **Revoke** signs one out straight away; it has to be paired again. A server administrator sees every device, and a household administrator sees only their own. The same page lists everyone who is signed in under **Signed-in sessions**, with a **Sign out** for each device.
+1. The home address is this server's address on the adapter chosen in **Settings → Network**, with the Dashboard port; **Settings → Network and Remote Access** shows it. Type it into the app when it asks for your server.
+2. When you have chosen a way in from outside (Tailscale or an HTTPS address), the outside address is shown beside it. The Android app learns it when it pairs and when it starts, tries your home address first, and switches to the outside address on its own when you are away. If you later remove the outside address, re-pair the phone so it forgets it. The Apple, Roku and TV web apps do not switch addresses yet.
+3. **Settings → Security → Devices** lists each paired phone or TV with an icon for what it is and, for administrators, who it belongs to and when it was last seen. **Sign out** ends one straight away; it has to be paired again. A member sees only their own devices, a household administrator also their household's, and a server administrator everyone's. The same page lists where people are signed in under **Signed-in browsers**, with a **Sign out** for each.
 
 ## Advanced port forwarding
 

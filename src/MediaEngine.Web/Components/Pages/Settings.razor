@@ -120,7 +120,14 @@ else
                                 }
                                 break;
                             case SettingsSection.Security:
-                                <SecuritySettingsPage />
+                                @if (_activeSubsection == "devices")
+                                {
+                                    <DevicesTab />
+                                }
+                                else
+                                {
+                                    <SecuritySettingsPage />
+                                }
                                 break;
                             case SettingsSection.AdminOverview:
                                 <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
@@ -174,9 +181,6 @@ else
                                 break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
-                                break;
-                            case SettingsSection.Devices:
-                                <DevicesTab />
                                 break;
                             case SettingsSection.Access:
                                 <UsersAccessSettingsTab Subsection="@_activeSubsection" />
@@ -468,7 +472,7 @@ else
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
 
-    // A household administrator who is not the server administrator reaches the one administration page that is theirs (Devices).
+    // A household administrator who is not the server administrator reaches the administration pages marked for them.
     private bool CanManageHousehold => Session.HasAction("household.manage");
 
     // Administration pages need the administrator gate, except the page a household administrator reaches without being the server administrator.
@@ -499,12 +503,6 @@ else
             Nav.NavigateTo(Section.Equals("review", StringComparison.OrdinalIgnoreCase)
                 ? "/settings/recently-added?review=expanded"
                 : "/settings/recently-added", replace: true);
-            return;
-        }
-
-        if (SettingsNav.LegacyRedirect(Section, Subsection) is { } movedTo)
-        {
-            Nav.NavigateTo(movedTo, replace: true);
             return;
         }
 
@@ -802,7 +800,9 @@ else
         SettingsSection.Playback => "How you watch.",
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
-        SettingsSection.Security => "Password, email and extra protection.",
+        SettingsSection.Security => _activeSubsection == "devices"
+            ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
+            : "Password, email and extra protection.",
         SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "Configure how Tuvima Library discovers, processes, retries, and adds media to your library.",
@@ -812,7 +812,6 @@ else
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => "Manage local intelligence features while keeping technical details out of the way.",
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
-        SettingsSection.Devices => "Connect phones and TVs, and see everyone who is signed in.",
         SettingsSection.Delivery => "Manage server-side playback quality, transcoding, storage, and delivery health.",
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => "Manage who can use Tuvima Library and how they sign in.",

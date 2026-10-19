@@ -1,19 +1,121 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
+@inject ILogger<DevicesTab> Logger
 
-@* Settings > Administration > Devices: everything that connects. The server administrator also sets whether apps may
-   connect; a household administrator sees the paired devices and the sign-ins of their own household. *@
+@* Settings > Personal > Security > Devices. A member sees their own paired phones and TVs and signed-in browsers; a
+   household administrator also their household's; a server administrator everyone's. The Engine decides what comes
+   back. The Dashboard only chooses what to show, and lets administrators narrow it by household and profile. *@
 <div class="devices-tab" data-devices-tab>
-    @if (IsServerAdministrator)
+    @if (ManagesOthers && (ShowHouseholdFilter || _people.Count > 0))
     {
-        <AppsAndDevicesPanel />
+        <div class="devices-tab__filters" role="group" aria-label="Filter devices" data-devices-filters>
+            @if (ShowHouseholdFilter)
+            {
+                <label class="devices-tab__filter">
+                    <span class="devices-tab__filter-label">Household</span>
+                    <AppNativeSelect Value="@(_filter.HouseholdId?.ToString() ?? string.Empty)"
+                                     ValueChanged="@OnHouseholdChanged"
+                                     data-devices-filter="household"
+                                     aria-label="Household">
+                        <option value="">All</option>
+                        @foreach (var household in _households)
+                        {
+                            <option value="@household.Id">@household.Name</option>
+                        }
+                    </AppNativeSelect>
+                </label>
+            }
+            @if (_people.Count > 0)
+            {
+                <label class="devices-tab__filter">
+                    <span class="devices-tab__filter-label">Profile</span>
+                    <AppNativeSelect Value="@(_filter.ProfileId?.ToString() ?? string.Empty)"
+                                     ValueChanged="@OnProfileChanged"
+                                     data-devices-filter="profile"
+                                     aria-label="Profile">
+                        <option value="">All</option>
+                        @foreach (var person in PeopleInView)
+                        {
+                            <option value="@person.Id">@person.DisplayName</option>
+                        }
+                    </AppNativeSelect>
+                </label>
+            }
+        </div>
     }
 
-    <PairedDevicesSection />
-    <SignedInSessionsSection />
+    <PairedDevicesSection @key="_reloads" Filter="@_filter" People="@_people" ManagesOthers="@ManagesOthers" />
+    <SignedInSessionsSection Filter="@_filter" ManagesOthers="@ManagesOthers" OnUnlocked="OnUnlockedAsync" />
 </div>
 
 @code {
+    private List<ManagedProfileResponse> _people = [];
+    private List<HouseholdResponse> _households = [];
+    private DevicesFilter _filter = DevicesFilter.All;
+    private int _reloads;
+
+    // A server administrator, or a household administrator looking after their own household.
+    private bool ManagesOthers => IsServerAdministrator || Session.HasAction("household.manage");
+
+    // Only a server administrator sees more than one household, so only they get the household filter.
     private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    private bool ShowHouseholdFilter => IsServerAdministrator && _households.Count > 0;
+
+    private IEnumerable<ManagedProfileResponse> PeopleInView =>
+        _people.Where(person => _filter.HouseholdId is null || person.HouseholdId == _filter.HouseholdId);
+
+    protected override Task OnInitializedAsync() => LoadFilterChoicesAsync();
+
+    // The people and households the Engine lets this administrator see; a refusal (an administrator PIN not yet entered) leaves the choices empty.
+    private async Task LoadFilterChoicesAsync()
+    {
+        if (!ManagesOthers)
+        {
+            return;
+        }
+
+        try
+        {
+            var people = Identity.GetManagedProfilesAsync();
+            var households = IsServerAdministrator ? Identity.GetManagedHouseholdsAsync() : Task.FromResult(new List<HouseholdResponse>());
+            _people = await people;
+            _households = (await households).OrderBy(household => household.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the people and households for the Devices filters.");
+            _people = [];
+            _households = [];
+        }
+    }
+
+    private void OnHouseholdChanged(object? value)
+    {
+        var household = ParseId(value);
+        var profile = _filter.ProfileId;
+
+        // A profile from another household no longer fits the narrowed list.
+        if (household is not null && !_people.Any(person => person.Id == profile && person.HouseholdId == household))
+        {
+            profile = null;
+        }
+
+        _filter = new DevicesFilter(household, profile);
+    }
+
+    private void OnProfileChanged(object? value) => _filter = _filter with { ProfileId = ParseId(value) };
+
+    // A PIN accepted on the sessions panel also opens what the devices list and the filters were refused.
+    private async Task OnUnlockedAsync()
+    {
+        _reloads++;
+        await LoadFilterChoicesAsync();
+    }
+
+    private static Guid? ParseId(object? value) => Guid.TryParse(value?.ToString(), out var id) ? id : null;
 }

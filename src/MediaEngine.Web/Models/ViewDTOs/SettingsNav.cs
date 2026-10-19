@@ -26,7 +26,6 @@ public enum SettingsSection
     Delivery,
     Tools,
     Network,
-    Devices,
     Access,
     Server,
 
@@ -162,7 +161,6 @@ public static class SettingsNav
             [SettingsSection.Providers] = Complete(),
             [SettingsSection.Review] = Complete(),
             [SettingsSection.Network] = Complete(),
-            [SettingsSection.Devices] = Complete(),
             [SettingsSection.Server] = Complete(),
             [SettingsSection.LocalAi] = Complete(),
             [SettingsSection.Delivery] = Complete(),
@@ -201,7 +199,6 @@ public static class SettingsNav
         new(SettingsSection.Review, "server", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network and Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Delivery, "server", "delivery", AppMaterialIcons.Outlined.Stream, "Streaming", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Devices, "server", "devices", AppMaterialIcons.Outlined.Devices, "Devices", true, null, ["apps"], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full, HouseholdAdminAccess: true),
 
         new(SettingsSection.Access, "manage", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users and Sign-in", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.AdminOverview, "manage", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -231,7 +228,10 @@ public static class SettingsNav
                 Node("Listening", AppMaterialIcons.Outlined.Headphones, SettingsSection.Listening),
                 Node("Reading", AppMaterialIcons.Outlined.MenuBook, SettingsSection.Reading),
             ]),
-            Node("Security", AppMaterialIcons.Outlined.Lock, SettingsSection.Security),
+            Node("Security", AppMaterialIcons.Outlined.Lock, SettingsSection.Security, children:
+            [
+                Node("Devices", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, "devices"),
+            ]),
         ]),
         new("server", "Server", AppMaterialIcons.Outlined.Dns,
         [
@@ -258,7 +258,6 @@ public static class SettingsNav
                 Node("Active Jobs", AppMaterialIcons.Outlined.PendingActions, SettingsSection.Delivery, "active-jobs"),
                 Node("Diagnostics", AppMaterialIcons.Outlined.MonitorHeart, SettingsSection.Delivery, "diagnostics"),
             ]),
-            Node("Devices", AppMaterialIcons.Outlined.Devices, SettingsSection.Devices),
         ]),
         new("manage", "Manage", AppMaterialIcons.Outlined.ManageAccounts,
         [
@@ -312,7 +311,10 @@ public static class SettingsNav
             [SettingsSection.Playback] = [],
             [SettingsSection.Listening] = [],
             [SettingsSection.Reading] = [],
-            [SettingsSection.Security] = [],
+            [SettingsSection.Security] =
+            [
+                new("devices", "Devices", AppMaterialIcons.Outlined.Devices),
+            ],
             [SettingsSection.AdminOverview] = [],
             [SettingsSection.Libraries] = [],
             [SettingsSection.Ingestion] = [],
@@ -357,7 +359,6 @@ public static class SettingsNav
                 new("applications", "Integrations", AppMaterialIcons.Outlined.Link),
                 new("authentication", "Sign-in Methods", AppMaterialIcons.Outlined.Security),
             ],
-            [SettingsSection.Devices] = [],
             [SettingsSection.Tools] = [],
             [SettingsSection.Server] = [],
             [SettingsSection.Review] = [],
@@ -398,7 +399,6 @@ public static class SettingsNav
         SettingsSection.Review,
         SettingsSection.Delivery,
         SettingsSection.Tools,
-        SettingsSection.Devices,
         SettingsSection.Access,
         SettingsSection.Server,
         SettingsSection.LocalAi,
@@ -417,7 +417,7 @@ public static class SettingsNav
     /// </summary>
     /// <param name="householdAdministrator">
     /// A household administrator who is not a server administrator: they also see the pages marked
-    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (today only Devices), and nothing else in Server.
+    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (none today), and nothing else in Server.
     /// </param>
     public static IReadOnlyList<SettingsMenuGroup> FilteredMenuGroups(
         bool administrationAllowed,
@@ -702,16 +702,6 @@ public static class SettingsNav
             IsKnownRoute: false,
             RequestedSectionAllowed: false);
     }
-
-    /// <summary>
-    /// Old addresses that now live elsewhere: the Apps &amp; devices tab of Network became the Devices page.
-    /// Returns the address to send the visitor to, or <see langword="null"/> when the address is current.
-    /// </summary>
-    public static string? LegacyRedirect(string? section, string? subsection) =>
-        string.Equals(section, "network", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(subsection, "apps", StringComparison.OrdinalIgnoreCase)
-            ? RouteFor(SettingsSection.Devices)
-            : null;
 
     public static SettingsSection? ParseFromRoute(string? segment)
     {

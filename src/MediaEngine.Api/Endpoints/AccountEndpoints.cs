@@ -30,8 +30,8 @@ public static class AccountEndpoints
     }
 
     /// <summary>
-    /// Paired phones and TVs for the Apps &amp; devices panel: administrators see every device, anyone else only their
-    /// own account's. Revoking ends the device's tokens and tells a connected app to sign out.
+    /// Paired phones and TVs for Settings &gt; Security &gt; Devices: a server administrator sees every device, a household administrator
+    /// their household's, anyone else only their own account's. Revoking ends the device's tokens and tells a connected app to sign out.
     /// </summary>
     private static void MapManagedDevices(RouteGroupBuilder access)
     {
