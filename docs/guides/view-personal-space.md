@@ -81,7 +81,7 @@ Every time you open someone's space or a household's Shared Library, Tuvima reco
 
 ## Switch View on for a person
 
-People outside your household start with **View** off. Open **Settings > Users & Access** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
+People outside your household start with **View** off. Open **Settings > Users and Sign-in** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
 
 ## Browse People and Places
 
@@ -96,7 +96,7 @@ Face recognition, object/scene detection, captions, semantic search, and AI memo
 <details>
 <summary>Technical details</summary>
 
-A phone backs its photos up to one person that is chosen for the phone, not to whoever the phone is browsing as. The phone's app asks for that person's PIN when they have one; an administrator can also choose under **Settings > Administration > Devices** (**Backs up to**). Until one is chosen, backups from that phone are refused.
+A phone backs its photos up to one person that is chosen for the phone, not to whoever the phone is browsing as. The phone's app asks for that person's PIN when they have one; an administrator can also choose under **Settings > Security > Devices** (**Backs up to**). Until one is chosen, backups from that phone are refused.
 
 Settings > Libraries chooses the managed View root. Current paths use stable `profiles/<profile-id>/sources/<source-id>` folders. Accepted shared originals live in a separate `Shared` tree. Do not move files by hand to match old `View/Profiles` wording.
 

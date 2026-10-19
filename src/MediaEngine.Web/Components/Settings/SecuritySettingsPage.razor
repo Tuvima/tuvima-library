@@ -11,6 +11,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject AuthenticationStateProvider AuthenticationState
 @inject NavigationManager Navigation
+@inject AccountNoticeState Notices
 @implements IAsyncDisposable
 
 @* Settings > Security: two short row lists. Each row opens a sheet (a bottom sheet on phones, a dialog on larger screens)
@@ -33,6 +34,10 @@
     else
     {
         <div class="security-settings__content">
+            @if (ShowAwayFromHomeNote)
+            {
+                <p class="security-settings__note">Your account has no password, so it only works at home. Add one any time below.</p>
+            }
             <section class="security-settings__group" aria-labelledby="security-account-details">
                 <h3 id="security-account-details" class="security-settings__group-title">Account details</h3>
                 <ul class="security-settings__list" role="list">
@@ -57,7 +62,7 @@
                 </ul>
             </section>
 
-            @* Everyone may sign out their own other sessions (a lost phone). The Devices page (paired phones and TVs, everyone's sessions) is for administrators, server or household. *@
+            @* Everyone may sign out their own other sessions (a lost phone). Paired phones and TVs and signed-in browsers are on the Devices page, a child of Security. *@
             <section class="security-settings__group" aria-labelledby="security-access">
                 <h3 id="security-access" class="security-settings__group-title">Access</h3>
                 <ul class="security-settings__list" role="list">
@@ -65,12 +70,6 @@
                         <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
                                         Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                     </li>
-                    @if (IsAdministrator)
-                    {
-                        <li class="security-settings__item">
-                            <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/devices" />
-                        </li>
-                    }
                 </ul>
             </section>
 
@@ -128,7 +127,7 @@
     {
         @if (!Capabilities.HasPassword)
         {
-            <p>Add a password to use Tuvima on your phone, TV and other devices at home. Your library, history and favourites stay just as they are.</p>
+            <p>Add a password to use the Library away from home. Phones and TVs at home keep working without one. Your library, history and favourites stay just as they are.</p>
             <form method="post" action="/account/secure" class="security-sheet__fields">
                 <AntiforgeryToken />
                 @if (NeedsEmail)
@@ -365,6 +364,9 @@
     private string _secureConfirm = string.Empty;
     private string _secureEmail = string.Empty;
     private bool _thisComputerOnly;
+    // After Not now on the profile menu card the reminder is a quiet note here instead of a dot and a card.
+    private bool ShowAwayFromHomeNote => _thisComputerOnly && !Capabilities.HasPassword && Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
     private bool _accountLoading = true;
@@ -386,8 +388,6 @@
     private bool _focusSheet;
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
-    // A server administrator, or a household administrator looking after their own household.
-    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasAction("household.manage");
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
         : _thisComputerOnly ? "Not set · anyone who can reach Tuvima can use this account" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
@@ -483,6 +483,8 @@
     protected override async Task OnInitializedAsync()
     {
         _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
+        Notices.Changed += OnNoticesChanged;
+        if (_thisComputerOnly) await Notices.EnsureLoadedAsync(_lifetime.Token);
         await LoadAccountAsync();
         if (_account is null || _disposed) return;
         StateHasChanged();
@@ -698,6 +700,7 @@
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        Notices.Changed -= OnNoticesChanged;
         _recoveryCodes = [];
         _lifetime.Cancel();
         _lifetime.Dispose();

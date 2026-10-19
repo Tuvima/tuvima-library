@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Integration
+
+@* The small icon beside a device on the Devices page: Android, Apple, TV, browser, or a generic device. Material has no
+   Android or Apple mark, so those two are simple first-party glyphs drawn to the same 2px outline as the others. *@
+<span class="device-type-icon" data-device-type="@KindKey" role="img" aria-label="@DeviceTypeClassifier.Label(Kind)">
+    <AppMaterialIcon Icon="@IconFor(Kind)" />
+</span>
+
+@code {
+    private const string AndroidGlyph =
+        "<path d=\"M6 19v-7a6 6 0 0 1 12 0v7z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"/>"
+        + "<path d=\"M9 6.8 7.5 4.3M15 6.8l1.5-2.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/>"
+        + "<circle cx=\"9.5\" cy=\"14\" r=\"1.1\"/><circle cx=\"14.5\" cy=\"14\" r=\"1.1\"/>";
+
+    private const string AppleGlyph =
+        "<rect x=\"7\" y=\"2.5\" width=\"10\" height=\"19\" rx=\"2.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/>"
+        + "<circle cx=\"12\" cy=\"18.2\" r=\"1\"/>";
+
+    [Parameter, EditorRequired] public DeviceTypeKind Kind { get; set; }
+
+    private string KindKey => Kind.ToString().ToLowerInvariant();
+
+    private static string IconFor(DeviceTypeKind kind) => kind switch
+    {
+        DeviceTypeKind.Android => AndroidGlyph,
+        DeviceTypeKind.Apple => AppleGlyph,
+        DeviceTypeKind.Tv => AppMaterialIcons.Outlined.Tv,
+        DeviceTypeKind.Browser => AppMaterialIcons.Outlined.Public,
+        _ => AppMaterialIcons.Outlined.Devices,
+    };
+}

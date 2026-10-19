@@ -218,10 +218,10 @@ public sealed class DataStoreSafetyCopyTests : IDisposable
         connection.Open();
         var safetyCopy = new DataStoreSafetyCopy(_dbPath, _backups);
 
-        var plan = new DataStoreUpgradePlan(5, [AddProbeNote(6)], DateTimeOffset.UtcNow);
+        var plan = new DataStoreUpgradePlan(Latest + 1, [AddProbeNote(Latest + 2)], DateTimeOffset.UtcNow);
         var runnerStyleFailure = Assert.Throws<DataStoreUpgradeRefusedException>(() => safetyCopy.Create(connection, plan));
 
-        Assert.Contains("should be at step 5", runnerStyleFailure.Message, StringComparison.Ordinal);
+        Assert.Contains($"should be at step {Latest + 1}", runnerStyleFailure.Message, StringComparison.Ordinal);
         Assert.Empty(SafetyCopies());
         Assert.Empty(Directory.GetFiles(Path.Combine(_backups, "safety-copies")));
     }

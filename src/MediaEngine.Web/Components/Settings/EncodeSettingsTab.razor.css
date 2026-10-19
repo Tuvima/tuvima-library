@@ -30,6 +30,28 @@
     overflow-x: auto;
 }
 
+.encode-settings__health {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.encode-settings__current {
+    display: grid;
+    gap: 3px;
+}
+
+.encode-settings__current strong {
+    color: var(--tl-text-primary);
+    font-size: 0.84rem;
+}
+
+.encode-settings__current span {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
 .encode-settings__warnings {
     margin: var(--tl-space-2) 0 0;
     padding-inline-start: var(--tl-space-5);

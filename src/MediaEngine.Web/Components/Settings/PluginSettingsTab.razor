@@ -24,52 +24,34 @@ else
         {
             <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
         }
-        @if (NormalizedSubsection == "overview")
+        @* One page: the installed plugins first, then the approved catalog, then the advanced plugin sections
+           (health and jobs, capabilities, danger zone). The advanced sections and the catalog are desktop and tablet only. *@
+        @OverviewSummary()
+        @if (DeviceContext.IsMobile)
         {
-            @OverviewSummary()
-            @if (DeviceContext.IsMobile)
-            {
-                @MobileInstalledPluginsPanel()
-            }
-            else
-            {
-                @InstalledPluginsPanel()
-                @if (ConfiguredPlugin is not null)
-                {
-                    <AppCard Title="@($"Configure {ConfiguredPlugin.Name}")" Description="@ConfiguredPlugin.Description" Class="settings-plugin-configure-panel">
-                        @if (!string.IsNullOrWhiteSpace(ConfiguredPlugin.LoadError))
-                        {
-                            <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
-                        }
-                        @PluginSettingsPanel(ConfiguredPlugin)
-                    </AppCard>
-                }
-                @AdvancedPluginLinks()
-            }
-        }
-        else if (NormalizedSubsection == "catalog")
-        {
-            @ApprovedCatalogPanel()
+            @MobileInstalledPluginsPanel()
         }
         else
         {
+            @InstalledPluginsPanel()
+            @if (ConfiguredPlugin is not null)
+            {
+                <AppCard Title="@($"Configure {ConfiguredPlugin.Name}")" Description="@ConfiguredPlugin.Description" Class="settings-plugin-configure-panel">
+                    @if (!string.IsNullOrWhiteSpace(ConfiguredPlugin.LoadError))
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
+                    }
+                    @PluginSettingsPanel(ConfiguredPlugin)
+                </AppCard>
+            }
+            @MarketplaceNote()
+            @ApprovedCatalogPanel()
             @AdvancedPluginPanel()
         }
     </div>
 }
 
 @code {
-    [Parameter] public string Subsection { get; set; } = "overview";
-
-    private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
-    {
-        "jobs-health" => "jobs-health",
-        "catalog" => "catalog",
-        "capabilities" => "capabilities",
-        "danger" => "danger",
-        _ => "overview",
-    };
-
     private readonly JsonSerializerOptions _json = MediaEngineJson.Web;
     private readonly Dictionary<string, PluginHealthResponse> _health = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<OperationDto>> _jobs = new(StringComparer.OrdinalIgnoreCase);
@@ -171,24 +153,18 @@ else
         }
     </AppCard>;
 
-    private RenderFragment AdvancedPluginLinks() => @<AppCard Title="Advanced plugin management" Description="Operational and destructive controls stay out of the everyday plugin list.">
-        <SettingsAdvancedLinkRow Title="Health & Jobs" Description="Run plugin health checks and inspect recent background jobs." Href="/settings/plugins/jobs-health" ActionLabel="Open" />
-        <SettingsAdvancedLinkRow Title="Approved Catalog" Description="View extensions approved by the configured catalog." Href="/settings/plugins/catalog" ActionLabel="Open" />
-        <SettingsAdvancedLinkRow Title="Capabilities & AI permissions" Description="Review declared capabilities, tools, and AI access." Href="/settings/plugins/capabilities" ActionLabel="Review" />
-        <SettingsAdvancedLinkRow Title="Danger Zone" Description="Delete removable plugins; built-in plugins cannot be deleted." Href="/settings/plugins/danger" ActionLabel="Open" />
-        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
-            Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
-        </AppAlert>
-    </AppCard>;
+    private RenderFragment MarketplaceNote() => @<AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
+        Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
+    </AppAlert>;
 
     private RenderFragment AdvancedPluginPanel() => @<text>
-        <AppCard Title="@AdvancedTitle" Description="@AdvancedDescription">
+        <AppCard Title="Plugin details" Description="Check one plugin's health and jobs, review what it can access, or remove it.">
             <AppSelect Label="Plugin" Value="@_selectedPluginId" ValueChanged="@SelectPluginValue" Options="@PluginOptions" />
         </AppCard>
         <AppCard>
             @if (SelectedPlugin is null)
             {
-                <AppEmptyState Title="No plugin selected" Message="Choose an installed plugin to inspect this section." />
+                <AppEmptyState Title="No plugin selected" Message="Choose an installed plugin to inspect its details." />
             }
             else
             {
@@ -202,48 +178,23 @@ else
                         </div>
                         <AppStatusBadge Text="@(plugin.Enabled ? "Enabled" : "Disabled")" Tone="@(plugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
                     </div>
-                    @PluginSubsection(plugin)
+                    <section class="settings-plugin-detail-section" aria-label="Health and jobs">
+                        <AppText Typo="AppTypo.subtitle1">Health &amp; Jobs</AppText>
+                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Check one plugin's current health and recent operations.</AppText>
+                        @PluginHealthJobsPanel(plugin)
+                    </section>
+                    <section class="settings-plugin-detail-section" aria-label="Capabilities and AI permissions">
+                        <AppText Typo="AppTypo.subtitle1">Capabilities &amp; AI permissions</AppText>
+                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Review what one plugin declares and can access.</AppText>
+                        @PluginCapabilitiesPanel(plugin)
+                    </section>
+                    <section class="settings-plugin-detail-section" aria-label="Danger zone">
+                        @DangerPanel(plugin)
+                    </section>
                 </div>
             }
         </AppCard>
     </text>;
-
-    private string AdvancedTitle => NormalizedSubsection switch
-    {
-        "jobs-health" => "Health & Jobs",
-        "capabilities" => "Capabilities & AI permissions",
-        "danger" => "Danger Zone",
-        _ => "Plugin details",
-    };
-
-    private string AdvancedDescription => NormalizedSubsection switch
-    {
-        "jobs-health" => "Check one plugin's current health and recent operations.",
-        "capabilities" => "Review what one plugin declares and can access.",
-        "danger" => "Remove a dynamic plugin with an explicit confirmation.",
-        _ => "Inspect one installed plugin.",
-    };
-
-    private RenderFragment PluginSubsection(PluginSummaryResponse plugin) => NormalizedSubsection switch
-    {
-        "jobs-health" => PluginHealthJobsPanel(plugin),
-        "capabilities" => PluginCapabilitiesPanel(plugin),
-        "danger" => DangerPanel(plugin),
-        _ => PluginOverviewPanel(plugin),
-    };
-
-    private RenderFragment PluginOverviewPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
-        <AppText Typo="AppTypo.body1">@plugin.Description</AppText>
-        <AppTable Class="settings-plugin-job-table">
-            <tbody>
-                <tr><td>Status</td><td>@(plugin.Enabled ? "Enabled" : "Disabled")</td></tr>
-                <tr><td>Source</td><td>@(plugin.IsBuiltIn ? "Built in" : "Dynamic plugin folder")</td></tr>
-                <tr><td>Capabilities</td><td>@plugin.Capabilities.Count</td></tr>
-                <tr><td>Required tools</td><td>@plugin.ToolRequirements.Count</td></tr>
-                <tr><td>AI permissions</td><td>@plugin.AiPermissions.Count</td></tr>
-            </tbody>
-        </AppTable>
-    </div>;
 
     private RenderFragment PluginSettingsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         @{ var settingEntries = GetSettingEntries(plugin).ToList(); var primarySettings = settingEntries.Where(setting => !setting.Advanced).ToList(); var advancedSettings = settingEntries.Where(setting => setting.Advanced).ToList(); }
@@ -365,7 +316,7 @@ else
         }
         else if (_approvedCatalog is null)
         {
-            <AppAlert Tone="AppUiTone.Info">The approved plugin catalog has not been loaded yet.</AppAlert>
+            <AppAlert Tone="AppUiTone.Info">The approved plugin catalog has not been loaded yet. Choose Refresh catalog to load it.</AppAlert>
         }
         else if (_approvedCatalog.Plugins.Count == 0)
         {
@@ -402,12 +353,6 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (NormalizedSubsection == "catalog" && _approvedCatalog is null && !_approvedCatalogLoading)
-            await LoadApprovedCatalogAsync();
     }
 
     private async Task LoadAsync()

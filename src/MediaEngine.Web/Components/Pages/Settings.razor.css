@@ -13,58 +13,9 @@
     gap: 16px;
 }
 
-.settings-shell-content ::deep .settings-breadcrumbs {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    margin-bottom: 10px;
-    color: var(--tl-text-muted);
-    font-size: .76rem;
-    font-weight: 600;
-    line-height: 1.3;
-}
-
-.settings-shell-content ::deep .settings-breadcrumbs a,
-.settings-shell-content ::deep .settings-breadcrumbs span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.settings-shell-content ::deep .settings-breadcrumbs a {
-    color: var(--tl-text-secondary);
-    text-decoration: none;
-}
-
-.settings-shell-content ::deep .settings-breadcrumbs a:hover,
-.settings-shell-content ::deep .settings-breadcrumbs a:focus-visible {
-    color: var(--tl-text-primary);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.settings-shell-content ::deep .settings-breadcrumbs span[aria-current="page"] {
-    color: var(--tl-text-primary);
-    font-weight: 600;
-    white-space: normal;
-    overflow-wrap: anywhere;
-}
-
-.settings-shell-content ::deep .settings-breadcrumbs .tl-icon-root {
-    flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
-    color: var(--tl-text-faint);
-    font-size: 15px;
-}
-
 .settings-page-canvas {
     --settings-section-icon-size: 28px;
     min-width: 0;
-    margin-top: var(--tl-space-5, 20px);
     font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
     font-size: 16px;
     line-height: 1.5;
@@ -110,45 +61,6 @@
     background-color: var(--tl-bg-surface-raised);
     font-size: 16px;
     font-weight: 700;
-}
-
-.settings-shell-content ::deep .sidebar-page-header {
-    flex-direction: row;
-    align-items: flex-end;
-    margin-bottom: 0;
-}
-
-@media (max-width: 700px) {
-    .settings-shell-content ::deep .sidebar-page-header { flex-direction: column; align-items: stretch; }
-}
-
-.settings-shell-content ::deep .sidebar-page-header .app-page-header__eyebrow {
-    margin-bottom: 4px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    letter-spacing: .11em;
-}
-
-.settings-shell-content ::deep .sidebar-page-header h1 {
-    font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: clamp(1.875rem, 2vw, 2rem);
-    font-weight: 600;
-    line-height: 1.15;
-    letter-spacing: -.015em;
-}
-
-.settings-shell-content ::deep .sidebar-page-header p {
-    max-width: 76ch;
-    margin-top: 5px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    line-height: var(--tl-line-height-body);
-}
-
-.settings-shell-content ::deep .sidebar-page-header .app-page-header__actions {
-    align-items: center;
-    padding-bottom: 2px;
 }
 
 .settings-page-canvas ::deep .tl-page {

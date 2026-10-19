@@ -69,7 +69,7 @@ The page for a work, collection, book, movie, TV show, episode, person, or other
 
 ### Devices
 
-The **Settings → Administration → Devices** page. It lists the phones and TVs paired to this server (revoke one, or choose whose photos a phone backs up), shows the *Address to type in the app* (the home address, plus the outside address when one is set; server administrators only), and lists the signed-in sessions of the people the viewer looks after, with **Sign out** for each. A household administrator sees only their own household's devices and sessions.
+The **Settings → Personal → Security → Devices** page. It lists the phones and TVs paired to this server (sign one out, or choose whose photos a phone backs up) and the signed-in browsers, each with a type icon and a **Sign out**. A member sees their own, a household administrator also their household's, and a server administrator everyone's, with Household and Profile filters for administrators.
 
 ### Document type
 
@@ -327,7 +327,7 @@ Separate household-owned View storage containing accepted contributions. Each ho
 
 ### Household administrator
 
-The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → Profiles**, and from **Settings → Administration → Devices** for their own household's devices and sessions. They never reach another household or the server's settings, which stay with the **server administrator**.
+The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → Profiles**, and from **Settings → Security → Devices** for their own household's devices and signed-in browsers. They never reach another household or the server's settings, which stay with the **server administrator**.
 
 ### Account
 

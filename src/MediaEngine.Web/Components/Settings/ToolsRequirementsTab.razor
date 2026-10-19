@@ -3,6 +3,7 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
+@inject DeviceContextService DeviceContext
 @inject ILogger<ToolsRequirementsTab> Logger
 
 <div class="tl-page tools-requirements">
@@ -54,9 +55,13 @@
             </div>
         </AppCard>
 
+        <div class="tools-requirements__stack">
+            <PlaybackToolsStatusCard />
+        </div>
+
         @if (Models.Count > 0)
         {
-            <AppCard Title="Local AI models" Description="Model files for the optional local AI features. They are downloaded only when you ask.">
+            <AppCard Title="Local AI models" Description="Model files for the optional local AI features. They are downloaded only when you ask." Class="tl-sp-mb-3">
                 <div class="tools-requirements__list" data-testid="models-list">
                     @foreach (var model in Models)
                     {
@@ -81,6 +86,14 @@
                     }
                 </div>
             </AppCard>
+        }
+
+        @* The Local AI runtime (resource profile, benchmark, limits) sits beside the model files; editing it is desktop and tablet only. *@
+        @if (!DeviceContext.IsMobile)
+        {
+            <div class="tools-requirements__stack">
+                <LocalAiRuntimePanel />
+            </div>
         }
     }
 </div>

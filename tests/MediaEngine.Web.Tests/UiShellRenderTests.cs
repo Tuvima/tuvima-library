@@ -94,6 +94,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped(_ => session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(new DelayedLockHandler(authority, session)));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
     }
@@ -323,16 +325,18 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TopNavAccountMenu_ThisComputerOnlyShowsSecureAccountItemAndAvatarDot()
+    public void TopNavAccountMenu_ThisComputerOnlyShowsTheSecureCardAndNoAvatarDotOrMenuItem()
     {
         var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
             .Add(menu => menu.DisplayName, "Shy")
             .Add(menu => menu.ShowSecureAccount, true));
 
-        Assert.Single(cut.FindAll(".top-nav-account-menu__trigger .top-nav-account-menu__attention-dot"));
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
         cut.Find(".top-nav-account-menu__trigger").Click();
 
-        Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
+        Assert.DoesNotContain(cut.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == "/settings/security");
+        Assert.Contains(cut.FindAll(".top-nav-account-menu__secure-card a"), link =>
             link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Secure account"));
     }
 
@@ -561,14 +565,14 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library & Ingestion']").Click());
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library and Ingestion']").Click());
 
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
-            Assert.NotEmpty(cut.FindAll(".media-section-shell__rail-item"));
-            var recentlyAdded = cut.FindAll(".media-section-shell__rail-item--child")
+            Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
+            var recentlyAdded = cut.FindAll(".media-section-shell__tree-link")
                 .Single(item => item.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             var reviewNotification = recentlyAdded.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.NotNull(reviewNotification);
@@ -578,7 +582,37 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotNull(cut.Find(".admin-library-summary").QuerySelector(".admin-overview-card--attention"));
             Assert.DoesNotContain("No active transcodes", cut.Markup);
             Assert.Contains("Recent Activity", cut.Markup);
+        }, AttentionArrives);
+    }
+
+    // The Needs Review count reaches the menu from the shared attention state a moment after the page first draws.
+    private static readonly TimeSpan AttentionArrives = TimeSpan.FromSeconds(5);
+
+    [Fact]
+    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheBreadcrumb_InTheFramesNoticeSlot()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<Settings>(3);
+            builder.AddAttribute(4, nameof(Settings.Section), "system");
+            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
+            builder.CloseComponent();
         });
+
+        cut.WaitForAssertion(() =>
+        {
+            var notices = cut.Find("[data-settings-frame-slot='notices']");
+            Assert.Contains("3 items need review", notices.TextContent, StringComparison.Ordinal);
+            var markup = cut.Markup;
+            Assert.True(markup.IndexOf("data-settings-frame-slot=\"notices\"", StringComparison.Ordinal)
+                < markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal));
+        }, AttentionArrives);
     }
 
     [Fact]
@@ -595,6 +629,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var handler = new DelayedLockHandler(authority, session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var host = Render(builder =>
@@ -629,6 +665,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var handler = new DelayedLockHandler(authority, session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var cut = Render(builder =>
@@ -664,6 +702,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var handler = new DelayedLockHandler(authority, session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var cut = Render<MainLayout>(parameters => parameters.Add(layout => layout.Body, builder =>
@@ -700,7 +740,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("profiles-tab__card", cut.Markup);
+            // The bare /settings address opens Profiles for an administrator: the people list, not a card of the open profile's stats.
+            Assert.NotEmpty(cut.FindAll(".profiles-tab"));
+            Assert.Empty(cut.FindAll(".profiles-tab__card"));
+            Assert.Empty(cut.FindAll(".profiles-tab__stats"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             Assert.DoesNotContain("At a Glance", cut.Markup);
             Assert.DoesNotContain("Your Statistics", cut.Markup);
@@ -790,20 +833,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("width:25%", segments[2].GetAttribute("style"), StringComparison.Ordinal);
             Assert.Contains("Books 2, 50%", cut.Find(".admin-composition-bar").GetAttribute("aria-label"), StringComparison.Ordinal);
         });
-    }
-
-    [Fact]
-    public void PrivacyHistoryTab_DisablesUnavailableControlsAndExplainsThatNoDataChanges()
-    {
-        var cut = Render<PrivacyHistoryTab>();
-
-        Assert.Contains("not available yet", cut.Markup);
-        Assert.Empty(cut.FindAll("button"));
-        Assert.Empty(cut.FindAll("input"));
-
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PrivacyHistoryTab.razor"));
-        Assert.DoesNotContain("OnClick=", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("TODO", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -921,9 +950,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void DeliverySettings_HidesUnpersistedControls()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"));
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"))
+                     + File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "EncodeSettingsTab.razor"));
 
-        Assert.Contains("Variant Storage", source);
+        Assert.Contains("Optimized copy storage", source);
         Assert.Contains("Diagnostics", source);
         Assert.DoesNotContain("Allow direct play", source);
         Assert.DoesNotContain("Subtitle extraction", source);
@@ -965,9 +995,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.Contains("GetAiConfigAsync", source);
         Assert.Contains("SaveAiConfigAsync", source);
-        Assert.Contains("_status?.IsReady != true", source);
+        Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
-        Assert.Single(Regex.Matches(source, "<ModelsTab />"));
+        // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.
+        var runtime = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
+        Assert.DoesNotContain("<ModelsTab />", source);
+        Assert.Single(Regex.Matches(runtime, "<ModelsTab />"));
         Assert.DoesNotContain("TODO: Persist AI limits", source);
     }
 
@@ -1395,8 +1428,70 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
                 };
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(response) };
             }
+            if (request.RequestUri!.AbsolutePath == "/access/self-service/notices")
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new MediaEngine.Contracts.Authentication.AccountNoticesResponse(DismissedNotices)),
+                };
+            }
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { }) };
         }
+
+        public string[] DismissedNotices { get; set; } = [];
+    }
+
+    private sealed class ThisComputerOnlyStateProvider : Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider
+    {
+        private static readonly Microsoft.AspNetCore.Components.Authorization.AuthenticationState State = new(new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+            [
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Owner"),
+                new System.Security.Claims.Claim("tuvima:profile_id", "00000000-0000-0000-0000-000000000001"),
+                new System.Security.Claims.Claim("tuvima:active_profile_id", "00000000-0000-0000-0000-000000000001"),
+                new System.Security.Claims.Claim("tuvima:session_id", "00000000-0000-0000-0000-000000000002"),
+                new System.Security.Claims.Claim("tuvima:authentication_method", MediaEngine.Web.Services.Integration.ThisComputerRequests.AuthenticationMethod),
+            ], "Test")));
+
+        public override Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(State);
+    }
+
+    private IRenderedComponent<IComponent> RenderSettingsForAThisComputerOnlyAccount(string[] dismissedNotices)
+    {
+        var profileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var authority = new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
+            profileId, profileId, true, true, 1, 1, false, false, null, 1, [], [], []);
+        var session = new DashboardSessionAccessor();
+        session.Set("test-session-token", profileId, profileId, Guid.NewGuid(), authority);
+        Services.AddScoped(_ => session);
+        Services.AddSingleton<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>(new ThisComputerOnlyStateProvider());
+        Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(
+            new DelayedLockHandler(authority, session) { DismissedNotices = dismissedNotices }));
+        return Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<Settings>(1);
+            builder.CloseComponent();
+        });
+    }
+
+    [Fact]
+    public void SettingsMenu_ShowsTheSecurityDotForAThisComputerOnlyAccountUntilNotNow()
+    {
+        var cut = RenderSettingsForAThisComputerOnlyAccount([]);
+
+        cut.WaitForAssertion(() => Assert.Single(
+            cut.Find("a.media-section-shell__tree-link[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot")));
+    }
+
+    [Fact]
+    public void SettingsMenu_HasNoSecurityDotOnceTheAccountSaidNotNow()
+    {
+        var cut = RenderSettingsForAThisComputerOnlyAccount([MediaEngine.Contracts.Authentication.AccountNoticeKeys.SecureAccount]);
+
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("a.media-section-shell__tree-link[href='/settings/security']")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".media-section-shell__attention-dot")));
     }
 
     [Fact]
