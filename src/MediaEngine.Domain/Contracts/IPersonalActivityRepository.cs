@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Activity;
+using MediaEngine.Domain.Authorization;
 
 namespace MediaEngine.Domain.Contracts;
 
@@ -70,6 +71,17 @@ public interface IPersonalActivityRepository
     /// <summary>How many entries started before the date, for the given people (null for everyone).</summary>
     Task<int> CountBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, CancellationToken ct = default);
 
-    /// <summary>Deletes the entries that started before the date and the pictures nothing uses any more. Returns the entries removed.</summary>
-    Task<int> DeleteBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, CancellationToken ct = default);
+    /// <summary>
+    /// Deletes the entries that started before the date and the pictures only they used. The deletion and its audit
+    /// entry (built from the number of entries removed) are written in one transaction: if the audit entry cannot be
+    /// written nothing is deleted. Returns the entries removed.
+    /// </summary>
+    Task<int> DeleteBeforeAsync(
+        DateTimeOffset before,
+        IReadOnlySet<Guid>? profileIds,
+        Func<int, AuthorizationAuditEvent> audit,
+        CancellationToken ct = default);
+
+    /// <summary>The lifetime totals of one person's activity.</summary>
+    Task<PersonalActivitySummary> GetSummaryAsync(Guid profileId, CancellationToken ct = default);
 }

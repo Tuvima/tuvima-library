@@ -104,6 +104,24 @@ public sealed class PersonalActivityEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheSummaryRoute_ReturnsTheCallersOwnTotalsWithTheWireNames_AndIgnoresAnyScope()
+    {
+        await _world.AddAsync(_world.MemberA, PersonalActivityKinds.Watch, "Tremors", Day, played: 600, finished: true, percent: 100);
+        await _world.AddAsync(_world.AdminA, PersonalActivityKinds.Watch, "Theirs", Day, played: 99999);
+
+        var summary = await SendAsync("GET", "/summary", "member", query: "scope=everyone");
+
+        Assert.Equal(StatusCodes.Status200OK, summary.Status);
+        using var json = JsonDocument.Parse(summary.Body);
+        Assert.Equal(
+            ["watch_seconds", "read_seconds", "listen_seconds", "music_seconds", "audiobook_seconds", "finished_count", "in_progress_count", "first_activity_at"],
+            json.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(600, json.RootElement.GetProperty("watch_seconds").GetInt64());
+        Assert.Equal(1, json.RootElement.GetProperty("finished_count").GetInt32());
+        Assert.Equal(StatusCodes.Status403Forbidden, (await SendAsync("GET", "/summary", null)).Status);
+    }
+
+    [Fact]
     public async Task TheCsvExport_IsAFileDownloadOfTheCallersOwnActivity()
     {
         await _world.AddAsync(_world.MemberA, PersonalActivityKinds.Watch, "Tremors", Day);
@@ -195,7 +213,7 @@ public sealed class PersonalActivityEndpointTests : IAsyncLifetime
     {
         var routes = Endpoints().ToArray();
 
-        Assert.Equal(7, routes.Length);
+        Assert.Equal(8, routes.Length);
         Assert.All(routes, endpoint =>
         {
             Assert.Null(endpoint.Metadata.GetMetadata<IAllowAnonymous>());

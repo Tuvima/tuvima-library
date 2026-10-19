@@ -180,6 +180,28 @@ public sealed partial class PersonalActivityReadService(
             (stream, token) => WriteCsvAsync(stream, request, token)));
     }
 
+    /// <summary>The caller's own lifetime totals.</summary>
+    public async Task<PersonalActivityResult<PersonalActivitySummaryDto>> SummaryAsync(
+        RequestAuthority authority, CancellationToken ct)
+    {
+        var decision = await scopes.AuthorizeAsync(authority, PersonalScopeKind.Activity, PersonalScope.Self, ct).ConfigureAwait(false);
+        if (!decision.Allowed)
+        {
+            return Failure<PersonalActivitySummaryDto>(decision);
+        }
+
+        var summary = await repository.GetSummaryAsync(decision.ProfileIds.Single(), ct).ConfigureAwait(false);
+        return PersonalActivityResult<PersonalActivitySummaryDto>.Ok(new PersonalActivitySummaryDto(
+            summary.WatchSeconds,
+            summary.ReadSeconds,
+            summary.MusicSeconds + summary.AudiobookSeconds,
+            summary.MusicSeconds,
+            summary.AudiobookSeconds,
+            summary.FinishedCount,
+            summary.InProgressCount,
+            summary.FirstActivityAt is { } first ? Iso(first) : null));
+    }
+
     public async Task<PersonalActivityResult<PersonalActivityDeletePreviewDto>> DeletePreviewAsync(
         RequestAuthority authority, string? scope, DateTimeOffset before, CancellationToken ct)
     {
@@ -203,13 +225,17 @@ public sealed partial class PersonalActivityReadService(
         }
 
         var deletion = target.Value!;
-        var deleted = await repository.DeleteBeforeAsync(before, deletion.ProfileIds, ct).ConfigureAwait(false);
-        await WriteAuditAsync(authority, HistoryDeleted, deletion.Scope, new Dictionary<string, string?>
-        {
-            ["scope"] = deletion.ScopeText,
-            ["before"] = before.ToString("O", CultureInfo.InvariantCulture),
-            ["count"] = deleted.ToString(CultureInfo.InvariantCulture),
-        }, ct).ConfigureAwait(false);
+        // The audit entry is written by the repository in the same transaction as the deletion.
+        var deleted = await repository.DeleteBeforeAsync(
+            before,
+            deletion.ProfileIds,
+            count => BuildAudit(authority, HistoryDeleted, deletion.Scope, new Dictionary<string, string?>
+            {
+                ["scope"] = deletion.ScopeText,
+                ["before"] = before.ToString("O", CultureInfo.InvariantCulture),
+                ["count"] = count.ToString(CultureInfo.InvariantCulture),
+            }),
+            ct).ConfigureAwait(false);
         return PersonalActivityResult<PersonalActivityDeleteResultDto>.Ok(new PersonalActivityDeleteResultDto(deleted));
     }
 
@@ -419,17 +445,24 @@ public sealed partial class PersonalActivityReadService(
         _ => PersonalActivityResult<T>.Fail(PersonalActivityFailure.Forbidden, "You can't see that activity."),
     };
 
-    private async Task WriteAuditAsync(
+    private Task WriteAuditAsync(
         RequestAuthority authority,
         string eventType,
         PersonalScope scope,
         IReadOnlyDictionary<string, string?> changes,
-        CancellationToken ct)
+        CancellationToken ct) =>
+        audit.WriteAsync(BuildAudit(authority, eventType, scope, changes), ct).AsTask();
+
+    private AuthorizationAuditEvent BuildAudit(
+        RequestAuthority authority,
+        string eventType,
+        PersonalScope scope,
+        IReadOnlyDictionary<string, string?> changes)
     {
         var subjectType = scope.Target.ToString().ToLowerInvariant();
         var subjectId = scope.Id?.ToString("D")
             ?? (scope.Target == PersonalScopeTarget.Self ? authority.ActiveProfileId?.ToString("D") ?? "self" : "everyone");
-        await audit.WriteAsync(new AuthorizationAuditEvent(
+        return new AuthorizationAuditEvent(
             eventType,
             clock.GetUtcNow(),
             authority.AccountId,
@@ -437,7 +470,7 @@ public sealed partial class PersonalActivityReadService(
             authority.ApplicationId,
             subjectType,
             subjectId,
-            changes), ct).ConfigureAwait(false);
+            changes);
     }
 
     // ----- Mapping -----

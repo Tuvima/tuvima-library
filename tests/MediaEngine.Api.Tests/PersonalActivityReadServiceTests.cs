@@ -472,6 +472,68 @@ public sealed class PersonalActivityReadServiceTests
         Assert.Equal("Film 29", tiles[0].Title);
     }
 
+    // ----- Summary -----
+
+    [Fact]
+    public async Task TheSummary_IsTheCallersOwnLifetimeTotals_SplitIntoMusicAndAudiobooks()
+    {
+        await using var world = PersonalActivityWorld.Create();
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Watch, "Tremors", Day, played: 5000, finished: true, percent: 100);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Watch, "Dune", Day.AddDays(1), played: 100, percent: 10);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Read, "Hyperion", Day.AddDays(2), mediaType: "Books", played: 3600);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Listen, "Audio", Day.AddDays(3), mediaType: "Audiobooks", played: 7200);
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Listen, "Song", Day.AddDays(4), mediaType: "Music", played: 250);
+        await world.AddAsync(world.AdminA, PersonalActivityKinds.Watch, "Not mine", Day, played: 99999);
+
+        var summary = (await world.Service.SummaryAsync(world.MemberOfA, default)).Value!;
+
+        Assert.Equal(5100, summary.WatchSeconds);
+        Assert.Equal(3600, summary.ReadSeconds);
+        Assert.Equal(7450, summary.ListenSeconds);
+        Assert.Equal(250, summary.MusicSeconds);
+        Assert.Equal(7200, summary.AudiobookSeconds);
+        Assert.Equal(1, summary.FinishedCount);
+        Assert.Equal(3, summary.InProgressCount);
+        Assert.Equal(Day.ToString("O"), summary.FirstActivityAt);
+    }
+
+    [Fact]
+    public async Task TheSummaryOfAServerAdministratorOrAPairedApp_IsStillOnlyTheirOwn()
+    {
+        await using var world = PersonalActivityWorld.Create();
+        await world.AddAsync(world.ServerPerson, PersonalActivityKinds.Watch, "Mine", Day, played: 10);
+        await world.AddAsync(world.AdminA, PersonalActivityKinds.Watch, "Theirs", Day, played: 1000);
+
+        foreach (var caller in new[] { world.ServerAdmin, world.LockedServerAdmin, world.ServerAdminApp })
+        {
+            Assert.Equal(10, (await world.Service.SummaryAsync(caller, default)).Value!.WatchSeconds);
+        }
+
+        Assert.Equal(0, world.AuditCount(PersonalScopeAuthorizer.ActivityViewedOthers));
+    }
+
+    [Fact]
+    public async Task TheSummaryOfSomeoneWithNoActivity_IsZeroWithNoFirstDate()
+    {
+        await using var world = PersonalActivityWorld.Create();
+
+        var summary = (await world.Service.SummaryAsync(world.MemberOfA, default)).Value!;
+
+        Assert.Equal(0, summary.WatchSeconds + summary.ReadSeconds + summary.ListenSeconds);
+        Assert.Equal(0, summary.FinishedCount + summary.InProgressCount);
+        Assert.Null(summary.FirstActivityAt);
+    }
+
+    [Fact]
+    public async Task ASignedOutCallerGetsNoSummary()
+    {
+        await using var world = PersonalActivityWorld.Create();
+
+        var result = await world.Service.SummaryAsync(new RequestAuthority(PrincipalKind.Anonymous, false), default);
+
+        Assert.Equal(PersonalActivityFailure.Forbidden, result.Failure);
+    }
+
     // ----- Export -----
 
     [Fact]
@@ -612,6 +674,21 @@ public sealed class PersonalActivityReadServiceTests
         Assert.Equal("household", logged.SubjectType);
         Assert.Contains("\"count\":\"1\"", logged.ChangesJson, StringComparison.Ordinal);
         Assert.Contains($"household:{world.HouseholdA:D}", logged.ChangesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ADeleteWhoseAuditEntryCannotBeWritten_LeavesHistoryIntact()
+    {
+        await using var world = PersonalActivityWorld.Create();
+        await world.AddAsync(world.MemberA, PersonalActivityKinds.Watch, "Old", Day);
+        // A caller whose account is not in the data store: the audit entry cannot be written.
+        var unknownAdmin = world.ServerAdmin with { AccountId = Guid.NewGuid() };
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            world.Service.DeleteAsync(unknownAdmin, "everyone", Day.AddDays(10), default));
+
+        Assert.Single((await world.Service.ListAsync(world.MemberOfA, new PersonalActivityQuery(), default)).Value!.Items);
+        Assert.Equal(0, world.AuditCount(PersonalActivityReadService.HistoryDeleted));
     }
 
     [Fact]

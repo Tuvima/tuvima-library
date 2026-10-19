@@ -66,6 +66,19 @@ public static class PersonalActivityEndpoints
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
+        group.MapGet("/summary", async (
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            [FromServices] PersonalActivityReadService service,
+            CancellationToken ct) =>
+            Respond(await service.SummaryAsync(
+                await resolver.ResolveAsync(http, ct).ConfigureAwait(false), ct).ConfigureAwait(false)))
+        .WithName("GetPersonalActivitySummary")
+        .WithSummary("Returns the caller's own lifetime totals: time played by kind, titles finished and in progress, and the first activity date.")
+        .Produces<PersonalActivitySummaryDto>()
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.ProgressRead);
+
         group.MapGet("/export.csv", async (
             [AsParameters] ActivityQueryParameters parameters,
             HttpContext http,
