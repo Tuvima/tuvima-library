@@ -28,7 +28,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/settings-revamp.md) | Locked (v1.1, 2026-10-19) |
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | Locked (v4, 2026-10-19) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | Locked (v4, 2026-10-19) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0, U-WP1 started 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Editing Mode on the item page (as built)](specs/editing-mode.md) | Built (v1, 2026-10-18; not yet archived) |
 | [Archive](specs/archive/README.md) | Built specs |
@@ -194,6 +194,7 @@ Kept as a record of what was planned, decided and verified. Not maintained; newe
 | [Player update verification report](reports/player-update-2026-10-03.md) | Historical — still cited as current player evidence by the Dashboard rules |
 | [Player visual consistency](reports/player-visual-consistency-2026-10-05.md) | Historical |
 | [Real-media harness implementation and execution](reports/real-media-harness-2026-09-26.md) | Historical |
+| [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current |
 | [Home Browse View and Player Remediation](reports/remediation-2026-10-04.md) | Historical |
 | [Dashboard UI bugfix round — October 6, 2026](reports/ui-bugfix-round-2026-10-06.md) | Historical |
 
