@@ -1,11 +1,15 @@
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Services.Playback;
 
 namespace MediaEngine.Web.Services.Integration;
 
+/// <summary>
+/// What kind of Library work an indicator item describes. Playback is not Library work, so it is not a kind here
+/// (see <see cref="ShellActivityState.IsPlaybackActive"/>).
+/// </summary>
 public enum ShellActivityKind
 {
-    Playback,
     Ingestion,
     Ai,
     Enrichment,
@@ -20,9 +24,13 @@ public sealed record ShellActivityItem(
     int? ProgressPercent,
     DateTimeOffset UpdatedAt);
 
-public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Items)
+/// <summary>
+/// The Library's work as the menu indicator sees it: working (blue) when any item is present, idle (green) otherwise.
+/// <see cref="Queue"/> is the Engine's latest ingestion snapshot, kept so the tooltip can use its numbers and its last-activity time.
+/// </summary>
+public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Items, IngestionQueueProgressDto? Queue = null)
 {
-    public bool IsBusy => Items.Count > 0;
+    public bool IsWorking => Items.Count > 0;
     public int ActiveCount => Items.Count;
     public ShellActivityItem? Primary => Items.FirstOrDefault();
 }
@@ -30,7 +38,6 @@ public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Item
 public sealed class ShellActivityState : IDisposable
 {
     private static readonly TimeSpan VideoActivityTtl = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan LiveIngestionActivityTtl = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan EnrichmentActivityTtl = TimeSpan.FromSeconds(35);
     private static readonly TimeSpan ModelDownloadActivityTtl = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan SystemActivityRefreshInterval = TimeSpan.FromSeconds(10);
@@ -43,7 +50,6 @@ public sealed class ShellActivityState : IDisposable
     private readonly object _videoGate = new();
     private VideoPlaybackActivity? _videoPlayback;
     private string _lastSignature = string.Empty;
-    private DateTimeOffset _lastTransportNotification = DateTimeOffset.MinValue;
     private long _lastSystemActivityRefreshTicks;
     private int _systemActivityRefreshInFlight;
     private bool _disposed;
@@ -60,13 +66,22 @@ public sealed class ShellActivityState : IDisposable
         _logger = logger;
 
         _universeState.OnStateChanged += OnUniverseStateChanged;
-        _playback.Changed += OnPlaybackChanged;
         _expiryTimer = new Timer(_ => OnTimerTick(), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
     }
 
     public event Action? Changed;
 
     public ShellActivitySnapshot Current => BuildSnapshot(DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// True while video or listen playback is active. Playback is not Library work, so it never appears in
+    /// <see cref="Current"/>; the notification host uses this to stay quiet while something is playing.
+    /// </summary>
+    public bool IsPlaybackActive => IsVideoPlaybackActive(DateTimeOffset.UtcNow) || IsListenPlaybackActive();
+
+    /// <summary>True when the Engine's ingestion queue reports it is working (waiting and idle are not work).</summary>
+    public static bool IsQueueWorking(IngestionQueueProgressDto? queue) =>
+        string.Equals(queue?.State, "working", StringComparison.OrdinalIgnoreCase);
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
@@ -146,44 +161,37 @@ public sealed class ShellActivityState : IDisposable
                     DateTimeOffset.UtcNow);
             }
         }
-
-        PublishIfChanged(force: true);
     }
 
     public void ClearVideoPlayback(Guid assetId)
     {
         lock (_videoGate)
         {
-            if (_videoPlayback?.AssetId != assetId)
+            if (_videoPlayback?.AssetId == assetId)
             {
-                return;
+                _videoPlayback = null;
             }
-
-            _videoPlayback = null;
         }
-
-        PublishIfChanged(force: true);
     }
 
     private ShellActivitySnapshot BuildSnapshot(DateTimeOffset now)
     {
         var items = new List<ShellActivityItem>();
 
-        AddVideoPlayback(items, now);
-        AddListenPlayback(items, now);
-
-        var hasBatch = AddIngestion(items, now);
+        AddIngestion(items);
         var hasUniverseEnrichment = AddUniverseEnrichment(items, now);
         AddModelDownloads(items, now);
-        AddMediaOperations(items, hasBatch, hasUniverseEnrichment);
+        AddMediaOperations(items, hasUniverseEnrichment);
 
-        return new ShellActivitySnapshot(items
-            .OrderBy(item => Priority(item.Kind))
-            .ThenByDescending(item => item.UpdatedAt)
-            .ToList());
+        return new ShellActivitySnapshot(
+            items
+                .OrderBy(item => Priority(item.Kind))
+                .ThenByDescending(item => item.UpdatedAt)
+                .ToList(),
+            _universeState.IngestionQueueProgress);
     }
 
-    private void AddVideoPlayback(List<ShellActivityItem> items, DateTimeOffset now)
+    private bool IsVideoPlaybackActive(DateTimeOffset now)
     {
         VideoPlaybackActivity? video;
         lock (_videoGate)
@@ -191,78 +199,28 @@ public sealed class ShellActivityState : IDisposable
             video = _videoPlayback;
         }
 
-        if (video is null || now - video.UpdatedAt > VideoActivityTtl)
+        return video is not null && now - video.UpdatedAt <= VideoActivityTtl;
+    }
+
+    private bool IsListenPlaybackActive() => _playback.HasQueue
+        && _playback.Phase is PlaybackPhase.Playing or PlaybackPhase.Loading or PlaybackPhase.Ready
+        && (_playback.IsPlaying || _playback.Phase == PlaybackPhase.Loading);
+
+    /// <summary>One item while the Engine's ingestion queue is working; waiting and idle add nothing.</summary>
+    private void AddIngestion(List<ShellActivityItem> items)
+    {
+        if (_universeState.IngestionQueueProgress is not { } queue || !IsQueueWorking(queue))
         {
             return;
         }
 
         items.Add(new ShellActivityItem(
-            $"video:{video.AssetId:D}",
-            ShellActivityKind.Playback,
-            $"Playing {video.Title}",
-            "Video playback",
-            Percent(video.CurrentTimeSeconds, video.DurationSeconds),
-            video.UpdatedAt));
-    }
-
-    private void AddListenPlayback(List<ShellActivityItem> items, DateTimeOffset now)
-    {
-        if (!_playback.HasQueue
-            || _playback.Phase is not (PlaybackPhase.Playing or PlaybackPhase.Loading or PlaybackPhase.Ready)
-            || (!_playback.IsPlaying && _playback.Phase != PlaybackPhase.Loading))
-        {
-            return;
-        }
-
-        var item = _playback.CurrentItem;
-        items.Add(new ShellActivityItem(
-            $"listen:{item?.WorkId:D}",
-            ShellActivityKind.Playback,
-            $"Playing {item?.Title ?? "audio"}",
-            _playback.IsAudiobookMode ? "Audiobook playback" : "Audio playback",
-            Percent(_playback.CurrentTimeSeconds, _playback.DurationSeconds),
-            now));
-    }
-
-    private bool AddIngestion(List<ShellActivityItem> items, DateTimeOffset now)
-    {
-        if (_universeState.BatchProgress is { IsComplete: false } batch
-            && _universeState.BatchProgressReceivedAt is { } batchReceivedAt
-            && now - batchReceivedAt <= LiveIngestionActivityTtl)
-        {
-            var label = batch.ProgressIsIndeterminate ? "Finishing library enrichment" : string.IsNullOrWhiteSpace(batch.CurrentFileTitle)
-                ? "Processing library files"
-                : $"Processing {batch.CurrentFileTitle}";
-            items.Add(new ShellActivityItem(
-                $"batch:{batch.BatchId:D}",
-                ShellActivityKind.Ingestion,
-                label,
-                FriendlyStage(batch.CurrentStage),
-                !batch.ProgressIsIndeterminate && (batch.IsComplete || batch.ProgressPercent < 100)
-                    ? Math.Clamp(batch.ProgressPercent, 0, 100)
-                    : null,
-                batchReceivedAt));
-            return true;
-        }
-
-        if (_universeState.IngestionProgress is not { } ingestion
-            || _universeState.IngestionProgressReceivedAt is not { } ingestionReceivedAt
-            || now - ingestionReceivedAt > LiveIngestionActivityTtl
-            || string.Equals(ingestion.Stage, "Complete", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        items.Add(new ShellActivityItem(
-            "ingestion:live",
+            "ingestion:queue",
             ShellActivityKind.Ingestion,
-            string.IsNullOrWhiteSpace(ingestion.CurrentFile) ? "Scanning your library" : $"Processing {Path.GetFileName(ingestion.CurrentFile)}",
-            FriendlyStage(ingestion.Stage),
-            ingestion.TotalCount > 0
-                ? Math.Clamp((int)Math.Round(ingestion.ProcessedCount * 100d / ingestion.TotalCount), 0, 100)
-                : null,
-            ingestionReceivedAt));
-        return true;
+            "Processing library files",
+            null,
+            Math.Clamp((int)Math.Round(queue.Progress * 100d), 0, 100),
+            queue.UpdatedAt));
     }
 
     private bool AddUniverseEnrichment(List<ShellActivityItem> items, DateTimeOffset now)
@@ -305,13 +263,14 @@ public sealed class ShellActivityState : IDisposable
         }
     }
 
-    private void AddMediaOperations(List<ShellActivityItem> items, bool hasBatch, bool hasUniverseEnrichment)
+    private void AddMediaOperations(List<ShellActivityItem> items, bool hasUniverseEnrichment)
     {
         foreach (var operation in _universeState.MediaOperationActivity)
         {
             var kind = ToKind(operation.OperationKind);
-            if (hasBatch && kind == ShellActivityKind.Ingestion)
+            if (kind == ShellActivityKind.Ingestion)
             {
+                // The Engine's ingestion queue snapshot is the single source for ingestion work.
                 continue;
             }
 
@@ -349,34 +308,19 @@ public sealed class ShellActivityState : IDisposable
         }
 
         PublishIfChanged();
-        var now = DateTimeOffset.UtcNow;
-        var hasFreshBatch = _universeState.BatchProgressReceivedAt is { } batchReceivedAt
-            && now - batchReceivedAt <= LiveIngestionActivityTtl;
-        var hasFreshIngestion = _universeState.IngestionProgressReceivedAt is { } ingestionReceivedAt
-            && now - ingestionReceivedAt <= LiveIngestionActivityTtl;
-        if (_universeState.MediaOperationActivity.Count > 0 || hasFreshBatch || hasFreshIngestion)
+        if (_universeState.MediaOperationActivity.Count > 0 || IsQueueWorking(_universeState.IngestionQueueProgress))
         {
             _ = RefreshSystemActivityAsync();
         }
     }
 
-    private void OnPlaybackChanged(PlaybackChangeKind kind)
-    {
-        var now = DateTimeOffset.UtcNow;
-        if (kind == PlaybackChangeKind.TransportTick && now - _lastTransportNotification < TimeSpan.FromSeconds(1))
-        {
-            return;
-        }
-
-        _lastTransportNotification = now;
-        PublishIfChanged();
-    }
-
-    private void PublishIfChanged(bool force = false)
+    private void PublishIfChanged()
     {
         var snapshot = BuildSnapshot(DateTimeOffset.UtcNow);
-        var signature = string.Join('|', snapshot.Items.Select(item => $"{item.Key}:{item.ProgressPercent}:{item.Label}"));
-        if (!force && string.Equals(signature, _lastSignature, StringComparison.Ordinal))
+        var queue = snapshot.Queue;
+        var signature = string.Join('|', snapshot.Items.Select(item => $"{item.Key}:{item.ProgressPercent}:{item.Label}"))
+            + $"#{queue?.State}:{queue?.FilesFound}:{queue?.FilesDone}:{queue?.EstimatedSecondsRemaining}:{queue?.LastActivityAt:O}";
+        if (string.Equals(signature, _lastSignature, StringComparison.Ordinal))
         {
             return;
         }
@@ -385,17 +329,12 @@ public sealed class ShellActivityState : IDisposable
         Changed?.Invoke();
     }
 
-    private static int? Percent(double current, double duration) => duration > 0
-        ? Math.Clamp((int)Math.Round(current * 100d / duration), 0, 100)
-        : null;
-
     private static int Priority(ShellActivityKind kind) => kind switch
     {
-        ShellActivityKind.Playback => 0,
-        ShellActivityKind.Ingestion => 1,
-        ShellActivityKind.Ai => 2,
-        ShellActivityKind.Enrichment => 3,
-        _ => 4,
+        ShellActivityKind.Ingestion => 0,
+        ShellActivityKind.Ai => 1,
+        ShellActivityKind.Enrichment => 2,
+        _ => 3,
     };
 
     private static ShellActivityKind ToKind(string? operationKind) => operationKind?.ToLowerInvariant() switch
@@ -463,7 +402,6 @@ public sealed class ShellActivityState : IDisposable
     {
         _disposed = true;
         _universeState.OnStateChanged -= OnUniverseStateChanged;
-        _playback.Changed -= OnPlaybackChanged;
         _expiryTimer.Dispose();
     }
 

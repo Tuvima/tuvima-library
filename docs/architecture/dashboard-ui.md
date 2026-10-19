@@ -62,7 +62,7 @@ The current navbar centers Read, Watch, Listen, and Collections independently of
 
 The navbar brand uses the shared `assets/images/library.svg` lockup. The Dashboard project links that source file into its static web assets so the repository has one authoritative copy.
 
-The activity surface is composed by `ShellActivityState`. It merges live SignalR ingestion, AI model-download, universe-enrichment, and durable `MediaOperationChanged` updates with scoped audio/video playback state. `GET /system/activity-status` supplies a sanitized active-operation snapshot so a newly opened Dashboard does not need to wait for the next SignalR event. Operation titles and filesystem paths are intentionally excluded from that shell endpoint.
+The activity surface is composed by `ShellActivityState`. It merges the Engine's ingestion queue snapshot, AI model-download, universe-enrichment, and durable `MediaOperationChanged` updates into a blue-while-working, green-when-idle indicator; playback is tracked separately (`IsPlaybackActive`) and never lights it. `GET /system/activity-status` supplies a sanitized active-operation snapshot so a newly opened Dashboard does not need to wait for the next SignalR event. Operation titles and filesystem paths are intentionally excluded from that shell endpoint.
 
 ## Listen Playback
 

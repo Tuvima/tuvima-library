@@ -272,7 +272,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".top-nav-account-menu__trigger"));
             Assert.Single(cut.FindAll(".layout-shell__my-list"));
             var activity = Assert.Single(cut.FindAll(".system-activity-indicator"));
-            Assert.Equal("Library activity", activity.GetAttribute("aria-label"));
+            Assert.Equal("Idle. Library is up to date", activity.GetAttribute("aria-label"));
+            Assert.Contains("is-idle", activity.ClassList);
             Assert.Empty(cut.FindAll(".system-activity-indicator__ring"));
             Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
             Assert.Empty(cut.FindAll(".layout-shell__review-button"));
@@ -357,11 +358,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("await Orchestrator.StartSignalRAsync();", source);
         Assert.Contains("await Activity.InitializeAsync();", source);
         var activityState = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Services", "Integration", "ShellActivityState.cs"));
-        Assert.Contains("LiveIngestionActivityTtl", activityState);
         Assert.Contains("RefreshSystemActivityAsync", activityState);
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", activityState);
-        Assert.Contains("BatchProgressReceivedAt", activityState);
-        Assert.Contains("IngestionProgressReceivedAt", activityState);
+        Assert.Contains("IngestionQueueProgress", activityState);
+        Assert.DoesNotContain("BatchProgressReceivedAt", activityState);
+        Assert.DoesNotContain("IngestionProgressReceivedAt", activityState);
         Assert.Contains("<TopNavAccountMenu", source);
         Assert.Contains("<SystemActivityIndicator", source);
         Assert.Contains("ShellActivityKind.Ingestion or ShellActivityKind.Enrichment", activityIndicator);
