@@ -99,8 +99,8 @@ Wave 1: WP1 and WP3 together. Wave 2: WP2 and WP4 together. Then the reviewer an
 - **Done when:** after `seed --scale projection`, `SELECT COUNT(*) FROM works WHERE ready_at IS NULL` returns 0, and the harness's Home probe returns rows (not 0).
 
 ### WP4 — Drop the duplicate index (D8)
-- **What it does:** add upgrade step `0013_drop_duplicate_canonical_values_index.sql` containing `DROP INDEX IF EXISTS idx_canonical_values_entity_key;`; remove the index from `schema.snapshot.sql`; register the step wherever the upgrade guardrails require (`released-steps.txt` and `DataStoreUpgradeCatalog` per the numbered-upgrade rules). No epoch bump: removing an index needs no reset.
-- **Files likely touched:** `src/MediaEngine.Storage/Schema/Upgrades/0013_drop_duplicate_canonical_values_index.sql` (new), `src/MediaEngine.Storage/Schema/schema.snapshot.sql`, `src/MediaEngine.Storage/Schema/Upgrades/released-steps.txt`, `docs/reference/database-schema.md` if it lists the index
+- **What it does:** add upgrade step `0014_drop_duplicate_canonical_values_index.sql` containing `DROP INDEX IF EXISTS idx_canonical_values_entity_key;`; remove the index from `schema.snapshot.sql`; register the step wherever the upgrade guardrails require (`released-steps.txt` and `DataStoreUpgradeCatalog` per the numbered-upgrade rules). No epoch bump: removing an index needs no reset.
+- **Files likely touched:** `src/MediaEngine.Storage/Schema/Upgrades/0014_drop_duplicate_canonical_values_index.sql` (new), `src/MediaEngine.Storage/Schema/schema.snapshot.sql`, `src/MediaEngine.Storage/Schema/Upgrades/released-steps.txt`, `docs/reference/database-schema.md` if it lists the index
 - **Depends on:** none (scheduled in wave 2 to keep wave 1 to two packets)
 - **Size:** Mechanical
 - **Done when:** the data store upgrade and schema guardrail tests pass, and a fresh data store has no `idx_canonical_values_entity_key` while `canonical_values` reads still use the primary key index.
