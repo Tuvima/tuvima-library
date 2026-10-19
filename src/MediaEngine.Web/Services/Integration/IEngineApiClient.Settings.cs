@@ -42,6 +42,9 @@ public partial interface IEngineApiClient
     /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>
     Task<DataStoreVersionDto?> GetDataStoreVersionAsync(CancellationToken ct = default);
 
+    /// <summary>GET /system/resources — Engine version, uptime, processor, memory and disk space; <c>null</c> when the Engine could not be asked.</summary>
+    Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default);
+
     Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default);
 
     Task<byte[]?> DownloadBackupAsync(string fileName, CancellationToken ct = default);

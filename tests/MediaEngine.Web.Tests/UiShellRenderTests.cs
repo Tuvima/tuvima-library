@@ -549,7 +549,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task SettingsPage_RendersSharedSidebarAndAdminOverviewContent()
+    public async Task SettingsPage_RendersSharedSidebarAndTheSystemSummary()
     {
         var cut = Render(builder =>
         {
@@ -561,7 +561,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<Settings>(3);
             builder.AddAttribute(4, nameof(Settings.Section), "system");
-            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
             builder.CloseComponent();
         });
 
@@ -578,10 +577,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotNull(reviewNotification);
             Assert.Equal("3", reviewNotification!.TextContent.Trim());
             Assert.Equal("3 items need review", reviewNotification.GetAttribute("aria-label"));
-            Assert.Contains("System exceptions", cut.Markup);
-            Assert.NotNull(cut.Find(".admin-library-summary").QuerySelector(".admin-overview-card--attention"));
-            Assert.DoesNotContain("No active transcodes", cut.Markup);
-            Assert.Contains("Recent Activity", cut.Markup);
+            // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
+            Assert.Single(cut.FindAll("[data-settings-system-summary]"));
+            Assert.DoesNotContain("System exceptions", cut.Markup);
+            Assert.Empty(cut.FindAll(".admin-library-summary"));
         }, AttentionArrives);
     }
 

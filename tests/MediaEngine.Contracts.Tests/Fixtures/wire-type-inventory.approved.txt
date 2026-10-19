@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1005; api=0; web-client=77
+# scopes: contracts=1007; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9391,6 +9391,28 @@
 [contracts] MediaEngine.Contracts.Settings.SettingsSavedResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   saved: System.Boolean | json=saved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Settings.SystemDriveDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Root: System.String | json=root | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalBytes: System.Int64 | json=total_bytes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FreeBytes: System.Int64 | json=free_bytes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HoldsLibrary: System.Boolean | json=holds_library | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HoldsDataStore: System.Boolean | json=holds_data_store | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"root":"sample","label":"sample","total_bytes":7,"free_bytes":7,"holds_library":true,"holds_data_store":true}
+
+[contracts] MediaEngine.Contracts.Settings.SystemResourcesDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EngineVersion: System.String | json=engine_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StartedAt: System.DateTimeOffset | json=started_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UptimeSeconds: System.Int64 | json=uptime_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProcessorPercent: System.Double | json=processor_percent | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MemoryUsedMb: System.Int64 | json=memory_used_mb | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MemoryTotalMb: System.Int64 | json=memory_total_mb | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Drives: System.Collections.Generic.List<MediaEngine.Contracts.Settings.SystemDriveDto> | json=drives | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DataStoreSizeBytes: System.Int64? | json=data_store_size_bytes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"engine_version":"sample","started_at":"2025-01-02T03:04:05+00:00","uptime_seconds":7,"processor_percent":7,"memory_used_mb":7,"memory_total_mb":7,"drives":[],"data_store_size_bytes":7}
 
 [contracts] MediaEngine.Contracts.Settings.TestPathRequest
   kind=class | converter=default | number-handling=default | unmapped=default

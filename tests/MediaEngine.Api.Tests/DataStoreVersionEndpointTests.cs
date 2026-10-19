@@ -180,6 +180,7 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
         builder.Services.AddSingleton<IFileWatcher>(_ => null!);
         builder.Services.AddSingleton<AssetStoreCleanupService>(_ => null!);
         builder.Services.AddSingleton<DatabaseBackupService>(_ => null!);
+        builder.Services.AddSingleton<SystemResourcesService>(_ => null!);
         var app = builder.Build();
         app.MapSystemEndpoints();
         return app;
