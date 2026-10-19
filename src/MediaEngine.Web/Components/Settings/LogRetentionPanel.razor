@@ -1,0 +1,170 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.System
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+@* How long and how much of each system log is kept (settings revamp D22). Personal activity is not part of this:
+   it is kept until someone clears it by hand. *@
+@if (_loading)
+{
+    <AppProgressBar Indeterminate="true" />
+}
+else if (_status is null)
+{
+    <AppErrorState Title="Could not load the retention settings"
+                   Message="The Library could not get the settings from the server. Check that the server is online, then try again."
+                   Retry="LoadAsync" />
+}
+else
+{
+    <div class="log-retention">
+        <AppAlert Tone="AppUiTone.Info" data-testid="retention-note">
+            Old events and log files are removed quietly every night. Nothing is shown when that happens, and the Scheduled
+            tasks list on Tools and requirements says when it last ran. What people watched, listened to and read is not
+            affected: it is kept until it is cleared by hand.
+        </AppAlert>
+
+        <AppCard Title="Events" Description="The readable log of what the Library did. The oldest events go first once a limit is passed.">
+            <div class="log-retention__fields">
+                <AppTextField Label="Keep events for (days)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                              Value="@_activityDays" ValueChanged="@(v => Edit(ref _activityDays, v))"
+                              HelpText="@($"Between {LogRetentionLimits.MinDays} and {LogRetentionLimits.MaxDays:N0} days.")"
+                              data-testid="retention-activity-days" />
+                <AppTextField Label="Keep at most (events)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                              Value="@_activityMax" ValueChanged="@(v => Edit(ref _activityMax, v))"
+                              HelpText="@($"Between {LogRetentionLimits.MinActivityEvents:N0} and {LogRetentionLimits.MaxActivityEvents:N0} events.")"
+                              data-testid="retention-activity-max" />
+            </div>
+            <p class="log-retention__usage" data-testid="retention-activity-usage">
+                @DisplayFormat.FormatCount(_status.ActivityEventCount) events stored now.
+            </p>
+        </AppCard>
+
+        <AppCard Title="Technical log files" Description="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
+            <div class="log-retention__fields">
+                <AppTextField Label="Keep files for (days)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                              Value="@_logDays" ValueChanged="@(v => Edit(ref _logDays, v))"
+                              HelpText="@($"Between {LogRetentionLimits.MinDays} and {LogRetentionLimits.MaxDays:N0} days.")"
+                              data-testid="retention-log-days" />
+                <AppTextField Label="Keep at most (MB, all files together)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                              Value="@_logMegabytes" ValueChanged="@(v => Edit(ref _logMegabytes, v))"
+                              HelpText="@($"Between {LogRetentionLimits.MinLogTotalMegabytes:N0} and {LogRetentionLimits.MaxLogTotalMegabytes:N0} MB.")"
+                              data-testid="retention-log-mb" />
+            </div>
+            <p class="log-retention__usage" data-testid="retention-log-usage">
+                @FileUsage(_status)
+            </p>
+        </AppCard>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <AppAlert Tone="AppUiTone.Warning" data-testid="retention-error">@_error</AppAlert>
+        }
+        @if (!string.IsNullOrWhiteSpace(_saved))
+        {
+            <AppAlert Tone="AppUiTone.Success" data-testid="retention-saved">@_saved</AppAlert>
+        }
+
+        <div class="log-retention__actions">
+            <AppButton Label="Save limits" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Loading="_saving" Disabled="_saving" OnClick="SaveAsync" data-testid="retention-save" />
+        </div>
+    </div>
+}
+
+@code {
+    private LogRetentionStatusDto? _status;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+    private string? _saved;
+    private string? _activityDays;
+    private string? _activityMax;
+    private string? _logDays;
+    private string? _logMegabytes;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _status = await ApiClient.GetLogRetentionAsync();
+        if (_status is not null)
+        {
+            Fill(_status.Settings);
+        }
+
+        _loading = false;
+    }
+
+    private void Fill(LogRetentionSettingsDto settings)
+    {
+        _activityDays = Text(settings.ActivityRetentionDays);
+        _activityMax = Text(settings.ActivityMaxEvents);
+        _logDays = Text(settings.LogRetentionDays);
+        _logMegabytes = Text(settings.LogMaxTotalMegabytes);
+    }
+
+    private void Edit(ref string? field, string? value)
+    {
+        field = value;
+        _error = null;
+        _saved = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saved = null;
+        if (!TryParse(_activityDays, out var activityDays) || !TryParse(_activityMax, out var activityMax)
+            || !TryParse(_logDays, out var logDays) || !TryParse(_logMegabytes, out var logMegabytes))
+        {
+            _error = "Enter a whole number in every field.";
+            return;
+        }
+
+        // The same ranges the Engine enforces, so a mistake is explained here before anything is sent.
+        _error = LogRetentionLimits.Validate(activityDays, activityMax, logDays, logMegabytes);
+        if (_error is not null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var updated = await ApiClient.UpdateLogRetentionAsync(new LogRetentionSettingsDto
+            {
+                ActivityRetentionDays = activityDays,
+                ActivityMaxEvents = activityMax,
+                LogRetentionDays = logDays,
+                LogMaxTotalMegabytes = logMegabytes,
+            });
+
+            if (updated is null)
+            {
+                _error = "The limits could not be saved. Check that the server is online, then try again.";
+                return;
+            }
+
+            _status = updated;
+            Fill(updated.Settings);
+            _saved = "Saved. The next nightly clean-up uses these limits.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string FileUsage(LogRetentionStatusDto status) =>
+        status.LogFileCount == 0
+            ? "No log files yet."
+            : $"{DisplayFormat.FormatCount(status.LogFileCount)} {(status.LogFileCount == 1 ? "file" : "files")} taking {DisplayFormat.FormatFileSize(status.LogTotalBytes) ?? "0 B"} now.";
+
+    private static string Text(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static bool TryParse(string? text, out int value) =>
+        int.TryParse(text?.Replace(",", string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+}

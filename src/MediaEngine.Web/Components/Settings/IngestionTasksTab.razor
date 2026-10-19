@@ -23,6 +23,8 @@
     }
     else
     {
+        <LibrarySummary RefreshToken="_summaryRefresh" />
+
         <AppPanel Class="@StatusPanelClass"
                   aria-live="polite"
                   aria-busy="@(IsBusy ? "true" : "false")">
@@ -121,6 +123,8 @@
         layout.Width = width;
         await ContextPreferences.SaveAsync("desktop:ingestion", layout);
     }
+    private int _summaryRefresh;
+    private bool _wasWorking;
     private bool _drawerRefreshInFlight;
     private int _drawerRevision;
     private string? _view;
@@ -243,6 +247,12 @@
 
     private void OnDashboardChanged()
     {
+        // The library summary above the live panel reloads once each time a run finishes (working to not working),
+        // from the same queue updates this page already receives; it adds no polling of its own.
+        var working = Queue is { } current && IngestionQueueProgressText.IsWorking(current);
+        if (_wasWorking && !working && Queue is not null) _summaryRefresh++;
+        _wasWorking = working;
+
         if (_selectedItem is not null && Dashboard.Presentation is not null && !IsHistoricalBatchView)
         {
             var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.BatchId == _selectedItem.BatchId && item.GroupId == _selectedItem.GroupId);

@@ -31,7 +31,6 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly Func<string, string?> _readEnvironment;
     private readonly TimeProvider _time;
     private readonly IToolInstallerService? _installer;
-    private readonly IToolPromptPreferenceRepository? _prompts;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -47,8 +46,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         ILogger<ToolRequirementsService> logger,
         Func<string, string?>? readEnvironment = null,
         TimeProvider? time = null,
-        IToolInstallerService? installer = null,
-        IToolPromptPreferenceRepository? prompts = null)
+        IToolInstallerService? installer = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
@@ -62,7 +60,6 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         _readEnvironment = readEnvironment ?? Environment.GetEnvironmentVariable;
         _time = time ?? TimeProvider.System;
         _installer = installer;
-        _prompts = prompts;
     }
 
     /// <summary>
@@ -77,7 +74,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             return await CheckAsync(ct).ConfigureAwait(false);
         }
 
-        return await OverlayAsync(await RefreshLiveRowsAsync(last, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
+        return Overlay(await RefreshLiveRowsAsync(last, ct).ConfigureAwait(false));
     }
 
     public async Task<ToolRequirementsDto> CheckAsync(CancellationToken ct)
@@ -90,7 +87,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             // Inside the gate, so two checks can never tell the listeners out of order. The token belongs to the Engine,
             // not to the request that asked, so a closed browser tab never cuts off work the listeners start.
             await NotifyListenersAsync(availability, _lifetime.ApplicationStopping).ConfigureAwait(false);
-            return await OverlayAsync(result, ct).ConfigureAwait(false);
+            return Overlay(result);
         }
         finally
         {
@@ -98,23 +95,20 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         }
     }
 
-    // ── What an install in progress and a declined banner add to the rows ────
+    // ── What an install in progress adds to the rows ─────────────────────────
 
     /// <summary>
-    /// Adds the live install state (progress, offers, failures) and the banner decline to a result. The stored
-    /// result stays as the checks found it, so the overlay is always worked out from the present moment.
+    /// Adds the live install state (progress, offers, failures) to a result. The stored result stays as the checks
+    /// found it, so the overlay is always worked out from the present moment.
     /// </summary>
-    private async Task<ToolRequirementsDto> OverlayAsync(ToolRequirementsDto result, CancellationToken ct)
+    private ToolRequirementsDto Overlay(ToolRequirementsDto result)
     {
-        if (_installer is null && _prompts is null)
+        if (_installer is null)
         {
             return result;
         }
 
-        var declined = await ReadDeclinedAsync(result, ct).ConfigureAwait(false);
-        var rows = result.Tools
-            .Select(row => OverlayRow(row, result.InstallKind) with { InstallDeclined = declined.Contains(row.Id) })
-            .ToList();
+        var rows = result.Tools.Select(row => OverlayRow(row, result.InstallKind)).ToList();
         return result with { Tools = rows };
     }
 
@@ -158,31 +152,6 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
                     CanInstall = offer.Offered && row.State == ToolRequirementStates.Missing,
                     CanDownloadAgain = offer.Offered && row.State == ToolRequirementStates.Problem,
                 };
-        }
-    }
-
-    private async Task<IReadOnlySet<string>> ReadDeclinedAsync(ToolRequirementsDto result, CancellationToken ct)
-    {
-        if (_prompts is null)
-        {
-            return new HashSet<string>();
-        }
-
-        try
-        {
-            var declined = await _prompts.GetDeclinedAsync(ct).ConfigureAwait(false);
-            // A tool that is working again is asked about afresh if it breaks later.
-            foreach (var row in result.Tools.Where(row => row.State == ToolRequirementStates.Ready && declined.Contains(row.Id)))
-            {
-                await _prompts.ClearDeclinedAsync(row.Id, ct).ConfigureAwait(false);
-            }
-
-            return declined.Where(id => result.Tools.Any(row => row.Id == id && row.State != ToolRequirementStates.Ready)).ToHashSet();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "Could not read which tools the banner stopped asking about.");
-            return new HashSet<string>();
         }
     }
 

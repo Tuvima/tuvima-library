@@ -1,0 +1,81 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject DeviceContextService DeviceContext
+
+<div class="streaming-limits">
+    <header class="streaming-limits__heading"><div><h3>Limits and Quality</h3><p>Protect your upload connection while Tuvima Library chooses an appropriate playback quality.</p></div></header>
+
+    @if (!DeviceContext.IsMobile)
+    {
+        <SettingsSectionPanel Title="Remote Streaming Quality" Icon="@AppMaterialIcons.Outlined.HighQuality">
+            <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
+                       Label="Quality" Options="@QualityOptions" />
+            <AppSwitchRow Label="Automatic Upload Protection"
+                          Description="Keep bandwidth available for the rest of your home."
+                          Value="@Settings.Streaming.UploadProtectionEnabled"
+                          ValueChanged="ChangeUploadProtectionAsync" />
+            <AppNumericField @bind-Value="Settings.Streaming.ReservedUploadMbps"
+                             Label="Bandwidth reserved for other traffic (Mbps)" Min="0" Max="10000" />
+            <div class="streaming-limits__actions"><AppButton Label="Save streaming settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" /></div>
+        </SettingsSectionPanel>
+    }
+
+    <SettingsSectionPanel Title="Upload Capacity" Icon="@AppMaterialIcons.Outlined.Speed">
+        <dl class="streaming-limits__bandwidth-grid">
+            @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
+            @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")
+            @Fact("Available to Tuvima Library", FormatBandwidth(Status?.Bandwidth.AvailableMbps))
+        </dl>
+        @if (_bandwidth is { Status: "unavailable" })
+        {
+            <AppAlert Tone="AppUiTone.Info">A trusted external measurement target is not configured. No sample bandwidth result has been substituted.</AppAlert>
+        }
+        <div class="streaming-limits__actions"><AppButton Label="Test Bandwidth" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
+    </SettingsSectionPanel>
+
+    <SettingsSectionPanel Title="Concurrent Remote Streaming" Icon="@AppMaterialIcons.Outlined.Groups">
+        <AppSelect T="string" Value="automatic" Label="Remote stream allocation"
+                   Options="@ConcurrencyOptions" Disabled="true" />
+        <p class="streaming-limits__supporting-copy">Tuvima Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
+    </SettingsSectionPanel>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public NetworkRuntimeStatusDto? Status { get; set; }
+    [Parameter] public EventCallback SaveRequested { get; set; }
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+
+    private NetworkBandwidthStatusDto? _bandwidth;
+    private static readonly IReadOnlyList<AppSelectOption> QualityOptions =
+    [
+        new("automatic", "Automatic — Recommended"),
+        new("original", "Maximum / Original"),
+        new("1080p", "1080p"),
+        new("720p", "720p"),
+        new("data-saver", "Data Saver"),
+    ];
+    private static readonly IReadOnlyList<AppSelectOption> ConcurrencyOptions =
+        [new("automatic", "Automatic — Recommended")];
+
+    private async Task ChangeUploadProtectionAsync(bool value)
+    {
+        Settings.Streaming.UploadProtectionEnabled = value;
+        await SaveRequested.InvokeAsync();
+    }
+
+    private async Task TestBandwidthAsync()
+    {
+        _bandwidth = await ApiClient.TestNetworkBandwidthAsync();
+        if (_bandwidth?.Status == "unavailable")
+            Snackbar.Add("Bandwidth testing needs a trusted external measurement target.", AppSeverity.Info);
+        await StatusRefreshRequested.InvokeAsync();
+    }
+
+    private static string FormatBandwidth(double? value) => value.HasValue ? $"{value.Value:0.#} Mbps" : "Not tested";
+    private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
+}

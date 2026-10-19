@@ -1,0 +1,129 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Services.Formatting
+@* One tile of the Overview's Recent activity strip. Every tile is the same height; the width follows the shape of what it shows.
+   Artwork, a thin progress bar (or a check when finished), and one caption that starts with a verb. Titles are not printed:
+   they are in the hover card (D18). A phone has no hover, so a tap simply opens the item. *@
+<div class="@RootClass"
+     data-activity-kind="@Tile.Kind"
+     data-activity-shape="@Shape"
+     @onmouseenter="ShowCard"
+     @onmouseleave="HideCard"
+     @onfocusin="ShowCard"
+     @onfocusout="HideCard">
+    <a @ref="_anchor"
+       class="activity-tile__link"
+       href="@PersonalActivityPresentation.Href(Tile)"
+       aria-label="@PersonalActivityPresentation.AccessibleName(Tile)"
+       aria-describedby="@(_cardOpen ? _cardId : null)">
+        <span class="activity-tile__art">
+            @if (Covers.Count > 0 && PersonalActivityPresentation.IsMusicSession(Tile))
+            {
+                <span class="@("activity-tile__collage activity-tile__collage--" + CollageColumns)" data-activity-collage>
+                    @foreach (var cover in Covers)
+                    {
+                        <img class="activity-tile__cover" src="@cover" alt="" loading="lazy" decoding="async" />
+                    }
+                </span>
+            }
+            else if (!string.IsNullOrWhiteSpace(Tile.ArtworkUrl))
+            {
+                <img class="activity-tile__image" src="@Tile.ArtworkUrl" alt="" loading="lazy" decoding="async" />
+            }
+            else
+            {
+                <span class="activity-tile__placeholder" aria-hidden="true"><AppMaterialIcon Icon="@PlaceholderIcon" /></span>
+            }
+
+            @if (Mark != ActivityProgressMark.None)
+            {
+                <AppArtworkProgress State="@(Mark == ActivityProgressMark.Finished ? DisplayContinuationState.Completed : DisplayContinuationState.InProgress)"
+                                    Percent="@Tile.ProgressPct"
+                                    MediaKind="@MediaKind" />
+            }
+        </span>
+        <span class="activity-tile__caption">@PersonalActivityPresentation.Caption(Tile)</span>
+    </a>
+
+    @if (_cardOpen)
+    {
+        <AppPopover Open="true"
+                    OpenChanged="OnCardOpenChanged"
+                    Anchor="_anchor"
+                    AnchorOrigin="AppOrigin.TopRight"
+                    TransformOrigin="AppOrigin.TopLeft"
+                    Class="activity-card">
+            <div id="@_cardId" class="@("activity-card__body" + (CardImage is null ? " activity-card__body--text" : string.Empty))" data-activity-card>
+                @if (CardImage is { } image)
+                {
+                    <img class="activity-card__image" src="@image" alt="" decoding="async" />
+                }
+                <div class="activity-card__copy">
+                    <strong class="activity-card__title">@PersonalActivityPresentation.HoverTitle(Tile)</strong>
+                    @if (!string.IsNullOrWhiteSpace(Tile.Subtitle))
+                    {
+                        <span class="activity-card__line">@Tile.Subtitle</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Tile.ParentTitle))
+                    {
+                        <span class="activity-card__line">@Tile.ParentTitle</span>
+                    }
+                    @if (PersonalActivityPresentation.MusicCounts(Tile) is { } counts)
+                    {
+                        <span class="activity-card__line">@counts</span>
+                    }
+                    <span class="activity-card__line activity-card__line--muted">@When</span>
+                    <span class="activity-card__line activity-card__line--muted">@Caption</span>
+                </div>
+            </div>
+        </AppPopover>
+    }
+</div>
+
+@code {
+    private readonly string _cardId = $"activity-card-{Guid.NewGuid():N}";
+    private ElementReference _anchor;
+    private bool _cardOpen;
+
+    [Parameter, EditorRequired] public PersonalActivityRecentTileDto Tile { get; set; } = default!;
+
+    /// <summary>False on a phone or any screen without hover: no card is drawn and a tap opens the item.</summary>
+    [Parameter] public bool ShowHoverCard { get; set; }
+
+    /// <summary>"Today" and "Yesterday" in the hover card are worked out from this; null means now.</summary>
+    [Parameter] public DateTimeOffset? Now { get; set; }
+
+    private string Shape => PersonalActivityPresentation.ShapeClass(Tile);
+    private string RootClass => $"activity-tile activity-tile--{Shape}";
+    private ActivityProgressMark Mark => PersonalActivityPresentation.ProgressMark(Tile);
+    private string MediaKind => PersonalActivityPresentation.ProgressMediaKind(Tile);
+    private IReadOnlyList<string> Covers => PersonalActivityPresentation.CollageCovers(Tile);
+    private string When => PersonalActivityPresentation.When(Tile.StartedAt, Now ?? DateTimeOffset.UtcNow);
+    private string Caption => PersonalActivityPresentation.Caption(Tile);
+
+    // A collage is as many columns as it needs to stay square: one cover, two by two, then three by three.
+    private int CollageColumns => Covers.Count switch { <= 1 => 1, <= 4 => 2, _ => 3 };
+
+    private string? CardImage => !string.IsNullOrWhiteSpace(Tile.ArtworkUrl) ? Tile.ArtworkUrl : Covers.FirstOrDefault();
+
+    private string PlaceholderIcon => Tile.Kind switch
+    {
+        PersonalActivityKindValues.Read => AppMaterialIcons.Outlined.MenuBook,
+        PersonalActivityKindValues.Listen or PersonalActivityKindValues.MusicSession => AppMaterialIcons.Outlined.MusicNote,
+        PersonalActivityKindValues.MyList => AppMaterialIcons.Outlined.Bookmarks,
+        _ => AppMaterialIcons.Outlined.PlayArrow,
+    };
+
+    private void ShowCard()
+    {
+        if (ShowHoverCard)
+        {
+            _cardOpen = true;
+        }
+    }
+
+    private void HideCard() => _cardOpen = false;
+
+    private void OnCardOpenChanged(bool open) => _cardOpen = open;
+}

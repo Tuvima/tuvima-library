@@ -6,17 +6,19 @@ public sealed class SettingsBreadcrumbGuardrailTests
     public void SettingsShell_OwnsRouteAwareBreadcrumbsAndIngestionHeaderAction()
     {
         var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
-        var settingsCss = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var frame = Read(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor");
+        var frameCss = Read(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var metadata = Read(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
 
-        Assert.Contains("<AppBreadcrumbs Class=\"settings-breadcrumbs\">", settings, StringComparison.Ordinal);
-        Assert.Contains("aria-current=\"page\"", settings, StringComparison.Ordinal);
+        Assert.Contains("<AppBreadcrumbs Class=\"settings-breadcrumbs\">", frame, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppBreadcrumbs", settings, StringComparison.Ordinal);
+        Assert.Contains("aria-current=\"page\"", frame, StringComparison.Ordinal);
         Assert.Contains("[SupplyParameterFromQuery(Name = \"runId\")]", settings, StringComparison.Ordinal);
         Assert.Contains("IngestionBatchDisplay.Title(batch)", settings, StringComparison.Ordinal);
-        Assert.Contains("SettingsSection.Ingestion => \"Configure how Tuvima Library discovers", settings, StringComparison.Ordinal);
+        Assert.Contains("SettingsSection.Ingestion => \"What your library holds", settings, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
-        Assert.Contains("focus-visible", settingsCss, StringComparison.Ordinal);
+        Assert.Contains("focus-visible", frameCss, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppBreadcrumbs>", metadata, StringComparison.Ordinal);
     }
 

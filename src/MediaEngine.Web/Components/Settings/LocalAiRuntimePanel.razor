@@ -1,0 +1,95 @@
+@namespace MediaEngine.Web.Components.Settings
+@inject UIOrchestratorService Orchestrator
+
+@* The Local AI runtime (resource profile, benchmark, runtime limits and diagnostics): the Runtime page of Local AI.
+   Model files and downloads are the "Local AI models" card on Tools and requirements. The page title and its
+   one-line description come from the Settings frame. *@
+<div class="local-ai-runtime" data-testid="local-ai-runtime">
+    <ModelsTab />
+    <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
+        @if (_config is null)
+        {
+            <AppEmptyState Title="AI configuration unavailable" Message="Runtime controls are hidden until the Engine returns saved configuration." />
+        }
+        else
+        {
+            <div class="tl-form-grid local-ai-runtime__form">
+                <AppTextField @bind-Value="_config.ModelsDirectory" Label="Models directory" />
+                <AppNumericField T="int" @bind-Value="_config.IdleUnloadSeconds" Label="Idle unload seconds" Min="1" />
+                <AppNumericField T="int" @bind-Value="_config.InferenceTimeoutSeconds" Label="Inference timeout seconds" Min="1" />
+                <AppNumericField T="int" @bind-Value="_config.MaxConcurrentInferences" Label="Maximum concurrent inference" Min="1" Max="1" />
+                <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="Minimum free disk (MB)" Min="256" />
+                <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="Enrichment batch size" Min="1" />
+            </div>
+            <AppButton Label="Save runtime settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
+        }
+    </AppCard>
+    @if (_profile is not null || _resources is not null)
+    {
+        <AppCard Title="Runtime diagnostics" Density="AppSurfaceDensity.Compact">
+            <div class="local-ai-runtime__diagnostics">
+                @if (_profile is not null)
+                {
+                    <span><strong>Backend</strong>@_profile.Backend</span>
+                    <span><strong>Benchmark</strong>@BenchmarkLabel()</span>
+                }
+                @if (_resources is not null)
+                {
+                    <span><strong>Engine memory</strong>@FormatMb(_resources.EngineRamMb)</span>
+                    <span><strong>CPU pressure</strong>@CpuPressureLabel(_resources.CpuPressure)</span>
+                }
+            </div>
+        </AppCard>
+    }
+</div>
+
+@code {
+    private HardwareProfileDto? _profile;
+    private ResourceSnapshotDto? _resources;
+    private AiConfigDto? _config;
+    private bool _savingConfig;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _config = await Orchestrator.GetAiConfigAsync();
+        _profile = await Orchestrator.GetAiProfileAsync();
+        _resources = await Orchestrator.GetResourceSnapshotAsync();
+    }
+
+    private async Task SaveConfig()
+    {
+        if (_config is null || !ValidateRuntime())
+            return;
+
+        _savingConfig = true;
+        await Orchestrator.SaveAiConfigAsync(_config);
+        _savingConfig = false;
+    }
+
+    private bool ValidateRuntime() => _config is
+    {
+        IdleUnloadSeconds: > 0,
+        InferenceTimeoutSeconds: > 0,
+        MaxConcurrentInferences: 1,
+        MinimumFreeDiskMB: >= 256,
+        EnrichmentBatchSize: > 0,
+    } && !string.IsNullOrWhiteSpace(_config.ModelsDirectory);
+
+    private static string FormatMb(long mb) => mb >= 1024 ? $"{mb / 1024.0:F1} GB" : $"{mb} MB";
+
+    private static string CpuPressureLabel(double pressure) => pressure switch
+    {
+        >= 0.85 => "High",
+        >= 0.5 => "Moderate",
+        _ => "Low",
+    };
+
+    private string BenchmarkLabel() => _profile?.Outcome switch
+    {
+        "succeeded" => $"{_profile.TokensPerSecond.GetValueOrDefault():F1} tokens/sec",
+        "failed" => "Failed — rerun available",
+        "invalidated" => "Invalidated for this machine",
+        _ => "Not run",
+    };
+}

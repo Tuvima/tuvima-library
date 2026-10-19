@@ -1,0 +1,216 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.System
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@implements IDisposable
+
+@* The Engine's own log files, newest first, for bug reports (settings revamp D38). Server administrators only; the Engine
+   enforces that, and the Settings shell only offers the page to administrators. *@
+<AppCard Title="Technical log"
+         Description="What the Engine wrote to its log files, newest first. It can include file names and other private details, so share it with care.">
+    <div class="technical-log__filters">
+        <AppSelect Label="Time" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+        <AppSelect Label="Level" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
+        <AppSelect Label="Area" Value="@_area" ValueChanged="OnAreaChanged" Options="AreaOptions" />
+        <AppTextField Label="Search"
+                      Value="@_search"
+                      ValueChanged="OnSearchChanged"
+                      OnDebounceIntervalElapsed="OnSearchDebounced"
+                      DebounceInterval="350"
+                      Placeholder="Search the log text…"
+                      Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
+    </div>
+
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (_failed)
+    {
+        <AppAlert Tone="AppUiTone.Warning" data-testid="technical-log-error">
+            The technical log could not be read. Check that the server is online, then try again.
+            <AppButton Label="Try again" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
+        </AppAlert>
+    }
+    else if (_lines.Count == 0)
+    {
+        <AppEmptyState Title="No log lines match" Message="Nothing in the log matches these filters. Try a longer time range or a lower level." />
+    }
+    else
+    {
+        <ol class="technical-log__list" aria-label="Technical log lines, newest first" data-testid="technical-log-lines">
+            @foreach (var line in _lines)
+            {
+                var (first, rest) = SplitMessage(line.Message);
+                <li class="technical-log__line technical-log__line--@LevelKey(line.Level)" data-testid="technical-log-line">
+                    <time class="technical-log__time" datetime="@line.Time.ToString("O")">@line.Time.ToLocalTime().ToString("MMM d, h:mm:ss tt")</time>
+                    <span class="technical-log__level">@LevelLabel(line.Level)</span>
+                    <span class="technical-log__area">@line.Area</span>
+                    <span class="technical-log__message">
+                        @first
+                        @if (rest is not null)
+                        {
+                            <details class="technical-log__details">
+                                <summary>Show details</summary>
+                                <pre>@rest</pre>
+                            </details>
+                        }
+                    </span>
+                </li>
+            }
+        </ol>
+        @if (_cursor is not null)
+        {
+            <div class="technical-log__more">
+                <AppButton Label="Load older lines" Loading="_loadingMore" Disabled="_loadingMore" OnClick="LoadMoreAsync" />
+            </div>
+        }
+    }
+</AppCard>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> RangeOptions =
+    [
+        new("hour", "Last hour"),
+        new("day", "Last 24 hours"),
+        new("week", "Last 7 days"),
+        new("all", "All time"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> LevelOptions =
+    [
+        new("all", "Everything"),
+        new("warning", "Warnings and errors"),
+        new("error", "Errors only"),
+    ];
+
+    // The Engine groups logger names into these areas (LogAreas on the Engine side).
+    private static readonly IReadOnlyList<AppSelectOption> AreaOptions =
+    [
+        new("all", "All areas"),
+        new("Ingestion", "Ingestion"),
+        new("Playback", "Playback"),
+        new("Network", "Network"),
+        new("Providers", "Providers"),
+        new("Security", "Security"),
+        new("AI", "AI"),
+        new("Other", "Other"),
+    ];
+
+    private const int PageSize = 100;
+
+    private readonly List<TechnicalLogLineDto> _lines = [];
+    private CancellationTokenSource? _load;
+    private string _range = "day";
+    private string _level = "all";
+    private string _area = "all";
+    private string? _search;
+    private string? _cursor;
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _failed;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task OnRangeChanged(string? value) { _range = value ?? "day"; return ReloadAsync(); }
+
+    private Task OnLevelChanged(string? value) { _level = value ?? "all"; return ReloadAsync(); }
+
+    private Task OnAreaChanged(string? value) { _area = value ?? "all"; return ReloadAsync(); }
+
+    private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
+
+    private Task OnSearchDebounced(string value) { _search = value; return ReloadAsync(); }
+
+    private Task ReloadAsync() => LoadAsync(reset: true);
+
+    private Task LoadMoreAsync() => LoadAsync(reset: false);
+
+    private async Task LoadAsync(bool reset)
+    {
+        // A newer request replaces an older one, so a slow answer never overwrites a fresher one.
+        _load?.Cancel();
+        _load?.Dispose();
+        var source = _load = new CancellationTokenSource();
+        var token = source.Token;
+
+        if (reset)
+        {
+            _loading = true;
+            _cursor = null;
+        }
+        else
+        {
+            _loadingMore = true;
+        }
+
+        _failed = false;
+        var page = await ApiClient.GetTechnicalLogAsync(BuildRequest(reset ? null : _cursor), token);
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (reset)
+        {
+            _lines.Clear();
+        }
+
+        if (page is null)
+        {
+            _failed = _lines.Count == 0;
+        }
+        else
+        {
+            _lines.AddRange(page.Lines);
+            _cursor = page.NextCursor;
+        }
+
+        _loading = false;
+        _loadingMore = false;
+    }
+
+    private TechnicalLogRequest BuildRequest(string? cursor) => new(
+        From: RangeStart(),
+        Level: _level == "all" ? null : _level,
+        Area: _area == "all" ? null : _area,
+        Search: string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
+        Cursor: cursor,
+        Limit: PageSize);
+
+    private DateTimeOffset? RangeStart() => _range switch
+    {
+        "hour" => DateTimeOffset.Now.AddHours(-1),
+        "day" => DateTimeOffset.Now.AddDays(-1),
+        "week" => DateTimeOffset.Now.AddDays(-7),
+        _ => null,
+    };
+
+    // The first line is the message; an error carries its detail (the exception) on the lines after it.
+    private static (string Head, string? Detail) SplitMessage(string message)
+    {
+        var newline = message.IndexOf('\n');
+        return newline < 0 ? (message, null) : (message[..newline], message[(newline + 1)..]);
+    }
+
+    private static string LevelKey(string level) => level.ToLowerInvariant();
+
+    private static string LevelLabel(string level) => level.ToLowerInvariant() switch
+    {
+        "verbose" => "Verbose",
+        "debug" => "Debug",
+        "information" => "Info",
+        "warning" => "Warning",
+        "error" => "Error",
+        "fatal" => "Fatal",
+        _ => level,
+    };
+
+    public void Dispose()
+    {
+        _load?.Cancel();
+        _load?.Dispose();
+    }
+}

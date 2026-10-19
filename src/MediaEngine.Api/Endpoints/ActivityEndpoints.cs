@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Activity;
 using MediaEngine.Contracts.Ingestion;
@@ -254,21 +255,20 @@ public static class ActivityEndpoints
 
         // POST /activity/prune — manual prune trigger.
         group.MapPost("/prune", async (
-            ISystemActivityRepository repo,
-            IConfigurationLoader configLoader) =>
+            ActivityRetentionPruner pruner,
+            IConfigurationLoader configLoader,
+            CancellationToken ct) =>
         {
-            var maintenance = configLoader.LoadMaintenance();
-            var retentionDays = maintenance.ActivityRetentionDays;
-            var deleted = await repo.PruneOlderThanAsync(retentionDays);
+            var result = await pruner.PruneAsync(configLoader.LoadMaintenance(), ct);
 
             return Results.Ok(new PruneResponse
             {
-                Deleted = deleted,
-                RetentionDays = retentionDays,
+                Deleted = result.Total,
+                RetentionDays = result.RetentionDays,
             });
         })
         .WithName("PruneActivity")
-        .WithSummary("Deletes activity entries older than the configured retention period.")
+        .WithSummary("Deletes activity entries older than the retention period, then the oldest ones past the event limit.")
         .Produces<PruneResponse>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
@@ -290,32 +290,6 @@ public static class ActivityEndpoints
         .WithSummary("Returns the total entry count and the current retention setting.")
         .Produces<ActivityStatsResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemActivityRead);
-
-        // PUT /activity/retention — update retention period.
-        group.MapPut("/retention", (
-            int days,
-            IConfigurationLoader configLoader) =>
-        {
-            if (days < 1 || days > 365)
-            {
-                return ApiErrors.BadRequest("Retention must be between 1 and 365 days.");
-            }
-
-            var maintenance = configLoader.LoadMaintenance();
-            maintenance.ActivityRetentionDays = days;
-            configLoader.SaveMaintenance(maintenance);
-
-            return Results.Ok(new ActivityStatsResponse
-            {
-                TotalEntries = 0,
-                RetentionDays = days,
-            });
-        })
-        .WithName("UpdateActivityRetention")
-        .WithSummary("Updates the activity retention period in days.")
-        .Produces<ActivityStatsResponse>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .RequireEffectiveAdministrator();
 
         // GET /activity/by-types?types=BatchCreated,BatchCompleted&limit=50
         // Returns recent entries filtered by action types for activity summaries.

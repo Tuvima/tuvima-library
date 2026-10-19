@@ -70,12 +70,6 @@ public sealed class ProfileOverviewResponseDto
     public TasteProfileDto? Taste { get; init; }
 }
 
-public enum TasteProfileBuildStatusDto
-{
-    Generated,
-    InsufficientData,
-}
-
 public sealed class TasteProfileDto
 {
     public Guid UserId { get; init; }
@@ -90,14 +84,6 @@ public sealed class TasteProfileDto
     public string? Summary { get; init; }
     public DateTimeOffset LastUpdatedAt { get; init; }
 }
-
-public sealed record TasteProfileBuildResponse(
-    TasteProfileBuildStatusDto Status,
-    Guid UserId,
-    TasteProfileDto? Profile,
-    int SignalCount,
-    string InputFingerprint,
-    string? Reason = null);
 
 public sealed class ProfileOverviewStatsDto
 {

@@ -109,7 +109,6 @@ public sealed class DashboardFirstRunExperienceTests
         var readiness = Read("src/MediaEngine.Web/Components/Setup/SetupReadinessStage.razor");
         var stageFooter = Read("src/MediaEngine.Web/Components/Setup/SetupStageFooter.razor");
         var workflow = Read("src/MediaEngine.Contracts/Setup/SetupContracts.cs");
-        var overview = Read("src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
 
         Assert.Contains("Confirm password", administrator, StringComparison.Ordinal);
         Assert.Contains("RecoveryCodesDisplay", administrator, StringComparison.Ordinal);
@@ -133,7 +132,6 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.DoesNotContain("case \"local-ai\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"access\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("\"local-ai\", \"access\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("Continue optional setup", overview, StringComparison.Ordinal);
     }
 
     [Fact]

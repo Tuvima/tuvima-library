@@ -619,9 +619,9 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
       "important": 0,
-      "deep": 13
+      "deep": 6
     },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
@@ -1411,7 +1411,7 @@
     },
     "src/MediaEngine.Web/Components/Pages/Settings.razor.css": {
       "important": 313,
-      "deep": 264
+      "deep": 239
     },
     "src/MediaEngine.Web/Components/Pages/SetupPage.razor.css": {
       "important": 2,
@@ -1521,6 +1521,10 @@
       "important": 1,
       "deep": 0
     },
+    "src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css": {
+      "important": 0,
+      "deep": 14
+    },
     "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css": {
       "important": 6,
       "deep": 13
@@ -1609,9 +1613,9 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
       "important": 0,
-      "deep": 13
+      "deep": 6
     },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
@@ -1861,10 +1865,6 @@
       "important": 0,
       "deep": 8
     },
-    "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css": {
-      "important": 0,
-      "deep": 9
-    },
     "src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css": {
       "important": 0,
       "deep": 1
@@ -1956,6 +1956,22 @@
   },
   "lineExceptions": {},
   "transfers": [
+    {
+      "source": "src/MediaEngine.Web/Components/Pages/Settings.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css",
+      "important": 0,
+      "deep": 14,
+      "selectors": [
+        "::deep .settings-breadcrumbs",
+        "::deep .settings-breadcrumbs a, span, a:hover, a:focus-visible, span[aria-current=\"page\"], .tl-icon-root",
+        "::deep .sidebar-page-header",
+        "::deep .sidebar-page-header .app-page-header__eyebrow",
+        "::deep .sidebar-page-header h1",
+        "::deep .sidebar-page-header p",
+        "::deep .sidebar-page-header .app-page-header__actions"
+      ],
+      "reason": "The Settings page frame now draws the breadcrumb and page header for every Settings page, so the rules that style them moved with the markup from Settings.razor.css to SettingsPageFrame.razor.css. The aggregate deep count shrinks by 11 (264 to 239 here, 14 added in the frame)."
+    },
     {
       "source": "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css",
       "destination": "src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor.css",

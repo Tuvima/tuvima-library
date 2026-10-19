@@ -21,7 +21,6 @@
 
 .metadata-module__content {
     min-width: 0;
-    padding-top: 24px;
 }
 
 .metadata-module ::deep .metadata-summary-grid {
@@ -45,10 +44,6 @@
     .metadata-module ::deep .sidebar-page-header__actions {
         width: 100%;
         justify-content: flex-start;
-    }
-
-    .metadata-module__content {
-        padding-top: 18px;
     }
 
     .metadata-module ::deep .metadata-summary-grid {

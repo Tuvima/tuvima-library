@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Activity;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.ProfileState;
@@ -63,6 +65,8 @@ public static class ProfileStateEndpoints
             ClaimsPrincipal user,
             IProfileStateRepository repository,
             ProfileStateAccessService access,
+            IDisplayProjectionReadService display,
+            PersonalActivityRecorder activity,
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
@@ -76,7 +80,13 @@ public static class ProfileStateEndpoints
                 {
                     return ApiErrors.NotFound($"{kind} '{entityId:D}' is unavailable to the active profile.");
                 }
+                var alreadySaved = await repository.GetSavedItemAsync(profileId, kind, entityId, ct) is not null;
                 var item = await repository.SaveItemAsync(profileId, kind, entityId, ct: ct);
+                if (!alreadySaved)
+                {
+                    // Adding to My list shows in the person's own activity; the recorder never fails the request.
+                    await activity.RecordMyListAddedAsync(profileId, kind, entityId, display.LoadWorksAsync, ct);
+                }
                 return Results.Ok(new ProfileStateMutationDto(kind, entityId, true, null, item.SavedAt));
             }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }

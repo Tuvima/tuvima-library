@@ -1,0 +1,104 @@
+.taste-page {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-4, 16px);
+}
+
+.taste-page__filter {
+    max-width: 24rem;
+}
+
+.taste-page__scope {
+    display: grid;
+    gap: var(--tl-space-1, 4px);
+}
+
+.taste-page__scope-label {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.taste-page__loading {
+    display: grid;
+    gap: var(--tl-space-4, 16px);
+}
+
+.taste-page__summary {
+    margin: 0 0 var(--tl-space-2, 8px);
+    color: var(--tl-text-primary);
+}
+
+.taste-page__mix,
+.taste-page__updated {
+    margin: 0 0 var(--tl-space-2, 8px);
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+}
+
+.taste-page__message {
+    margin: 0;
+    color: var(--tl-status-error, var(--tl-text-primary));
+}
+
+.taste-group {
+    display: grid;
+    min-width: 0;
+    margin-top: var(--tl-space-4, 16px);
+    gap: var(--tl-space-2, 8px);
+}
+
+.taste-group__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: 1rem;
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.taste-group__empty {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}
+
+.taste-group__chips,
+.taste-group__suggestions {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+    list-style: none;
+}
+
+.taste-group__chip {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.taste-chip__text {
+    overflow-wrap: anywhere;
+}
+
+.taste-chip__note {
+    margin-inline-start: var(--tl-space-2, 8px);
+    color: var(--tl-text-secondary);
+    font-size: 0.8rem;
+}
+
+/* The Add control: a text box and its button on one line, the button level with the box and not its helper text. */
+.taste-group__add {
+    display: grid;
+    max-width: 28rem;
+    align-items: start;
+    gap: var(--tl-space-2, 8px);
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* A phone: the Add control keeps one line, and the scope filter fills the width (D19). */
+@media (max-width: 600px) {
+    .taste-page__filter,
+    .taste-group__add {
+        max-width: none;
+    }
+}

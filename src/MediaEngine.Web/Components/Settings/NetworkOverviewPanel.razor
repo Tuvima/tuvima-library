@@ -19,17 +19,6 @@
         </div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Server information" Icon="@AppMaterialIcons.Outlined.Dns">
-        <dl class="network-facts">
-            @Fact("Server Address (Local)", Status?.PreferredLocalAddress ?? "Unavailable")
-            @Fact("Server Address (External)", Status?.ExternalAddress ?? "Not configured")
-            @Fact("Router Configuration", RouterSummary)
-            @Fact("External IP Address", Status?.PublicIp ?? "Not observed")
-            @Fact("Last Connection Test", LastTestSummary)
-            @Fact("Uptime", FormatUptime(Status?.UptimeSeconds ?? 0))
-        </dl>
-    </SettingsSectionPanel>
-
     @if (!NetworkIsHealthy)
     {
         <AppAlert Tone="AppUiTone.Warning" Class="network-summary-alert">
@@ -57,14 +46,6 @@
         && (!HasOutsidePath || Status.RemoteAccess == "available")
         && Status.SecureConnection is not "unavailable";
 
-    private string RouterSummary => Status?.MappingStatus == "active"
-        ? $"{Status.RouterMethod ?? "Automatic"} · Active"
-        : Display(Status?.MappingStatus);
-
-    private string LastTestSummary => Status?.LastTestedAt is null
-        ? "Not tested"
-        : $"{Status.LastTestedAt.Value.ToLocalTime():g} · {(Status.LastTestSucceeded == true ? "Successful" : Status.LastTestSucceeded == false ? "Failed" : "Incomplete")}";
-
     private async Task TestAsync()
     {
         _testDialogOpen = true;
@@ -82,19 +63,9 @@
         : string.Join(' ', value.Split('-', StringSplitOptions.RemoveEmptyEntries)
             .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 
-    private static string FormatUptime(long seconds)
-    {
-        var duration = TimeSpan.FromSeconds(Math.Max(0, seconds));
-        return duration.TotalDays >= 1
-            ? $"{(int)duration.TotalDays} days, {duration.Hours} hours"
-            : $"{duration.Hours} hours, {duration.Minutes} minutes";
-    }
-
     private RenderFragment StatusCard(string label, string value, string description, string icon) => @<article class="network-status-card">
         <div class="network-status-card__label"><AppMaterialIcon Icon="@icon" /><span>@label</span></div>
         <strong class="network-status-card__value is-@value.ToLowerInvariant()">@Display(value)</strong>
         <p>@description</p>
     </article>;
-
-    private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

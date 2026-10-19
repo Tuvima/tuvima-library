@@ -40,7 +40,7 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
         }
 
         return removed.Failure == DashboardAccessMutationFailure.Conflict
-            ? new ProfileEditOutcome(false, RemoveBlockedMessage)
+            ? new ProfileEditOutcome(false, string.IsNullOrWhiteSpace(removed.Message) ? RemoveBlockedMessage : removed.Message)
             : Fail(removed.Failure, afterUnlock);
     }
 

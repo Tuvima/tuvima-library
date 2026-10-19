@@ -1,0 +1,62 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* Streaming > Limits and Quality. The limits are saved with the network settings, the same stored values the
+   Network pages use, so nothing a person saved before is lost by the move. *@
+<section class="streaming-limits-tab" aria-label="Limits and Quality">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Large" />
+    }
+    else if (_settings is null)
+    {
+        <AppErrorState Title="Streaming limits are unavailable"
+                       Message="Start the Engine or retry before changing streaming limits." />
+    }
+    else
+    {
+        <StreamingLimitsPanel Settings="@_settings" Status="@_status"
+                              SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
+    }
+</section>
+
+@code {
+    private NetworkSettingsDto? _settings;
+    private NetworkRuntimeStatusDto? _status;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settingsTask = ApiClient.GetNetworkSettingsAsync();
+        var statusTask = ApiClient.GetNetworkRuntimeStatusAsync();
+        await Task.WhenAll(settingsTask, statusTask);
+        _settings = await settingsTask;
+        _status = await statusTask;
+        _loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null)
+            return;
+        var saved = await ApiClient.UpdateNetworkSettingsAsync(_settings);
+        if (saved is null)
+        {
+            Snackbar.Add("Streaming settings could not be saved.", AppSeverity.Error);
+            return;
+        }
+        _settings = saved;
+        Snackbar.Add("Streaming settings saved.", AppSeverity.Success);
+        await RefreshStatusAsync();
+    }
+
+    private async Task RefreshStatusAsync()
+    {
+        _status = await ApiClient.GetNetworkRuntimeStatusAsync();
+        StateHasChanged();
+    }
+}

@@ -39,6 +39,7 @@ public static class ScheduledTaskCatalog
         Maintenance(ScheduledTaskKeys.UniverseEnrichment, "Universe enrichment");
         Maintenance(ScheduledTaskKeys.RetagSweep, "File tag refresh");
         Maintenance(ScheduledTaskKeys.StorageMaintenance, "Storage maintenance");
+        Maintenance(ScheduledTaskKeys.LogFileRetention, "Log file cleanup");
         Maintenance(ScheduledTaskKeys.NightlyEnrichmentSweep, "Nightly enrichment catch-up");
 
         registry.Register(new ScheduledTaskDescriptor(

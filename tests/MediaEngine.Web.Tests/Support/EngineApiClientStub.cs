@@ -84,20 +84,6 @@ internal class EngineApiClientStub : DispatchProxy
                     DateTimeOffset.UtcNow),
             });
 
-        _handlers[nameof(IEngineApiClient.GetTasteProfileAsync)] =
-            _ => Task.FromResult<TasteProfileDto?>(new TasteProfileDto
-            {
-                UserId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Summary = "Test profile built from a mixed library.",
-                MediaTypeMix = new Dictionary<string, double>
-                {
-                    ["Books"] = 0.45,
-                    ["Movies"] = 0.25,
-                    ["Music"] = 0.30,
-                },
-                LastUpdatedAt = DateTimeOffset.UtcNow,
-            });
-
         _handlers[nameof(IEngineApiClient.GetPlaybackSettingsAsync)] =
             args => Task.FromResult<UserPlaybackSettingsDto?>(
                 UserPlaybackSettingsDto.CreateDefaults((Guid)(args?[0] ?? Guid.Parse("00000000-0000-0000-0000-000000000001"))));
@@ -234,7 +220,7 @@ internal class EngineApiClientStub : DispatchProxy
             });
 
         _handlers[nameof(IEngineApiClient.GetReviewCountAsync)] =
-            _ => Task.FromResult(3);
+            _ => Task.FromResult<int?>(3);
 
         _handlers[nameof(IEngineApiClient.GetPendingReviewsAsync)] =
             _ => Task.FromResult(new List<ReviewItemViewModel>

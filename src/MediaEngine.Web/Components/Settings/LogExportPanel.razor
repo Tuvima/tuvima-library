@@ -1,0 +1,216 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.System
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@using Microsoft.JSInterop
+@inject IEngineApiClient ApiClient
+@inject IJSRuntime JS
+@inject IAppToastService Toasts
+@implements IDisposable
+
+@* Export for a bug report (settings revamp D23). The filters are sent in a body, never in the address. Keys, tokens,
+   sign-in details and file and folder names are hidden by the Engine unless the file-name switch is turned on. *@
+<div class="log-export">
+    <AppCard Title="Export logs for a bug report"
+             Description="Choose what to include, check how big the file will be, then download one text file. Keys, tokens, sign-in details and the names of files and folders are hidden.">
+        <div class="log-export__filters">
+            <AppSelect Label="Time" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+            <AppSelect Label="Level" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
+            <AppTextField Label="One item or run (optional)"
+                          Value="@_itemOrRun"
+                          ValueChanged="OnItemOrRunChanged"
+                          OnDebounceIntervalElapsed="OnItemOrRunDebounced"
+                          DebounceInterval="500"
+                          Placeholder="Paste a run id or item id"
+                          HelpText="Only lines that mention it are included."
+                          data-testid="export-item-or-run" />
+        </div>
+
+        <fieldset class="log-export__areas">
+            <legend>Areas</legend>
+            <p class="log-export__hint">Leave all unticked to include every area.</p>
+            <div class="log-export__area-list">
+                @foreach (var area in Areas)
+                {
+                    var current = area;
+                    <AppCheckbox Label="@current" Value="@_areas.Contains(current)" ValueChanged="@(on => OnAreaChanged(current, on))" />
+                }
+            </div>
+        </fieldset>
+
+        <AppSwitchRow Label="Include events"
+                      Description="Add what the Library did in the same time range (everything level only)."
+                      Value="@_includeEvents"
+                      ValueChanged="OnIncludeEventsChanged" />
+        <AppSwitchRow Label="Show file names"
+                      Description="Off by default. When on, the last part of each file name is shown; folders are always hidden."
+                      Value="@_showFileNames"
+                      ValueChanged="OnShowFileNamesChanged" />
+
+        <div class="log-export__preview" aria-live="polite" data-testid="export-preview">
+            @if (_previewing)
+            {
+                <AppProgressBar Indeterminate="true" />
+            }
+            else if (_previewFailed)
+            {
+                <span class="log-export__failed">The size of the export could not be worked out. Check that the server is online, then try again.</span>
+            }
+            else if (_preview is not null)
+            {
+                <span>@PreviewText(_preview)</span>
+                @if (_preview.Truncated)
+                {
+                    <span class="log-export__hint"> The range holds more than one file can; only the newest lines are kept.</span>
+                }
+            }
+        </div>
+
+        <div class="log-export__actions">
+            <AppButton Label="Download"
+                       StartIcon="@AppMaterialIcons.Outlined.Download"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       Loading="_downloading"
+                       Disabled="@(_downloading || _previewing || _preview is null)"
+                       OnClick="DownloadAsync"
+                       data-testid="export-download" />
+        </div>
+    </AppCard>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> RangeOptions =
+    [
+        new("hour", "Last hour"),
+        new("day", "Last 24 hours"),
+        new("week", "Last 7 days"),
+        new("month", "Last 30 days"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> LevelOptions =
+    [
+        new(LogExportLevels.Errors, "Errors only"),
+        new(LogExportLevels.WarningsAndAbove, "Warnings and errors"),
+        new(LogExportLevels.Everything, "Everything"),
+    ];
+
+    private static readonly string[] Areas = ["Ingestion", "Playback", "Network", "Providers", "Security", "AI", "Other"];
+
+    private readonly HashSet<string> _areas = new(StringComparer.Ordinal);
+    private CancellationTokenSource? _load;
+    private string _range = "day";
+    private string _level = LogExportLevels.WarningsAndAbove;
+    private string? _itemOrRun;
+    private bool _includeEvents = true;
+    private bool _showFileNames;
+    private LogExportPreviewDto? _preview;
+    private bool _previewing = true;
+    private bool _previewFailed;
+    private bool _downloading;
+
+    protected override Task OnInitializedAsync() => RefreshPreviewAsync();
+
+    private Task OnRangeChanged(string? value) { _range = value ?? "day"; return RefreshPreviewAsync(); }
+
+    private Task OnLevelChanged(string? value) { _level = value ?? LogExportLevels.WarningsAndAbove; return RefreshPreviewAsync(); }
+
+    private Task OnItemOrRunChanged(string? value) { _itemOrRun = value; return Task.CompletedTask; }
+
+    private Task OnItemOrRunDebounced(string value) { _itemOrRun = value; return RefreshPreviewAsync(); }
+
+    private Task OnIncludeEventsChanged(bool value) { _includeEvents = value; return RefreshPreviewAsync(); }
+
+    private Task OnShowFileNamesChanged(bool value) { _showFileNames = value; return RefreshPreviewAsync(); }
+
+    private Task OnAreaChanged(string area, bool on)
+    {
+        if (on)
+        {
+            _areas.Add(area);
+        }
+        else
+        {
+            _areas.Remove(area);
+        }
+
+        return RefreshPreviewAsync();
+    }
+
+    private async Task RefreshPreviewAsync()
+    {
+        // A newer question replaces an older one, so a slow answer never overwrites a fresher one.
+        _load?.Cancel();
+        _load?.Dispose();
+        var source = _load = new CancellationTokenSource();
+        var token = source.Token;
+
+        _previewing = true;
+        _previewFailed = false;
+        var preview = await ApiClient.PreviewLogExportAsync(BuildRequest(), token);
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _preview = preview;
+        _previewFailed = preview is null;
+        _previewing = false;
+    }
+
+    private LogExportRequest BuildRequest()
+    {
+        var now = DateTimeOffset.Now;
+        return new LogExportRequest
+        {
+            From = _range switch
+            {
+                "hour" => now.AddHours(-1),
+                "week" => now.AddDays(-7),
+                "month" => now.AddDays(-30),
+                _ => now.AddDays(-1),
+            },
+            To = now,
+            Level = _level,
+            Areas = [.. Areas.Where(_areas.Contains)],
+            ItemOrRun = string.IsNullOrWhiteSpace(_itemOrRun) ? null : _itemOrRun.Trim(),
+            ShowFileNames = _showFileNames,
+            IncludeEvents = _includeEvents,
+        };
+    }
+
+    private async Task DownloadAsync()
+    {
+        _downloading = true;
+        try
+        {
+            // The range is worked out again now, so the file covers up to the moment of the click.
+            var file = await ApiClient.ExportLogsAsync(BuildRequest());
+            if (file is null)
+            {
+                Toasts.Add("The log export could not be created.", AppSeverity.Error);
+                return;
+            }
+
+            await using var stream = new MemoryStream(file.Content, writable: false);
+            using var reference = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("tuvimaDownloads.fromStream", file.FileName, reference);
+        }
+        finally
+        {
+            _downloading = false;
+        }
+    }
+
+    private static string PreviewText(LogExportPreviewDto preview) =>
+        preview.LineCount == 0
+            ? "Nothing matches these filters, so the file would be empty."
+            : $"About {DisplayFormat.FormatCount(preview.LineCount)} {(preview.LineCount == 1 ? "line" : "lines")}, {DisplayFormat.FormatFileSize(preview.SizeBytes) ?? "0 B"}.";
+
+    public void Dispose()
+    {
+        _load?.Cancel();
+        _load?.Dispose();
+    }
+}

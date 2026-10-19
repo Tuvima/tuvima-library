@@ -130,8 +130,8 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
 
         Assert.Equal(
             [
-                "activity_pruning", "description_insights", "library_reconciliation", "missing_universe_sweep", "pass2_nightly_sweep",
-                "plugin_segment_detection", "rejected_file_cleanup", "retag_sweep", "series_order", "storage_maintenance",
+                "activity_pruning", "description_insights", "library_reconciliation", "log_file_retention", "missing_universe_sweep",
+                "pass2_nightly_sweep", "plugin_segment_detection", "rejected_file_cleanup", "retag_sweep", "series_order", "storage_maintenance",
                 "universe_enrichment", "vibe_tags", "webhook_delivery",
             ],
             list.Tasks.Select(task => task.Key).Order(StringComparer.Ordinal));
@@ -162,7 +162,7 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
 
         Assert.Equal(
             [
-                "activity_pruning", "library_reconciliation", "missing_universe_sweep", "pass2_nightly_sweep",
+                "activity_pruning", "library_reconciliation", "log_file_retention", "missing_universe_sweep", "pass2_nightly_sweep",
                 "plugin_segment_detection", "rejected_file_cleanup", "retag_sweep", "storage_maintenance", "universe_enrichment",
             ],
             keys.Order(StringComparer.Ordinal));
@@ -182,6 +182,7 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
         builder.Services.AddSingleton<IFileWatcher>(_ => null!);
         builder.Services.AddSingleton<AssetStoreCleanupService>(_ => null!);
         builder.Services.AddSingleton<DatabaseBackupService>(_ => null!);
+        builder.Services.AddSingleton<SystemResourcesService>(_ => null!);
         var app = builder.Build();
         app.MapSystemEndpoints();
         return app;

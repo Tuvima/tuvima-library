@@ -1,0 +1,229 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient Api
+@inject DeviceContextService DeviceContext
+@inject ILogger<OverviewPage> Logger
+@* Personal > Overview (D11): you, with your counts, what you have been doing and your taste. It is your own page, so it reads
+   only the signed-in profile. Anything the Engine cannot supply is left out, never faked. *@
+@if (_loading)
+{
+    <div class="overview-page__loading" aria-busy="true" aria-label="Loading your overview">
+        <AppSkeleton Width="100%" Height="120px" />
+        <AppSkeleton Width="100%" Height="200px" />
+    </div>
+}
+else if (_profile is null)
+{
+    <AppErrorState Title="Your profile couldn't be loaded"
+                   Message="Start the Engine or try again."
+                   Retry="@(() => LoadAsync())" />
+}
+else
+{
+    <div class="@RootClass" data-settings-overview>
+        <AppCard Class="overview-page__profile">
+            <div class="overview-header">
+                <span class="overview-header__avatar">
+                    <ProfileAvatar DisplayName="@_profile.DisplayName" ImageUrl="@_profile.AvatarImageUrl" Color="@_profile.AvatarColor" Icon="@_profile.AvatarIcon" />
+                </span>
+                <div class="overview-header__identity">
+                    <h2 class="overview-header__name">@_profile.DisplayName</h2>
+                    <p class="overview-header__joined">Joined @Joined</p>
+                </div>
+                <div class="overview-header__actions">
+                    <AppButton Label="Edit profile"
+                               StartIcon="@AppMaterialIcons.Outlined.Edit"
+                               Class="overview-header__edit"
+                               FullWidth="@DeviceContext.IsPhone"
+                               OnClick="OpenEditor" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Devices"
+                                   AriaLabel="Apps"
+                                   Tooltip="Apps"
+                                   Href="@AppsRoute"
+                                   Class="overview-header__apps" />
+                </div>
+            </div>
+
+            <ul class="overview-counts" role="list" aria-label="Your counts">
+                @foreach (var count in Counts)
+                {
+                    <li class="overview-counts__item" data-overview-count="@count.Key">
+                        <strong class="overview-counts__value">@count.Value</strong>
+                        <span class="overview-counts__label">@count.Label</span>
+                    </li>
+                }
+            </ul>
+        </AppCard>
+
+        <SettingsSectionPanel Title="Recent activity" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
+            <Actions>
+                <a class="overview-page__link" href="@SettingsNav.ActivityRoute" data-overview-see-all>See all</a>
+            </Actions>
+            <ChildContent>
+                <RecentActivityStrip Tiles="@_recent" />
+            </ChildContent>
+        </SettingsSectionPanel>
+
+        <SettingsSectionPanel Title="Your taste" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
+            <Actions>
+                <a class="overview-page__link" href="@SettingsNav.TasteRoute" data-overview-taste-link>See your taste</a>
+            </Actions>
+            <ChildContent>
+                <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
+            </ChildContent>
+        </SettingsSectionPanel>
+    </div>
+
+    <ProfileEditorSheet Open="@_editorOpen"
+                        Profile="@_profile"
+                        SelfEdit="true"
+                        Saving="@_saving"
+                        Error="@_editorError"
+                        OnSave="SaveProfileAsync"
+                        OnClose="CloseEditor" />
+}
+
+@code {
+    private ProfileViewModel? _profile;
+    private ProfileOverviewViewModel? _overview;
+    private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
+    private bool _loading = true;
+    private bool _editorOpen;
+    private bool _saving;
+    private string? _editorError;
+
+    private const string AppsRoute = "/settings/overview/apps";
+
+    private sealed record OverviewCount(string Key, string Value, string Label);
+
+    private string RootClass => DeviceContext.IsPhone ? "overview-page overview-page--phone" : "overview-page";
+
+    private string Joined => _profile is null ? string.Empty : _profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", CultureInfo.CurrentCulture);
+
+    // In progress and Finished always show (zero is an answer). The three time counts show only when the Engine has a total for
+    // them; a count it cannot supply is left out.
+    private IReadOnlyList<OverviewCount> Counts
+    {
+        get
+        {
+            var counts = new List<OverviewCount>();
+            if (_overview is null)
+            {
+                return counts;
+            }
+
+            counts.Add(new("in-progress", DisplayFormat.FormatCount(_overview.Stats.InProgress), "In progress"));
+            counts.Add(new("finished", DisplayFormat.FormatCount(_overview.Stats.Completed), "Finished"));
+            var (watched, read, listened) = PersonalActivityPresentation.ConsumedSeconds(_overview.Stats.ConsumedSecondsByMediaType);
+            AddHours(counts, "watched", "Time watched", watched);
+            AddHours(counts, "read", "Time read", read);
+            AddHours(counts, "listened", "Time listened", listened);
+            return counts;
+        }
+    }
+
+    private static void AddHours(List<OverviewCount> counts, string key, string label, double seconds)
+    {
+        if (PersonalActivityPresentation.FormatHours(seconds) is { } text)
+        {
+            counts.Add(new(key, text, label));
+        }
+    }
+
+    private string? TasteLine => _overview is null
+        ? null
+        : PersonalActivityPresentation.TasteSummary(
+            _overview.Taste?.GenreDistribution,
+            _overview.Taste?.MoodPreferences,
+            _overview.Stats.TopGenres);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync(bool showSkeleton = true)
+    {
+        _loading = showSkeleton;
+        try
+        {
+            _profile = await Orchestrator.GetActiveProfileAsync();
+            if (_profile is null)
+            {
+                return;
+            }
+
+            var overview = Api.GetProfileOverviewAsync(_profile.Id);
+            var recent = Api.GetPersonalActivityRecentAsync(PersonalActivityPresentation.StripLimit);
+            await Task.WhenAll(overview, recent);
+            _overview = await overview;
+            _recent = (await recent)?.Tiles;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(exception, "The Overview could not be loaded.");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenEditor()
+    {
+        _editorError = null;
+        _editorOpen = true;
+    }
+
+    private void CloseEditor() => _editorOpen = false;
+
+    // A person changes their own name and picture through the self-service routes. The existing navigation preferences are sent back
+    // unchanged, because the Engine stores whatever it is given.
+    private async Task SaveProfileAsync(ProfileEditorResult result)
+    {
+        if (_profile is not { } profile || _saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        _editorError = null;
+        try
+        {
+            if (!await Orchestrator.UpdateProfileAsync(profile.Id, result.DisplayName, result.Color, profile.NavigationConfig))
+            {
+                _editorError = "That couldn't be saved. Try again.";
+                return;
+            }
+
+            ProfileViewModel? photo = null;
+            var photoFailed = false;
+            if (result.PhotoBytes is { } bytes)
+            {
+                await using var stream = new MemoryStream(bytes);
+                photo = await Orchestrator.UploadProfileAvatarAsync(profile.Id, stream, result.PhotoFileName ?? "photo.jpg");
+                photoFailed = photo is null;
+            }
+            else if (result.RemovePhoto)
+            {
+                photoFailed = await Orchestrator.RemoveProfileAvatarAsync(profile.Id) is null;
+            }
+
+            _profile = await Orchestrator.GetActiveProfileAsync() ?? profile;
+            if (photoFailed)
+            {
+                _editorError = "Your changes were saved, but the photo couldn't be changed. Try again.";
+                return;
+            }
+
+            _editorOpen = false;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

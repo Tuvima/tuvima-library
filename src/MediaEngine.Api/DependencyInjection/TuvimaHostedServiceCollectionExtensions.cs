@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.EngineLogs;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Filing;
@@ -16,6 +17,13 @@ public static class TuvimaHostedServiceCollectionExtensions
     public static IServiceCollection AddTuvimaHostedServices(this IServiceCollection services)
     {
         services.AddSingleton<EnrichmentPipelineExecutionGate>();
+
+        // Logs page and log/activity retention (recurring runs are recorded through the ScheduledTaskRunner).
+        services.AddSingleton(EngineLogLocation.FromEnvironment());
+        services.AddSingleton<ITechnicalLogService, TechnicalLogService>();
+        services.AddSingleton<ILogExportService, LogExportService>();
+        services.AddSingleton<ActivityRetentionPruner>();
+        services.AddHostedService<LogFileRetentionService>();
 
         // IHostedService.StartAsync methods are awaited sequentially before Kestrel
         // accepts requests. Keep the two startup data repairs first.

@@ -45,7 +45,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 Startup safety:
 
 - Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
-- `storage_metadata` also holds server-wide flags as `key`/`value` rows. The tools banner's "Not now" answers are `tool_install_declined:{tool id}` rows (value `1`), removed when the tool works again.
+- `storage_metadata` also holds server-wide flags as `key`/`value` rows.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.
@@ -377,7 +377,7 @@ validated absolute prefix used by the timeline query; the most-specific
 ancestor rule wins over the source default. `updated_by_profile_id` is optional and
 clears itself (`ON DELETE SET NULL`) when that person is removed.
 
-`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
+`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library. A Shared Library row can be removed (it goes with its household) only while no shared photos or videos are in it; the data store refuses the delete otherwise.
 
 `view_shared_assets` marks accepted items whose verified originals are owned by
 the Shared Library while retaining the original profile as provenance. This marker
@@ -861,6 +861,14 @@ The account password (`credential_kind` = `Password`, one row per account). Only
 
 A profile's PIN, when one is set (`credential_kind` = `ProfilePin`, one row per profile). Only a hash is stored: `secret_hash`, `hash_scheme`, `hash_version`, `security_stamp`, `failed_attempt_count`, `locked_until`, `created_at`, `updated_at` and `last_used_at`. Deleting the profile removes the row.
 
+### account_notice_dismissals
+
+Which one-time reminders an account chose **Not now** for, so the choice follows the person to any browser (for example the **Secure your account** card in the profile menu, key `secure-account`). One row per account and notice: `account_id` (deleting the account removes its rows), `notice_key` (primary key with `account_id`; the Engine accepts only known keys) and `dismissed_at`.
+
+### profile_notice_dismissals
+
+Which Settings attention lines (the Needs Review line and the missing tools line in the banner above every Settings page) a profile dismissed with the X, and what was true when it did, so a line returns only when something new needs attention. One row per profile and notice: `profile_id` (deleting the profile removes its rows), `notice_key` (primary key with `profile_id`; `needs-review` or `missing-tools`; the Engine accepts only known keys), `fingerprint` (the Needs Review count, or the sorted comma-joined ids of the missing tools; `0` or `none` once the problem was solved) and `dismissed_at`.
+
 ### account_passkeys
 
 Passkeys a person added under **Settings > Security**. `credential_id` (BLOB, primary key), `account_id` (deleting the account removes its passkeys), `name`, `data_json` (the stored credential), `created_at`, and `last_used_at` (NULL until the passkey is used).
@@ -879,7 +887,7 @@ Email password-reset links, used only when email recovery is set up. `id`, `acco
 
 ### account_invitations
 
-Invitation codes made by an administrator (**Users & Access > Households**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
+Invitation codes made by an administrator (**Users and Sign-in > Users**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
 
 ### account_profile_grants
 
@@ -903,7 +911,7 @@ An administrator unlock held by one signed-in session. `session_id` (primary key
 
 ### client_devices
 
-Paired phones and TVs, listed under **Settings > Administration > Devices**. `id`, `application_id`, `account_id`, `profile_id`, `device_name`, `device_class` (`web`, `mobile`, `television` or `automotive`), `client_id`, `client_name`, `client_version`, `scopes`, `capabilities_json`, `created_at`, `last_seen_at`, `revoked_at` and `revoked_reason`. `backup_profile_id` is the profile a phone backs its photos up to (NULL means not chosen; it is cleared if that profile is deleted).
+Paired phones and TVs, listed under **Settings > Security > Devices**. `id`, `application_id`, `account_id`, `profile_id`, `device_name`, `device_class` (`web`, `mobile`, `television` or `automotive`), `client_id`, `client_name`, `client_version`, `scopes`, `capabilities_json`, `created_at`, `last_seen_at`, `revoked_at` and `revoked_reason`. `backup_profile_id` is the profile a phone backs its photos up to (NULL means not chosen; it is cleared if that profile is deleted).
 
 ### device_pairing_requests
 
@@ -1314,6 +1322,37 @@ Ordered log of all database writes, used for debugging and rollback analysis.
 | `old_values` | TEXT | JSON snapshot before change. NULL for INSERT. |
 | `new_values` | TEXT | JSON snapshot after change. NULL for DELETE. |
 | `created_at` | TEXT | Timestamp |
+
+### personal_activity
+
+Each person's own record of what they watched, listened to and read, and what they added to My list (Settings > Personal > Activity). Added by upgrade step `0009_personal_activity`. Every row keeps a **snapshot** of the item as it was at the time, so history still reads correctly after the media file or the work is deleted; for that reason `work_id` and `asset_id` have no foreign keys. Rows are **kept forever**: nothing prunes them, and only a server administrator removes history, by hand (**Delete history...**, which is logged). Photos and the View area are never recorded.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key. |
+| `profile_id` | BLOB | The person; deleting the profile removes their rows. |
+| `kind` | TEXT | `watch`, `listen`, `read` or `my_list`. |
+| `telemetry_session_id` | BLOB | The `playback_telemetry_sessions.id` this row follows (unique, no foreign key); makes repeated writes idempotent. NULL for `my_list`. |
+| `music_session_id` | BLOB | Shared by the songs of one music session: songs less than 30 minutes apart with no other activity by the person in between. NULL for everything else. |
+| `started_at`, `ended_at` | TEXT | UTC. `ended_at` is the last time the session was seen while it is still open. |
+| `played_seconds` | INTEGER | Time actually played or read. |
+| `progress_pct` | REAL | Furthest point reached, 0 to 100. NULL when the duration is unknown or for `my_list`. |
+| `finished` | INTEGER | 1 when the session completed or reached 99.5%. |
+| `device_name`, `device_kind` | TEXT | The paired device (`web`, `mobile`, `television`, `automotive`) or the browser client. |
+| `work_id`, `asset_id` | BLOB | Snapshot: the work and file at the time. No foreign keys. |
+| `media_type` | TEXT | `Movies`, `TV`, `Books`, `Comics`, `Audiobooks` or `Music`. |
+| `title`, `subtitle`, `parent_title`, `year` | TEXT, TEXT, TEXT, INTEGER | Snapshot of the item's current canonical values: the title (the show for an episode), the episode label (season and episode, then its name), the author or the artist, the album, the year. |
+| `artwork_key` | TEXT | The `personal_activity_artwork.key` of the small cover copy. No foreign key. |
+
+**Indexes:** `(profile_id, started_at DESC)`, `(profile_id, work_id)`, `(started_at)`, `(music_session_id)`.
+
+### personal_activity_artwork
+
+The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
+
+### profile_taste_overrides
+
+What a person removed from, or added to, the taste the Library learned about them (Settings > Personal > Overview > Taste). Added by upgrade step `0010_profile_taste_overrides`. The learned taste (the taste profiler's reading of their history) is never changed; these rows are applied on top whenever taste is shown, so a removed value is hidden and an added value is shown as "Added by you". One row per `profile_id` (cascades on profile deletion), `taste_group` (`genre`, `mood` or `era`) and `value` (trimmed and lower-cased, the way the profiler writes its keys), with `action` (`removed` or `added`) and `created_at` (UTC). Setting a value again replaces its row. Only the signed-in person writes their own rows.
 
 ## Related
 

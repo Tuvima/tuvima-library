@@ -378,7 +378,7 @@ public sealed class HouseholdAdministratorTests
                 new NoOpAudit(),
                 identity,
                 world.Photos,
-                TimeProvider.System);
+                TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
 
             if (sharedLibraryFirst)
             {

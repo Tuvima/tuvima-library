@@ -60,7 +60,7 @@ The Priority Cascade chooses factual metadata using locks, configured priorities
 
 Available memory, CPU, GPU support, and competing work affect speed. Resource controls can defer background inference when the system is busy. Larger models are not automatically better choices for every host.
 
-Inspect the hardware profile, benchmark controls, and resource settings in Local AI. Do not infer that every feature is available merely because the machine has a discrete GPU.
+Inspect the hardware profile, benchmark controls, and resource settings on the Runtime page under Settings > Local AI. Do not infer that every feature is available merely because the machine has a discrete GPU.
 
 <details>
 <summary>Technical details</summary>

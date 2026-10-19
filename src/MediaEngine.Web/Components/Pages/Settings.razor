@@ -4,14 +4,18 @@
 @page "/settings/{Section}/{Subsection}/{Detail}"
 @rendermode InteractiveServer
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
+@inject AccountNoticeState Notices
+@inject SettingsAttentionState Attention
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
@@ -43,6 +47,7 @@ else
 <MediaSectionShell Title="Settings"
                    NavigationGroups="@SettingsNavigationGroups"
                    AccordionNavigation="true"
+                   FixedColumnTree="true"
                    ShowMobileNavigation="false">
     <div class="settings-shell-content" @ref="_contentElement">
         <nav class="settings-mobile-navigation" aria-label="Settings page selector">
@@ -54,156 +59,174 @@ else
                                  Value="@MobileNavigationValue"
                                  OnChange="@OnMobilePageChanged"
                                  aria-label="Settings page">
-                    @foreach (var option in MobileNavigationOptions)
+                    @foreach (var group in PhoneMenuGroups)
                     {
-                        <option value="@option.Value" selected="@IsMobileNavigationOptionSelected(option)">@option.Label</option>
+                        <optgroup label="@group.Label">
+                            @foreach (var option in group.Options)
+                            {
+                                <option value="@option.Route" selected="@IsMobileNavigationOptionSelected(option.Route)">@PhoneOptionLabel(option)</option>
+                            }
+                        </optgroup>
                     }
                 </AppNativeSelect>
             </div>
         </nav>
 
-        <AppBreadcrumbs Class="settings-breadcrumbs">
-            @for (var index = 0; index < Breadcrumbs.Count; index++)
-            {
-                var breadcrumb = Breadcrumbs[index];
-                if (index > 0)
+        <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
+                           Eyebrow="@GetHeroEyebrow()"
+                           Title="@GetHeroTitle()"
+                           Description="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))"
+                           Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
+                           PageNotice="@PageNoticeFragment">
+            <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
+                <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
+                @if (ShouldDeferForRoleResolution)
                 {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" aria-hidden="true" />
+                    <AppPageState Kind="AppPageStateKind.Loading"
+                                  Title="Checking profile permissions"
+                                  Class="tl-sp-py-8" />
                 }
-                @if (!string.IsNullOrWhiteSpace(breadcrumb.Href))
+                else if (IsMobileRouteUnavailable)
                 {
-                    <a href="@breadcrumb.Href">@breadcrumb.Label</a>
+                    <AppPageState Kind="AppPageStateKind.Unavailable"
+                                  Icon="@AppMaterialIcons.Outlined.DesktopWindows"
+                                  Title="Use a larger screen for this setting"
+                                  Message="@MobileUnavailableMessage">
+                        <Actions>
+                            <AppButton Href="@MobileFallbackRoute"
+                                       Label="Back to mobile settings"
+                                       StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
+                        </Actions>
+                    </AppPageState>
                 }
                 else
                 {
-                    <span aria-current="page" title="@breadcrumb.Label">@breadcrumb.Label</span>
+                    @if (IsEngineUnavailableForCurrentSection)
+                    {
+                        <AppAlert Severity="AppSeverity.Error"
+                                  Variant="AppVariant.Outlined"
+                                  Icon="@AppMaterialIcons.Outlined.CloudOff"
+                                  Class="tl-sp-mb-4">
+                            Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.
+                        </AppAlert>
+                    }
+                    @switch (_activeSection)
+                    {
+                            case SettingsSection.Overview:
+                                @if (_activeSubsection == SettingsNav.AppsSubsection)
+                                {
+                                    <OverviewAppsPage />
+                                }
+                                else if (_activeSubsection == SettingsNav.TasteSubsection)
+                                {
+                                    <OverviewTastePage />
+                                }
+                                else
+                                {
+                                    <OverviewPage />
+                                }
+                                break;
+                            case SettingsSection.Profiles:
+                                @if (IsProfileDetailRoute)
+                                {
+                                    <ProfileDetailPage ProfileId="@ProfileDetailId" NameChanged="OnProfileNameChanged" />
+                                }
+                                else if (_activeSubsection == SettingsNav.HouseholdsSubsection)
+                                {
+                                    <HouseholdsTab />
+                                }
+                                else
+                                {
+                                    <ProfilesTab />
+                                }
+                                break;
+                            case SettingsSection.Security:
+                                @if (_activeSubsection == "devices")
+                                {
+                                    <DevicesTab />
+                                }
+                                else
+                                {
+                                    <SecuritySettingsPage />
+                                }
+                                break;
+                            case SettingsSection.AdminOverview:
+                                @if (_activeSubsection == SettingsNav.LogsSubsection)
+                                {
+                                    <LogsPage Tab="@LogsTab" />
+                                }
+                                else
+                                {
+                                    <SystemSummaryPage />
+                                }
+                                break;
+                            case SettingsSection.Preferences:
+                                <PreferencesSummaryPage />
+                                break;
+                            case SettingsSection.Playback:
+                                <PlaybackSettingsPage @key="@PlaybackProfileId"
+                                                      ProfileId="@PlaybackProfileId"
+                                                      TargetNameChanged="OnPlaybackTargetNameChanged" />
+                                break;
+                            case SettingsSection.Listening:
+                                <ListeningSettingsPage @key="@PlaybackProfileId"
+                                                       ProfileId="@PlaybackProfileId"
+                                                       TargetNameChanged="OnPlaybackTargetNameChanged" />
+                                break;
+                            case SettingsSection.Reading:
+                                <ReadingSettingsPage @key="@PlaybackProfileId"
+                                                     ProfileId="@PlaybackProfileId"
+                                                     TargetNameChanged="OnPlaybackTargetNameChanged" />
+                                break;
+                            case SettingsSection.Libraries:
+                                <LibrariesTab Subsection="@_activeSubsection" />
+                                break;
+                            case SettingsSection.Ingestion:
+                                <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
+                                break;
+                            case SettingsSection.RecentlyAdded:
+                                <RecentlyAddedPageContent ReviewState="@ReviewState" InitialSearch="@RecentSearch" />
+                                break;
+                            case SettingsSection.DevHarness:
+                                @RenderInternalTool(
+                                    "MediaEngine.Web.Components.Settings.DevHarnessTab",
+                                    new Dictionary<string, object?> { ["Subsection"] = _activeSubsection })
+                                break;
+                            case SettingsSection.Providers:
+                                <MetadataSettingsPage Subsection="@_activeSubsection" Detail="@Detail" />
+                                break;
+                            case SettingsSection.LocalAi:
+                                <LocalAiSettingsTab Subsection="@_activeSubsection" />
+                                break;
+                            case SettingsSection.Plugins:
+                                <PluginSettingsTab />
+                                break;
+                            case SettingsSection.Delivery:
+                                <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
+                                break;
+                            case SettingsSection.Tools:
+                                <ToolsRequirementsTab />
+                                break;
+                            case SettingsSection.Network:
+                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
+                                break;
+                            case SettingsSection.Access:
+                                <UsersAccessSettingsTab Subsection="@_activeSubsection" />
+                                break;
+                            case SettingsSection.Server:
+                                <BackupRecoveryPanel />
+                                break;
+                            case SettingsSection.ProviderTester:
+                                @RenderInternalTool("MediaEngine.Web.Components.Settings.ProviderTesterToolTab")
+                                break;
+                            case SettingsSection.EnrichmentTester:
+                                @RenderInternalTool("MediaEngine.Web.Components.Settings.EnrichmentTesterToolTab")
+                                break;
+                    }
                 }
-            }
-        </AppBreadcrumbs>
-
-        <SidebarPageHeader Eyebrow="@GetHeroEyebrow()"
-                           Title="@GetHeroTitle()"
-                           Subtitle="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))" />
-
-        <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
-            <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
-            @if (ShouldDeferForRoleResolution)
-            {
-                <AppPageState Kind="AppPageStateKind.Loading"
-                              Title="Checking profile permissions"
-                              Class="tl-sp-py-8" />
-            }
-            else if (IsMobileRouteUnavailable)
-            {
-                <AppPageState Kind="AppPageStateKind.Unavailable"
-                              Icon="@AppMaterialIcons.Outlined.DesktopWindows"
-                              Title="Use a larger screen for this setting"
-                              Message="@MobileUnavailableMessage">
-                    <Actions>
-                        <AppButton Href="@MobileFallbackRoute"
-                                   Label="Back to mobile settings"
-                                   StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
-                    </Actions>
-                </AppPageState>
-            }
-            else
-            {
-                @if (IsEngineUnavailableForCurrentSection)
-                {
-                    <AppAlert Severity="AppSeverity.Error"
-                              Variant="AppVariant.Outlined"
-                              Icon="@AppMaterialIcons.Outlined.CloudOff"
-                              Class="tl-sp-mb-4">
-                        Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.
-                    </AppAlert>
-                }
-                @switch (_activeSection)
-                {
-                        case SettingsSection.Profiles:
-                            @if (IsProfileDetailRoute)
-                            {
-                                <ProfileDetailPage ProfileId="@ProfileDetailId" NameChanged="OnProfileNameChanged" />
-                            }
-                            else
-                            {
-                                <ProfilesTab />
-                            }
-                            break;
-                        case SettingsSection.Security:
-                            <SecuritySettingsPage />
-                            break;
-                        case SettingsSection.AdminOverview:
-                            <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Playback:
-                            <PlaybackSettingsPage @key="@PlaybackProfileId"
-                                                  ProfileId="@PlaybackProfileId"
-                                                  TargetNameChanged="OnPlaybackTargetNameChanged" />
-                            break;
-                        case SettingsSection.Listening:
-                            <ListeningSettingsPage @key="@PlaybackProfileId"
-                                                   ProfileId="@PlaybackProfileId"
-                                                   TargetNameChanged="OnPlaybackTargetNameChanged" />
-                            break;
-                        case SettingsSection.Reading:
-                            <ReadingSettingsPage @key="@PlaybackProfileId"
-                                                 ProfileId="@PlaybackProfileId"
-                                                 TargetNameChanged="OnPlaybackTargetNameChanged" />
-                            break;
-                        case SettingsSection.Privacy:
-                            <PrivacyHistoryTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Libraries:
-                            <LibrariesTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Ingestion:
-                            <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
-                            break;
-                        case SettingsSection.RecentlyAdded:
-                            <RecentlyAddedPageContent ReviewState="@ReviewState" InitialSearch="@RecentSearch" />
-                            break;
-                        case SettingsSection.DevHarness:
-                            @RenderInternalTool(
-                                "MediaEngine.Web.Components.Settings.DevHarnessTab",
-                                new Dictionary<string, object?> { ["Subsection"] = _activeSubsection })
-                            break;
-                        case SettingsSection.Providers:
-                            <MetadataSettingsPage Subsection="@_activeSubsection" Detail="@Detail" />
-                            break;
-                        case SettingsSection.LocalAi:
-                            <LocalAiSettingsTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Plugins:
-                            <PluginSettingsTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Delivery:
-                            <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Tools:
-                            <ToolsRequirementsTab />
-                            break;
-                        case SettingsSection.Network:
-                            <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Devices:
-                            <DevicesTab />
-                            break;
-                        case SettingsSection.Access:
-                            <UsersAccessSettingsTab Subsection="@_activeSubsection" />
-                            break;
-                        case SettingsSection.Server:
-                            <BackupRecoveryPanel />
-                            break;
-                        case SettingsSection.ProviderTester:
-                            @RenderInternalTool("MediaEngine.Web.Components.Settings.ProviderTesterToolTab")
-                            break;
-                        case SettingsSection.EnrichmentTester:
-                            @RenderInternalTool("MediaEngine.Web.Components.Settings.EnrichmentTesterToolTab")
-                            break;
-                }
-            }
-            </AdministratorSurfaceGate>
-        </div>
+                </AdministratorSurfaceGate>
+            </div>
+        </SettingsPageFrame>
     </div>
 </MediaSectionShell>
 }
@@ -231,6 +254,7 @@ else
     [SupplyParameterFromQuery(Name = "itemId")] public Guid? IngestionItemId { get; set; }
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
+    [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
     [SupplyParameterFromQuery(Name = "profile")] public Guid? PlaybackProfileId { get; set; }
     private string? _playbackTargetName;
@@ -250,7 +274,6 @@ else
     private bool _profileRoleLoaded;
     private bool _kidsBlocked;
 
-    private int _reviewCount;
     private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
@@ -261,29 +284,33 @@ else
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
-    // A this-computer-only account has no password yet: its Security entry carries the attention dot.
+    // A this-computer-only account has no password yet: its Security entry carries the attention dot until the person
+    // chooses Not now on the Secure your account card (remembered with the account); Security then shows a quiet note instead.
     private bool _thisComputerOnly;
+    private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private Guid? _loadedBreadcrumbBatchId;
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
-    private IReadOnlyList<SettingsTreeGroupDef> VisibleTreeGroups =>
-        SettingsNav.FilteredTreeGroups(CanManageAdministration, CanManageHousehold).ToList();
+    private SettingsMenuContext MenuContext => new(
+        CanManageAdministration,
+        CanManageHousehold,
+        DeviceContext.IsMobile,
+        Attention.ReviewCount,
+        ShowSecurityAttentionDot,
+        IsSectionEnabledByUiSettings,
+        Attention.LocalAiBlocked);
 
-    private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups =>
-        VisibleTreeGroups
-            .Select(group => new MediaSectionNavigationGroup(
-                group.Label,
-                BuildTreeNavigationItems(group)))
-            .ToList();
+    // One menu tree: the desktop rail and the phone page selector are both built from it.
+    private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
 
-    private IReadOnlyList<AppSelectOption> MobileNavigationOptions =>
-        SettingsNavigationGroups
-            .SelectMany(group => group.Items)
-            .SelectMany(item => item.Children is { Count: > 0 } ? item.Children : [item])
-            .Select(item => new AppSelectOption(item.Route, item.Label, item.Icon))
-            .ToList();
+    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups);
 
-    private SettingsGroupDef CurrentGroup => SettingsNav.GetGroup(_activeSection);
+    private SettingsMenuLocation? CurrentLocation => SettingsNav.FindMenuLocation(_activeSection, _activeSubsection);
+
+    private SettingsGroupDef CurrentGroup => CurrentLocation is { } location
+        ? SettingsNav.AllGroups.First(group => group.Key == location.Group.Key)
+        : SettingsNav.GetGroup(_activeSection);
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
@@ -291,9 +318,9 @@ else
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
         : _activeSection == SettingsSection.Libraries
         ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Tuvima Library"
-        : string.IsNullOrWhiteSpace(_activeSubsection)
-        ? $"{GetHeroTitle()} - Tuvima Library"
-        : $"{GetSubsectionLabel()} - {GetHeroTitle()} - Tuvima Library";
+        : CurrentLocation?.Parent is { } parent
+        ? $"{GetHeroTitle()} - {parent.Label} - Tuvima Library"
+        : $"{GetHeroTitle()} - Tuvima Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -312,15 +339,47 @@ else
             ? "settings-mobile-summary"
             : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string MobileNavigationValue => IsMobileRouteUnavailable ? MobileFallbackRoute : SettingsNav.RouteFor(_activeSection);
-    private bool IsMobileNavigationOptionSelected(AppSelectOption option) =>
-        string.Equals(option.Value, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
+    private string MobileNavigationValue => IsMobileRouteUnavailable
+        ? MobileFallbackRoute
+        : CurrentLocation?.Node.Route ?? SettingsNav.RouteFor(_activeSection);
+    private bool IsMobileNavigationOptionSelected(string route) =>
+        string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
+
+    // Indents a sub-page under its parent in the native phone selector, which cannot nest rows.
+    private static string PhoneOptionLabel(SettingsPhoneMenuOption option) =>
+        option.Depth == 0 ? option.Label : new string('\u00A0', option.Depth * 3) + option.Label;
     private string MobileUnavailableMessage => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
         ? $"{GetHeroTitle()} is intentionally withheld from mobile because it contains complex configuration or diagnostic tools. Use a desktop or tablet for this workflow."
         : $"This part of {GetHeroTitle()} contains configuration or diagnostic tools that are safer and easier to use on a desktop or tablet. The mobile overview remains available.";
     private string MobileFallbackRoute => SettingsNav.GetMobileAvailability(_activeSection) == SettingsMobileAvailability.DesktopOnly
         ? SettingsNav.RouteFor(SettingsSection.AdminOverview)
         : SettingsNav.RouteFor(_activeSection);
+
+    // The administrator banner sits above the breadcrumb on every Settings page; it draws nothing for anyone else or on a phone.
+    private bool ShowAttentionBanner => Attention.IsServerAdministrator && !DeviceContext.IsMobile;
+    private RenderFragment AttentionBanner => @<SettingsAttentionBanner />;
+
+    // Permanent page notices cannot be dismissed. Local AI shows its notice on every sub-page while it is blocked; Network
+    // shows its notice while remote access is not set up (reported by the Network page, which already reads that setting).
+    // Like the banner, neither is drawn on a phone.
+    private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
+    private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
+    private bool _remoteAccessOff;
+    private RenderFragment? PageNoticeFragment => DeviceContext.IsMobile ? null : _activeSection switch
+    {
+        SettingsSection.LocalAi => LocalAiNotice,
+        SettingsSection.Network when _remoteAccessOff => RemoteAccessNotice,
+        _ => null,
+    };
+
+    private void OnRemoteAccessOffChanged(bool off)
+    {
+        if (_remoteAccessOff != off)
+        {
+            _remoteAccessOff = off;
+            StateHasChanged();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -341,9 +400,13 @@ else
 
         await LoadShellStateAsync();
 
-        Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
+        Attention.Changed += OnAttentionChanged;
+        Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
+
+        // The frame draws now; the banner and menu shading appear together when the first read has finished.
+        _ = Attention.StartAsync();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -353,7 +416,6 @@ else
             && !IsAdministrationRoute(Section);
         if (leavingAdministration && Session.ShouldLockOnLeave)
         {
-            _reviewCount = 0;
             await ExitAdministrationAsync();
         }
         _wasAdministrationRoute = IsAdministrationRoute(Section);
@@ -380,7 +442,9 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
+        Notices.Changed -= OnNoticesChanged;
+        Attention.Changed -= OnAttentionChanged;
+        Attention.Stop();
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
         if (Session.ShouldLockOnLeave)
@@ -421,15 +485,6 @@ else
 
         try
         {
-            _reviewCount = await Orchestrator.RefreshReviewCountAsync();
-        }
-        catch
-        {
-            _reviewCount = 0;
-        }
-
-        try
-        {
             _systemStatus = await Orchestrator.GetSystemStatusAsync();
         }
         catch
@@ -446,6 +501,7 @@ else
         {
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(principal);
+            if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
             Session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(Session);
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -465,7 +521,7 @@ else
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
 
-    // A household administrator who is not the server administrator reaches the one administration page that is theirs (Devices).
+    // A household administrator who is not the server administrator reaches the administration pages marked for them.
     private bool CanManageHousehold => Session.HasAction("household.manage");
 
     // Administration pages need the administrator gate, except the page a household administrator reaches without being the server administrator.
@@ -499,12 +555,6 @@ else
             return;
         }
 
-        if (SettingsNav.LegacyRedirect(Section, Subsection) is { } movedTo)
-        {
-            Nav.NavigateTo(movedTo, replace: true);
-            return;
-        }
-
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold);
         _activeSection = resolution.Section;
 
@@ -520,7 +570,7 @@ else
             return;
         }
 
-        if (!IsItemEnabledByUiSettings(SettingsNav.GetItem(_activeSection)))
+        if (!IsSectionEnabledByUiSettings(_activeSection))
         {
             Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration, CanManageHousehold)), replace: true);
             return;
@@ -609,11 +659,7 @@ else
     private static bool IsProviderRouteKey(string value) => value.All(character =>
         char.IsLetterOrDigit(character) || character is '_' or '-');
 
-    private void OnReviewCountChanged()
-    {
-        _reviewCount = Orchestrator.ReviewCount;
-        InvokeAsync(StateHasChanged);
-    }
+    private void OnAttentionChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnProfileChanged()
     {
@@ -637,63 +683,9 @@ else
         StateHasChanged();
     }
 
-    private IReadOnlyList<SettingsItemDef> GetVisibleTreeItems(SettingsTreeGroupDef group) =>
-        SettingsNav.FilteredTreeItems(group, CanManageAdministration, CanManageHousehold)
-            .Where(item => !DeviceContext.IsMobile || SettingsNav.IsVisibleOnMobile(item.Value))
-            .Where(item => item.Value is not SettingsSection.Review)
-            .Where(IsItemEnabledByUiSettings)
-            .ToList();
-
-    private IReadOnlyList<MediaSectionNavigationItem> BuildTreeNavigationItems(SettingsTreeGroupDef group)
-    {
-        var items = new List<MediaSectionNavigationItem>();
-        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration, CanManageHousehold).ToList();
-
-        foreach (var item in GetVisibleTreeItems(group))
-        {
-            items.Add(BuildNavigationItem(item));
-            foreach (var childGroup in childGroups.Where(child => child.InsertAfter == item.Value))
-            {
-                items.Add(BuildNavigationBranch(childGroup));
-            }
-        }
-
-        foreach (var childGroup in childGroups.Where(child => child.InsertAfter is null))
-        {
-            items.Add(BuildNavigationBranch(childGroup));
-        }
-
-        return items;
-    }
-
-    private MediaSectionNavigationItem BuildNavigationBranch(SettingsTreeGroupDef group) => new(
-        group.Label,
-        SettingsNav.RouteFor(group.DefaultSection),
-        group.Icon,
-        Exact: true,
-        Children: GetVisibleTreeItems(group).Select(BuildNavigationItem).ToList());
-
     private void OnDeviceContextChanged() => InvokeAsync(StateHasChanged);
 
-    private MediaSectionNavigationItem BuildNavigationItem(SettingsItemDef item)
-    {
-        var showReviewNotification = item.Value == SettingsSection.RecentlyAdded && _reviewCount > 0;
-
-        return new(
-            item.Label,
-            SettingsNav.RouteFor(item.Value),
-            item.Icon,
-            Meta: showReviewNotification ? DisplayFormat.FormatCount(_reviewCount) : null,
-            Exact: true,
-            SectionBreakBefore: item.SectionBreakBefore,
-            MetaIsNotification: showReviewNotification,
-            MetaAriaLabel: showReviewNotification
-                ? $"{DisplayFormat.FormatCount(_reviewCount)} item{(_reviewCount == 1 ? "" : "s")} need review"
-                : null,
-            AttentionDot: item.Value == SettingsSection.Security && _thisComputerOnly);
-    }
-
-    private bool IsItemEnabledByUiSettings(SettingsItemDef item) => item.Value switch
+    private bool IsSectionEnabledByUiSettings(SettingsSection section) => section switch
     {
         SettingsSection.DevHarness => DeviceContext.Settings.Features.InternalTools
             && !DeviceContext.IsFeatureDisabled("internal_tools"),
@@ -745,7 +737,7 @@ else
     {
         var breadcrumbs = new List<SettingsBreadcrumb>
         {
-            new("Settings", SettingsNav.RouteFor(SettingsSection.Profiles)),
+            new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
         };
 
         if (IsEditingOtherPlaybackProfile)
@@ -765,38 +757,33 @@ else
             CurrentGroup.Label,
             SettingsNav.RouteFor(CurrentGroup.DefaultSection)));
 
+        // Group > parent > page, straight from the menu tree.
+        var trail = CurrentLocation?.Trail ?? [];
+        foreach (var ancestor in trail.Take(Math.Max(trail.Count - 1, 0)))
+            breadcrumbs.Add(new SettingsBreadcrumb(ancestor.Label, ancestor.Route));
+
+        var pageLabel = trail.Count > 0 ? trail[^1].Label : GetHeroTitle();
+        var pageRoute = trail.Count > 0 ? trail[^1].Route : SettingsNav.RouteFor(_activeSection);
+
         if (_activeSection == SettingsSection.Libraries)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb("Libraries", string.IsNullOrWhiteSpace(_activeSubsection) ? null : "/settings/libraries"));
-            if (!string.IsNullOrWhiteSpace(_activeSubsection))
+            var hasView = !string.IsNullOrWhiteSpace(_activeSubsection);
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasView ? pageRoute : null));
+            if (hasView)
                 breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : "Library", null));
             return breadcrumbs;
         }
 
         if (IsProfileDetailRoute)
         {
-            breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
+            breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, pageRoute));
             breadcrumbs.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", null));
             return breadcrumbs;
         }
 
-        var hasNestedLocation = !string.IsNullOrWhiteSpace(_activeSubsection) || !string.IsNullOrWhiteSpace(Detail);
-        breadcrumbs.Add(new SettingsBreadcrumb(
-            GetHeroTitle(),
-            hasNestedLocation ? SettingsNav.RouteFor(_activeSection) : null));
-
-        if (!string.IsNullOrWhiteSpace(_activeSubsection))
-        {
-            var subsectionLabel = SettingsNav.ResolveSubsection(_activeSection, _activeSubsection)?.Label
-                                  ?? FormatRouteLabel(_activeSubsection);
-            breadcrumbs.Add(new SettingsBreadcrumb(
-                subsectionLabel,
-                string.IsNullOrWhiteSpace(Detail)
-                    ? null
-                    : SettingsNav.RouteFor(_activeSection, _activeSubsection)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(Detail))
+        var hasDetail = !string.IsNullOrWhiteSpace(Detail);
+        breadcrumbs.Add(new SettingsBreadcrumb(pageLabel, hasDetail ? pageRoute : null));
+        if (hasDetail)
             breadcrumbs.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
 
         return breadcrumbs;
@@ -846,36 +833,59 @@ else
 
     private string GetHeroTitle()
     {
-        if (_activeSection != SettingsSection.Providers || string.IsNullOrWhiteSpace(Detail))
-            return SettingsNav.GetItem(_activeSection).Label;
-        return "Provider Configuration";
+        if (_activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail))
+            return "Provider Configuration";
+        return CurrentLocation?.Node.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
-
-    private string GetSubsectionLabel() => string.IsNullOrWhiteSpace(_activeSubsection)
-        ? GetHeroTitle()
-        : SettingsNav.ResolveSubsection(_activeSection, _activeSubsection)?.Label ?? GetHeroTitle();
 
     private string GetSectionDescription(SettingsSection section) => section switch
     {
-        SettingsSection.Profiles => "Your profile and the people in your household.",
+        SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
+            ? "Install the Tuvima app on your phone or TV and connect it to this server."
+            : _activeSubsection == SettingsNav.TasteSubsection
+                ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
+                : "You, what you have been watching, reading and listening to, and your taste.",
+        SettingsSection.Profiles => _activeSubsection == SettingsNav.HouseholdsSubsection
+            ? "Add, rename and remove households. Each has its own people, library access and Shared Library."
+            : "Add and look after the people in your household. Switch profile from the profile menu.",
+        SettingsSection.Preferences => "How you watch, listen and read.",
         SettingsSection.Playback => "How you watch.",
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
-        SettingsSection.Security => "Password, email and extra protection.",
-        SettingsSection.Privacy => "Personal history and export controls are not yet available.",
-        SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",
+        SettingsSection.Security => _activeSubsection == "devices"
+            ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
+            : "Password, email and extra protection.",
+        SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
+            ? "The Engine's technical log, and how long logs are kept."
+            : "How this server is doing: its version, processor, memory and storage.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
-        SettingsSection.Ingestion => "Configure how Tuvima Library discovers, processes, retries, and adds media to your library.",
+        SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.Network => "Manage how devices reach Tuvima Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Reset development library data, seed deterministic fixtures, or rescan configured media.",
         SettingsSection.Providers => GetMetadataDescription(),
-        SettingsSection.LocalAi => "Manage local intelligence features while keeping technical details out of the way.",
+        SettingsSection.LocalAi => _activeSubsection switch
+        {
+            "models" => "Choose the resource profile and set runtime limits.",
+            "vocabulary" => "Manage the controlled terms used by local enrichment.",
+            "automation" => "Control saved enrichment and maintenance schedules.",
+            _ => "Manage local intelligence features while keeping technical details out of the way.",
+        },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
-        SettingsSection.Devices => "Connect phones and TVs, and see everyone who is signed in.",
-        SettingsSection.Delivery => "Manage server-side playback quality, transcoding, storage, and delivery health.",
+        SettingsSection.Delivery => _activeSubsection switch
+        {
+            "hardware" => "Choose what the server uses to prepare video for playback.",
+            "optimized-copies" => "Set how optimized copies are prepared, scheduled and stored, and watch the jobs that make them.",
+            "diagnostics" => "Technical checks on playback delivery reported by the server.",
+            _ => "Set the limits and quality for streaming away from home.",
+        },
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
-        SettingsSection.Access => "Manage who can use Tuvima Library and how they sign in.",
+        SettingsSection.Access => _activeSubsection switch
+        {
+            "applications" => "Credentials and webhooks that let other software use Tuvima Library.",
+            "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
+            _ => "Accounts, roles and invitations: who can sign in and what they can use.",
+        },
         SettingsSection.Server => "Protect your Tuvima Library configuration and recover it when needed.",
         SettingsSection.Review => "Resolve items Tuvima Library could not identify confidently.",
         SettingsSection.ProviderTester => "Internal provider testing tool.",
@@ -884,8 +894,6 @@ else
     };
 
     private bool IsOperationsView(SettingsSection section) => _activeSection == section;
-
-    private sealed record SettingsBreadcrumb(string Label, string? Href);
 
     private string GetMetadataDescription()
     {

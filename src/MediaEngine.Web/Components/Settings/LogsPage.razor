@@ -1,0 +1,42 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* System > Logs (settings revamp D38): the Engine's technical log and how long logs are kept, as in-page sections.
+   The Events section (the readable activity log) is not here yet: see the packet report. *@
+<div class="tl-page logs-page">
+    <AppTabs @bind-ActivePanelIndex="_tab" Label="Logs sections">
+        <AppTabPanel Text="Technical log">
+            <TechnicalLogPanel />
+        </AppTabPanel>
+        <AppTabPanel Text="Retention">
+            <LogRetentionPanel />
+        </AppTabPanel>
+        <AppTabPanel Text="Export">
+            <LogExportPanel />
+        </AppTabPanel>
+    </AppTabs>
+</div>
+
+@code {
+    /// <summary>Which section opens first: <c>technical</c> (the default), <c>retention</c> or <c>export</c>.</summary>
+    [Parameter] public string? Tab { get; set; }
+
+    private int _tab;
+    private string? _openedWith;
+
+    protected override void OnParametersSet()
+    {
+        // Only a changed address moves the tab; a parent re-render must not undo the one the person picked.
+        if (_openedWith == Tab)
+        {
+            return;
+        }
+
+        _openedWith = Tab;
+        _tab = Tab?.ToLowerInvariant() switch
+        {
+            "retention" => 1,
+            "export" => 2,
+            _ => 0,
+        };
+    }
+}

@@ -7,18 +7,17 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Api.Services;
 
 /// <summary>
-/// Background service that runs once daily and prunes activity log entries
-/// older than the configured retention period.
+/// Background service that runs once daily and prunes system activity entries: first those older than
+/// <c>config/maintenance.json → activity_retention_days</c> (default 90), then the oldest of the rest while
+/// more than <c>activity_max_events</c> (default 500,000) remain. Personal activity is never pruned here.
 ///
-/// Retention period is read from <c>config/maintenance.json → activity_retention_days</c>.
-/// Default: 60 days.
-///
-/// Logs an <c>ActivityPruned</c> entry after each successful prune so the
-/// maintenance tab can show when the last cleanup happened.
+/// Pruning is silent: no notification is raised. It logs an <c>ActivityPruned</c> event after a prune that removed
+/// something, and each run is recorded through <see cref="ScheduledTaskRunner"/>.
 /// </summary>
 public sealed class ActivityPruningService : BackgroundService
 {
     private readonly ISystemActivityRepository _activityRepo;
+    private readonly ActivityRetentionPruner _pruner;
     private readonly IConfigurationLoader _configLoader;
     private readonly IEntityTimelineRepository _timelineRepo;
     private readonly ScheduledTaskRunner _runner;
@@ -29,18 +28,21 @@ public sealed class ActivityPruningService : BackgroundService
 
     public ActivityPruningService(
         ISystemActivityRepository activityRepo,
+        ActivityRetentionPruner pruner,
         IConfigurationLoader configLoader,
         IEntityTimelineRepository timelineRepo,
         ScheduledTaskRunner runner,
         ILogger<ActivityPruningService> logger)
     {
         ArgumentNullException.ThrowIfNull(activityRepo);
+        ArgumentNullException.ThrowIfNull(pruner);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(timelineRepo);
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(logger);
 
         _activityRepo = activityRepo;
+        _pruner = pruner;
         _configLoader = configLoader;
         _timelineRepo = timelineRepo;
         _runner = runner;
@@ -83,8 +85,8 @@ public sealed class ActivityPruningService : BackgroundService
     }
 
     /// <summary>
-    /// One cycle: the activity log prune, then the timeline cull. A failure in either is logged and recorded as the
-    /// run's failure message, and the other part still runs.
+    /// One cycle: the activity log prune (days first, then the event cap), then the timeline cull. A failure in either
+    /// is logged and recorded as the run's failure message, and the other part still runs.
     /// </summary>
     private async Task<TaskRunResult> RunPruneCycleAsync(CancellationToken stoppingToken)
     {
@@ -95,32 +97,27 @@ public sealed class ActivityPruningService : BackgroundService
         try
         {
             var maintenance = _configLoader.LoadMaintenance();
-            var retentionDays = maintenance.ActivityRetentionDays;
+            var result = await _pruner.PruneAsync(maintenance, stoppingToken);
+            removed += result.Total;
 
-            if (retentionDays > 0)
+            if (result.Total > 0)
             {
-                var deleted = await _activityRepo.PruneOlderThanAsync(retentionDays, stoppingToken);
-                removed += deleted;
+                _logger.LogInformation(
+                    "Activity prune: removed {ForAge} entries older than {Days} days and {ForCap} over the {Max} event limit",
+                    result.DeletedForAge, result.RetentionDays, result.DeletedForCap, result.MaxEvents);
 
-                if (deleted > 0)
+                // Log the prune itself so the Logs page shows when it happened.
+                await _activityRepo.LogAsync(new SystemActivityEntry
                 {
-                    _logger.LogInformation(
-                        "Activity prune: removed {Count} entries older than {Days} days",
-                        deleted, retentionDays);
-
-                    // Log the prune itself so the maintenance tab shows when it happened.
-                    await _activityRepo.LogAsync(new SystemActivityEntry
-                    {
-                        ActionType = SystemActionType.ActivityPruned,
-                        Detail = $"Pruned {deleted} entries older than {retentionDays} days",
-                        ChangesJson = $"{{\"deleted\":{deleted},\"retention_days\":{retentionDays}}}",
-                    }, stoppingToken);
-                }
-                else
-                {
-                    _logger.LogDebug("Activity prune: nothing to remove (retention={Days}d)",
-                        retentionDays);
-                }
+                    ActionType = SystemActionType.ActivityPruned,
+                    Detail = $"Pruned {result.Total} entries ({result.DeletedForAge} older than {result.RetentionDays} days, {result.DeletedForCap} over the {result.MaxEvents:N0} event limit)",
+                    ChangesJson = $"{{\"deleted\":{result.Total},\"deleted_for_age\":{result.DeletedForAge},\"deleted_for_cap\":{result.DeletedForCap},\"retention_days\":{result.RetentionDays},\"max_events\":{result.MaxEvents}}}",
+                }, stoppingToken);
+            }
+            else
+            {
+                _logger.LogDebug("Activity prune: nothing to remove (retention={Days}d, cap={Max})",
+                    result.RetentionDays, result.MaxEvents);
             }
         }
         catch (OperationCanceledException)

@@ -1,0 +1,18 @@
+.households-tab { display: grid; gap: 16px; width: 100%; box-sizing: border-box; }
+.households-tab__notice { margin-bottom: 12px; }
+.households-tab__error { margin: 0 0 12px; color: var(--tl-status-error, var(--tl-text-primary)); font-size: .9rem; }
+.households-tab__form { display: grid; gap: 12px; margin-bottom: 12px; }
+.households-tab__form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* The households sit inside a standard settings card, so the list draws no box of its own. */
+.households-tab__list { margin: 0; padding: 0; list-style: none; }
+.households-tab__item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; }
+.households-tab__item + .households-tab__item { border-top: 1px solid var(--tl-border-subtle); }
+.households-tab__identity { display: grid; gap: 2px; min-width: 0; }
+.households-tab__name { overflow-wrap: anywhere; }
+.households-tab__counts { color: var(--tl-text-muted); }
+.households-tab__actions { display: flex; gap: 4px; }
+.households-tab__form--row { flex: 1; margin-bottom: 0; }
+
+@media (min-width: 600px) {
+    .households-tab__form--row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+}

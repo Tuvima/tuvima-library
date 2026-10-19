@@ -1,0 +1,140 @@
+/* Every tile is the same height; the width follows the shape of the artwork (D13). */
+.activity-tile {
+    --activity-tile-height: 9rem;
+    display: block;
+    width: max-content;
+}
+
+.activity-tile__link {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+    color: var(--tl-text-primary);
+    text-decoration: none;
+}
+
+.activity-tile__link:focus-visible {
+    border-radius: var(--tl-radius-md);
+    outline: 2px solid var(--tl-focus-ring, var(--tl-accent-primary));
+    outline-offset: 3px;
+}
+
+.activity-tile__art {
+    position: relative;
+    display: block;
+    height: var(--activity-tile-height);
+    overflow: hidden;
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-text-primary) 8%, transparent);
+}
+
+.activity-tile--portrait .activity-tile__art {
+    aspect-ratio: 2 / 3;
+}
+
+.activity-tile--landscape .activity-tile__art {
+    aspect-ratio: 16 / 9;
+}
+
+.activity-tile--square .activity-tile__art {
+    aspect-ratio: 1 / 1;
+}
+
+.activity-tile__image,
+.activity-tile__collage {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.activity-tile__image {
+    object-fit: cover;
+}
+
+.activity-tile__collage {
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+}
+
+.activity-tile__collage--1 {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.activity-tile__collage--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.activity-tile__cover {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.activity-tile__placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--tl-text-muted);
+}
+
+/* One non-wrapping line that never widens the tile: the artwork sets the width. */
+.activity-tile__caption {
+    display: block;
+    width: 0;
+    min-width: 100%;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* The hover card's content is this component's own markup, so its rules are scoped even though AppPopover places it. */
+.activity-card__body {
+    display: grid;
+    max-width: min(22rem, 90vw);
+    padding: var(--tl-space-3, 12px);
+    gap: var(--tl-space-3, 12px);
+    grid-template-columns: 6rem minmax(0, 1fr);
+}
+
+.activity-card__body--text {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.activity-card__image {
+    display: block;
+    width: 6rem;
+    max-height: 9rem;
+    border-radius: var(--tl-radius-md);
+    object-fit: cover;
+}
+
+.activity-card__copy {
+    display: grid;
+    min-width: 0;
+    align-content: start;
+    gap: 2px;
+}
+
+.activity-card__title {
+    overflow-wrap: anywhere;
+}
+
+.activity-card__line {
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+}
+
+.activity-card__line--muted {
+    color: var(--tl-text-secondary);
+}
+
+@media (max-width: 600px) {
+    .activity-tile {
+        --activity-tile-height: 7.5rem;
+    }
+}

@@ -1,4 +1,6 @@
+using MediaEngine.Api.Services.Activity;
 using MediaEngine.Api.Services.Playback;
+using MediaEngine.Api.Services.Taste;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Processors;
 using MediaEngine.Processors.Contracts;
@@ -34,6 +36,11 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AudiobookChapterNamingService>();
         services.AddSingleton<IPlaybackTelemetryRepository, PlaybackTelemetryRepository>();
         services.AddSingleton<IPlaybackActivityProbe, PlaybackActivityProbe>();
+        // Each person's own activity record (Settings > Personal > Activity) follows playback and My list.
+        services.AddSingleton<PersonalActivityArtworkService>();
+        services.AddSingleton<PersonalActivityRecorder>();
+        services.AddScoped<PersonalActivityReadService>();
+        services.AddScoped<PersonalTasteService>();
         services.AddSingleton<PlaybackTelemetryLifecycleService>();
         services.AddScoped<PlaybackTelemetryReadService>();
         services.AddHostedService<PlaybackTelemetryMaintenanceService>();

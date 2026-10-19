@@ -2,6 +2,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
@@ -17,6 +18,7 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
     private readonly ClientAuthorizationService _authorization;
     private readonly SpyNotifier _notifier = new();
     private readonly ManagedClientDeviceService _service;
+    private readonly DefaultDecisions _decisions = new();
 
     public ManagedClientDeviceServiceTests()
     {
@@ -32,7 +34,7 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database), accounts, applications, new PermissionRegistry(), TimeProvider.System);
         _service = new ManagedClientDeviceService(
-            new ClientAuthorizationRepository(_database), accounts, new ProfileRepository(_database), _notifier, TimeProvider.System);
+            new ClientAuthorizationRepository(_database), accounts, new ProfileRepository(_database), _notifier, _decisions, TimeProvider.System);
     }
 
     [Fact]
@@ -52,6 +54,50 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
 
         var own = await _service.ListAsync(Member());
         Assert.Equal(memberPhone.DeviceId, Assert.Single(own).Id);
+    }
+
+    [Fact]
+    public async Task ServerAdministrator_WhoHasNotUnlocked_SeesOnlyTheirOwnDevices_UntilTheyUnlock()
+    {
+        var ownerTv = await PairAsync(Account.SeedAccountId, "Living room TV", "television");
+        var memberPhone = await PairAsync(OtherAccountId, "Member phone", "mobile");
+        _decisions.AdministratorLocked = true;
+
+        var locked = await _service.ListAsync(Administrator());
+
+        Assert.Equal(ownerTv.DeviceId, Assert.Single(locked).Id);
+
+        _decisions.AdministratorLocked = false;
+        var unlocked = await _service.ListAsync(Administrator());
+        Assert.Equal(
+            new[] { ownerTv.DeviceId, memberPhone.DeviceId }.Order(),
+            unlocked.Select(device => device.Id).Order());
+    }
+
+    [Fact]
+    public async Task ServerAdministrator_WhoHasNotUnlocked_CannotRevokeAnotherAccountsDevice()
+    {
+        var memberPhone = await PairAsync(OtherAccountId, "Member phone", "mobile");
+        _decisions.AdministratorLocked = true;
+
+        Assert.Equal(ManagedDeviceRevokeOutcome.Forbidden, await _service.RevokeAsync(Administrator(), memberPhone.DeviceId));
+
+        Assert.NotNull(await _authorization.ValidateAccessTokenAsync(memberPhone.AccessToken));
+        Assert.Empty(_notifier.Revoked);
+
+        _decisions.AdministratorLocked = false;
+        Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await _service.RevokeAsync(Administrator(), memberPhone.DeviceId));
+        Assert.Equal([memberPhone.DeviceId], _notifier.Revoked);
+    }
+
+    [Fact]
+    public async Task ServerAdministrator_WhoHasNotUnlocked_CanStillRevokeTheirOwnDevice()
+    {
+        var ownerTv = await PairAsync(Account.SeedAccountId, "Living room TV", "television");
+        _decisions.AdministratorLocked = true;
+
+        Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await _service.RevokeAsync(Administrator(), ownerTv.DeviceId));
+        Assert.Null(await _authorization.ValidateAccessTokenAsync(ownerTv.AccessToken));
     }
 
     [Fact]
@@ -155,6 +201,23 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
             AuthorizationVersion = 1,
             GrantedAt = DateTimeOffset.UtcNow,
         }).GetAwaiter().GetResult();
+    }
+
+    /// <summary>The default rule: an effective administrator counts as unlocked, until a test locks the administrator PIN.</summary>
+    private sealed class DefaultDecisions : IAccountAccessDecisionService
+    {
+        /// <summary>True when the administrator uses a PIN and has not entered it.</summary>
+        public bool AdministratorLocked { get; set; }
+
+        public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+        public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+        public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(
+                AdministratorLocked && requireSurfaceUnlock
+                    ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorUnlockRequired)
+                    : AuthorizationDecision.Allow());
     }
 
     private sealed class SpyNotifier : IDeviceRevocationNotifier

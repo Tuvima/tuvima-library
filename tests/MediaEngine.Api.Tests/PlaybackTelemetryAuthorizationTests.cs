@@ -181,7 +181,6 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
             Task.FromResult<PlaybackTelemetryTransition?>(null);
         public Task<IReadOnlyList<PlaybackTelemetryTransition>> CloseStaleAsync(DateTimeOffset staleBefore, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<PlaybackTelemetryTransition>>([]);
-        public Task<int> DeleteHistoryBeforeAsync(DateTimeOffset endedBefore, CancellationToken ct = default) => Task.FromResult(0);
         public Task<PlaybackTelemetryPage> GetActiveAsync(PlaybackTelemetryReadScope scope, int limit, string? cursor, CancellationToken ct = default)
         { Scope = scope; return Task.FromResult(new PlaybackTelemetryPage([], null)); }
         public Task<PlaybackTelemetryPage> GetHistoryAsync(PlaybackTelemetryReadScope scope, DateTimeOffset? from, DateTimeOffset? to, int limit, string? cursor, CancellationToken ct = default)

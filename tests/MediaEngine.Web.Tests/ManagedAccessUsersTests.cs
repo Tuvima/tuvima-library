@@ -83,6 +83,23 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Permissions_ConflictWithAnEngineSentence_ShowsThatSentenceInsteadOfTheGenericLine()
+    {
+        _handler.AccessStatus = HttpStatusCode.Conflict;
+        _handler.AccessDetail = "This is the last administrator who can sign in. Make someone else an administrator first.";
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("This is the last administrator who can sign in. Make someone else an administrator first.", cut.Markup);
+            Assert.DoesNotContain("This change conflicts with the current account state.", cut.Markup);
+        });
+    }
+
+    [Fact]
     public void Permissions_ConflictKeepsDrawerOpen_AndRendersUsefulError()
     {
         _handler.AccessStatus = HttpStatusCode.Conflict;
@@ -125,46 +142,37 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ProfileCreateAndRename_UseTypedMutations_AndRenderSuccess()
+    public void ProfileAccess_KeepsGrantsAndRevoking_ButNoProfileCreateRenameOrPinControls()
     {
         var cut = RenderUsers();
-        OpenAction(cut, "Manage profiles");
-        var createSection = cut.FindAll(".access-form-section").Single(section => section.TextContent.Contains("Create a profile", StringComparison.Ordinal));
-        createSection.QuerySelectorAll("input[type='text']")[0].Input("Kids");
-        await cut.InvokeAsync(() => cut.FindAll(".access-form-section")
-            .Single(section => section.TextContent.Contains("Create a profile", StringComparison.Ordinal))
-            .QuerySelectorAll("button").Single(button => button.TextContent.Trim() == "Create profile").Click());
+        OpenAction(cut, "Profile access");
 
-        cut.WaitForAssertion(() => Assert.Contains("Kids was created and granted.", cut.Markup));
-        Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == "/access/profiles");
+        // Grant and revoke stay with the account...
+        Assert.Contains("Profile access · owner@example.test", cut.Find(".access-drawer__header").TextContent);
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Revoke profile");
+        Assert.NotEmpty(cut.FindAll("input[aria-label='Default profile']"));
+        Assert.NotEmpty(cut.FindAll("input[aria-label='Allow admin dashboard']"));
 
-        var rename = cut.FindAll(".access-grant__rename").First();
-        rename.QuerySelector("input")!.Input("Owner renamed");
-        await cut.InvokeAsync(() => cut.FindAll(".access-grant__rename").First().QuerySelectorAll("button")
-            .Single(button => button.TextContent.Trim() == "Rename").Click());
-
-        cut.WaitForAssertion(() => Assert.Contains("Profile renamed to Owner renamed.", cut.Markup));
-        Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/profiles/{_handler.OwnerProfileId:D}");
+        // ...while creating, renaming and PIN protection moved to Profiles.
+        Assert.DoesNotContain("Create a profile", cut.Markup);
+        Assert.Empty(cut.FindAll(".access-grant__rename"));
+        Assert.Empty(cut.FindAll("input[type='password']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() is "Rename" or "Create profile" or "Enable protection");
+        Assert.DoesNotContain(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == "/access/profiles");
     }
 
     [Fact]
-    public void ProtectionInitiallyOff_StagesPinAndChosenDurationBeforeEnabling()
+    public void UsersPage_IsTitledUsers_HasNoHouseholdsList_AndRowMenuSaysProfileAccess()
     {
         var cut = RenderUsers();
-        OpenAction(cut, "Manage profiles");
 
-        cut.Find("input[type='password']").Input("2468");
-        cut.Find("select[aria-label='PIN unlock duration for Owner']").Change("FixedDuration:60");
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Enable protection").Click();
+        Assert.Contains("Accounts, roles and invitations.", cut.Markup);
+        Assert.DoesNotContain("Households", cut.Markup);
+        Assert.Empty(cut.FindAll("[aria-label='Households']"));
 
-        cut.WaitForAssertion(() => Assert.Contains("Admin protection for Owner was updated.", cut.Markup));
-        var request = Assert.Single(_handler.Requests,
-            request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
-        var payload = JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, JsonOptions)!;
-        Assert.True(payload.Enabled);
-        Assert.Equal("2468", payload.Pin);
-        Assert.Equal("FixedDuration", payload.UnlockMode);
-        Assert.Equal(60, payload.UnlockMinutes);
+        cut.Find("button[aria-label='Actions for owner@example.test']").Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Profile access"));
+        Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Trim() == "Manage profiles");
     }
 
     [Fact]
@@ -322,15 +330,17 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public Guid OwnerProfileId { get; } = Guid.NewGuid();
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
         public HttpStatusCode AccessStatus { get; set; } = HttpStatusCode.NoContent;
+
+        /// <summary>The Engine's plain sentence sent with a refusal of the access save, when a test wants one.</summary>
+        public string? AccessDetail { get; set; }
         public TaskCompletionSource? AccessGate { get; set; }
         public TaskCompletionSource? AccessStarted { get; set; }
         public string Email { get; set; } = "owner@example.test";
         public int ProfileCount { get; set; } = 1;
         public List<RequestRecord> Requests { get; } = [];
 
-        private string _profileName = "Owner";
+        private const string ProfileName = "Owner";
         private bool _deleted;
-        private bool _hasKids;
         private readonly Guid[] _extraProfileIds = Enumerable.Range(0, 7).Select(_ => Guid.NewGuid()).ToArray();
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -362,24 +372,10 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                     await AccessGate.Task.WaitAsync(cancellationToken);
                 }
 
-                return new HttpResponseMessage(AccessStatus);
-            }
-            if (request.Method == HttpMethod.Put && path.EndsWith("/admin-protection", StringComparison.Ordinal))
-            {
-                return new HttpResponseMessage(HttpStatusCode.NoContent);
-            }
-
-            if (request.Method == HttpMethod.Post && path == "/access/profiles")
-            {
-                var value = JsonSerializer.Deserialize<CreateManagedProfileRequest>(body, JsonOptions)!;
-                _hasKids = true;
-                return Json(new ManagedProfileResponse(KidsProfileId, value.DisplayName, value.AvatarColor ?? "#7C4DFF", null, DateTimeOffset.UtcNow), HttpStatusCode.Created);
-            }
-            if (request.Method == HttpMethod.Put && path == $"/access/profiles/{OwnerProfileId:D}")
-            {
-                var value = JsonSerializer.Deserialize<UpdateManagedProfileRequest>(body, JsonOptions)!;
-                _profileName = value.DisplayName;
-                return Json(new ManagedProfileResponse(OwnerProfileId, _profileName, value.AvatarColor ?? "#7C4DFF", null, DateTimeOffset.UtcNow));
+                return new HttpResponseMessage(AccessStatus)
+                {
+                    Content = AccessDetail is null ? null : JsonContent.Create(new { detail = AccessDetail }),
+                };
             }
             if (request.Method == HttpMethod.Post && path == "/access/invitations")
             {
@@ -400,29 +396,18 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
-        private Guid KidsProfileId { get; } = Guid.NewGuid();
-
         private IReadOnlyList<ManagedProfileResponse> Profiles()
         {
-            var profiles = new List<ManagedProfileResponse> { new(OwnerProfileId, _profileName, "#7C4DFF", null, DateTimeOffset.UtcNow) };
+            var profiles = new List<ManagedProfileResponse> { new(OwnerProfileId, ProfileName, "#7C4DFF", null, DateTimeOffset.UtcNow) };
             profiles.AddRange(_extraProfileIds.Take(ProfileCount - 1).Select((id, index) =>
                 new ManagedProfileResponse(id, $"Profile {index + 2}", "#7C4DFF", null, DateTimeOffset.UtcNow)));
-            if (_hasKids)
-            {
-                profiles.Add(new(KidsProfileId, "Kids", "#7C4DFF", null, DateTimeOffset.UtcNow));
-            }
-
             return profiles;
         }
 
         private AccountAccessResponse Account()
         {
-            var grants = new List<AccountProfileGrantDto> { Grant(OwnerProfileId, _profileName, true) };
+            var grants = new List<AccountProfileGrantDto> { Grant(OwnerProfileId, ProfileName, true) };
             grants.AddRange(_extraProfileIds.Take(ProfileCount - 1).Select((id, index) => Grant(id, $"Profile {index + 2}", false)));
-            if (_hasKids)
-            {
-                grants.Add(Grant(KidsProfileId, "Kids", false));
-            }
 
             return new(AccountId, Email, true, true, 1,
                 [new("read", true), new("watch", true), new("listen", true), new("view", true)],

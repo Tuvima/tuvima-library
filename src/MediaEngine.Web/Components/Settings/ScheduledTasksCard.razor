@@ -1,0 +1,71 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.System
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+@* Every recurring Engine task with when it last ran and when it runs next (settings revamp D22 and D42).
+   Reads the Engine's durable run records, so last run survives a restart. *@
+<AppCard Title="Scheduled tasks"
+         Description="Work the Library does on its own, and when it last ran and runs next. Old logs are cleaned up quietly as part of this."
+         Class="scheduled-tasks">
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (_tasks is null)
+    {
+        <AppEmptyState Title="Scheduled tasks are unavailable"
+                       Message="The Library could not get the list from the server. Check that the server is online, then try again."
+                       Class="scheduled-tasks__unavailable">
+            <Action><AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" /></Action>
+        </AppEmptyState>
+    }
+    else if (_tasks.Tasks.Count == 0)
+    {
+        <AppEmptyState Title="No scheduled tasks yet" Message="The Engine is still starting. Check again in a moment." />
+    }
+    else
+    {
+        <ul class="scheduled-tasks__list" aria-label="Scheduled tasks" data-testid="scheduled-tasks">
+            @foreach (var task in _tasks.Tasks)
+            {
+                <li class="scheduled-tasks__item" data-testid="scheduled-task" data-task-id="@task.Key">
+                    <div class="scheduled-tasks__main">
+                        <strong class="scheduled-tasks__name">@task.Name</strong>
+                        <span class="scheduled-tasks__what">@task.Owner. @task.SettingsPlace</span>
+                    </div>
+                    <dl class="scheduled-tasks__facts">
+                        <div>
+                            <dt>Runs</dt>
+                            <dd data-testid="task-schedule">@ScheduledTaskText.Schedule(task)</dd>
+                        </div>
+                        <div>
+                            <dt>Last run</dt>
+                            <dd class="@(ScheduledTaskText.LastRunNeedsAttention(task) ? "scheduled-tasks__failed" : null)" data-testid="task-last-run">@ScheduledTaskText.LastRun(task, _now)</dd>
+                        </div>
+                        <div>
+                            <dt>Next run</dt>
+                            <dd data-testid="task-next-run">@ScheduledTaskText.NextRun(task, _now)</dd>
+                        </div>
+                    </dl>
+                </li>
+            }
+        </ul>
+    }
+</AppCard>
+
+@code {
+    private ScheduledTaskListResponse? _tasks;
+    private bool _loading = true;
+    private DateTimeOffset _now = DateTimeOffset.Now;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _tasks = await ApiClient.GetScheduledTasksAsync();
+        _now = DateTimeOffset.Now;
+        _loading = false;
+    }
+}

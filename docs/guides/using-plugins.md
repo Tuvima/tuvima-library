@@ -19,7 +19,7 @@ You can list built-in and dynamic plugins, enable or disable them, edit settings
 
 ## Open plugin settings
 
-Open **Settings > Plugins**. From there you can change settings, run health checks, view jobs, and refresh the approved catalog.
+Open **Settings > Plugins**. It is one page: the installed plugins come first, then the approved catalog, then the details for one plugin (health and jobs, capabilities, and the danger zone). From there you can change settings, run health checks, view jobs, and refresh the approved catalog.
 
 Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete them or edit their files. Dynamic plugins have their own folder and manifest.
 
@@ -27,8 +27,8 @@ Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete
 
 The approved catalog is a list of reviewed releases, not an installer.
 
-1. Open **Settings > Plugins > Approved catalog**.
-2. Refresh the GitHub catalog.
+1. Open **Settings > Plugins** and scroll to **Approved Catalog**.
+2. Choose **Refresh catalog** to load the GitHub catalog.
 3. Open the plugin release link.
 4. Download the versioned archive.
 5. Check its published SHA-256 checksum when one is supplied.
@@ -42,7 +42,7 @@ The folder must contain `plugin.json` beside the assembly named in that file.
 
 7. Restart the Engine to load the new assembly.
 8. Enable the plugin in **Settings > Plugins**.
-9. Run **Jobs & health > Check health** before relying on its scheduled work.
+9. In **Plugin details**, choose the plugin and run **Health & Jobs > Check health** before relying on its scheduled work.
 
 ## Change settings
 

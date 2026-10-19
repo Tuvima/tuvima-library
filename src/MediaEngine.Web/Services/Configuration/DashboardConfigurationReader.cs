@@ -50,6 +50,13 @@ public sealed class DashboardConfigurationReader
     public ListenPlaybackClientSettings LoadPlaybackClientSettings() =>
         (LoadJson<ListenPlaybackClientSettings>(Path.Combine("ui", "playback-client.json")) ?? new()).Normalize();
 
+    /// <summary>Where each Tuvima app can be installed (<c>app_store_links</c> in <c>ui/global.json</c>); every link is blank until an app is published.</summary>
+    public AppStoreLinks LoadAppStoreLinks()
+    {
+        var links = LoadJson<UIGlobalSettings>(Path.Combine("ui", "global.json"))?.AppStoreLinks ?? new();
+        return new AppStoreLinks(links.AppStore ?? string.Empty, links.GooglePlay ?? string.Empty, links.Roku ?? string.Empty);
+    }
+
     public NetworkSettings LoadNetwork() =>
         LoadJson<NetworkSettings>("network.json") ?? new();
 

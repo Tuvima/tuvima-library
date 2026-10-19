@@ -59,6 +59,13 @@
     gap: 18px;
 }
 
+.settings-plugin-detail-section {
+    display: grid;
+    gap: 10px;
+    padding-top: 18px;
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
 .settings-plugin-detail-header {
     display: flex;
     align-items: center;
