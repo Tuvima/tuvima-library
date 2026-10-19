@@ -20,6 +20,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         private DateTimeOffset _now = start;
         public override DateTimeOffset GetUtcNow() => _now;
+        public void Set(DateTimeOffset now) => _now = now;
         public void Advance(TimeSpan by) => _now += by;
     }
 
@@ -75,6 +76,11 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         return new CompanionKit(player, companion, deviceStates, profile, clock);
     }
 
+    // Device rows are stamped with the wall clock when the heartbeat lands; freshness is judged against the adjustable
+    // clock, so each test sets that clock explicitly to the latest stamped time before it reads.
+    private static async Task SyncClockToLatestHeartbeatAsync(CompanionKit kit) =>
+        kit.Clock.Set((await kit.DeviceStates.ListAsync(kit.Profile)).Max(row => row.UpdatedAt));
+
     private static PlayerHeartbeatDto DeviceBeat(
         Guid profile,
         string device,
@@ -105,6 +111,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-b", second.AssetId, 250, session: Guid.NewGuid()));
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-a", first.AssetId, 130, session: held.SessionId));
 
+        await SyncClockToLatestHeartbeatAsync(kit);
         var list = await kit.Companion.GetDevicesAsync(kit.Profile);
 
         Assert.Equal(kit.Profile, list.ProfileId);
@@ -125,6 +132,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (account, first, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "tv", first.AssetId, 100));
+        await SyncClockToLatestHeartbeatAsync(kit);
 
         var followed = await kit.Companion.FollowAsync(
             new CompanionFollowRequestDto { ProfileId = kit.Profile, CompanionDeviceId = "phone", DeviceId = "tv" });
@@ -134,6 +142,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(100, followed.Followed!.PositionSeconds);
 
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "tv", first.AssetId, 145));
+        await SyncClockToLatestHeartbeatAsync(kit);
         kit.Clock.Advance(TimeSpan.FromSeconds(10));
 
         var latest = await kit.Companion.GetSessionAsync(kit.Profile, "phone");
@@ -149,6 +158,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (account, first, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "tv", first.AssetId, 100));
+        await SyncClockToLatestHeartbeatAsync(kit);
         await kit.Companion.FollowAsync(
             new CompanionFollowRequestDto { ProfileId = kit.Profile, CompanionDeviceId = "phone", DeviceId = "tv" });
         Assert.Single((await kit.Companion.GetDevicesAsync(kit.Profile)).Devices);
@@ -170,7 +180,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "tv", first.AssetId, 999, ended: true));
 
         Assert.Empty((await kit.Companion.GetDevicesAsync(kit.Profile)).Devices);
-        Assert.Equal("ended", (await kit.DeviceStates.GetAsync(kit.Profile, "tv"))!.PlaybackState);
+        Assert.Equal(PlayerDeviceStates.Ended, (await kit.DeviceStates.GetAsync(kit.Profile, "tv"))!.PlaybackState);
     }
 
     [Fact]
@@ -266,6 +276,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var (account, first, _) = await SeedCompanionLibraryAsync();
         var kit = BuildCompanion(account);
         var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        kit.Clock.Set(DateTimeOffset.UtcNow);
         await kit.DeviceStates.UpsertAsync(new PlayerDeviceStateRecord
         {
             ProfileId = kit.Profile,
@@ -278,6 +289,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             UpdatedAt = kit.Clock.GetUtcNow(),
         });
         await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "tv", first.AssetId, 100));
+        await SyncClockToLatestHeartbeatAsync(kit);
         await kit.Companion.FollowAsync(
             new CompanionFollowRequestDto { ProfileId = kit.Profile, CompanionDeviceId = "phone", DeviceId = "hidden-tv" });
 
@@ -287,6 +299,53 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var session = await kit.Companion.GetSessionAsync(kit.Profile, "phone");
         Assert.False(session.IsFollowedDeviceLive);
         Assert.Null(session.Followed);
+    }
+
+    [Fact]
+    public async Task StopCommand_MarksTheSharedPlayerHoldersDeviceEnded_AndLeavesOtherDevicesLive()
+    {
+        var (account, first, second) = await SeedCompanionLibraryAsync();
+        var kit = BuildCompanion(account);
+        var held = await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-a", first.AssetId, 100));
+        await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-b", second.AssetId, 250, session: Guid.NewGuid()));
+
+        // The stop arrives from a third device, but it stops the player that device-a holds.
+        await kit.Player.ApplyCommandAsync(new PlayerCommandRequestDto
+        {
+            ProfileId = kit.Profile,
+            DeviceId = "remote",
+            Command = PlayerCommands.Stop,
+        });
+
+        Assert.Equal("device-a", held.DeviceId);
+        Assert.Equal(PlayerDeviceStates.Ended, (await kit.DeviceStates.GetAsync(kit.Profile, "device-a"))!.PlaybackState);
+        Assert.Equal(PlayerPlaybackStates.Playing, (await kit.DeviceStates.GetAsync(kit.Profile, "device-b"))!.PlaybackState);
+        await SyncClockToLatestHeartbeatAsync(kit);
+        Assert.Equal("device-b", Assert.Single((await kit.Companion.GetDevicesAsync(kit.Profile)).Devices).DeviceId);
+    }
+
+    [Fact]
+    public async Task HeartbeatFromAnotherSessionNamingAnAssetOutsideScope_IsRefusedAndChangesNothing()
+    {
+        var (account, first, _) = await SeedCompanionLibraryAsync();
+        var kit = BuildCompanion(account);
+        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+        await kit.Player.HeartbeatAsync(DeviceBeat(kit.Profile, "device-a", first.AssetId, 100));
+        var sessions = new PlayerSessionRepository(_database);
+        var sessionBefore = (await sessions.GetStateAsync(kit.Profile, TimeSpan.FromMinutes(5)))!;
+        var rowsBefore = await kit.DeviceStates.ListAsync(kit.Profile);
+
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => kit.Player.HeartbeatAsync(
+            DeviceBeat(kit.Profile, "device-b", foreign.AssetId, 250, session: Guid.NewGuid())));
+
+        var sessionAfter = (await sessions.GetStateAsync(kit.Profile, TimeSpan.FromMinutes(5)))!;
+        Assert.Equal(sessionBefore.SessionId, sessionAfter.SessionId);
+        Assert.Equal(sessionBefore.DeviceId, sessionAfter.DeviceId);
+        Assert.Equal(sessionBefore.StateVersion, sessionAfter.StateVersion);
+        Assert.Equal(sessionBefore.PositionSeconds, sessionAfter.PositionSeconds);
+        Assert.Equal(sessionBefore.UpdatedAt, sessionAfter.UpdatedAt);
+        Assert.Equal(rowsBefore, await kit.DeviceStates.ListAsync(kit.Profile));
+        Assert.Null(await kit.DeviceStates.GetAsync(kit.Profile, "device-b"));
     }
 
     [Fact]

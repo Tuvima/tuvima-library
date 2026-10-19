@@ -12,6 +12,8 @@ public sealed class CompanionSessionService : ICompanionSessionService
     private readonly IClientAuthorizationRepository _clients;
     private readonly PlayerService _player;
     private readonly PlayerCatalogueScope _scope;
+    // Device rows are stamped with the wall clock by PlayerService; freshness is judged against this TimeProvider
+    // (the system clock in production) so tests can move time explicitly.
     private readonly TimeProvider _time;
 
     public CompanionSessionService(
@@ -111,7 +113,7 @@ public sealed class CompanionSessionService : ICompanionSessionService
         if (record.Mode == CompanionModes.Follow && record.FollowedDeviceId is { } followedId)
         {
             var row = await _deviceStates.GetAsync(profile, followedId, ct);
-            var followed = row is not null && IsLive(row, now) && await IsVisibleAsync(row, ct)
+            var followed = row is not null && IsLive(row, now) && (await _scope.AssetIdsAsync(ct)).Contains(row.AssetId)
                 ? await ToLiveDeviceAsync(row, await ClientDeviceNamesAsync(profile, ct), profile, ct)
                 : null;
             return new CompanionSessionDto
@@ -153,9 +155,10 @@ public sealed class CompanionSessionService : ICompanionSessionService
     private async Task<IReadOnlyList<CompanionLiveDeviceDto>> LiveDevicesAsync(Guid profile, DateTimeOffset now, CancellationToken ct)
     {
         var live = new List<PlayerDeviceStateRecord>();
+        var allowed = await _scope.AssetIdsAsync(ct);
         foreach (var row in await _deviceStates.ListAsync(profile, ct))
         {
-            if (IsLive(row, now) && await IsVisibleAsync(row, ct))
+            if (IsLive(row, now) && allowed.Contains(row.AssetId))
             {
                 live.Add(row);
             }
@@ -180,9 +183,6 @@ public sealed class CompanionSessionService : ICompanionSessionService
     private static bool IsLive(PlayerDeviceStateRecord row, DateTimeOffset now) =>
         row.PlaybackState is PlayerPlaybackStates.Playing or PlayerPlaybackStates.Paused &&
         now - row.UpdatedAt <= PlayerService.StaleSessionWindow;
-
-    private async Task<bool> IsVisibleAsync(PlayerDeviceStateRecord row, CancellationToken ct) =>
-        (await _scope.AssetIdsAsync(ct)).Contains(row.AssetId);
 
     private async Task<CompanionLiveDeviceDto> ToLiveDeviceAsync(
         PlayerDeviceStateRecord row,

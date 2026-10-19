@@ -23,6 +23,13 @@ public sealed record PlayerDeviceStateRecord
     public DateTimeOffset UpdatedAt { get; init; }
 }
 
+/// <summary>Playback states a device row can hold besides the player's own playing and paused.</summary>
+public static class PlayerDeviceStates
+{
+    /// <summary>Playback stopped or finished; the device is no longer live for companions.</summary>
+    public const string Ended = "ended";
+}
+
 public sealed class PlayerDeviceStateRepository
 {
     /// <summary>Rows not refreshed for this long are removed the next time the profile writes one.</summary>
@@ -107,11 +114,11 @@ public sealed class PlayerDeviceStateRepository
         {
             conn.Execute("""
                 UPDATE player_device_states
-                SET playback_state = 'ended',
+                SET playback_state = @ended,
                     updated_at = @updatedAt
                 WHERE profile_id = @profileId
                   AND device_id = @deviceId;
-                """, new { profileId, deviceId, updatedAt }, tx);
+                """, new { profileId, deviceId, updatedAt, ended = PlayerDeviceStates.Ended }, tx);
         }, ct);
     }
 

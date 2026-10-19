@@ -471,7 +471,7 @@ public sealed class PlayerService
             AssetId = assetId,
             WorkId = workId,
             PlaybackState = heartbeat.HasPlaybackEnded
-                ? "ended"
+                ? PlayerDeviceStates.Ended
                 : heartbeat.IsPlaying ? PlayerPlaybackStates.Playing : PlayerPlaybackStates.Paused,
             PositionSeconds = Math.Max(0, heartbeat.PositionSeconds),
             DurationSeconds = heartbeat.DurationSeconds,
