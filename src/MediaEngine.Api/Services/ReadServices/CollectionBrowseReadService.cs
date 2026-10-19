@@ -81,12 +81,14 @@ public sealed class CollectionBrowseReadService(
         {
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = """
+                cmd.CommandText = $"""
                     SELECT DISTINCT woa.work_id
                     FROM work_owned_assets woa
                     INNER JOIN media_assets ma ON ma.id = woa.asset_id
+                    INNER JOIN works w ON w.id = woa.work_id
                     WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
                       AND ma.file_path_root NOT LIKE '%\.data\staging\%'
+                      AND {WorkReadinessSql.ReadyWorkPredicate("w")}
                     """;
                 using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -221,7 +223,7 @@ public sealed class CollectionBrowseReadService(
     {
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<CollectionArtistWorkReadModel>(new CommandDefinition(
-            """
+            $"""
             WITH artist_works AS (
                 SELECT DISTINCT w.id AS work_id
                 FROM works w
@@ -233,6 +235,7 @@ public sealed class CollectionBrowseReadService(
                     ON cva.entity_id IN (w.id, ma.id, COALESCE(gp.id, p.id, w.id))
                    AND cva.key IN ('album_artist', 'artist', 'performer')
                 WHERE cva.value = @ArtistName COLLATE NOCASE
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             ),
             work_data AS (
                 SELECT
@@ -348,6 +351,7 @@ public sealed class CollectionBrowseReadService(
                             AND cva_artist.entity_id IN (ma.id, w.id, p.id, gp.id)
                       )
                   )
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             ),
             work_data AS (
                 SELECT
@@ -652,7 +656,7 @@ public sealed class CollectionBrowseReadService(
                 INNER JOIN editions e ON e.work_id = w.id
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE w.media_type = 'Music'
-                  AND COALESCE(w.is_catalog_only, 0) = 0
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
                   AND {visibleAssetPredicate}
                 """,
                 cancellationToken: ct)).ConfigureAwait(false))

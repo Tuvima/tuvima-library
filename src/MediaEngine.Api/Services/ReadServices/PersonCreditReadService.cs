@@ -1093,6 +1093,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                 ON cv.entity_id = w.id
                AND cv.key = 'title'
             WHERE primary_credit.person_id = @personId
+              AND {WorkReadinessSql.ReadyWorkPredicate("w")}
               AND (primary_credit.role != 'Author' OR NOT EXISTS (
                   SELECT 1
                   FROM primary_person_media_credits collective_credit

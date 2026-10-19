@@ -80,7 +80,12 @@ internal static class Q3LibraryWorkFeed
     // ---------------------------------------------------------------------------------------------------------
     private static async Task<List<FeedRow>> LoadPageAsync(BenchDbContext context, PagedRequest page)
     {
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        // The visibility rule as it stood at the commit above (before the stored Ready mark replaced it).
+        var visibleWorkPredicate = $"""
+            COALESCE(w.curator_state, '') NOT IN ('rejected', 'provisional')
+            AND {HomeVisibilitySql.VisibleAssetExistsPredicate("w.id")}
+            AND COALESCE(w.is_catalog_only, 0) = 0
+            """;
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ad.file_path_root");
         var sql = $"""
             WITH asset_dates AS (

@@ -39,6 +39,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_database);
         var collections = new CollectionRepository(_database);
         var browse = new CollectionBrowseReadService(collections, _database, NullLogger<CollectionBrowseReadService>.Instance);
         var catalog = new CollectionCatalogReadService(

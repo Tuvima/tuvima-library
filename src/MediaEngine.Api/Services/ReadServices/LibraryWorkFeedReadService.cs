@@ -23,7 +23,7 @@ public sealed class LibraryWorkFeedReadService(IDatabaseConnection db) : ILibrar
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ad.file_path_root");
         var workRows = (await conn.QueryAsync<LibraryWorkFeedRow>(new CommandDefinition(
             $"""

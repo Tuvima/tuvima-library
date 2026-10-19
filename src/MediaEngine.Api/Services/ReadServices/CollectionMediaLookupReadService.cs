@@ -178,7 +178,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             .ToArray();
 
         using var conn = db.CreateConnection();
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var lookupDisplayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
@@ -315,7 +315,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         }
 
         using var conn = db.CreateConnection();
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var rows = (await conn.QueryAsync<ResolvedCollectionItemRow>(new CommandDefinition(
             $"""

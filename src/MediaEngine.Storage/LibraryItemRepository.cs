@@ -941,6 +941,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     w.media_type,
                     w.wikidata_status,
                     w.curator_state,
+                    w.ready_at,
                     CASE WHEN w.collection_id IS NOT NULL THEN 1 ELSE 0 END AS universe_assigned,
                     MAX(CASE WHEN acv.key = 'title' THEN acv.value END) AS title,
                     MAX(CASE WHEN acv.key = 'issue_title' THEN acv.value END) AS issue_title,
@@ -1183,7 +1184,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 LEFT JOIN asset_cv acv ON acv.work_id = w.id
                 LEFT JOIN work_cv wcv ON wcv.work_id = w.id
                 WHERE w.work_kind != 'parent'
-                GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.collection_id
+                GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.ready_at, w.collection_id
             )
             """;
 
@@ -1353,6 +1354,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     wd.qid_resolution_method,
                     wd.wikidata_status,
                     wd.curator_state,
+                    wd.ready_at,
                     wd.universe_assigned,
                     pad.asset_id,
                     pad.file_path_root AS file_path,
@@ -1470,16 +1472,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     rd.universe_assigned,
                     rd.created_at,
                     rd.asset_status,
-                    CASE
-                        WHEN rd.has_quality_title = 1
-                             AND rd.has_resolved_media_type = 1
-                             AND COALESCE(rd.job_state, '') NOT IN ('RetailNoMatch', 'Failed')
-                             AND (
-                                 rd.artwork_state = 'present'
-                                 OR rd.artwork_settled_at IS NOT NULL
-                             )
-                            THEN 1 ELSE 0
-                    END AS is_ready_for_library,
+                    CASE WHEN rd.ready_at IS NOT NULL THEN 1 ELSE 0 END AS is_ready_for_library,
                     CASE
                         WHEN rd.curator_state IN ('rejected', 'provisional')
                              OR rd.job_state = 'QidNeedsReview'
@@ -1503,13 +1496,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                                  )
                              )
                             THEN 'review_only'
-                        WHEN rd.has_quality_title = 1
-                             AND rd.has_resolved_media_type = 1
-                             AND (
-                                 rd.artwork_state = 'present'
-                                 OR rd.artwork_settled_at IS NOT NULL
-                             )
-                            THEN 'visible'
+                        WHEN rd.ready_at IS NOT NULL THEN 'visible'
                         ELSE 'hidden'
                     END AS library_visibility,
                     CASE

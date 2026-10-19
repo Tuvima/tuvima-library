@@ -1696,7 +1696,7 @@ public sealed class CollectionRepository : ICollectionRepository
         // Structural collection types that have at least one work assigned.
         using (var cmd = conn.CreateCommand())
         {
-            var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+            var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
             cmd.CommandText = $"""
                 SELECT h.id, h.universe_id, h.display_name, h.created_at,
                        h.universe_status, h.parent_collection_id, h.wikidata_qid,

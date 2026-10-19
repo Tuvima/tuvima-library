@@ -94,6 +94,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_database);
         _accounts = new AccountRepository(_database);
         _applications = new ApplicationRepository(_database);
     }

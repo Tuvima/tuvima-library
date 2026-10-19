@@ -91,10 +91,13 @@ A single title, independent of version or format.
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp |
+| `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it stops meeting that rule. NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 
-**Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`
+**Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
-Note: newer media library surfaces rely on a shared projection layered over work state, review queue state, identity job state, and canonical artwork flags. The `status` column remains part of the stored model, but it is no longer the only source of truth for browse visibility.
+Note: newer media library surfaces rely on a shared projection layered over work state, review queue state, identity job state, and canonical artwork flags. The `status` column remains part of the stored model, but it is no longer the only source of truth for browse visibility. Visibility is decided once, by `works.ready_at`; display queries read it through `WorkReadinessSql` and never define their own rule.
+
+The readiness service finds what changed since its last pass through two indexes added with `ready_at`: `idx_identity_jobs_updated_at` on `identity_jobs (updated_at)`, and the partial index `idx_canonical_values_artwork_scored` on `canonical_values (last_scored_at)` covering only the artwork keys `cover_state`, `cover_url` and `artwork_settled_at`. A Work's files, for the Ready rule, include the files that cover it (`work_owned_assets`).
 
 ### editions
 

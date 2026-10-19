@@ -34,7 +34,7 @@ public sealed class DisplayWorkProjectionReader
 
     internal static string BuildSql(bool hasDetail, bool lean = false, bool hasGroupFilter = false)
     {
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
         var detailPredicate = hasDetail ? """
@@ -138,9 +138,6 @@ public sealed class DisplayWorkProjectionReader
                 EditionId,
                 AssetId,
                 CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
-                CASE WHEN EXISTS (SELECT 1 FROM identity_jobs ready_job
-                    WHERE ready_job.entity_id = AssetId AND ready_job.state IN ('Ready','ReadyWithoutUniverse'))
-                    AND NOT {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsIdentityReady,
                 COALESCE(
                     NULLIF(TRIM((SELECT wikidata_qid FROM works WHERE id = WorkId LIMIT 1)), ''),
                     NULLIF(TRIM((SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'wikidata_qid' LIMIT 1)), ''),
@@ -508,7 +505,7 @@ public sealed class DisplayWorkProjectionReader
     /// </summary>
     internal async Task<IReadOnlyList<RecentCandidate>> LoadRecentCandidatesAsync(CancellationToken ct)
     {
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         using var conn = _db.CreateConnection();
         var sql = $"""
@@ -548,7 +545,7 @@ public sealed class DisplayWorkProjectionReader
             return [];
         }
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         // The year rule only reads credits for audiobooks, so an empty credits relation keeps this listing cheap.
         var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", "projection_credits");

@@ -41,8 +41,9 @@ internal sealed class AuthorizedDisplayProjectionReadService(
 
         // The file itself must be visible (checked on the joined asset below), not just the work's own files:
         // an episode covered by a combined file has no file of its own but is still playable through the host file.
+        // Readiness (matched, placed, artwork, curator, review) is the stored mark; the joined file row is checked here.
         var visibleWorkPredicate =
-            "COALESCE(w.curator_state, '') NOT IN ('rejected', 'provisional') AND COALESCE(w.is_catalog_only, 0) = 0 "
+            WorkReadinessSql.ReadyMarkPredicate("w") + " AND COALESCE(w.is_catalog_only, 0) = 0 "
             + "AND ma.status = 'Normal' AND ma.is_orphaned = 0";
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         // A rating is only read for a profile that has a limit; everyone else pays nothing.

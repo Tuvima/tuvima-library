@@ -65,7 +65,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                          AND credit.person_name LIKE @like COLLATE NOCASE
                    ))
               """;
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",

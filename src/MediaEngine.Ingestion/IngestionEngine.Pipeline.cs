@@ -1241,8 +1241,6 @@ public sealed partial class IngestionEngine
                 Pass = "Quick",
             }, identityJobCt).ConfigureAwait(false);
             await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
-            await SafePublishAsync(SignalREvents.MediaAdded,
-                new MediaAddedEvent(assetId, null, resolvedMediaType.ToString(), resolvedTitle), ct).ConfigureAwait(false);
             _identityStageDependencies.Signal?.Signal(IdentityPipelineSignalKind.Retail);
 
             _logger.LogInformation(
@@ -1288,10 +1286,6 @@ public sealed partial class IngestionEngine
         else
         {
             await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
-            await SafePublishAsync(
-                SignalREvents.MediaAdded,
-                new MediaAddedEvent(assetId, null, resolvedMediaType.ToString(), resolvedTitle),
-                ct).ConfigureAwait(false);
 
             try
             {

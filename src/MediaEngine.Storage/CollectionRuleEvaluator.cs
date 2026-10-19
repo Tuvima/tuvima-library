@@ -136,7 +136,7 @@ public sealed class CollectionRuleEvaluator
 
         var orderBy = ResolveOrderBy(sortField, sortDirection, secondarySortField, secondarySortDirection);
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         cmd.CommandText = $"""
             SELECT DISTINCT w.id
             FROM works w
@@ -185,7 +185,7 @@ public sealed class CollectionRuleEvaluator
             searchClause = $"AND ({CvForWork("'title'")} LIKE {queryParameter} COLLATE NOCASE)";
         }
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         cmd.CommandText = $"SELECT COUNT(DISTINCT w.id) FROM works w WHERE {visibleWorkPredicate} AND ({whereClause}) {searchClause};";
         return Convert.ToInt32(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
     }

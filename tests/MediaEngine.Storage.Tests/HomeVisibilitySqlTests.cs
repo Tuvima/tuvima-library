@@ -16,11 +16,11 @@ public sealed class HomeVisibilitySqlTests
     }
 
     [Fact]
-    public void VisibleWorkPredicate_ExcludesRejectedAndCatalogOnlyButAllowsUnfinishedIdentity()
+    public void ReadyWorkPredicate_ReadsTheStoredMarkAndKeepsMissingFilesAndCatalogOnlyOut()
     {
-        var predicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var predicate = WorkReadinessSql.ReadyWorkPredicate("w");
 
-        Assert.Contains("NOT IN ('rejected', 'provisional')", predicate, StringComparison.Ordinal);
+        Assert.Contains("w.ready_at IS NOT NULL", predicate, StringComparison.Ordinal);
         Assert.DoesNotContain("review_queue", predicate, StringComparison.Ordinal);
         Assert.DoesNotContain("identity_jobs", predicate, StringComparison.Ordinal);
         Assert.Contains("COALESCE(w.is_catalog_only, 0) = 0", predicate, StringComparison.Ordinal);

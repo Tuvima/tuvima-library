@@ -33,7 +33,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly IOrganizationGate _gate;
     private readonly IngestionOptions _options;
     private readonly IEntityAssetRepository? _entityAssetRepo;
-    private readonly IWorkRepository? _workRepo;
     private readonly IMediaAssetCoverageRepository? _coverageRepo;
     private readonly AssetPathService? _assetPathService;
     private readonly ILibraryFolderResolver? _libraryResolver;
@@ -83,7 +82,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         _gate = gate;
         _options = options.Value;
         _entityAssetRepo = entityAssetRepo;
-        _workRepo = workRepo;
         _assetPathService = assetPathService;
         _libraryResolver = libraryResolver;
         _sourceMutationGate = sourceMutationGate ?? new SourceMutationPolicyGate();
@@ -303,7 +301,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         }
 
         await _assetRepo.UpdateFilePathAsync(assetId, promotedPath, ct).ConfigureAwait(false);
-        await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+        await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
 
         string sourcePath = asset.FilePathRoot;
 
@@ -513,7 +511,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         _importJournal?.Complete(assetId);
 
-        await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+        await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
 
         var keptBehind = MoveSidecarFiles(sourcePath, finalPath, destination);
         await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
@@ -622,7 +620,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         if (string.Equals(asset.FilePathRoot, newDest, StringComparison.OrdinalIgnoreCase))
         {
-            await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+            await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
 
             // Path unchanged — nothing to do.
             _logger.LogDebug(
@@ -698,7 +696,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         {
             // The data store and the files that travel with it follow the path the file really ended up at.
             await _assetRepo.UpdateFilePathAsync(assetId, relocatedPath, ct).ConfigureAwait(false);
-            await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+            await MarkPresentedAsync(assetId, ct).ConfigureAwait(false);
 
             var keptBehind = MoveSidecarFiles(oldPath, relocatedPath);
             await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
@@ -731,49 +729,12 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     // Helpers
     // -------------------------------------------------------------------------
 
-    private async Task MarkPresentedAndPublishAsync(
-        Guid assetId,
-        IReadOnlyDictionary<string, string> metadata,
-        MediaType? mediaType,
-        CancellationToken ct)
+    private async Task MarkPresentedAsync(Guid assetId, CancellationToken ct)
     {
-        var newlyPresented = await _assetRepo
+        // "Added" is announced by the readiness service when the Work becomes Ready, not when its file is filed.
+        await _assetRepo
             .MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct)
             .ConfigureAwait(false);
-
-        if (!newlyPresented)
-        {
-            return;
-        }
-
-        var title = metadata.GetValueOrDefault("title", "Unknown");
-        WorkLineage? lineage = null;
-        if (_workRepo is not null)
-        {
-            lineage = await _workRepo.GetLineageByAssetAsync(assetId, ct).ConfigureAwait(false);
-        }
-
-        var workId = lineage?.TargetForSelfScope ?? assetId;
-        var collectionId = lineage is not null && lineage.TargetForParentScope != workId
-            ? lineage.TargetForParentScope
-            : (Guid?)null;
-
-        try
-        {
-            await _publisher.PublishAsync(
-                SignalREvents.MediaAdded,
-                new MediaAddedEvent(
-                    workId,
-                    collectionId,
-                    mediaType?.ToString() ?? "Unknown",
-                    title,
-                    assetId),
-                ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogDebug(ex, "MediaAdded event publish failed for {Id}; continuing", assetId);
-        }
     }
 
     /// <summary>

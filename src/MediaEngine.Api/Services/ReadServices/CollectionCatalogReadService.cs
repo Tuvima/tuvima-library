@@ -1375,7 +1375,7 @@ public sealed class CollectionCatalogReadService(
         }
 
         using var conn = db.CreateConnection();
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var rows = new List<GeneratedCollectionItemRow>();
         foreach (var chunk in displayWorkIds.Chunk(MaxSqlIdsPerQuery))
@@ -1596,7 +1596,7 @@ public sealed class CollectionCatalogReadService(
         }
 
         using var conn = db.CreateConnection();
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var rows = (await conn.QueryAsync<CollectionArtworkItemRow>(new CommandDefinition(
             $"""
