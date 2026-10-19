@@ -107,7 +107,7 @@ internal sealed partial class DetailCompositionOrchestrator
             {
                 if (consumed.Add(linkedWork.Id))
                 {
-                    result.Add(ApplyManifestPlacement(linkedWork, item));
+                    result.Add(ApplyManifestPlacement(entityType, linkedWork, item));
                 }
 
                 continue;
@@ -116,7 +116,7 @@ internal sealed partial class DetailCompositionOrchestrator
             var titleKey = NormalizeSeriesTitle(item.ItemLabel);
             if (entityType != DetailEntityType.TvShow && !string.IsNullOrWhiteSpace(titleKey) && byTitle.TryGetValue(titleKey, out var titledWork) && consumed.Add(titledWork.Id))
             {
-                result.Add(ApplyManifestPlacement(titledWork, item));
+                result.Add(ApplyManifestPlacement(entityType, titledWork, item));
                 continue;
             }
 
@@ -384,8 +384,29 @@ internal sealed partial class DetailCompositionOrchestrator
     private static double ManifestItemSortOrder(SeriesManifestItemDto item) =>
         item.SortOrder ?? item.ParsedOrdinal ?? double.MaxValue;
 
-    private static CollectionWorkSummary ApplyManifestPlacement(CollectionWorkSummary work, SeriesManifestItemDto item)
+    private static CollectionWorkSummary ApplyManifestPlacement(
+        DetailEntityType entityType,
+        CollectionWorkSummary work,
+        SeriesManifestItemDto item)
     {
+        if (entityType != DetailEntityType.TvShow)
+        {
+            // The one Series ordering: the manifest's ordinal for main-sequence members, else the work's own decimal
+            // position. The position text is the source's own ("1.5"), never a manifest row number.
+            var ordinalBelongs = SeriesOrdering.OrdinalBelongsToSeries(item.OrdinalScopeQid, item.SeriesQid);
+            var input = SeriesOrdering.BuildInput(
+                item.MembershipScope, item.ParsedOrdinal, item.OrdinalScopeQid, item.SeriesQid,
+                work.OrdinalSort, item.PublicationDate, work.Title);
+            return work with
+            {
+                SequenceSort = SeriesOrdering.SortValue(input),
+                SequenceLabel = SeriesOrdering.DisplayNumber(
+                    ordinalBelongs ? item.RawOrdinal : null, work.RetailSeriesPosition, work.OrdinalSort),
+                MembershipScope = item.MembershipScope,
+                Year = StringHelpers.FirstNonBlankOr(string.Empty, work.Year, item.PublicationDate),
+            };
+        }
+
         var sequenceSort = item.ParsedOrdinal ?? item.SortOrder;
         return work with
         {
@@ -402,10 +423,13 @@ internal sealed partial class DetailCompositionOrchestrator
         var season = entityType == DetailEntityType.TvShow
             ? ProviderManifestSeasonNumber(item.SeriesQid)
             : null;
+        var isSeriesRunEntity = entityType != DetailEntityType.TvShow;
+        var ordinalBelongs = SeriesOrdering.OrdinalBelongsToSeries(item.OrdinalScopeQid, item.SeriesQid);
+        var mainSequence = string.Equals(item.MembershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase);
         return new CollectionWorkSummary(
             $"missing-{qid}",
             ManifestPlaceholderMediaType(entityType, item.MediaType),
-            item.SortOrder is { } sortOrder ? (int)Math.Round(sortOrder, MidpointRounding.AwayFromZero) : null,
+            isSeriesRunEntity ? null : item.SortOrder is { } sortOrder ? (int)Math.Round(sortOrder, MidpointRounding.AwayFromZero) : null,
             StringHelpers.FirstNonBlankOr(string.Empty, item.ItemLabel, item.ItemQid, "Missing from library"),
             entityType == DetailEntityType.TvShow ? null : item.ItemDescription,
             season,
@@ -425,8 +449,13 @@ internal sealed partial class DetailCompositionOrchestrator
             null,
             null)
         {
-            SequenceSort = item.ParsedOrdinal ?? item.SortOrder,
-            SequenceLabel = StringHelpers.FirstNonBlankOr(string.Empty, item.RawOrdinal, FormatSequenceSort(item.ParsedOrdinal ?? item.SortOrder)),
+            // A missing member keeps only the position its manifest gives it; a row number is not a position.
+            SequenceSort = isSeriesRunEntity
+                ? mainSequence && ordinalBelongs ? item.ParsedOrdinal : null
+                : item.ParsedOrdinal ?? item.SortOrder,
+            SequenceLabel = isSeriesRunEntity
+                ? ordinalBelongs ? item.RawOrdinal ?? (item.ParsedOrdinal.HasValue ? FormatSequenceSort(item.ParsedOrdinal) : null) : null
+                : StringHelpers.FirstNonBlankOr(string.Empty, item.RawOrdinal, FormatSequenceSort(item.ParsedOrdinal ?? item.SortOrder)),
             MembershipScope = item.MembershipScope,
         };
     }
@@ -478,11 +507,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ? DeduplicateTvEpisodeSummaries(works)
                 .Where(work => expectedTotal is > 0 || work.IsOwned)
                 .ToList()
-            : works
-                .OrderBy(work => work.SequenceSort ?? work.Ordinal ?? double.MaxValue)
-                .ThenBy(work => work.Year, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(work => work.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            : SeriesOrdering.Order(works, WorkSeriesOrderOf);
         if (orderedWorks.Count == 0)
         {
             return null;
@@ -494,8 +519,10 @@ internal sealed partial class DetailCompositionOrchestrator
             var itemType = InferMediaItemEntityType(work);
             var positionLabel = entityType == DetailEntityType.TvShow
                 ? StringHelpers.FirstNonBlankOr(string.Empty, work.Episode, work.SequenceLabel, work.Ordinal?.ToString(CultureInfo.InvariantCulture))
-                : StringHelpers.FirstNonBlankOr(string.Empty, work.SequenceLabel, work.Ordinal?.ToString(CultureInfo.InvariantCulture));
-            var positionSort = work.SequenceSort ?? TryParseSeriesPositionSort(positionLabel) ?? work.Ordinal;
+                : StringHelpers.FirstNonBlankOr(string.Empty, work.SequenceLabel, SeriesOrdering.DisplayNumber(null, work.RetailSeriesPosition, work.OrdinalSort));
+            var positionSort = entityType == DetailEntityType.TvShow
+                ? work.SequenceSort ?? TryParseSeriesPositionSort(positionLabel) ?? work.Ordinal
+                : work.SequenceSort ?? work.OrdinalSort ?? TryParseSeriesPositionSort(positionLabel);
             var positionNumber = ToDisplayPositionNumber(positionSort) ?? TryParseInt(positionLabel);
             var season = entityType == DetailEntityType.TvShow
                 ? StringHelpers.FirstNonBlankOr(string.Empty, NormalizeEpisodeKey(work.Season), "unknown")
@@ -588,10 +615,19 @@ internal sealed partial class DetailCompositionOrchestrator
                 })
                 .ToList()
             : [];
+        // The Series run holds the main-sequence members; supplementary, collected-content and broader-context members
+        // are listed apart as "Also in this world" and are never numbered or counted with the run.
+        var alsoInThisWorld = new List<SequenceItemViewModel>();
+        var allItems = items;
+        if (entityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
+        {
+            (items, alsoInThisWorld) = SplitSeriesRun(allItems);
+        }
+
         var initialGroup = groups.FirstOrDefault(group => !string.Equals(group.Key, "season-0", StringComparison.OrdinalIgnoreCase))
             ?? groups.FirstOrDefault();
         var selectedItem = currentWorkId.HasValue
-            ? items.FirstOrDefault(item => item.IsCurrent)
+            ? allItems.FirstOrDefault(item => item.IsCurrent)
             : null;
         // A season opened on its own (D13) wins over the season being watched; a season id this show does not
         // carry leaves the usual choice in place and the caller decides whether that is "not found".
@@ -608,7 +644,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ?? selectedGroup?.Items.FirstOrDefault(item => item.IsOwned)
             ?? initialGroup?.Items.FirstOrDefault()
             ?? items.FirstOrDefault(item => item.IsOwned)
-            ?? items[0];
+            ?? (items.Count > 0 ? items[0] : alsoInThisWorld[0]);
         var windowed = entityType == DetailEntityType.TvShow
             && window is { IsAll: false }
             && (window.IsExplicit || items.Count > SequenceWindowRequest.FullEmitThreshold);
@@ -661,6 +697,7 @@ internal sealed partial class DetailCompositionOrchestrator
             CurrentItem = representative,
             // A windowed list is carried once, inside its season group, instead of twice.
             OrderedItems = windowed ? [] : items,
+            AlsoInThisWorld = alsoInThisWorld,
             Groups = groups,
         };
     }
@@ -723,8 +760,18 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlySet<Guid> favoriteWorkIds,
         int? expectedTotal)
     {
-        return
-        [
+        var isSeriesRun = entityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries;
+        var alsoWorks = new List<CollectionWorkSummary>();
+        if (isSeriesRun)
+        {
+            // The same Series ordering as the Series run; "Also in this world" members form their own list.
+            var ordered = SeriesOrdering.Order(works, WorkSeriesOrderOf);
+            alsoWorks = ordered.Where(work => SeriesOrdering.IsAlsoInThisWorld(work.MembershipScope)).ToList();
+            works = ordered.Where(work => !SeriesOrdering.IsAlsoInThisWorld(work.MembershipScope)).ToList();
+        }
+
+        var groups = new List<MediaGroupingViewModel>
+        {
             ApplyMediaGroupCompletion(new MediaGroupingViewModel
             {
                 Key = entityType switch
@@ -749,8 +796,20 @@ internal sealed partial class DetailCompositionOrchestrator
                     .Select(work => ToMediaItem(work, favoriteWorkIds))
                     .ToList(),
                 TotalCount = expectedTotal is > 0 ? expectedTotal.Value : 0,
-            })
-        ];
+            }),
+        };
+
+        if (alsoWorks.Count > 0)
+        {
+            groups.Add(ApplyMediaGroupCompletion(new MediaGroupingViewModel
+            {
+                Key = "also-in-this-world",
+                Title = "Also in this world",
+                Items = alsoWorks.Select(work => ToMediaItem(work, favoriteWorkIds)).ToList(),
+            }));
+        }
+
+        return groups;
     }
 
     private static MediaGroupingViewModel ApplyMediaGroupCompletion(MediaGroupingViewModel group)

@@ -513,7 +513,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("var expectedTotal = AuthoritativeManifestTotal(manifest)", source);
         Assert.Contains("BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal)", source);
         Assert.Contains("BuildCollectionSequencePlacement", source);
-        Assert.Contains("ApplyManifestPlacement(linkedWork, item)", source);
+        Assert.Contains("ApplyManifestPlacement(entityType, linkedWork, item)", source);
         Assert.Contains("SequenceLabel = StringHelpers.FirstNonBlankOr(string.Empty, item.RawOrdinal", source);
         Assert.Contains("PositionSort = positionSort", source);
         Assert.DoesNotContain("?? index + 1", source);
@@ -704,7 +704,7 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("smi.parent_collection_qid AS ContainerId", source);
         Assert.Contains("containerKind') AS TEXT), 'OrderedSeries') NOT IN ('Franchise', 'Universe', 'WikimediaList', 'PublisherOrProductionList')", source);
         Assert.Contains("IsParentSequenceContainer(scopedManifestItems, normalizedContainerId)", source);
-        Assert.Contains("items.Count <= 1 && !hasExplicitSequenceEvidence", source);
+        Assert.Contains("allItems.Count <= 1 && !hasExplicitSequenceEvidence", source);
         Assert.Contains("!hasExplicitSequenceEvidence && !hasPositionEvidence", source);
         Assert.Contains("LoadSequenceExpectedTotalAsync(containerId, ct)", source);
         Assert.Contains("?? await LoadSequenceExpectedTotalAsync(sourceContainerId, ct)", source);
@@ -715,7 +715,8 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("DeduplicateManifestMergeItems(merged)", source);
         Assert.Contains("BuildOwnedPositionSet(merged)", source);
         Assert.Contains("ManifestSourcePosition(manifestItem)", source);
-        Assert.Contains("ManifestOrderingSort(manifestItem)", source);
+        // A manifest row number is never a position: only the manifest's own ordinal orders main-sequence members.
+        Assert.DoesNotContain("ManifestOrderingSort", source);
         Assert.Contains("ManifestScopeGroup(manifestItem.MembershipScope)", source);
         Assert.DoesNotContain("BuildManifestDisplayPositions", source);
         Assert.DoesNotContain("NormalizeContiguousSequenceDisplayPositions", source);
@@ -749,11 +750,10 @@ public sealed class DetailComposerServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         Assert.NotNull(sourcePositionMethod);
         Assert.Null(sourcePositionMethod!.Invoke(null, [unnumbered]));
-        var orderingSortMethod = DetailComposerImplementationType.GetMethod(
+        // A manifest row number (SortOrder 10) is not a position: there is no ordering fallback to it any more.
+        Assert.Null(DetailComposerImplementationType.GetMethod(
             "ManifestOrderingSort",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        Assert.NotNull(orderingSortMethod);
-        Assert.Equal(10d, (double?)orderingSortMethod!.Invoke(null, [unnumbered]));
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static));
         Assert.Equal(0.3d, (double?)sourcePositionMethod.Invoke(null, [decimalNumbered]));
 
         var anthologyNumbered = new SeriesManifestItemRecord
@@ -906,7 +906,8 @@ public sealed class DetailComposerServiceTests
         Assert.Null(churn.PositionNumber);
         Assert.Null(churn.PositionLabel);
         Assert.Null(churn.PositionText);
-        Assert.Equal(7, churn.PositionSort);
+        // The row number (7) is not a position; a member the manifest gives no position stays unpositioned.
+        Assert.Null(churn.PositionSort);
         Assert.Equal("supplementary", churn.GroupKey);
     }
 
@@ -1004,7 +1005,8 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("SourceContainerId = FirstText(qid, providerKey)", source);
         Assert.Contains("EquivalentContainerIds = BuildSequenceContainerAliases", source);
         Assert.Contains("smi.collection_id AS CollectionId", source);
-        Assert.Contains("smi.membership_scope IN ('MainSequence', 'Supplementary', 'Unpositioned')", source);
+        // Collected-content and broader-context members belong to the Series too ("Also in this world"); the item page no longer hides them.
+        Assert.Contains("smi.membership_scope IN ('MainSequence', 'Supplementary', 'CollectedContent', 'BroaderContext', 'Unpositioned')", source);
         Assert.Contains("var wikidataLinkedContainers", source);
         Assert.Contains("IsProviderBackedSequenceContainer(option)", source);
         Assert.Contains("wikidataLinkedContainers.Any(wikidata => ShouldMergeSequenceContainerOptions(option, wikidata))", source);

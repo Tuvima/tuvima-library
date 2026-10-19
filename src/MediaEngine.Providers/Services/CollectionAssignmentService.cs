@@ -11,6 +11,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
 using Microsoft.Extensions.Logging;
 
@@ -22,9 +23,13 @@ namespace MediaEngine.Providers.Services;
 /// as TMDB movie collections and TV show IDs keep shelves stable before Wikidata
 /// catches up. Broader franchise/universe relationships remain rollup inputs.
 ///
-/// Uses QID/rule-hash lookups to avoid duplicates and
+/// Which Series a work belongs to is decided by one rule, <see cref="SeriesPlacementRule"/>, from the work's
+/// hydrated Wikidata manifests and its retail identity. A Series is its Wikidata Series QID plus its media type, so a
+/// book Series and an audiobook Series with the same QID are two shelves. The rule is applied the same way every
+/// time: a work moves only when the rule's shelf differs from its current one.
+///
+/// Uses the Series lookup and rule-hash lookups to avoid duplicates and
 /// <see cref="ICollectionRepository.AssignWorkToCollectionAsync"/> to set the FK.
-/// Idempotent — skips works that already have a collection_id.
 /// </summary>
 public sealed class CollectionAssignmentService
 {
@@ -34,6 +39,7 @@ public sealed class CollectionAssignmentService
     private readonly IWorkRepository _workRepo;
     private readonly ILogger<CollectionAssignmentService> _logger;
     private readonly ISeriesManifestRepository? _manifestRepo;
+    private readonly StageOutcomeFactory? _outcomeFactory;
 
     // Per-shelf semaphores serialise concurrent find-or-create calls so two
     // workers cannot race past lookup and both UpsertAsync the same ContentGroup
@@ -46,7 +52,8 @@ public sealed class CollectionAssignmentService
         IWorkRepository workRepo,
         ILogger<CollectionAssignmentService> logger,
         ICanonicalValueArrayRepository? arrayRepo = null,
-        ISeriesManifestRepository? manifestRepo = null)
+        ISeriesManifestRepository? manifestRepo = null,
+        StageOutcomeFactory? outcomeFactory = null)
     {
         _collectionRepo = collectionRepo;
         _canonicalRepo = canonicalRepo;
@@ -54,6 +61,7 @@ public sealed class CollectionAssignmentService
         _workRepo = workRepo;
         _logger = logger;
         _manifestRepo = manifestRepo;
+        _outcomeFactory = outcomeFactory;
     }
 
     /// <summary>
@@ -98,12 +106,26 @@ public sealed class CollectionAssignmentService
         var mediaType = lineage?.MediaType ?? ResolveMediaType(lookup);
         await MergeArrayBackedRelationshipHintsAsync(lookup, canonicalEntityId, entityId, ct).ConfigureAwait(false);
 
-        // Try to find an immediate shelf identity. Broader franchise/universe
-        // values are relationships on the shelf and become Collections only
-        // when multiple shelves share them.
-        var shelf = ResolveShelfIdentity(lookup, mediaType);
+        // The one placement rule decides the Series: hydrated Wikidata manifests first (with the scope the manifest
+        // gives the work), then a retail provider's manifest, then the retail identity from the work's claims.
+        // Broader franchise/universe values are relationships on the shelf and become Collections only when
+        // multiple shelves share them.
+        var retail = ResolveShelfIdentity(lookup, mediaType);
+        var memberships = _manifestRepo is null
+            ? []
+            : await _manifestRepo.GetMembershipsForWorkAsync(workId.Value, ct).ConfigureAwait(false);
+        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
+            mediaType.ToString(),
+            memberships,
+            retail?.ToIdentity()));
 
-        if (shelf is null)
+        if (decision.Kind == SeriesPlacementKind.Ambiguous)
+        {
+            return await LeaveAmbiguousWorkUnplacedAsync(entityId, workId.Value, existingCollectionId, decision, ct)
+                .ConfigureAwait(false);
+        }
+
+        if (decision.Kind == SeriesPlacementKind.Unplaced)
         {
             _logger.LogDebug("CollectionAssignment: no shelf identity for work {WorkId}; standalone", workId);
             return new CollectionAssignmentResult(
@@ -113,68 +135,64 @@ public sealed class CollectionAssignmentService
                 Message: "No shelf identity found.");
         }
 
-        if (existingCollectionId is not null)
+        // The retail identity describes this shelf only when the rule chose it (or chose a manifest of the same Series).
+        // A work placed in a Series that its own claims do not name (a collected-content novella listed under the
+        // Series through a parent collection) must not write its claims onto that shelf.
+        Collection? target = null;
+        if (decision.ShelfCollectionId is { } manifestShelfId)
         {
-            var existingCollection = await _collectionRepo.GetByIdAsync(existingCollectionId.Value, ct);
-            if (existingCollection is not null && CollectionMatchesShelf(existingCollection, shelf))
-            {
-                await UpgradeCollectionIdentityAsync(existingCollection, shelf, ct);
-                var relationshipsAdded = await EnsureCollectionRelationshipsAsync(existingCollection.Id, lookup, ct);
-                await EnsureSequenceFactsAsync(existingCollection.Id, mediaType, lookup, ct);
-                await UpsertProviderSequenceManifestAsync(existingCollection.Id, lookup, ct);
-
-                _logger.LogDebug(
-                    "CollectionAssignment: work {WorkId} already assigned to collection {CollectionId}",
-                    workId,
-                    existingCollectionId);
-                return new CollectionAssignmentResult(
-                    CollectionAssignmentOutcome.AlreadyAssigned,
-                    entityId,
-                    workId.Value,
-                    existingCollection.Id,
-                    RelationshipsAdded: relationshipsAdded,
-                    IdentityKey: shelf.Qid ?? shelf.ProviderKey);
-            }
-
-            if (existingCollection is not null)
-            {
-                _logger.LogInformation(
-                    "CollectionAssignment: work {WorkId} is assigned to broader collection '{CollectionName}' ({ExistingQid}) but immediate shelf is {ParentQid}; reassigning",
-                    workId,
-                    existingCollection.DisplayName,
-                    existingCollection.WikidataQid,
-                    shelf.Qid ?? shelf.ProviderKey);
-            }
+            target = await _collectionRepo.GetByIdAsync(manifestShelfId, ct).ConfigureAwait(false);
         }
 
-        // Find or create a ContentGroup collection for this parent QID.
-        // Serialise on the QID so two workers cannot race past FindByQidAsync
-        // and both Upsert a duplicate collection for the same album/show/series.
-        var gate = ShelfLocks.GetOrAdd(shelf.LockKey, _ => new SemaphoreSlim(1, 1));
+        if (target is not null)
+        {
+            var retailAligned = retail is not null
+                && (string.IsNullOrWhiteSpace(retail.Qid)
+                    || string.Equals(retail.Qid, target.WikidataQid, StringComparison.OrdinalIgnoreCase));
+            var applyRetail = retailAligned
+                && string.Equals(decision.Scope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase);
+
+            return await PlaceOnShelfAsync(
+                entityId, workId.Value, existingCollectionId, target, retailAligned ? retail : null,
+                mediaType, lookup, decision, applyRetail, createdCollection: false, ct).ConfigureAwait(false);
+        }
+
+        if (retail is null)
+        {
+            _logger.LogDebug("CollectionAssignment: no shelf identity for work {WorkId}; standalone", workId);
+            return new CollectionAssignmentResult(
+                CollectionAssignmentOutcome.SkippedNoShelfIdentity,
+                entityId,
+                workId.Value,
+                Message: "No shelf identity found.");
+        }
+
+        // Find or create the shelf for the retail identity. Serialise on the Series key so two workers cannot race
+        // past the lookup and both Upsert a duplicate collection for the same album/show/series.
+        var gate = ShelfLocks.GetOrAdd(retail.LockKey, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
         Collection collection;
         var createdCollection = false;
-        var relationshipCount = 0;
         try
         {
-            var existing = await FindShelfCollectionAsync(shelf, ct);
+            var existing = await FindShelfCollectionAsync(retail, ct);
             if (existing is not null)
             {
                 collection = existing;
-                await UpgradeCollectionIdentityAsync(collection, shelf, ct);
             }
             else
             {
                 // Sanitize the label — fall back to QID if label is just a QID or empty
-                var displayName = SanitizeShelfLabel(shelf.Label, shelf.Qid, shelf.ProviderKey);
+                var displayName = SanitizeShelfLabel(retail.Label, retail.Qid, retail.ProviderKey);
 
                 collection = new Collection
                 {
                     Id = Guid.NewGuid(),
                     DisplayName = displayName,
-                    WikidataQid = shelf.Qid,
-                    RuleHash = shelf.ProviderKey,
-                    GroupByField = GetGroupByField(shelf.MediaType),
+                    WikidataQid = retail.Qid,
+                    RuleHash = retail.ProviderKey,
+                    GroupByField = GetGroupByField(retail.MediaType),
+                    MediaType = retail.MediaType.ToString(),
                     CreatedAt = DateTimeOffset.UtcNow,
                 };
                 collection.RestoreDefinition(
@@ -189,42 +207,160 @@ public sealed class CollectionAssignmentService
                 createdCollection = true;
 
                 _logger.LogInformation(
-                    "CollectionAssignment: created ContentGroup collection '{Name}' ({Identity}) for work {WorkId}",
-                    collection.DisplayName, shelf.Qid ?? shelf.ProviderKey, workId);
+                    "CollectionAssignment: created ContentGroup collection '{Name}' ({Identity}, {MediaType}) for work {WorkId}",
+                    collection.DisplayName, retail.Qid ?? retail.ProviderKey, retail.MediaType, workId);
             }
 
-            relationshipCount = await EnsureCollectionRelationshipsAsync(collection.Id, lookup, ct);
-            await EnsureSequenceFactsAsync(collection.Id, mediaType, lookup, ct);
-            await _collectionRepo.AssignWorkToCollectionAsync(workId.Value, collection.Id, ct);
-            await UpsertProviderSequenceManifestAsync(collection.Id, lookup, ct);
+            return await PlaceOnShelfAsync(
+                entityId, workId.Value, existingCollectionId, collection, retail,
+                mediaType, lookup, decision, applyRetail: true, createdCollection, ct).ConfigureAwait(false);
         }
         finally
         {
             gate.Release();
         }
+    }
+
+    /// <summary>
+    /// Puts the work on <paramref name="collection"/> (moving it only when that is not already its shelf) and writes
+    /// the shelf facts the work's own claims support.
+    /// </summary>
+    /// <param name="retail">The retail identity to write onto the shelf, or null when the work's claims do not name this shelf.</param>
+    /// <param name="applyRetail">Whether the work's sequence totals and provider manifest describe this shelf (main sequence on its own Series).</param>
+    private async Task<CollectionAssignmentResult> PlaceOnShelfAsync(
+        Guid entityId,
+        Guid workId,
+        Guid? existingCollectionId,
+        Collection collection,
+        ShelfIdentity? retail,
+        MediaType mediaType,
+        Dictionary<string, string> lookup,
+        SeriesPlacementDecision decision,
+        bool applyRetail,
+        bool createdCollection,
+        CancellationToken ct)
+    {
+        await UpgradeCollectionIdentityAsync(collection, retail, mediaType, ct);
+        var relationshipsAdded = await EnsureCollectionRelationshipsAsync(collection.Id, lookup, collection.WikidataQid, ct);
+        if (applyRetail)
+        {
+            await EnsureSequenceFactsAsync(collection.Id, mediaType, lookup, ct);
+        }
+
+        var identityKey = collection.WikidataQid ?? collection.RuleHash;
+        if (existingCollectionId == collection.Id)
+        {
+            if (applyRetail)
+            {
+                await UpsertProviderSequenceManifestAsync(collection.Id, lookup, ct);
+            }
+
+            _logger.LogDebug(
+                "CollectionAssignment: work {WorkId} already assigned to collection {CollectionId}",
+                workId,
+                collection.Id);
+            return new CollectionAssignmentResult(
+                CollectionAssignmentOutcome.AlreadyAssigned,
+                entityId,
+                workId,
+                collection.Id,
+                RelationshipsAdded: relationshipsAdded,
+                IdentityKey: identityKey);
+        }
+
+        if (existingCollectionId is not null)
+        {
+            var from = await _collectionRepo.GetByIdAsync(existingCollectionId.Value, ct);
+            _logger.LogInformation(
+                "CollectionAssignment: moving work {WorkId} from '{From}' ({FromQid}) to '{To}' ({ToIdentity}): {Reason}",
+                workId,
+                from?.DisplayName,
+                from?.WikidataQid,
+                collection.DisplayName,
+                identityKey,
+                decision.Reason);
+        }
+
+        await _collectionRepo.AssignWorkToCollectionAsync(workId, collection.Id, ct);
+        if (applyRetail)
+        {
+            await UpsertProviderSequenceManifestAsync(collection.Id, lookup, ct);
+        }
 
         _logger.LogInformation(
-            "CollectionAssignment: assigned work {WorkId} to collection '{CollectionName}' ({Identity})",
-            workId, collection.DisplayName, shelf.Qid ?? shelf.ProviderKey);
+            "CollectionAssignment: assigned work {WorkId} to collection '{CollectionName}' ({Identity}) as {Scope}",
+            workId, collection.DisplayName, identityKey, decision.Scope);
 
         return new CollectionAssignmentResult(
             CollectionAssignmentOutcome.Assigned,
             entityId,
-            workId.Value,
+            workId,
             collection.Id,
             CreatedCollection: createdCollection,
-            RelationshipsAdded: relationshipCount,
-            IdentityKey: shelf.Qid ?? shelf.ProviderKey);
+            RelationshipsAdded: relationshipsAdded,
+            IdentityKey: identityKey);
+    }
+
+    /// <summary>
+    /// Two Series claim the work equally and nothing separates them: take it off any shelf and ask a person, instead
+    /// of guessing.
+    /// </summary>
+    private async Task<CollectionAssignmentResult> LeaveAmbiguousWorkUnplacedAsync(
+        Guid entityId,
+        Guid workId,
+        Guid? existingCollectionId,
+        SeriesPlacementDecision decision,
+        CancellationToken ct)
+    {
+        if (existingCollectionId is not null)
+        {
+            await _collectionRepo.ClearWorkCollectionAsync(workId, ct).ConfigureAwait(false);
+        }
+
+        var names = new List<string>();
+        foreach (var candidate in decision.Candidates)
+        {
+            var shelf = await _collectionRepo.GetByIdAsync(candidate.CollectionId, ct).ConfigureAwait(false);
+            names.Add(string.IsNullOrWhiteSpace(shelf?.DisplayName) ? candidate.SeriesQid : shelf.DisplayName);
+        }
+
+        var detail = $"Wikidata lists this {decision.Candidates.FirstOrDefault()?.MediaType ?? "work"} in more than one Series "
+            + $"({string.Join(", ", names)}) and nothing says which one it belongs to. It is not on any Series until you choose.";
+
+        _logger.LogWarning(
+            "CollectionAssignment: work {WorkId} is ambiguous between Series {Series}; leaving it unplaced",
+            workId,
+            string.Join(", ", decision.Candidates.Select(c => c.SeriesQid)));
+
+        if (_outcomeFactory is not null)
+        {
+            var candidatesJson = JsonSerializer.Serialize(decision.Candidates.Select((c, index) => new
+            {
+                series_qid = c.SeriesQid,
+                series_label = names[index],
+                media_type = c.MediaType,
+                membership_scope = c.Scope,
+                collection_id = c.CollectionId,
+            }));
+            await _outcomeFactory.CreateAmbiguousSeriesMembershipAsync(entityId, detail, candidatesJson, ct: ct).ConfigureAwait(false);
+        }
+
+        return new CollectionAssignmentResult(
+            CollectionAssignmentOutcome.SkippedAmbiguousSeries,
+            entityId,
+            workId,
+            Message: detail);
     }
 
     private async Task<Collection?> FindShelfCollectionAsync(ShelfIdentity shelf, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(shelf.Qid))
         {
-            var byQid = await _collectionRepo.FindByQidAsync(shelf.Qid, ct);
-            if (byQid is not null)
+            // A Series is its QID plus its media type: a Series of another media type is never found here.
+            var bySeries = await _collectionRepo.FindSeriesShelfAsync(shelf.Qid, shelf.MediaType.ToString(), ct);
+            if (bySeries is not null)
             {
-                return byQid;
+                return bySeries;
             }
         }
 
@@ -233,34 +369,47 @@ public sealed class CollectionAssignmentService
             : await _collectionRepo.FindByRuleHashAsync(shelf.ProviderKey, ct);
     }
 
-    private async Task UpgradeCollectionIdentityAsync(Collection collection, ShelfIdentity shelf, CancellationToken ct)
+    private async Task UpgradeCollectionIdentityAsync(
+        Collection collection,
+        ShelfIdentity? shelf,
+        MediaType mediaType,
+        CancellationToken ct)
     {
         var changed = false;
 
-        if (!string.IsNullOrWhiteSpace(shelf.Qid)
-            && !string.Equals(collection.WikidataQid, shelf.Qid, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(collection.MediaType) && mediaType != MediaType.Unknown)
         {
-            collection.WikidataQid = shelf.Qid;
+            collection.MediaType = mediaType.ToString();
             changed = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(shelf.ProviderKey)
-            && !string.Equals(collection.RuleHash, shelf.ProviderKey, StringComparison.OrdinalIgnoreCase))
+        if (shelf is not null)
         {
-            collection.RuleHash = shelf.ProviderKey;
-            changed = true;
-        }
+            if (!string.IsNullOrWhiteSpace(shelf.Qid)
+                && !string.Equals(collection.WikidataQid, shelf.Qid, StringComparison.OrdinalIgnoreCase))
+            {
+                collection.WikidataQid = shelf.Qid;
+                changed = true;
+            }
 
-        if (string.IsNullOrWhiteSpace(collection.DisplayName) || IsQidLike(collection.DisplayName))
-        {
-            collection.DisplayName = SanitizeShelfLabel(shelf.Label, shelf.Qid, shelf.ProviderKey);
-            changed = true;
-        }
+            if (!string.IsNullOrWhiteSpace(shelf.ProviderKey)
+                && !string.Equals(collection.RuleHash, shelf.ProviderKey, StringComparison.OrdinalIgnoreCase))
+            {
+                collection.RuleHash = shelf.ProviderKey;
+                changed = true;
+            }
 
-        if (string.IsNullOrWhiteSpace(collection.GroupByField))
-        {
-            collection.GroupByField = GetGroupByField(shelf.MediaType);
-            changed = true;
+            if (string.IsNullOrWhiteSpace(collection.DisplayName) || IsQidLike(collection.DisplayName))
+            {
+                collection.DisplayName = SanitizeShelfLabel(shelf.Label, shelf.Qid, shelf.ProviderKey);
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(collection.GroupByField))
+            {
+                collection.GroupByField = GetGroupByField(shelf.MediaType);
+                changed = true;
+            }
         }
 
         if (changed)
@@ -395,7 +544,7 @@ public sealed class CollectionAssignmentService
                     SortOrder = parsedOrdinal ?? index + 1,
                     PublicationDate = item.ReleaseDate,
                     Duration = item.Duration,
-                    MembershipScope = SeriesMembershipScopeNames.MainSequence,
+                    MembershipScope = ResolveProviderMembershipScope(item.MembershipScope),
                     SourcePropertiesJson = JsonSerializer.Serialize(new[] { $"{manifest.Provider}:sequence-manifest" }),
                     RelationshipsJson = "[]",
                     OrderSource = "ProviderOrdinal",
@@ -443,6 +592,17 @@ public sealed class CollectionAssignmentService
         await _manifestRepo.LinkOwnedWorksAsync(collectionId, rows, ct).ConfigureAwait(false);
     }
 
+    /// <summary>The scope the provider's manifest gives an item; main sequence when it gives none.</summary>
+    private static string ResolveProviderMembershipScope(string? scope)
+        => scope switch
+        {
+            SeriesMembershipScopeNames.Supplementary => SeriesMembershipScopeNames.Supplementary,
+            SeriesMembershipScopeNames.CollectedContent => SeriesMembershipScopeNames.CollectedContent,
+            SeriesMembershipScopeNames.BroaderContext => SeriesMembershipScopeNames.BroaderContext,
+            SeriesMembershipScopeNames.Unpositioned => SeriesMembershipScopeNames.Unpositioned,
+            _ => SeriesMembershipScopeNames.MainSequence,
+        };
+
     private static string ResolveProviderManifestMediaKind(string mediaType)
         => Enum.TryParse<MediaType>(mediaType, true, out var parsed)
             ? parsed switch
@@ -456,18 +616,6 @@ public sealed class CollectionAssignmentService
                 _ => "Unknown",
             }
             : "Unknown";
-
-    private static bool CollectionMatchesShelf(Collection collection, ShelfIdentity shelf)
-    {
-        if (!string.IsNullOrWhiteSpace(shelf.Qid)
-            && string.Equals(collection.WikidataQid, shelf.Qid, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrWhiteSpace(shelf.ProviderKey)
-            && string.Equals(collection.RuleHash, shelf.ProviderKey, StringComparison.OrdinalIgnoreCase);
-    }
 
     private static ShelfIdentity? ResolveShelfIdentity(
         Dictionary<string, string> lookup,
@@ -730,9 +878,10 @@ public sealed class CollectionAssignmentService
     private async Task<int> EnsureCollectionRelationshipsAsync(
         Guid collectionId,
         Dictionary<string, string> lookup,
+        string? shelfQid,
         CancellationToken ct)
     {
-        var desiredRelationships = BuildCollectionRelationships(collectionId, lookup);
+        var desiredRelationships = BuildCollectionRelationships(collectionId, lookup, shelfQid);
         if (desiredRelationships.Count == 0)
         {
             return 0;
@@ -762,12 +911,22 @@ public sealed class CollectionAssignmentService
 
     private static IReadOnlyList<CollectionRelationship> BuildCollectionRelationships(
         Guid collectionId,
-        Dictionary<string, string> lookup)
+        Dictionary<string, string> lookup,
+        string? shelfQid)
     {
         var relationships = new List<CollectionRelationship>();
         foreach (var claimKey in new[] { "series", "franchise", "fictional_universe", "based_on" })
         {
             if (!TryGetQid(lookup, claimKey, out var qid, out var label))
+            {
+                continue;
+            }
+
+            // A work listed in a Series through its manifest can carry a different Series claim (a parent collection
+            // such as Memory's Legion). That claim is not this shelf's Series, so it is not recorded on it.
+            if (claimKey == "series"
+                && !string.IsNullOrWhiteSpace(shelfQid)
+                && !string.Equals(qid, shelfQid, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

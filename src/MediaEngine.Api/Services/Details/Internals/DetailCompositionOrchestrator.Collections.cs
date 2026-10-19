@@ -601,11 +601,12 @@ internal sealed partial class DetailCompositionOrchestrator
                    END) AS OwnedOverlap,
                    SUM(CASE WHEN member.ownership_state = 'Missing' THEN 1 ELSE 0 END) AS MissingCount
             FROM series_manifest_hydrations h
-            JOIN series_manifest_items member ON member.series_qid = h.series_qid
+            JOIN series_manifest_items member ON member.collection_id = h.collection_id AND member.series_qid = h.series_qid
             WHERE EXISTS (
                 SELECT 1
                 FROM series_manifest_items linked
-                WHERE linked.series_qid = h.series_qid
+                WHERE linked.collection_id = h.collection_id
+                  AND linked.series_qid = h.series_qid
                   AND linked.linked_work_id IN @workIds
             )
             GROUP BY h.collection_id, h.series_qid

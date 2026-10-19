@@ -65,14 +65,14 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `title` | TEXT | Display title |
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
-| `media_type` | TEXT | Primary media type for this collection |
+| `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0011_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp of last Wikidata enrichment |
 
-**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`
+**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity)
 
 ### works
 
@@ -175,7 +175,7 @@ Links works to collections (Series to Universe relationships).
 |---|---|---|
 | `collection_id` | BLOB | FK -> `collections.id` |
 | `work_id` | BLOB | FK -> `works.id` |
-| `sort_order` | INTEGER | Position within the collection |
+| `sort_order` | INTEGER | Position within the collection. A Series shelf stores the manifest ordinal or the work's own position here **unrounded**: the column has integer affinity, which keeps a fractional value such as `2.5` as a real number. Readers order a Series with the shared Series ordering (manifest ordinal, the work's `ordinal_sort`, publication date, title) and do not rely on this column. Only the rule-chosen shelf holds a row for a work. |
 
 **Indices:** `collection_id + sort_order` for ordered paging and
 `work_id` for reverse lookup and cascade enforcement.
@@ -1362,19 +1362,19 @@ What a person removed from, or added to, the taste the Library learned about the
 
 ### series_manifest_hydrations
 
-Series-level cache and provenance for Wikidata series manifests. One row is stored per canonical series QID so later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed.
+Series-level cache and provenance for Wikidata series manifests. One row is stored per shelf (the collection holding the manifest), so a book Series and an audiobook Series with the same QID each keep their own manifest and later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed. Upgrade step `0011_series_identity_by_media_type` changed the key from the series QID alone to the shelf plus the series QID.
 
 | Column | Type | Notes |
 |---|---|---|
-| `series_qid` | TEXT | Wikidata QID for the series. Primary key. |
-| `collection_id` | TEXT | FK to `collections.id` for the local ContentGroup/series collection. |
+| `series_qid` | TEXT | Wikidata QID for the series. Part of the primary key (`collection_id`, `series_qid`); also indexed on its own. |
+| `collection_id` | TEXT | FK to `collections.id` for the local ContentGroup/series collection. Part of the primary key. |
 | `series_label` | TEXT | Localized display name returned by Wikidata. |
 | `manifest_source` | TEXT | Source library, normally `Tuvima.Wikidata`. |
 | `manifest_version` | TEXT | Source package/version metadata. |
 | `manifest_hash` | TEXT | Hash of the fetched manifest payload. |
 | `known_item_qids_hash` | TEXT | Hash of the ordered known item QID set. |
 | `warnings_json` | TEXT | Manifest-level warnings from Wikidata modeling. |
-| `api_metadata_json` | TEXT | Request options used for the fetch. |
+| `api_metadata_json` | TEXT | Request options used for the fetch. `parentCollectionHydration: true` marks a parent-collection manifest (for example Memory's Legion) that was fetched because a Series listed it; such a collection is never the shelf of the works it lists. |
 | `last_hydrated_at` | TEXT | Last successful manifest hydration timestamp. |
 
 ### series_manifest_items

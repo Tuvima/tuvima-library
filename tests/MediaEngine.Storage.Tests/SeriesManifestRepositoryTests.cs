@@ -285,7 +285,8 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
                 isExpandedFromCollection: true),
         };
 
-        await repo.UpsertManifestAsync(Hydration(broadCollectionId, "Q26214973", now), broadItems);
+        // The broader manifest is stored as a parent-collection hydration, which is never a shelf for the works it lists.
+        await repo.UpsertManifestAsync(Hydration(broadCollectionId, "Q26214973", now, isParentCollection: true), broadItems);
         await repo.LinkOwnedWorksAsync(broadCollectionId, broadItems);
 
         Assert.Null(await GetWorkCollectionIdAsync(workId));
@@ -312,14 +313,15 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task LinkOwnedWorks_DoesNotOverrideProviderOwnedImmediateShelf()
+    public async Task LinkOwnedWorks_MovesAProviderShelfWorkToTheHydratedWikidataSeriesThatListsIt()
     {
         var repo = new SeriesManifestRepository(_db);
-        var wikidataCollectionId = await CreateCollectionAsync("Q74331", "The Hobbit trilogy");
+        var wikidataCollectionId = await CreateCollectionAsync("Q74331", "The Hobbit trilogy", mediaType: "Movies");
         var providerCollectionId = await CreateCollectionAsync(
             qid: "",
             name: "The Hobbit Collection",
-            ruleHash: "tmdb:collection:121938");
+            ruleHash: "tmdb:collection:121938",
+            mediaType: "Movies");
         var workId = await CreateWorkAsync("Q80379", mediaType: "Movies");
         var now = DateTimeOffset.UtcNow;
 
@@ -335,16 +337,19 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
                 1,
                 "Owned",
                 workId,
-                now),
+                now,
+                mediaType: "Movies"),
         };
 
         await repo.UpsertManifestAsync(Hydration(wikidataCollectionId, "Q74331", now), items);
         await repo.LinkOwnedWorksAsync(wikidataCollectionId, items);
 
-        Assert.Equal(providerCollectionId, await GetWorkCollectionIdAsync(workId));
+        // Placement rule (a): a hydrated Wikidata Series manifest that lists the work decides its Series, ahead of the
+        // retail provider's own collection. (This test used to pin the opposite: that a provider shelf was never moved.)
+        Assert.Equal(wikidataCollectionId, await GetWorkCollectionIdAsync(workId));
     }
 
-    private async Task<Guid> CreateCollectionAsync(string qid, string name, string? ruleHash = null)
+    private async Task<Guid> CreateCollectionAsync(string qid, string name, string? ruleHash = null, string mediaType = "Books")
     {
         var repo = new CollectionRepository(_db);
         var collection = new Collection
@@ -353,6 +358,7 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
             DisplayName = name,
             WikidataQid = string.IsNullOrWhiteSpace(qid) ? null : qid,
             RuleHash = ruleHash,
+            MediaType = mediaType,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         collection.RestoreDefinition(
@@ -406,13 +412,13 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
-    private static SeriesManifestHydration Hydration(Guid collectionId, string seriesQid, DateTimeOffset now) => new()
+    private static SeriesManifestHydration Hydration(Guid collectionId, string seriesQid, DateTimeOffset now, bool isParentCollection = false) => new()
     {
         SeriesQid = seriesQid,
         CollectionId = collectionId,
         SeriesLabel = "Series",
         WarningsJson = "[]",
-        ApiMetadataJson = "{}",
+        ApiMetadataJson = isParentCollection ? """{"parentCollectionHydration":true}""" : "{}",
         LastHydratedAt = now,
         CreatedAt = now,
         UpdatedAt = now,
@@ -432,7 +438,8 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
         bool isCollection = false,
         bool isExpandedFromCollection = false,
         string membershipScope = SeriesMembershipScopeNames.MainSequence,
-        string? mediaKind = null)
+        string? mediaKind = null,
+        string mediaType = "Books")
         => new()
         {
             Id = Guid.NewGuid(),
@@ -440,6 +447,7 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
             SeriesQid = seriesQid,
             ItemQid = qid,
             ItemLabel = label,
+            MediaType = mediaType,
             MediaKind = mediaKind,
             SortOrder = sortOrder,
             OrderSource = "SeriesOrdinal",

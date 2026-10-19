@@ -1468,7 +1468,23 @@ public sealed class CollectionCatalogReadService(
                              c.created_at,
                              c.id
                     LIMIT 1) AS StructuralCollectionId,
-                   CAST(COALESCE(w.ordinal, series_item.sort_order, 999999) AS INTEGER) AS SortOrder
+                   CAST(COALESCE(w.ordinal_sort, w.ordinal) AS REAL) AS WorkOrdinalSort,
+                   series_item.parsed_ordinal AS ManifestOrdinal,
+                   series_item.ordinal_scope_qid AS ManifestOrdinalScopeQid,
+                   series_item.series_qid AS ManifestSeriesQid,
+                   series_item.raw_ordinal AS ManifestRawOrdinal,
+                   series_item.membership_scope AS MembershipScope,
+                   COALESCE(series_item.is_expanded_from_collection, 0) AS IsExpandedFromCollection,
+                   COALESCE(
+                       NULLIF(series_item.publication_date, ''),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '')
+                        FROM canonical_values cv
+                        WHERE cv.entity_id IN (w.id, ra.AssetId)
+                          AND cv.key IN ('publication_date', 'release_date', 'year')
+                        LIMIT 1)) AS PublicationDate,
+                   COALESCE(
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ra.AssetId AND cv.key = 'series_position' LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS RetailSeriesPosition
             FROM works w
             LEFT JOIN representative_assets ra ON ra.WorkId = w.id
             LEFT JOIN canonical_values title_work ON title_work.entity_id = w.id AND title_work.key = 'title'
@@ -1480,7 +1496,7 @@ public sealed class CollectionCatalogReadService(
             LEFT JOIN series_manifest_items series_item ON series_item.linked_work_id = w.id AND series_item.collection_id = @CollectionId
             WHERE w.id IN @WorkIds
               AND ({visibleWorkPredicate} OR ra.AssetId IS NOT NULL)
-            ORDER BY SortOrder, Title COLLATE NOCASE, w.id;
+            ORDER BY w.id;
             """,
             new
             {
@@ -1494,12 +1510,23 @@ public sealed class CollectionCatalogReadService(
         var requestedPosition = displayWorkIds
             .Select((workId, index) => (workId, index))
             .ToDictionary(entry => entry.workId, entry => entry.index);
+        // One row per work: the manifest row that is not an expansion of a collection, then the strongest scope.
         var selectedRows = rows
             .GroupBy(row => row.WorkId)
-            .Select(group => group.OrderBy(row => row.SortOrder).ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase).First());
-        selectedRows = preserveRequestedOrder
-            ? selectedRows.OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
-            : selectedRows.OrderBy(row => row.SortOrder).ThenBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue));
+            .Select(group => group
+                .OrderBy(row => row.IsExpandedFromCollection)
+                .ThenBy(row => SeriesPlacementRule.ScopeRank(row.MembershipScope))
+                .First())
+            .OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
+            .ToList();
+
+        // A generated Series list uses the one Series ordering (manifest ordinal, the work's own decimal position,
+        // publication date, title) with "Also in this world" members after the Series run; an explicit list keeps the
+        // order it was given. The sort is stable, so equal members keep the order they were requested in.
+        if (!preserveRequestedOrder)
+        {
+            selectedRows = SeriesOrdering.Order(selectedRows, row => row.ToOrderInput());
+        }
 
         return selectedRows
             .Select((row, index) => new CollectionItemDto
@@ -1510,8 +1537,12 @@ public sealed class CollectionCatalogReadService(
                 Creator = ToNullableText(row.Creator),
                 MediaType = row.MediaType,
                 CoverUrl = ResolveCollectionItemCoverUrl(row),
-                SortOrder = preserveRequestedOrder ? index : row.SortOrder,
+                SortOrder = index,
                 DetailRoute = BuildCollectionItemDetailRoute(row),
+                MembershipScope = string.IsNullOrWhiteSpace(row.MembershipScope)
+                    ? SeriesMembershipScopeNames.MainSequence
+                    : row.MembershipScope,
+                PositionLabel = row.ToPositionLabel(),
             }).ToList();
     }
 
@@ -1861,7 +1892,29 @@ public sealed class CollectionCatalogReadService(
         public Guid? MediaAssetId { get; init; }
         public string? CoverUrl { get; init; }
         public Guid? StructuralCollectionId { get; init; }
-        public int SortOrder { get; init; }
+        public double? WorkOrdinalSort { get; init; }
+        public double? ManifestOrdinal { get; init; }
+        public string? ManifestOrdinalScopeQid { get; init; }
+        public string? ManifestSeriesQid { get; init; }
+        public string? ManifestRawOrdinal { get; init; }
+        public string? MembershipScope { get; init; }
+        public int IsExpandedFromCollection { get; init; }
+        public string? PublicationDate { get; init; }
+        public string? RetailSeriesPosition { get; init; }
+
+        public SeriesOrderInput ToOrderInput() => SeriesOrdering.BuildInput(
+            MembershipScope,
+            ManifestOrdinal,
+            ManifestOrdinalScopeQid,
+            ManifestSeriesQid,
+            WorkOrdinalSort,
+            PublicationDate,
+            Title);
+
+        public string? ToPositionLabel() => SeriesOrdering.DisplayNumber(
+            SeriesOrdering.OrdinalBelongsToSeries(ManifestOrdinalScopeQid, ManifestSeriesQid) ? ManifestRawOrdinal : null,
+            RetailSeriesPosition,
+            WorkOrdinalSort);
     }
 
     private sealed class CollectionDisplayWorkRow

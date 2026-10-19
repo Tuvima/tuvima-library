@@ -8,7 +8,9 @@
       "media_type": "Movies",
       "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000003/cover",
       "sort_order": 0,
-      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch"
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch",
+      "membership_scope": "MainSequence",
+      "position_label": null
     },
     {
       "id": "6f0c2a3e-0000-0000-0000-000000000004",
@@ -18,7 +20,9 @@
       "media_type": "Movies",
       "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000006/cover",
       "sort_order": 1,
-      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000005?context=watch"
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000005?context=watch",
+      "membership_scope": "MainSequence",
+      "position_label": null
     }
   ],
   "offset": 0,

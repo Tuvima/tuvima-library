@@ -105,11 +105,6 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             var rowObject = (object)row;
             var sourcePosition = ToManifestSourcePosition(rowObject, normalizedContainerId!);
-            var positionSort = sourcePosition ?? DoubleValue(GetDapperValue(rowObject, "SortOrder"));
-            if (!positionSort.HasValue)
-            {
-                continue;
-            }
             var position = ToDisplayPositionNumber(sourcePosition);
             var positionLabel = sourcePosition.HasValue
                 ? StringHelpers.FirstNonBlankOr(string.Empty,
@@ -119,6 +114,11 @@ internal sealed partial class DetailCompositionOrchestrator
             var membershipScope = StringHelpers.FirstNonBlankOr(string.Empty,
                 StringValue(GetDapperValue(rowObject, "MembershipScope")),
                 SeriesMembershipScopeNames.MainSequence)!;
+            // The manifest's ordinal orders main-sequence members only. A member the manifest gives no position keeps
+            // its own; a manifest row number is never used as a position.
+            var positionSort = string.Equals(membershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase)
+                ? sourcePosition
+                : null;
             var group = ManifestScopeGroup(membershipScope);
 
             var linkedWorkId = StringValue(GetDapperValue(rowObject, "LinkedWorkId"));
@@ -148,7 +148,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 Duration = item.Duration,
                 PublicationDate = item.PublicationDate,
                 PositionNumber = position ?? item.PositionNumber,
-                PositionSort = positionSort,
+                PositionSort = positionSort ?? item.PositionSort,
                 PositionLabel = sourcePosition.HasValue ? positionLabel : item.PositionLabel,
                 PositionText = sourcePosition.HasValue
                     ? FormatSequencePositionText(entityType, positionLabel, position)
@@ -382,7 +382,10 @@ internal sealed partial class DetailCompositionOrchestrator
         foreach (var manifestItem in manifestItems)
         {
             var sourcePosition = ManifestSourcePosition(manifestItem);
-            var positionSort = ManifestOrderingSort(manifestItem);
+            // The manifest's ordinal orders main-sequence members only; nothing else is given an invented position.
+            var positionSort = string.Equals(manifestItem.MembershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase)
+                ? sourcePosition
+                : null;
             var position = ToDisplayPositionNumber(sourcePosition);
             var positionLabel = sourcePosition.HasValue
                 ? StringHelpers.FirstNonBlankOr(string.Empty, manifestItem.RawOrdinal, FormatSequenceSort(sourcePosition))
@@ -473,9 +476,6 @@ internal sealed partial class DetailCompositionOrchestrator
 
         return TryParseSeriesPositionSort(item.RawOrdinal);
     }
-
-    private static double? ManifestOrderingSort(SeriesManifestItemRecord item)
-        => ManifestSourcePosition(item) ?? item.SortOrder;
 
     private static HashSet<string> BuildOwnedPositionSet(IEnumerable<SequenceItemViewModel> items)
         => items

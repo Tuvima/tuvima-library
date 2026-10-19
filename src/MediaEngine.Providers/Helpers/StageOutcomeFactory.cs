@@ -392,6 +392,29 @@ public sealed class StageOutcomeFactory
     }
 
     /// <summary>
+    /// Creates a <see cref="ReviewTrigger.AmbiguousSeriesMembership"/> review item: Wikidata lists the work as a
+    /// main-sequence member of two Series of its own media type and nothing separates them, so the work is left on no
+    /// Series instead of being guessed into one. <c>candidates_json</c> names the competing Series.
+    /// </summary>
+    /// <returns>The review entry ID, or <c>null</c> if a pending item for this work already exists.</returns>
+    public Task<Guid?> CreateAmbiguousSeriesMembershipAsync(
+        Guid entityId,
+        string detail,
+        string candidatesJson,
+        Guid? ingestionRunId = null,
+        Action<Guid?>? onBatchAdjust = null,
+        CancellationToken ct = default)
+        => CreateCoreAsync(
+            entityId,
+            ReviewTrigger.AmbiguousSeriesMembership,
+            0.0,
+            detail,
+            ingestionRunId,
+            onBatchAdjust,
+            ct,
+            candidatesJson: candidatesJson);
+
+    /// <summary>
     /// Shared implementation: dedup check, insert, and optional user-visible publication.
     /// </summary>
     private async Task<Guid?> CreateCoreAsync(

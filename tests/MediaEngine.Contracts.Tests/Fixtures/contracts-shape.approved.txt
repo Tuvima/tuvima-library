@@ -1602,6 +1602,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionIt
   CoverUrl: System.String | nullability=nullable | accessors=get,set
   SortOrder: System.Int32 | nullability=not-null | accessors=get,set
   DetailRoute: System.String | nullability=nullable | accessors=get,set
+  MembershipScope: System.String | nullability=not-null | accessors=get,set
+  PositionLabel: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemReorderRequest
   ItemIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
@@ -2495,6 +2497,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
   CurrentItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=not-null | accessors=get,init
   NextItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=nullable | accessors=get,init
   OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
+  AlsoInThisWorld: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
