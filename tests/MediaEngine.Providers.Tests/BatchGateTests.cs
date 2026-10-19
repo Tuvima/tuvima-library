@@ -682,6 +682,9 @@ public sealed class BatchGateTests
         public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
+
+        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, CancellationToken ct = default)
+            => Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>(([], 0));
     }
 
     private sealed class StubEventPublisher : IEventPublisher

@@ -328,9 +328,14 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         var cut = RenderLoaded();
         Assert.Empty(cut.FindAll("button.view-documents-select"));
 
-        // A quick tap that is released before the hold finishes is just a tap: nothing is selected.
-        await TriggerAsync(cut, "li.view-document-card", 0, "onpointerdown", new PointerEventArgs());
-        await TriggerAsync(cut, "li.view-document-card", 0, "onpointerup", new PointerEventArgs());
+        // A quick tap that is released before the hold finishes is just a tap: nothing is selected. Press and release happen
+        // in one turn on the renderer thread, so a busy machine cannot stretch the tap past the hold time.
+        await cut.InvokeAsync(() =>
+        {
+            var card = cut.FindAll("li.view-document-card")[0];
+            card.TriggerEvent("onpointerdown", new PointerEventArgs());
+            card.TriggerEvent("onpointerup", new PointerEventArgs());
+        });
         await Task.Delay(700);
         Assert.Empty(cut.FindAll(".view-selection-toolbar"));
 

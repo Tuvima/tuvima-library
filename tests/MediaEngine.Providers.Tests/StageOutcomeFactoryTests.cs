@@ -52,6 +52,7 @@ public sealed class StageOutcomeFactoryTests
         var activity = Assert.Single(activityRepo.Entries);
         Assert.Equal(SystemActionType.ReviewItemCreated, activity.ActionType);
         Assert.Equal(entityId, activity.EntityId);
+        Assert.Equal("Fixture Title", activity.CollectionName);
 
         var published = Assert.Single(eventPublisher.Events);
         Assert.Equal(SignalREvents.ReviewItemCreated, published.EventName);
@@ -232,6 +233,9 @@ public sealed class StageOutcomeFactoryTests
             CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<SystemActivityEntry>>(
                 Entries.Where(e => e.ProfileId == profileId).Take(limit).ToList());
+
+        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, CancellationToken ct = default)
+            => Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>(([], 0));
     }
 
     private sealed class RecordingEventPublisher : IEventPublisher

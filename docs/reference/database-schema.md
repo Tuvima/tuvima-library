@@ -840,6 +840,7 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). |
 | `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. |
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
+| `first_used_at` | TEXT | When the session was first used after sign-in. NULL means never used. At the session limit (`maximum_active_sessions`), never-used sessions end first, then sessions idle for 10 minutes or more, then the least recently seen. |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 
 ### device_profile_preferences
@@ -988,7 +989,7 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_by_name` | TEXT | Profile display name (or application name) at the time |
 | `approved_at` | TEXT | ISO 8601 UTC |
 
-**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0011_approval_records`.
+**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0012_approval_records`.
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

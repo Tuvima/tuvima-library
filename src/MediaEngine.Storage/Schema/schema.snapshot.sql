@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0011 approval_records).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0012 approval_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -376,7 +376,7 @@ CREATE TABLE auth_sessions (
     revoked_at            TEXT,
     revoked_reason        TEXT,
     profile_pending       INTEGER NOT NULL DEFAULT 0
-);
+, first_used_at TEXT);
 
 CREATE TABLE authorization_audit_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

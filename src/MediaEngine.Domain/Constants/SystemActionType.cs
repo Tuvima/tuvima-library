@@ -273,4 +273,23 @@ public static class SystemActionType
 
     /// <summary>A tool or model download was cancelled by the person.</summary>
     public const string ToolDownloadCancelled = "ToolDownloadCancelled";
+
+    // -- Tool and provider health --------------------------------------------
+
+    /// <summary>A tool the Library needs (such as FFmpeg) was not found or stopped working.</summary>
+    public const string ToolMissing = "ToolMissing";
+
+    /// <summary>A tool that was missing or not working is ready again.</summary>
+    public const string ToolFound = "ToolFound";
+
+    /// <summary>A metadata provider stopped responding and work that needs it is waiting.</summary>
+    public const string ProviderDown = "ProviderDown";
+
+    /// <summary>A metadata provider that was not responding is back.</summary>
+    public const string ProviderRecovered = "ProviderRecovered";
+
+    // -- Personal media ------------------------------------------------------
+
+    /// <summary>Photos or personal videos were added to a personal library, recorded as one count row instead of one row per file.</summary>
+    public const string PersonalMediaAdded = "PersonalMediaAdded";
 }

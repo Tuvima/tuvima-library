@@ -16,6 +16,8 @@ public sealed class AuthSession
     public string SecurityStamp { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
+    /// <summary>When the session was first used after sign-in; null means never used. The sign-in limit ends never-used sessions first.</summary>
+    public DateTimeOffset? FirstUsedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     /// <summary>When the person last proved it was them (sign-in, or the "Confirm it's you" check). Sensitive actions need this to be recent.</summary>
     public DateTimeOffset AuthenticatedAt { get; set; }

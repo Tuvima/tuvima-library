@@ -17,10 +17,6 @@
     {
         <IngestionMediaPagedView Mode="batch" BatchId="batchId" OnOpen="OpenDrawer" />
     }
-    else if (IsCurrentPagedView)
-    {
-        <IngestionMediaPagedView Mode="@PagedViewMode" OnOpen="OpenDrawer" />
-    }
     else
     {
         <LibrarySummary RefreshToken="_summaryRefresh" />
@@ -86,7 +82,7 @@
             if (Model.IsRunning)
             {
                 <section class="ingestion-section" aria-labelledby="being-added-title">
-                    <header><div><h2 id="being-added-title">Being added now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="/settings/ingestion?view=all" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
+                    <header><div><h2 id="being-added-title">Being added now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="@SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added)" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
                     @if (Model.CurrentMedia.Count > 0)
                     {
                         <div class="ingestion-media-list">
@@ -132,8 +128,6 @@
     private Guid? _requestedItemId;
     private IngestionPresentationSnapshotDto Model => Dashboard.Presentation!;
     private bool IsHistoricalBatchView => _view == "all" && _runId.HasValue;
-    private bool IsCurrentPagedView => _view == "all" && !_runId.HasValue;
-    private string PagedViewMode => "current";
     private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
     private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
     private string StatusPanelClass
@@ -212,6 +206,12 @@
         _view = View?.ToLowerInvariant();
         _runId = RunId;
         _requestedItemId = ItemId;
+
+        // The old paged list of what is being added right now is the Activity log's Added filter; only a run's batch view stays here.
+        if (_view == "all" && !_runId.HasValue)
+        {
+            Nav.NavigateTo(SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added), replace: true);
+        }
     }
 
     private async Task OpenDrawer(IngestionMediaGroupDto item)

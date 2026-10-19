@@ -145,11 +145,12 @@ public sealed record SettingsRouteResolution(
 public static class SettingsNav
 {
     private static bool _productionMode;
+    private static readonly AsyncLocal<bool?> _scopedProductionMode = new();
 
     /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
-    /// <summary>The Logs sub-page of System: technical log and retention (server administrators only).</summary>
+    /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>
     public const string LogsSubsection = "logs";
 
     /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
@@ -200,6 +201,23 @@ public static class SettingsNav
     private static LaunchFeatureEvidence Complete() => new(true, true, true, true, true);
 
     public static void ConfigureEnvironment(bool productionMode) => _productionMode = productionMode;
+
+    /// <summary>
+    /// Applies <paramref name="productionMode"/> only to the calling execution flow until the returned scope is disposed.
+    /// The process-wide setting from <see cref="ConfigureEnvironment"/> is shared by every caller, so a check that needs the
+    /// other mode uses this instead of flipping it underneath callers that run in parallel.
+    /// </summary>
+    public static IDisposable UseEnvironmentScope(bool productionMode)
+    {
+        var previous = _scopedProductionMode.Value;
+        _scopedProductionMode.Value = productionMode;
+        return new EnvironmentScope(previous);
+    }
+
+    private sealed class EnvironmentScope(bool? previous) : IDisposable
+    {
+        public void Dispose() => _scopedProductionMode.Value = previous;
+    }
 
     public static bool MeetsLaunchContract(SettingsSection section) =>
         LaunchContracts.TryGetValue(section, out var evidence) && evidence.IsComplete;
@@ -653,7 +671,7 @@ public static class SettingsNav
     public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool householdAdministrator = false)
     {
         var item = GetItem(section);
-        if (_productionMode
+        if ((_scopedProductionMode.Value ?? _productionMode)
             && (item.Status != SettingsStatusKind.Live || !MeetsLaunchContract(section)))
         {
             return false;
@@ -724,6 +742,16 @@ public static class SettingsNav
         }
 
         return $"{SectionRouteFor(section)}/{subsection.Slug}";
+    }
+
+    /// <summary>
+    /// The address of the Events tab of System &gt; Logs (the Activity log), optionally opened on one filter
+    /// (<c>added</c>, <c>review</c>, <c>failed</c> or <c>system</c>; no filter means All). Every link to the log is built here.
+    /// </summary>
+    public static string ActivityLogRoute(string? filter = null)
+    {
+        var route = $"{RouteFor(SettingsSection.AdminOverview, LogsSubsection)}?tab=events";
+        return string.IsNullOrWhiteSpace(filter) ? route : $"{route}&filter={Uri.EscapeDataString(filter)}";
     }
 
     public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool householdAdministrator = false)

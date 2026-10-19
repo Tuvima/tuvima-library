@@ -762,6 +762,27 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<PagedResponse<ActivityLogEntryDto>?> GetActivityLogAsync(
+        string category, string? search, int offset, int limit, CancellationToken ct = default)
+    {
+        try
+        {
+            var path = $"/activity/log?category={Uri.EscapeDataString(category)}&offset={offset}&limit={limit}";
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                path += $"&search={Uri.EscapeDataString(search)}";
+            }
+
+            return await _http.GetFromJsonAsync<PagedResponse<ActivityLogEntryDto>>(path, ct);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /activity/log failed");
+            return null;
+        }
+    }
+
     public async Task<ActivityStatsResponse?> GetActivityStatsAsync(CancellationToken ct = default)
     {
         try

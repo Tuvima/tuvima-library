@@ -11,6 +11,15 @@
     protected override void OnInitialized()
     {
         var current = Nav.ToAbsoluteUri(Nav.Uri);
+
+        // The old activity and timeline pages are the Events tab of System > Logs (the Activity log) now.
+        if (current.AbsolutePath.Equals("/operations/activity", StringComparison.OrdinalIgnoreCase)
+            || current.AbsolutePath.Equals("/operations/timeline", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo(SettingsNav.ActivityLogRoute(), replace: true);
+            return;
+        }
+
         var target = current.AbsolutePath.ToLowerInvariant() switch
         {
             "/operations/ingestion" => "/settings/ingestion",

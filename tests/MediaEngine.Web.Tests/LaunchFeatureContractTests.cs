@@ -2,12 +2,8 @@ using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class LaunchFeatureContractTests : IDisposable
+public sealed class LaunchFeatureContractTests
 {
-    public LaunchFeatureContractTests() => SettingsNav.ConfigureEnvironment(productionMode: false);
-
-    public void Dispose() => SettingsNav.ConfigureEnvironment(productionMode: false);
-
     [Fact]
     public void EveryLiveSettingsSurfaceMeetsTheFivePartLaunchContract()
     {
@@ -23,7 +19,9 @@ public sealed class LaunchFeatureContractTests : IDisposable
     [Fact]
     public void ProductionHidesPartialExperimentalPlannedAndPlaceholderSurfaces()
     {
-        SettingsNav.ConfigureEnvironment(productionMode: true);
+        // The production setting is process-wide and other tests resolve Settings routes in parallel, so this check
+        // applies it to its own execution flow only.
+        using var production = SettingsNav.UseEnvironmentScope(productionMode: true);
 
         Assert.True(SettingsNav.IsVisible(SettingsSection.AdminOverview, true));
         Assert.True(SettingsNav.IsVisible(SettingsSection.Delivery, true));

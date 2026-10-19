@@ -1,6 +1,9 @@
+using System.Text.Json;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 
 namespace MediaEngine.Api.Services;
 
@@ -28,6 +31,7 @@ public sealed class WorkReadinessService : BackgroundService
     private readonly IWorkReadinessRepository _repository;
     private readonly IIdentityBypassLibraries _bypassLibraries;
     private readonly IEventPublisher _publisher;
+    private readonly ISystemActivityRepository _activity;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<WorkReadinessService> _logger;
 
@@ -38,18 +42,24 @@ public sealed class WorkReadinessService : BackgroundService
     // Works that became Ready for the first time but whose announcement failed, with the attempts made so far.
     private readonly Dictionary<Guid, int> _pendingAnnouncements = [];
 
+    // Works whose "Added" activity row is already written but whose announcement has not finished, so a retried
+    // announcement never writes a second row.
+    private readonly HashSet<Guid> _activityWritten = [];
+
     private WorkReadinessWatermark _watermark = WorkReadinessWatermark.Empty;
 
     public WorkReadinessService(
         IWorkReadinessRepository repository,
         IIdentityBypassLibraries bypassLibraries,
         IEventPublisher publisher,
+        ISystemActivityRepository activity,
         TimeProvider timeProvider,
         ILogger<WorkReadinessService> logger)
     {
         _repository = repository;
         _bypassLibraries = bypassLibraries;
         _publisher = publisher;
+        _activity = activity;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -231,12 +241,21 @@ public sealed class WorkReadinessService : BackgroundService
             {
                 // The work is gone; there is nothing to announce.
                 _pendingAnnouncements.Remove(workId);
+                _activityWritten.Remove(workId);
+                continue;
+            }
+
+            // The activity row goes first and is written once; a failed write is deferred like a failed publish.
+            if (!await RecordAddedAsync(detail, ct).ConfigureAwait(false))
+            {
+                Defer(workId);
                 continue;
             }
 
             if (await PublishAddedAsync(detail, ct).ConfigureAwait(false))
             {
                 _pendingAnnouncements.Remove(workId);
+                _activityWritten.Remove(workId);
             }
             else
             {
@@ -259,11 +278,40 @@ public sealed class WorkReadinessService : BackgroundService
         if (attempts >= MaxAnnouncementAttempts)
         {
             _pendingAnnouncements.Remove(workId);
+            _activityWritten.Remove(workId);
             _logger.LogWarning("Work {WorkId} could not be announced after {Attempts} attempts; giving up.", workId, attempts);
             return;
         }
 
         _pendingAnnouncements[workId] = attempts;
+    }
+
+    private async Task<bool> RecordAddedAsync(WorkReadinessDetails detail, CancellationToken ct)
+    {
+        if (_activityWritten.Contains(detail.WorkId))
+        {
+            return true;
+        }
+
+        try
+        {
+            await _activity.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.MediaAdded,
+                CollectionName = detail.Title,
+                EntityId = detail.WorkId,
+                EntityType = "Work",
+                ChangesJson = JsonSerializer.Serialize(new { media_type = detail.MediaType }),
+                Detail = "Added",
+            }, ct).ConfigureAwait(false);
+            _activityWritten.Add(detail.WorkId);
+            return true;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "The Added activity entry for ready work {WorkId} could not be written.", detail.WorkId);
+            return false;
+        }
     }
 
     private async Task<bool> PublishAddedAsync(WorkReadinessDetails detail, CancellationToken ct)

@@ -581,7 +581,9 @@ public sealed partial class IngestionEngine
         {
             ActionType = Domain.Constants.SystemActionType.MediaFailed,
             EntityType = "MediaAsset",
-            Detail = reason,
+            CollectionName = Path.GetFileName(candidate.Path),
+            // The Activity log shows this line as it is, so it stays plain: the error itself goes to the technical log.
+            Detail = "Something went wrong while reading this file. The technical log has the details.",
             ChangesJson = JsonSerializer.Serialize(new
             {
                 source_path = candidate.Path,

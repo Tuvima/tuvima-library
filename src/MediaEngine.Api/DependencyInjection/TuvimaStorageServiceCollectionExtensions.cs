@@ -49,6 +49,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewGalleryRepository, ViewGalleryRepository>();
         services.AddSingleton<IViewDiscoveryRepository, ViewDiscoveryRepository>();
         services.AddSingleton<ICollectionViewSourceRepository, CollectionViewSourceRepository>();
+        services.AddSingleton<PersonalMediaActivityRecorder>();
+        services.AddHostedService(sp => sp.GetRequiredService<PersonalMediaActivityRecorder>());
         services.AddSingleton<ViewLibraryService>();
         services.AddSingleton<ViewThumbnailService>();
         services.AddSingleton<IViewPathIndexer>(sp => sp.GetRequiredService<ViewLibraryService>());
