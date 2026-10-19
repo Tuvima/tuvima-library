@@ -1,10 +1,13 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Domain.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
 public sealed class LibraryReconciliationEmptyFolderPruningTests : IDisposable
 {
+    private static readonly string[] FreshLibraryFolders = ["Audiobooks", "Books", "Comics", "Movies", "Music", "TV"];
+
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-prune-{Guid.NewGuid():N}");
 
     public LibraryReconciliationEmptyFolderPruningTests()
@@ -18,7 +21,7 @@ public sealed class LibraryReconciliationEmptyFolderPruningTests : IDisposable
         var hlsCache = Directory.CreateDirectory(Path.Combine(_root, ".data", "variants", "hls")).FullName;
         var staging = Directory.CreateDirectory(Path.Combine(_root, ".data", "staging")).FullName;
 
-        LibraryReconciliationService.PruneEmptyFolders(_root, NullLogger.Instance, CancellationToken.None);
+        LibraryReconciliationService.PruneEmptyFolders(_root, LibraryRoots(), NullLogger.Instance, CancellationToken.None);
 
         Assert.True(Directory.Exists(hlsCache));
         Assert.True(Directory.Exists(staging));
@@ -32,13 +35,44 @@ public sealed class LibraryReconciliationEmptyFolderPruningTests : IDisposable
         File.WriteAllText(Path.Combine(kept, "dune.epub"), "book");
         var emptyCategory = Directory.CreateDirectory(Path.Combine(_root, "Comics")).FullName;
 
-        var cleaned = LibraryReconciliationService.PruneEmptyFolders(_root, NullLogger.Instance, CancellationToken.None);
+        var cleaned = LibraryReconciliationService.PruneEmptyFolders(
+            _root, LibraryRoots(), NullLogger.Instance, CancellationToken.None);
 
         Assert.Equal(1, cleaned);
         Assert.False(Directory.Exists(emptySeries));
         Assert.True(Directory.Exists(kept));
         Assert.True(Directory.Exists(emptyCategory));
     }
+
+    [Fact]
+    public void PruneEmptyFolders_KeepsEveryEmptyConfiguredLibraryFolder_AndRemovesUnconfiguredOnes()
+    {
+        foreach (var folder in FreshLibraryFolders)
+        {
+            Directory.CreateDirectory(Path.Combine(_root, folder));
+        }
+        var leftover = Directory.CreateDirectory(Path.Combine(_root, "Videos")).FullName;
+
+        var cleaned = LibraryReconciliationService.PruneEmptyFolders(
+            _root, LibraryRoots(), NullLogger.Instance, CancellationToken.None);
+
+        Assert.Equal(1, cleaned);
+        Assert.False(Directory.Exists(leftover));
+        Assert.All(FreshLibraryFolders, folder => Assert.True(Directory.Exists(Path.Combine(_root, folder)), folder));
+    }
+
+    // Mirrors config/libraries.json: one library per folder, each with a source under the library root.
+    private IReadOnlySet<string> LibraryRoots() =>
+        LibraryReconciliationService.ConfiguredLibraryRoots(new LibrariesConfiguration
+        {
+            Libraries = FreshLibraryFolders
+                .Select(folder => new LibraryFolderConfig
+                {
+                    Name = folder,
+                    Sources = [new LibrarySourceConfig { Path = Path.Combine(_root, folder) + Path.DirectorySeparatorChar }],
+                })
+                .ToList(),
+        });
 
     public void Dispose()
     {
