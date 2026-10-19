@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1010; api=0; web-client=77
+# scopes: contracts=1009; api=0; web-client=75
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9803,6 +9803,22 @@
   StepName: System.String | json=step_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AppliedAt: System.DateTimeOffset? | json=applied_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.System.LogRetentionSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ActivityRetentionDays: System.Int32 | json=activity_retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ActivityMaxEvents: System.Int32 | json=activity_max_events | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LogRetentionDays: System.Int32 | json=log_retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LogMaxTotalMegabytes: System.Int32 | json=log_max_total_mb | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"activity_retention_days":7,"activity_max_events":7,"log_retention_days":7,"log_max_total_mb":7}
+
+[contracts] MediaEngine.Contracts.System.LogRetentionStatusDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Settings: MediaEngine.Contracts.System.LogRetentionSettingsDto | json=settings | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ActivityEventCount: System.Int64 | json=activity_event_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LogFileCount: System.Int32 | json=log_file_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LogTotalBytes: System.Int64 | json=log_total_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"settings":null,"activity_event_count":7,"log_file_count":7,"log_total_bytes":7}
+
 [contracts] MediaEngine.Contracts.System.RestoreValidationResultDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Valid: System.Boolean | json=valid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9819,6 +9835,24 @@
   Scheduled: System.Boolean | json=scheduled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.String | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Schedule: System.String | json=schedule | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRunAt: System.DateTimeOffset? | json=last_run_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRunResult: System.String | json=last_run_result | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRunReason: System.String | json=last_run_reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"sample","name":"sample","description":"sample","schedule":"sample","last_run_at":"2025-01-02T03:04:05+00:00","last_run_result":"sample","last_run_reason":"sample","next_run_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.System.ScheduledTasksResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EngineStartedAt: System.DateTimeOffset | json=engine_started_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tasks: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskDto> | json=tasks | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"engine_started_at":"2025-01-02T03:04:05+00:00","tasks":[]}
 
 [contracts] MediaEngine.Contracts.System.StartupReadinessCheckResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9856,6 +9890,20 @@
   Version: System.String | json=version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Language: System.String | json=language | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"status":"sample","version":"sample","language":"sample"}
+
+[contracts] MediaEngine.Contracts.System.TechnicalLogLineDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Time: System.DateTimeOffset | json=time | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Level: System.String | json=level | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Area: System.String | json=area | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"time":"2025-01-02T03:04:05+00:00","level":"sample","area":"sample","message":"sample"}
+
+[contracts] MediaEngine.Contracts.System.TechnicalLogPageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | json=lines | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextCursor: System.String | json=next_cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"lines":[],"next_cursor":"sample"}
 
 [contracts] MediaEngine.Contracts.Timeline.EntityTimelineEventDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -11065,6 +11113,16 @@
   Version: System.String | json=version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Language: System.String | json=language | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsHealthy: System.Boolean | json=isHealthy | nullability=not-null | accessors=get | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[web-client] MediaEngine.Web.Models.ViewDTOs.TechnicalLogRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  From: System.DateTimeOffset? | json=from | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  To: System.DateTimeOffset? | json=to | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Level: System.String | json=level | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Area: System.String | json=area | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Search: System.String | json=search | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Cursor: System.String | json=cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Limit: System.Int32 | json=limit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.UIDeviceConstraintsDto
   kind=class | converter=default | number-handling=default | unmapped=default

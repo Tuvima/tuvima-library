@@ -1,5 +1,6 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Jobs;
@@ -27,6 +28,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
     private readonly BackgroundAiAdmissionController _admission;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<SeriesAlignmentBackgroundService> _logger;
 
     public SeriesAlignmentBackgroundService(
@@ -38,6 +40,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
         BackgroundAiAdmissionController admission,
+        IScheduledTaskRegistry registry,
         ILogger<SeriesAlignmentBackgroundService> logger)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -48,6 +51,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         ArgumentNullException.ThrowIfNull(featurePersistence);
         ArgumentNullException.ThrowIfNull(libraryItems);
         ArgumentNullException.ThrowIfNull(admission);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _settings = settings;
@@ -58,11 +62,14 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
         _admission = admission;
+        _registry = registry;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var task = _registry.Register(Describe(_settings.Scheduling.SeriesCheckCron));
+        task.NextRunIn(TimeSpan.FromMinutes(3));
         try
         {
             await Task.Delay(TimeSpan.FromMinutes(3), stoppingToken);
@@ -77,6 +84,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
             try
             {
                 await RunAlignmentAsync(stoppingToken);
+                task.Done();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -85,10 +93,13 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SeriesAlignmentService batch failed");
+                task.Failed(ex);
             }
 
             var cron = _settings.Scheduling.SeriesCheckCron;
+            _registry.Register(Describe(cron));
             var delay = CronScheduler.UntilNext(cron, TimeSpan.FromHours(24));
+            task.NextRunIn(delay);
             _logger.LogInformation("SeriesAlignmentService: next run in {Delay}", delay);
 
             try
@@ -101,6 +112,12 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
             }
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string cron) => new(
+        "series-alignment",
+        "Put series in order with Local AI",
+        "Uses Local AI to work out where books and episodes sit in their series, when Local AI is set up and the computer has room.",
+        ScheduleDescriber.FromCron(cron));
 
     private async Task RunAlignmentAsync(CancellationToken ct)
     {

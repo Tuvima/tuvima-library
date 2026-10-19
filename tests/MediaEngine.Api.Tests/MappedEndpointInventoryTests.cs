@@ -84,7 +84,7 @@ public sealed class MappedEndpointInventoryTests
             [ApplicationPermissionIds.IngestionCancel] = ["CancelMediaOperation"],
             [ApplicationPermissionIds.SystemActivityRead] = ["GetActivityPeopleAudit", "GetRecentActivity", "GetActivityStats", "GetActivityByTypes"],
         };
-        string[] administratorOnly = ["PruneActivity", "UpdateActivityRetention"];
+        string[] administratorOnly = ["PruneActivity"];
         var operations = inventory.Endpoints.Where(endpoint =>
             (endpoint.Pattern == "/operations" || endpoint.Pattern.StartsWith("/operations/", StringComparison.Ordinal) ||
              endpoint.Pattern == "/activity" || endpoint.Pattern.StartsWith("/activity/", StringComparison.Ordinal) ||

@@ -8342,6 +8342,20 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
   StepName: System.String | nullability=not-null | accessors=get,init
   AppliedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogRetentionLimits
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogRetentionSettingsDto
+  ActivityRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+  ActivityMaxEvents: System.Int32 | nullability=not-null | accessors=get,init
+  LogRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
+  LogMaxTotalMegabytes: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogRetentionStatusDto
+  Settings: MediaEngine.Contracts.System.LogRetentionSettingsDto | nullability=not-null | accessors=get,init
+  ActivityEventCount: System.Int64 | nullability=not-null | accessors=get,init
+  LogFileCount: System.Int32 | nullability=not-null | accessors=get,init
+  LogTotalBytes: System.Int64 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.RestoreValidationResultDto
   Valid: System.Boolean | nullability=not-null | accessors=get,init
   FileName: System.String | nullability=not-null | accessors=get,init
@@ -8355,6 +8369,20 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreResultD
   Scheduled: System.Boolean | nullability=not-null | accessors=get,init
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=not-null | accessors=get,init
+  Schedule: System.String | nullability=not-null | accessors=get,init
+  LastRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  LastRunResult: System.String | nullability=nullable | accessors=get,init
+  LastRunReason: System.String | nullability=nullable | accessors=get,init
+  NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTasksResponse
+  EngineStartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Tasks: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.StartupReadinessCheckResponse
   Name: System.String | nullability=not-null | accessors=get,set
@@ -8384,6 +8412,16 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.SystemStatusResponse
   Status: System.String | nullability=not-null | accessors=get,init
   Version: System.String | nullability=not-null | accessors=get,init
   Language: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogLineDto
+  Time: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Level: System.String | nullability=not-null | accessors=get,init
+  Area: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogPageDto
+  Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | nullability=not-null | accessors=get,init
+  NextCursor: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Timeline.MediaEngine.Contracts.Timeline.EntityTimelineEventDto
   Id: System.Guid | nullability=not-null | accessors=get,set

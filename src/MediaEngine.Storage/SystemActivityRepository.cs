@@ -6,10 +6,10 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Storage;
 
 /// <summary>
-/// SQLite implementation of <see cref="ISystemActivityRepository"/>.
+/// SQLite implementation of <see cref="ISystemActivityRepository"/> and <see cref="ISystemActivityRetention"/>.
 /// Uses Dapper for type-safe column-to-property mapping.
 /// </summary>
-public sealed class SystemActivityRepository : ISystemActivityRepository
+public sealed class SystemActivityRepository : ISystemActivityRepository, ISystemActivityRetention
 {
     private readonly IDatabaseConnection _db;
 
@@ -95,6 +95,25 @@ public sealed class SystemActivityRepository : ISystemActivityRepository
             WHERE occurred_at < @cutoff;
             """,
             new { cutoff });
+
+        return Task.FromResult(deleted);
+    }
+
+    /// <inheritdoc/>
+    public Task<int> PruneToMaxEventsAsync(long maxEvents, CancellationToken ct = default)
+    {
+        if (maxEvents < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxEvents), "The event cap must be at least 1.");
+        }
+
+        using var conn = _db.CreateConnection();
+        // The row just past the newest N is the newest one to drop; ids only grow, so everything at or below it is older.
+        var deleted = conn.Execute("""
+            DELETE FROM system_activity
+            WHERE id <= (SELECT id FROM system_activity ORDER BY id DESC LIMIT 1 OFFSET @maxEvents);
+            """,
+            new { maxEvents });
 
         return Task.FromResult(deleted);
     }

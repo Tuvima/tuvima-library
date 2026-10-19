@@ -1,5 +1,6 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -44,6 +45,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
     private readonly IRecursiveIdentityService _identityService;
     private readonly IMetadataHarvestingService _harvesting;
     private readonly BackgroundAiAdmissionController _admission;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<DescriptionIntelligenceBatchService> _logger;
 
     public DescriptionIntelligenceBatchService(
@@ -65,6 +67,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         IRecursiveIdentityService identityService,
         IMetadataHarvestingService harvesting,
         BackgroundAiAdmissionController admission,
+        IScheduledTaskRegistry registry,
         ILogger<DescriptionIntelligenceBatchService> logger)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -85,6 +88,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         ArgumentNullException.ThrowIfNull(identityService);
         ArgumentNullException.ThrowIfNull(harvesting);
         ArgumentNullException.ThrowIfNull(admission);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _settings = settings;
@@ -105,12 +109,16 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _identityService = identityService;
         _harvesting = harvesting;
         _admission = admission;
+        _registry = registry;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var task = _registry.Register(Describe(_settings.Scheduling.DescriptionIntelligenceCron));
+
         // Initial delay — let ingestion and hydration pipelines settle.
+        task.NextRunIn(TimeSpan.FromMinutes(3));
         try
         {
             await Task.Delay(TimeSpan.FromMinutes(3), stoppingToken);
@@ -125,15 +133,19 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
             try
             {
                 await ProcessBatchAsync(stoppingToken);
+                task.Done();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[DESCRIPTION-INTEL-BATCH] Batch run failed");
+                task.Failed(ex);
             }
 
             var cron = _settings.Scheduling.DescriptionIntelligenceCron;
+            _registry.Register(Describe(cron));
             var delay = CronScheduler.UntilNext(cron, TimeSpan.FromMinutes(15));
+            task.NextRunIn(delay);
 
             _logger.LogInformation("[DESCRIPTION-INTEL-BATCH] Next run in {Delay}", delay);
             try
@@ -146,6 +158,12 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
             }
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string cron) => new(
+        "description-intelligence",
+        "Read descriptions with Local AI",
+        "Uses Local AI to pick out people, places and themes from item descriptions, when Local AI is set up and the computer has room.",
+        ScheduleDescriber.FromCron(cron));
 
     private async Task ProcessBatchAsync(CancellationToken ct)
     {

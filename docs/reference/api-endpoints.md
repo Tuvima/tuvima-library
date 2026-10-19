@@ -198,6 +198,7 @@ compatibility versions.
 | GET | `/system/activity-status` | Sanitized leased/running durable operations used to seed the Dashboard navbar activity indicator; excludes media titles and filesystem paths | Required |
 | GET | `/system/watcher-status` | File watcher diagnostic - shows monitored folders and last event | Required |
 | GET | `/system/resources` | Local reading for the Settings System summary: Engine version, start time and uptime (`engine_version`, `started_at`, `uptime_seconds`), Engine processor use as a percent of the machine and memory in use and available in MB (`processor_percent`, `memory_used_mb`, `memory_total_mb`), and `drives` (root, label, total and free bytes, and whether each holds the library and/or the data store; a drive holding both appears once) plus `data_store_size_bytes`. Nothing leaves the machine. | Administrator |
+| GET | `/system/scheduled-tasks` | Every recurring Engine task for the Scheduled tasks card on Tools and requirements: `engine_started_at` and `tasks`, each with `id`, `name`, `description` (one line), `schedule` (plain words such as "Every day at 3:00"), `last_run_at`, `last_run_result` (`done` or `failed`), `last_run_reason` (short, only when it failed) and `next_run_at`. Last run covers only the time since the Engine started (null until the task runs); next run is null when the task does not know | Administrator |
 | GET | `/system/data-store-version` | Latest upgrade step applied to the data store (`step_number`, `step_name`, `applied_at`); step 0 with no date means none is recorded yet. Shown as a read-only line in Settings. | Administrator |
 | POST | `/maintenance/sweep-orphan-assets` | Scan `.data/assets/` for managed files with no database reference and remove them. | Administrator |
 | POST | `/maintenance/storage/run` | Run storage maintenance on demand. Supports `dryRun`, cache retention, image retention, and claim compaction batch query parameters. | Administrator |
@@ -541,11 +542,22 @@ clients should use that contract value rather than derive pressure from labels.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/activity/recent` | Recent system activity entries, newest first | Required |
-| POST | `/activity/prune` | Prune activity entries older than the configured retention period | Administrator |
+| POST | `/activity/prune` | Prune now with the Logs page retention rule: entries older than `activity_retention_days`, then the oldest entries past `activity_max_events`. Returns `deleted` (both together) and `retention_days` | Administrator |
 | GET | `/activity/stats` | Aggregated activity statistics - counts by type and outcome | Required |
-| PUT | `/activity/retention` | Update the activity retention period (days) | Administrator |
 | GET | `/activity/by-types` | Filter activity log by one or more activity type codes | Required |
 | GET | `/activity/run/{runId}` | All activity entries for a specific ingestion or enrichment run | Required |
+
+---
+
+## Logs
+
+The System > Logs page (`/settings/system/logs`) reads these. Logs can name files and other people, so every action is for the server administrator only. Pruning is silent: nothing is raised when it removes something, and the Scheduled tasks list (`GET /system/scheduled-tasks`) shows when each clean-up last ran.
+
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| GET | `/logs/technical` | The Engine's log files (`tuvima-*.log`, in `TUVIMA_LOG_DIR` or `logs`), newest first. Query: `from` and `to` (date and time), `level` (the lowest level wanted: `error`, `warning`, `information` or `all`), `area` (`Ingestion`, `Playback`, `Network`, `Providers`, `Security`, `AI` or `Other`, grouped from the logger name), `q` (text in the message or logger name), `cursor` (from the previous page's `next_cursor`) and `limit` (default 100, most 500). Returns `lines` (each `time`, `level`, `area`, `message`; an error's detail follows its first line) and `next_cursor` (null when there are no older lines). Files are opened for sharing, so the file being written can be read; a line that cannot be read is skipped. `400` for an unknown level or area, or a range that ends before it starts | Administrator |
+| GET | `/logs/retention` | The four limits (`settings`: `activity_retention_days`, `activity_max_events`, `log_retention_days`, `log_max_total_mb`) and what is stored now (`activity_event_count`, `log_file_count`, `log_total_bytes`) | Administrator |
+| PUT | `/logs/retention` | Change the four limits (body: the `settings` object). Days 1 to 3650, events 1,000 to 10,000,000, megabytes 100 to 102,400; `400` with a sentence when any is out of range, saving nothing. The next nightly clean-up uses them. Replaces `PUT /activity/retention` | Administrator |
 
 ---
 

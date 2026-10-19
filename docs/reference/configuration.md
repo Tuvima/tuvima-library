@@ -340,7 +340,10 @@ Scheduled maintenance task configuration.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `activity_retention_days` | int | `60` | How long system activity log entries are kept before automatic pruning. |
+| `activity_retention_days` | int | `90` | How long system activity (Events) log entries are kept before the nightly prune removes them. 1 to 3650. Set on System > Logs > Retention. |
+| `activity_max_events` | int | `500000` | The most system activity entries kept. Once exceeded, the nightly prune removes the oldest first (after the day limit is applied). 1,000 to 10,000,000. Personal activity is not covered. |
+| `log_retention_days` | int | `90` | How long the Engine's log files (`tuvima-*.log`) are kept. 1 to 3650. Serilog's own 14-file limit is off, so this and `log_max_total_mb` are the only rules. |
+| `log_max_total_mb` | int | `1024` | Total size of all Engine log files together, in megabytes. Once exceeded, the nightly clean-up removes the oldest files first; the file being written is never removed. 100 to 102,400. |
 | `vacuum_interval_hours` | int | `168` | How often SQLite VACUUM runs to reclaim disk space (default: weekly). |
 | `sync_interval_hours` | int | `24` | How often metadata writeback sync runs for pending changes. |
 | `reconciliation_interval_hours` | int | `24` | How often the Wikidata reconciliation refresh cycle runs. |
@@ -350,6 +353,8 @@ Scheduled maintenance task configuration.
 | `storage_maintenance.image_cache_retention_days` | int | `30` | Age threshold for unused image cache rows/files. User-preserved images are not removed. |
 | `storage_maintenance.claim_compaction_batch_size` | int | `5000` | Maximum duplicate non-user-locked metadata claims compacted in one pass. |
 | `schedules.storage_maintenance` | cron | `0 2 * * *` | Nightly storage maintenance schedule. |
+| `schedules.activity_pruning` | cron | `0 3 * * *` | When the system activity prune runs. |
+| `schedules.log_file_retention` | cron | `30 3 * * *` | When Engine log files older than the limit are removed. |
 
 Administrators can run the same maintenance manually with `POST /maintenance/storage/run?dryRun=true`.
 

@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -38,6 +39,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
     private readonly IScoringEngine _scoringEngine;
     private readonly CoverArtWorker _coverArtWorker;
     private readonly EnrichmentPipelineExecutionGate _executionGate;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<MusicBrainzEnrichmentHostedService> _logger;
 
     public MusicBrainzEnrichmentHostedService(
@@ -52,6 +54,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         IScoringEngine scoringEngine,
         CoverArtWorker coverArtWorker,
         EnrichmentPipelineExecutionGate executionGate,
+        IScheduledTaskRegistry registry,
         ILogger<MusicBrainzEnrichmentHostedService> logger)
     {
         _db = db;
@@ -65,11 +68,18 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         _scoringEngine = scoringEngine;
         _coverArtWorker = coverArtWorker;
         _executionGate = executionGate;
+        _registry = registry;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var task = _registry.Register(new ScheduledTaskDefinition(
+            "musicbrainz-enrichment",
+            "Look up music details",
+            "Fetches artist, album and cover details from MusicBrainz for music that is still missing them.",
+            ScheduleDescriber.Every(SweepInterval)));
+        task.NextRunIn(InitialDelay);
         try
         {
             await Task.Delay(InitialDelay, stoppingToken).ConfigureAwait(false);
@@ -94,6 +104,8 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
                 {
                     await RunSweepAsync(sweepCancellation.Token).ConfigureAwait(false);
                 }
+
+                task.Done();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -106,6 +118,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "MusicBrainz enrichment sweep failed; music items remain visible and will be retried later");
+                task.Failed(ex);
             }
 
             if (interruptedByReset)
@@ -115,6 +128,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
 
             try
             {
+                task.NextRunIn(SweepInterval);
                 await Task.Delay(SweepInterval, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)

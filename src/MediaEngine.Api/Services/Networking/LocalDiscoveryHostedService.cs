@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Networking;
@@ -16,20 +17,29 @@ public sealed class LocalDiscoveryHostedService : BackgroundService
     private static readonly IPEndPoint MulticastEndpoint = new(MulticastAddress, 5353);
     private readonly IConfigurationLoader _configuration;
     private readonly INetworkEnvironmentService _environment;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<LocalDiscoveryHostedService> _logger;
 
     public LocalDiscoveryHostedService(
         IConfigurationLoader configuration,
         INetworkEnvironmentService environment,
+        IScheduledTaskRegistry registry,
         ILogger<LocalDiscoveryHostedService> logger)
     {
         _configuration = configuration;
         _environment = environment;
+        _registry = registry;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var interval = TimeSpan.FromMinutes(2);
+        var task = _registry.Register(new ScheduledTaskDefinition(
+            "local-discovery",
+            "Announce the server on your home network",
+            "Lets apps on your home network find this server by name.",
+            ScheduleDescriber.Every(interval)));
         UdpClient? client = null;
         try
         {
@@ -38,7 +48,9 @@ public sealed class LocalDiscoveryHostedService : BackgroundService
             while (!stoppingToken.IsCancellationRequested)
             {
                 await AnnounceAsync(client, stoppingToken);
-                await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+                task.Done();
+                task.NextRunIn(interval);
+                await Task.Delay(interval, stoppingToken);
             }
             await receiveTask;
         }
@@ -48,6 +60,8 @@ public sealed class LocalDiscoveryHostedService : BackgroundService
         catch (Exception ex) when (ex is SocketException or InvalidOperationException)
         {
             _logger.LogWarning(ex, "Local discovery could not start; direct local addresses remain available");
+            task.Failed(ex);
+            task.NextRunAt(null);
         }
         finally
         {

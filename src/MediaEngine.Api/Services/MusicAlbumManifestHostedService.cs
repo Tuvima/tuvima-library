@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Api.Services.Collections;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
@@ -19,6 +20,7 @@ public sealed class MusicAlbumManifestHostedService(
     AlbumTrackManifestService manifestService,
     CoverArtWorker coverArtWorker,
     EnrichmentPipelineExecutionGate executionGate,
+    IScheduledTaskRegistry registry,
     ILogger<MusicAlbumManifestHostedService> logger) : BackgroundService
 {
     private static readonly TimeSpan InitialDelay = TimeSpan.FromSeconds(15);
@@ -28,6 +30,12 @@ public sealed class MusicAlbumManifestHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var task = registry.Register(new ScheduledTaskDefinition(
+            "music-album-manifests",
+            "Complete music albums' track lists",
+            "Fills in the track lists of albums that were added before track lists were saved, and retries albums that were incomplete.",
+            ScheduleDescriber.Every(SweepInterval)));
+        task.NextRunIn(InitialDelay);
         try
         {
             await Task.Delay(InitialDelay, stoppingToken).ConfigureAwait(false);
@@ -53,6 +61,8 @@ public sealed class MusicAlbumManifestHostedService(
                 {
                     allComplete = await RunSweepAsync(sweepCancellation.Token).ConfigureAwait(false);
                 }
+
+                task.Done();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -65,6 +75,7 @@ public sealed class MusicAlbumManifestHostedService(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Music album manifest repair sweep failed; incomplete albums will be retried");
+                task.Failed(ex);
             }
 
             if (interruptedByReset)
@@ -74,9 +85,9 @@ public sealed class MusicAlbumManifestHostedService(
 
             try
             {
-                await Task.Delay(
-                    allComplete ? SweepInterval : IncompleteRetryInterval,
-                    stoppingToken).ConfigureAwait(false);
+                var wait = allComplete ? SweepInterval : IncompleteRetryInterval;
+                task.NextRunIn(wait);
+                await Task.Delay(wait, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

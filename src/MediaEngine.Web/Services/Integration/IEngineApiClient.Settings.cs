@@ -231,8 +231,17 @@ public partial interface IEngineApiClient
     /// <summary>POST /activity/prune — manually prune old activity entries.</summary>
     Task<PruneResponse?> TriggerPruneAsync(CancellationToken ct = default);
 
-    /// <summary>PUT /activity/retention?days= — update retention period.</summary>
-    Task<bool> UpdateRetentionAsync(int days, CancellationToken ct = default);
+    /// <summary>GET /logs/retention — the four Logs page limits plus how much is stored now. Null when the Engine could not be asked.</summary>
+    Task<LogRetentionStatusDto?> GetLogRetentionAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /logs/retention — change the four Logs page limits. Null when the Engine refused or could not be asked.</summary>
+    Task<LogRetentionStatusDto?> UpdateLogRetentionAsync(LogRetentionSettingsDto settings, CancellationToken ct = default);
+
+    /// <summary>GET /logs/technical — the Engine's technical log, newest first. Null when the Engine could not be asked.</summary>
+    Task<TechnicalLogPageDto?> GetTechnicalLogAsync(TechnicalLogRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /system/scheduled-tasks — every recurring Engine task with its last and next run. Null when the Engine could not be asked.</summary>
+    Task<ScheduledTasksResponse?> GetScheduledTasksAsync(CancellationToken ct = default);
 
     /// <summary>GET /activity/run/{runId} — all entries for a specific ingestion run.</summary>
     Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(Guid runId, CancellationToken ct = default);

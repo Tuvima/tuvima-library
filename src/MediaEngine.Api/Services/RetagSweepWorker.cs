@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
@@ -37,6 +38,7 @@ public sealed class RetagSweepWorker : BackgroundService
     private readonly IConfigurationLoader _configLoader;
     private readonly IEventPublisher _eventPublisher;
     private readonly WritebackConfigState _hashState;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<RetagSweepWorker> _logger;
 
     /// <summary>Cron expression fallback when <c>maintenance.json</c> is missing or unparseable.</summary>
@@ -52,6 +54,7 @@ public sealed class RetagSweepWorker : BackgroundService
         IConfigurationLoader configLoader,
         IEventPublisher eventPublisher,
         WritebackConfigState hashState,
+        IScheduledTaskRegistry registry,
         ILogger<RetagSweepWorker> logger)
     {
         ArgumentNullException.ThrowIfNull(assetRepo);
@@ -60,6 +63,7 @@ public sealed class RetagSweepWorker : BackgroundService
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(eventPublisher);
         ArgumentNullException.ThrowIfNull(hashState);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _assetRepo = assetRepo;
@@ -68,6 +72,7 @@ public sealed class RetagSweepWorker : BackgroundService
         _configLoader = configLoader;
         _eventPublisher = eventPublisher;
         _hashState = hashState;
+        _registry = registry;
         _logger = logger;
 
         _hashState.PendingApplied += OnPendingApplied;
@@ -77,7 +82,10 @@ public sealed class RetagSweepWorker : BackgroundService
     {
         _logger.LogInformation("RetagSweepWorker started");
 
+        var task = _registry.Register(Describe(DefaultSchedule));
+
         // Let the rest of the app finish starting before the first scan.
+        task.NextRunIn(TimeSpan.FromSeconds(60));
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
@@ -89,6 +97,7 @@ public sealed class RetagSweepWorker : BackgroundService
             try
             {
                 await RunSweepAsync(stoppingToken);
+                task.Done();
             }
             catch (OperationCanceledException)
             {
@@ -97,11 +106,14 @@ public sealed class RetagSweepWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "RetagSweepWorker: sweep pass failed; will retry on next cycle");
+                task.Failed(ex);
             }
 
             // Wait until the next cron tick OR an Apply signal, whichever comes first.
             var schedule = LoadSchedule();
+            _registry.Register(Describe(schedule));
             var cronDelay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
+            task.NextRunIn(cronDelay);
             _logger.LogInformation("Next retag sweep at {NextRun}", DateTimeOffset.Now.Add(cronDelay));
 
             var waitTask = _wakeSignal.WaitAsync(stoppingToken);
@@ -113,6 +125,12 @@ public sealed class RetagSweepWorker : BackgroundService
             }
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string schedule) => new(
+        "retag-sweep",
+        "Update file tags",
+        "Re-applies tag changes to media files whose saved tags are out of date (also when you apply a tag change).",
+        ScheduleDescriber.FromCron(schedule));
 
     // ── Internals ──────────────────────────────────────────────────────────
 
