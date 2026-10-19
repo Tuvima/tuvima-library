@@ -62,10 +62,11 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("Key=\"email\"", account, StringComparison.Ordinal);
         Assert.Contains("Key=\"extra-protection\"", account, StringComparison.Ordinal);
         Assert.Contains("Key=\"sign-out-others\"", account, StringComparison.Ordinal);
-        Assert.Contains("Key=\"devices\"", account, StringComparison.Ordinal);
+        // Devices is a child of Security in the Settings menu, not a row on this page.
+        Assert.DoesNotContain("Key=\"devices\"", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.HasPassword", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.CanRegisterPasskey", account, StringComparison.Ordinal);
-        Assert.Contains("IsAdministrator", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsAdministrator", account, StringComparison.Ordinal);
         Assert.DoesNotContain("IsLocalOnly", account, StringComparison.Ordinal);
         Assert.Contains("Passkeys are unavailable from this connection", account, StringComparison.Ordinal);
         Assert.Contains("Sign out other sessions", account, StringComparison.Ordinal);

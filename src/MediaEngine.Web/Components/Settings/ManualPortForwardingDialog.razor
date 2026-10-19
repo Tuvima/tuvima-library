@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Settings
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
+@inject ILogger<ManualPortForwardingDialog> Logger
 
 <AppDialog Visible="@Visible" VisibleChanged="@VisibleChanged"
            Title="Your router needs one setting changed"
@@ -52,8 +53,15 @@
     }
     private async Task CopyAsync()
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", RuleSummary);
-        Snackbar.Add("Port-forwarding rule copied.", AppSeverity.Success);
+        switch (await JS.TryCopyAsync(RuleSummary, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Snackbar.Add("Port-forwarding rule copied.", AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Snackbar.Add(ClipboardInterop.FailedMessage("the rule"), AppSeverity.Warning);
+                break;
+        }
     }
     private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

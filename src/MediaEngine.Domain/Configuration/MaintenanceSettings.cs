@@ -15,7 +15,25 @@ public sealed class MaintenanceSettings
 
     /// <summary>Number of days to retain system activity entries.</summary>
     [JsonPropertyName("activity_retention_days")]
-    public int ActivityRetentionDays { get; set; } = 60;
+    public int ActivityRetentionDays { get; set; } = 90;
+
+    /// <summary>
+    /// Most system activity entries to keep. Once exceeded, the oldest entries go first. This is the size limit of the
+    /// readable Events log; personal activity is not covered (it is kept until a person or administrator clears it).
+    /// </summary>
+    [JsonPropertyName("activity_max_events")]
+    public int ActivityMaxEvents { get; set; } = 500_000;
+
+    /// <summary>Number of days to keep the Engine's technical log files.</summary>
+    [JsonPropertyName("log_retention_days")]
+    public int LogRetentionDays { get; set; } = 90;
+
+    /// <summary>
+    /// Total size, in megabytes, of all Engine log files together. Once exceeded, the oldest files go first
+    /// (the file being written is never removed).
+    /// </summary>
+    [JsonPropertyName("log_max_total_mb")]
+    public int LogMaxTotalMegabytes { get; set; } = 1024;
 
     /// <summary>Interval in days between automatic metadata sync runs.</summary>
     [JsonPropertyName("weekly_sync_interval_days")]
@@ -50,6 +68,7 @@ public sealed class MaintenanceSettings
     public Dictionary<string, string> Schedules { get; set; } = new()
     {
         ["activity_pruning"] = "0 3 * * *",
+        ["log_file_retention"] = "30 3 * * *",
         ["library_reconciliation"] = "0 5 * * *",
         ["missing_universe_sweep"] = "0 4 * * 0",
         ["rejected_file_cleanup"] = "0 4 * * *",

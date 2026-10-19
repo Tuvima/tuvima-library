@@ -290,15 +290,19 @@ Settings/Admin contains configuration and operational state:
 
 Settings/Admin should not host normal media browse/edit pages.
 
-The Settings shell uses a flat, role-aware rail grouped as **Personal**,
-**Administration**, and **Advanced**. The personal group lists Profiles, Playback, Listening, Reading and Security, in that order; the older `/settings/profile`, `/settings/household` and `/settings/account` links redirect to Profiles and Security. Canonical page routes use
+The Settings shell draws one role-aware menu tree (`SettingsNav.MenuGroups`, built into rows by
+`SettingsMenuBuilder` and drawn by `MediaSectionShell` with `FixedColumnTree`) grouped as **Personal**,
+**Server**, **Manage** and **Developer**. Every page with sub-pages is an expandable parent that opens its own
+main page; its sub-pages are rows beneath it and never repeat it, and every row has an icon. Rows share fixed
+columns (chevron slot, icon, label, badge), children indent by one fixed step, and a row can be shaded amber
+(waiting) or red (blocked), a parent showing its most urgent child. Sub-pages are menu rows, not tabs: no Settings
+page draws a sideways tab strip, and tabs are for sections inside a single page. Personal lists Profiles,
+Preferences (with Playback, Listening and Reading beneath it) and Security; the older `/settings/profile`,
+`/settings/household` and `/settings/account` links redirect to Profiles and Security. Canonical page routes use
 `/settings/profiles`, `/settings/system`, `/settings/libraries`, `/settings/ingestion`, and the
 corresponding page slug. Libraries owns the configured Read, Watch, Listen, and
-View storage surfaces. Page-local tabs and segmented controls
-provide subsection navigation; the rail does not expand into a second settings
-tree. On narrow screens, a page selector replaces the rail. Privacy & Data
-remains hidden until its operations are Engine-backed, and Developer Tools
-requires both the Administrator role and the internal-tools feature flag.
+View storage surfaces. On narrow screens, a page selector replaces the rail and lists the same tree, grouped and
+indented. Developer Tools requires both the Administrator role and the internal-tools feature flag.
 
 ## Guardrails
 

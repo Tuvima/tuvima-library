@@ -50,7 +50,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Profiles/` | Profile editor/avatar/sign-in sheets with their `ProfileEditingWorkflow` / `ProfileSignInWorkflow`, `AdminUnlockDialog`, `ProfileManageRules` |
 | `Rules/` | Shared rule builder for Collections and View |
 | `Search/` | `UniversalSearchOverlay`, results |
-| `Settings/` | Settings shell tabs and pages (Profiles, Security, Playback/Listening/Reading, Devices, Recently Added with Needs Review, Ingestion, Libraries…); rows built from `SettingsNavRow`; register sections in `SettingsNav` |
+| `Settings/` | Settings pages inside the shared `Frame/SettingsPageFrame` (breadcrumb, title, attention notices, page notice, tabs, content) and the one menu tree (`SettingsNav.MenuGroups`, built by `Services/Navigation/SettingsMenuBuilder`): Personal (Overview with Activity, Taste and the off-menu Apps; Profiles with Households; Preferences; Security with Devices), Server (Library and Ingestion, Network and Remote Access, Streaming), Manage (Users and Sign-in, System with Tools, Logs, Backup), Developer (Local AI, Integrations, Plugins, Developer Tools). Register sections in `SettingsNav` |
 | `Setup/` | First-run setup stages |
 | `Shared/` | First-party `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppTable`, `AppDialog`, `AppSelect`, `AppTooltip`, …), `Playback*` control primitives, `TuvimaArtworkStack` |
 | `Universe/` | Universe surface components |
@@ -82,7 +82,8 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/details/{EntityType}/{Id:guid}` | `UnifiedDetailPage` | The one detail page for every entity type (`Components/Details/`); TV episodes open via their show with `?episode=` |
 | `/collections`, `/collections/{Section}` | `Collections` | Collections and universes |
 | `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer |
-| `/my-library` | `MyLibrary` | The personal page (Continue, My List, History, Liked; Downloads in the app); the phone dock's My Library tab |
+| `/my-library` | `MyLibrary` | The personal page (Continue, My List, Recent activity preview, Liked; Downloads in the app); the phone dock's My Library tab |
+| `/my-activity` | `MyActivity` | The signed-in person's own Activity page outside Settings (Kids profiles and quick access); same component as Settings > Overview > Activity, own scope only |
 | `/for-me` | `ForMe` | Personal shelves and See All grids |
 | `/who` | `ProfilePickerPage` | Profile picker |
 | `/setup` | `SetupPage` | First-run setup |
@@ -90,7 +91,8 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/search` | `SearchPage` | Global search |
 | `/view`, `/view/*` (artwork, contributions, documents, folders, galleries, people, places) | `View*Page` | Personal and shared View library |
 | `/downloads` | `DownloadsPage` | Explains downloads live in the Tuvima app |
-| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell. Needs Review lives in `/settings/recently-added`; `/settings/review` redirects there |
+| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review lives in `/settings/recently-added` (opened from Library and Ingestion's "View all"); `/settings/review` redirects there |
+| `/engine-activity-artwork/{key}`, `/engine-activity-export` | `Program.cs` minimal endpoints | Stream the signed-in person's private activity pictures and CSV export from the Engine with that person's own sign-in (never the service credential) |
 | `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion` or `/settings/recently-added`) |
 | `/design-system/components` | `DesignSystemPreview` | Component preview |
 | `/not-found`, `/Error` | `NotFound`, `Error` | Error pages |

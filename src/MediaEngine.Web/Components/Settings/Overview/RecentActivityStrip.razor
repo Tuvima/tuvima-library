@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Activity
+@inject DeviceContextService DeviceContext
+@* The Overview's Recent activity strip (D13): a full-width row of tiles, all the same height, scrolling sideways when they do
+   not fit (always on a phone). *@
+@if (Tiles is null)
+{
+    <p class="activity-strip__message" data-activity-unavailable>Recent activity isn't available right now.</p>
+}
+else if (Tiles.Count == 0)
+{
+    <p class="activity-strip__message" data-activity-empty>Nothing yet — what you watch, read and listen to shows up here.</p>
+}
+else
+{
+    <ul class="activity-strip" role="list" aria-label="Recent activity" data-activity-strip>
+        @foreach (var tile in Tiles)
+        {
+            <li class="activity-strip__item">
+                <RecentActivityTile Tile="tile" ShowHoverCard="@ShowHoverCards" Now="Now" />
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>The tiles, newest first. Null means they could not be loaded; empty means there is nothing yet.</summary>
+    [Parameter] public IReadOnlyList<PersonalActivityRecentTileDto>? Tiles { get; set; }
+
+    [Parameter] public DateTimeOffset? Now { get; set; }
+
+    // A phone, or any screen without hover, has no hover card; a tap opens the item.
+    private bool ShowHoverCards => DeviceContext.CanHover && !DeviceContext.IsPhone;
+}

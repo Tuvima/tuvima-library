@@ -1,0 +1,28 @@
+.log-retention {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+}
+
+.log-retention__fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tl-space-4);
+}
+
+.log-retention__usage {
+    margin: var(--tl-space-3) 0 0;
+    color: var(--tl-text-muted);
+    font-size: 14px;
+}
+
+.log-retention__actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+@media (max-width: 600px) {
+    .log-retention__fields {
+        grid-template-columns: 1fr;
+    }
+}

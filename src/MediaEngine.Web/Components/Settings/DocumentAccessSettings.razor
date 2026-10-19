@@ -3,11 +3,7 @@
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
 
-<AppCard Class="libraries-card">
-    <div class="document-access__heading">
-        <h3>Who can see Documents</h3>
-        <p>The Documents page and the files behind it are only for the people turned on here. Child profiles start turned off.</p>
-    </div>
+<AppCard Title="Who can see Documents" Description="The Documents page and the files behind it are only for the people turned on here. Child profiles start turned off.">
     @if (_loading)
     {
         <p role="status">Loading who can see Documents…</p>

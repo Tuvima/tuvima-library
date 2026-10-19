@@ -61,9 +61,9 @@ The Dashboard retries credentials on later requests and detects replacement. Do 
 
 ## Sign-in or administrator settings are unavailable
 
-Check the active account, profile grant, and **Users & Access → Authentication** settings.
+Check the active account, profile grant, and **Users and Sign-in → Sign-in Methods** settings.
 
-Account access from outside needs the sign-in methods you allow under Users & Access → Authentication and a secure path (Tailscale or an HTTPS reverse proxy; the Dashboard itself serves plain http). Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
+Account access from outside needs the sign-in methods you allow under Users and Sign-in → Sign-in Methods and a secure path (Tailscale or an HTTPS reverse proxy; the Dashboard itself serves plain http). Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
 
 Use [account recovery](account-security.md) if your password and authenticators are unavailable. A request from localhost alone never grants administration.
 
@@ -112,6 +112,18 @@ Long-lived keys belong in `config/secrets/`. A blank key in the public provider 
 Open **Settings → Tools and requirements**. Check whether a model is missing, downloading, ready or failed, and use **Download again** if a download did not finish. Loading and unloading a model are on the same page; the runtime limits are on **Settings → Local AI → Runtime**.
 
 Confirm model storage, native runtime availability, and capability gates. Saved feature flags do not make missing dependencies ready. Local AI is optional for initial catalogue setup.
+
+## Sending logs with a bug report
+
+A server administrator opens **Settings > System > Logs > Export**, chooses the time range, the level (errors only, warnings and errors, or everything), the areas, and optionally one run or item id, then presses **Download**. The page first says how many lines and how large the file will be. The result is one text file, `tuvima-logs-{start}-{end}.txt`, with a short header that lists what was chosen.
+
+The file hides private details before it is written:
+
+- **Keys and tokens**: bearer values, values that follow `api_key=`, `token=`, `secret=` or `password=`, sign-in tokens and long unbroken strings of letters and digits. Run and item ids are kept, because a report needs them.
+- **Sign-in details**: email addresses and the user named in a sign-in message.
+- **File and folder names**: every path becomes `[path]`. Turn on **Show file names** to keep the last part of each file name (for example `[path]/Dune.mkv`); the folders stay hidden either way.
+
+Check the file before you share it: hiding works on patterns, so a private detail written in an unusual way may remain. Events from the Library's own activity log are added when the level is **Everything** and **Include events** is on.
 
 ## The documentation site looks stale
 

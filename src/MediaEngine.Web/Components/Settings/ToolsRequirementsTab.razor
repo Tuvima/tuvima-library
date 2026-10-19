@@ -54,9 +54,13 @@
             </div>
         </AppCard>
 
+        <div class="tools-requirements__stack">
+            <PlaybackToolsStatusCard />
+        </div>
+
         @if (Models.Count > 0)
         {
-            <AppCard Title="Local AI models" Description="Model files for the optional local AI features. They are downloaded only when you ask.">
+            <AppCard Title="Local AI models" Description="Model files for the optional local AI features. They are downloaded only when you ask." Class="tl-sp-mb-3">
                 <div class="tools-requirements__list" data-testid="models-list">
                     @foreach (var model in Models)
                     {
@@ -82,7 +86,10 @@
                 </div>
             </AppCard>
         }
+
     }
+
+    <ScheduledTasksCard />
 </div>
 
 @code {

@@ -1,0 +1,281 @@
+.activity-row {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    border-radius: var(--tl-radius-md);
+}
+
+.activity-row + .activity-row {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.activity-row__line {
+    display: grid;
+    min-width: 0;
+    align-items: center;
+    column-gap: var(--tl-space-3, 12px);
+    grid-template-columns: var(--activity-columns, 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) 9.5rem);
+    padding: var(--tl-space-2, 8px);
+}
+
+.activity-row--person > .activity-row__line {
+    grid-template-columns: var(--activity-columns-person, 5.5rem 3.25rem minmax(11rem, 2.4fr) 6.5rem 5.5rem 4rem 5.5rem minmax(5rem, 1fr) minmax(5rem, 0.8fr) 9.5rem);
+}
+
+.activity-row__time,
+.activity-row__what,
+.activity-row__how-long,
+.activity-row__how-far,
+.activity-row__outcome,
+.activity-row__device,
+.activity-row__person {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-row__what {
+    color: var(--tl-text-primary);
+}
+
+.activity-row__outcome--finished {
+    color: var(--tl-status-success, var(--tl-accent-primary));
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+/* On a wide screen the details are columns of the row itself. */
+.activity-row__meta {
+    display: contents;
+}
+
+.activity-row__art {
+    display: block;
+    width: 3.25rem;
+    height: 3.25rem;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm, 6px);
+    background: color-mix(in srgb, var(--tl-text-primary) 8%, transparent);
+}
+
+.activity-row--attempt .activity-row__art {
+    visibility: hidden;
+}
+
+.activity-row__image,
+.activity-row__collage {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.activity-row__image {
+    object-fit: cover;
+}
+
+.activity-row__collage {
+    display: grid;
+    gap: 1px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+}
+
+.activity-row__collage--1 {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.activity-row__collage--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.activity-row__cover {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.activity-row__placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: var(--tl-text-muted);
+}
+
+.activity-row__title {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.activity-row__name,
+.activity-row__link {
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* A tap anywhere on the row opens the item; the buttons stay above that link. */
+.activity-row__link::after {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    content: "";
+}
+
+.activity-row__link:hover {
+    text-decoration: underline;
+}
+
+.activity-row__link:focus-visible {
+    outline: none;
+}
+
+.activity-row__link:focus-visible::after {
+    outline: 2px solid var(--tl-focus-ring, var(--tl-accent-primary));
+    outline-offset: -2px;
+}
+
+.activity-row__subtitle,
+.activity-row__attempts {
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.85rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-row__attempts {
+    display: -webkit-box;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.activity-row__actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.activity-row__children {
+    display: grid;
+    margin: 0 0 var(--tl-space-2, 8px) 3.5rem;
+    padding: 0;
+    border-left: 2px solid var(--tl-border-subtle);
+    list-style: none;
+}
+
+.activity-row--attempt > .activity-row__line {
+    padding-block: var(--tl-space-1, 4px);
+}
+
+.activity-row__songs-empty {
+    padding: var(--tl-space-2, 8px) var(--tl-space-3, 12px);
+    color: var(--tl-text-muted);
+}
+
+.activity-song {
+    display: grid;
+    align-items: center;
+    column-gap: var(--tl-space-3, 12px);
+    grid-template-columns: 5.5rem minmax(0, 2fr) minmax(0, 2fr) 5.5rem;
+    padding: var(--tl-space-1, 4px) var(--tl-space-3, 12px);
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+}
+
+.activity-song__title {
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-song__meta,
+.activity-song__time,
+.activity-song__length {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-song__length {
+    text-align: right;
+}
+
+/* A phone: rows stack. The picture and title lead, then the time, then the details wrap; the buttons are full width (D19). */
+@media (max-width: 840px) {
+    .activity-row__line,
+    .activity-row--person > .activity-row__line {
+        grid-template-columns: 3.5rem minmax(0, 1fr);
+        grid-template-areas:
+            "art title"
+            "art time"
+            "art details"
+            "actions actions";
+        row-gap: 2px;
+    }
+
+    .activity-row__art {
+        grid-area: art;
+        align-self: start;
+        width: 3.5rem;
+        height: 3.5rem;
+    }
+
+    .activity-row__title {
+        grid-area: title;
+    }
+
+    .activity-row__time {
+        grid-area: time;
+    }
+
+    .activity-row__meta {
+        grid-area: details;
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        column-gap: var(--tl-space-2, 8px);
+    }
+
+    .activity-row__meta > span:not(:empty) {
+        overflow: visible;
+    }
+
+    .activity-row__meta > span:not(:empty) + span:not(:empty)::before {
+        margin-right: var(--tl-space-2, 8px);
+        color: var(--tl-text-muted);
+        content: "·";
+    }
+
+    .activity-row__actions {
+        grid-area: actions;
+        margin-top: var(--tl-space-2, 8px);
+    }
+
+    .activity-row__actions > * {
+        flex: 1 1 auto;
+    }
+
+    .activity-row__children {
+        margin-left: var(--tl-space-3, 12px);
+    }
+
+    .activity-song {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .activity-song__time,
+    .activity-song__meta {
+        grid-column: 1 / -1;
+    }
+}

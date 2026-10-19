@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api;
 using MediaEngine.Api.DependencyInjection;
 #if DEBUG
@@ -9,6 +10,7 @@ using MediaEngine.Api.Middleware;
 using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.EngineLogs;
 using MediaEngine.Api.Services.HealthChecks;
 using MediaEngine.Contracts.Startup;
 using MediaEngine.Domain;
@@ -16,6 +18,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.DependencyInjection;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
@@ -28,6 +31,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 #if DEBUG
@@ -131,9 +135,7 @@ string backupDirectory =
 string dataProtectionDirectory =
     Environment.GetEnvironmentVariable("TUVIMA_DATA_PROTECTION_DIR")
     ?? Path.Combine(configDirectory, ".keys");
-string logDirectory =
-    Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR")
-    ?? "logs";
+string logDirectory = EngineLogLocation.FromEnvironment().Directory;
 #if DEBUG
 var realMediaRun = RealMediaHarness.Load(configDirectory);
 if (realMediaRun is not null)
@@ -165,9 +167,11 @@ builder.Host.UseSerilog((context, services, loggerConfig) => loggerConfig
     .Filter.ByExcluding(logEvent => logEvent.RenderMessage().Contains("/cast/v1/", StringComparison.Ordinal))
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
-        path: Path.Combine(logDirectory, "tuvima-.log"),
+        path: Path.Combine(logDirectory, EngineLogLocation.SinkFileName),
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
+        // Our own nightly clean-up (LogFileRetentionService) applies the days and total-size limits set on the Logs page,
+        // so Serilog's file-count retention is off to keep it the only rule.
+        retainedFileCountLimit: null,
         fileSizeLimitBytes: 50 * 1024 * 1024,
         rollOnFileSizeLimit: true,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}{NewLine}  {Message:lj}{NewLine}{Exception}"));
@@ -476,6 +480,10 @@ builder.Services.AddSingleton(sp => new DatabaseBackupService(
     sp.GetRequiredService<IDatabaseConnection>(),
     configDirectory,
     backupDirectory));
+builder.Services.AddSingleton(sp => new SystemResourcesService(
+    sp.GetRequiredService<ResourceMonitorService>(),
+    sp.GetRequiredService<IOptions<IngestionOptions>>(),
+    dbPath));
 builder.Services.AddTuvimaDisplay();
 builder.Services.AddTuvimaIntelligence();
 builder.Services.AddTuvimaProviders(configLoader);

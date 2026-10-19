@@ -18,8 +18,6 @@ public interface IPlaybackTelemetryRepository
         DateTimeOffset staleBefore,
         CancellationToken ct = default);
 
-    Task<int> DeleteHistoryBeforeAsync(DateTimeOffset endedBefore, CancellationToken ct = default);
-
     Task<PlaybackTelemetryPage> GetActiveAsync(
         PlaybackTelemetryReadScope scope,
         int limit,

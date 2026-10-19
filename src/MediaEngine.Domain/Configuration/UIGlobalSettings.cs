@@ -62,4 +62,23 @@ public sealed class UIGlobalSettings
     /// <summary>Per-page layout settings.</summary>
     [JsonPropertyName("pages")]
     public UIPageSettings Pages { get; set; } = new();
+
+    // ── App store links ────────────────────────────────────────────────
+
+    /// <summary>Where each Tuvima app can be installed. Empty until an app is published; the Apps page shows only the stores that have a link.</summary>
+    [JsonPropertyName("app_store_links")]
+    public UIAppStoreLinks AppStoreLinks { get; set; } = new();
+}
+
+/// <summary>The store pages of the Tuvima apps. A blank value means the app is not published there yet.</summary>
+public sealed class UIAppStoreLinks
+{
+    [JsonPropertyName("app_store")]
+    public string AppStore { get; set; } = string.Empty;
+
+    [JsonPropertyName("google_play")]
+    public string GooglePlay { get; set; } = string.Empty;
+
+    [JsonPropertyName("roku")]
+    public string Roku { get; set; } = string.Empty;
 }

@@ -1,86 +1,39 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
-@using MediaEngine.Contracts.ProfileState
-@using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
-@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @inject UIOrchestratorService Orchestrator
-@inject IEngineApiClient ApiClient
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
 @inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
 
-<div class="profiles-tab" data-profile-section="overview">
-    <section class="profiles-tab__card" aria-labelledby="profiles-tab-you">
-        @if (_loadingCard)
-        {
-            <div class="profiles-tab__loading" role="status" aria-label="Loading your profile">
-                <AppSkeleton Height="96px" />
-                <AppSkeleton Height="64px" />
-            </div>
-        }
-        else if (_active is null)
-        {
-            <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-                Your profile couldn't be loaded. Reload the page to try again.
-            </AppAlert>
-        }
-        else
-        {
-            <div class="profiles-tab__identity">
-                <span class="profiles-tab__avatar"><ProfileAvatar DisplayName="@_active.DisplayName" ImageUrl="@_active.AvatarImageUrl" Color="@_active.AvatarColor" Icon="@_active.AvatarIcon" /></span>
-                <div class="profiles-tab__who">
-                    <h2 id="profiles-tab-you" class="profiles-tab__name">@_active.DisplayName</h2>
-                    <p class="profiles-tab__role">@RoleLabel</p>
-                </div>
-                <AppNativeButton Type="button" Class="who-button profiles-tab__edit" OnClick="OpenOwnProfile">Edit</AppNativeButton>
-            </div>
-
-            <dl class="profiles-tab__stats">
-                <div class="profiles-tab__stat"><dt>In progress</dt><dd>@(_overview is null ? Dash : _overview.Stats.InProgress.ToString("N0"))</dd></div>
-                <div class="profiles-tab__stat"><dt>Completed</dt><dd>@(_overview is null ? Dash : _overview.Stats.Completed.ToString("N0"))</dd></div>
-                <div class="profiles-tab__stat"><dt>Hours</dt><dd>@(_overview is null ? Dash : DisplayFormat.FormatDurationHoursMinutesRounded(_overview.Stats.ConsumedSeconds))</dd></div>
-                <div class="profiles-tab__stat profiles-tab__stat--favorites">
-                    <dt>Favorites</dt>
-                    <dd>
-                        @foreach (var lane in FavoriteLanes)
-                        {
-                            <span class="profiles-tab__favorite" data-favorite-lane="@lane.Area"><strong>@(_favorites is null ? Dash : FavoriteCount(lane.Area).ToString("N0"))</strong> @lane.Label</span>
-                        }
-                    </dd>
-                </div>
-            </dl>
-
-            @if (_overview is null)
+@* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
+   household; a server administrator sees every household. Each person opens on their own page. Switching profile is only done
+   from the profile menu in the top bar, never here. *@
+@if (!IsAdministrator)
+{
+    <AppPageState Kind="AppPageStateKind.Unavailable"
+                  Icon="@AppMaterialIcons.Outlined.Lock"
+                  Title="Not available"
+                  Message="Profiles are looked after by an administrator. You can change your own details from your Overview." />
+}
+else
+{
+    <div class="profiles-tab" data-profile-section="overview">
+        <section class="profiles-tab__people" aria-label="People">
+            @if (IsServerAdministrator)
             {
-                <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">
-                    Your activity isn't available right now.
-                </AppAlert>
+                <div class="profiles-tab__toolbar">
+                    <AppButton Label="Add household" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
+                </div>
             }
-            else if (QualifiedGenres.Count > 0)
-            {
-                <ul class="profiles-tab__genres" aria-label="Top genres">
-                    @foreach (var genre in QualifiedGenres)
-                    {
-                        <li class="profiles-tab__genre">@genre</li>
-                    }
-                </ul>
-            }
-        }
-    </section>
-
-    @if (CanManage)
-    {
-        <section class="profiles-tab__people" aria-labelledby="profiles-tab-household">
-            <h2 id="profiles-tab-household" class="profiles-tab__heading">People in your household</h2>
 
             @if (_loadingPeople)
             {
-                <div class="profiles-tab__loading" role="status" aria-label="Loading your household">
+                <div class="profiles-tab__loading" role="status" aria-label="Loading the people">
                     <AppSkeleton Height="56px" />
                     <AppSkeleton Height="56px" />
                     <AppSkeleton Height="56px" />
@@ -89,7 +42,7 @@
             else if (_peopleFailed)
             {
                 <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-                    Your household couldn't be loaded. Reload the page to try again.
+                    The people couldn't be loaded. Reload the page to try again.
                 </AppAlert>
             }
             else
@@ -101,16 +54,13 @@
 
                 @foreach (var group in Groups)
                 {
-                    <div class="profiles-tab__group" @key="group.Id">
-                        @if (Groups.Count > 1)
-                        {
-                            <h3 class="profiles-tab__group-title">@group.Title</h3>
-                        }
+                    <div class="profiles-tab__group" @key="group.Id" data-household-group="@group.Id">
+                        <SettingsSectionPanel Title="@group.Title">
                         <ul class="profiles-tab__list" role="list">
                             @foreach (var person in group.People)
                             {
-                                <li class="profiles-tab__item" @key="person.Id">
-                                    <AppNativeButton Type="button" Class="profiles-tab__row" OnClick="@(() => OpenProfile(person.Id))">
+                                <li class="profiles-tab__item" @key="person.Id" data-profile-id="@person.Id">
+                                    <div class="profiles-tab__line">
                                         <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@person.AvatarColor" Icon="@person.AvatarIcon" /></span>
                                         <span class="profiles-tab__row-name">@person.DisplayName</span>
                                         <span class="profiles-tab__badges">
@@ -128,56 +78,47 @@
                                                 <span class="profiles-tab__badge">PIN</span>
                                             }
                                         </span>
-                                        <span class="profiles-tab__chevron" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
-                                    </AppNativeButton>
+                                        <AppNativeButton Type="button" Class="who-button profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))">Edit</AppNativeButton>
+                                    </div>
                                 </li>
                             }
-                            @if (group.IsOwn && ShowAdd)
+                            @if (ProfileManageRules.CanAdd(CanManage, group.People.Count))
                             {
                                 <li class="profiles-tab__item">
-                                    <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" OnClick="OpenAdd">
+                                    <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
                                         <span class="profiles-tab__row-avatar profiles-tab__row-avatar--add" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></span>
                                         <span class="profiles-tab__row-name">Add profile</span>
                                     </AppNativeButton>
                                 </li>
                             }
                         </ul>
+                        </SettingsSectionPanel>
                     </div>
                 }
             }
         </section>
-    }
-</div>
+    </div>
 
-<ProfileEditorSheet Open="@_editorOpen"
-                    Saving="@_editorSaving"
-                    Error="@_editorError"
-                    OnSave="SaveEditorAsync"
-                    OnClose="CloseEditor" />
+    <ProfileEditorSheet Open="@_editorOpen"
+                        Saving="@_editorSaving"
+                        Error="@_editorError"
+                        OnSave="SaveEditorAsync"
+                        OnClose="CloseEditor" />
 
-<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+    <AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+}
 
 @code {
-    private const string Dash = "—";
-
-    private static readonly (string Area, string Label)[] FavoriteLanes =
-    [
-        ("watch", "Watch"),
-        ("read", "Read"),
-        ("listen", "Listen"),
-    ];
-
     private ProfileEditingWorkflow? _workflow;
-    private IReadOnlyList<ProfileReactionDto>? _favorites;
-    private ProfileOverviewViewModel? _overview;
     private ProfileViewModel? _active;
     private List<ProfileViewModel> _profiles = [];
     private List<ManagedProfileResponse> _managed = [];
-    private bool _loadingCard = true;
+    private List<HouseholdResponse> _households = [];
     private bool _loadingPeople = true;
     private bool _peopleFailed;
     private string? _notice;
     private bool _editorOpen;
+    private Guid? _addHouseholdId;
     private bool _editorSaving;
     private string? _editorError;
     private bool _needsUnlock;
@@ -188,86 +129,22 @@
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
 
-    private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasNavigation("settings.administration");
 
+    private bool IsAdministrator => Session.HasAction("household.manage") || IsServerAdministrator;
+
+    // Add profile is for administrators, and never from inside a Kids (restricted) profile.
     private bool CanManage => ProfileManageRules.CanManage(_active?.IsRestricted == true, IsAdministrator);
-
-    private string RoleLabel => Session.Authority?.EffectiveAdministrator == true ? "Administrator" : "Profile";
 
     private Guid? OwnHouseholdId => _managed.FirstOrDefault(person => person.Id == _active?.Id)?.HouseholdId;
 
-    private int OwnHouseholdCount => _managed.Count(person => person.HouseholdId == OwnHouseholdId);
-
-    private bool ShowAdd => ProfileManageRules.CanAdd(CanManage, OwnHouseholdCount);
-
     private IReadOnlyList<Household> Groups => BuildGroups();
 
-    private IReadOnlyList<string> QualifiedGenres
-    {
-        get
-        {
-            if (_overview is null || !(_overview.Stats.RecentActivity >= 5 || _overview.RecentItems.Count >= 5))
-            {
-                return [];
-            }
-
-            return TopGenres().OrderByDescending(genre => genre.Value).Take(3).Select(genre => genre.Key).ToList();
-        }
-    }
+    private static string AddLabel(Household group) => $"Add profile to {group.Title}";
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(LoadCardAsync(), LoadPeopleAsync());
-    }
-
-    private async Task LoadCardAsync()
-    {
-        _loadingCard = true;
-        try
-        {
-            _active = await Orchestrator.GetActiveProfileAsync();
-            if (_active is not null)
-            {
-                var overview = LoadOverviewAsync(_active.Id);
-                var favorites = LoadFavoritesAsync();
-                _overview = await overview;
-                _favorites = await favorites;
-            }
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the open profile for Settings.");
-        }
-        finally
-        {
-            _loadingCard = false;
-        }
-    }
-
-    private async Task<ProfileOverviewViewModel?> LoadOverviewAsync(Guid profileId)
-    {
-        try
-        {
-            return await ApiClient.GetProfileOverviewAsync(profileId);
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the profile overview.");
-            return null;
-        }
-    }
-
-    private async Task<IReadOnlyList<ProfileReactionDto>?> LoadFavoritesAsync()
-    {
-        try
-        {
-            return await ApiClient.GetProfileReactionsAsync();
-        }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
-        {
-            Logger.LogWarning(exception, "Could not load the profile favorites.");
-            return null;
-        }
+        await LoadPeopleAsync();
     }
 
     private async Task LoadPeopleAsync()
@@ -282,14 +159,17 @@
         _peopleFailed = false;
         try
         {
+            _active = await Orchestrator.GetActiveProfileAsync();
             var profiles = Orchestrator.GetProfilesAsync();
             var managed = Identity.GetManagedProfilesAsync();
+            var households = Identity.GetManagedHouseholdsAsync();
             _profiles = await profiles;
             _managed = await managed;
+            _households = await households;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            Logger.LogWarning(exception, "Could not load the household for Settings.");
+            Logger.LogWarning(exception, "Could not load the people for Settings.");
             _peopleFailed = true;
         }
         finally
@@ -312,32 +192,29 @@
             _notice = "The list couldn't be refreshed. Reload the page to see the latest.";
         }
 
-        await Task.WhenAll(LoadCardAsync(), LoadPeopleAsync());
+        await LoadPeopleAsync();
     }
 
+    // The Engine already limits a household administrator to their own household, so the list is grouped as it arrives:
+    // their household first, then (for a server administrator) every other one by name.
     private IReadOnlyList<Household> BuildGroups()
     {
         var ownId = OwnHouseholdId;
-        var visible = Session.HasAction("access.manage")
-            ? _managed
-            : _managed.Where(person => person.HouseholdId == ownId).ToList();
-        var groups = visible
+        var names = _households.ToDictionary(household => household.Id, household => household.Name);
+        var groups = _managed
             .GroupBy(person => person.HouseholdId)
             .Select(group => (Key: group.Key, People: group.OrderBy(person => person.CreatedAt).Select(ToProfile).ToList()))
             .OrderByDescending(group => group.Key == ownId)
+            .ThenBy(group => group.Key is { } id && names.TryGetValue(id, out var name) ? name : string.Empty, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
         var result = new List<Household>();
-        var other = 1;
         foreach (var group in groups)
         {
-            var isOwn = group.Key == ownId;
-            if (!isOwn)
-            {
-                other++;
-            }
-
-            result.Add(new Household(group.Key ?? Guid.Empty, isOwn ? "Your household" : $"Household {other}", isOwn, group.People));
+            var title = group.Key is { } id && names.TryGetValue(id, out var name)
+                ? name
+                : group.Key == ownId ? "Your household" : "Household";
+            result.Add(new Household(group.Key ?? Guid.Empty, title, group.People));
         }
 
         return result;
@@ -354,19 +231,15 @@
     }
 
     // Each person has their own page; the sheet here is only for adding someone.
-    private void OpenOwnProfile()
-    {
-        if (_active is { } profile)
-        {
-            OpenProfile(profile.Id);
-        }
-    }
-
     private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/profiles/{profileId:D}");
 
-    private void OpenAdd()
+    // Adding a household is a server-administrator action; the Households page takes the name.
+    private void OpenAddHousehold() => Nav.NavigateTo($"{SettingsNav.RouteFor(SettingsSection.Profiles, SettingsNav.HouseholdsSubsection)}?add=1");
+
+    private void OpenAdd(Guid householdId)
     {
         _editorError = null;
+        _addHouseholdId = householdId;
         _editorOpen = true;
     }
 
@@ -396,7 +269,7 @@
         _editorError = null;
         try
         {
-            var outcome = await Workflow.SaveAsync(null, OwnHouseholdId, result, _justUnlocked);
+            var outcome = await Workflow.SaveAsync(null, _addHouseholdId ?? OwnHouseholdId, result, _justUnlocked);
             await FinishAsync(outcome, () => SaveAsync(result));
         }
         finally
@@ -474,28 +347,5 @@
         _unlockError = null;
     }
 
-    private int FavoriteCount(string area) => _favorites?.Count(item =>
-        (item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love) && (area switch
-        {
-            "read" => item.EntityKind is ProfileEntityKind.Book or ProfileEntityKind.Comic,
-            "watch" => item.EntityKind is ProfileEntityKind.Movie or ProfileEntityKind.TvShow,
-            "listen" => item.EntityKind is ProfileEntityKind.Audiobook or ProfileEntityKind.Album or ProfileEntityKind.Song,
-            _ => false,
-        })) ?? 0;
-
-    private IReadOnlyDictionary<string, int> TopGenres()
-    {
-        if (_overview?.Stats.TopGenres.Count > 0)
-        {
-            return _overview.Stats.TopGenres;
-        }
-
-        return _overview?.Taste?.GenreDistribution
-            .OrderByDescending(item => item.Value)
-            .Take(6)
-            .ToDictionary(item => item.Key, item => (int)Math.Round(item.Value * 100), StringComparer.OrdinalIgnoreCase)
-            ?? new Dictionary<string, int>();
-    }
-
-    private sealed record Household(Guid Id, string Title, bool IsOwn, IReadOnlyList<ProfileViewModel> People);
+    private sealed record Household(Guid Id, string Title, IReadOnlyList<ProfileViewModel> People);
 }

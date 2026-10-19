@@ -10,7 +10,7 @@
     </AppActionBar>
 
     <SettingsSectionPanel Title="Encode jobs"
-                          Description="Current and queued work for prepared playback variants."
+                          Description="Current and queued work for optimized copies."
                           Icon="@AppMaterialIcons.Outlined.PendingActions">
         @if (_loading)
         {
@@ -19,7 +19,7 @@
         else if (_jobs.Count == 0)
         {
             <AppEmptyState Title="No encode jobs"
-                           Message="Prepared variants will appear here when an encode is queued from a supported media item." />
+                           Message="Optimized copies will appear here when an encode is queued from a supported media item." />
         }
         else
         {

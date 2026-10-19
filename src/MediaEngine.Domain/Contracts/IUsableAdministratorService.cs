@@ -8,6 +8,20 @@ public sealed record UsableAdministratorStatus(
     bool HasRecoveryCodes,
     bool LocalhostBypassDisabled);
 
+/// <summary>
+/// What a change would take away from administrator sign-in, so it can be checked before it is made: a whole account
+/// (disabled, demoted or deleted), one profile grant of an account (administrator access switched off or removed), or
+/// every grant to one profile (the profile is deleted).
+/// </summary>
+public readonly record struct AdministratorSignInLoss(Guid? AccountId, Guid? ProfileId)
+{
+    public static AdministratorSignInLoss OfAccount(Guid accountId) => new(accountId, null);
+
+    public static AdministratorSignInLoss OfGrant(Guid accountId, Guid profileId) => new(accountId, profileId);
+
+    public static AdministratorSignInLoss OfProfile(Guid profileId) => new(null, profileId);
+}
+
 /// <summary>Answers "can an administrator actually sign in right now?".</summary>
 public interface IUsableAdministratorService
 {
@@ -16,6 +30,13 @@ public interface IUsableAdministratorService
     /// Used by Settings to stop changes that would lock every administrator out.
     /// </summary>
     Task<bool> HasUsableAdministratorSignInAsync(AuthSettings policy, CancellationToken ct);
+
+    /// <summary>
+    /// True when at least one enabled administrator would still have a working sign-in method, under the current
+    /// sign-in policy, once <paramref name="loss"/> has happened. Account changes use it to refuse leaving the server
+    /// with no administrator who can sign in.
+    /// </summary>
+    Task<bool> HasUsableAdministratorSignInAfterAsync(AdministratorSignInLoss loss, CancellationToken ct);
 
     /// <summary>
     /// Remote-access view: an administrator must also have saved recovery codes.

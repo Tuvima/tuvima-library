@@ -10,10 +10,11 @@
         <AppStatusBadge Text="View" Tone="AppUiTone.Primary" />
     </LibraryDetailHeader>
     <div class="libraries-card__heading"><div><h2>Library Settings</h2><p>Each profile has a private space. Accepted contributions appear in Shared Library.</p></div></div>
-    <AppCard Class="libraries-card">
-        <div class="libraries-card__heading"><div><h3>Folders</h3><p>One storage base for Shared Library and each profile’s private files.</p></div>
+    <SettingsSectionPanel Title="Folders" Description="One storage base for Shared Library and each profile’s private files.">
+        <Actions>
             <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => _adding = !_adding)" />
-        </div>
+        </Actions>
+        <ChildContent>
         <div class="view-storage-root">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
             <div><strong>View library root</strong><code>@RootPath</code><small>The base folder for all managed View storage.</small></div>
@@ -69,30 +70,33 @@
                 }
             </div>
         }
-    </AppCard>
-    <AppCard Class="libraries-card">
-        <div class="libraries-card__heading"><div><h3>Organization</h3><p>How files are stored depends on how they are added.</p></div></div>
+        </ChildContent>
+    </SettingsSectionPanel>
+    <SettingsSectionPanel Title="Organization" Description="How files are stored depends on how they are added.">
         <div class="view-organization">
             <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /><div><strong>Browser uploads</strong><small>Organized by capture date in the profile’s Timeline.</small><code>Timeline / year / month / file</code></div></article>
             <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderCopy" /><div><strong>Managed folders</strong><small>Keep their folder hierarchy and original filenames.</small><code>Folders / folder name / files</code></div></article>
             <article><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /><div><strong>Linked folders</strong><small>Files stay in their existing location and are indexed read-only.</small><code>Existing folder / files</code></div></article>
         </div>
-    </AppCard>
-    <AppCard Class="libraries-card">
-        <div class="libraries-card__heading"><div><h3>File Handling</h3><p>Originals remain protected throughout indexing and sharing.</p></div></div>
+    </SettingsSectionPanel>
+    <SettingsSectionPanel Title="File Handling" Description="Originals remain protected throughout indexing and sharing.">
         <div class="view-policy-row"><div><strong>Linked originals</strong><small>Tuvima Library reads their local file details and thumbnails.</small></div><span>Read-only · Files stay in place</span></div>
         <div class="view-policy-row"><div><strong>Detach a folder</strong><small>Remove its connection to View.</small></div><span>Keep all original files</span></div>
         <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
-    </AppCard>
+    </SettingsSectionPanel>
     <DocumentTextSettings ReadOnly="@ReadOnly" />
     <DocumentAccessSettings ReadOnly="@ReadOnly" Profiles="@_profiles" />
     <DocumentOrganisationSettings ReadOnly="@ReadOnly" />
     <DocumentRulesSettings ReadOnly="@ReadOnly" />
-    <AppCard Class="libraries-card">
-        <div class="libraries-card__heading"><div><h3>Sharing &amp; Access</h3><p>Private files remain with their owning profile until shared through an allowed workflow.</p></div><AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" /></div>
-        <p>Shared Library access, contribution submission and review, and Gallery sharing have independent permissions.</p>
-    </AppCard>
-    <details class="library-detail__advanced"><summary><strong>Advanced Settings</strong></summary><p>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalog providers or the Review Queue.</p></details>
+    <SettingsSectionPanel Title="Sharing &amp; Access" Description="Private files remain with their owning profile until shared through an allowed workflow.">
+        <Actions>
+            <AppButton Href="/settings/access" Label="Manage access" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
+        </Actions>
+        <ChildContent>
+            <p>Shared Library access, contribution submission and review, and Gallery sharing have independent permissions.</p>
+        </ChildContent>
+    </SettingsSectionPanel>
+    <AppCard><details class="library-detail__advanced"><summary><strong>Advanced Settings</strong></summary><p>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalog providers or the Review Queue.</p></details></AppCard>
 </div>
 
 @code {

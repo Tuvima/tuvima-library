@@ -168,22 +168,23 @@ One selected text resource profile supplies the same Qwen3 artifact to **text_fa
 
 ## Settings
 
-Settings at `/settings/{Section}` is the Dashboard's operational hub. `SettingsNav` (`src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs`) is the canonical route map: two sidebar groups with role-filtered visibility. Sections (each rendered by a `src/MediaEngine.Web/Components/Settings/*Tab.razor`):
+Settings at `/settings/{Section}[/{Subsection}]` is the Dashboard's configuration and operational hub. `SettingsNav` (`src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs`) is the canonical route map: one menu tree (`MenuGroups`, built by `Services/Navigation/SettingsMenuBuilder`) in four groups with role-filtered visibility, where every parent opens its own main page and sub-pages are tree children (no sub-page tab strips). Every page renders inside `Components/Settings/Frame/SettingsPageFrame` (breadcrumb, title, server-administrator attention notices, a permanent page notice slot, optional in-page tabs). Pages:
 
-| Group | Sections (slug → tab) |
+| Group | Pages (route → component) |
 |---|---|
-| **User Settings** | Profiles → `ProfilesTab`, `playback` → `PlaybackSettingsPage`, `privacy` → `PrivacyHistoryTab` |
-| **Admin Settings** | `admin` → `OverviewTab`, `libraries` → `LibrariesTab`, `ingestion` → the Operations `IngestionTasksTab` (automatic live summary on desktop/mobile), `review` → redirects to `recently-added` (`RecentlyAddedPageContent`, Needs Review), `dev-harness` → `DevHarnessTab`, `providers` → `ProviderPriorityTab`, `ai` → `LocalAiSettingsTab`, `plugins` → `PluginSettingsTab`, `delivery` → `PlaybackDeliverySettingsTab`, `access` → `UsersAccessSettingsTab`, `provider-tester` → `ProviderTesterToolTab`, `enrichment-tester` → `EnrichmentTesterToolTab` |
+| **Personal** | `overview` → `OverviewPage` (children `overview/activity` → `ActivityPage`, `overview/taste` → `OverviewTastePage`; off-menu `overview/apps` → `OverviewAppsPage`), `profiles` → `ProfilesTab` (administrators; child `profiles/households` → `HouseholdsTab`; person page `ProfileDetailPage`), `preferences` → `PreferencesSummaryPage` (children `playback`, `listening`, `reading`), `security` → `SecuritySettingsPage` (child `security/devices` → `DevicesTab`) |
+| **Server** | `ingestion` → `IngestionTasksTab` with `LibrarySummary` (Library and Ingestion; off-menu `recently-added` → `RecentlyAddedPageContent` with Needs Review; children `libraries` → `LibrariesTab`, `metadata` → `MetadataSettingsPage`), `network` → `NetworkRemoteAccessSettings` (Local Network, Remote Access, Advanced), `delivery` → Streaming (Limits and Quality, Hardware Acceleration, Optimized Copies, Diagnostics) |
+| **Manage** | `access/users` → `UsersAccessSettingsTab` (Users; child Sign-in Methods), `system` → `SystemSummaryPage` (children `tools` → `ToolsRequirementsTab` with Scheduled tasks, `system/logs` → `LogsPage`, `backup-recovery`) |
+| **Developer** | `ai` → `LocalAiSettingsTab` (Runtime, Vocabulary, Automation), `access/applications` → Integrations, `plugins` → `PluginSettingsTab` (one page), `developer` → Developer Tools (Provider Tester, Enrichment Tester; feature-flagged) |
 
-Additional tab components composed inside those sections: `EncodeSettingsTab`, `OfflineDownloadsTab`, `ModelsTab`, `AiFeaturesTab`, `VibeVocabularyTab`, `AiScheduleTab`, `WikidataConfigTab`, `UniverseSettingsTab`, `SecurityTab`, `UsersTab`, `ApiKeysTab`.
+Navigation is URL-driven: `/settings` lands on Overview (Kids profiles do not reach Settings), `/settings/review` redirects to Needs Review in `/settings/recently-added`, and `/my-activity` opens the person's own Activity outside Settings.
 
 Supporting components used inside tabs: `CuratorsDrawer`, `FolderBrowserDialog`, `SettingsSectionPanel`, `SettingsStatusBadge`, `MediaRail`, `MediaRailCard`, `ProviderStageSelector`.
 
-Navigation is URL-driven: `/settings/review` redirects to Needs Review in `/settings/recently-added`, `/settings/ingestion` opens the ingestion admin view, and `/settings/dev-harness` opens the temporary development wipe/reingest harness.
 
 ## Needs Review (inside Settings)
 
-Needs Review (stored in the Engine's review queue) is the Engine's safety net for uncertain matches. Only server administrators, and apps a server administrator has given review permission, can list or resolve it. It lives in Settings → Recently Added → Needs Review (`/settings/recently-added`, rendered by `RecentlyAddedPageContent`; the old `/settings/review` address redirects there). It opens the shared media editor in review mode for blocked or uncertain items.
+Needs Review (stored in the Engine's review queue) is the Engine's safety net for uncertain matches. Only server administrators, and apps a server administrator has given review permission, can list or resolve it. It lives in Settings → Library and Ingestion → Recently Added → Needs Review (Recently Added opens from the Library and Ingestion page's "View all", and the Needs Review count shades the Library and Ingestion menu row) (`/settings/recently-added`, rendered by `RecentlyAddedPageContent`; the old `/settings/review` address redirects there). It opens the shared media editor in review mode for blocked or uncertain items.
 
 The queue surfaces items that need human attention: failed retail matches, ambiguous Wikidata candidates, low-confidence matches, missing titles, and items that fell through during enrichment. Review rows can launch the shared editor in review mode, dismiss an item, skip universe matching where supported, keep a provider match, move a film to TV, or retry a failed write-back according to existing Engine rules. `PostPipelineService` auto-resolves queue items when a later enrichment pass pushes confidence above threshold.
 

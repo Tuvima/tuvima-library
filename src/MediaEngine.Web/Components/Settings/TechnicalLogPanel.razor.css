@@ -1,0 +1,96 @@
+.technical-log__filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--tl-space-3);
+    align-items: end;
+    margin-bottom: var(--tl-space-3);
+}
+
+.technical-log__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+}
+
+.technical-log__line {
+    display: grid;
+    grid-template-columns: 11.5rem 5rem 6.5rem minmax(0, 1fr);
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-2) 0;
+    border-bottom: 1px solid var(--tl-border-subtle);
+    align-items: baseline;
+}
+
+.technical-log__time {
+    color: var(--tl-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.technical-log__level {
+    font-weight: 600;
+}
+
+.technical-log__line--warning .technical-log__level {
+    color: var(--tl-status-warning);
+}
+
+.technical-log__line--error .technical-log__level,
+.technical-log__line--fatal .technical-log__level {
+    color: var(--tl-status-danger);
+}
+
+.technical-log__area {
+    color: var(--tl-text-secondary);
+}
+
+.technical-log__message {
+    min-width: 0;
+    color: var(--tl-text-primary);
+    overflow-wrap: anywhere;
+}
+
+.technical-log__details {
+    margin-top: 4px;
+}
+
+.technical-log__details summary {
+    color: var(--tl-text-secondary);
+    cursor: pointer;
+}
+
+.technical-log__details pre {
+    margin: 4px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+}
+
+.technical-log__more {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--tl-space-3);
+}
+
+@media (max-width: 1180px) {
+    .technical-log__filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 840px) {
+    .technical-log__line {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .technical-log__message {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 600px) {
+    .technical-log__filters {
+        grid-template-columns: 1fr;
+    }
+}

@@ -4,17 +4,14 @@
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
 
-<AppCard Class="libraries-card">
-    <div class="documents-settings__heading">
-        <div>
-            <h3>Documents</h3>
-            <p>Scanned pages and photos of paper are read on this computer, so you can search them by their words.</p>
-        </div>
+<AppCard Title="Documents" Description="Scanned pages and photos of paper are read on this computer, so you can search them by their words.">
+    <Actions>
         @if (_status is { Installed: true })
         {
             <AppStatusBadge Text="@(_status.Settings.Enabled ? "Reading is on" : "Reading is off")" Tone="@(_status.Settings.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
         }
-    </div>
+    </Actions>
+    <ChildContent>
 
     @if (_loading)
     {
@@ -93,6 +90,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
     }
+    </ChildContent>
 </AppCard>
 
 @code {

@@ -13,7 +13,6 @@
 .playback-settings-grid ::deep .playback-settings-card {
     min-width: 0;
     height: 100%;
-    padding: 20px;
 }
 
 .playback-settings-grid ::deep .playback-settings-card > .app-card__body {

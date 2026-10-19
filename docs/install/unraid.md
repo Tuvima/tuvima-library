@@ -44,7 +44,7 @@ If a path is not writable, repair share ownership or ACLs. Do not enable privile
 1. Wait for `tuvima-library` to report healthy.
 2. Open `http://UNRAID-IP:5016/setup`.
 3. Create the administrator and save recovery codes outside the server.
-4. Create, download, and test a recovery point in **Settings → Backup & Recovery**.
+4. Create, download, and test a recovery point in **Settings → Manage → System → Backup and recovery**.
 
 Only Dashboard port `5016` is published. Leave Engine port `61495` internal.
 

@@ -119,26 +119,6 @@ public static class ToolRequirementsEndpoints
         .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireEffectiveAdministrator();
 
-        group.MapPost("/{id}/decline", async (
-            string id,
-            IToolRequirementsService tools,
-            [FromServices] IToolPromptPreferenceRepository prompts,
-            CancellationToken ct) =>
-        {
-            if (!await IsKnownAsync(tools, id, ct).ConfigureAwait(false))
-            {
-                return ApiErrors.NotFound("That isn't a tool the Library can look for.");
-            }
-
-            await prompts.DeclineAsync(id, ct).ConfigureAwait(false);
-            return Results.Ok(await tools.GetAsync(ct).ConfigureAwait(false));
-        })
-        .WithName("DeclineToolInstall")
-        .WithSummary("Records that the tools banner must not offer to install this tool again. The Tools page still offers it.")
-        .Produces<ToolRequirementsDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireEffectiveAdministrator();
-
         return app;
     }
 

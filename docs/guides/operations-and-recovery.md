@@ -35,7 +35,7 @@ They can turn two-step codes back on from Account > Security. The reset is recor
 
 ## Follow active work
 
-Open Operations at `/settings/ingestion`, shown as **Live Ingestion** in the Settings sidebar. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.
+Open Operations at `/settings/ingestion`, shown as **Library and Ingestion** in the Settings sidebar, which opens on the library summary, then live ingestion, then recently added. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.
 
 Operations refreshes automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) starts an extra scan of watched folders. The green navbar activity indicator opens the same page.
 
@@ -45,7 +45,7 @@ A settled file count measures file work. It does not mean the whole run is finis
 
 ## Back up and test recovery
 
-1. Open **Settings → Backup & Recovery**.
+1. Open **Settings → Manage → System → Backup and recovery**.
 2. Create a recovery point.
 3. Download a copy to another device or backup system.
 4. Choose **Test restore** for that point.
@@ -70,7 +70,7 @@ The staged restore applies before the data store opens at restart. Pre-restore d
 
 A new version of Tuvima sometimes changes how the data store (the `library.db` file) is laid out. The Engine does this by itself the first time the new version starts, one numbered step at a time. A start with nothing to upgrade is unchanged. A start with steps to run takes a little longer, and the Engine log lists the steps it ran with lines starting "Data store upgrade:". The Dashboard shows its usual "unreachable" state until the Engine is ready.
 
-**Safety copies.** Before the first step runs on an existing data store, the Engine writes a checked copy of it to the `safety-copies` folder inside your backups folder. That is `config/backups` unless you set `TUVIMA_BACKUP_DIR` (the Docker image uses `/backups`). A copy is named like `tuvima-safety-copy-20261018-093000-step-0001-to-0002.db`, which records the upgrade it was taken before. The Engine keeps the two newest copies and deletes older ones. It never touches the recovery points you create in **Settings → Backup & Recovery**, which stay in the backups folder itself. A brand-new install has nothing to copy, so it makes none.
+**Safety copies.** Before the first step runs on an existing data store, the Engine writes a checked copy of it to the `safety-copies` folder inside your backups folder. That is `config/backups` unless you set `TUVIMA_BACKUP_DIR` (the Docker image uses `/backups`). A copy is named like `tuvima-safety-copy-20261018-093000-step-0001-to-0002.db`, which records the upgrade it was taken before. The Engine keeps the two newest copies and deletes older ones. It never touches the recovery points you create in **Settings → Manage → System → Backup and recovery**, which stay in the backups folder itself. A brand-new install has nothing to copy, so it makes none.
 
 **Go back to a safety copy.** Use this when an upgrade went wrong, or you want the older version back.
 
@@ -123,7 +123,7 @@ Contributors adding a data store change: see [Changing the data store](../develo
    ```
 
 5. Wait for `healthy`.
-6. Check **Settings → System Overview**, a representative library page, playback, and Operations.
+6. Check **Settings → Library and Ingestion** (the library summary and live ingestion), **Settings → System**, a representative library page, playback, and Operations.
 
 A digest identifies the exact image. Tags such as `latest` are moving update channels. The image workflow is configured to generate an SBOM and provenance and sign the image digest; verify the particular image you use.
 

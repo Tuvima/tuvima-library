@@ -1,7 +1,33 @@
 @namespace MediaEngine.Web.Components.Shared
-<label class="app-timeline-grouping"><span>Group by</span><AppNativeSelect Value="@Value.ToString()" OnChange="Changed" aria-label="Timeline grouping"><option value="Year">Year</option><option value="Decade">Decade</option></AppNativeSelect></label>
+<label class="@("app-timeline-grouping" + (Inline ? " app-timeline-grouping--inline" : string.Empty))"><span>@Heading</span>
+    @if (Options is { Count: > 0 })
+    {
+        <AppNativeSelect Value="@SelectedKey" OnChange="OptionChanged" aria-label="@AriaLabel">
+            @foreach (var option in Options)
+            {
+                <option value="@option.Key">@option.Label</option>
+            }
+        </AppNativeSelect>
+    }
+    else
+    {
+        <AppNativeSelect Value="@Value.ToString()" OnChange="Changed" aria-label="@AriaLabel"><option value="Year">Year</option><option value="Decade">Decade</option></AppNativeSelect>
+    }
+</label>
 @code {
     [Parameter] public TimelineGrouping Value { get; set; }
     [Parameter] public EventCallback<TimelineGrouping> ValueChanged { get; set; }
+
+    /// <summary>Replaces the Year / Decade choices with these (the Activity page offers By day, By week, By month and By title). Null keeps Year / Decade.</summary>
+    [Parameter] public IReadOnlyList<TimelineGroupingOption>? Options { get; set; }
+    [Parameter] public string? SelectedKey { get; set; }
+    [Parameter] public EventCallback<string> SelectedKeyChanged { get; set; }
+    [Parameter] public string Heading { get; set; } = "Group by";
+    [Parameter] public string AriaLabel { get; set; } = "Timeline grouping";
+
+    /// <summary>Puts the heading beside the selector on one line instead of above it, for a compact toolbar row.</summary>
+    [Parameter] public bool Inline { get; set; }
+
     private Task Changed(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString() == "Decade" ? TimelineGrouping.Decade : TimelineGrouping.Year);
+    private Task OptionChanged(ChangeEventArgs args) => args.Value?.ToString() is { } key ? SelectedKeyChanged.InvokeAsync(key) : Task.CompletedTask;
 }

@@ -179,3 +179,38 @@
     min-height: 0;
     border-radius: var(--tl-radius-md);
 }
+
+/* Recent activity: a short preview that links to the Activity page. */
+.my-library-activity__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    margin-bottom: var(--tl-space-3);
+}
+
+.my-library-activity__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-lg, 1.25rem);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.my-library-activity__see-all {
+    display: inline-flex;
+    min-height: var(--tl-touch-target-min, 44px);
+    align-items: center;
+    color: var(--tl-accent-primary);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+}
+
+.my-library-activity__see-all:hover {
+    text-decoration: underline;
+}
+
+.my-library-activity__see-all:focus-visible {
+    border-radius: var(--tl-radius-md);
+    outline: 2px solid var(--tl-focus-ring, var(--tl-accent-primary));
+    outline-offset: 2px;
+}

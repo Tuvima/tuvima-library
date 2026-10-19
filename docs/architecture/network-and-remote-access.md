@@ -20,7 +20,7 @@ How Tuvima separates desired network configuration from observed connectivity an
 - `deploy`
 
 Tuvima treats networking as an appliance-style workflow. Administrators use
-**Settings → Network & Remote Access** for a health overview, LAN settings,
+**Settings → Server → Network and Remote Access** for a health overview, LAN settings,
 remote access, network-aware streaming, and advanced diagnostics. A new install
 uses the same panels in `/setup/network`; there is no second onboarding model.
 Tuvima is open from the start: any device that can reach the server can use it,
@@ -63,9 +63,9 @@ answers and carries an optional `outside_address` (an origin) when a secure
 outside address is set up: the Tailscale address or the public hostname. The
 Engine supplies it through `GET /network/outside-address` (Dashboard service
 credential only), which returns `{ outside_address }`. **Settings →
-Administration → Devices** shows both: the home address (the Engine's preferred
+Network and Remote Access** shows both: the home address (the Engine's preferred
 address on the adapter chosen in Settings → Network, with the Dashboard port) and,
-when set, the outside address labelled "Apps use this away from home".
+when set, the outside address.
 
 The Android app saves the address typed at pairing as its home address and learns
 the outside address from discovery, at pairing and at app start only. It tries

@@ -280,6 +280,8 @@ builder.Services.AddScoped<DashboardCircuitHttpClientFactory>();
 builder.Services.AddScoped<DashboardIdentityClient>(services =>
     ActivatorUtilities.CreateInstance<DashboardIdentityClient>(
         services, services.GetRequiredService<DashboardCircuitHttpClientFactory>()));
+builder.Services.AddScoped<AccountNoticeState>();
+builder.Services.AddScoped<SettingsAttentionState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();
 builder.Services.AddScoped<AdministratorSurfaceAccessService>();
@@ -350,6 +352,7 @@ builder.Services.AddScoped<RecentViewAssetAdapter>();
 builder.Services.AddScoped<SavedItemService>();
 builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
+builder.Services.AddSingleton(dashboardConfig.LoadAppStoreLinks());
 builder.Services.AddScoped<PlaybackSessionController>();
 builder.Services.AddScoped<AudiobookBookmarkActionService>(services =>
 {
@@ -514,6 +517,40 @@ app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid asset
 app.MapGet("/engine-folder-log/{operationId:guid}", async (Guid operationId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
 {
     using var request = new HttpRequestMessage(HttpMethod.Get, $"/settings/libraries/folders/jobs/{operationId:D}/log/export");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).RequireAuthorization();
+
+// The small pictures kept with a person's activity are private to them, so the Engine is asked as the signed-in person.
+app.MapGet("/engine-activity-artwork/{key}", async (string key, string? scope, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    if (!PersonalActivityArtworkPath.IsValidKey(key))
+    {
+        return Results.NotFound();
+    }
+
+    var path = PersonalActivityArtworkPath.EnginePath(key)
+        + (string.IsNullOrWhiteSpace(scope) ? string.Empty : "?scope=" + Uri.EscapeDataString(scope));
+    using var request = new HttpRequestMessage(HttpMethod.Get, path);
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+    return Results.Empty;
+}).RequireAuthorization();
+
+// The CSV of exactly what the Activity filters show. Only the filters are passed on, never paging, and the Engine decides
+// whose activity the signed-in person may export.
+app.MapGet("/engine-activity-export", async (HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    var filters = ctx.Request.Query
+        .Where(pair => PersonalActivityRequest.FilterKeys.Contains(pair.Key))
+        .SelectMany(pair => pair.Value.Select(value => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(value ?? string.Empty)}"))
+        .ToArray();
+    var path = "/api/v1/activity/export.csv" + (filters.Length == 0 ? string.Empty : "?" + string.Join('&', filters));
+    using var request = new HttpRequestMessage(HttpMethod.Get, path);
     using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
     ctx.Response.StatusCode = (int)response.StatusCode;
     CopyResponseHeaders(response, ctx.Response);

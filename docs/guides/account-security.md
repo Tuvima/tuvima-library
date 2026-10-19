@@ -15,7 +15,7 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 ## Give someone access
 
-1. Open **Settings → Users & Access → Households** (server administrators only).
+1. Open **Settings → Users and Sign-in → Users** (server administrators only).
 2. Choose **Invite someone outside your household**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. They start a household of their own and look after it as its household administrator. Use **Invite user** to invite someone into profiles that already exist.
 3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
 4. Grant only the profiles that person should use. An account can have up to eight profile grants.
@@ -23,13 +23,13 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 Only administrators create accounts. There is no public sign-up, and Tuvima never sends email for this.
 
-On a phone, **Settings → Users & Access** shows people and applications as read-only cards (name, role or kind, status and last active). Make changes on a computer or tablet.
+On a phone, **Settings → Users and Sign-in** shows people and applications as read-only cards (name, role or kind, status and last active). Make changes on a computer or tablet.
 
 ### Invitation code
 
 An invitation is a short code such as `KQ7M4-XH2TA` (ten letters and digits; the confusing ones, 0, O, 1, I and L, are left out). Tuvima shows the code, a link (`<address>/auth/invite?code=KQ7M4-XH2TA`), a QR code, a **Copy** button for the code and the link, and the expiry. The link uses the server's public address when one is set under **Settings → Network**, and otherwise the address you are using now. Only a fingerprint of the code is stored, so it cannot be shown again.
 
-The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users & Access → Authentication**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
+The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users and Sign-in → Sign-in Methods**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
 
 This page sets a password only; passkeys can be added afterwards in **Settings → Security → Extra protection**.
 
@@ -41,11 +41,11 @@ Every sign-in that works away from home needs an email address. The administrato
 
 ## Add a person, and give them their own sign-in
 
-A person is looked after from their own page under **Settings → Profiles**. What you see depends on who you are:
+A person is looked after from their own page under **Settings → Profiles**, which is for administrators only; each person's row has an **Edit** button. What you see depends on who you are:
 
-- A **household administrator** sees the people in their own household (up to 8), and under Administration only **Devices**, which lists the paired devices and signed-in sessions in their household. Nothing else from Users & Access is shown, and they cannot reach another household.
-- A **server administrator** sees every household under **Settings → Profiles**, and a **Households** tab under **Settings → Users & Access** that lists each household (name, how many people, main sign-in). Older links that pointed at a household tab under Users & Access open the **Households** tab.
-- Anyone else sees only their own profile. Their **Sign-in** row opens **Settings → Security**.
+- A **household administrator** sees the people in their own household (up to 8), and, on **Security → Devices**, the paired devices and signed-in browsers of their household (every signed-in person sees that page, but a member sees only their own). Nothing from Users and Sign-in is shown, and they cannot reach another household.
+- A **server administrator** sees every household under **Settings → Profiles**, with **Add household**, and a **Households** page under Profiles (**Settings → Profiles → Households**) that lists each household (name, how many people, how many sign-ins) and lets you rename or remove it. A household can only be removed once it has no people, sign-ins or shared photos.
+- Anyone else does not see Profiles. They change their own name, picture and details from **Edit profile** on their Overview, and look after their sign-in under **Settings → Security**.
 
 On a person's page:
 
@@ -60,10 +60,10 @@ Library and lane access is not set per person. A person's own sign-in follows th
 
 Admin access requires both an eligible account and an active profile grant with admin access.
 
-1. Under **Settings → Users & Access → Households**, open the account and choose its **Manage profiles** action.
-2. Enable admin settings only for the intended grant.
-3. Turn on its optional admin protection and set a separate PIN.
-4. Choose the unlock duration offered by the control and save.
+1. Under **Settings → Users and Sign-in → Users**, open the account's row menu, choose **Profile access**, and switch on **Allow admin dashboard** only for the intended profile.
+2. Open that person's page under **Settings → Profiles**. A **PIN protection** group appears there.
+3. Set a separate PIN for the account.
+4. Choose the unlock duration offered by the control and select **Enable protection**.
 
 The PIN lock protects settings after sign-in. It is separate from the account password and profile-selection PIN. Switching profiles clears the active admin unlock.
 
@@ -73,7 +73,7 @@ Open **Settings → Security**. **Password** changes your password. Once you hav
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 
-Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users & Access → Authentication** reports readiness and explains unavailable methods.
+Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users and Sign-in → Sign-in Methods** reports readiness and explains unavailable methods.
 
 ## Secure a this-computer account
 
@@ -139,7 +139,7 @@ Email is optional. Use an authenticated SMTP relay with a verified sender and pr
 2. Copy `config/examples/email.secrets.example.json` to `config/.secrets/email.json`.
 3. Enter `smtp_password` and restrict file access to the Dashboard's operating-system account.
 4. Restart the Dashboard.
-5. In **Users & Access → Authentication**, use **Send test email to my account** when delivery reports ready.
+5. In **Users and Sign-in → Sign-in Methods**, use **Send test email to my account** when delivery reports ready.
 
 Password-reset links are built from the server's public address, the same one passkeys and linked sign-in use. Set it under **Settings → Network** (`remote.public_hostname` in `config/network.json`) before enabling email recovery.
 

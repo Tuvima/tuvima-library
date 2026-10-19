@@ -341,7 +341,7 @@ public sealed class AccessRepositoryTests : IDisposable
     [Fact]
     public async Task ViewScopeParentsAndSharedIdentity_CannotBeMutatedIntoInvalidState()
     {
-        await new ViewSharedLibraryRepository(_database).GetAsync();
+        var sharedLibrary = await new ViewSharedLibraryRepository(_database).GetAsync();
         using var connection = _database.CreateConnection();
         var spaceId = Guid.NewGuid();
         var libraryId = Guid.NewGuid();
@@ -355,6 +355,11 @@ public sealed class AccessRepositoryTests : IDisposable
         Assert.Throws<SqliteException>(() => connection.Execute(
             "UPDATE view_shared_library SET library_id=@other;",
             new { other = Guid.NewGuid() }));
+        // A Shared Library that holds items cannot be deleted (an empty one may go with its household).
+        connection.Execute("""
+            INSERT INTO local_items(id,scope_kind,library_id,media_kind,primary_file_name,primary_mime_type,created_at,updated_at)
+            VALUES(@id,'shared',@libraryId,'image','beach.jpg','image/jpeg',@now,@now);
+            """, new { id = Guid.NewGuid(), libraryId = sharedLibrary.LibraryId, now = _now.ToString("O") });
         Assert.Throws<SqliteException>(() => connection.Execute(
             "DELETE FROM view_shared_library;"));
     }

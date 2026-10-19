@@ -1,6 +1,8 @@
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Activity;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Activity;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Playback;
@@ -13,6 +15,7 @@ public sealed class PlaybackTelemetryLifecycleService(
     IPlaybackTelemetryRepository repository,
     IClientAuthorizationRepository clients,
     IIdentityRepository identities,
+    PersonalActivityRecorder activity,
     TimeProvider clock)
 {
     public async Task<PlaybackTelemetryTransition?> CloseAsync(
@@ -20,7 +23,13 @@ public sealed class PlaybackTelemetryLifecycleService(
         string reason,
         CancellationToken ct)
     {
-        return await repository.CloseAsync(playerSessionId, clock.GetUtcNow(), reason, ct).ConfigureAwait(false);
+        var transition = await repository.CloseAsync(playerSessionId, clock.GetUtcNow(), reason, ct).ConfigureAwait(false);
+        if (transition is not null)
+        {
+            await activity.RecordClosedAsync([transition], ct).ConfigureAwait(false);
+        }
+
+        return transition;
     }
 
     public async Task<IReadOnlyList<PlaybackTelemetryTransition>> ObserveAsync(
@@ -76,10 +85,13 @@ public sealed class PlaybackTelemetryLifecycleService(
             authority.SessionId, assetId, libraryId, feature, asset.MediaType, state,
             clock.GetUtcNow(), positionSeconds, durationSeconds, sequence, playbackRate,
             isExplicitSeek, hasPlaybackEnded, completionReason, delivery, clientFacts.Facts);
-        return await repository.ObserveAsync(observation, ct).ConfigureAwait(false);
+        var transitions = await repository.ObserveAsync(observation, ct).ConfigureAwait(false);
+        // The person's own activity record follows the session; it is best effort and never fails playback.
+        await activity.RecordPlaybackAsync(transitions, asset, clientFacts.Device, ct).ConfigureAwait(false);
+        return transitions;
     }
 
-    private async Task<(PlaybackClientFacts Facts, Guid? DeviceId)> ClientFactsAsync(
+    private async Task<(PlaybackClientFacts Facts, Guid? DeviceId, PersonalActivityDevice Device)> ClientFactsAsync(
         RequestAuthority authority,
         string? fallbackClient,
         CancellationToken ct)
@@ -90,7 +102,8 @@ public sealed class PlaybackTelemetryLifecycleService(
             if (device is not null && device.AccountId == authority.AccountId &&
                 device.ProfileId == authority.ActiveProfileId && device.ApplicationId == authority.ApplicationId)
             {
-                return (new(device.ClientName, device.ClientVersion), device.Id);
+                return (new(device.ClientName, device.ClientVersion), device.Id,
+                    new PersonalActivityDevice(device.DeviceName, device.DeviceClass));
             }
         }
         if (authority.SessionId is { } sessionId)
@@ -98,10 +111,11 @@ public sealed class PlaybackTelemetryLifecycleService(
             var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
             if (session is not null && session.AccountId == authority.AccountId && session.ActiveProfileId == authority.ActiveProfileId)
             {
-                return (new(session.Client, null), null);
+                return (new(session.Client, null), null, new PersonalActivityDevice(session.Client, "web"));
             }
         }
-        return (new(string.IsNullOrWhiteSpace(fallbackClient) ? null : fallbackClient, null), null);
+        var fallback = string.IsNullOrWhiteSpace(fallbackClient) ? null : fallbackClient;
+        return (new(fallback, null), null, new PersonalActivityDevice(fallback, null));
     }
 
     private static AccountFeatureId FeatureFor(string mediaType) =>

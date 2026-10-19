@@ -1,6 +1,6 @@
 # Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)
 
-> **Status:** In progress · **Version:** 3 (replaces v2; adds the Local AI behaviour review and the Integrations and Developer Tools review; locked by Shy 2026-10-19) · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Appendix A: plugin platform review](#appendix-a-plugin-platform-review) · [Appendix B: Local AI review](#appendix-b-local-ai-review) · [Appendix C: Integrations and Developer Tools review](#appendix-c-integrations-and-developer-tools-review) · [Settings revamp](settings-revamp.md) (D35, D43 to D48) · [First-run prerequisites](archive/first-run-prerequisites.md) · [Ingestion and readiness](ingestion-and-readiness.md)
+> **Status:** In progress · **Version:** 3 (replaces v2; adds the Local AI behaviour review and the Integrations and Developer Tools review; locked by Shy 2026-10-19) · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Appendix A: plugin platform review](#appendix-a-plugin-platform-review) · [Appendix B: Local AI review](#appendix-b-local-ai-review) · [Appendix C: Integrations and Developer Tools review](#appendix-c-integrations-and-developer-tools-review) · [Settings revamp](archive/settings-revamp.md) (D35, D43 to D48) · [First-run prerequisites](archive/first-run-prerequisites.md) · [Ingestion and readiness](ingestion-and-readiness.md)
 
 ## 0. What versions 2 and 3 change
 

@@ -340,7 +340,10 @@ Scheduled maintenance task configuration.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `activity_retention_days` | int | `60` | How long system activity log entries are kept before automatic pruning. |
+| `activity_retention_days` | int | `90` | How long system activity (Events) log entries are kept before the nightly prune removes them. 1 to 3650. Set on System > Logs > Retention. |
+| `activity_max_events` | int | `500000` | The most system activity entries kept. Once exceeded, the nightly prune removes the oldest first (after the day limit is applied). 1,000 to 10,000,000. Personal activity is not covered. |
+| `log_retention_days` | int | `90` | How long the Engine's log files (`tuvima-*.log`) are kept. 1 to 3650. Serilog's own 14-file limit is off, so this and `log_max_total_mb` are the only rules. |
+| `log_max_total_mb` | int | `1024` | Total size of all Engine log files together, in megabytes. Once exceeded, the nightly clean-up removes the oldest files first; the file being written is never removed. 100 to 102,400. |
 | `vacuum_interval_hours` | int | `168` | How often SQLite VACUUM runs to reclaim disk space (default: weekly). |
 | `sync_interval_hours` | int | `24` | How often metadata writeback sync runs for pending changes. |
 | `reconciliation_interval_hours` | int | `24` | How often the Wikidata reconciliation refresh cycle runs. |
@@ -358,6 +361,7 @@ Scheduled maintenance task configuration.
 | `schedules.retag_sweep` | cron | `0 3 * * *` | Re-apply file tags after the tag settings change. |
 | `schedules.storage_maintenance` | cron | `0 2 * * *` | Nightly storage maintenance schedule. |
 | `schedules.plugin_segment_detection` | cron | `0 2 * * *` | Scheduled playback segment detection run by enabled segment plugins. |
+| `schedules.log_file_retention` | cron | `30 3 * * *` | When Engine log files older than the limit are removed. |
 
 Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules (`vibe_batch_cron`, `series_check_cron`, `description_intelligence_cron`) stay in `config/ai.json` under `scheduling`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
 
@@ -527,6 +531,7 @@ Global UI defaults applied to all devices and users unless overridden.
 | `accent_color` | string | `"#8B5CF6"` - fixed purple product chrome accent. EPUB reader highlight colors are configured separately. |
 | `poster_aspect_ratio` | string | `"2:3"` - standard cover art card ratio. |
 | `default_view_mode` | string | `"list"` or `"grid"`. Default media library view mode. |
+| `app_store_links` | object | Where each Tuvima app can be installed: `app_store`, `google_play` and `roku`, each a web address. All three ship blank; the Apps page (Settings > Personal > Overview > Apps) shows a store button only once its link is a real `http` or `https` address. |
 
 ### config/ui/devices/*.json
 

@@ -30,12 +30,6 @@
     }
     else
     {
-        @if (section == "overview")
-        {
-        <header class="libraries-page-header"><div><h1>Libraries</h1><p>Manage the folders for each type of media in your library.</p></div>
-        </header>
-        }
-
         @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
         @if (readOnly && section == "view")
         {

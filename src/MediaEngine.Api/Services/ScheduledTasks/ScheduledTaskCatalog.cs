@@ -16,7 +16,7 @@ public static class ScheduledTaskCatalog
     /// <summary>Plain text shown as the schedule of continuous webhook delivery.</summary>
     public const string WebhookDeliverySchedule = "every 5 seconds";
 
-    private const string MaintenancePlace = "Maintenance schedules (config/maintenance.json)";
+    private const string MaintenancePlace = "Library maintenance schedule";
     private const string LocalAiPlace = "Local AI > Automation";
 
     private static readonly IReadOnlyDictionary<string, string> DefaultSchedules = new MaintenanceSettings().Schedules;
@@ -39,6 +39,7 @@ public static class ScheduledTaskCatalog
         Maintenance(ScheduledTaskKeys.UniverseEnrichment, "Universe enrichment");
         Maintenance(ScheduledTaskKeys.RetagSweep, "File tag refresh");
         Maintenance(ScheduledTaskKeys.StorageMaintenance, "Storage maintenance");
+        Maintenance(ScheduledTaskKeys.LogFileRetention, "Log file cleanup");
         Maintenance(ScheduledTaskKeys.NightlyEnrichmentSweep, "Nightly enrichment catch-up");
 
         registry.Register(new ScheduledTaskDescriptor(

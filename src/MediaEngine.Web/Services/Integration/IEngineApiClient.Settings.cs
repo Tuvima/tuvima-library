@@ -19,6 +19,12 @@ public partial interface IEngineApiClient
     /// <summary>Asks the Engine to look for its tools again and returns the fresh result.</summary>
     Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default);
 
+    /// <summary>The Settings attention lines the active profile dismissed, or <c>null</c> when the Engine could not be asked.</summary>
+    Task<ProfileNoticesResponse?> GetSettingsNoticesAsync(CancellationToken ct = default);
+
+    /// <summary>Remembers that the active profile dismissed a Settings attention line, with what was true at the time. False when the Engine did not save it.</summary>
+    Task<bool> DismissSettingsNoticeAsync(string noticeKey, string fingerprint, CancellationToken ct = default);
+
     /// <summary>Saves the folder a person chose as a tool's home and returns the fresh tools check, or the Engine's plain reason it was refused.</summary>
     Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default);
 
@@ -31,13 +37,13 @@ public partial interface IEngineApiClient
     /// <summary>Starts Tesseract's downloaded setup program on the machine running the Engine and returns the tools list.</summary>
     Task<ToolActionResult> RunToolInstallerAsync(string toolId, CancellationToken ct = default);
 
-    /// <summary>Records "Not now" for the tools banner and returns the fresh tools list.</summary>
-    Task<ToolActionResult> DeclineToolInstallAsync(string toolId, CancellationToken ct = default);
-
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 
     /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>
     Task<DataStoreVersionDto?> GetDataStoreVersionAsync(CancellationToken ct = default);
+
+    /// <summary>GET /system/resources — Engine version, uptime, processor, memory and disk space; <c>null</c> when the Engine could not be asked.</summary>
+    Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default);
 
     Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default);
 
@@ -115,9 +121,6 @@ public partial interface IEngineApiClient
 
     /// <summary>DELETE /profiles/{id}/avatar - remove a persisted profile avatar image.</summary>
     Task<ProfileViewModel?> RemoveProfileAvatarAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>GET /profiles/{id}/taste — read the computed taste profile for a user.</summary>
-    Task<TasteProfileBuildResponse?> GetTasteProfileAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>GET /profiles/{id}/overview - read user-facing profile details, history, and stats.</summary>
     Task<ProfileOverviewViewModel?> GetProfileOverviewAsync(Guid id, CancellationToken ct = default);
@@ -225,8 +228,23 @@ public partial interface IEngineApiClient
     /// <summary>POST /activity/prune — manually prune old activity entries.</summary>
     Task<PruneResponse?> TriggerPruneAsync(CancellationToken ct = default);
 
-    /// <summary>PUT /activity/retention?days= — update retention period.</summary>
-    Task<bool> UpdateRetentionAsync(int days, CancellationToken ct = default);
+    /// <summary>GET /logs/retention — the four Logs page limits plus how much is stored now. Null when the Engine could not be asked.</summary>
+    Task<LogRetentionStatusDto?> GetLogRetentionAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /logs/retention — change the four Logs page limits. Null when the Engine refused or could not be asked.</summary>
+    Task<LogRetentionStatusDto?> UpdateLogRetentionAsync(LogRetentionSettingsDto settings, CancellationToken ct = default);
+
+    /// <summary>GET /logs/technical — the Engine's technical log, newest first. Null when the Engine could not be asked.</summary>
+    Task<TechnicalLogPageDto?> GetTechnicalLogAsync(TechnicalLogRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /logs/export/preview — how many lines and how large the export would be. Null when the Engine refused or could not be asked.</summary>
+    Task<LogExportPreviewDto?> PreviewLogExportAsync(LogExportRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /logs/export — the finished export file. Null when the Engine refused or could not be asked.</summary>
+    Task<LogExportDownload?> ExportLogsAsync(LogExportRequest request, CancellationToken ct = default);
+
+    /// <summary>GET /system/scheduled-tasks — every recurring Engine task with its last and next run. Null when the Engine could not be asked.</summary>
+    Task<ScheduledTaskListResponse?> GetScheduledTasksAsync(CancellationToken ct = default);
 
     /// <summary>GET /activity/run/{runId} — all entries for a specific ingestion run.</summary>
     Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(Guid runId, CancellationToken ct = default);

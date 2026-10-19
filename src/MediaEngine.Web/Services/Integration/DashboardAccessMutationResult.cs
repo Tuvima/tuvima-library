@@ -7,10 +7,15 @@ namespace MediaEngine.Web.Services.Integration;
 /// the failure class and validation field names: Engine error bodies can contain
 /// submitted values such as PINs or credentials and must never be replayed.
 /// </summary>
+/// <param name="Message">
+/// The Engine's own plain-language reason, kept only by calls that opt in (the Households actions, whose refusals are
+/// fixed sentences with no submitted values). Null everywhere else.
+/// </param>
 public sealed record DashboardAccessMutationResult(
     DashboardAccessMutationFailure Failure = DashboardAccessMutationFailure.None,
     HttpStatusCode? StatusCode = null,
-    IReadOnlyList<string>? ValidationFields = null)
+    IReadOnlyList<string>? ValidationFields = null,
+    string? Message = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
 
@@ -19,15 +24,17 @@ public sealed record DashboardAccessMutationResult(
     public static DashboardAccessMutationResult FailureResult(
         DashboardAccessMutationFailure failure,
         HttpStatusCode? statusCode = null,
-        IReadOnlyList<string>? validationFields = null) =>
-        new(failure, statusCode, validationFields ?? []);
+        IReadOnlyList<string>? validationFields = null,
+        string? message = null) =>
+        new(failure, statusCode, validationFields ?? [], message);
 }
 
 public sealed record DashboardAccessMutationResult<T>(
     T? Value = default,
     DashboardAccessMutationFailure Failure = DashboardAccessMutationFailure.None,
     HttpStatusCode? StatusCode = null,
-    IReadOnlyList<string>? ValidationFields = null)
+    IReadOnlyList<string>? ValidationFields = null,
+    string? Message = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
 
@@ -36,8 +43,9 @@ public sealed record DashboardAccessMutationResult<T>(
     public static DashboardAccessMutationResult<T> FailureResult(
         DashboardAccessMutationFailure failure,
         HttpStatusCode? statusCode = null,
-        IReadOnlyList<string>? validationFields = null) =>
-        new(default, failure, statusCode, validationFields ?? []);
+        IReadOnlyList<string>? validationFields = null,
+        string? message = null) =>
+        new(default, failure, statusCode, validationFields ?? [], message);
 }
 
 public enum DashboardAccessMutationFailure

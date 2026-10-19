@@ -79,6 +79,14 @@ public static class NetworkEndpoints
             .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead);
 
+        // The Apps page shows these two addresses to every signed-in person; the address is not a secret, and nothing else
+        // from the network settings or status is returned.
+        network.MapGet("/app-addresses", (NetworkStatusService status) => Results.Ok(status.GetAppAddresses()))
+            .WithName("GetNetworkAppAddresses")
+            .WithSummary("Return the address to type into a Tuvima app at home and, when set up, away from home, for any signed-in person.")
+            .Produces<NetworkAppAddressesDto>()
+        .RequireHumanSelfService();
+
         // The Dashboard's discovery answer is anonymous, so it asks with its own service credential (no signed-in person).
         network.MapGet("/outside-address", (NetworkStatusService status) =>
             Results.Ok(new NetworkOutsideAddressDto { OutsideAddress = status.GetOutsideAddress() }))

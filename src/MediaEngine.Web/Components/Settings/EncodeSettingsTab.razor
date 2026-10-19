@@ -12,7 +12,17 @@
     }
     else if (IsSection("diagnostics"))
     {
-        <SettingsSectionPanel Title="Playback tools and services"
+        @if (_diagnostics is not null && !DeliveryChecksPassed)
+        {
+            <AppAlert Tone="AppUiTone.Warning">
+                <div class="encode-settings__health">
+                    <strong>Playback delivery needs attention</strong>
+                    <span>@DeliveryDetail</span>
+                </div>
+            </AppAlert>
+        }
+
+        <SettingsSectionPanel Title="Playback checks"
                               Description="Technical checks reported directly by the Engine."
                               Icon="@AppMaterialIcons.Outlined.MonitorHeart">
             @if (_diagnostics is null)
@@ -54,27 +64,48 @@
     else if (!_settingsAvailable)
     {
         <AppErrorState Title="Playback delivery settings are unavailable"
-                       Message="Start the Engine or retry before changing transcoding and variant storage." />
+                       Message="Start the Engine or retry before changing hardware acceleration and optimized copies." />
     }
-    else if (IsSection("scheduling"))
+    else if (IsSection("hardware"))
     {
+        <SettingsSectionPanel Title="Hardware acceleration"
+                              Description="Choose what the server uses to prepare video for playback. This is the one place to change it."
+                              Icon="@AppMaterialIcons.Outlined.Memory">
+            <div class="encode-settings__form">
+                <AppSelect T="string" @bind-Value="_hardwarePreference" Label="Hardware acceleration" Options="@HardwareOptions" />
+                <div class="encode-settings__current">
+                    <strong>@DisplayHardware(_settings.HardwareAcceleration)</strong>
+                    <span>Current Streaming preference</span>
+                </div>
+            </div>
+        </SettingsSectionPanel>
+        @SaveButton("Save hardware settings")
+    }
+    else
+    {
+        <SettingsSectionPanel Title="Optimized copies"
+                              Description="Set how the server prepares media for playback and offline use."
+                              Icon="@AppMaterialIcons.Outlined.VideoSettings">
+            <div class="encode-settings__form">
+                <AppSelect T="string" @bind-Value="_defaultProfile" Label="Prepared download quality" Options="@ProfileOptions" />
+                <AppNumericField @bind-Value="_maxConcurrentJobs" Label="Maximum active encodes" Min="1" Max="4" />
+            </div>
+        </SettingsSectionPanel>
+
         <SettingsSectionPanel Title="Scheduling"
-                              Description="Limit prepared variant work to a predictable maintenance window."
+                              Description="Limit optimized copy work to a predictable maintenance window."
                               Icon="@AppMaterialIcons.Outlined.Schedule">
             <div class="encode-settings__form">
                 <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
                               Label="Schedule prepared encodes"
-                              Description="Queue non-urgent variant work for the maintenance window." />
+                              Description="Queue non-urgent optimized copy work for the maintenance window." />
                 <AppTextField @bind-Value="_maintenanceWindow"
                               Label="Maintenance window"
                               HelpText="Use 24-hour time, for example 01:00-05:00." />
             </div>
         </SettingsSectionPanel>
-        @SaveButton("Save schedule")
-    }
-    else if (IsSection("storage"))
-    {
-        <SettingsSectionPanel Title="Variant storage"
+
+        <SettingsSectionPanel Title="Optimized copy storage"
                               Description="Control where prepared playback files are kept and when they are removed."
                               Icon="@AppMaterialIcons.Outlined.Storage">
             <div class="encode-settings__form">
@@ -85,21 +116,23 @@
                                  Min="1"
                                  Max="5000" />
                 <AppNumericField @bind-Value="_retentionDays"
-                                 Label="Keep unused variants for"
-                                 HelpText="Number of days before unused variants become eligible for cleanup."
+                                 Label="Keep unused optimized copies for"
+                                 HelpText="Number of days before unused optimized copies become eligible for cleanup."
                                  Min="1"
                                  Max="3650" />
                 <AppSwitchRow @bind-Value="_cleanupLru"
-                              Label="Remove least-used variants first"
+                              Label="Remove least-used optimized copies first"
                               Description="Free space by removing the least recently used prepared files before newer ones." />
             </div>
         </SettingsSectionPanel>
-        @SaveButton("Save storage settings")
+        @SaveButton("Save optimized copy settings")
+
+        <OfflineDownloadsTab />
     }
 </div>
 
 @code {
-    [Parameter] public string Section { get; set; } = "scheduling";
+    [Parameter] public string Section { get; set; } = "optimized-copies";
 
     private TranscodingSettings _settings = new();
     private bool _loading = true;
@@ -113,7 +146,32 @@
     private int _cacheSizeGb;
     private int _retentionDays;
     private bool _cleanupLru;
+    private string _defaultProfile = string.Empty;
     private PlaybackDiagnosticsDto? _diagnostics;
+
+    private static readonly IReadOnlyList<AppSelectOption> HardwareOptions =
+    [
+        new("auto", "Automatic"),
+        new("cpu", "CPU"),
+        new("gpu", "GPU when available"),
+    ];
+
+    private IReadOnlyList<AppSelectOption> ProfileOptions =>
+        _settings.QualityProfiles
+            .Select(profile => new AppSelectOption(profile.Name, $"{profile.Name} · {profile.Resolution}"))
+            .ToList();
+
+    private bool DeliveryChecksPassed =>
+        _diagnostics is { FFmpegAvailable: true }
+        && _diagnostics.Warnings.Count == 0;
+
+    private string DeliveryDetail => DeliveryChecksPassed
+        ? string.Empty
+        : _diagnostics!.Warnings.FirstOrDefault()
+          ?? "One or more required media tools are unavailable.";
+
+    private static string DisplayHardware(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Unavailable" : value == "auto" ? "Automatic" : value;
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,7 +224,7 @@
 
         if (saved is null)
         {
-            Snackbar.Add("Encode settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add("Optimized copy settings could not be saved.", AppSeverity.Error);
             return;
         }
 
@@ -177,6 +235,7 @@
 
     private void HydrateForm(TranscodingSettings settings)
     {
+        _defaultProfile = settings.DefaultMobileProfile;
         _scheduledEncodesEnabled = settings.ScheduledEncodesEnabled;
         _maintenanceWindow = settings.MaintenanceWindow;
         _maxConcurrentJobs = settings.MaxConcurrentTranscodes;
@@ -189,6 +248,7 @@
 
     private void ApplyForm(TranscodingSettings settings)
     {
+        settings.DefaultMobileProfile = _defaultProfile;
         settings.ScheduledEncodesEnabled = _scheduledEncodesEnabled;
         settings.MaintenanceWindow = _maintenanceWindow;
         settings.MaxConcurrentTranscodes = _maxConcurrentJobs;

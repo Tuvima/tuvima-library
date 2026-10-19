@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MediaEngine.Contracts.System;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
@@ -40,6 +41,10 @@ public static class JsonConfigValidator
                 break;
             case MaintenanceSettings maintenance:
                 AddPositive(errors, maintenance.ActivityRetentionDays, "activity_retention_days");
+                AddRange(errors, maintenance.ActivityRetentionDays, "activity_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
+                AddRange(errors, maintenance.ActivityMaxEvents, "activity_max_events", LogRetentionLimits.MinActivityEvents, LogRetentionLimits.MaxActivityEvents);
+                AddRange(errors, maintenance.LogRetentionDays, "log_retention_days", LogRetentionLimits.MinDays, LogRetentionLimits.MaxDays);
+                AddRange(errors, maintenance.LogMaxTotalMegabytes, "log_max_total_mb", LogRetentionLimits.MinLogTotalMegabytes, LogRetentionLimits.MaxLogTotalMegabytes);
                 AddPositive(errors, maintenance.MaxTransactionLogEntries, "max_transaction_log_entries");
                 AddPositive(errors, maintenance.WeeklySyncIntervalDays, "weekly_sync_interval_days");
                 AddPositive(errors, maintenance.WeeklySyncBatchSize, "weekly_sync_batch_size");

@@ -613,7 +613,7 @@
             {
                 if (removed.Failure == DashboardAccessMutationFailure.Conflict)
                 {
-                    _editorError = ProfileEditingWorkflow.RemoveBlockedMessage;
+                    _editorError = string.IsNullOrWhiteSpace(removed.Message) ? ProfileEditingWorkflow.RemoveBlockedMessage : removed.Message;
                     return;
                 }
 
