@@ -1,0 +1,128 @@
+/* The Now panel. One column template (--ingestion-now-columns) serves the heading row and every item row, so Title, Type, Step, Status and Details line up. */
+.ingestion-now {
+    --ingestion-now-columns: minmax(14rem, 2.2fr) minmax(7.5rem, .8fr) minmax(9rem, 1.1fr) minmax(8.5rem, .9fr) 11.5rem;
+    display: grid;
+    gap: .3rem;
+}
+
+.ingestion-now > header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .25rem 1rem;
+}
+
+.ingestion-now h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.ingestion-now > header p {
+    display: flex;
+    align-items: center;
+    gap: .48rem;
+    margin: 0;
+    color: var(--tl-palette-text-secondary);
+    font-size: .76rem;
+}
+
+.ingestion-now__personal {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: .85rem;
+}
+
+.ingestion-now__live-dot {
+    position: relative;
+    width: .5rem;
+    height: .5rem;
+    background: var(--tl-palette-success);
+    border-radius: 50%;
+}
+
+.ingestion-now__live-dot::after {
+    position: absolute;
+    inset: -.28rem;
+    border: 1px solid color-mix(in srgb, var(--tl-palette-success) 70%, transparent);
+    border-radius: inherit;
+    content: "";
+    animation: ingestion-now-pulse 1.8s ease-out infinite;
+}
+
+.ingestion-now__table {
+    display: grid;
+    border-top: 1px solid var(--app-border);
+}
+
+.ingestion-now__head {
+    display: grid;
+    grid-template-columns: var(--ingestion-now-columns);
+    gap: .75rem;
+    padding: .35rem .5rem;
+    color: var(--tl-palette-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 600;
+    letter-spacing: .02em;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.ingestion-grouping-state {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    min-height: 3.5rem;
+    padding: .6rem 0;
+    color: var(--tl-palette-text-secondary);
+}
+
+.ingestion-grouping-state > span:not(.ingestion-grouping-state__spin) {
+    display: grid;
+}
+
+.ingestion-grouping-state__spin {
+    display: inline-flex;
+    color: var(--tl-palette-primary);
+    animation: ingestion-now-spin 2s linear infinite;
+}
+
+@keyframes ingestion-now-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes ingestion-now-pulse {
+    0% { opacity: .8; transform: scale(.55); }
+    75%, 100% { opacity: 0; transform: scale(1.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ingestion-now__live-dot::after,
+    .ingestion-grouping-state__spin {
+        animation: none;
+    }
+}
+
+/* Tablet: the same five columns, narrower. */
+@media (max-width: 840px) {
+    .ingestion-now {
+        --ingestion-now-columns: minmax(10rem, 1.6fr) 6.5rem minmax(6rem, 1fr) minmax(7rem, .9fr) 10rem;
+    }
+}
+
+/* Phone: each item is a stacked list item; the heading row is dropped (the facts keep their order and their own words). */
+@media (max-width: 600px) {
+    .ingestion-now {
+        --ingestion-now-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .ingestion-now__head {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        border: 0;
+        white-space: nowrap;
+    }
+}

@@ -663,6 +663,61 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Snapshot_CountsEachDayByTypeOverEveryItemNotTheCappedPreview()
+    {
+        var batch = AddBatch("completed", 11, 11);
+        for (var index = 1; index <= 5; index++)
+        {
+            AddStandalone(batch, "Movies", $"Counted Movie {index}", presented: true);
+        }
+
+        for (var index = 1; index <= 3; index++)
+        {
+            AddStandalone(batch, "Books", $"Counted Book {index}", presented: true);
+        }
+
+        var show = AddContainer("TV", "Counted Show");
+        var season = AddContainer("TV", "Season 1", show);
+        AddChildren(batch, season, "TV", "Episode", 3, "episode_number", seasonNumber: 1);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE media_assets SET presented_at = @now WHERE presented_at IS NULL;", new { now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync(currentLimit: 8, recentDayLimit: 1, recentItemsPerDay: 2);
+
+        var today = Assert.Single(snapshot.RecentDays);
+        Assert.Equal(2, today.Items.Count);
+        Assert.Equal(
+            [("Movies", 5), ("Books", 3), ("TV", 3)],
+            today.TypeCounts.Select(type => (type.MediaType, type.Count)).ToArray());
+    }
+
+    [Fact]
+    public async Task Snapshot_ShowsAtLeastTenInFlightRowsWhenThatManyAreWorkedOn()
+    {
+        var batch = AddBatch("running", 15, 15);
+        for (var index = 1; index <= 15; index++)
+        {
+            AddStandalone(batch, "Movies", $"In Flight {index}");
+        }
+
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
+                SELECT randomblob(16), id, 'MediaAsset', 'Movies', @batch, 'Hydrating', 'Quick', @now, @now FROM media_assets;
+                UPDATE ingestion_log SET status = 'queued_identity';
+                """, new { batch, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
+
+        Assert.Equal(15, snapshot.CurrentMediaTotal);
+        Assert.True(snapshot.CurrentMedia.Count >= 10);
+    }
+
+    [Fact]
     public async Task MultiFileBookUsesIdentityUnitsAndUnmatchedWorkIsNotACompletedAddition()
     {
         var batch = AddBatch("running", 40, 40);

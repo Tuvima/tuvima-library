@@ -30,7 +30,6 @@ public sealed partial class SettingsCardGuardrailTests
     private static readonly IReadOnlyDictionary<string, string> PaddedSelectorAllowlist = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [".curator-result-card"] = "A result row inside the curators drawer.",
-        [".ingestion-media-card"] = "A media tile in the ingestion list, not a page content block.",
         [".network-status-card"] = "A small status tile inside a settings card.",
         [".admin-library-summary"] = "Library and Ingestion page; rebuilt by the ingestion-flow packet (WP16).",
         [".admin-overview-card"] = "Library and Ingestion page; rebuilt by the ingestion-flow packet (WP16).",

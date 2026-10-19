@@ -72,7 +72,7 @@ public sealed class Phase5InlineEditingTests
     [Fact]
     public void ReviewQueue_ReviewActionLaunchesEditorInReviewModeWithReviewId()
     {
-        var source = ReadSource("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
+        var source = ReadSource("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
 
         Assert.Contains("Mode = SharedMediaEditorMode.Review", source, StringComparison.Ordinal);
         Assert.Contains("ReviewItemId = item.Id", source, StringComparison.Ordinal);
