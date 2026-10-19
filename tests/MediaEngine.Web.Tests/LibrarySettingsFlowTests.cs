@@ -373,15 +373,15 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     // Switching an as-is folder that has files to Managed asks honestly first, then queues one organising job.
     [Fact]
-    public void TappingAsIsHandlingExplainsThenConvertsTheFolder()
+    public async Task TappingAsIsHandlingExplainsThenConvertsTheFolder()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        await ClickHandlingChipAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);
-        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Convert").Click();
+        await ClickButtonAsync(dialogs, "Convert");
         cut.WaitForAssertion(() => Assert.Equal(["movies-old"], _converted));
         // The Engine makes the folder Managed itself, in the same step: the Dashboard never saves the mode first.
         Assert.Equal(0, _saves);
@@ -441,14 +441,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     // A folder with nothing in it just asks plainly; there is no job to run.
     [Fact]
-    public void AnEmptyFolderIsSwitchedWithoutAnOrganisingJob()
+    public async Task AnEmptyFolderIsSwitchedWithoutAnOrganisingJob()
     {
         _quick = new() { TotalFiles = 0, DuplicatePolicy = "keep_one" };
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        await ClickHandlingChipAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("no media files in this folder yet", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => Text(x) == "Let Tuvima manage it").Click();
+        await ClickButtonAsync(dialogs, "Let Tuvima manage it");
         cut.WaitForAssertion(() => Assert.Equal("managed_by_tuvima", _lastLibrary?.Sources.Single(x => x.Id == "movies-old").ManagementMode));
         Assert.Empty(_converted);
     }
@@ -476,23 +476,23 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void CancellingAJobAsksFirstAndKeepsTheFolderManaged()
+    public async Task CancellingAJobAsksFirstAndKeepsTheFolderManaged()
     {
         var dialogs = Render<AppDialogHost>();
         _configuration.Libraries[0].Sources[1].ConversionState = "converting";
         _jobs = [new() { OperationId = "job-1", SourceId = "movies-plex", State = "running", ItemsTotal = 100, ItemsCompleted = 10 }];
         var cut = Open("Movies");
         cut.WaitForElement(".folder-job");
-        cut.Find(".folder-job button[aria-label='Cancel organising Plex Movies']").Click();
+        await cut.ClickAsync(page => page.Find(".folder-job button[aria-label='Cancel organising Plex Movies']"));
         dialogs.WaitForAssertion(() => Assert.Contains("Stop organising Plex Movies?", dialogs.Markup));
         Assert.Contains("the rest will be tidied gradually by normal scans", dialogs.Markup);
         Assert.Empty(_controls);
-        dialogs.FindAll("button").Single(x => Text(x) == "Keep going").Click();
+        await ClickButtonAsync(dialogs, "Keep going");
         Assert.Empty(_controls);
 
-        cut.Find(".folder-job button[aria-label='Cancel organising Plex Movies']").Click();
+        await cut.ClickAsync(page => page.Find(".folder-job button[aria-label='Cancel organising Plex Movies']"));
         dialogs.WaitForAssertion(() => Assert.Contains("Stop organising Plex Movies?", dialogs.Markup));
-        dialogs.FindAll("button").Single(x => Text(x) == "Stop organising").Click();
+        await ClickButtonAsync(dialogs, "Stop organising");
         cut.WaitForAssertion(() => Assert.Equal([("job-1", "cancel")], _controls));
     }
 
@@ -527,11 +527,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     // A managed folder can be organised on request, with the same honest question.
     [Fact]
-    public void OrganiseFilesNowOnAManagedFolderAsksThenQueuesTheJob()
+    public async Task OrganiseFilesNowOnAManagedFolderAsksThenQueuesTheJob()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 0, "Organise files now");
+        await OpenMenuItemAsync(cut, 0, "Organise files now");
         dialogs.WaitForAssertion(() => Assert.Contains("Organise E:\\Library\\Movies now?", dialogs.Markup));
         Assert.Contains("This cannot be undone automatically", dialogs.Markup);
         dialogs.FindAll("button").Single(x => Text(x) == "Organise now").Click();
@@ -582,11 +582,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheMergeSheetPreselectsTheNewMediaFolderAndCopyAndStartsTheJob()
+    public async Task TheMergeSheetPreselectsTheNewMediaFolderAndCopyAndStartsTheJob()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 2, "Merge into…");
+        await OpenMenuItemAsync(cut, 2, "Merge into…");
         dialogs.WaitForAssertion(() => Assert.Contains("Merge Old drive into a managed folder", dialogs.Markup));
         dialogs.WaitForAssertion(() => Assert.Contains("12 files", Text(dialogs.Find(".merge-folder__facts"))));
         Assert.Contains("48 GB", Text(dialogs.Find(".merge-folder__facts")));
@@ -613,12 +613,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AManagedFolderCanBeMovedAndThePersonCanPickAnotherTarget()
+    public async Task AManagedFolderCanBeMovedAndThePersonCanPickAnotherTarget()
     {
         _configuration.Libraries[0].Sources.Add(new() { Id = "movies-third", Path = "G:\\Films", Notes = "Third", ManagementMode = "managed_by_tuvima", AccessMode = "writable" });
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 1, "Merge into…");
+        await OpenMenuItemAsync(cut, 1, "Merge into…");
         dialogs.WaitForAssertion(() => Assert.Contains("Merge Plex Movies into a managed folder", dialogs.Markup));
         dialogs.WaitForAssertion(() => Assert.Contains("Move instead of copy", dialogs.Markup));
         Assert.Contains("drive D:", dialogs.Markup);
@@ -635,11 +635,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PreviewFirstShowsWhatWouldHappenWithoutStartingAnything()
+    public async Task PreviewFirstShowsWhatWouldHappenWithoutStartingAnything()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 1, "Merge into…");
+        await OpenMenuItemAsync(cut, 1, "Merge into…");
         dialogs.WaitForAssertion(() => Assert.Contains("12 files", dialogs.Markup));
 
         dialogs.FindAll("button").Single(x => Text(x) == "Preview first").Click();
@@ -654,12 +654,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AMergeThatCannotStartBecauseOfRoomIsExplainedAndTheMergeButtonIsOff()
+    public async Task AMergeThatCannotStartBecauseOfRoomIsExplainedAndTheMergeButtonIsOff()
     {
         _mergeQuick = new() { TotalFiles = 3, SourceBytes = 90L * 1024 * 1024 * 1024, TargetFreeBytes = 10L * 1024 * 1024 * 1024, BlockedReason = "There is not enough room on the drive that holds the target folder.", DuplicatePolicy = "keep_one" };
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 1, "Merge into…");
+        await OpenMenuItemAsync(cut, 1, "Merge into…");
 
         dialogs.WaitForAssertion(() => Assert.Contains("not enough room on the drive", dialogs.Markup));
         Assert.True(dialogs.FindAll("button").Single(x => Text(x) == "Merge").HasAttribute("disabled"));
@@ -942,12 +942,19 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".library-folders__advanced"));
     }
 
-    private void OpenMenuItem(IRenderedComponent<LibrariesTab> cut, int row, string label)
+    private async Task OpenMenuItemAsync(IRenderedComponent<LibrariesTab> cut, int row, string label)
     {
-        cut.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!.Click();
+        await cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!);
         cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == label));
-        cut.FindAll("[role=menuitem]").First(x => Text(x) == label).Click();
+        await cut.ClickAsync(page => page.FindAll("[role=menuitem]").First(x => Text(x) == label));
     }
+
+    // The Handling chip and a dialog button are found and clicked in one step on the renderer thread (see RendererThreadExtensions).
+    private static Task ClickHandlingChipAsync(IRenderedComponent<LibrariesTab> cut, int row) =>
+        cut.ClickAsync(page => page.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__chip")!);
+
+    private static Task ClickButtonAsync(IRenderedComponent<AppDialogHost> dialogs, string label) =>
+        dialogs.ClickAsync(host => host.FindAll("button").Single(x => Text(x) == label));
 
     [Fact]
     public void KeepManagedCancelsTheSwitchToAsIs()
@@ -985,11 +992,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LabelEditSavesTheNewLabel()
+    public async Task LabelEditSavesTheNewLabel()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 0, "Label");
+        await OpenMenuItemAsync(cut, 0, "Label");
         dialogs.WaitForElement("input");
         dialogs.Find("input").Input("Main films");
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Apply").Click();
@@ -1011,11 +1018,11 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MarkerMovesWhenItsFolderIsRemovedOrSwitchedToAsIs()
+    public async Task MarkerMovesWhenItsFolderIsRemovedOrSwitchedToAsIs()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
-        OpenMenuItem(cut, 0, "Remove folder");
+        await OpenMenuItemAsync(cut, 0, "Remove folder");
         dialogs.WaitForAssertion(() => Assert.Contains("Remove this folder?", dialogs.Markup));
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Remove").Click();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".folder-table__row").Count));

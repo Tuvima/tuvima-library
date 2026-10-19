@@ -203,29 +203,31 @@ public sealed class ToolInstallerService : IToolInstallerService
                 Finish(job, ToolInstallPhase.InstallerReady, null);
             }
         }
+        // Every ending records its activity entry before the job leaves Downloading, as the success path does: anyone who
+        // sees the job finished (the Tools page, a test waiting on it) can then rely on the history already saying how.
         catch (OperationCanceledException) when (ct.IsCancellationRequested && !job.Committed)
         {
-            Finish(job, ToolInstallPhase.Idle, null);
             await LogAsync(ToolDownloadActivity.Cancelled(name, version, host)).ConfigureAwait(false);
+            Finish(job, ToolInstallPhase.Idle, null);
         }
         catch (ToolChecksumException ex)
         {
             _logger.LogWarning("A download for {Tool} was refused: {Detail}", name, ex.Message);
-            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallChecksum);
             await LogAsync(ToolDownloadActivity.ChecksumRefused(name, version, host)).ConfigureAwait(false);
+            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallChecksum);
         }
         catch (ToolInstallException ex)
         {
             _logger.LogWarning(ex, "Installing {Tool} did not finish.", name);
-            Finish(job, ToolInstallPhase.Failed, ex.PlainReason);
             await LogAsync(ToolDownloadActivity.Failed(name, version, host, ex.PlainReason)).ConfigureAwait(false);
+            Finish(job, ToolInstallPhase.Failed, ex.PlainReason);
         }
         catch (Exception ex)
         {
             // A background job must never take the Engine down; the person gets a plain reason and the log gets the detail.
             _logger.LogWarning(ex, "Installing {Tool} failed.", name);
-            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallFailed);
             await LogAsync(ToolDownloadActivity.Failed(name, version, host, ToolRequirementsService.Copy.InstallFailed)).ConfigureAwait(false);
+            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallFailed);
         }
         finally
         {

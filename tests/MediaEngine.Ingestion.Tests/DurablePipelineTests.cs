@@ -219,7 +219,7 @@ public sealed class DurablePipelineTests : IDisposable
             ],
         });
 
-        await RunPipelineAsync(localOnly: true);
+        await RunPipelineAsync(localOnly: true, expectNoWork: true);
 
         using var conn = _dbFactory.Connection.CreateConnection();
         Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
@@ -338,7 +338,8 @@ public sealed class DurablePipelineTests : IDisposable
             File.WriteAllText(filePath, "dummy content for testing");
         }
 
-        await RunPipelineAsync();
+        // The engine already knows this file, so it takes nothing on again and there is no handled file to wait for.
+        await RunPipelineAsync(expectNoWork: true);
 
         // Only one media asset should exist regardless of how many times the
         // pipeline ran — the duplicate-detection (hash lookup) prevents double-insert.
@@ -366,7 +367,7 @@ public sealed class DurablePipelineTests : IDisposable
         });
 
         // The primary assertion: this must not throw.
-        var exception = await Record.ExceptionAsync(() => RunPipelineAsync());
+        var exception = await Record.ExceptionAsync(() => RunPipelineAsync(expectNoWork: true));
         Assert.Null(exception);
 
         // Secondary: if an asset was created it must not have an identity job
@@ -1637,6 +1638,7 @@ public sealed class DurablePipelineTests : IDisposable
     {
         var path = Path.Combine(_watchDir, name);
         File.WriteAllText(path, content);
+        _mediaFilesInWatchDir.Add(path);
         return path;
     }
 
@@ -1717,12 +1719,27 @@ public sealed class DurablePipelineTests : IDisposable
             ? Directory.EnumerateFiles(_tempRoot, filename, SearchOption.AllDirectories).FirstOrDefault()
             : null;
 
+    // The media files a test put in the watch folder; a cover or other sibling file is not a candidate and is not counted.
+    private readonly List<string> _mediaFilesInWatchDir = [];
+
+    // Only a hung engine reaches this; the run itself ends as soon as the pipeline has handled the watch folder's files.
+    private static readonly TimeSpan PipelineHangLimit = TimeSpan.FromSeconds(60);
+
+    // How long an engine that is expected to leave the file alone is watched for. Slowness can only make it miss a
+    // mistake, never invent one, so this is the one wait here that is a fixed time.
+    private static readonly TimeSpan IdleWatch = TimeSpan.FromSeconds(3);
+
+    /// <param name="expectNoWork">
+    /// The test expects the engine to take nothing on (a library the catalogue ignores, a file that is not valid), so there
+    /// is no completed file to wait for and the engine is simply watched for a short while instead.
+    /// </param>
     private async Task RunPipelineAsync(
         bool localOnly = false,
         bool applyMediaTypePrior = true,
         ILogger<IngestionEngine>? logger = null,
         string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
-        bool managedWatchFolder = false)
+        bool managedWatchFolder = false,
+        bool expectNoWork = false)
     {
         var libraryId = localOnly
             ? "99999999-9999-4999-8999-999999999999"
@@ -1786,13 +1803,29 @@ public sealed class DurablePipelineTests : IDisposable
 
         using var engine = CreateEngine(debounce, options, logger, mutationGate: managedWatchFolder ? new SourceMutationPolicyGate() : null);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        // Wait for the pipeline to have handled every media file that is in the watch folder right now.
+        var handledTarget = _bgWorker.Completed + (expectNoWork ? 0 : _mediaFilesInWatchDir.Count(File.Exists));
+        using var cts = new CancellationTokenSource(PipelineHangLimit);
         try
         {
             await engine.StartAsync(cts.Token);
-            await Task.Delay(TimeSpan.FromSeconds(3), cts.Token);
+            if (expectNoWork)
+            {
+                await Task.Delay(IdleWatch, cts.Token);
+            }
+            else
+            {
+                await _bgWorker.WaitForCompletedAsync(handledTarget, cts.Token);
+            }
         }
-        catch (OperationCanceledException) { /* expected timeout */ }
+        catch (OperationCanceledException) when (expectNoWork)
+        {
+            // The engine was only being watched for a while; the end of that time is expected.
+        }
+        catch (OperationCanceledException)
+        {
+            throw new TimeoutException($"The pipeline did not handle the {_mediaFilesInWatchDir.Count(File.Exists)} file(s) in the watch folder within {PipelineHangLimit.TotalSeconds:0} seconds.");
+        }
         finally
         {
             using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

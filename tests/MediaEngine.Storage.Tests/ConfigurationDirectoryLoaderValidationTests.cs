@@ -793,6 +793,10 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.DoesNotContain("do-not-leak", ex.Message);
     }
 
+    // The signal is released the moment the watcher reports the change, so this only bounds a watcher that never does;
+    // Windows delivers file events late while the machine is busy, which five seconds did not allow for.
+    private static readonly TimeSpan WatcherEventLimit = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task Watcher_DebouncesValidReloadAndKeepsLastKnownGoodOnInvalidChange()
     {
@@ -817,11 +821,11 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             }
             """);
 
-        Assert.True(await signal.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(await signal.WaitAsync(WatcherEventLimit));
         Assert.Equal("Reloaded", loader.LoadCore().ServerName);
 
         File.WriteAllText(corePath, "{");
-        Assert.True(await signal.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.True(await signal.WaitAsync(WatcherEventLimit));
 
         Assert.Equal("Reloaded", loader.LoadCore().ServerName);
         Assert.Contains(true, seen);
