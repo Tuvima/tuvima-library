@@ -280,6 +280,7 @@ public sealed class DatabaseStartupSafetyTests
             ("media_editor_commits", "source_work_id"),
             ("media_editor_commits", "target_work_id"),
             ("media_file_write_intents", "asset_id"),
+            ("media_inspection_holds", "asset_id"),
             ("media_editor_commit_items", "asset_id"),
             ("media_editor_commit_items", "source_edition_id"),
             ("media_editor_commit_items", "source_work_id"),

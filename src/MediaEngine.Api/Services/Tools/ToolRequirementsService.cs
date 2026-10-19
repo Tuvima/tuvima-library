@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using Microsoft.Extensions.Hosting;
 
 namespace MediaEngine.Api.Services.Tools;
 
@@ -15,81 +16,109 @@ namespace MediaEngine.Api.Services.Tools;
 /// </summary>
 public sealed partial class ToolRequirementsService : IToolRequirementsService
 {
-    private static readonly string[] MediaTypesThatNeedFfmpeg = ["Movies", "TV", "Music", "Audiobooks"];
+    /// <summary>A result older than this is replaced by a fresh check, so a tool appearing or disappearing is noticed.</summary>
+    internal static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(5);
 
     private readonly IFFmpegService _ffmpeg;
     private readonly IOcrService _ocr;
-    private readonly IConfigurationLoader _configuration;
     private readonly IModelDownloadManager _models;
     private readonly IToolRuntimeProbe _probe;
     private readonly IToolWaitingWorkCounter _waiting;
     private readonly IReadOnlyList<IMediaToolStatusListener> _listeners;
+    private readonly IHostApplicationLifetime _lifetime;
     private readonly IContainerProbe _container;
     private readonly ILogger<ToolRequirementsService> _logger;
     private readonly Func<string, string?> _readEnvironment;
+    private readonly TimeProvider _time;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
     public ToolRequirementsService(
         IFFmpegService ffmpeg,
         IOcrService ocr,
-        IConfigurationLoader configuration,
         IModelDownloadManager models,
         IToolRuntimeProbe probe,
         IToolWaitingWorkCounter waiting,
         IEnumerable<IMediaToolStatusListener> listeners,
+        IHostApplicationLifetime lifetime,
         IContainerProbe container,
         ILogger<ToolRequirementsService> logger,
-        Func<string, string?>? readEnvironment = null)
+        Func<string, string?>? readEnvironment = null,
+        TimeProvider? time = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
-        _configuration = configuration;
         _models = models;
         _probe = probe;
         _waiting = waiting;
         _listeners = listeners.ToList();
+        _lifetime = lifetime;
         _container = container;
         _logger = logger;
         _readEnvironment = readEnvironment ?? Environment.GetEnvironmentVariable;
+        _time = time ?? TimeProvider.System;
     }
 
-    public async Task<ToolRequirementsDto> GetAsync(CancellationToken ct) =>
-        Volatile.Read(ref _last) ?? await CheckAsync(ct).ConfigureAwait(false);
+    /// <summary>
+    /// The last result with the live parts brought up to date: AI model rows (so download progress shows) and the
+    /// count of files waiting for each tool. A result older than <see cref="StaleAfter"/> is replaced by a full check.
+    /// </summary>
+    public async Task<ToolRequirementsDto> GetAsync(CancellationToken ct)
+    {
+        var last = Volatile.Read(ref _last);
+        if (last is null || _time.GetUtcNow() - last.CheckedAt > StaleAfter)
+        {
+            return await CheckAsync(ct).ConfigureAwait(false);
+        }
+
+        return await RefreshLiveRowsAsync(last, ct).ConfigureAwait(false);
+    }
 
     public async Task<ToolRequirementsDto> CheckAsync(CancellationToken ct)
     {
-        ToolRequirementsDto result;
-        MediaToolAvailability availability;
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            (result, availability) = await BuildAsync(ct).ConfigureAwait(false);
+            var (result, availability) = await BuildAsync(ct).ConfigureAwait(false);
             Volatile.Write(ref _last, result);
+            // Inside the gate, so two checks can never tell the listeners out of order. The token belongs to the Engine,
+            // not to the request that asked, so a closed browser tab never cuts off work the listeners start.
+            await NotifyListenersAsync(availability, _lifetime.ApplicationStopping).ConfigureAwait(false);
+            return result;
         }
         finally
         {
             _gate.Release();
         }
+    }
 
-        await NotifyListenersAsync(availability, ct).ConfigureAwait(false);
-        return result;
+    private async Task<ToolRequirementsDto> RefreshLiveRowsAsync(ToolRequirementsDto last, CancellationToken ct)
+    {
+        var rows = last.Tools.Where(tool => tool.Kind != "ai_model").ToList();
+        rows.AddRange(_models.GetAllStatuses().Select(ModelRow));
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            rows[index] = row.State == ToolRequirementStates.Ready
+                ? row with { WaitingFiles = 0 }
+                : row with { WaitingFiles = await CountWaitingAsync(row.Id, ct).ConfigureAwait(false) };
+        }
+
+        return last with { Tools = rows };
     }
 
     private async Task<(ToolRequirementsDto Result, MediaToolAvailability Availability)> BuildAsync(CancellationToken ct)
     {
         var installKind = ResolveInstallKind();
-        var ffmpegRequired = IsFfmpegRequired();
         var rows = new List<ToolRequirementDto>();
 
         // ── FFmpeg and its streaming features ────────────────────────────────
         _ffmpeg.Redetect();
         var (ffmpegState, ffmpegReason, ffmpegVersion) = await CheckFfmpegAsync(ct).ConfigureAwait(false);
         rows.Add(Row(
-            ToolRequirementIds.Ffmpeg, "FFmpeg", "tool",
-            ffmpegRequired ? ToolRequirementLevels.Required : ToolRequirementLevels.Optional,
+            ToolRequirementIds.Ffmpeg, "FFmpeg", "tool", ToolRequirementLevels.Required,
             ffmpegState,
-            ffmpegRequired ? Copy.FfmpegRequiredEffect : Copy.FfmpegOptionalEffect,
+            Copy.FfmpegRequiredEffect,
             ffmpegReason,
             Copy.ToolFix(installKind, "FFmpeg", Copy.FfmpegPackages),
             ffmpegVersion,
@@ -140,7 +169,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
 
         var result = new ToolRequirementsDto(
             installKind,
-            DateTimeOffset.UtcNow,
+            _time.GetUtcNow(),
             rows.Any(row => row.Requirement == ToolRequirementLevels.Required && row.State != ToolRequirementStates.Ready),
             rows);
         return (result, new MediaToolAvailability(
@@ -264,7 +293,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         }
     }
 
-    // ── Install kind and requirement level ───────────────────────────────────
+    // ── Install kind ─────────────────────────────────────────────────────────
 
     private string ResolveInstallKind()
     {
@@ -280,21 +309,6 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         return _container.IsContainer() ? ToolInstallKinds.Docker : ToolInstallKinds.Source;
     }
 
-    private bool IsFfmpegRequired()
-    {
-        try
-        {
-            return _configuration.LoadLibraries().Libraries
-                .SelectMany(library => library.MediaTypes)
-                .Any(type => MediaTypesThatNeedFfmpeg.Contains(type, StringComparer.OrdinalIgnoreCase));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "The library list could not be read, so FFmpeg is treated as optional.");
-            return false;
-        }
-    }
-
     // ── Listeners ────────────────────────────────────────────────────────────
 
     private async Task NotifyListenersAsync(MediaToolAvailability availability, CancellationToken ct)
@@ -305,7 +319,12 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             {
                 await listener.OnMediaToolsCheckedAsync(availability, ct).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The Engine is stopping; the remaining listeners have nothing left to do.
+                return;
+            }
+            catch (Exception ex)
             {
                 _logger.LogWarning(ex, "{Listener} failed after a tools check.", listener.GetType().Name);
             }
@@ -334,7 +353,6 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     internal static class Copy
     {
         public const string FfmpegRequiredEffect = "Videos, music and audiobooks wait until FFmpeg is available.";
-        public const string FfmpegOptionalEffect = "Only needed if you add videos, music or audiobooks.";
         public const string AdaptiveStreamingEffect = "Smooth streaming to phones and TVs is off; files still play directly.";
         public const string TesseractEffect = "Scanned pages and photos of paper won't be searchable.";
         public const string ImageEngineEffect = "Covers and thumbnails can't be created.";

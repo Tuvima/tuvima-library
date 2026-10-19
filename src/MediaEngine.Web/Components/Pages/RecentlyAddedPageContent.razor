@@ -131,6 +131,7 @@
             }
             else if (_history is not null)
             {
+                <MediaToolsWaitingNotice Items="_history.Items" />
                 <div class="recent-history__list">
                     @foreach (var item in _history.Items)
                     {
@@ -141,7 +142,7 @@
                                 <span><strong>@item.Title</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
                             </span>
                             <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
-                            <span class="history-row__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
+                            <span class="history-row__status"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.CheckCircle)" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
                             <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
                                 @if (DeviceContext.CanEdit)
                                 {

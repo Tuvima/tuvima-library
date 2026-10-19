@@ -13,9 +13,9 @@ public sealed class ReviewCategoryTests
             .ToArray();
 
     [Fact]
-    public void ReviewTrigger_HasExactlySeventeenConstants()
+    public void ReviewTrigger_HasExactlyEighteenConstants()
     {
-        Assert.Equal(17, AllTriggers().Length);
+        Assert.Equal(18, AllTriggers().Length);
     }
 
     [Fact]
@@ -52,6 +52,7 @@ public sealed class ReviewCategoryTests
     [InlineData(ReviewTrigger.FromMerge, ReviewCategory.Naming)]
     [InlineData(ReviewTrigger.MovieMatchedAsTv, ReviewCategory.Unmatched)]
     [InlineData(ReviewTrigger.WritebackFailed, ReviewCategory.ProviderFailures)]
+    [InlineData(ReviewTrigger.MediaInspectionFailed, ReviewCategory.ProviderFailures)]
     public void For_PutsTheTriggerInItsCategory(string trigger, string expected)
     {
         Assert.Equal(expected, ReviewCategory.For(trigger));

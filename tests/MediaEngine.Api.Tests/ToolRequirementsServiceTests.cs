@@ -2,19 +2,18 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
-using PipelineConfiguration = MediaEngine.Domain.Configuration.PipelineConfiguration;
-using TranscodingSettings = MediaEngine.Domain.Configuration.TranscodingSettings;
 
 namespace MediaEngine.Api.Tests;
 
 public sealed class ToolRequirementsServiceTests
 {
-    private readonly LibrariesOnlyConfiguration _configuration = new();
+    private readonly FakeLifetime _lifetime = new();
+    private readonly FakeTime _time = new();
     private readonly FakeFfmpeg _ffmpeg = new();
     private readonly FakeOcr _ocr = new();
     private readonly FakeModels _models = new();
@@ -149,27 +148,9 @@ public sealed class ToolRequirementsServiceTests
     }
 
     [Fact]
-    public async Task ABooksAndComicsOnlyLibrary_DoesNotRequireFfmpeg_EvenWhenItIsMissing()
+    public async Task Ffmpeg_IsAlwaysRequired_AndAMissingOneNeedsAttention_WhateverTheLibrariesHold()
     {
-        WriteLibraries("Books", "Comics");
-        _ffmpeg.Available = false;
-
-        var result = await Service().CheckAsync(CancellationToken.None);
-
-        var ffmpeg = Row(result, ToolRequirementIds.Ffmpeg);
-        Assert.Equal(ToolRequirementLevels.Optional, ffmpeg.Requirement);
-        Assert.Equal("Only needed if you add videos, music or audiobooks.", ffmpeg.Effect);
-        Assert.False(result.NeedsAttention);
-    }
-
-    [Theory]
-    [InlineData("Movies")]
-    [InlineData("TV")]
-    [InlineData("Music")]
-    [InlineData("Audiobooks")]
-    public async Task AnyLibraryThatNeedsFfmpeg_MakesItRequired_AndAMissingOneNeedsAttention(string mediaType)
-    {
-        WriteLibraries("Books", mediaType);
+        // The service no longer reads the library list: a books-only library gets the same Required row.
         _ffmpeg.Available = false;
 
         var result = await Service().CheckAsync(CancellationToken.None);
@@ -183,7 +164,6 @@ public sealed class ToolRequirementsServiceTests
     [Fact]
     public async Task ARequiredFfmpegThatIsReady_DoesNotNeedAttention()
     {
-        WriteLibraries("Movies");
         _ffmpeg.Available = true;
 
         Assert.False((await Service().CheckAsync(CancellationToken.None)).NeedsAttention);
@@ -359,7 +339,8 @@ public sealed class ToolRequirementsServiceTests
         var first = await service.GetAsync(CancellationToken.None);
         var second = await service.GetAsync(CancellationToken.None);
 
-        Assert.Same(first, second);
+        Assert.Equal(first.CheckedAt, second.CheckedAt);
+        Assert.Equal(first.Tools.Select(tool => tool.Id), second.Tools.Select(tool => tool.Id));
         Assert.Equal(1, _ffmpeg.RedetectCalls);
     }
 
@@ -376,6 +357,143 @@ public sealed class ToolRequirementsServiceTests
         Assert.Equal("FFmpeg ready (7.1), Tesseract missing (optional), AI models 1 of 1 ready", ToolRequirementsStartupService.Summarise(dto));
     }
 
+    [Fact]
+    public async Task Listeners_AreGivenTheEngineLifetimeToken_NotTheRequestToken()
+    {
+        var spy = new SpyListener();
+        _listeners.Add(spy);
+        using var request = new CancellationTokenSource();
+
+        await Service().CheckAsync(request.Token);
+        await request.CancelAsync();
+
+        var token = Assert.Single(spy.Tokens);
+        Assert.False(token.IsCancellationRequested);
+        Assert.Equal(_lifetime.ApplicationStopping, token);
+    }
+
+    [Fact]
+    public async Task ConcurrentChecks_TellTheListenersInOrder_EachCompletingBeforeTheNextStarts()
+    {
+        var spy = new SpyListener { BlockFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+        _listeners.Add(spy);
+        _ffmpeg.Available = false;
+        var service = Service();
+
+        var first = service.CheckAsync(CancellationToken.None);
+        await spy.FirstReceived.Task;
+        _ffmpeg.AvailableAfterRedetect = true;
+        var second = service.CheckAsync(CancellationToken.None);
+        await Task.Delay(50);
+
+        Assert.False(second.IsCompleted);
+        Assert.Single(spy.Received);
+
+        spy.BlockFirst.SetResult();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal([new MediaToolAvailability(false, true), new MediaToolAvailability(true, true)], spy.Received);
+    }
+
+    [Fact]
+    public async Task AListenerThatThrowsWhileTheEngineIsStopping_StopsTheRest_WithoutFailingTheCheck()
+    {
+        var after = new SpyListener();
+        _listeners.Add(new CancellingListener(_lifetime));
+        _listeners.Add(after);
+
+        var result = await Service().CheckAsync(CancellationToken.None);
+
+        Assert.NotEmpty(result.Tools);
+        Assert.Empty(after.Received);
+    }
+
+    [Fact]
+    public async Task Get_RefreshesTheAiModelRowsLive_WithoutLookingForToolsAgain()
+    {
+        _models.Statuses = [Model(AiModelRole.Audio, AiModelState.Downloading, percent: 10)];
+        var service = Service();
+        await service.GetAsync(CancellationToken.None);
+
+        _models.Statuses = [Model(AiModelRole.Audio, AiModelState.Downloading, percent: 64)];
+        var result = await service.GetAsync(CancellationToken.None);
+
+        Assert.Equal(64, Row(result, "ai_model:audio").DownloadPercent);
+        Assert.Equal(1, _ffmpeg.RedetectCalls);
+    }
+
+    [Fact]
+    public async Task Get_ShowsAModelThatFinishedDownloading_AsReadyWithoutAFullCheck()
+    {
+        _models.Statuses = [Model(AiModelRole.Audio, AiModelState.Downloading, percent: 90)];
+        var service = Service();
+        await service.GetAsync(CancellationToken.None);
+
+        _models.Statuses = [Model(AiModelRole.Audio, AiModelState.Ready)];
+        var result = await service.GetAsync(CancellationToken.None);
+
+        var audio = Row(result, "ai_model:audio");
+        Assert.Equal(ToolRequirementStates.Ready, audio.State);
+        Assert.Null(audio.DownloadPercent);
+        Assert.Equal(1, _ffmpeg.RedetectCalls);
+    }
+
+    [Fact]
+    public async Task Get_CountsTheWaitingFilesLive_AsTheyAreResumed()
+    {
+        _ffmpeg.Available = false;
+        _counter.Counts[ToolRequirementIds.Ffmpeg] = 12;
+        var service = Service();
+        Assert.Equal(12, Row(await service.GetAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).WaitingFiles);
+
+        _counter.Counts[ToolRequirementIds.Ffmpeg] = 5;
+
+        Assert.Equal(5, Row(await service.GetAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).WaitingFiles);
+    }
+
+    [Fact]
+    public async Task Get_WithinFiveMinutes_DoesNotCheckAgain()
+    {
+        var service = Service();
+        await service.GetAsync(CancellationToken.None);
+
+        _time.Advance(TimeSpan.FromMinutes(4) + TimeSpan.FromSeconds(59));
+        await service.GetAsync(CancellationToken.None);
+
+        Assert.Equal(1, _ffmpeg.RedetectCalls);
+    }
+
+    [Fact]
+    public async Task Get_AfterFiveMinutes_RunsAFullCheck_SoAToolThatAppearedIsNoticedAndListenersAreTold()
+    {
+        var spy = new SpyListener();
+        _listeners.Add(spy);
+        _ffmpeg.Available = false;
+        var service = Service();
+        Assert.Equal(ToolRequirementStates.Missing, Row(await service.GetAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).State);
+
+        _ffmpeg.AvailableAfterRedetect = true;
+        _time.Advance(TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(1));
+        var result = await service.GetAsync(CancellationToken.None);
+
+        Assert.Equal(ToolRequirementStates.Ready, Row(result, ToolRequirementIds.Ffmpeg).State);
+        Assert.Equal(2, _ffmpeg.RedetectCalls);
+        Assert.Equal([new MediaToolAvailability(false, true), new MediaToolAvailability(true, true)], spy.Received);
+    }
+
+    [Fact]
+    public async Task Get_AfterFiveMinutes_NoticesAToolThatDisappeared()
+    {
+        _ffmpeg.Available = true;
+        var service = Service();
+        Assert.Equal(ToolRequirementStates.Ready, Row(await service.GetAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).State);
+
+        _ffmpeg.Available = false;
+        _time.Advance(TimeSpan.FromMinutes(6));
+
+        Assert.Equal(ToolRequirementStates.Missing, Row(await service.GetAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).State);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static ToolRequirementDto Row(ToolRequirementsDto result, string id) => Assert.Single(result.Tools, tool => tool.Id == id);
@@ -389,58 +507,18 @@ public sealed class ToolRequirementsServiceTests
         DownloadProgressPercent = percent,
     };
 
-    private void WriteLibraries(params string[] mediaTypes) =>
-        _configuration.Libraries = new LibrariesConfiguration
-        {
-            Libraries = mediaTypes.Select(type => new LibraryFolderConfig { Name = type, MediaTypes = [type] }).ToList(),
-        };
-
     private ToolRequirementsService Service() => new(
         _ffmpeg,
         _ocr,
-        _configuration,
         _models,
         _probe,
         _counter,
         _listeners,
+        _lifetime,
         _container,
         NullLogger<ToolRequirementsService>.Instance,
-        name => _environment.GetValueOrDefault(name));
-
-    private sealed class LibrariesOnlyConfiguration : IConfigurationLoader
-    {
-        public LibrariesConfiguration Libraries { get; set; } = new();
-
-        public LibrariesConfiguration LoadLibraries() => Libraries;
-
-        public CoreConfiguration LoadCore() => throw new NotSupportedException();
-        public void SaveCore(CoreConfiguration config) => throw new NotSupportedException();
-        public ScoringSettings LoadScoring() => throw new NotSupportedException();
-        public void SaveScoring(ScoringSettings settings) => throw new NotSupportedException();
-        public MaintenanceSettings LoadMaintenance() => throw new NotSupportedException();
-        public void SaveMaintenance(MaintenanceSettings settings) => throw new NotSupportedException();
-        public HydrationSettings LoadHydration() => throw new NotSupportedException();
-        public void SaveHydration(HydrationSettings settings) => throw new NotSupportedException();
-        public PipelineConfiguration LoadPipelines() => throw new NotSupportedException();
-        public void SavePipelines(PipelineConfiguration config) => throw new NotSupportedException();
-        public DisambiguationSettings LoadDisambiguation() => throw new NotSupportedException();
-        public void SaveDisambiguation(DisambiguationSettings settings) => throw new NotSupportedException();
-        public TranscodingSettings LoadTranscoding() => throw new NotSupportedException();
-        public void SaveTranscoding(TranscodingSettings settings) => throw new NotSupportedException();
-        public MediaTypeConfiguration LoadMediaTypes() => throw new NotSupportedException();
-        public void SaveMediaTypes(MediaTypeConfiguration config) => throw new NotSupportedException();
-        public FieldPriorityConfiguration LoadFieldPriorities() => throw new NotSupportedException();
-        public void SaveFieldPriorities(FieldPriorityConfiguration config) => throw new NotSupportedException();
-        public ProviderConfiguration? LoadProvider(string name) => throw new NotSupportedException();
-        public void SaveProvider(ProviderConfiguration config) => throw new NotSupportedException();
-        public IReadOnlyList<ProviderConfiguration> LoadAllProviders() => throw new NotSupportedException();
-        public T? LoadAi<T>() where T : class => throw new NotSupportedException();
-        public void SaveAi<T>(T settings) where T : class => throw new NotSupportedException();
-        public PaletteConfiguration LoadPalette() => throw new NotSupportedException();
-        public void SavePalette(PaletteConfiguration palette) => throw new NotSupportedException();
-        public T? LoadConfig<T>(string subdirectory, string name) where T : class => throw new NotSupportedException();
-        public void SaveConfig<T>(string subdirectory, string name, T config) where T : class => throw new NotSupportedException();
-    }
+        name => _environment.GetValueOrDefault(name),
+        _time);
 
     private sealed class FakeFfmpeg : IFFmpegService
     {
@@ -533,13 +611,58 @@ public sealed class ToolRequirementsServiceTests
 
     private sealed class SpyListener : IMediaToolStatusListener
     {
-        public List<MediaToolAvailability> Received { get; } = [];
+        private int _calls;
 
-        public Task OnMediaToolsCheckedAsync(MediaToolAvailability availability, CancellationToken ct)
+        public List<MediaToolAvailability> Received { get; } = [];
+        public List<CancellationToken> Tokens { get; } = [];
+
+        /// <summary>When set, the first notification waits for this before it completes.</summary>
+        public TaskCompletionSource? BlockFirst { get; init; }
+
+        public TaskCompletionSource FirstReceived { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task OnMediaToolsCheckedAsync(MediaToolAvailability availability, CancellationToken ct)
         {
             Received.Add(availability);
-            return Task.CompletedTask;
+            Tokens.Add(ct);
+            if (Interlocked.Increment(ref _calls) == 1)
+            {
+                FirstReceived.TrySetResult();
+                if (BlockFirst is not null)
+                {
+                    await BlockFirst.Task;
+                }
+            }
         }
+    }
+
+    private sealed class CancellingListener(FakeLifetime lifetime) : IMediaToolStatusListener
+    {
+        public Task OnMediaToolsCheckedAsync(MediaToolAvailability availability, CancellationToken ct)
+        {
+            lifetime.Stop();
+            throw new OperationCanceledException(ct);
+        }
+    }
+
+    private sealed class FakeLifetime : IHostApplicationLifetime
+    {
+        private readonly CancellationTokenSource _stopping = new();
+
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+        public CancellationToken ApplicationStopping => _stopping.Token;
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+        public void StopApplication() => _stopping.Cancel();
+        public void Stop() => _stopping.Cancel();
+    }
+
+    private sealed class FakeTime : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
     }
 
     private sealed class ThrowingListener : IMediaToolStatusListener

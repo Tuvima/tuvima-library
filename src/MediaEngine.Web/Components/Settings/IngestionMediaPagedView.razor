@@ -42,6 +42,7 @@
     }
     else if (_page?.Items.Count > 0)
     {
+        <MediaToolsWaitingNotice Items="_page.Items" />
         @if (_layout == "list")
         {
             <div class="ingestion-paged-view__list" aria-label="Batch media list">
