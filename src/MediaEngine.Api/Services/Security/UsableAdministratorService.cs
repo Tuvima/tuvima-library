@@ -87,7 +87,10 @@ public sealed class UsableAdministratorService(
         AuthSettings policy, Account account, CancellationToken ct, AdministratorSignInLoss? loss = null)
     {
         // Signs in on this computer without a password, whatever the sign-in policy says, so policy changes can't lock it out.
-        // When checking a change, it counts only while it keeps an administrator grant.
+        // When checking an account change, it counts only while it keeps an administrator grant. That is deliberately
+        // stricter than the policy-change check above (HasUsableAdministratorSignInAsync, which counts it unconditionally):
+        // a policy change cannot take a grant away, but an account change can, and an administrator with no administrator
+        // grant is not an administrator.
         if (account.IsThisComputerOnly && loss is null)
         {
             return true;

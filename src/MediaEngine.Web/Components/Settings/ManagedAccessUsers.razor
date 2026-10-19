@@ -517,7 +517,7 @@
                 }
                 else
                 {
-                    _error = Message(result.Failure);
+                    _error = Message(result.Failure, result.Message);
                 }
             }
         }
@@ -551,7 +551,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -590,7 +590,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -618,7 +618,7 @@
             else
             {
                 EditAccount(account);
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -649,7 +649,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -677,7 +677,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -707,7 +707,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -774,7 +774,7 @@
             {
                 _error = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
                     ? "Nothing was changed. Confirm it's you to continue."
-                    : Message(result.Failure);
+                    : Message(result.Failure, result.Message);
             }
         }
         finally
@@ -847,7 +847,7 @@
             }
             else
             {
-                _error = Message(result.Failure);
+                _error = Message(result.Failure, result.Message);
             }
         }
         finally
@@ -978,10 +978,14 @@
         await _returnFocus.FocusAsync();
     }
 
-    private static string Message(DashboardAccessMutationFailure failure) => failure switch
+    // The Engine's own sentence for a refusal (for example "This is the last administrator who can sign in...") is shown
+    // as it is; the generic line is only for a conflict the Engine gave no reason for.
+    private static string Message(DashboardAccessMutationFailure failure, string? engineMessage = null) => failure switch
     {
         DashboardAccessMutationFailure.Validation => "Check the values and try again.",
-        DashboardAccessMutationFailure.Conflict => "This change conflicts with the current account state.",
+        DashboardAccessMutationFailure.Conflict => string.IsNullOrWhiteSpace(engineMessage)
+            ? "This change conflicts with the current account state."
+            : engineMessage,
         DashboardAccessMutationFailure.Forbidden => "You no longer have permission for this change.",
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
         DashboardAccessMutationFailure.NotFound => "This account or profile no longer exists.",
