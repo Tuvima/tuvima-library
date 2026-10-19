@@ -184,6 +184,9 @@ public sealed class ToolInstallerService : IToolInstallerService
         var version = isFfmpeg ? downloads.Ffmpeg?.Version : downloads.Tesseract?.Version;
         var host = ToolDownloadSettings.AllowedHost;
         var work = Path.Combine(ToolsRoot, ".downloads", toolId);
+        // A background job must never take the Engine down, so anything unexpected ends as a plain failure.
+        var phase = ToolInstallPhase.Failed;
+        string? reason = ToolRequirementsService.Copy.InstallFailed;
         try
         {
             ResetFolder(work);
@@ -194,13 +197,13 @@ public sealed class ToolInstallerService : IToolInstallerService
                 await InstallFfmpegAsync(job, downloads.Ffmpeg ?? throw NotConfigured(), work, ct).ConfigureAwait(false);
                 await LogAsync(ToolDownloadActivity.Finished(name, version, host)).ConfigureAwait(false);
                 await CheckQuietlyAsync().ConfigureAwait(false);
-                Finish(job, ToolInstallPhase.Idle, null);
+                (phase, reason) = (ToolInstallPhase.Idle, null);
             }
             else
             {
                 await DownloadTesseractAsync(job, downloads.Tesseract ?? throw NotConfigured(), work, ct).ConfigureAwait(false);
                 await LogAsync(ToolDownloadActivity.Finished(name, version, host)).ConfigureAwait(false);
-                Finish(job, ToolInstallPhase.InstallerReady, null);
+                (phase, reason) = (ToolInstallPhase.InstallerReady, null);
             }
         }
         // Every ending records its activity entry before the job leaves Downloading, as the success path does: anyone who
@@ -208,30 +211,33 @@ public sealed class ToolInstallerService : IToolInstallerService
         catch (OperationCanceledException) when (ct.IsCancellationRequested && !job.Committed)
         {
             await LogAsync(ToolDownloadActivity.Cancelled(name, version, host)).ConfigureAwait(false);
-            Finish(job, ToolInstallPhase.Idle, null);
+            (phase, reason) = (ToolInstallPhase.Idle, null);
         }
         catch (ToolChecksumException ex)
         {
             _logger.LogWarning("A download for {Tool} was refused: {Detail}", name, ex.Message);
             await LogAsync(ToolDownloadActivity.ChecksumRefused(name, version, host)).ConfigureAwait(false);
-            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallChecksum);
+            (phase, reason) = (ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallChecksum);
         }
         catch (ToolInstallException ex)
         {
             _logger.LogWarning(ex, "Installing {Tool} did not finish.", name);
             await LogAsync(ToolDownloadActivity.Failed(name, version, host, ex.PlainReason)).ConfigureAwait(false);
-            Finish(job, ToolInstallPhase.Failed, ex.PlainReason);
+            (phase, reason) = (ToolInstallPhase.Failed, ex.PlainReason);
         }
         catch (Exception ex)
         {
-            // A background job must never take the Engine down; the person gets a plain reason and the log gets the detail.
             _logger.LogWarning(ex, "Installing {Tool} failed.", name);
             await LogAsync(ToolDownloadActivity.Failed(name, version, host, ToolRequirementsService.Copy.InstallFailed)).ConfigureAwait(false);
-            Finish(job, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallFailed);
+            (phase, reason) = (ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallFailed);
         }
         finally
         {
+            // The download folder goes before the job leaves Downloading: a job that looks finished has nothing left on
+            // disk, and a new attempt (allowed the moment this one looks finished) can never have its fresh download
+            // folder deleted by this one's late clean-up.
             DeleteQuietly(work);
+            Finish(job, phase, reason);
             job.Cts.Dispose();
         }
     }
