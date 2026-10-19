@@ -405,6 +405,94 @@ public sealed class MusicBrainzTaggedAlbumTests
         Assert.Equal("90's Rock Ballads", ClaimValue(claims, MetadataFieldConstants.Album));
     }
 
+    private const string BloodReissueRecording = """
+        {
+          "id": "recording-blood-reissue",
+          "title": "BLOOD.",
+          "artist-credit": [{ "name": "Kendrick Lamar" }],
+          "releases": [
+            {
+              "id": "damn-2022",
+              "title": "DAMN.",
+              "status": "Official",
+              "date": "2022-05-13",
+              "release-group": { "id": "damn-group", "primary-type": "Album" },
+              "cover-art-archive": { "artwork": true }
+            }
+          ]
+        }
+        """;
+
+    private const string BloodOriginalRecording = """
+        {
+          "id": "recording-blood-original",
+          "title": "BLOOD.",
+          "artist-credit": [{ "name": "Kendrick Lamar" }],
+          "isrcs": ["USUM71703143"],
+          "releases": [
+            {
+              "id": "damn-2017",
+              "title": "DAMN.",
+              "status": "Official",
+              "date": "2017-04-14",
+              "release-group": { "id": "damn-group", "primary-type": "Album" },
+              "cover-art-archive": { "artwork": true }
+            }
+          ]
+        }
+        """;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FetchAsync_EquallyScoredRecordings_PickTheOriginalReleaseWhateverTheResultOrder(bool reissueListedFirst)
+    {
+        var recordings = reissueListedFirst
+            ? $$"""{ "recordings": [ {{BloodReissueRecording}}, {{BloodOriginalRecording}} ] }"""
+            : $$"""{ "recordings": [ {{BloodOriginalRecording}}, {{BloodReissueRecording}} ] }""";
+
+        var claims = await FetchAsync(recordings, album: null, title: "BLOOD.", artist: "Kendrick Lamar");
+
+        Assert.Equal("recording-blood-original", ClaimValue(claims, BridgeIdKeys.MusicBrainzRecordingId));
+        Assert.Equal("damn-2017", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
+        Assert.Equal("2017", ClaimValue(claims, MetadataFieldConstants.Year));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FetchAsync_ReleasesTiedOnDate_PickTheSameReleaseWhateverTheListOrder(bool reversed)
+    {
+        string[] releases =
+        [
+            """{ "id": "abbey-undated", "title": "Abbey Road", "status": "Official", "release-group": { "id": "abbey-group", "primary-type": "Album" }, "cover-art-archive": { "artwork": true } }""",
+            """{ "id": "abbey-b", "title": "Abbey Road", "status": "Official", "date": "1969-09-26", "release-group": { "id": "abbey-group", "primary-type": "Album" }, "cover-art-archive": { "artwork": true } }""",
+            """{ "id": "abbey-a", "title": "Abbey Road", "status": "Official", "date": "1969-09-26", "release-group": { "id": "abbey-group", "primary-type": "Album" }, "cover-art-archive": { "artwork": true } }""",
+        ];
+        if (reversed)
+        {
+            Array.Reverse(releases);
+        }
+
+        var recording = $$"""
+            {
+              "recordings": [
+                {
+                  "id": "recording-come-together",
+                  "title": "Come Together",
+                  "artist-credit": [{ "name": "The Beatles" }],
+                  "releases": [ {{string.Join(", ", releases)}} ]
+                }
+              ]
+            }
+            """;
+
+        var claims = await FetchAsync(recording, album: null, title: "Come Together", artist: "The Beatles");
+
+        // An undated release never outranks a dated one, and a date tie falls back to the release id.
+        Assert.Equal("abbey-a", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
+    }
+
     /// <summary>
     /// Runs the real MusicBrainz strategy chain. Searches that name a release (the
     /// album-filtered strategies) find nothing, so selection reaches the artist search, which

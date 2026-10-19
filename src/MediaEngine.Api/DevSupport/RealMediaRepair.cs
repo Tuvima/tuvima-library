@@ -50,7 +50,7 @@ public static class RealMediaRepair
             }
             var local = connection.Query<ClaimRow>("""
                 SELECT claim_key Key, claim_value Value FROM metadata_claims
-                WHERE entity_id=@id AND provider_id=@provider AND is_current=1 ORDER BY claimed_at DESC
+                WHERE entity_id=@id AND provider_id=@provider AND is_current=1 ORDER BY claimed_at DESC, rowid
                 """, new { id = row.AssetId, provider = Guid.Parse("a1b2c3d4-e5f6-4700-8900-0a1b2c3d4e5f") });
             var processed = AudiobookFolderHints.Apply(new ProcessorResult
             {

@@ -51,6 +51,27 @@ public sealed class ScoringHelperLineageTests
         Assert.All(claimRepo.Inserted, c => Assert.Equal(assetId, c.EntityId));
     }
 
+    [Fact]
+    public async Task OneProviderResponse_StampsEveryClaimWithTheSameTime()
+    {
+        var claimRepo = new RecordingClaimRepository();
+        var claims = Enumerable.Range(0, 200)
+            .Select(index => new ProviderClaim("composer_tmdb_id", (100000 + index).ToString(), 0.92))
+            .ToArray();
+
+        await ScoringHelper.PersistAndScoreWithLineageAsync(
+            Guid.NewGuid(), claims, Guid.NewGuid(),
+            lineage: null,
+            claimRepo, new RecordingCanonicalRepository(),
+            new RecordingScoringEngine(), new MinimalConfigLoader(),
+            allProviders: [], CancellationToken.None);
+
+        // Tied claims then keep the provider's own order (first credit first) instead of being
+        // separated by whichever clock ticks fell between them.
+        Assert.Equal(200, claimRepo.Inserted.Count);
+        Assert.Single(claimRepo.Inserted.Select(claim => claim.ClaimedAt).Distinct());
+    }
+
     // ── Test 2: standalone movie → parent claims go to the work, NOT the asset ──
 
     [Fact]

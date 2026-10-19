@@ -565,7 +565,7 @@ public sealed partial class ConfigDrivenAdapter
         var requestedCreator = selection.CreatorRequestFields
             .Select(field => ResolveRequestField(request, field))
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        var candidates = new List<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank)>();
+        var candidates = new List<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank, JsonNode? Release)>();
 
         // A music search returns many distinct recordings that share one title (the studio
         // recording, live takes, compilation-only duplicates). The file's album tag is the
@@ -581,11 +581,11 @@ public sealed partial class ConfigDrivenAdapter
             }
 
             var albumRank = 0;
+            var selectedRelease = strategy.ReleaseSelection is null
+                ? null
+                : ApplyReleaseSelection(result, strategy.ReleaseSelection, request);
             if (selection.RequireNestedSelection)
             {
-                var selectedRelease = strategy.ReleaseSelection is null
-                    ? null
-                    : ApplyReleaseSelection(result, strategy.ReleaseSelection, request);
                 if (selectedRelease is null)
                 {
                     continue;
@@ -622,15 +622,44 @@ public sealed partial class ConfigDrivenAdapter
                 continue;
             }
 
-            candidates.Add((result, titleScore, creatorScore, albumRank));
+            candidates.Add((result, titleScore, creatorScore, albumRank, selectedRelease));
         }
 
+        // Equally scored candidates (the studio recording and its remaster or compilation
+        // duplicates) must not be chosen by the provider's result order, which varies between
+        // calls: prefer the one whose chosen release sorts first under the strategy's own
+        // release order (the original release), then the lowest provider id.
+        var releaseSort = strategy.ReleaseSelection?.Sort;
+        var disambiguationPath = strategy.ReleaseSelection?.DisambiguationPath;
         return candidates
             .OrderByDescending(candidate => candidate.TitleScore)
             .ThenByDescending(candidate => candidate.CreatorScore)
             .ThenByDescending(candidate => candidate.AlbumRank)
+            .ThenBy(candidate => candidate, Comparer<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank, JsonNode? Release)>
+                .Create((left, right) => CompareEquallyScoredCandidates(
+                    left.Node, left.Release, right.Node, right.Release, releaseSort, disambiguationPath)))
             .Select(candidate => candidate.Node)
             .FirstOrDefault();
+    }
+
+    private static int CompareEquallyScoredCandidates(
+        JsonNode left, JsonNode? leftRelease, JsonNode right, JsonNode? rightRelease,
+        IReadOnlyList<SelectionSort>? releaseSort, string? disambiguationPath)
+    {
+        if (leftRelease is not null && rightRelease is not null)
+        {
+            var byRelease = CompareBySelectionSort(leftRelease, rightRelease, releaseSort, disambiguationPath);
+            if (byRelease != 0)
+            {
+                return byRelease;
+            }
+        }
+        else if (leftRelease is not null || rightRelease is not null)
+        {
+            return leftRelease is null ? 1 : -1;
+        }
+
+        return string.CompareOrdinal(ExtractFirstString(left, ["id"]), ExtractFirstString(right, ["id"]));
     }
 
     /// <summary>

@@ -79,6 +79,8 @@ For a field unresolved by Tier B, Wikidata claims win when present. Confidence r
 
 When no earlier tier resolves a field, the highest-confidence remaining claim wins. Tied fallback claims prefer the earliest `ClaimedAt`, preserving the first source author rather than the last inserted.
 
+Every claim from one provider response or one file read carries the same `ClaimedAt`, and claims are read back in insertion order. Claims from the same response therefore tie on time in every tier and keep the source's own order: the first credited composer or author wins. Clock ticks between rows can no longer decide the winner.
+
 ---
 
 ## Field Count Scaling

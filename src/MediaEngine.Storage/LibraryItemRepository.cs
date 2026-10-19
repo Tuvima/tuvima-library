@@ -421,7 +421,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                    claimed_at AS ClaimedAt
             FROM metadata_claims
             WHERE entity_id IN (@assetId, @entityId, @parentId)
-            ORDER BY claimed_at DESC;
+            ORDER BY claimed_at DESC, rowid;
             """, new { assetId, entityId, parentId = rootParentId })
             .Select(r => new LibraryItemClaimRecord(
                 Id: r.Id,
