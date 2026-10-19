@@ -75,6 +75,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     private TimeSpan? _engineRetryAfter;
     private CancellationTokenSource? _scheduledRestart;
     private int _restartAttempt;
+    private int _closeCount;
     private DateTimeOffset _lastAttemptAt = DateTimeOffset.MinValue;
     private DateTimeOffset _notBefore = DateTimeOffset.MinValue;
     private DateTimeOffset? _connectedAt;
@@ -1157,14 +1158,17 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 return;
             }
 
+            int closesBefore;
             lock (_restartGate)
             {
                 _lastAttemptAt = Clock();
+                closesBefore = _closeCount;
             }
 
-            if (await TryStartSignalRConnectionAsync(_hubConnection, ct))
+            // The Engine can accept and close straight away (Closed then runs before this resumes); that closed
+            // connection is not counted as up, so the banner stays and the backoff keeps growing.
+            if (await TryStartSignalRConnectionAsync(_hubConnection, ct) && TryMarkLiveUpdatesConnected(closesBefore))
             {
-                OnLiveUpdatesConnected();
                 await AfterLiveUpdatesConnectedAsync(ct);
             }
             else
@@ -1207,12 +1211,33 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return attempt.Token.Token;
     }
 
-    /// <summary>A connection is up (first start, restart or automatic reconnect).</summary>
-    internal void OnLiveUpdatesConnected()
+    /// <summary>A connection is up (an automatic reconnect, or a start nothing has closed since).</summary>
+    internal void OnLiveUpdatesConnected() => TryMarkLiveUpdatesConnected(LiveUpdatesCloseCount);
+
+    /// <summary>How many times the connection has closed for good; a start compares it to tell whether it is still up.</summary>
+    internal int LiveUpdatesCloseCount
+    {
+        get
+        {
+            lock (_restartGate)
+            {
+                return _closeCount;
+            }
+        }
+    }
+
+    /// <summary>Records the connection as up unless it closed after <paramref name="closesBefore"/> was read.</summary>
+    internal bool TryMarkLiveUpdatesConnected(int closesBefore)
     {
         lock (_restartGate)
         {
+            if (_closeCount != closesBefore)
+            {
+                return false;
+            }
+
             _connectedAt = Clock();
+            return true;
         }
     }
 
@@ -1234,6 +1259,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             }
 
             _connectedAt = null;
+            _closeCount++;
         }
 
         ScheduleRestart();
@@ -1629,6 +1655,11 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     {
         try
         {
+            if (_hubConnection?.State != HubConnectionState.Connected)
+            {
+                return;
+            }
+
             SetEngineConnectionState(EngineConnectionState.Online);
             _state.PushServerStarted();
             await RefreshIngestionQueueProgressAsync(ct);

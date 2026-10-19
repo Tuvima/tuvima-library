@@ -170,6 +170,26 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AConnectionClosedBeforeItsStartFinished_IsNotCountedAsUp()
+    {
+        _engine.Respond = _ => RateLimited(retryAfter: null);
+        await _orchestrator.StartSignalRAsync();
+        _orchestrator.CancelScheduledRestart();
+
+        // The Engine accepts and closes at once; Closed runs before the start records the connection.
+        var closesBefore = _orchestrator.LiveUpdatesCloseCount;
+        _orchestrator.OnLiveUpdatesClosed(new InvalidOperationException("session connection limit reached"));
+        _orchestrator.CancelScheduledRestart();
+        Assert.False(_orchestrator.TryMarkLiveUpdatesConnected(closesBefore));
+
+        // So a later close, however long after, still counts as backing off rather than a fresh start.
+        _now += TimeSpan.FromMinutes(5);
+        _orchestrator.OnLiveUpdatesClosed(null);
+
+        Assert.Equal([TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(8)], _delays.Requested);
+    }
+
+    [Fact]
     public async Task ClosingTheTab_CancelsAWaitingRestart()
     {
         _engine.Respond = _ => RateLimited(retryAfter: null);
