@@ -106,7 +106,7 @@ public sealed class ParentFirstPairingSaveRouteTests
             builder.Services.AddMemoryCache();
             // The read-only preview route requires these service registrations;
             // this test never resolves them or makes a provider request.
-            builder.Services.AddSingleton(new TvdbRetailClient(null!, null!, null!));
+            builder.Services.AddSingleton(new ProviderApiClient(null!, null!, null!));
             builder.Services.AddSingleton(new MusicBrainzReleaseClient(null!, null!,
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<MusicBrainzReleaseClient>.Instance));
             await using var app = builder.Build();

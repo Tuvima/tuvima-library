@@ -168,7 +168,7 @@ public sealed class TextTrackEnrichmentWorker
             {
                 candidates = await provider.SearchAsync(lookup, ct).ConfigureAwait(false);
             }
-            catch (SubdlLookupException ex)
+            catch (TextTrackLookupException ex)
             {
                 var current = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
                 return new(importedLocal ? "Updated" : ex.Status, kind, before.Count, current.Count,
@@ -188,7 +188,7 @@ public sealed class TextTrackEnrichmentWorker
                 {
                     download = await provider.DownloadAsync(candidate, ct).ConfigureAwait(false);
                 }
-                catch (SubdlLookupException ex)
+                catch (TextTrackLookupException ex)
                 {
                     var current = await _trackRepo.GetByAssetAsync(assetId, kind, ct).ConfigureAwait(false);
                     return new(importedLocal ? "Updated" : ex.Status, kind, before.Count, current.Count,
@@ -197,7 +197,7 @@ public sealed class TextTrackEnrichmentWorker
                 }
                 if (download is null)
                 {
-                    incompatibleSubtitleDetected |= provider is SubdlTextTrackProvider;
+                    incompatibleSubtitleDetected |= provider.ReportsIncompatibleDownloads;
                     continue;
                 }
 

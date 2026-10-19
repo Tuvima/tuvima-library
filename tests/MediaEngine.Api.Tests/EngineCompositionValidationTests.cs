@@ -7,6 +7,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Ingestion.DependencyInjection;
 using MediaEngine.Plugins;
+using MediaEngine.Providers.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
@@ -15,6 +16,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Api.Tests;
 
@@ -87,6 +90,22 @@ public sealed class EngineCompositionValidationTests
     [Fact]
     public void FullCompositionGraph_ValidatesWithoutConstructingRuntimeResources()
     {
+        var services = BuildFullComposition();
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
+
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IHostedService));
+    }
+
+    private static ServiceCollection BuildFullComposition()
+    {
         var repoRoot = FindRepoRoot();
         var configuration = new ConfigurationManager();
         var configLoader = new ConfigurationDirectoryLoader(
@@ -141,17 +160,55 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
 
-        using var provider = services.BuildServiceProvider(
-            new ServiceProviderOptions
-            {
-                ValidateOnBuild = true,
-                ValidateScopes = true,
-            });
-
-        Assert.Contains(
-            services,
-            descriptor => descriptor.ServiceType == typeof(IHostedService));
+        return services;
     }
+
+    [Fact]
+    public void ProviderRegistrationOrder_IsPinned()
+    {
+        var services = BuildFullComposition();
+
+        using var provider = services.BuildServiceProvider();
+
+        // Order is behaviour: it decides which provider answers first and how settings list them.
+        Assert.Equal(
+            string.Join(", ", ExpectedMetadataProviderOrder),
+            string.Join(", ", provider.GetServices<IExternalMetadataProvider>().Select(candidate => candidate.Name)));
+        Assert.Equal(
+            string.Join(", ", ExpectedTextTrackProviderOrder),
+            string.Join(", ", provider.GetServices<ITextTrackProvider>().Select(candidate => candidate.Name)));
+    }
+
+    [Fact]
+    public void ProviderHttpClients_KeepTheirTimeoutAndCanonicalUserAgent()
+    {
+        var services = BuildFullComposition();
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<HttpClientFactoryOptions>>();
+
+        // TVDB keeps the 20 s timeout and the shared user agent whether or not its file names one.
+        // The resilience handler later lifts the client-wide timeout, so read the registration's own action.
+        using var tvdb = new HttpClient();
+        options.Get("tvdb").HttpClientActions[0](tvdb);
+        Assert.Equal(TimeSpan.FromSeconds(20), tvdb.Timeout);
+        Assert.Equal(
+            TuvimaHttpClientRegistration.CanonicalUserAgent,
+            tvdb.DefaultRequestHeaders.UserAgent.ToString());
+
+        // SubDL never follows redirects with credentials and caps buffered responses at 1 MiB.
+        using var subdl = new HttpClient();
+        foreach (var action in options.Get("subdl").HttpClientActions)
+        {
+            action(subdl);
+        }
+
+        Assert.Equal(1024 * 1024, subdl.MaxResponseContentBufferSize);
+    }
+
+    private static readonly string[] ExpectedMetadataProviderOrder =
+        ["apple_api", "comicvine", "musicbrainz", "tmdb", "wikidata_reconciliation", "tvdb"];
+    private static readonly string[] ExpectedTextTrackProviderOrder = ["lrclib", "subdl"];
 
     [Fact]
     public void ConventionRegisteredStrategiesAndPlugins_ResolveAsDeterministicSingletons()

@@ -13,14 +13,884 @@
   "rate_limit": { "requests_per_second": 2, "burst": 2, "max_concurrency": 2 },
   "hydration_stages": [],
   "cache_ttl_hours": 168,
-  "adapter_type": "tvdb_v4",
+  "adapter_type": "config_driven",
   "provider_id": "bf00000f-0000-4000-8000-000000000017",
   "display_name": "TheTVDB",
   "requires_api_key": true,
   "language_strategy": "localized",
-  "http_client": { "timeout_seconds": 20, "user_agent": "Tuvima Library/1.0" },
+  "http_client": { "timeout_seconds": 20 },
   "can_handle": { "media_types": ["TV"], "entity_types": ["Work", "MediaAsset"] },
   "preferred_bridge_ids": { "TV": ["tvdb_episode_id", "tvdb_id", "tmdb_id"] },
+  "registration_order": 100,
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "/login",
+      "body": {
+        "apikey": "{api_key}",
+        "pin": "{pin?}"
+      },
+      "token_path": "data.token",
+      "lifetime_days": 25,
+      "refresh_early_minutes": 1
+    },
+    "deliver": {
+      "header": "Authorization",
+      "format": "Bearer {token}"
+    },
+    "retry_on_unauthorized": 1
+  },
+  "api": {
+    "allowed_hosts": [
+      "api4.thetvdb.com"
+    ],
+    "data_path": "data",
+    "cache_minutes": 60,
+    "cache_max_entries": 1000,
+    "endpoints": {
+      "search": {
+        "path": "/search?query={query}&type=series",
+        "args": {
+          "query": "text"
+        }
+      },
+      "series_extended": {
+        "path": "/series/{id}/extended",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "season_extended": {
+        "path": "/seasons/{id}/extended",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "episode_extended": {
+        "path": "/episodes/{id}/extended",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "series_translation": {
+        "path": "/series/{id}/translations/{lang}",
+        "args": {
+          "id": "digits",
+          "lang": "alpha3"
+        },
+        "defaults": {
+          "lang": "eng"
+        }
+      },
+      "season_translation": {
+        "path": "/seasons/{id}/translations/{lang}",
+        "args": {
+          "id": "digits",
+          "lang": "alpha3"
+        },
+        "defaults": {
+          "lang": "eng"
+        }
+      },
+      "episode_translation": {
+        "path": "/episodes/{id}/translations/{lang}",
+        "args": {
+          "id": "digits",
+          "lang": "alpha3"
+        },
+        "defaults": {
+          "lang": "eng"
+        }
+      },
+      "person_extended": {
+        "path": "/people/{id}/extended",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "artwork_extended": {
+        "path": "/artwork/{id}/extended",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "series_artworks": {
+        "path": "/series/{id}/artworks",
+        "args": {
+          "id": "digits"
+        }
+      },
+      "artwork_types": {
+        "path": "/artwork/types",
+        "cache_minutes": 10080
+      },
+      "series_episodes": {
+        "path": "/series/{id}/episodes/{season_type}[/{lang}]?page={page}",
+        "args": {
+          "id": "digits",
+          "season_type": "one_of:default,official,dvd,absolute",
+          "lang": "alpha3?"
+        },
+        "defaults": {
+          "season_type": "default"
+        },
+        "paging": {
+          "start": 0,
+          "max_pages": 100,
+          "items_path": "data.episodes",
+          "next_path": "links.next"
+        }
+      }
+    }
+  },
+  "flows": {
+    "fetch": {
+      "media_types": [
+        "TV"
+      ],
+      "entity_types": [
+        "Work",
+        "MediaAsset"
+      ],
+      "requires_credentials": true,
+      "steps": [
+        {
+          "set": "season",
+          "from": {
+            "int": "@request.season_number"
+          }
+        },
+        {
+          "set": "episode",
+          "from": {
+            "int": "@request.episode_number"
+          }
+        },
+        {
+          "stop_if": [
+            {
+              "blank": "$season"
+            },
+            {
+              "blank": "$episode"
+            }
+          ]
+        },
+        {
+          "stop_if_all": [
+            {
+              "present": "@hint.identity_provider"
+            },
+            {
+              "not": {
+                "equals": [
+                  "@hint.identity_provider",
+                  "@name"
+                ],
+                "ignore_case": true
+              }
+            }
+          ]
+        },
+        {
+          "set": "show_name",
+          "from": [
+            "@request.show_name",
+            "@request.series",
+            "@request.title"
+          ]
+        },
+        {
+          "if": [
+            {
+              "present": "@hint.tvdb_id"
+            }
+          ],
+          "then": [
+            {
+              "call": "series_extended",
+              "args": {
+                "id": "@hint.tvdb_id"
+              },
+              "into": "show"
+            }
+          ],
+          "else": [
+            {
+              "stop_if": [
+                {
+                  "blank": "$show_name"
+                }
+              ]
+            },
+            {
+              "call": "search",
+              "args": {
+                "query": "$show_name"
+              },
+              "into": "hits"
+            },
+            {
+              "pick": "show",
+              "from": "$hits",
+              "take": 10,
+              "candidate_id": [
+                "tvdb_id",
+                "id"
+              ],
+              "tests": [
+                {
+                  "path": "name",
+                  "equals": "$show_name",
+                  "ignore_case": true
+                },
+                {
+                  "via": {
+                    "call": "series_translation",
+                    "args": {
+                      "id": "$candidate_id",
+                      "lang": "eng"
+                    }
+                  },
+                  "path": "name",
+                  "equals": "$show_name",
+                  "ignore_case": true
+                }
+              ],
+              "fallback": "only_candidate"
+            }
+          ]
+        },
+        {
+          "stop_if": [
+            {
+              "blank": "$show"
+            }
+          ]
+        },
+        {
+          "set": "show_id",
+          "from": {
+            "digits_of": [
+              "$show.tvdb_id",
+              "$show.id"
+            ]
+          }
+        },
+        {
+          "stop_if": [
+            {
+              "blank": "$show_id"
+            }
+          ]
+        },
+        {
+          "call": "series_extended",
+          "args": {
+            "id": "$show_id"
+          },
+          "into": "show",
+          "keep_on_null": true
+        },
+        {
+          "call": "series_translation",
+          "args": {
+            "id": "$show_id",
+            "lang": "eng"
+          },
+          "into": "show_en"
+        },
+        {
+          "if": [
+            {
+              "present": "@hint.tvdb_episode_id"
+            }
+          ],
+          "then": [
+            {
+              "call": "episode_extended",
+              "args": {
+                "id": "@hint.tvdb_episode_id"
+              },
+              "into": "match"
+            }
+          ],
+          "else": [
+            {
+              "pages": "series_episodes",
+              "args": {
+                "id": "$show_id",
+                "lang": "eng"
+              },
+              "into": "episodes"
+            },
+            {
+              "find": "match",
+              "in": "$episodes",
+              "where": [
+                {
+                  "path": "seasonNumber",
+                  "number_equals": "$season"
+                },
+                {
+                  "path": "number",
+                  "number_equals": "$episode"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stop_if": [
+            {
+              "blank": "$match"
+            }
+          ]
+        },
+        {
+          "stop_if_all": [
+            {
+              "present": "@hint.tvdb_episode_id"
+            },
+            {
+              "not": {
+                "equals": [
+                  "$match.seriesId",
+                  "$show_id"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "set": "episode_id",
+          "from": {
+            "digits_of": [
+              "$match.tvdb_id",
+              "$match.id"
+            ]
+          }
+        },
+        {
+          "if": [
+            {
+              "present": "$episode_id"
+            }
+          ],
+          "then": [
+            {
+              "call": "episode_translation",
+              "args": {
+                "id": "$episode_id",
+                "lang": "eng"
+              },
+              "into": "episode_en"
+            }
+          ]
+        },
+        {
+          "claims": {
+            "add": "always",
+            "root": {
+              "request": {
+                "object": {
+                  "show_name": "$show_name",
+                  "season_number": "$season",
+                  "episode_number": "$episode"
+                }
+              },
+              "show": "$show",
+              "show_en": "$show_en",
+              "match": "$match",
+              "episode_en": "$episode_en",
+              "show_id": "$show_id",
+              "episode_id": "$episode_id"
+            },
+            "rules": [
+              {
+                "claim_key": "show_name",
+                "confidence": 0.9,
+                "json_path": "show_en.name",
+                "trim": true
+              },
+              {
+                "claim_key": "show_name",
+                "confidence": 0.9,
+                "json_path": "request.show_name",
+                "add": "if_missing_key"
+              },
+              {
+                "claim_key": "author",
+                "confidence": 0.8,
+                "json_path": "show_en.name",
+                "trim": true
+              },
+              {
+                "claim_key": "author",
+                "confidence": 0.8,
+                "json_path": "request.show_name",
+                "add": "if_missing_key"
+              },
+              {
+                "claim_key": "tvdb_id",
+                "confidence": 1.0,
+                "json_path": "show_id"
+              },
+              {
+                "claim_key": "season_number",
+                "confidence": 1.0,
+                "json_path": "request.season_number"
+              },
+              {
+                "claim_key": "episode_number",
+                "confidence": 1.0,
+                "json_path": "request.episode_number"
+              },
+              {
+                "claim_key": "episode_title",
+                "confidence": 0.9,
+                "json_path": "episode_en.name",
+                "trim": true
+              },
+              {
+                "claim_key": "title",
+                "confidence": 0.9,
+                "json_path": "episode_en.name",
+                "trim": true
+              },
+              {
+                "claim_key": "episode_description",
+                "confidence": 0.85,
+                "json_path": "episode_en.overview",
+                "trim": true
+              },
+              {
+                "claim_key": "tvdb_episode_id",
+                "confidence": 1.0,
+                "json_path": "episode_id"
+              },
+              {
+                "claim_key": "air_date",
+                "confidence": 0.9,
+                "json_path": "match.aired",
+                "trim": true
+              },
+              {
+                "claim_key": "year",
+                "confidence": 0.85,
+                "json_path": "show.firstAired",
+                "trim": true,
+                "min_length": 4,
+                "transform": "first_n_chars",
+                "transform_args": "4"
+              },
+              {
+                "claim_key": "year",
+                "confidence": 0.8,
+                "json_path": "show.year",
+                "trim": true,
+                "add": "if_missing_key"
+              },
+              {
+                "kind": "items",
+                "path": "show.characters",
+                "where": [
+                  {
+                    "path": "personName",
+                    "not_blank": true
+                  },
+                  {
+                    "path": "peopleId",
+                    "not_blank": true
+                  },
+                  {
+                    "path": "peopleType",
+                    "equals": "Actor",
+                    "ignore_case": true
+                  }
+                ],
+                "each": [
+                  {
+                    "claim_key": "cast_member",
+                    "confidence": 0.9,
+                    "json_path": "personName",
+                    "trim": true
+                  },
+                  {
+                    "claim_key": "cast_member_character",
+                    "confidence": 0.85,
+                    "json_path": "name",
+                    "trim": true
+                  },
+                  {
+                    "claim_key": "cast_member_tvdb_id",
+                    "confidence": 0.95,
+                    "json_path": "peopleId",
+                    "trim": true
+                  },
+                  {
+                    "claim_key": "cast_member_tvdb_identity",
+                    "template": "{peopleId}::{personName}",
+                    "trim": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "claim_key": "cast_member_profile_url",
+                    "confidence": 0.8,
+                    "json_path": "personImgURL",
+                    "trim": true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "search": {
+      "media_types": [
+        "TV"
+      ],
+      "requires_credentials": true,
+      "steps": [
+        {
+          "set": "show_name",
+          "from": [
+            "@request.show_name",
+            "@request.series",
+            "@request.title"
+          ]
+        },
+        {
+          "stop_if": [
+            {
+              "blank": "$show_name"
+            }
+          ]
+        },
+        {
+          "call": "search",
+          "args": {
+            "query": "$show_name"
+          },
+          "into": "hits"
+        },
+        {
+          "slice": "shows",
+          "from": "$hits",
+          "take": {
+            "clamp": [
+              "@limit",
+              1,
+              25
+            ]
+          }
+        },
+        {
+          "set": "season",
+          "from": {
+            "int": "@request.season_number"
+          }
+        },
+        {
+          "if": [
+            {
+              "blank": "$season"
+            }
+          ],
+          "then": [
+            {
+              "each": "show",
+              "in": "$shows",
+              "do": [
+                {
+                  "set": "show_id",
+                  "from": {
+                    "digits_of": [
+                      "$show.tvdb_id",
+                      "$show.id"
+                    ]
+                  }
+                },
+                {
+                  "skip_if": [
+                    {
+                      "blank": "$show_id"
+                    }
+                  ]
+                },
+                {
+                  "call": "series_translation",
+                  "args": {
+                    "id": "$show_id",
+                    "lang": "eng"
+                  },
+                  "into": "english",
+                  "on_error": "ignore"
+                },
+                {
+                  "set": "title",
+                  "from": [
+                    "$english.name",
+                    "$show.translations.eng",
+                    "$show.name"
+                  ]
+                },
+                {
+                  "skip_if": [
+                    {
+                      "blank": "$title"
+                    }
+                  ]
+                },
+                {
+                  "set": "year",
+                  "from": [
+                    "$show.year",
+                    {
+                      "first_chars": [
+                        "$show.first_air_time",
+                        4
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "set": "image",
+                  "from": {
+                    "url_on_hosts": [
+                      "$show.image_url",
+                      "$show.image"
+                    ],
+                    "hosts": [
+                      "thetvdb.com"
+                    ]
+                  }
+                },
+                {
+                  "set": "details",
+                  "from": null
+                },
+                {
+                  "if": [
+                    {
+                      "any": [
+                        {
+                          "blank": "$year"
+                        },
+                        {
+                          "blank": "$image"
+                        }
+                      ]
+                    }
+                  ],
+                  "then": [
+                    {
+                      "call": "series_extended",
+                      "args": {
+                        "id": "$show_id"
+                      },
+                      "into": "details",
+                      "on_error": "ignore"
+                    }
+                  ]
+                },
+                {
+                  "set": "year",
+                  "from": [
+                    "$year",
+                    {
+                      "first_chars": [
+                        "$details.firstAired",
+                        4
+                      ]
+                    },
+                    "$details.year"
+                  ]
+                },
+                {
+                  "set": "image",
+                  "from": [
+                    "$image",
+                    {
+                      "url_on_hosts": [
+                        "$details.image_url",
+                        "$details.image"
+                      ],
+                      "hosts": [
+                        "thetvdb.com"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "emit": {
+                    "title": "$title",
+                    "description": [
+                      "$english.overview",
+                      "$show.overviews.eng",
+                      "$details.overview"
+                    ],
+                    "year": "$year",
+                    "thumbnail": "$image",
+                    "id": "$show_id",
+                    "confidence": 0.6,
+                    "type": "show",
+                    "extra": {
+                      "tvdb_id": "$show_id"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "return": true
+            }
+          ]
+        },
+        {
+          "each": "show",
+          "in": "$shows",
+          "do": [
+            {
+              "set": "show_id",
+              "from": {
+                "digits_of": [
+                  "$show.tvdb_id",
+                  "$show.id"
+                ]
+              }
+            },
+            {
+              "skip_if": [
+                {
+                  "blank": "$show_id"
+                }
+              ]
+            },
+            {
+              "call": "series_translation",
+              "args": {
+                "id": "$show_id",
+                "lang": "eng"
+              },
+              "into": "show_en"
+            },
+            {
+              "set": "show_title",
+              "from": [
+                "$show_en.name",
+                "$show.translations.eng",
+                "$show.name",
+                "$show_name"
+              ]
+            },
+            {
+              "pages": "series_episodes",
+              "args": {
+                "id": "$show_id",
+                "lang": "eng"
+              },
+              "into": "episodes"
+            },
+            {
+              "each": "ep",
+              "in": "$episodes",
+              "do": [
+                {
+                  "skip_if": [
+                    {
+                      "not": {
+                        "number_equals": [
+                          "$ep.seasonNumber",
+                          "$season"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "set": "wanted",
+                  "from": {
+                    "int": "@request.episode_number"
+                  }
+                },
+                {
+                  "skip_if_all": [
+                    {
+                      "present": "$wanted"
+                    },
+                    {
+                      "not": {
+                        "number_equals": [
+                          "$ep.number",
+                          "$wanted"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "set": "episode_id",
+                  "from": {
+                    "digits_of": [
+                      "$ep.tvdb_id",
+                      "$ep.id"
+                    ]
+                  }
+                },
+                {
+                  "skip_if": [
+                    {
+                      "blank": "$episode_id"
+                    }
+                  ]
+                },
+                {
+                  "call": "episode_translation",
+                  "args": {
+                    "id": "$episode_id",
+                    "lang": "eng"
+                  },
+                  "into": "english"
+                },
+                {
+                  "emit": {
+                    "title": [
+                      "$english.name",
+                      {
+                        "format": "Episode {ep.number}"
+                      }
+                    ],
+                    "author": "$show_title",
+                    "description": "$english.overview",
+                    "year": {
+                      "first_chars": [
+                        "$ep.aired",
+                        4
+                      ]
+                    },
+                    "id": "$episode_id",
+                    "confidence": 0.8,
+                    "type": "episode",
+                    "extra": {
+                      "tvdb_id": "$show_id",
+                      "tvdb_episode_id": "$episode_id",
+                      "show_name": "$show_title",
+                      "season_number": "$season",
+                      "episode_number": "$ep.number",
+                      "episode_title": "$english.name"
+                    }
+                  },
+                  "stop_at": "@limit"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
   "ui_metadata": {
     "accent_color": "#21B6A8",
     "material_icon": "Tv",

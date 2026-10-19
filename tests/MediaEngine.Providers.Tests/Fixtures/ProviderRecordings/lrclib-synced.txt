@@ -1,0 +1,6 @@
+== requests ==
+GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist%20%26%20Co&album_name=Album%2FName&duration=180
+== results ==
+lrclib|Lyrics|4711|https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist%20%26%20Co&album_name=Album%2FName&duration=180|en|lrc|1|False|1|False|-|False|[00:01.00]Line one
+[00:02.00]Line two
+download: lrc->lrc [00:01.00]Line one\n[00:02.00]Line two

@@ -289,7 +289,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<IEventPublisher, SignalREventPublisher>();
         builder.Services.AddHttpClient();
         builder.Services.AddMemoryCache();
-        builder.Services.AddSingleton<TvdbRetailClient>(_ => throw new InvalidOperationException(
+        builder.Services.AddSingleton<ProviderApiClient>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not contact TheTVDB."));
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddTuvimaStorage();

@@ -1,0 +1,24 @@
+== requests ==
+GET https://comicvine.gamespot.com/api/search/?query=Saga%20%231&resources=issue&limit=10&format=json
+GET https://comicvine.gamespot.com/api/search/?query=Saga&resources=volume&limit=25&format=json
+GET https://comicvine.gamespot.com/api/volume/4050-1234/?format=json
+GET https://comicvine.gamespot.com/api/issues/?filter=volume:1234&field_list=id%2Cissue_number%2Cname%2Ccover_date%2Csite_detail_url%2Cvolume&limit=100&offset=0&format=json
+== claims ==
+title=Chapter One@0.7
+issue_title=Chapter One@0.95
+series=Saga@0.9
+issue_number=1@0.95
+issue_description=The war goes on.@0.8
+cover=https://example.test/saga-en.jpg@0.9
+year=2012@0.85
+series_position=1@0.9
+comic_vine_id=222@0.95
+comic_vine_volume_id=1234@0.95
+author=Brian K. Vaughan@0.82
+illustrator=Fiona Staples@0.82
+illustrator=Inky Ink@0.82
+sequence_total=72@0.9
+sequence_total_scope=MainSequence@0.9
+series_start_year=2012@0.85
+publisher=Image Comics@0.8
+sequence_manifest_json={"provider":"comicvine","container_id":"comicvine:volume:1234","container_label":"Saga","external_id_key":"comic_vine_id","media_type":"Comics","container_kind":"ComicVolume","expected_total":72,"expected_total_kind":"issues","is_authoritative":false,"items":[{"external_id":"222","title":"Chapter One","ordinal":"1","release_date":"2012-03-14","description":null,"duration":null}]}@0.7
