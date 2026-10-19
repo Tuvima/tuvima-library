@@ -8450,7 +8450,7 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportRequest
   From: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   To: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   Level: System.String | nullability=not-null | accessors=get,init
-  Areas: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  Areas: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
   ItemOrRun: System.String | nullability=nullable | accessors=get,init
   ShowFileNames: System.Boolean | nullability=not-null | accessors=get,init
   IncludeEvents: System.Boolean | nullability=not-null | accessors=get,init

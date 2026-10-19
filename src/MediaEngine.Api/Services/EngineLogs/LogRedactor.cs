@@ -22,22 +22,37 @@ public static partial class LogRedactor
     private const char MarkerStart = '\u0001';
     private const char MarkerEnd = '\u0002';
 
-    // A Windows path: a drive, folders (which may hold spaces), then a file name with an extension or a plain last word.
-    [GeneratedRegex(
-        @"(?<![A-Za-z0-9])[A-Za-z]:[\\/](?:[^\\/:*?""<>|\r\n]+[\\/])*(?:[^\\/:*?""<>|\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^\\/:*?""<>|\s]*)")]
+    // Folders (which may hold spaces), then a file name with an extension, or a last folder name that may hold spaces and
+    // ends where the sentence turns: at a quote, a comma, the end of the line, or a word like "is" or "was".
+    private const string SentenceTurns =
+        @"\s+(?:is|was|are|were|not|could|can|cannot|failed|fails|because|from|to|for|at|and|with|has|have|had|does|did|will|when|while|after|before|which|but|or)\b|[,;]|\r|\n|$";
+
+    private const string WindowsRest =
+        @"(?:[^\\/:*?""<>|\r\n]+[\\/])*(?:[^\\/:*?""<>|\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^\\/:*?""<>|\r\n,;]*?(?=" + SentenceTurns + @"|""))";
+
+    // A Windows path: a drive, then the rest.
+    [GeneratedRegex(@"(?<![A-Za-z0-9])[A-Za-z]:[\\/]" + WindowsRest)]
     private static partial Regex WindowsPath();
+
+    // A network path: \\server\share\folder\file.ext (or the forward-slash form), never in the middle of a web address.
+    [GeneratedRegex(@"(?<![\\/\w:.)\]\-])[\\/]{2}[^\\/:*?""<>|\s]+[\\/]" + WindowsRest)]
+    private static partial Regex UncPath();
 
     // A POSIX path: starts at the beginning of a word, never in the middle of a URL, and has at least two segments.
     [GeneratedRegex(
-        @"(?<![\w:/.)\]\-])/(?:[^/\s'""<>|*?:][^/'""<>|*?:\r\n]*/)+(?:[^/'""<>|*?:\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^/\s'""<>|*?:]*)")]
+        @"(?<![\w:/.)\]\-])/(?:[^/\s'""<>|*?:][^/'""<>|*?:\r\n]*/)+(?:[^/'""<>|*?:\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^/'""<>|*?:\r\n,;]*?(?=" + SentenceTurns + @"|['""]))")]
     private static partial Regex PosixPath();
+
+    // An Authorization header (or JSON field): the scheme and everything after it are hidden, whatever the scheme is.
+    [GeneratedRegex(@"(?i)([""']?\bauthorization[""']?\s*[:=]\s*)(?:""[^""]*""|'[^']*'|[^\r\n]*)")]
+    private static partial Regex AuthorizationHeader();
 
     [GeneratedRegex(@"(?i)\bBearer\s+[A-Za-z0-9._~+/=\-]+")]
     private static partial Regex BearerToken();
 
     // api_key=..., "password":"...", token: ..., secret=... (the value may be quoted).
     [GeneratedRegex(
-        @"(?i)([""']?\b(?:api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|auth[_-]?token|token|key|secret|client[_-]?secret|password|passwd|pwd|authorization)[""']?\s*[:=]\s*)(""[^""]*""|'[^']*'|[^\s&;,""')\]}]+)")]
+        @"(?i)([""']?\b(?:api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|auth[_-]?token|token|key|secret|client[_-]?secret|password|passwd|pwd)[""']?\s*[:=]\s*)(""[^""]*""|'[^']*'|[^\s&;,""')\]}]+)")]
     private static partial Regex KeyValueSecret();
 
     [GeneratedRegex(@"\beyJ[A-Za-z0-9_\-]{5,}\.[A-Za-z0-9_\-]{5,}\.[A-Za-z0-9_\-]*")]
@@ -72,9 +87,11 @@ public static partial class LogRedactor
 
         // Paths first, parked behind markers so no later pattern can touch them.
         var parked = new List<string>();
-        var result = ParkPaths(WindowsPath(), text, showFileNames, parked);
+        var result = ParkPaths(UncPath(), text, showFileNames, parked);
+        result = ParkPaths(WindowsPath(), result, showFileNames, parked);
         result = ParkPaths(PosixPath(), result, showFileNames, parked);
 
+        result = AuthorizationHeader().Replace(result, match => match.Groups[1].Value + HiddenSecret);
         result = BearerToken().Replace(result, "Bearer " + HiddenSecret);
         result = KeyValueSecret().Replace(result, match => match.Groups[1].Value + HiddenSecret);
         result = JsonWebToken().Replace(result, HiddenSecret);

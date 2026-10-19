@@ -389,7 +389,7 @@ public sealed class LogsPageTests : AsyncBunitContext
 
         var request = Assert.Single(_previews);
         Assert.Equal("warnings_and_above", request.Level);
-        Assert.Empty(request.Areas);
+        Assert.Empty(request.Areas!);
         Assert.Null(request.ItemOrRun);
         Assert.False(request.ShowFileNames);
         Assert.True(request.IncludeEvents);

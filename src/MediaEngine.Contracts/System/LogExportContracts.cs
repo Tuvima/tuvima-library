@@ -32,9 +32,9 @@ public sealed class LogExportRequest
     [JsonPropertyName("level")]
     public string Level { get; init; } = LogExportLevels.WarningsAndAbove;
 
-    /// <summary>Areas to keep (Ingestion, Playback, Network, Providers, Security, AI, Other). Empty means every area.</summary>
+    /// <summary>Areas to keep (Ingestion, Playback, Network, Providers, Security, AI, Other). Empty or null means every area.</summary>
     [JsonPropertyName("areas")]
-    public List<string> Areas { get; init; } = [];
+    public List<string>? Areas { get; init; } = [];
 
     /// <summary>A run id or item id; only lines and events that mention it are kept. Optional.</summary>
     [JsonPropertyName("item_or_run")]

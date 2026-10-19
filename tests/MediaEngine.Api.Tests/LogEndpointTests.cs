@@ -231,6 +231,19 @@ public sealed class LogEndpointTests : IDisposable
         Assert.Equal("tuvima-logs-20261019-0800-20261019-1000.txt", preview.GetProperty("file_name").GetString());
     }
 
+    [Fact]
+    public async Task Export_WithNullAreas_MeansEveryArea_AndIsNotAServerError()
+    {
+        await using var app = BuildApplication();
+        const string request = """{"from":"2026-10-19T08:00:00Z","to":"2026-10-19T10:00:00Z","level":"errors","areas":null}""";
+
+        var (previewStatus, _) = await SendAsync(app, "POST", "/logs/export/preview", request);
+        var (exportStatus, _) = await SendAsync(app, "POST", "/logs/export", request);
+
+        Assert.Equal(StatusCodes.Status200OK, previewStatus);
+        Assert.Equal(StatusCodes.Status200OK, exportStatus);
+    }
+
     [Theory]
     [InlineData("""{"to":"2026-10-19T10:00:00Z","level":"errors"}""")]
     [InlineData("""{"from":"2026-10-19T10:00:00Z","to":"2026-10-19T08:00:00Z"}""")]

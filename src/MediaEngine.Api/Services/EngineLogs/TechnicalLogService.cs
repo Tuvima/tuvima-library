@@ -10,8 +10,13 @@ public sealed record TechnicalLogEntry(DateTimeOffset Time, string Level, string
 /// <summary>A page of entries and, when there may be older ones, the cursor that continues after the last entry.</summary>
 public sealed record TechnicalLogPage(IReadOnlyList<TechnicalLogEntry> Lines, string? NextCursor);
 
-/// <summary>Every matching entry in a range, oldest first, and whether older ones were left out to stay within the limit.</summary>
-public sealed record TechnicalLogRange(IReadOnlyList<TechnicalLogEntry> Lines, bool Truncated);
+/// <summary>
+/// Every matching entry in a range, oldest first, and which limit (if any) made older ones fall away.
+/// </summary>
+public sealed record TechnicalLogRange(IReadOnlyList<TechnicalLogEntry> Lines, bool LinesCapped, bool BytesCapped)
+{
+    public bool Truncated => LinesCapped || BytesCapped;
+}
 
 /// <summary>
 /// What to read. <paramref name="Level"/> is the lowest level wanted: <c>error</c> (errors and worse),
@@ -179,20 +184,24 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
     }
 
     /// <inheritdoc/>
-    public Task<TechnicalLogRange> ReadRangeAsync(TechnicalLogQuery query, int maxLines, CancellationToken ct = default)
+    public Task<TechnicalLogRange> ReadRangeAsync(
+        TechnicalLogQuery query, IReadOnlySet<string>? areas, int maxLines, long maxBytes, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxLines, 1);
-        return Task.Run(() => ReadRange(query, maxLines, ct), ct);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxBytes, 1);
+        return Task.Run(() => ReadRange(query, areas, maxLines, maxBytes, ct), ct);
     }
 
-    // Every matching entry, oldest first. Only the newest `maxLines` are kept, so a very wide range cannot fill memory.
-    private TechnicalLogRange ReadRange(TechnicalLogQuery query, int maxLines, CancellationToken ct)
+    // Every matching entry, oldest first. The level, area and text filters run first; only then do the line and size
+    // limits drop the oldest, so a very wide range cannot fill memory and a filter never loses lines to a limit.
+    private TechnicalLogRange ReadRange(
+        TechnicalLogQuery query, IReadOnlySet<string>? areas, int maxLines, long maxBytes, CancellationToken ct)
     {
         var directory = Path.GetFullPath(_location.Directory);
         if (!Directory.Exists(directory))
         {
-            return new TechnicalLogRange([], false);
+            return new TechnicalLogRange([], false, false);
         }
 
         TryParseMinimumLevel(query.Level, out var minimumRank);
@@ -204,7 +213,9 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
             .ToList();
 
         var kept = new Queue<TechnicalLogEntry>();
-        var truncated = false;
+        long keptBytes = 0;
+        var linesCapped = false;
+        var bytesCapped = false;
         foreach (var file in files)
         {
             ct.ThrowIfCancellationRequested();
@@ -222,18 +233,37 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
                     return;
                 }
 
-                if (kept.Count == maxLines)
+                var entryArea = LogAreas.Classify(entry.Context);
+                if (areas is { Count: > 0 } && !areas.Contains(entryArea))
                 {
-                    kept.Dequeue();
-                    truncated = true;
+                    return;
                 }
 
-                kept.Enqueue(new TechnicalLogEntry(entry.Time, entry.Level, LogAreas.Classify(entry.Context), entry.Message()));
+                var message = entry.Message();
+                var size = EstimatedBytes(message);
+                kept.Enqueue(new TechnicalLogEntry(entry.Time, entry.Level, entryArea, message));
+                keptBytes += size;
+                while (kept.Count > maxLines || keptBytes > maxBytes && kept.Count > 1)
+                {
+                    var dropped = kept.Dequeue();
+                    keptBytes -= EstimatedBytes(dropped.Message);
+                    if (kept.Count >= maxLines)
+                    {
+                        linesCapped = true;
+                    }
+                    else
+                    {
+                        bytesCapped = true;
+                    }
+                }
             });
         }
 
-        return new TechnicalLogRange([.. kept], truncated);
+        return new TechnicalLogRange([.. kept], linesCapped, bytesCapped);
     }
+
+    // Roughly what an entry takes in the export before redaction: its text plus the time, level and area it is written with.
+    internal static long EstimatedBytes(string message) => Encoding.UTF8.GetByteCount(message) + 48;
 
     // Reads one file entry by entry, oldest first, and hands each to `onEntry`. Stops before entry number `ordinalLimit`.
     private static void ScanFile(string path, int ordinalLimit, CancellationToken ct, Action<Pending> onEntry)
