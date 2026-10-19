@@ -190,6 +190,18 @@ public sealed record AccountSelfServiceResponse(
     [property: JsonPropertyName("authentication_methods")] IReadOnlyList<string> AuthenticationMethods,
     [property: JsonPropertyName("security_capabilities")] AccountSecurityCapabilitiesResponse SecurityCapabilities);
 
+/// <summary>The one-time reminders an account can say "Not now" to. Only these keys are accepted.</summary>
+public static class AccountNoticeKeys
+{
+    /// <summary>Reminder to add a password so the Library works away from home.</summary>
+    public const string SecureAccount = "secure-account";
+
+    public static bool IsKnown(string? key) => key == SecureAccount;
+}
+
+public sealed record AccountNoticesResponse(
+    [property: JsonPropertyName("dismissed")] IReadOnlyList<string> Dismissed);
+
 public sealed record AccountSecurityCapabilitiesResponse(
     [property: JsonPropertyName("has_password")] bool HasPassword,
     [property: JsonPropertyName("has_passkeys")] bool HasPasskeys,

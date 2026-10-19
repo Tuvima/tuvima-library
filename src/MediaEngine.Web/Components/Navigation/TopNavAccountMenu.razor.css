@@ -247,20 +247,41 @@
     font-size: 1.5rem;
 }
 
-.top-nav-account-menu__attention-dot {
-    position: absolute;
-    top: 0.5rem;
-    left: 2rem;
-    width: 0.6rem;
-    height: 0.6rem;
-    border: 2px solid rgba(12, 17, 28, 0.98);
-    border-radius: 999px;
-    background: var(--tl-accent-primary);
-    box-sizing: content-box;
+/* Secure your account reminder: the first thing in the menu, above the name. Danger tint tokens, no red text. */
+.top-nav-account-menu__secure-card {
+    display: grid;
+    gap: var(--tl-space-2);
+    margin-bottom: var(--tl-space-2);
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-status-danger-border);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-status-danger-soft);
 }
 
-.top-nav-account-menu__attention-dot--inline {
-    position: static;
-    flex: none;
-    margin-left: auto;
+.top-nav-account-menu__secure-title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.top-nav-account-menu__secure-body {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+.top-nav-account-menu__secure-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-top: var(--tl-space-1);
+}
+
+.top-nav-account-menu__secure-actions ::deep .top-nav-account-menu__secure-action {
+    min-height: var(--tl-tap-target-min, 44px);
+    min-width: var(--tl-tap-target-min, 44px);
 }

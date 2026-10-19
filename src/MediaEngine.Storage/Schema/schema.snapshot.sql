@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0002 media_inspection_holds).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0003 account_notice_dismissals).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -53,6 +53,13 @@ CREATE TABLE account_library_grants (
     library_id BLOB NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (account_id, library_id)
+);
+
+CREATE TABLE account_notice_dismissals (
+    account_id   BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    notice_key   TEXT NOT NULL,   -- a known reminder, for example secure-account
+    dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (account_id, notice_key)
 );
 
 CREATE TABLE account_passkeys (
