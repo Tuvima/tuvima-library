@@ -1,6 +1,6 @@
 # 0011 — Personal activity is its own lasting record, and who sees whose is decided by one scope check
 
-**Date:** 2026-10-19 (Shy; spec `engineering/specs/settings-revamp.md` D15, D22, D25, D32, D34) · **Status:** Accepted
+**Date:** 2026-10-19 (Shy; spec `engineering/specs/archive/settings-revamp.md` D15, D22, D25, D32, D34) · **Status:** Accepted
 
 ## What
 What each person watches, listens to and reads, and what they add to My list, is written to a dedicated personal activity record (`personal_activity`). Each entry keeps its own snapshot of the item as it was — title, episode or chapter, year and a small cover copy (`personal_activity_artwork`) — so the history stays readable after the item is deleted from the library. It is kept forever: nothing prunes it automatically (the earlier 365-day clean-up of playback history was removed), and only a server administrator with an unlocked PIN can delete it, after a preview and typing DELETE, and every deletion is logged.
