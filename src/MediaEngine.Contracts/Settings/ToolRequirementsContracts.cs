@@ -29,6 +29,7 @@ public sealed record ToolRequirementsDto(
 /// <param name="CanInstall">The Library can fetch and install the tool on request.</param>
 /// <param name="CanDownloadAgain">The Library can download this item again on request.</param>
 /// <param name="DownloadPercent">Progress while <c>downloading</c>.</param>
+/// <param name="InstallDeclined">An administrator chose "Not now" on the tools banner, so the banner does not ask about this tool again. The Tools page still offers the install button.</param>
 public sealed record ToolRequirementDto(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,
@@ -43,7 +44,8 @@ public sealed record ToolRequirementDto(
     [property: JsonPropertyName("can_locate")] bool CanLocate,
     [property: JsonPropertyName("can_install")] bool CanInstall,
     [property: JsonPropertyName("can_download_again")] bool CanDownloadAgain,
-    [property: JsonPropertyName("download_percent")] int? DownloadPercent);
+    [property: JsonPropertyName("download_percent")] int? DownloadPercent,
+    [property: JsonPropertyName("install_declined")] bool InstallDeclined = false);
 
 /// <summary>
 /// The folder a person chose as the home of a tool the Library could not find. Give either a storage location with a

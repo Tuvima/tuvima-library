@@ -3,8 +3,10 @@ using MediaEngine.AI.Configuration;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.AI.Infrastructure;
@@ -20,6 +22,7 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEventPublisher _eventPublisher;
     private readonly ILogger<ModelDownloadManager> _logger;
+    private readonly ISystemActivityRepository? _activity;
     private readonly int _minimumFreeDiskMb;
     private readonly AiSettings _liveSettings;
     private readonly CancellationTokenSource _shutdownCts = new();
@@ -34,7 +37,8 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         ModelInventory inventory,
         IHttpClientFactory httpClientFactory,
         IEventPublisher eventPublisher,
-        ILogger<ModelDownloadManager> logger)
+        ILogger<ModelDownloadManager> logger,
+        ISystemActivityRepository? activity = null)
     {
         var snapshot = AiRuntimeSettingsSnapshot.Create(settings);
         _minimumFreeDiskMb = snapshot.MinimumFreeDiskMB;
@@ -43,6 +47,7 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _activity = activity;
     }
 
     public Task StartDownloadAsync(AiModelRole role, CancellationToken ct = default)
@@ -205,20 +210,28 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         DownloadOperation operation)
     {
         ModelDownloadResult result;
+        var tool = $"Local AI model {Path.GetFileName(artifact)}";
+        var host = definition.DownloadUri?.Host;
+        await RecordActivityAsync(ToolDownloadActivity.Started(tool, null, host)).ConfigureAwait(false);
         try
         {
             await DownloadCoreAsync(artifact, definition, operation, operation.Cancellation.Token)
                 .ConfigureAwait(false);
             result = new(operation.RequestedRole, ModelDownloadOutcome.Succeeded);
+            await RecordActivityAsync(ToolDownloadActivity.Finished(tool, null, host)).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (operation.Cancellation.IsCancellationRequested)
         {
             RestorePreviousStates(operation);
             result = new(operation.RequestedRole, ModelDownloadOutcome.Cancelled);
+            await RecordActivityAsync(ToolDownloadActivity.Cancelled(tool, null, host)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Download failed for model artifact {Artifact}", artifact);
+            await RecordActivityAsync(ex is ModelChecksumMismatchException
+                ? ToolDownloadActivity.ChecksumRefused(tool, null, host)
+                : ToolDownloadActivity.Failed(tool, null, host, "The download didn't finish.")).ConfigureAwait(false);
             if (operation.PreviousStates.Values.Any(
                     state => state is AiModelState.Ready or AiModelState.Loaded))
             {
@@ -348,7 +361,7 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
             var expected = Convert.FromHexString(definition.Sha256);
             if (!CryptographicOperations.FixedTimeEquals(actual, expected))
             {
-                throw new InvalidDataException(
+                throw new ModelChecksumMismatchException(
                     $"SHA-256 mismatch for model artifact {Path.GetFileName(artifact)}.");
             }
         }
@@ -364,6 +377,24 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         SharedModelArtifact.RecordOwnership(artifact);
         _inventory.RefreshArtifact(operation.RequestedRole);
         await PublishStateChangedAsync(operation.SharedRoles).ConfigureAwait(false);
+    }
+
+    // The activity log is a record of what happened, never a reason for a download to fail.
+    private async Task RecordActivityAsync(SystemActivityEntry entry)
+    {
+        if (_activity is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _activity.LogAsync(entry, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not record the {Action} activity entry for a model download", entry.ActionType);
+        }
     }
 
     private void RestorePreviousStates(DownloadOperation operation)
@@ -477,6 +508,8 @@ public sealed class ModelDownloadManager : IModelDownloadManager, IAsyncDisposab
         await Task.WhenAll(operations.Select(operation => operation.Execution)).ConfigureAwait(false);
         _shutdownCts.Dispose();
     }
+
+    private sealed class ModelChecksumMismatchException(string message) : Exception(message);
 
     private sealed class DownloadOperation(
         AiModelRole requestedRole,

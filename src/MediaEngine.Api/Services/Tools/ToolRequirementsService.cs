@@ -30,6 +30,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly ILogger<ToolRequirementsService> _logger;
     private readonly Func<string, string?> _readEnvironment;
     private readonly TimeProvider _time;
+    private readonly IToolInstallerService? _installer;
+    private readonly IToolPromptPreferenceRepository? _prompts;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -44,7 +46,9 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         IContainerProbe container,
         ILogger<ToolRequirementsService> logger,
         Func<string, string?>? readEnvironment = null,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        IToolInstallerService? installer = null,
+        IToolPromptPreferenceRepository? prompts = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
@@ -57,6 +61,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         _logger = logger;
         _readEnvironment = readEnvironment ?? Environment.GetEnvironmentVariable;
         _time = time ?? TimeProvider.System;
+        _installer = installer;
+        _prompts = prompts;
     }
 
     /// <summary>
@@ -71,7 +77,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             return await CheckAsync(ct).ConfigureAwait(false);
         }
 
-        return await RefreshLiveRowsAsync(last, ct).ConfigureAwait(false);
+        return await OverlayAsync(await RefreshLiveRowsAsync(last, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
     }
 
     public async Task<ToolRequirementsDto> CheckAsync(CancellationToken ct)
@@ -84,11 +90,99 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             // Inside the gate, so two checks can never tell the listeners out of order. The token belongs to the Engine,
             // not to the request that asked, so a closed browser tab never cuts off work the listeners start.
             await NotifyListenersAsync(availability, _lifetime.ApplicationStopping).ConfigureAwait(false);
-            return result;
+            return await OverlayAsync(result, ct).ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    // ── What an install in progress and a declined banner add to the rows ────
+
+    /// <summary>
+    /// Adds the live install state (progress, offers, failures) and the banner decline to a result. The stored
+    /// result stays as the checks found it, so the overlay is always worked out from the present moment.
+    /// </summary>
+    private async Task<ToolRequirementsDto> OverlayAsync(ToolRequirementsDto result, CancellationToken ct)
+    {
+        if (_installer is null && _prompts is null)
+        {
+            return result;
+        }
+
+        var declined = await ReadDeclinedAsync(result, ct).ConfigureAwait(false);
+        var rows = result.Tools
+            .Select(row => OverlayRow(row, result.InstallKind) with { InstallDeclined = declined.Contains(row.Id) })
+            .ToList();
+        return result with { Tools = rows };
+    }
+
+    private ToolRequirementDto OverlayRow(ToolRequirementDto row, string installKind)
+    {
+        if (_installer is null || row.Id is not (ToolRequirementIds.Ffmpeg or ToolRequirementIds.Tesseract)
+            || row.State == ToolRequirementStates.Ready)
+        {
+            return row;
+        }
+
+        var snapshot = _installer.GetSnapshot(row.Id);
+        switch (snapshot.Phase)
+        {
+            case ToolInstallPhase.Downloading:
+                return row with
+                {
+                    State = ToolRequirementStates.Downloading,
+                    DownloadPercent = snapshot.Percent,
+                    StateReason = null,
+                    Fix = Copy.InstallDownloading,
+                    CanLocate = false,
+                    CanInstall = false,
+                    CanDownloadAgain = false,
+                };
+            case ToolInstallPhase.InstallerReady:
+                return row with
+                {
+                    State = ToolRequirementStates.InstallerReady,
+                    StateReason = snapshot.FailureReason,
+                    Fix = snapshot.InstallerRunning ? Copy.TesseractInstallerOpen : Copy.TesseractInstallerReady,
+                    CanInstall = false,
+                    CanDownloadAgain = false,
+                };
+            default:
+                var offer = _installer.GetOffer(row.Id, installKind);
+                return row with
+                {
+                    StateReason = snapshot.Phase == ToolInstallPhase.Failed ? snapshot.FailureReason : row.StateReason,
+                    Fix = offer.FixText ?? row.Fix,
+                    CanInstall = offer.Offered && row.State == ToolRequirementStates.Missing,
+                    CanDownloadAgain = offer.Offered && row.State == ToolRequirementStates.Problem,
+                };
+        }
+    }
+
+    private async Task<IReadOnlySet<string>> ReadDeclinedAsync(ToolRequirementsDto result, CancellationToken ct)
+    {
+        if (_prompts is null)
+        {
+            return new HashSet<string>();
+        }
+
+        try
+        {
+            var declined = await _prompts.GetDeclinedAsync(ct).ConfigureAwait(false);
+            // A tool that is working again is asked about afresh if it breaks later.
+            foreach (var row in result.Tools.Where(row => row.State == ToolRequirementStates.Ready && declined.Contains(row.Id)))
+            {
+                await _prompts.ClearDeclinedAsync(row.Id, ct).ConfigureAwait(false);
+            }
+
+            return declined.Where(id => result.Tools.Any(row => row.Id == id && row.State != ToolRequirementStates.Ready)).ToHashSet();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not read which tools the banner stopped asking about.");
+            return new HashSet<string>();
         }
     }
 
@@ -364,6 +458,22 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string NeedsFfmpegFirst = "It needs FFmpeg first.";
         public const string FfmpegLacksStreaming = "This copy of FFmpeg lacks some streaming features.";
         public const string ModelDownloadFailed = "The last download didn't finish.";
+
+        // Installing FFmpeg or Tesseract on request (Install for me, Download again, Run installer).
+        public const string InstallNotOffered = "The Library can't install this one for you here. Follow the steps shown for it instead.";
+        public const string InstallDownloading = "Downloading now. Files that need it wait until it finishes.";
+        public const string InstallFailed = "The download didn't finish. Check the connection and try again.";
+        public const string InstallChecksum = "The download didn't match what the Library expected, so it wasn't used. Try again later.";
+        public const string InstallNoSpace = "There isn't enough free space to download this.";
+        public const string InstallFolderBusy = "The old copy is in use and couldn't be replaced. Try again in a moment.";
+        public const string InstallAddressRefused = "The download address in settings isn't allowed, so nothing was downloaded.";
+        public const string InstallArchiveUnexpected = "The download didn't contain what the Library expected, so it wasn't used.";
+        public const string TesseractInstallerReady = "Tesseract's installer is ready. Run it to finish.";
+        public const string TesseractInstallerOpen = "Finish Tesseract's installer in the window that opened, then press Check again.";
+        public const string InstallerDidNotStart = "The installer didn't start. Run it again to finish.";
+        public const string TesseractNotReadyYet = "Tesseract isn't ready yet. Run the installer again, or press Check again.";
+        public const string NoInstallerReady = "There's no installer ready to run.";
+        public const string InstallerChecksum = "The installer no longer matches what the Library downloaded, so it wasn't run. Download it again.";
 
         public static readonly (string Windows, string Linux, string Mac) FfmpegPackages =
             ("winget install Gyan.FFmpeg", "sudo apt install ffmpeg", "brew install ffmpeg");
