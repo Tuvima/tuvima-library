@@ -68,6 +68,12 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             h, watcher, BooksProcessor(bookPath), BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))),
             logger: logger, withHashCache: true);
         await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
+
+        // The asset row is written well before the ingest finishes; a folder re-added while that ingest is still running
+        // rightly resumes it instead of skipping it, so wait for the first ingest to be done.
+        var operations = new MediaOperationRepository(h.Db.Connection);
+        await WaitUntilAsync(async () => await operations.GetLatestBySourcePathAsync(bookPath) is not null
+            && await operations.GetActiveBySourcePathAsync(bookPath) is null);
         Assert.Equal(1, await AssetCountAsync(h));
 
         run.Monitor.Publish(BuildOptions(h));

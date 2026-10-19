@@ -55,11 +55,18 @@ public sealed class ToolDownloadSettings
         && string.IsNullOrEmpty(uri.UserInfo)
         && uri.IsDefaultPort;
 
+    /// <summary>
+    /// The characters a Windows file name cannot hold. Checked on every platform, because the downloaded tools land on
+    /// Windows too and <see cref="Path.GetInvalidFileNameChars"/> only lists <c>/</c> and NUL on Linux.
+    /// </summary>
+    private static readonly char[] ForbiddenFileNameChars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
     /// <summary>A plain file name: not empty, no folders, no drive, none of the characters a file name cannot hold.</summary>
     public static bool IsPlainFileName(string? name) =>
         !string.IsNullOrWhiteSpace(name)
         && name is not ("." or "..")
-        && name.IndexOfAny(['/', '\\', ':']) < 0
+        && name.IndexOfAny(ForbiddenFileNameChars) < 0
+        && !name.Any(char.IsControl)
         && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
         && string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal);
 
