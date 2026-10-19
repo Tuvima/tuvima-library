@@ -309,6 +309,7 @@ public sealed class MappedEndpointInventoryTests
             "Endpoint inventory must not resolve AI model downloads."));
         builder.Services.AddApiReadServices();
         builder.Services.AddTuvimaHostedServices();
+        builder.Services.AddTuvimaToolRequirements();
         builder.Services.AddTuvimaPlugins();
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();

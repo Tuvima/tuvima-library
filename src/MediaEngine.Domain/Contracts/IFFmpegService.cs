@@ -6,8 +6,10 @@ namespace MediaEngine.Domain.Contracts;
 /// Provides access to FFmpeg binaries for media probing and processing.
 /// The implementation auto-detects binaries at startup in priority order:
 ///   1. Explicit path from config/transcoding.json (authoritative when set)
-///   2. tools/ffmpeg/ relative to the app base directory (self-contained)
-///   3. System PATH
+///   2. tools/ffmpeg/ in the Tuvima data folder
+///   3. tools/ffmpeg/ relative to the app base directory (self-contained)
+///   4. System PATH
+///   5. The operating system's standard install folders
 /// </summary>
 public interface IFFmpegService
 {
@@ -22,6 +24,15 @@ public interface IFFmpegService
 
     /// <summary>Hardware acceleration capabilities detected at startup.</summary>
     HardwareCapabilities HardwareCapabilities { get; }
+
+    /// <summary>Where the latest search found FFmpeg (or that it did not).</summary>
+    FFmpegDetection Detection => FFmpegDetection.NotFound;
+
+    /// <summary>
+    /// Searches again (the explicit path in settings may have changed) and returns <see cref="IsAvailable"/>.
+    /// Work already running keeps the paths it started with.
+    /// </summary>
+    bool Redetect() => IsAvailable;
 
     /// <summary>
     /// Run ffprobe on the given file and return structured media metadata.

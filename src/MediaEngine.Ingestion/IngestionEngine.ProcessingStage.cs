@@ -74,10 +74,7 @@ public sealed partial class IngestionEngine
         }
 
         asset.ContentHash = hash.Hash.Hex;
-        if (_playbackInspection is not null)
-        {
-            await _playbackInspection.InspectAsync(asset, ct);
-        }
+        await InspectPlaybackAsync(asset, null, ct).ConfigureAwait(false);
         return new(
             assetId,
             "Updated",

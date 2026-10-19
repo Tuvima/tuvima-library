@@ -6,6 +6,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Playback;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
@@ -28,17 +29,20 @@ public sealed class PlaybackInspectionOwnershipTests
         }
         var repository = new PlaybackStateRepository(db);
         var probe = new CountingProbe();
-        await new PlaybackInspectionWriter(probe, repository).InspectAsync(asset, default);
-        await new PlaybackInspectionWriter(probe, new PlaybackStateRepository(db)).InspectAsync(asset, default);
+        await Writer(probe, repository, db).InspectAsync(asset, default);
+        await Writer(probe, new PlaybackStateRepository(db), db).InspectAsync(asset, default);
         Assert.Equal(1, probe.Calls);
         var facts = JsonSerializer.Deserialize<MediaProbeResult>((await repository.GetInspectionMetadataAsync(asset.Id, "first"))!);
         Assert.Equal("Original chapter", Assert.Single(facts!.Chapters).Title);
         Assert.Equal(2, facts.AudioStreams.Count);
         asset.ContentHash = "changed";
-        await new PlaybackInspectionWriter(probe, repository).InspectAsync(asset, default);
+        await Writer(probe, repository, db).InspectAsync(asset, default);
         Assert.Equal(2, probe.Calls);
         Assert.NotNull(await repository.GetInspectionMetadataAsync(asset.Id, "changed"));
     }
+
+    private static PlaybackInspectionWriter Writer(IFFmpegService probe, PlaybackStateRepository repository, DatabaseConnection db) =>
+        new(probe, repository, new MediaInspectionHoldRepository(db), NullLogger<PlaybackInspectionWriter>.Instance);
 
     private sealed class CountingProbe : IFFmpegService
     {

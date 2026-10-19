@@ -248,12 +248,12 @@
 
     private static readonly LibraryTypeOption[] LibraryTypes =
     [
-        new("books", "Books", "Books", "read", ["Books"], AppMaterialIcons.Outlined.MenuBook),
-        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMaterialIcons.Outlined.Headphones),
-        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMaterialIcons.Outlined.Movie),
-        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMaterialIcons.Outlined.Tv),
-        new("music", "Music", "Music", "listen", ["Music"], AppMaterialIcons.Outlined.MusicNote),
-        new("comics", "Comics", "Comics", "read", ["Comics"], AppMaterialIcons.Outlined.AutoStories),
+        new("books", "Books", "Books", "read", ["Books"], AppMediaPresentation.IconFor("Books", outlined: true)),
+        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMediaPresentation.IconFor("Audiobooks", outlined: true)),
+        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMediaPresentation.IconFor("Movies", outlined: true)),
+        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMediaPresentation.IconFor("TV", outlined: true)),
+        new("music", "Music", "Music", "listen", ["Music"], AppMediaPresentation.IconFor("Music", outlined: true)),
+        new("comics", "Comics", "Comics", "read", ["Comics"], AppMediaPresentation.IconFor("Comics", outlined: true)),
     ];
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
@@ -467,6 +467,7 @@
             { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
             { component => component.HelpText, $"Choose a folder on the Tuvima Library server to add to {_selected.Label}." },
             { component => component.SetupSession, SetupSession },
+            { component => component.MediaType, _selected.MediaTypes.FirstOrDefault() },
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
         {

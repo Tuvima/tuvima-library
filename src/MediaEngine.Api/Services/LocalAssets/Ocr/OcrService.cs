@@ -10,7 +10,8 @@ namespace MediaEngine.Api.Services.LocalAssets.Ocr;
 /// <summary>
 /// Runs Tesseract as a child process. Detection order (first found wins): an explicit path from
 /// <c>config/ocr.json</c> (a missing explicit path fails detection instead of falling back),
-/// <c>tools/tesseract/</c> beside the app, then the system PATH. Language data lives in the
+/// <c>tools/tesseract/</c> in the Tuvima data folder, <c>tools/tesseract/</c> beside the app, the
+/// system PATH, then the operating system's standard install folders. Language data lives in the
 /// Tuvima data location, seeded once from the helper's own English data.
 /// </summary>
 public sealed partial class OcrService : IOcrService
@@ -32,12 +33,13 @@ public sealed partial class OcrService : IOcrService
         AssetPathService paths,
         IOcrProcessRunner runner,
         ILogger<OcrService> logger,
-        OcrEnvironment? environment = null)
+        OcrEnvironment? environment = null,
+        TuvimaDataPaths? dataPaths = null)
     {
         _configuration = configuration;
         _runner = runner;
         _logger = logger;
-        _environment = environment ?? OcrEnvironment.Current();
+        _environment = environment ?? OcrEnvironment.Current(dataPaths?.Root);
         LanguageDataDirectory = Path.Combine(paths.DataRoot, "ocr", "tessdata");
         TemporaryRoot = Path.Combine(paths.DataRoot, "ocr", "tmp");
     }
@@ -185,7 +187,10 @@ public sealed partial class OcrService : IOcrService
         var executable = Locate(settings.TesseractBinaryPath, out var explicitMissing);
         if (explicitMissing)
         {
-            return OcrCapability.Unavailable("The text recognition path in settings does not exist.");
+            return OcrCapability.Unavailable("The text recognition path in settings does not exist.") with
+            {
+                ExplicitPathMissing = true,
+            };
         }
 
         if (executable is null)
@@ -202,12 +207,12 @@ public sealed partial class OcrService : IOcrService
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
         {
             _logger.LogWarning(ex, "The text recognition helper at {Path} could not be started.", executable);
-            return OcrCapability.Unavailable("The text recognition helper could not be started.");
+            return OcrCapability.Unavailable("The text recognition helper could not be started.") with { ExecutablePath = executable };
         }
 
         if (probe.TimedOut || probe.ExitCode != 0)
         {
-            return OcrCapability.Unavailable("The text recognition helper did not respond.");
+            return OcrCapability.Unavailable("The text recognition helper did not respond.") with { ExecutablePath = executable };
         }
 
         var version = ParseVersion(probe.StandardOutput + "\n" + probe.StandardError);
@@ -239,6 +244,15 @@ public sealed partial class OcrService : IOcrService
         }
 
         var fileName = OperatingSystem.IsWindows() ? "tesseract.exe" : "tesseract";
+        if (!string.IsNullOrWhiteSpace(_environment.DataRoot))
+        {
+            var fetched = Path.Combine(_environment.DataRoot, "tools", "tesseract", fileName);
+            if (File.Exists(fetched))
+            {
+                return fetched;
+            }
+        }
+
         var directory = new DirectoryInfo(_environment.BaseDirectory);
         for (var depth = 0; depth < 6 && directory is not null; depth++)
         {
@@ -251,7 +265,7 @@ public sealed partial class OcrService : IOcrService
             directory = directory.Parent;
         }
 
-        foreach (var folder in _environment.PathDirectories)
+        foreach (var folder in _environment.PathDirectories.Concat(_environment.StandardFolders ?? []))
         {
             var candidate = Path.Combine(folder, fileName);
             if (File.Exists(candidate))

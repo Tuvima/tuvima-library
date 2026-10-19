@@ -454,6 +454,7 @@ builder.Services.AddPluginApplicationServices();
 builder.Services.AddApplicationEvents();
 builder.Services.AddApplicationWebhooks();
 builder.Services.AddTuvimaHostedServices();
+builder.Services.AddTuvimaToolRequirements();
 
 builder.Services.AddSingleton<StartupReadinessService>();
 builder.Services.AddHealthChecks()

@@ -45,6 +45,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 Startup safety:
 
 - Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
+- `storage_metadata` also holds server-wide flags as `key`/`value` rows. The tools banner's "Not now" answers are `tool_install_declined:{tool id}` rows (value `1`), removed when the tool works again.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.
@@ -127,6 +128,18 @@ A single file on disk.
 | `staging_path` | TEXT | Path within `.data/staging/` while in-flight |
 
 **Indices:** `fingerprint`, `edition_id`, `status`
+
+### media_inspection_holds
+
+The durable "inspection pending" marker. When a video or audio file is registered while a tool it needs (today FFmpeg) is missing, the file is not failed: it carries on through identification as normal and gets one row here. Library surfaces show the file as "Waiting for media tools". When a tools check finds the tool, the Engine inspects each held file and deletes its row; a file the working tool cannot read goes to Needs Review (`MediaInspectionFailed`) and its row is deleted too. The Tools and requirements page counts these rows to show how many files are waiting for a tool.
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | Primary key, FK -> `media_assets.id` (`ON DELETE CASCADE`) |
+| `tool_id` | TEXT | The missing tool, for example `ffmpeg` |
+| `held_at` | TEXT | ISO 8601 UTC time the file first started waiting |
+
+**Indices:** `ix_media_inspection_holds_tool (tool_id, held_at)`. Added by upgrade step `0002_media_inspection_holds`.
 
 ### media_asset_coverage
 

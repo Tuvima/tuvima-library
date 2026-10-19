@@ -423,13 +423,21 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 
 ---
 
+## Tools and requirements (environment)
+
+| Variable | Values | Description |
+|---|---|---|
+| `TUVIMA_INSTALL_KIND` | `windows_installer`, `docker`, `source` | Tells the tools list how this install was set up, so the fix for a missing tool reads right (reinstall with the Windows installer, update the Docker image, or a package-manager command). The Windows installer sets `windows_installer` on the Engine service and the Docker image sets `docker`. When unset, a container is `docker` and anything else is `source`. |
+
+The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, the image engine, the local AI engine and each AI model). FFmpeg is always **required**, because every Library starts with Movies, TV, Music and Audiobooks set up. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
+
 ## config/transcoding.json
 
 Controls FFmpeg discovery, adaptive playback packages, offline variants, concurrency, and cache retention.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `ffmpeg_binary_path` / `ffprobe_binary_path` | string | `""` | Explicit executable paths. Empty uses the packaged `tools/ffmpeg` binaries and then `PATH`. An explicit missing path fails capability detection instead of silently falling back. |
+| `ffmpeg_binary_path` / `ffprobe_binary_path` | string | `""` | Explicit executable paths. Empty searches, in order: `tools/ffmpeg/` in the Tuvima data folder, `tools/ffmpeg/` next to the Engine, `PATH`, then the operating system's standard install folders (Windows: `Program Filesfmpegin`, `C:fmpegin`, WinGet, Chocolatey and Scoop shims; macOS: `/opt/homebrew/bin`, `/usr/local/bin`). An explicit missing path fails capability detection instead of silently falling back. **Check again** in Settings (`POST /settings/tools/check`) searches again without a restart; work already running keeps the copy it started with. |
 | `hardware_acceleration` | string | `"auto"` | `auto`, `nvenc`, `quicksync`, `vaapi`, `cpu`, or `none`. Auto probes usable hardware encoders; CPU/none select `libx264`. |
 | `max_concurrent_transcodes` | int | `1` | Shared upper bound for adaptive package preparation. Clamped to 1-8. |
 | `shadow_storage_limit_gb` | int | `500` | Maximum prepared-variant storage. Cleanup evicts least-recently-used ready packages when this bound is exceeded. |
@@ -470,7 +478,28 @@ Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesse
 
 English and orientation data are installed with the helper. Other languages are an explicit download from **Settings > Libraries > View > Documents** and are stored in `{DataRoot}/ocr/tessdata`, never in build output. Page images are written to `{DataRoot}/ocr/tmp` and removed as each file finishes.
 
-The helper is found in this order: `tesseract_binary_path` when set, then `tools/tesseract/` next to the Engine, then `PATH`. Windows installers bundle it, and the container image installs the `tesseract-ocr` and `tesseract-ocr-eng` packages. From a source checkout on Windows run `pwsh -File tools/Download-Tesseract.ps1` (needs 7-Zip); on Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, **Settings > Libraries > View > Documents** says **Text recognition is not installed** and reading text-layer documents carries on.
+The helper is found in this order: `tesseract_binary_path` when set, then `tools/tesseract/` in the Tuvima data folder, then `tools/tesseract/` next to the Engine, then `PATH`, then the standard install folders (Windows: `Program Files\Tesseract-OCR`, `Program Files (x86)\Tesseract-OCR`, `%LOCALAPPDATA%\Programs\Tesseract-OCR`; macOS: `/opt/homebrew/bin`, `/usr/local/bin`). Windows installers bundle it, and the container image installs the `tesseract-ocr` and `tesseract-ocr-eng` packages. From a source checkout on Windows run `pwsh -File tools/Download-Tesseract.ps1` (needs 7-Zip); on Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, **Settings > Libraries > View > Documents** says **Text recognition is not installed** and reading text-layer documents carries on.
+
+---
+
+## config/tool_downloads.json
+
+The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Nothing is ever downloaded by itself. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `ffmpeg.platform` | string | `"win-x64"` | Only `win-x64` is offered today; Linux and macOS keep the install-it-yourself text. |
+| `ffmpeg.version` | string | `"9.0.1"` | Shown in the activity log. |
+| `ffmpeg.url` | string | pinned BtbN release | The archive. Must be `https://github.com/...`. |
+| `ffmpeg.sha256` | string | pinned | SHA-256 of the whole archive. |
+| `ffmpeg.files[]` | object[] | `ffmpeg.exe`, `ffprobe.exe` | `name` and `sha256` of each program taken out of the archive by file name. Nothing else is unpacked and archive paths are never used to place a file. |
+| `ffmpeg.license_names[]` | string[] | `LICENSE.txt`, `COPYING.GPLv3` | The licence file to keep, saved as `LICENSE.txt` beside the programs. |
+| `tesseract.platform` / `version` | string | `"win-x64"` / `"5.4.0"` | As above. |
+| `tesseract.installer` | object | pinned UB Mannheim setup | `name`, `url` and `sha256` of the setup program. It is downloaded to `{DataRoot}/tools/installers/`, checked again just before it runs, and deleted afterwards. Never unpacked. |
+| `tesseract.executable_sha256` | string | pinned | The program the setup installs; recorded for reference, not checked. |
+| `tesseract.language_files[]` | object[] | `eng`, `osd` from `tessdata_fast` | `name`, `url` and `sha256`; placed in `{DataRoot}/ocr/tessdata`. A file already there with the right checksum is kept. |
+
+Every address must be `https` on `github.com` (no other host, no user name or port), every checksum must be 64 hexadecimal characters, every `name` must be a plain file name (no folders, drive or characters a file name cannot hold) and the Tesseract installer's name must end in `.exe`, or that tool's entry is dropped when the file is loaded and the install is not offered. A download that GitHub redirects is followed only over `https` to `github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` or `raw.githubusercontent.com`, for at most five hops; any other redirect is refused. FFmpeg is placed in `{DataRoot}/tools/ffmpeg` by staging the checked files and swapping the folder, so the old copy stays if anything fails; a saved FFmpeg or Tesseract location that no longer works is cleared after a successful install so the new copy is found. The install is offered only on 64-bit Windows, never in a container; a Windows-installer install is offered FFmpeg only (a Tesseract repair is a reinstall of the Library), and a run from source is offered both.
 
 ---
 

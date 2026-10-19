@@ -67,14 +67,13 @@
         "id": "account",
         "title": "SubDL account",
         "description": "Create or sign in to your own SubDL account.",
-        "instructions": ["Open SubDL and sign in or create a free account."],
-        "action": { "kind": "external_link", "label": "Open SubDL", "url": "https://subdl.com/", "url_role": "signup" }
+        "instructions": ["Open SubDL and sign in or create a free account."]
       },
       {
         "id": "credential",
         "title": "API key",
         "description": "Open your account panel's API section, generate a key, and enter it here. A paid plan is optional.",
-        "instructions": ["Open Get an API key in the SubDL developer guide.", "Generate a personal API key in your account panel.", "Copy the key into Tuvima."],
+        "instructions": ["Generate a personal API key in your account panel.", "Paste it below."],
         "action": { "kind": "external_link", "label": "Get an API key", "url": "https://subdl.com/developers", "url_role": "help" },
         "credential_keys": ["api_key"]
       },

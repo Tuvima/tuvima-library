@@ -122,7 +122,9 @@ public sealed class ServerFolderBrowserService(
         }
         catch (ServerFolderAccessException exception)
         {
-            issues.Add(Issue("invalid_path", exception.Message));
+            // A typed path that is simply not there gets its own code, so the picker can say so in plain words.
+            var missing = !string.IsNullOrWhiteSpace(request.ManualPath) && !TypedFolderExists(request.ManualPath);
+            issues.Add(Issue(missing ? "not_found" : "invalid_path", exception.Message));
         }
 
         if (resolved is null)
@@ -166,8 +168,18 @@ public sealed class ServerFolderBrowserService(
             issues.Add(Issue("write_required", "This folder must be writable for the selected managed mode."));
         }
 
-        AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
-        AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
+        if (request.SelectionMode == ServerFolderSelectionModes.ToolLocation)
+        {
+            // A tool's folder may be anywhere it was installed (often a folder named bin, or under Program Files) and
+            // may sit beside a library, so only the Library's own folders are refused.
+            AddOwnFolderIssue(resolved, issues);
+        }
+        else
+        {
+            AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
+            AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
+        }
+
         var (availableBytes, fileSystem) = GetDriveDetails(resolved.Path);
         return new ServerFolderValidationResultDto
         {
@@ -307,6 +319,18 @@ public sealed class ServerFolderBrowserService(
             .Select(item => item.Location)
             .FirstOrDefault()
             ?? throw new ServerFolderAccessException("This path is outside the server storage locations approved for Tuvima.");
+    }
+
+    private static bool TypedFolderExists(string manualPath)
+    {
+        try
+        {
+            return Directory.Exists(Path.GetFullPath(manualPath.Trim()));
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static ResolvedSelection ResolveManualSelection(ServerStorageLocationConfig location, string manualPath, bool allowCreate = false)
@@ -602,7 +626,7 @@ public sealed class ServerFolderBrowserService(
             if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
                 || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
             {
-                issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+                issues.Add(Issue("protected_path", "This folder is reserved for the Library's own files."));
             }
 
             if (IsSystemPath(selection.Path))
@@ -627,7 +651,17 @@ public sealed class ServerFolderBrowserService(
         if (RelativeSegments(relative).Any(segment => ProtectedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase))
             || IsInsideOwnFolder(ownInsideLocation, selection.Path))
         {
-            issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+            issues.Add(Issue("protected_path", "This folder is reserved for the Library's own files."));
+        }
+    }
+
+    private void AddOwnFolderIssue(ResolvedSelection selection, List<ServerFolderValidationIssueDto> issues)
+    {
+        var own = OwnFolderPaths();
+        if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
+            || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
+        {
+            issues.Add(Issue("protected_path", "This folder is reserved for the Library's own files."));
         }
     }
 

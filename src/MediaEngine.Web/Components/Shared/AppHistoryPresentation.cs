@@ -105,6 +105,12 @@ public static class AppHistoryPresentation
             ["CrawlFinished"] = "verification",
             ["ServerStarted"] = "system",
             ["ServerStopped"] = "system",
+
+            ["ToolDownloadStarted"] = "processing",
+            ["ToolDownloadFinished"] = "verification",
+            ["ToolDownloadFailed"] = "error",
+            ["ToolDownloadChecksumRefused"] = "error",
+            ["ToolDownloadCancelled"] = "cleanup",
         };
 
     public static AppHistoryPresentationDescriptor For(string? eventType, string? category)

@@ -50,6 +50,7 @@ public static class ReviewIssuePresentationBuilder
         "MetadataConflict" => $"Tuvima Library found conflicting metadata for this {media} and could not safely choose which value to keep.",
         "AmbiguousMediaType" or "RootWatchFolder" => "Tuvima Library could not confidently decide which part of the library this file belongs in.",
         "WritebackFailed" => "Tuvima Library identified this item, but could not save the updated metadata to its physical file.",
+        "MediaInspectionFailed" => $"This {media} couldn't be read. It may be damaged or incomplete.",
         _ => fallback,
     };
 
@@ -67,6 +68,7 @@ public static class ReviewIssuePresentationBuilder
         "MetadataConflict" => "Local and provider metadata disagree",
         "AmbiguousMediaType" or "RootWatchFolder" => "The correct media type could not be determined",
         "WritebackFailed" => "Updated metadata could not be written to the file",
+        "MediaInspectionFailed" => "The file couldn't be read",
         _ => ReviewIssueClassifier.Classify(item.Trigger).Explanation,
     };
 
@@ -86,6 +88,7 @@ public static class ReviewIssuePresentationBuilder
             "MetadataConflict" => new[] { "Two or more metadata sources supplied similarly credible but conflicting values." },
             "AmbiguousMediaType" or "RootWatchFolder" => new[] { "The file type and folder context were compatible with more than one media type." },
             "WritebackFailed" => new[] { "The metadata write operation failed after the configured retry attempts." },
+            "MediaInspectionFailed" => new[] { "The media tool is working, but it could not read this file's details." },
             "LanguageMismatch" => new[] { "The embedded language conflicts with the configured library language." },
             _ => new[] { $"The ingestion pipeline could not safely complete the decision for this {media}." },
         };
@@ -130,6 +133,7 @@ public static class ReviewIssuePresentationBuilder
         "MetadataConflict" => $"Compare the conflicting values using {IdentityHints(item.MediaType)} and choose which information Tuvima Library should keep.",
         "AmbiguousMediaType" or "RootWatchFolder" => "Choose the correct media type so Tuvima Library can continue with the appropriate matching workflow.",
         "WritebackFailed" => "Check that the file is available and writable, then retry saving its metadata.",
+        "MediaInspectionFailed" => "Check that the file plays on your computer. If it is damaged, replace it with a good copy.",
         _ => "Open the focused review to inspect the available evidence and make the missing decision.",
     };
 

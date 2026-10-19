@@ -25,7 +25,13 @@
                         <strong>@ProgressLabel</strong>
                         @if (!Item.Availability.Equals("ready", StringComparison.OrdinalIgnoreCase))
                         {
-                            <span class="is-@Item.Availability">@Item.StatusLabel</span>
+                            <span class="is-@Item.Availability">
+                                @if (MediaToolsWaitingNotice.IsWaiting(Item))
+                                {
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.HourglassTop" aria-hidden="true" />
+                                }
+                                @Item.StatusLabel
+                            </span>
                         }
                     </section>
 

@@ -24,6 +24,7 @@ public enum SettingsSection
     LocalAi,
     Plugins,
     Delivery,
+    Tools,
     Network,
     Devices,
     Access,
@@ -140,6 +141,7 @@ public static class SettingsNav
             [SettingsSection.Server] = Complete(),
             [SettingsSection.LocalAi] = Complete(),
             [SettingsSection.Delivery] = Complete(),
+            [SettingsSection.Tools] = Complete(),
             [SettingsSection.Access] = Complete(),
         };
 
@@ -175,6 +177,7 @@ public static class SettingsNav
         new(SettingsSection.Network, "administration", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Devices, "administration", "devices", AppMaterialIcons.Outlined.Devices, "Devices", true, null, ["apps"], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full, HouseholdAdminAccess: true),
         new(SettingsSection.Delivery, "administration", "delivery", AppMaterialIcons.Outlined.VideoSettings, "Playback & Delivery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Tools, "administration", "tools", AppMaterialIcons.Outlined.Build, "Tools and requirements", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Access, "administration", "access", AppMaterialIcons.Outlined.Group, "Users & Access", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Server, "administration", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backup & Recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
@@ -195,6 +198,7 @@ public static class SettingsNav
                 SettingsSection.Network,
                 SettingsSection.Devices,
                 SettingsSection.Delivery,
+                SettingsSection.Tools,
                 SettingsSection.Access,
                 SettingsSection.Server,
             ]),
@@ -236,7 +240,7 @@ public static class SettingsNav
             ],
             [SettingsSection.LocalAi] =
             [
-                new("models", "Models & Runtime", AppMaterialIcons.Outlined.Storage),
+                new("models", "Runtime", AppMaterialIcons.Outlined.Storage),
                 new("vocabulary", "Vocabulary", AppMaterialIcons.Outlined.Spellcheck),
                 new("automation", "Automation", AppMaterialIcons.Outlined.Schedule),
             ],
@@ -269,6 +273,7 @@ public static class SettingsNav
                 new("authentication", "Authentication", AppMaterialIcons.Outlined.AdminPanelSettings),
             ],
             [SettingsSection.Devices] = [],
+            [SettingsSection.Tools] = [],
             [SettingsSection.Server] = [],
             [SettingsSection.Review] = [],
             [SettingsSection.ProviderTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Biotech)],
@@ -306,6 +311,7 @@ public static class SettingsNav
         SettingsSection.RecentlyAdded,
         SettingsSection.Review,
         SettingsSection.Delivery,
+        SettingsSection.Tools,
         SettingsSection.Devices,
         SettingsSection.Access,
         SettingsSection.Server,

@@ -317,6 +317,31 @@ public sealed class StageOutcomeFactory
             ct);
     }
 
+    /// <summary>
+    /// Creates a visible <see cref="ReviewTrigger.MediaInspectionFailed"/> review item: the media tool works but could
+    /// not read this file. It is not a provisional row, because no later identity result can explain the problem away.
+    /// </summary>
+    /// <param name="entityId">The media asset that could not be read.</param>
+    /// <param name="detail">Plain-language detail shown to the person.</param>
+    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
+    public Task<Guid?> CreateMediaInspectionFailedAsync(
+        Guid entityId,
+        string detail,
+        Guid? ingestionRunId = null,
+        CancellationToken ct = default)
+    {
+        return CreateCoreAsync(
+            entityId,
+            ReviewTrigger.MediaInspectionFailed,
+            0.0,
+            detail,
+            ingestionRunId,
+            onBatchAdjust: null,
+            ct);
+    }
+
     // ── Private ──────────────────────────────────────────────────────────
 
     /// <summary>

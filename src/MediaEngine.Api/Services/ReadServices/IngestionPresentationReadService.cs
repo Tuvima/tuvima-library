@@ -1122,6 +1122,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 (SELECT COUNT(*) FROM review_queue rq WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id) AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL) AS ReviewCount,
                 (SELECT COUNT(*) FROM person_media_links pml WHERE pml.media_asset_id = ll.media_asset_id) AS PeopleCount,
                 (SELECT COUNT(*) FROM text_tracks tt WHERE tt.asset_id = ll.media_asset_id) AS TextTrackCount,
+                (SELECT COUNT(*) FROM media_inspection_holds mih WHERE mih.asset_id = ll.media_asset_id) AS InspectionHoldCount,
                 CASE
                     WHEN LOWER(COALESCE(w.media_type,'')) IN ('tv','television','tv show','tv shows') THEN
                         (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = COALESCE(gp.id,p.id,w.id) AND ea.asset_type = 'CoverArt'
@@ -1220,7 +1221,12 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                               || rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered");
         var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
         var intakeComplete = rows.All(row => row.IdentityReady);
-        var availability = needsReview ? "review" : terminalFailure ? "failed" : intakeComplete ? hasBackgroundWork ? "finishing" : "ready" : "adding";
+        // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
+        var waitingForTools = rows.Any(row => row.InspectionHoldCount > 0);
+        var availability = needsReview ? "review"
+            : terminalFailure ? "failed"
+            : waitingForTools ? "waiting_for_tools"
+            : intakeComplete ? hasBackgroundWork ? "finishing" : "ready" : "adding";
 
         var progressGates = BuildProgressGates(availability, scopedOps, rows, cover.HasValue);
         var completedGates = progressGates.Count(gate => gate.State == "complete");
@@ -1551,6 +1557,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         if (availability == "failed")
         {
             return "Failed";
+        }
+
+        if (availability == "waiting_for_tools")
+        {
+            return "Waiting for media tools";
         }
 
         var active = operations.Where(operation => IsActive(operation.Status)).OrderByDescending(operation => operation.UpdatedAt).FirstOrDefault();
@@ -2284,6 +2295,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public int ReviewCount { get; set; }
         public int PeopleCount { get; set; }
         public int TextTrackCount { get; set; }
+        public int InspectionHoldCount { get; set; }
         public Guid? CoverAssetId { get; set; }
     }
 

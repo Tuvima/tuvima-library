@@ -100,6 +100,14 @@ public interface IConfigurationLoader
     /// <summary>Persist text recognition (OCR) settings to <c>config/ocr.json</c>.</summary>
     void SaveOcr(OcrSettings settings) { }
 
+    // ── Tool downloads ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Load the pinned FFmpeg and Tesseract downloads from <c>config/tool_downloads.json</c>. Entries with an address
+    /// outside github.com over https, or a malformed checksum, are dropped. A missing file means the pinned defaults.
+    /// </summary>
+    ToolDownloadSettings LoadToolDownloads() => new();
+
     // ── Network & Remote Access ─────────────────────────────────────────────
 
     /// <summary>Load desired network settings from <c>config/network.json</c>.</summary>

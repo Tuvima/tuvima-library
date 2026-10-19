@@ -6,13 +6,31 @@
     {
         <div class="setup-stage__heading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-            <div><h2 id="setup-stage-title">Tuvima needs a hand</h2><p>Something on this server stopped setup from getting ready.</p></div>
+            <div><h2 id="setup-stage-title">The Library needs a hand</h2><p>Something on this server stopped setup from getting ready.</p></div>
         </div>
         @* One plain message however many checks failed; the technical detail is only in the Engine log. *@
         <AppAlert Tone="AppUiTone.Error">
             <p>@CouldNotCheckMessage</p>
         </AppAlert>
         <div class="setup-actions"><AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="Retry" /></div>
+    }
+    else if (!Busy && ToolsNeedAttention)
+    {
+        <div class="setup-stage__heading">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
+            <div><h2 id="setup-stage-title">A few things to install</h2><p>You can finish setting up now. Anything listed here waits until it is installed.</p></div>
+        </div>
+        @* Read-only: each row says what it affects and how to fix it. Pointing the Library at a tool is done later in Settings. *@
+        <div class="setup-tools">
+            @foreach (var tool in ToolsToInstall)
+            {
+                <ToolRequirementRow Tool="@tool" />
+            }
+        </div>
+        <div class="setup-actions">
+            <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+        </div>
     }
     else
     {
@@ -33,7 +51,15 @@
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
 
+    /// <summary>Moves on although a Required tool is missing; setup warns about tools and never blocks (D5).</summary>
+    [Parameter] public EventCallback Continue { get; set; }
+
     private bool NeedsAttention => !string.IsNullOrWhiteSpace(Error) || Preflight is { Passed: false };
+
+    private bool ToolsNeedAttention => Preflight is { Passed: true, Tools.NeedsAttention: true };
+
+    private IEnumerable<ToolRequirementDto> ToolsToInstall => Preflight?.Tools.Tools
+        .Where(tool => tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready) ?? [];
 
     private const string CouldNotCheckMessage =
         "We could not check this server. Check that the data folder is writable and has free space, then try again.";

@@ -8,7 +8,8 @@ public sealed record OcrCapability(
     string? TessdataDirectory,
     IReadOnlyList<string> InstalledLanguages,
     bool HasOrientationData,
-    string? Reason)
+    string? Reason,
+    bool ExplicitPathMissing = false)
 {
     public static OcrCapability Unavailable(string reason) =>
         new(false, null, null, null, [], false, reason);
@@ -20,13 +21,47 @@ public sealed record OcrRunOptions(IReadOnlyList<string> Languages, bool LowPrio
 /// <summary>The text read from one image plus how sure the engine was (0-100), when it reports that.</summary>
 public sealed record OcrRecognition(string Text, double? AverageConfidence, int WordCount);
 
-/// <summary>Where the helper may be found. Defaults to the real application and system locations.</summary>
-public sealed record OcrEnvironment(string BaseDirectory, IReadOnlyList<string> PathDirectories)
+/// <summary>
+/// Where the helper may be found. Defaults to the real application and system locations.
+/// <paramref name="DataRoot"/> is the Tuvima data folder (its <c>tools/tesseract/</c> is searched first);
+/// <paramref name="StandardFolders"/> are the operating system's usual install folders, searched last.
+/// </summary>
+public sealed record OcrEnvironment(
+    string BaseDirectory,
+    IReadOnlyList<string> PathDirectories,
+    string? DataRoot = null,
+    IReadOnlyList<string>? StandardFolders = null)
 {
-    public static OcrEnvironment Current() => new(
+    public static OcrEnvironment Current(string? dataRoot = null) => new(
         AppContext.BaseDirectory,
         (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+        dataRoot,
+        StandardInstallFolders());
+
+    private static IReadOnlyList<string> StandardInstallFolders()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var folders = new List<string>();
+            foreach (var (root, name) in new[]
+                     {
+                         (Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Tesseract-OCR"),
+                         (Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Tesseract-OCR"),
+                         (Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs"), "Tesseract-OCR"),
+                     })
+            {
+                if (!string.IsNullOrWhiteSpace(root))
+                {
+                    folders.Add(Path.Combine(root, name));
+                }
+            }
+
+            return folders;
+        }
+
+        return OperatingSystem.IsMacOS() ? ["/opt/homebrew/bin", "/usr/local/bin"] : [];
+    }
 }
 
 public interface IOcrService

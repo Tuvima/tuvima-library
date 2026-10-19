@@ -36,9 +36,32 @@ Before starting, read `config/core.json` and `config/libraries.json`. The commit
 
 Keep originals read-only when evaluating. Put provider keys in ignored `config/secrets/` files. Local AI weights and native runtimes use separate storage; see [shared AI storage](../guides/shared-ai-storage.md).
 
-## Optional: scanned documents
+## Helper tools
 
-Scanned PDFs and photos of paper are read with Tesseract. On Windows run `pwsh -File tools/Download-Tesseract.ps1` once (it needs 7-Zip and places Tesseract in `tools/tesseract/`). On Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, text recognition is switched off and the rest of Tuvima Library works. See [configuration](../reference/configuration.md#configocrjson).
+The Library uses two helper tools that come from outside the .NET build:
+
+- **FFmpeg and FFprobe** are always required, as one set. They read every video and audio file (for example `.mkv`, `.mp4`, `.mp3`, `.m4b` and `.flac`), and they are needed for thumbnails, smooth (adaptive) streaming, casting and subtitle and audio syncing. Without them, those files show **Waiting for media tools** and finish by themselves once FFmpeg is found. Nothing fails.
+- **Tesseract** is optional. It needs its English and page-orientation data. Without it, scanned pages and photos of paper are not searchable. Documents that already contain text keep working. The OCR settings are in [configuration](../reference/configuration.md#configocrjson).
+
+The image engine and the local AI engine ship inside the app. AI models download on request from the same Tools page.
+
+**Windows.** On the Tools page, choose **Install for me**. For FFmpeg it downloads the pinned, checksum-verified build into the Library's data folder. For Tesseract it downloads the official installer and asks you to run it; Windows asks for administrator approval. You can also run `winget install Gyan.FFmpeg` and `winget install UB-Mannheim.TesseractOCR`, or the developer scripts `pwsh -File tools/Download-FFmpeg.ps1` and `pwsh -File tools/Download-Tesseract.ps1` (the Tesseract script needs 7-Zip).
+
+**Linux.** `sudo apt install ffmpeg tesseract-ocr`
+
+**macOS.** `brew install ffmpeg tesseract`
+
+Then choose **Check again** on the Tools page. No restart is needed.
+
+The Library looks for each tool in this order:
+
+1. A location you chose with **Locate it** on the Tools page. It is saved as the tool's explicit path in `config/transcoding.json` (`ffmpeg_binary_path` and `ffprobe_binary_path`) or `config/ocr.json` (`tesseract_binary_path`).
+2. The Library's data folder, `tools/ffmpeg` or `tools/tesseract`.
+3. The app's own `tools/` folder.
+4. The system PATH.
+5. The tool's standard install folder. On Windows, Tesseract is in `C:\Program Files\Tesseract-OCR`.
+
+To check, open **Settings > Tools and requirements** and look for **Ready** beside each tool. The Engine log also has one `Tools check:` summary line at start-up. The Library checks again at first run and at every Engine start-up.
 
 ## Start both apps
 

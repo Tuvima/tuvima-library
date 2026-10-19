@@ -78,6 +78,42 @@ public sealed class OcrServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Capability_PrefersTheCopyInTheDataFolderOverThePackagedHelperAndPath()
+    {
+        var fetched = PlaceHelper(Path.Combine(_root, "toolsroot", "tools", "tesseract"), withLanguageData: true);
+        PlaceHelper(Path.Combine(_root, "app", "tools", "tesseract"), withLanguageData: true);
+        var bin = Path.Combine(_root, "bin");
+        PlaceHelper(bin, withLanguageData: true);
+        var service = Service(baseDirectory: Path.Combine(_root, "app"), pathDirectories: [bin], dataRoot: Path.Combine(_root, "toolsroot"));
+
+        var capability = await service.GetCapabilityAsync();
+
+        Assert.Equal(fetched, capability.ExecutablePath);
+    }
+
+    [Fact]
+    public async Task Capability_FallsBackToAStandardInstallFolder_AfterPath()
+    {
+        var standard = PlaceHelper(Path.Combine(_root, "Program Files", "Tesseract-OCR"), withLanguageData: true);
+        var service = Service(baseDirectory: Path.Combine(_root, "app"), standardFolders: [Path.GetDirectoryName(standard)!]);
+
+        var capability = await service.GetCapabilityAsync();
+
+        Assert.Equal(standard, capability.ExecutablePath);
+    }
+
+    [Fact]
+    public async Task Capability_ExplicitPathThatIsMissing_IsFlaggedSoTheToolsListCanSayWhy()
+    {
+        _configuration.SaveOcr(new OcrSettings { TesseractBinaryPath = Path.Combine(_root, "nowhere", ExecutableName) });
+        var service = Service(baseDirectory: Path.Combine(_root, "app"));
+
+        var capability = await service.GetCapabilityAsync();
+
+        Assert.True(capability.ExplicitPathMissing);
+    }
+
+    [Fact]
     public async Task Capability_WithoutLanguageData_IsUnavailableAndSaysSo()
     {
         var bin = Path.Combine(_root, "bin");
@@ -186,12 +222,16 @@ public sealed class OcrServiceTests : IDisposable
         return Service(baseDirectory: Path.Combine(_root, "app"), pathDirectories: [bin]);
     }
 
-    private OcrService Service(string baseDirectory, IReadOnlyList<string>? pathDirectories = null) => new(
+    private OcrService Service(
+        string baseDirectory,
+        IReadOnlyList<string>? pathDirectories = null,
+        string? dataRoot = null,
+        IReadOnlyList<string>? standardFolders = null) => new(
         _configuration,
         new AssetPathService(Path.Combine(_root, "library"), null, Path.Combine(_root, "data")),
         _runner,
         NullLogger<OcrService>.Instance,
-        new OcrEnvironment(baseDirectory, pathDirectories ?? []));
+        new OcrEnvironment(baseDirectory, pathDirectories ?? [], dataRoot, standardFolders));
 
     private static string PlaceHelper(string directory, bool withLanguageData = false)
     {

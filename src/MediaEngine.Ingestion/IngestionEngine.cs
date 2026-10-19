@@ -66,6 +66,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     };
 
     private readonly PlaybackInspectionWriter? _playbackInspection;
+    private readonly MediaInspectionReviewRecorder? _inspectionReviews;
     private readonly ICanonicalValueArrayRepository? _arrayRepo;
     private readonly IFileWatcher _watcher;
     private readonly DebounceQueue _debounce;
@@ -209,12 +210,14 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         ICanonicalValueArrayRepository? arrayRepo = null,
         IImportFolderService? importFolders = null,
         IImportFolderFiler? importFiler = null,
-        IOptionsMonitor<IngestionOptions>? optionsMonitor = null)
+        IOptionsMonitor<IngestionOptions>? optionsMonitor = null,
+        MediaInspectionReviewRecorder? inspectionReviews = null)
     {
         _optionsMonitor = optionsMonitor;
         _importFolders = importFolders;
         _importFiler = importFiler;
         _playbackInspection = playbackInspection;
+        _inspectionReviews = inspectionReviews;
         _arrayRepo = arrayRepo;
         _watcher = watcher;
         _debounce = debounce;

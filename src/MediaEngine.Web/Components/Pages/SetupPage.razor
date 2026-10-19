@@ -56,7 +56,7 @@
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "preflight":
-                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" />
+                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync" />
                     break;
                 case "administrator":
                     <SetupAdministratorStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
@@ -86,7 +86,7 @@
                                          Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
+                    <SetupReadinessStage Readiness="@_readiness" Tools="@_preflight?.Tools" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -384,12 +384,14 @@
             _preflightError = "Tuvima could not finish getting ready. Try again.";
         }
         finally { _busy = false; }
-        if (_preflight?.Passed == true && automaticallyAdvance && !_showRestore && _selectedStep is null)
+        // A missing tool never blocks setup, but the person sees the list first and moves on with Continue.
+        if (_preflight is { Passed: true, Tools.NeedsAttention: false } && automaticallyAdvance && !_showRestore && _selectedStep is null)
         {
             StateHasChanged();
             await ReloadAsync();
         }
     }
+    private Task ContinuePastToolsAsync() => ReloadAsync();
     private async Task RunPreflightManualAsync()
     {
         _preflightError = null;
@@ -459,7 +461,14 @@
         await DecideStepAsync("providers", "deferred", "Languages saved; optional provider credentials deferred.");
     }
     private async Task DecideStepAsync(string step, string status, string detail) { _status = await ApiClient.DecideSetupStepAsync(step, status, detail, _setupSession); _selectedStep = null; _readiness = null; if (_status is null) Snackbar.Add("The setup choice could not be saved.", AppSeverity.Error); else await EnsureCurrentStageDataAsync(); }
-    private async Task LoadReadinessAsync() { _busy = true; _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession); _busy = false; }
+    private async Task LoadReadinessAsync()
+    {
+        _busy = true;
+        // The notes about optional tools come from the check setup ran at the start; look again if the page was reloaded since.
+        _preflight ??= await ApiClient.RunSetupPreflightAsync(_setupSession);
+        _readiness = await ApiClient.GetSetupReadinessAsync(_setupSession);
+        _busy = false;
+    }
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";

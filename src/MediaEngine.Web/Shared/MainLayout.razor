@@ -24,6 +24,7 @@
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Search
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Components.Shared.Tools
 @using MediaEngine.Web.Components.Watch
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Navigation
@@ -202,6 +203,7 @@
             <MainContent>
                 <AppMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
                     <AppContainer MaxWidth="AppMaxWidth.False" Class="@MainContainerClass">
+                        <ToolsAttentionBanner Cinematic="@IsCinematicShell" />
                         @Body
                     </AppContainer>
                 </AppMainContent>

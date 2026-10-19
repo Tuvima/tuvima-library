@@ -1,177 +1,245 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IEngineApiClient ApiClient
+@inject IJSRuntime JS
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @using Microsoft.JSInterop
 @implements IDisposable
 
 <AppHostedDialog Title="@Title"
                  Subtitle="@HelpText"
-                 Icon="@AppMaterialIcons.Outlined.FolderOpen"
+                 Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
                  Size="FullscreenEditor"
                  Class="server-folder-picker-host"
                  OnClose="Cancel">
     <ChildContent>
         <div class="@RootClass">
-            <aside class="server-folder-picker__locations" aria-label="Pick a drive">
-                @if (_loadingRoots)
-                {
-                    <AppProgressBar Indeterminate="true" />
-                }
-                else
-                {
-                    @foreach (var group in LocationGroups)
+            @if (ShowBrowser)
+            {
+                <div class="server-folder-picker__pathbar">
+                    <AppTextField Label="Folder path"
+                                  HideLabel="true"
+                                  Class="server-folder-picker__path"
+                                  Value="@_pathText"
+                                  ValueChanged="PathChanged"
+                                  OnKeyDown="PathKeyDownAsync"
+                                  Adornment="@(string.IsNullOrEmpty(_pathText) ? AppAdornment.None : AppAdornment.End)"
+                                  AdornmentIcon="@AppMaterialIcons.Outlined.Close"
+                                  AdornmentAriaLabel="Clear the path"
+                                  OnAdornmentClick="ClearPath"
+                                  Error="@(_pathMessage is not null)"
+                                  ErrorText="@_pathMessage"
+                                  Placeholder="Type or paste a folder path (for example /media/movies) and press Enter" />
+                    <AppButton Label="Go"
+                               ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               Disabled="@(string.IsNullOrWhiteSpace(_pathText) || _loadingBrowse)"
+                               OnClick="GoToTypedPathAsync" />
+                </div>
+            }
+
+            <div class="server-folder-picker__body">
+                <aside class="server-folder-picker__locations" aria-label="Pick a location">
+                    @if (_loadingRoots)
                     {
-                        <h3>@group.Heading</h3>
-                        @foreach (var location in group.Locations)
-                        {
-                            <AppNativeButton Type="button"
-                                             Class="@LocationClass(location)"
-                                             AriaLabel="@($"Browse {DisplayName(location)}")"
-                                             OnClick="@(_ => SelectLocationAsync(location))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
-                                <span><strong>@DisplayName(location)</strong><small>@location.Path</small></span>
-                            </AppNativeButton>
-                        }
+                        <AppProgressBar Indeterminate="true" />
                     }
-                }
-
-            </aside>
-
-            <section class="server-folder-picker__browser" aria-busy="@_loadingBrowse">
-                @if (_rootsFailed)
-                {
-                    <AppErrorState Title="Could not reach the server"
-                                   Message="Tuvima could not load the folders on this server. Check that the server is online, then try again."
-                                   Retry="RetryRootsAsync" />
-                }
-                else if (_locations.Count == 0 && !_loadingRoots)
-                {
-                    <AppPageState Kind="AppPageStateKind.Empty"
-                                  Icon="@AppMaterialIcons.Outlined.FolderOff"
-                                  Title="No folders to browse"
-                                  Message="This server has no drives or folders available for Tuvima to browse." />
-                }
-                else
-                {
-                    <div class="server-folder-picker__pathbar">
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
-                                       Tooltip="Up one level"
-                                       AriaLabel="Up one level"
-                                       Disabled="@(_browse?.ParentRelativePath is null || _loadingBrowse)"
-                                       OnClick="NavigateUpAsync" />
-                        <AppTextField Label="Folder path"
-                                      HideLabel="true"
-                                      Class="server-folder-picker__path"
-                                      Value="@_pathText"
-                                      ValueChanged="PathChanged"
-                                      OnKeyDown="PathKeyDownAsync"
-                                      Placeholder="Type a folder path (for example /media/movies) and press Enter" />
-                        <AppButton Label="Go"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Disabled="@(string.IsNullOrWhiteSpace(_pathText) || _loadingBrowse)"
-                                   OnClick="GoToTypedPathAsync" />
-                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh"
-                                       Tooltip="Refresh"
-                                       AriaLabel="Refresh folders"
-                                       Disabled="@_loadingBrowse"
-                                       OnClick="RefreshAsync" />
-                    </div>
-                    <label class="server-folder-picker__search">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
-                        <AppNativeInput Type="search"
-                                        Value="@_search"
-                                        ValueChanged="SearchChangedAsync"
-                                        Placeholder="Search folders"
-                                        AriaLabel="Search folders" />
-                    </label>
-
-                    <div class="server-folder-picker__list" role="listbox" tabindex="0" aria-label="Server folders"
-                         aria-activedescendant="@ActiveDescendant"
-                         @ref="_listElement"
-                         @onkeydown="ListKeyDownAsync">
-                        <div class="server-folder-picker__list-header" aria-hidden="true">
-                            <span>Folder</span><span>Modified</span>
-                        </div>
-                        @if (_loadingBrowse)
+                    else
+                    {
+                        @foreach (var group in LocationGroups)
                         {
-                            <div class="server-folder-picker__state"><AppProgressBar Indeterminate="true" /></div>
-                        }
-                        else if (_browse is null)
-                        {
-                            <div class="server-folder-picker__state">Pick a drive to see its folders.</div>
-                        }
-                        else if (_browse.Directories.Count == 0)
-                        {
-                            <div class="server-folder-picker__state">@(string.IsNullOrWhiteSpace(_search) ? "No accessible subfolders are available here." : "No folders match your search in this location.")</div>
-                        }
-                        else
-                        {
-                            @for (var index = 0; index < _browse.Directories.Count; index++)
+                            <h3>@group.Heading</h3>
+                            @foreach (var location in group.Locations)
                             {
-                                var position = index;
-                                var folder = _browse.Directories[index];
-                                <AppNativeButton Type="button"
-                                                 Class="@FolderClass(position)"
-                                                 id="@FolderId(position)"
-                                                 role="option"
-                                                 tabindex="-1"
-                                                 aria-selected="@(position == _highlight ? "true" : "false")"
-                                                 AriaLabel="@($"Open folder {folder.Name}")"
-                                                 OnClick="@(_ => OpenFolderAsync(folder))">
-                                    <span class="server-folder-picker__folder-name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@folder.Name</strong></span>
-                                    <span class="server-folder-picker__modified">@FormatModified(folder.ModifiedAt)</span>
-                                </AppNativeButton>
+                                <button type="button"
+                                        class="@LocationClass(location)"
+                                        aria-label="@($"Browse {DisplayName(location)}")"
+                                        @onclick="@(() => SelectLocationAsync(location))">
+                                    <AppMaterialIcon Icon="@(IsMachineLocation(location) ? AppMaterialIcons.Outlined.Storage : AppMaterialIcons.Outlined.FolderOpen)" />
+                                    <span><strong>@DisplayName(location)</strong><small>@location.Path</small></span>
+                                </button>
                             }
                         }
-                    </div>
-
-                    @if (_validating)
-                    {
-                        <div class="server-folder-picker__validation-progress" aria-live="polite"><AppProgressBar Indeterminate="true" /></div>
                     }
-                }
+                </aside>
 
-                <div class="server-folder-picker__notices">
-                @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
-                @if (!string.IsNullOrWhiteSpace(_error))
-                {
-                    <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
-                }
-                @foreach (var problem in AccessProblems)
-                {
-                    <div class="server-folder-picker__issues" aria-live="assertive"><div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@problem</span></div></div>
-                }
-                @if (_validation?.Issues.Count > 0)
-                {
-                    <div class="server-folder-picker__issues" aria-live="assertive">
-                        @if (_validation.Issues.Any(issue => issue.LibraryName is not null))
-                        {
-                            <strong>Already used by other libraries</strong>
-                            <p>Choose a folder that does not overlap these configured sources.</p>
-                            <div class="server-folder-picker__conflicts">
-                                @foreach (var name in _validation.Issues.Where(issue => issue.LibraryName is not null).Select(issue => issue.LibraryName).Distinct())
-                                { <span>@name</span> }
+                <section class="server-folder-picker__browser" aria-busy="@_loadingBrowse">
+                    @if (_rootsFailed)
+                    {
+                        <AppErrorState Title="Could not reach the server"
+                                       Message="Tuvima could not load the folders on this server. Check that the server is online, then try again."
+                                       Retry="RetryRootsAsync" />
+                    }
+                    else if (_locations.Count == 0 && !_loadingRoots)
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty"
+                                      Icon="@AppMaterialIcons.Outlined.FolderOff"
+                                      Title="No folders to browse"
+                                      Message="This server has no drives or folders available for Tuvima to browse." />
+                    }
+                    else
+                    {
+                        <div class="server-folder-picker__toolbar">
+                            <div class="server-folder-picker__history">
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
+                                               Tooltip="Back"
+                                               AriaLabel="Back"
+                                               Disabled="@(!CanGoBack || _loadingBrowse)"
+                                               OnClick="BackAsync" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowForward"
+                                               Tooltip="Forward"
+                                               AriaLabel="Forward"
+                                               Disabled="@(!CanGoForward || _loadingBrowse)"
+                                               OnClick="ForwardAsync" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
+                                               Tooltip="Up one level"
+                                               AriaLabel="Up one level"
+                                               Disabled="@(_browse?.ParentRelativePath is null || _loadingBrowse)"
+                                               OnClick="NavigateUpAsync" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh"
+                                               Tooltip="Refresh"
+                                               AriaLabel="Refresh folders"
+                                               Disabled="@_loadingBrowse"
+                                               OnClick="RefreshAsync" />
                             </div>
-                        }
-                        @foreach (var issue in _validation.Issues.Where(issue => issue.LibraryName is null))
+                            <nav class="server-folder-picker__crumbs" aria-label="Folder trail">
+                                @foreach (var crumb in Crumbs)
+                                {
+                                    @if (crumb.IsCurrent)
+                                    {
+                                        <span class="server-folder-picker__crumb is-current" aria-current="location">@crumb.Label</span>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="server-folder-picker__crumb" @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
+                                    }
+                                }
+                            </nav>
+                            <label class="server-folder-picker__search">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                                <AppNativeInput Type="search"
+                                                Value="@_search"
+                                                ValueChanged="SearchChangedAsync"
+                                                Placeholder="Search folders"
+                                                AriaLabel="Search folders" />
+                            </label>
+                        </div>
+
+                        <div class="server-folder-picker__list" role="listbox" tabindex="0" aria-label="Server folders"
+                             aria-activedescendant="@ActiveDescendant"
+                             @ref="_listElement"
+                             @onkeydown="ListKeyDownAsync">
+                            <div class="server-folder-picker__list-header" aria-hidden="true">
+                                <span>Name</span><span>Modified</span>
+                            </div>
+                            @if (_loadingBrowse)
+                            {
+                                <div class="server-folder-picker__state"><AppProgressBar Indeterminate="true" /></div>
+                            }
+                            else if (_browse is null)
+                            {
+                                <div class="server-folder-picker__state">Pick a location to see its folders.</div>
+                            }
+                            else if (_browse.Directories.Count == 0)
+                            {
+                                <div class="server-folder-picker__state">@(string.IsNullOrWhiteSpace(_search) ? "No accessible subfolders are available here." : "No folders match your search in this location.")</div>
+                            }
+                            else
+                            {
+                                @for (var index = 0; index < _browse.Directories.Count; index++)
+                                {
+                                    var position = index;
+                                    var folder = _browse.Directories[index];
+                                    <div class="server-folder-picker__row" role="presentation">
+                                        <button type="button"
+                                                class="@FolderClass(folder, position)"
+                                                id="@FolderId(position)"
+                                                role="option"
+                                                tabindex="-1"
+                                                aria-selected="@(IsSelected(folder) ? "true" : "false")"
+                                                aria-label="@($"Select folder {folder.Name}")"
+                                                @onclick="@(() => SelectFolderAsync(folder, position))"
+                                                @ondblclick="@(() => OpenFolderAsync(folder))">
+                                            <span class="server-folder-picker__folder-name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@folder.Name</strong></span>
+                                            <span class="server-folder-picker__modified">@FormatModified(folder.ModifiedAt)</span>
+                                        </button>
+                                        <AppNativeButton Type="button"
+                                                         Class="server-folder-picker__open"
+                                                         AriaLabel="@($"Open folder {folder.Name}")"
+                                                         tabindex="-1"
+                                                         OnClick="@(_ => OpenFolderAsync(folder))">
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                                        </AppNativeButton>
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        @if (_validating)
                         {
-                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@issue.Message</span></div>
+                            <div class="server-folder-picker__validation-progress" aria-live="polite"><AppProgressBar Indeterminate="true" /></div>
                         }
+                    }
+
+                    <div class="server-folder-picker__notices">
+                    @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
+                    @if (!string.IsNullOrWhiteSpace(_error))
+                    {
+                        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+                    }
+                    @foreach (var problem in AccessProblems)
+                    {
+                        <div class="server-folder-picker__issues" aria-live="assertive"><div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@problem</span></div></div>
+                    }
+                    @if (_validation?.Issues.Count > 0)
+                    {
+                        <div class="server-folder-picker__issues" aria-live="assertive">
+                            @if (_validation.Issues.Any(issue => issue.LibraryName is not null))
+                            {
+                                <strong>Already used by other libraries</strong>
+                                <p>Choose a folder that does not overlap these configured sources.</p>
+                                <div class="server-folder-picker__conflicts">
+                                    @foreach (var name in _validation.Issues.Where(issue => issue.LibraryName is not null).Select(issue => issue.LibraryName).Distinct())
+                                    { <span>@name</span> }
+                                </div>
+                            }
+                            @foreach (var issue in _validation.Issues.Where(issue => issue.LibraryName is null))
+                            {
+                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@issue.Message</span></div>
+                            }
+                        </div>
+                    }
                     </div>
-                }
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     </ChildContent>
     <FooterContent>
-        <AppActionBar Align="AppHorizontalAlignment.End">
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
-            <AppButton Label="Add"
-                       ButtonStyle="AppButtonStyle.Filled"
-                       Tone="AppUiTone.Primary"
-                       Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
-                       OnClick="Confirm" />
-        </AppActionBar>
+        <div class="server-folder-picker__footer">
+            <div class="server-folder-picker__selected">
+                <span class="server-folder-picker__selected-label">Selected path</span>
+                <div class="server-folder-picker__selected-field">
+                    <AppTextField Label="Selected path"
+                                  HideLabel="true"
+                                  ReadOnly="true"
+                                  Value="@_selectedPathText"
+                                  Placeholder="No folder selected"
+                                  Adornment="AppAdornment.End"
+                                  AdornmentIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                                  AdornmentAriaLabel="Copy selected path"
+                                  OnAdornmentClick="CopySelectedPathAsync" />
+                </div>
+                <span class="server-folder-picker__copied" aria-live="polite">@_copyMessage</span>
+            </div>
+            <AppActionBar Align="AppHorizontalAlignment.End">
+                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+                <AppButton Label="@ConfirmLabel"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
+                           OnClick="Confirm" />
+            </AppActionBar>
+        </div>
     </FooterContent>
 </AppHostedDialog>
 
@@ -181,21 +249,37 @@
     [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Tuvima Library server.";
     [Parameter] public string SelectionMode { get; set; } = ServerFolderSelectionModes.ExistingLibrary;
+    [Parameter] public string ConfirmLabel { get; set; } = "Add";
     [Parameter] public string? CurrentSourceId { get; set; }
     [Parameter] public string? InitialPath { get; set; }
     [Parameter] public IReadOnlyCollection<string>? AllowedStorageLocationIds { get; set; }
+    /// <summary>The media type being added to (for example Movies); the title-bar icon follows it. Empty means the generic folder icon.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    private const string CantOpenMessage = "The Library can't open that folder.";
+    private const string NotFoundMessage = "That folder doesn't exist.";
 
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _browseRequest;
     private CancellationTokenSource? _validationRequest;
     private CancellationTokenSource? _searchDebounce;
+    private CancellationTokenSource? _copyReset;
     private long _browseGeneration;
     private long _validationGeneration;
     private List<ServerStorageLocationDto> _locations = [];
     private BrowseServerFoldersResultDto? _browse;
     private ServerStorageLocationDto? _activeLocation;
     private ServerFolderValidationResultDto? _validation;
+    // The folders visited in this dialog, as (location id, relative path); Back and Forward walk it.
+    private readonly List<(string LocationId, string RelativePath)> _history = [];
+    private int _historyIndex = -1;
     private string _selectedRelativePath = string.Empty;
+    // The child folder picked with a single click; null means the folder being browsed is the selection.
+    private string? _selectedFolder;
+    // Always the path exactly as the Engine reports it (inside the container when the Engine runs in Docker); never translated.
+    private string _selectedPathText = string.Empty;
+    private string? _pathMessage;
+    private string? _copyMessage;
     private string _search = string.Empty;
     private string _pathText = string.Empty;
     private int _highlight;
@@ -207,17 +291,25 @@
     private bool _loadingBrowse;
     private bool _validating;
 
-    // Drives and the server root are discovered automatically; anything else in the list is an approved folder.
+    // Drives and the server root are discovered automatically; anything else in the list is a configured media location.
     // Tuvima's own folders are never sent by the Engine, so there is nothing to hide or rename here.
     private static bool IsMachineLocation(ServerStorageLocationDto location) =>
         location.Id.StartsWith("drive-", StringComparison.Ordinal)
         || string.Equals(location.Id, "server-root", StringComparison.Ordinal);
 
-    private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups => new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
+    private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups
     {
-        ("Drives and folders on this server", VisibleLocations.Where(IsMachineLocation).ToList()),
-        ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location)).ToList()),
-    }.Where(group => group.Locations.Count > 0);
+        get
+        {
+            var machine = VisibleLocations.Where(IsMachineLocation).ToList();
+            var machineHeading = machine.Any(location => location.Id.StartsWith("drive-", StringComparison.Ordinal)) ? "Drives on this server" : "This server";
+            return new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
+            {
+                ("Media locations", VisibleLocations.Where(location => !IsMachineLocation(location)).ToList()),
+                (machineHeading, machine),
+            }.Where(group => group.Locations.Count > 0);
+        }
+    }
 
     private static string DisplayName(ServerStorageLocationDto location) => location.Label;
 
@@ -225,6 +317,8 @@
         .Where(location => AllowedStorageLocationIds is null
             || AllowedStorageLocationIds.Contains(location.Id, StringComparer.OrdinalIgnoreCase))
         .ToList();
+
+    private bool ShowBrowser => !_rootsFailed && !(_locations.Count == 0 && !_loadingRoots);
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -250,7 +344,7 @@
         }
 
         _locations = roots.ToList();
-        var first = VisibleLocations.FirstOrDefault();
+        var first = VisibleLocations.FirstOrDefault(location => !IsMachineLocation(location)) ?? VisibleLocations.FirstOrDefault();
         if (first is null) return;
 
         if (!string.IsNullOrWhiteSpace(InitialPath))
@@ -275,6 +369,7 @@
                     // The folder does not exist yet: keep it as the selection and browse the location root beside it.
                     _activeLocation = first;
                     _pathText = initial.Path;
+                    _selectedPathText = initial.Path;
                     await NavigateAsync(string.Empty, preserveSelection: true);
                     return;
                 }
@@ -291,10 +386,11 @@
         _search = string.Empty;
         _selectedRelativePath = relativePath ?? string.Empty;
         _validation = null;
+        _pathMessage = null;
         await NavigateAsync(_selectedRelativePath, preserveSelection: false);
     }
 
-    private async Task NavigateAsync(string relativePath, bool preserveSelection = false)
+    private async Task NavigateAsync(string relativePath, bool preserveSelection = false, bool fromHistory = false)
     {
         if (_activeLocation is null) return;
         var generation = ++_browseGeneration;
@@ -336,17 +432,61 @@
 
         _browse = browse;
         _highlight = 0;
+        if (!fromHistory) RecordHistory(_activeLocation.Id, browse.RelativePath);
         if (!preserveSelection)
         {
+            _selectedFolder = null;
             _selectedRelativePath = browse.RelativePath;
             _pathText = browse.DisplayPath;
+            _selectedPathText = browse.DisplayPath;
+            _pathMessage = null;
             await ValidateSelectedAsync();
         }
+    }
+
+    private void RecordHistory(string locationId, string relativePath)
+    {
+        var entry = (locationId, relativePath);
+        if (_historyIndex >= 0 && _history[_historyIndex] == entry) return;
+        if (_historyIndex < _history.Count - 1) _history.RemoveRange(_historyIndex + 1, _history.Count - _historyIndex - 1);
+        _history.Add(entry);
+        _historyIndex = _history.Count - 1;
+    }
+
+    private bool CanGoBack => _historyIndex > 0;
+    private bool CanGoForward => _historyIndex >= 0 && _historyIndex < _history.Count - 1;
+    private Task BackAsync() => GoThroughHistoryAsync(-1);
+    private Task ForwardAsync() => GoThroughHistoryAsync(1);
+
+    private async Task GoThroughHistoryAsync(int step)
+    {
+        var target = _historyIndex + step;
+        if (target < 0 || target >= _history.Count) return;
+        var (locationId, relativePath) = _history[target];
+        var location = VisibleLocations.FirstOrDefault(item => string.Equals(item.Id, locationId, StringComparison.OrdinalIgnoreCase));
+        if (location is null) return;
+
+        _historyIndex = target;
+        if (_activeLocation?.Id != location.Id)
+        {
+            CancelSearchDebounce();
+            _activeLocation = location;
+            _search = string.Empty;
+        }
+
+        _focusList = true;
+        await NavigateAsync(relativePath, fromHistory: true);
     }
 
     private Task NavigateUpAsync() => _browse?.ParentRelativePath is { } parent
         ? NavigateAsync(parent)
         : Task.CompletedTask;
+
+    private Task OpenCrumbAsync(string relativePath)
+    {
+        _focusList = true;
+        return NavigateAsync(relativePath);
+    }
 
     private async Task RefreshAsync()
     {
@@ -372,10 +512,29 @@
         }
     }
 
+    // A single click only selects the folder; opening is a double click, the open button on the row, or Enter.
+    private async Task SelectFolderAsync(ServerFolderEntryDto folder, int position)
+    {
+        _focusList = true;
+        _highlight = position;
+        _selectedFolder = folder.RelativePath;
+        _selectedRelativePath = folder.RelativePath;
+        _selectedPathText = JoinPath(folder.Name);
+        _pathMessage = null;
+        await ValidateSelectedAsync();
+    }
+
     private async Task OpenFolderAsync(ServerFolderEntryDto folder)
     {
         _focusList = true;
         await NavigateAsync(folder.RelativePath);
+    }
+
+    private string JoinPath(string name)
+    {
+        var basePath = _browse?.DisplayPath ?? _pathText;
+        var separator = basePath.Contains('\\') ? '\\' : '/';
+        return basePath.TrimEnd('\\', '/') + separator + name;
     }
 
     private async Task ValidateSelectedAsync()
@@ -414,10 +573,10 @@
         if (generation != _validationGeneration) return;
         _validation = validation;
         if (_validation is null) _error = "Tuvima Library could not validate this server folder. Check that the location is online and try again.";
-        else if (!string.IsNullOrWhiteSpace(_validation.Path)) _pathText = _validation.Path;
+        else if (!string.IsNullOrWhiteSpace(_validation.Path)) _selectedPathText = _validation.Path;
     }
 
-    // The path bar is the selection: Enter or Go validates the typed path, then opens it when it exists.
+    // The path box takes a full path: Enter or Go checks it, then opens it when it exists.
     private async Task GoToTypedPathAsync()
     {
         if (string.IsNullOrWhiteSpace(_pathText)) return;
@@ -427,6 +586,7 @@
         var token = _validationRequest.Token;
         _validating = true;
         _error = null;
+        _pathMessage = null;
         var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = SelectionMode, CurrentSourceId = CurrentSourceId };
         ServerFolderValidationResultDto? validation;
         try
@@ -443,20 +603,51 @@
         finally { if (generation == _validationGeneration) _validating = false; }
         if (generation != _validationGeneration) return;
 
-        if (validation is null) { _error = "That path could not be checked. Check that the server is online and try again."; return; }
+        // The Engine refuses a path outside the locations it allows, or one it cannot resolve, with no result at all.
+        if (validation is null) { RejectTypedPath(CantOpenMessage); return; }
         var location = VisibleLocations.FirstOrDefault(item => string.Equals(item.Id, validation.StorageLocationId, StringComparison.OrdinalIgnoreCase));
-        if (location is null) { _error = "That path is not inside a folder Tuvima Library can use. Pick a drive on the left."; return; }
+        if (location is null || string.IsNullOrWhiteSpace(validation.Path))
+        {
+            RejectTypedPath(validation.Issues.Any(issue => issue.Code == "not_found") ? NotFoundMessage : CantOpenMessage);
+            return;
+        }
+
+        if (!validation.Exists && !validation.CanSelect) { RejectTypedPath(NotFoundMessage); return; }
+        if (validation.Exists && !validation.HasRead) { RejectTypedPath(CantOpenMessage); return; }
 
         _activeLocation = location;
+        _selectedFolder = null;
         _selectedRelativePath = validation.RelativePath;
         _validation = validation;
-        if (!string.IsNullOrWhiteSpace(validation.Path)) _pathText = validation.Path;
+        if (!string.IsNullOrWhiteSpace(validation.Path))
+        {
+            _pathText = validation.Path;
+            _selectedPathText = validation.Path;
+        }
+
         if (validation.Exists) await NavigateAsync(validation.RelativePath, preserveSelection: true);
+    }
+
+    // A path that cannot be used says so beside the path box and leaves nothing selected.
+    private void RejectTypedPath(string message)
+    {
+        _pathMessage = message;
+        _validation = null;
+        _selectedFolder = null;
+        _selectedRelativePath = string.Empty;
+        _selectedPathText = string.Empty;
     }
 
     private async Task PathKeyDownAsync(KeyboardEventArgs args)
     {
         if (args.Key == "Enter") await GoToTypedPathAsync();
+    }
+
+    private void ClearPath()
+    {
+        _pathText = string.Empty;
+        _pathMessage = null;
+        InvalidateValidation();
     }
 
     private async Task ListKeyDownAsync(KeyboardEventArgs args)
@@ -476,6 +667,9 @@
             case "End" when count > 0:
                 _highlight = count - 1;
                 break;
+            case " " when _browse is not null && _highlight >= 0 && _highlight < count:
+                await SelectFolderAsync(_browse.Directories[_highlight], _highlight);
+                break;
             case "Enter" when _browse is not null && _highlight >= 0 && _highlight < count:
                 await OpenFolderAsync(_browse.Directories[_highlight]);
                 break;
@@ -483,6 +677,44 @@
                 _focusList = true;
                 await NavigateUpAsync();
                 break;
+        }
+    }
+
+    // The same clipboard call the rest of the Dashboard uses; the secure-context rule can refuse it, so say so plainly.
+    private async Task CopySelectedPathAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedPathText)) return;
+        _copyReset?.Cancel();
+        _copyReset?.Dispose();
+        _copyReset = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = _copyReset.Token;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", token, _selectedPathText);
+            _copyMessage = "Copied";
+        }
+        catch (JSException)
+        {
+            _copyMessage = "Couldn't copy. Select the path and copy it.";
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        StateHasChanged();
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), token);
+            _copyMessage = null;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer copy or the closing dialog took over the message.
         }
     }
 
@@ -503,7 +735,7 @@
         _validation = null;
         _validating = false;
     }
-    private void PathChanged(string? value) { _pathText = value ?? string.Empty; InvalidateValidation(); }
+    private void PathChanged(string? value) { _pathText = value ?? string.Empty; _pathMessage = null; InvalidateValidation(); }
     private void CancelSearchDebounce()
     {
         _searchDebounce?.Cancel();
@@ -522,6 +754,29 @@
     private string FolderId(int index) => $"server-folder-picker-folder-{index}";
     private string? ActiveDescendant => _browse is { Directories.Count: > 0 } && _highlight < _browse.Directories.Count ? FolderId(_highlight) : null;
 
+    // The trail runs from the location's own root down to the folder being browsed; it never goes above the location.
+    private IReadOnlyList<(string Label, string Relative, bool IsCurrent)> Crumbs
+    {
+        get
+        {
+            if (_browse is null || _activeLocation is null) return [];
+            var separator = _browse.DisplayPath.Contains('\\') ? '\\' : '/';
+            var segments = _browse.RelativePath.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+            var crumbs = new List<(string Label, string Relative, bool IsCurrent)>
+            {
+                (_activeLocation.Path is "/" ? "/" : _activeLocation.Label, string.Empty, segments.Length == 0),
+            };
+            var relative = string.Empty;
+            for (var index = 0; index < segments.Length; index++)
+            {
+                relative = relative.Length == 0 ? segments[index] : relative + separator + segments[index];
+                crumbs.Add((segments[index], relative, index == segments.Length - 1));
+            }
+
+            return crumbs;
+        }
+    }
+
     // Access facts, space and file system are hidden unless something is wrong.
     private IEnumerable<string> AccessProblems
     {
@@ -534,7 +789,9 @@
     }
 
     private string LocationClass(ServerStorageLocationDto location) => $"server-folder-picker__location{(_activeLocation?.Id == location.Id ? " is-active" : string.Empty)}";
-    private string FolderClass(int index) => $"server-folder-picker__folder{(index == _highlight ? " is-highlighted" : string.Empty)}";
+    private bool IsSelected(ServerFolderEntryDto folder) => _selectedFolder is not null && string.Equals(_selectedFolder, folder.RelativePath, StringComparison.Ordinal);
+    private string FolderClass(ServerFolderEntryDto folder, int index) =>
+        $"server-folder-picker__folder{(index == _highlight ? " is-highlighted" : string.Empty)}{(IsSelected(folder) ? " is-selected" : string.Empty)}";
     private static string FormatModified(DateTimeOffset? value) => value?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "—";
     public void Dispose()
     {
@@ -543,6 +800,8 @@
         _browseRequest?.Dispose();
         _validationRequest?.Cancel();
         _validationRequest?.Dispose();
+        _copyReset?.Cancel();
+        _copyReset?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }

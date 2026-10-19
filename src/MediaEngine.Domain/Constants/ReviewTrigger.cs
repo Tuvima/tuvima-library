@@ -129,4 +129,11 @@ public static class ReviewTrigger
     /// person has to confirm what it is). It waits in the target's From merge folder until it is confirmed.
     /// </summary>
     public const string FromMerge = "FromMerge";
+
+    /// <summary>
+    /// The media tool (FFmpeg) is installed and working, but it could not read this particular file, so its technical
+    /// facts could not be recorded. The file is still registered and identified; a person decides whether it is damaged.
+    /// A missing tool is never this trigger: those files wait instead (<c>media_inspection_holds</c>).
+    /// </summary>
+    public const string MediaInspectionFailed = "MediaInspectionFailed";
 }

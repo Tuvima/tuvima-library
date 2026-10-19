@@ -23,6 +23,26 @@
                 </article>
             }
         </div>
+        @if (RequiredToolNotes.Count > 0)
+        {
+            @* The server check only lists missing tools the first time it runs; this reminds anyone who continued past it. *@
+            <ul class="setup-tool-notes" aria-label="Tools still to install">
+                @foreach (var note in RequiredToolNotes)
+                {
+                    <li>@note</li>
+                }
+            </ul>
+        }
+        @if (OptionalToolNotes.Count > 0)
+        {
+            @* Quiet on purpose: optional tools never stop setup, so there is no warning colour. *@
+            <ul class="setup-tool-notes" aria-label="Optional tools">
+                @foreach (var note in OptionalToolNotes)
+                {
+                    <li>@note</li>
+                }
+            </ul>
+        }
         @if (!string.IsNullOrWhiteSpace(SampleScanDetail))
         {
             <AppAlert Tone="AppUiTone.Info">@SampleScanDetail</AppAlert>
@@ -35,6 +55,7 @@
 
 @code {
     [Parameter] public SetupReadinessDto? Readiness { get; set; }
+    [Parameter] public ToolRequirementsDto? Tools { get; set; }
     [Parameter] public string? SampleScanDetail { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback SampleScan { get; set; }
@@ -50,6 +71,18 @@
         : Readiness.CanComplete
             ? "Tuvima is ready to start finding your media."
             : "A few things need attention before you open your library.";
+
+    private const string TesseractNote = "Scanned documents won't be readable until Tesseract is installed.";
+
+    private IReadOnlyList<string> RequiredToolNotes => Tools?.Tools
+        .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Required && tool.State != ToolRequirementStates.Ready)
+        .Select(tool => $"{tool.Name} is still missing. {tool.Effect} You can install it later from Settings, Tools and requirements.")
+        .ToList() ?? [];
+
+    private IReadOnlyList<string> OptionalToolNotes => Tools?.Tools
+        .Where(tool => tool.Kind == "tool" && tool.Requirement == ToolRequirementLevels.Optional && tool.State != ToolRequirementStates.Ready)
+        .Select(tool => tool.Id == ToolRequirementIds.Tesseract ? TesseractNote : tool.Effect)
+        .ToList() ?? [];
 
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
     private static string CapabilityLabel(string key) => key switch { "preflight" => "Server check", "administrator" => "Your account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
