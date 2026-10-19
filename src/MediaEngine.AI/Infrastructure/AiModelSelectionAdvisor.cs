@@ -7,8 +7,19 @@ namespace MediaEngine.AI.Infrastructure;
 public sealed class AiModelSelectionAdvisor
 {
     private readonly AiSettings _settings;
+    private readonly ModelInventory? _inventory;
+    private readonly IAiRuntimeStatus? _runtime;
 
-    public AiModelSelectionAdvisor(AiSettings settings) => _settings = settings;
+    /// <summary>
+    /// <paramref name="inventory"/> and <paramref name="runtime"/> supply the live facts about this machine (is the model
+    /// file there, does the native runtime load). Without them those facts are reported as not ready, never assumed.
+    /// </summary>
+    public AiModelSelectionAdvisor(AiSettings settings, ModelInventory? inventory = null, IAiRuntimeStatus? runtime = null)
+    {
+        _settings = settings;
+        _inventory = inventory;
+        _runtime = runtime;
+    }
 
     public AiExecutionPlan GetExecutionPlan()
     {
@@ -67,9 +78,23 @@ public sealed class AiModelSelectionAdvisor
 
         warnings.AddRange(plan.BlockingReasons);
 
-        var canEnable = enabled && catalog is not null
+        // Readiness is read from this machine, not assumed: the definition is complete, the native runtime loads, and the
+        // model file is on disk. "Can enable" is whether this machine may use the model (so it can be offered for
+        // download); the runtime and file facts decide whether work can run now (see AiFeatureGate).
+        var configurationReady = catalog is not null
             && catalog.Readiness.ConfigurationReady
-            && catalog.Readiness.RuntimeReady
+            && !string.IsNullOrWhiteSpace(definition.File)
+            && !string.IsNullOrWhiteSpace(definition.DownloadUrl);
+        var runtimeReady = enabled && _runtime is not null
+            && (isAudio ? _runtime.AudioRuntimeLoads : _runtime.TextRuntimeLoads);
+        var validated = _inventory?.GetState(role) is AiModelState.Ready or AiModelState.Loaded;
+        if (enabled && catalog is not null && !runtimeReady)
+        {
+            warnings.Add(isAudio ? "The speech AI runtime is not installed." : "The AI runtime is not installed.");
+        }
+
+        var canEnable = enabled && catalog is not null
+            && configurationReady
             && (!string.Equals(_settings.ResourceProfile, AiResourceProfileNames.Advanced, StringComparison.OrdinalIgnoreCase)
                 || _settings.HardwareProfile.AdvancedEligible);
         var status = !enabled ? "disabled" : canEnable ? "ready" : "blocked";
@@ -97,9 +122,9 @@ public sealed class AiModelSelectionAdvisor
             definition.ContextLength,
             catalog?.SourceUrl ?? "",
             !string.IsNullOrWhiteSpace(catalog?.Sha256),
-            catalog?.Readiness.ConfigurationReady ?? false,
-            catalog?.Readiness.RuntimeReady ?? false,
-            canEnable,
+            configurationReady,
+            runtimeReady,
+            validated,
             warnings);
     }
 

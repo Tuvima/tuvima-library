@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.Storage;
 
@@ -15,6 +16,7 @@ namespace MediaEngine.Api.Services;
 public sealed class HardwareBenchmarkBackgroundService : BackgroundService
 {
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan BusyRetryDelay = TimeSpan.FromSeconds(60);
 
     private readonly HardwareBenchmarkService _benchmark;
     private readonly ILogger<HardwareBenchmarkBackgroundService> _logger;
@@ -58,24 +60,43 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
             return;
         }
 
-        try
+        // Library background work waits for a quiet moment. The benchmark never used to wait, so keep trying until it has
+        // run instead of giving up the first time the machine is busy.
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await _benchmark.BenchmarkAsync(ct: stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            // Shutdown before benchmark completed — no action needed.
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "HardwareBenchmarkBackgroundService: benchmark failed unexpectedly");
+            try
+            {
+                await _benchmark.BenchmarkAsync(ct: stoppingToken);
+                break;
+            }
+            catch (OperationCanceledException)
+            {
+                // Shutdown before benchmark completed — no action needed.
+                break;
+            }
+            catch (AiRequestDeferredException)
+            {
+                _logger.LogInformation(
+                    "HardwareBenchmarkBackgroundService: the machine is busy; trying again in {Seconds}s",
+                    BusyRetryDelay.TotalSeconds);
+                try
+                {
+                    await Task.Delay(BusyRetryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "HardwareBenchmarkBackgroundService: benchmark failed unexpectedly");
+                break;
+            }
         }
 
         // Service is done — runs once on startup only.
     }
 
-    private static bool AnyAiFeatureEnabled(AiSettings settings) =>
-        settings.AudioPackEnabled || settings.Features.SmartLabeling || settings.Features.TypeLogic
-        || settings.Features.SeriesAlignment || settings.Features.VibeTags || settings.Features.Tldr
-        || settings.Features.DescriptionIntelligence;
+    private static bool AnyAiFeatureEnabled(AiSettings settings) => settings.IsLocalAiEnabled;
 }

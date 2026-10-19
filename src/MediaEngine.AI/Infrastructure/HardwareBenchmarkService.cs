@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using MediaEngine.AI.Configuration;
-using MediaEngine.AI.Llama;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -9,7 +9,7 @@ namespace MediaEngine.AI.Infrastructure;
 /// <summary>Runs and persists a versioned benchmark for the current physical machine.</summary>
 public sealed class HardwareBenchmarkService
 {
-    private readonly LlamaInferenceService _llama;
+    private readonly IAiEngineRoom _engineRoom;
     private readonly AiSettings _settings;
     private readonly GpuBackendDetector _gpuDetector;
     private readonly AiBenchmarkStateStore _stateStore;
@@ -17,13 +17,13 @@ public sealed class HardwareBenchmarkService
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public HardwareBenchmarkService(
-        LlamaInferenceService llama,
+        IAiEngineRoom engineRoom,
         AiSettings settings,
         GpuBackendDetector gpuDetector,
         AiBenchmarkStateStore stateStore,
         ILogger<HardwareBenchmarkService> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _settings = settings;
         _gpuDetector = gpuDetector;
         _stateStore = stateStore;
@@ -34,7 +34,16 @@ public sealed class HardwareBenchmarkService
 
     public HardwareProfile Current => _settings.HardwareProfile;
 
-    public async Task<HardwareProfile> BenchmarkAsync(bool force = false, CancellationToken ct = default)
+    /// <summary>
+    /// Runs the benchmark when it has not run on this machine (or when forced). <paramref name="requestedBy"/> is
+    /// <see cref="AiCallerKind.Person"/> when someone asked for it and <see cref="AiCallerKind.LibraryBackground"/> for the
+    /// automatic run after start-up. Throws <see cref="AiRequestDeferredException"/> without recording anything when a
+    /// background run finds the machine busy, so the caller can try again later.
+    /// </summary>
+    public async Task<HardwareProfile> BenchmarkAsync(
+        bool force = false,
+        AiCallerKind requestedBy = AiCallerKind.LibraryBackground,
+        CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -49,6 +58,31 @@ public sealed class HardwareBenchmarkService
                 return profile;
             }
 
+            // The test runs first so a deferred background run leaves the stored profile untouched.
+            string? result = null;
+            Exception? failure = null;
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                const string prompt = "Write a detailed paragraph about the history of libraries, including at least five key facts:";
+                var caller = new AiCaller(requestedBy, AiCallerIds.HardwareBenchmark);
+                result = await _engineRoom.WriteTextOrThrowAsync(caller, AiAbility.WriteTextQuick, prompt, ct: ct)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (AiRequestDeferredException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            sw.Stop();
             profile.MachineFingerprint = fingerprint;
             profile.Backend = detected.Backend;
             profile.GpuName = detected.GpuName;
@@ -58,13 +92,8 @@ public sealed class HardwareBenchmarkService
             profile.FailureCode = null;
             profile.FailureMessage = null;
 
-            try
+            if (failure is null)
             {
-                const string prompt = "Write a detailed paragraph about the history of libraries, including at least five key facts:";
-                var sw = Stopwatch.StartNew();
-                var result = await _llama.InferAsync(AiModelRole.TextFast, prompt, ct: ct).ConfigureAwait(false);
-                sw.Stop();
-
                 // Empty output is a completed zero-throughput measurement, not an execution failure.
                 var estimatedTokens = string.IsNullOrEmpty(result) ? 0 : Math.Max(1, (int)(result.Length / 3.5));
                 var throughput = estimatedTokens == 0
@@ -82,18 +111,14 @@ public sealed class HardwareBenchmarkService
                     throughput,
                     profile.Tier);
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
+            else
             {
                 profile.Outcome = AiBenchmarkOutcomes.Failed;
                 profile.TokensPerSecond = null;
                 profile.Tier = "auto";
                 profile.FailureCode = "benchmark_execution_failed";
-                profile.FailureMessage = ex.Message;
-                _logger.LogWarning(ex, "AI benchmark execution failed");
+                profile.FailureMessage = failure.Message;
+                _logger.LogWarning(failure, "AI benchmark execution failed");
             }
 
             _stateStore.Save(profile);
