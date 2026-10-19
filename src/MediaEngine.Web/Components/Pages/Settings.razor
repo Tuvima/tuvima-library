@@ -157,7 +157,7 @@ else
                             case SettingsSection.AdminOverview:
                                 @if (_activeSubsection == SettingsNav.LogsSubsection)
                                 {
-                                    <LogsPage Tab="@LogsTab" />
+                                    <LogsPage Tab="@LogsTab" Filter="@LogsFilter" />
                                 }
                                 else
                                 {
@@ -259,6 +259,7 @@ else
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
+    [SupplyParameterFromQuery(Name = "filter")] public string? LogsFilter { get; set; }
 
     /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
     [SupplyParameterFromQuery(Name = "scope")] public string? ActivityScope { get; set; }
@@ -865,7 +866,7 @@ else
             ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
             : "Password, email and extra protection.",
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
-            ? "The Engine's technical log, and how long logs are kept."
+            ? "What the Library did, the Engine's technical log, and how long logs are kept."
             : "How this server is doing: its version, processor, memory and storage.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",

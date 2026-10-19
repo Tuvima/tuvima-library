@@ -26,7 +26,8 @@ public sealed class ViewLibraryService(
     IFFmpegService? ffmpeg = null,
     IMediaOperationRepository? operations = null,
     DocumentOcrQueue? ocrQueue = null,
-    DocumentRulesQueue? rulesQueue = null) : IViewPathIndexer
+    DocumentRulesQueue? rulesQueue = null,
+    PersonalMediaActivityRecorder? activityRecorder = null) : IViewPathIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -171,6 +172,12 @@ public sealed class ViewLibraryService(
                     errors++;
                 }
             }
+        }
+
+        if (activityRecorder is not null)
+        {
+            // A finished scan writes what it added straight away instead of waiting out the quiet period.
+            await activityRecorder.FlushAsync(libraryId, ct);
         }
 
         return new LocalAssetScanResultDto(
@@ -323,6 +330,14 @@ public sealed class ViewLibraryService(
             MediaKinds: mediaKind is null ? null : [mediaKind],
             IncludeHidden: true), ct).Total;
 
+    // The library's name as the person sees it ("Family photos"), read from the libraries configuration.
+    private string LibraryDisplayName(ViewPersonalSpace space)
+    {
+        var library = configuration.LoadLibraries().Libraries
+            .FirstOrDefault(candidate => Guid.TryParse(candidate.Id, out var id) && id == space.LibraryId);
+        return string.IsNullOrWhiteSpace(library?.Name) ? "your personal library" : library.Name;
+    }
+
     private async Task<LocalAssetUpsertResult> IndexGroupAsync(
         ViewPersonalSpace space,
         ViewSource source,
@@ -379,6 +394,13 @@ public sealed class ViewLibraryService(
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
         await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        if (upserted.ItemAdded && activityRecorder is not null
+            && group.Primary.Type.MediaKind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
+        {
+            // Photos and personal videos reach the Activity log as one count per library, never one row per file.
+            activityRecorder.Record(space.LibraryId, () => LibraryDisplayName(space), group.Primary.Type.MediaKind == LocalAssetMediaKinds.Video);
+        }
+
         if (upserted.ItemAdded && rulesQueue is not null && group.Primary.Type.MediaKind == LocalAssetMediaKinds.Document)
         {
             // A new document waits in the Inbox: rules on its name, folder, source and kind apply at once, and the

@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
-| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19) |
+| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1, WP9 and WP12 built) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0, U-WP1 started 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
@@ -45,6 +45,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Doc | Status |
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions

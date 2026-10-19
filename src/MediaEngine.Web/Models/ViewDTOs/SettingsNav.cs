@@ -150,7 +150,7 @@ public static class SettingsNav
     /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
-    /// <summary>The Logs sub-page of System: technical log and retention (server administrators only).</summary>
+    /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>
     public const string LogsSubsection = "logs";
 
     /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
@@ -739,6 +739,16 @@ public static class SettingsNav
         }
 
         return $"{SectionRouteFor(section)}/{subsection.Slug}";
+    }
+
+    /// <summary>
+    /// The address of the Events tab of System &gt; Logs (the Activity log), optionally opened on one filter
+    /// (<c>added</c>, <c>review</c>, <c>failed</c> or <c>system</c>; no filter means All). Every link to the log is built here.
+    /// </summary>
+    public static string ActivityLogRoute(string? filter = null)
+    {
+        var route = $"{RouteFor(SettingsSection.AdminOverview, LogsSubsection)}?tab=events";
+        return string.IsNullOrWhiteSpace(filter) ? route : $"{route}&filter={Uri.EscapeDataString(filter)}";
     }
 
     public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool householdAdministrator = false)

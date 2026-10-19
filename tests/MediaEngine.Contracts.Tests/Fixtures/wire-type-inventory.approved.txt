@@ -130,6 +130,19 @@
   OccurredAt: System.DateTimeOffset? | json=occurred_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"kind":"sample","label":"sample","value":"sample","provider_id":"sample","source":"sample","detail":"sample","occurred_at":"2025-01-02T03:04:05+00:00"}
 
+[contracts] MediaEngine.Contracts.Activity.ActivityLogEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Int64 | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OccurredAt: System.DateTimeOffset | json=occurred_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Category: System.String | json=category | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Count: System.Int32? | json=count | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Route: System.String | json=route | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":7,"occurred_at":"2025-01-02T03:04:05+00:00","category":"sample","kind":"sample","title":"sample","detail":"sample","media_type":"sample","count":7,"route":"sample"}
+
 [contracts] MediaEngine.Contracts.Activity.ActivityMediaTypeCountDto
   kind=class | converter=default | number-handling=default | unmapped=default
   MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no

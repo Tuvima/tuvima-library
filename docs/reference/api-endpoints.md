@@ -542,6 +542,7 @@ clients should use that contract value rather than derive pressure from labels.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/activity/recent` | Recent system activity entries, newest first | Required |
+| GET | `/activity/log?category=&search=&offset=&limit=` | The Activity log (the Events part of System > Logs): one page of plain-worded events, newest first, as `PagedResponse<ActivityLogEntryDto>` with `total_count`. `category` is `added`, `review`, `failed`, `system` or `all` (the default; unknown means all). `search` matches names and details. `limit` defaults to 50 (max 250). Each entry has `id`, `occurred_at`, `category`, `kind`, `title`, `detail`, `media_type`, `count` (photos and personal videos arrive as one count row) and `route`. Needs `system.activity.read` | Required |
 | POST | `/activity/prune` | Prune now with the Logs page retention rule: entries older than `activity_retention_days`, then the oldest entries past `activity_max_events`. Returns `deleted` (both together) and `retention_days` | Administrator |
 | GET | `/activity/stats` | Aggregated activity statistics - counts by type and outcome | Required |
 | GET | `/activity/by-types` | Filter activity log by one or more activity type codes | Required |

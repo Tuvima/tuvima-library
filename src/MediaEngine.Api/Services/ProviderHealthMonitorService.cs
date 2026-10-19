@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -22,6 +24,7 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
     private readonly ILogger<ProviderHealthMonitorService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfigurationLoader _configLoader;
+    private readonly ISystemActivityRepository _activity;
 
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
 
@@ -40,7 +43,8 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         IEventPublisher events,
         ILogger<ProviderHealthMonitorService> logger,
         IServiceScopeFactory scopeFactory,
-        IConfigurationLoader configLoader)
+        IConfigurationLoader configLoader,
+        ISystemActivityRepository activity)
     {
         _repo = repo;
         _httpClientFactory = httpClientFactory;
@@ -48,6 +52,7 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         _logger = logger;
         _scopeFactory = scopeFactory;
         _configLoader = configLoader;
+        _activity = activity;
     }
 
     // ── IProviderHealthMonitor implementation ────────────────────
@@ -62,6 +67,8 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         {
             _logger.LogInformation("Provider {Provider} recovered — queueing recovery flush", providerId);
             _recoveryQueue.Enqueue(providerId);
+
+            await RecordProviderActivityAsync(SystemActionType.ProviderRecovered, providerId, reason: null, ct);
 
             // Notify Dashboard.
             await _events.PublishAsync(
@@ -93,6 +100,8 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         // Notify Dashboard on transition to Down.
         if (newStatus == ProviderHealthStatus.Down && previousStatus != ProviderHealthStatus.Down)
         {
+            await RecordProviderActivityAsync(SystemActionType.ProviderDown, providerId, reason, ct);
+
             await _events.PublishAsync(
                 SignalREvents.ProviderStatusChanged,
                 new ProviderStatusChangedEvent(
@@ -100,6 +109,27 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
                     "Down",
                     $"{providerId} is unreachable"),
                 ct);
+        }
+    }
+
+    // One Activity log row per change of state, named with the provider's display name. A failed write is logged and
+    // never changes how the provider's health is tracked.
+    private async Task RecordProviderActivityAsync(string actionType, string providerId, string? reason, CancellationToken ct)
+    {
+        try
+        {
+            var displayName = _configLoader.LoadProvider(providerId)?.DisplayName;
+            await _activity.LogAsync(new SystemActivityEntry
+            {
+                ActionType = actionType,
+                EntityType = "Provider",
+                CollectionName = string.IsNullOrWhiteSpace(displayName) ? providerId : displayName,
+                ChangesJson = JsonSerializer.Serialize(new { provider_id = providerId, reason }),
+            }, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "The Activity log could not be told that provider {Provider} changed state", providerId);
         }
     }
 

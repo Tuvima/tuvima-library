@@ -1,8 +1,11 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using Microsoft.Extensions.Hosting;
@@ -31,6 +34,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
     private readonly Func<string, string?> _readEnvironment;
     private readonly TimeProvider _time;
     private readonly IToolInstallerService? _installer;
+    private readonly ISystemActivityRepository? _activity;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private ToolRequirementsDto? _last;
 
@@ -46,7 +50,8 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         ILogger<ToolRequirementsService> logger,
         Func<string, string?>? readEnvironment = null,
         TimeProvider? time = null,
-        IToolInstallerService? installer = null)
+        IToolInstallerService? installer = null,
+        ISystemActivityRepository? activity = null)
     {
         _ffmpeg = ffmpeg;
         _ocr = ocr;
@@ -60,6 +65,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         _readEnvironment = readEnvironment ?? Environment.GetEnvironmentVariable;
         _time = time ?? TimeProvider.System;
         _installer = installer;
+        _activity = activity;
     }
 
     /// <summary>
@@ -83,7 +89,9 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         try
         {
             var (result, availability) = await BuildAsync(ct).ConfigureAwait(false);
+            var previous = Volatile.Read(ref _last);
             Volatile.Write(ref _last, result);
+            await RecordChangesAsync(previous, result, ct).ConfigureAwait(false);
             // Inside the gate, so two checks can never tell the listeners out of order. The token belongs to the Engine,
             // not to the request that asked, so a closed browser tab never cuts off work the listeners start.
             await NotifyListenersAsync(availability, _lifetime.ApplicationStopping).ConfigureAwait(false);
@@ -92,6 +100,78 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         finally
         {
             _gate.Release();
+        }
+    }
+
+    // ── What the Activity log hears about tools ──────────────────────────────
+
+    /// <summary>
+    /// Tells the Activity log when a tool goes missing or comes back. The first check reports only the Required tools that
+    /// are not ready; later checks report each change, so a tool that stays missing is written once, not every check.
+    /// A failed write is logged and never fails the check.
+    /// </summary>
+    private async Task RecordChangesAsync(ToolRequirementsDto? previous, ToolRequirementsDto current, CancellationToken ct)
+    {
+        if (_activity is null)
+        {
+            return;
+        }
+
+        // Smooth streaming follows FFmpeg: while FFmpeg is not ready, or has only just come back, FFmpeg's own entry says it.
+        static bool FfmpegReady(ToolRequirementsDto? result) =>
+            result is null || result.Tools.Any(tool => tool.Id == ToolRequirementIds.Ffmpeg && tool.State == ToolRequirementStates.Ready);
+        var followFfmpeg = FfmpegReady(current) && FfmpegReady(previous);
+        foreach (var row in current.Tools.Where(tool => tool.Kind != "ai_model"
+            && (followFfmpeg || tool.Id != ToolRequirementIds.AdaptiveStreaming)))
+        {
+            var isBad = row.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem;
+            string? actionType = null;
+            if (previous is null)
+            {
+                if (isBad && row.Requirement == ToolRequirementLevels.Required)
+                {
+                    actionType = SystemActionType.ToolMissing;
+                }
+            }
+            else
+            {
+                var before = previous.Tools.FirstOrDefault(tool => tool.Id == row.Id);
+                if (before is not null)
+                {
+                    var wasBad = before.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem;
+                    if (isBad && before.State == ToolRequirementStates.Ready)
+                    {
+                        actionType = SystemActionType.ToolMissing;
+                    }
+                    else if (wasBad && row.State == ToolRequirementStates.Ready)
+                    {
+                        actionType = SystemActionType.ToolFound;
+                    }
+                }
+            }
+
+            if (actionType is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                await _activity.LogAsync(new SystemActivityEntry
+                {
+                    ActionType = actionType,
+                    EntityType = "Tool",
+                    CollectionName = row.Name,
+                    Detail = actionType == SystemActionType.ToolMissing
+                        ? row.Effect
+                        : string.IsNullOrWhiteSpace(row.Version) ? "It's ready." : $"Version {row.Version} is ready.",
+                    ChangesJson = JsonSerializer.Serialize(new { tool_id = row.Id, tool = row.Name, state = row.State }),
+                }, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "The Activity log could not be told about {Tool}.", row.Id);
+            }
         }
     }
 

@@ -504,15 +504,7 @@ public sealed class StageOutcomeFactory
         Guid? ingestionRunId,
         CancellationToken ct)
     {
-        await _activityRepo.LogAsync(new SystemActivityEntry
-        {
-            ActionType = SystemActionType.ReviewItemCreated,
-            EntityId = entry.EntityId,
-            Detail = $"Review item created: {entry.Trigger}",
-            IngestionRunId = ingestionRunId,
-        }, ct).ConfigureAwait(false);
-
-        // Resolve title for the SignalR event payload.
+        // Resolve the title first: it names the entry in the Activity log and fills the SignalR event payload.
         string? titleText = null;
         try
         {
@@ -525,6 +517,15 @@ public sealed class StageOutcomeFactory
         {
             _logger.LogDebug(ex, "Could not resolve title for review event {ReviewId}", entry.Id);
         }
+
+        await _activityRepo.LogAsync(new SystemActivityEntry
+        {
+            ActionType = SystemActionType.ReviewItemCreated,
+            CollectionName = titleText,
+            EntityId = entry.EntityId,
+            Detail = $"Review item created: {entry.Trigger}",
+            IngestionRunId = ingestionRunId,
+        }, ct).ConfigureAwait(false);
 
         await _eventPublisher.PublishAsync(
             SignalREvents.ReviewItemCreated,

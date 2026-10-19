@@ -270,6 +270,65 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
     }
 
     /// <inheritdoc/>
+    public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(
+        IReadOnlyList<string> actionTypes,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actionTypes);
+        ArgumentOutOfRangeException.ThrowIfNegative(offset);
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+
+        if (actionTypes.Count == 0)
+        {
+            return Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>(([], 0));
+        }
+
+        var parameters = new DynamicParameters();
+        parameters.Add("types", actionTypes.ToArray());
+        parameters.Add("limit", limit);
+        parameters.Add("offset", offset);
+
+        var searchClause = string.Empty;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            parameters.Add("q", "%" + EscapeLike(search.Trim()) + "%");
+            searchClause = """
+                  AND  (collection_name LIKE @q ESCAPE '\'
+                        OR detail LIKE @q ESCAPE '\')
+                """;
+        }
+
+        using var conn = _db.CreateConnection();
+        var total = conn.ExecuteScalar<int>(
+            $"SELECT COUNT(*) FROM system_activity WHERE action_type IN @types{searchClause};",
+            parameters);
+
+        var items = conn.Query<SystemActivityEntry>($"""
+            SELECT id             AS Id,
+                   occurred_at    AS OccurredAt,
+                   action_type    AS ActionType,
+                   collection_name       AS CollectionName,
+                   entity_id      AS EntityId,
+                   entity_type    AS EntityType,
+                   profile_id     AS ProfileId,
+                   changes_json   AS ChangesJson,
+                   detail         AS Detail,
+                   ingestion_run_id AS IngestionRunId
+            FROM   system_activity
+            WHERE  action_type IN @types{searchClause}
+            ORDER BY occurred_at DESC, id DESC
+            LIMIT  @limit OFFSET @offset;
+            """,
+            parameters)
+            .AsList();
+
+        return Task.FromResult<(IReadOnlyList<SystemActivityEntry>, int)>((items, total));
+    }
+
+    /// <inheritdoc/>
     public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(
         Guid profileId,
         int limit = 50,

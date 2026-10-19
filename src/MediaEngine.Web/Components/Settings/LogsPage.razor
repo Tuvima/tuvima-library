@@ -1,9 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 
-@* System > Logs (settings revamp D38): the Engine's technical log and how long logs are kept, as in-page sections.
-   The Events section (the readable activity log) is not here yet: see the packet report. *@
+@* System > Logs (settings revamp D38, ingestion WP12): the Events log (what was added, what needs review, what failed and what
+   the system did), the Engine's technical log, how long logs are kept, and the export, as in-page sections. *@
 <div class="tl-page logs-page">
     <AppTabs @bind-ActivePanelIndex="_tab" Label="Logs sections">
+        <AppTabPanel Text="Events">
+            <ActivityLogPanel Filter="@Filter" />
+        </AppTabPanel>
         <AppTabPanel Text="Technical log">
             <TechnicalLogPanel />
         </AppTabPanel>
@@ -17,8 +20,11 @@
 </div>
 
 @code {
-    /// <summary>Which section opens first: <c>technical</c> (the default), <c>retention</c> or <c>export</c>.</summary>
+    /// <summary>Which section opens first: <c>events</c> (the default), <c>technical</c>, <c>retention</c> or <c>export</c>.</summary>
     [Parameter] public string? Tab { get; set; }
+
+    /// <summary>Which filter the Events section opens on: <c>added</c>, <c>review</c>, <c>failed</c>, <c>system</c> or <c>all</c> (the default).</summary>
+    [Parameter] public string? Filter { get; set; }
 
     private int _tab;
     private string? _openedWith;
@@ -34,8 +40,9 @@
         _openedWith = Tab;
         _tab = Tab?.ToLowerInvariant() switch
         {
-            "retention" => 1,
-            "export" => 2,
+            "technical" => 1,
+            "retention" => 2,
+            "export" => 3,
             _ => 0,
         };
     }

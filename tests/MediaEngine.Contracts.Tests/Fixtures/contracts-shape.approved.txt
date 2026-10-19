@@ -109,6 +109,19 @@ MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityEvidenceDt
   Detail: System.String | nullability=nullable | accessors=get,set
   OccurredAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityLogCategoryValues
+
+MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityLogEntryDto
+  Id: System.Int64 | nullability=not-null | accessors=get,set
+  OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  Category: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=nullable | accessors=get,set
+  MediaType: System.String | nullability=nullable | accessors=get,set
+  Count: System.Int32? | nullability=nullable | accessors=get,set
+  Route: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.ActivityMediaTypeCountDto
   MediaType: System.String | nullability=not-null | accessors=get,set
   Count: System.Int32 | nullability=not-null | accessors=get,set

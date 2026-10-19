@@ -14,7 +14,7 @@ Rules:
 - After a rename or move, Grep for the old name/path and report every remaining reference (fix them only if the packet says to).
 
 Verify:
-- Code or config touched: `dotnet build MediaEngine.slnx --no-restore` (0 errors, 0 warnings) and the test project the packet names.
+- Code or config touched: `dotnet build MediaEngine.slnx --no-restore` (0 errors, 0 warnings) and the test project the packet names. If binaries are locked, run `pwsh -File tools/Stop-WorktreeDotnet.ps1` (this checkout only) and report anything still locked; never kill every `dotnet.exe`.
 - Docs touched under `docs/` or `website/`: `cd website && npm run check` (or `pwsh -File scripts/docs/build-docs.ps1` if the packet asks).
 - Links touched: confirm each relative link target exists.
 
