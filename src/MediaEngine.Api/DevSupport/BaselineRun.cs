@@ -372,8 +372,9 @@ public static partial class BaselineRun
             engine.BeginOutputReadLine();
             engine.BeginErrorReadLine();
 
-            await Task.Delay(TimeSpan.FromSeconds(8)).ConfigureAwait(false);
-            if (!engine.HasExited)
+            // Started means answering on its port. On a busy machine a duplicate launch can take longer than any fixed
+            // wait to notice the lease and exit, so wait for one or the other.
+            if (await WaitUntilAnsweringAsync(engine, port).ConfigureAwait(false))
             {
                 return (engine, port);
             }
@@ -394,6 +395,39 @@ public static partial class BaselineRun
             Console.WriteLine($"Another Tuvima Engine holds the process lease; retrying in 30 s (attempt {attempt} of {EngineLeaseAttempts}).");
             await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>True once the Engine answers <c>/health/live</c>; false when it exits first. Gives up after ten minutes.</summary>
+    private static async Task<bool> WaitUntilAnsweringAsync(Process engine, int port)
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var deadline = DateTimeOffset.UtcNow.AddMinutes(10);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (engine.HasExited)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var response = await client.GetAsync($"http://127.0.0.1:{port}/health/live").ConfigureAwait(false);
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                // Not listening yet: keep waiting while the process is alive.
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+        }
+
+        // The caller never receives this process, so stop it here rather than leave it running.
+        StopEngine(engine);
+        throw new TimeoutException($"The Engine (PID {engine.Id}) neither answered on port {port} nor exited within ten minutes.");
     }
 
     private static void StopEngine(Process engine)
