@@ -1,6 +1,6 @@
 # Spec: Library list speed
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 1–2, fix options A, B, C) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** In progress (locked by Shy 2026-10-19, with Q1 answered yes) · **Version:** 2 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 1–2, fix options A, B, C) · [Benchmarks README](../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -13,7 +13,7 @@ The library list opens in about 1–2 seconds at 4,000 works instead of 13–22 
 - The list returns its total and its page from one read instead of two full reads (option B).
 - Guardrail tests that measure the list's work at 4,000 and 8,000 works, unfiltered and for one media type (option C).
 - The benchmark seeder marks its items Ready, so Home and detail benchmarks measure real rows again.
-- Optional, pending Q1: remove a duplicate index on the stored-values table.
+- Remove a duplicate index on the stored-values table (D8).
 
 **Out of scope**
 - Home and the item detail page (report causes 3 and 4, options D and E). These get their own spec next, with their own guardrails.
@@ -31,6 +31,7 @@ The library list opens in about 1–2 seconds at 4,000 works instead of 13–22 
 - **D5. Guardrails use their own small fixture.** The test project seeds its own library shape (books, audiobooks, movies, TV shows with seasons and episodes, albums with tracks, credits on shows, albums and files, all marked Ready) rather than depending on the benchmark tool. Budgets are set from the fixed code's measured cost on that fixture, with about 50% headroom, and the measured number is written beside the budget.
 - **D6. The benchmark seeder marks items Ready**, matching a fully processed real library. Without it, Home and detail return nothing on seeded data and look healthy when they are not.
 - **D7. Other readers that share the list's projection benefit automatically.** The same building block also feeds the library item detail read and the library overview counts. They get the faster look-ups with no other change.
+- **D8. Remove the duplicate index (Q1, Shy 2026-10-19).** The index that repeats the stored-values table's main key is removed in this spec (WP4).
 
 ## 4. UI behaviour
 
@@ -49,11 +50,11 @@ Nothing changes on screen except speed.
 
 None for the list fixes: no new stored information, no reset, no re-ingest.
 
-If Shy says yes to Q1, one data store upgrade step removes an index that exactly repeats the main key of the stored-values table. Existing libraries get it automatically at the next start. Nothing is lost; writes get a little cheaper and the data store file a little smaller.
+One data store upgrade step (D8) removes an index that exactly repeats the main key of the stored-values table. Existing libraries get it automatically at the next start. Nothing is lost; writes get a little cheaper and the data store file a little smaller.
 
 ## 6. Work packets
 
-Wave 1: WP1 and WP3 together. Wave 2: WP2 and (if Q1 is yes) WP4 together. Then the reviewer and the full restore/build/test.
+Wave 1: WP1 and WP3 together. Wave 2: WP2 and WP4 together. Then the reviewer and the full restore/build/test.
 
 ### WP1 — Credit look-ups and one-read paging
 - **What it does:**
@@ -97,7 +98,7 @@ Wave 1: WP1 and WP3 together. Wave 2: WP2 and (if Q1 is yes) WP4 together. Then 
 - **Size:** Mechanical
 - **Done when:** after `seed --scale projection`, `SELECT COUNT(*) FROM works WHERE ready_at IS NULL` returns 0, and the harness's Home probe returns rows (not 0).
 
-### WP4 — Drop the duplicate index (only if Q1 is yes)
+### WP4 — Drop the duplicate index (D8)
 - **What it does:** add upgrade step `0013_drop_duplicate_canonical_values_index.sql` containing `DROP INDEX IF EXISTS idx_canonical_values_entity_key;`; remove the index from `schema.snapshot.sql`; register the step wherever the upgrade guardrails require (`released-steps.txt` and `DataStoreUpgradeCatalog` per the numbered-upgrade rules). No epoch bump: removing an index needs no reset.
 - **Files likely touched:** `src/MediaEngine.Storage/Schema/Upgrades/0013_drop_duplicate_canonical_values_index.sql` (new), `src/MediaEngine.Storage/Schema/schema.snapshot.sql`, `src/MediaEngine.Storage/Schema/Upgrades/released-steps.txt`, `docs/reference/database-schema.md` if it lists the index
 - **Depends on:** none (scheduled in wave 2 to keep wave 1 to two packets)
@@ -111,5 +112,11 @@ Wave 1: WP1 and WP3 together. Wave 2: WP2 and (if Q1 is yes) WP4 together. Then 
   - *Totals drift on edge pages.* D3's fallback count covers the empty-page case; WP1 tests it.
   - *Budgets too tight or too loose.* Too tight fails on harmless changes; too loose misses a slow-down. The growth check (D4) is the main protection and does not depend on the exact budget.
   - *Expected speed is measured on a loaded desktop.* The 1–2 s figure is from the report's processor-time numbers; the guardrails track operation counts, which do not vary.
-- **Open questions:**
-  - **Q1. Remove the duplicate index now?** One index on the stored-values table repeats that table's main key, so it costs write time and disk space and helps no read. Options: (a) remove it in this spec as WP4, a small data store upgrade that existing libraries apply at next start with no reset; (b) leave it for a later tidy-up. **Recommendation: (a)**: it is low risk, measured as unused, and fits the "best long-term fix before beta" rule.
+- **Open questions:** none open.
+  - **Q1 (answered: yes, see D8). Remove the duplicate index now?** One index on the stored-values table repeats that table's main key, so it costs write time and disk space and helps no read. Options: (a) remove it in this spec as WP4, a small data store upgrade that existing libraries apply at next start with no reset; (b) leave it for a later tidy-up. **Recommendation: (a)**: it is low risk, measured as unused, and fits the "best long-term fix before beta" rule.
+
+## 8. Gaps and drift
+
+- **Built and matches the spec:** WP1 to WP4. On the benchmark library (4,000 works, all Ready) every row, total, sampled detail page and overview count is byte-identical before and after (one SHA-256 over 4,451 lines of output). Measured through the production code on a busy desktop: unfiltered first page 22.5 s → 1.1 s, all 4,000 rows 27.4 s → 1.3 s, Movies 3.2 s → 0.5 s. On the guardrail library the unfiltered first page does 12.8 million operations (was 2,865 million) and grows exactly 2.00× when the library doubles (was 3.98×). With the old look-ups put back, all four guardrails fail.
+- **Built differently (what changed):** the guardrail library lives in its own fixture (`LibraryListFixture`) rather than as a seed method on the existing large-library fixture, because each size needs its own data store. The benchmark's Entity Framework comparison copy of the list read was updated to the same one-read paging, so the comparison stays like for like.
+- **Found while building, not in scope:** an audiobook with no original year of its own borrows the matching book's year through a look-up that reads the whole-library credits list for each such audiobook. That cost still grows with the square of the library (3.9× per doubling on the guardrail library). It is shared with Home and detail, so it belongs with the Home speed work. The guardrail library gives its audiobooks their own year, as the benchmark library does, and says so beside the budgets.

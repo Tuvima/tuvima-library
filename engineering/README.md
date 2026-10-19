@@ -28,7 +28,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1, WP2, WP3, WP4, WP5, WP6, WP9 and WP12 built) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19) |
-| [Spec: Library list speed](specs/library-list-speed.md) | Draft (v1, 2026-10-19; from the slow-reads report, options A, B, C) |
+| [Spec: Library list speed](specs/library-list-speed.md) | In progress (v2, locked 2026-10-19) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
 | [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
