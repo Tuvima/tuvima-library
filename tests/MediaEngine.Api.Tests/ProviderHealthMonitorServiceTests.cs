@@ -1,6 +1,7 @@
 using System.Net;
 using MediaEngine.Api.Services;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -22,6 +23,7 @@ public sealed class ProviderHealthMonitorServiceTests : IDisposable
     private readonly ConfigurationDirectoryLoader _loader;
     private readonly InMemoryHealthRepository _repo = new();
     private readonly ProbeHandler _handler = new(HttpStatusCode.OK);
+    private readonly RecordingActivityLog _activity = new();
 
     public ProviderHealthMonitorServiceTests()
     {
@@ -169,6 +171,72 @@ public sealed class ProviderHealthMonitorServiceTests : IDisposable
         Assert.False(service.IsDown("alpha"));
     }
 
+    [Fact]
+    public async Task ProviderGoingDown_WritesOneProviderDownRow_AndRepeatedFailuresWhileDownWriteNone()
+    {
+        AddProvider("alpha", new Dictionary<string, string>(), displayName: "Alpha Movies");
+        var service = CreateService();
+
+        await service.ReportFailureAsync("alpha", "timeout");
+        await service.ReportFailureAsync("alpha", "timeout");
+        Assert.Empty(_activity.Entries);
+
+        await service.ReportFailureAsync("alpha", "HTTP 503");
+        await service.ReportFailureAsync("alpha", "HTTP 503");
+        await service.ReportFailureAsync("alpha", "HTTP 503");
+
+        var row = Assert.Single(_activity.Entries);
+        Assert.Equal(SystemActionType.ProviderDown, row.ActionType);
+        Assert.Equal("Alpha Movies", row.CollectionName);
+        Assert.Equal("Provider", row.EntityType);
+        Assert.Contains("\"provider_id\":\"alpha\"", row.ChangesJson, StringComparison.Ordinal);
+        Assert.Contains("\"reason\":\"HTTP 503\"", row.ChangesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProviderComingBack_WritesOneProviderRecoveredRow_NamedWithItsDisplayName()
+    {
+        AddProvider("alpha", new Dictionary<string, string>(), displayName: "Alpha Movies");
+        _repo.Seed(Down("alpha", nextCheckAt: null));
+        var service = CreateService();
+        await service.RefreshCacheAsync(CancellationToken.None);
+
+        await service.ReportSuccessAsync("alpha");
+        await service.ReportSuccessAsync("alpha");
+
+        var row = Assert.Single(_activity.Entries);
+        Assert.Equal(SystemActionType.ProviderRecovered, row.ActionType);
+        Assert.Equal("Alpha Movies", row.CollectionName);
+    }
+
+    [Fact]
+    public async Task ProviderWithoutAConfigDisplayName_IsNamedWithItsId()
+    {
+        var service = CreateService();
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await service.ReportFailureAsync("unconfigured", "timeout");
+        }
+
+        Assert.Equal("unconfigured", Assert.Single(_activity.Entries).CollectionName);
+    }
+
+    [Fact]
+    public async Task ProviderGoingDown_StillTracksItsHealth_WhenTheActivityLogCannotBeWritten()
+    {
+        AddProvider("alpha", new Dictionary<string, string>());
+        _activity.Fail = true;
+        var service = CreateService();
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            await service.ReportFailureAsync("alpha", "timeout");
+        }
+
+        Assert.Equal(ProviderHealthStatus.Down, service.GetStatus("alpha"));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private ProviderHealthMonitorService CreateService() => new(
@@ -177,13 +245,14 @@ public sealed class ProviderHealthMonitorServiceTests : IDisposable
         new NullEvents(),
         NullLogger<ProviderHealthMonitorService>.Instance,
         new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
-        _loader);
+        _loader,
+        _activity);
 
-    private void AddProvider(string name, Dictionary<string, string> endpoints) =>
+    private void AddProvider(string name, Dictionary<string, string> endpoints, string? displayName = null) =>
         _loader.SaveProvider(new ProviderConfiguration
         {
             Name = name,
-            DisplayName = name,
+            DisplayName = displayName ?? name,
             ProviderId = Guid.NewGuid().ToString(),
             Enabled = true,
             Endpoints = endpoints,

@@ -504,6 +504,9 @@ public sealed class AiRuntimeSafetyTests
         public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(IReadOnlyList<string> actionTypes, string? search, int offset, int limit, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     private sealed class GatedHttpClientFactory(byte[] payload) : IHttpClientFactory

@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ public sealed class WorkReadinessServiceTests : IDisposable
     private readonly string _dbPath;
     private readonly DatabaseConnection _db;
     private readonly RecordingPublisher _publisher = new();
+    private readonly SystemActivityRepository _activity;
     private readonly ListLogger _logger = new();
     private readonly StubBypassLibraries _bypass = new();
     private readonly WorkReadinessService _service;
@@ -24,7 +26,8 @@ public sealed class WorkReadinessServiceTests : IDisposable
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();
-        _service = new WorkReadinessService(new WorkReadinessRepository(_db), _bypass, _publisher, TimeProvider.System, _logger);
+        _activity = new SystemActivityRepository(_db);
+        _service = new WorkReadinessService(new WorkReadinessRepository(_db), _bypass, _publisher, _activity, TimeProvider.System, _logger);
     }
 
     public void Dispose()
@@ -186,6 +189,43 @@ public sealed class WorkReadinessServiceTests : IDisposable
 
         var added = Assert.IsType<MediaAddedEvent>(Assert.Single(_publisher.Published).Payload);
         Assert.Equal(workId, added.WorkId);
+    }
+
+    [Fact]
+    public async Task ANewlyReadyWork_WritesExactlyOneAddedRow_EvenWhenTheFirstPublishFailsAndIsRetried()
+    {
+        var (workId, assetId) = SeedBook("Dune");
+        SetJob(assetId, "Queued", DateTimeOffset.UtcNow.AddSeconds(-10));
+        SetCanonical(assetId, "cover_state", "present");
+        await _service.BackfillAsync(CancellationToken.None);
+        _publisher.FailTimes = 2;
+
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
+        await _service.PollAsync(CancellationToken.None);
+        await _service.PollAsync(CancellationToken.None);
+        await _service.PollAsync(CancellationToken.None);
+        await _service.SweepAsync(CancellationToken.None);
+
+        Assert.Single(_publisher.Published);
+        var rows = await _activity.GetRecentByTypesAsync([SystemActionType.MediaAdded]);
+        var row = Assert.Single(rows);
+        Assert.Equal("Dune", row.CollectionName);
+        Assert.Equal(workId, row.EntityId);
+        Assert.Equal("Work", row.EntityType);
+        Assert.Equal("Added", row.Detail);
+        Assert.Contains("\"media_type\":\"Books\"", row.ChangesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BackfillingWorksThatAreAlreadyReady_WritesNoAddedRows()
+    {
+        var (_, assetId) = SeedBook("Existing");
+        SetJob(assetId, "Ready", DateTimeOffset.UtcNow);
+        SetCanonical(assetId, "cover_state", "present");
+
+        await _service.BackfillAsync(CancellationToken.None);
+
+        Assert.Empty(await _activity.GetRecentByTypesAsync([SystemActionType.MediaAdded]));
     }
 
     [Fact]
