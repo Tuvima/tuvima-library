@@ -175,8 +175,8 @@ direct-response routes.
 types. Engine endpoints map internal projections explicitly into those
 contracts, and the Dashboard may add presentation wrappers without redefining
 the JSON payload. The only frozen exception is the exact Universe/Chronicle
-SignalR pair `LoreDeltaDiscoveredEvent` and
-`UniverseEnrichmentProgressEvent`; Universe HTTP responses are not exempt.
+SignalR payload `UniverseEnrichmentProgressEvent`; Universe HTTP responses are
+not exempt.
 
 The canonical contracts intentionally include fields that existed on only one
 side of the former API/Dashboard mirror boundary. Notable examples are
@@ -487,16 +487,13 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/universes` | All narrative roots (Universes) in the library | Required |
-| GET | `/universe/{qid}` | Universe detail - Series, People, and asset counts | Required |
-| GET | `/universe/{qid}/health` | Health score - completeness, enrichment freshness, missing metadata indicators | Required |
+| GET | `/universe/{qid}` | Universe summary: label, level, and counts of the entities (all, characters, locations, organizations) and relationships visible to the caller | Required |
 | GET | `/universe/{qid}/graph` | Graph data in Cytoscape.js format for the Chronicle Explorer visualization | Required |
 | GET | `/universe/{qid}/paths` | Find shortest paths between two entities within the universe graph | Required |
 | GET | `/universe/{qid}/family-tree` | Character family tree rooted at a specified character entity | Required |
-| GET | `/universe/{qid}/cross-media` | Entities that appear across more than one media type within the universe | Required |
 | GET | `/universe/{qid}/cast` | Characters with their linked performers, including era-correct actor data | Required |
 | GET | `/universe/{qid}/adaptations` | Adaptation chain - all works derived from or adapted into each other | Required |
 | GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass | Required |
-| POST | `/universe/entity/{qid}/deep-enrich` | On-demand deep enrichment of a character/entity and its immediate neighbors | Effective administrator or precise Application permission |
 
 ---
 
@@ -698,8 +695,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
-| GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
-| POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
+| POST | `/library/enrichment/universe/trigger` | Queue a universe enrichment sweep (takes no QID) | Effective administrator or precise Application permission |
 
 ---
 
@@ -710,8 +706,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | Intercom | `/intercom` | Server -> Client | Real-time push events: ingestion progress, enrichment completion, `MediaOperationChanged`, `CapabilityStateChanged`, pipeline state changes, and review queue updates. Authentication required. Server-push only - clients do not send messages to the collection. |
 
 SignalR payloads use `MediaEngine.Contracts.Realtime` except for the exact
-frozen `LoreDeltaDiscoveredEvent` and `UniverseEnrichmentProgressEvent`
-Universe/Chronicle pair. New events and new payload fields are not covered by
+frozen Universe/Chronicle `UniverseEnrichmentProgressEvent`. New events and new payload fields are not covered by
 that exception.
 
 ---

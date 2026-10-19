@@ -293,7 +293,6 @@ used as a display fallback when the parent/run has no creator yet.
   "auto_review_confidence_threshold": 0.60,
   "max_qid_candidates": 5,
   "continue_pipeline_on_authority_failure": true,
-  "universe_title_search_auto_accept": 0.80,
   "stage2_waterfall_confidence_threshold": 0.65
 }
 ```
@@ -348,8 +347,6 @@ Three mechanisms ensure all files eventually receive Pass 2 enrichment:
 2. **Nightly sweep (safety net):** A configurable cron job scans for Pass 2 requests older than `pass2_stale_threshold_hours` that the queue has not yet processed. Runs in batches with inter-batch delay.
 
 3. **User-triggered override:** The Hydrate button in the Dashboard runs both passes synchronously via `RunSynchronousAsync`, bypassing the queue entirely for immediate results.
-
-4. **On-demand deep enrichment:** `POST /universe/entity/{qid}/deep-enrich` - triggered when a user navigates to an un-enriched entity in the Chronicle Explorer. Enqueues via `IMetadataHarvestingService`. Depth capped at 3. Returns within 2-3 seconds.
 
 ### Two-Pass Configuration (config/hydration.json additions)
 

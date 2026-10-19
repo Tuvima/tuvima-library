@@ -235,7 +235,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         // Update the work's wikidata_status to 'confirmed'.
         await _collectionRepo.UpdateWorkWikidataStatusAsync(workId, WorkWikidataStatus.Confirmed, ct);
 
-        // Trigger Universe-pass hydration so Wikidata SPARQL deep-enrichment runs.
+        // Trigger Universe-pass hydration so the Wikidata SPARQL pass runs.
         var hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["wikidata_qid"] = top.Qid,

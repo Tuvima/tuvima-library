@@ -57,9 +57,6 @@ public sealed class CatalogueEndpointPolicyTests
         Require(routes, "/library/portraits/{portraitId:guid}", HttpMethods.Get)
             .HasApplicationPermission(ApplicationPermissionIds.ArtworkRead)
             .HasCharacterPortraitResource(ApplicationPermissionIds.ArtworkRead);
-        Require(routes, "/library/assets/{entityId}", HttpMethods.Get)
-            .HasApplicationPermission(ApplicationPermissionIds.MetadataRead)
-            .HasEntityAssetContainerResource(ApplicationPermissionIds.MetadataRead);
         Require(routes, "/library/enrichment/universe/trigger", HttpMethods.Post)
             .HasAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRun);
 

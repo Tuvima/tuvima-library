@@ -237,22 +237,6 @@ public sealed class NarrativeRootDto
     public string? EnrichmentStatus { get; set; }
 }
 
-/// <summary>Response from the on-demand deep enrichment endpoint.</summary>
-public sealed class DeepEnrichResponse
-{
-    [JsonPropertyName("entity_qid")]
-    public string EntityQid { get; set; } = string.Empty;
-
-    [JsonPropertyName("neighbors_found")]
-    public int NeighborsFound { get; set; }
-
-    [JsonPropertyName("enrichment_enqueued")]
-    public int EnrichmentEnqueued { get; set; }
-
-    [JsonPropertyName("message")]
-    public string Message { get; set; } = string.Empty;
-}
-
 // ── Phase 2: Universe Explorer modes ────────────────────────────────────────
 
 /// <summary>Response from GET /universe/{qid}/paths</summary>

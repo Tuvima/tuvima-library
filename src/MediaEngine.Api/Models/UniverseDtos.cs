@@ -2,35 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace MediaEngine.Api.Models;
 
-public sealed class UniverseCandidateDto
-{
-    [JsonPropertyName("work_id")] public Guid WorkId { get; init; }
-    [JsonPropertyName("entity_id")] public Guid EntityId { get; init; }
-    [JsonPropertyName("title")] public string Title { get; init; } = "";
-    [JsonPropertyName("media_type")] public string MediaType { get; init; } = "";
-    [JsonPropertyName("candidate_qid")] public string CandidateQid { get; init; } = "";
-    [JsonPropertyName("candidate_type")] public string CandidateType { get; init; } = "";
-    [JsonPropertyName("candidate_label")] public string CandidateLabel { get; init; } = "";
-}
-
-public sealed class UniverseAcceptRequest
-{
-    [JsonPropertyName("target_collection_qid")] public required string TargetCollectionQid { get; init; }
-}
-
-public sealed class UniverseBatchAcceptRequest
-{
-    [JsonPropertyName("work_ids")] public List<Guid> WorkIds { get; init; } = [];
-}
-
-public sealed class UniverseBatchAcceptResult
-{
-    [JsonPropertyName("accepted_count")] public int AcceptedCount { get; init; }
-    [JsonPropertyName("missing_candidate_ids")] public List<Guid> MissingCandidateIds { get; init; } = [];
-    [JsonPropertyName("failed_ids")] public List<Guid> FailedIds { get; init; } = [];
-    [JsonPropertyName("errors")] public List<string> Errors { get; init; } = [];
-}
-
 public sealed class UniverseManualAssignRequest
 {
     [JsonPropertyName("work_id")] public Guid WorkId { get; init; }

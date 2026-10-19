@@ -116,10 +116,8 @@ public sealed class UiArchitectureGuardrailTests
         Assert.Contains("private async Task<T?> GetAsync<T>(", facade);
         Assert.Contains("GetUniverseGraphAsync", facade);
         Assert.Contains("SearchUniverseAsync", facade);
-        Assert.Contains("GetUniverseHealthAsync", facade);
         Assert.Contains("GetUniverseGraphAsync", interfaceFacade);
         Assert.Contains("SearchUniverseAsync", interfaceFacade);
-        Assert.Contains("GetUniverseHealthAsync", interfaceFacade);
     }
 
     [Fact]

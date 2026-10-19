@@ -71,9 +71,6 @@ public sealed class LibraryEndpointRouteTests
         Assert.DoesNotContain("CreateConnection", source, StringComparison.Ordinal);
         Assert.DoesNotContain("QueryAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SELECT ", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("GetUniverseCandidatesAsync(ct)", source, StringComparison.Ordinal);
-        Assert.Contains("GetUniverseUnlinkedAsync(ct)", source, StringComparison.Ordinal);
-        Assert.Contains("GetBestUniverseCandidateQidsAsync(", source, StringComparison.Ordinal);
         Assert.DoesNotContain("catch {", source, StringComparison.Ordinal);
     }
 

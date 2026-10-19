@@ -212,18 +212,14 @@ public static class IngestionEndpoints
 
             var result = await scanner.ScanAsync(root, ct);
 
-            // Scan .universe/ to recover fictional entities and relationships.
-            var universeResult = await scanner.ScanUniversesAsync(root, ct);
-
             return Results.Ok(new LibraryScanResponse
             {
                 CollectionsUpserted = result.CollectionsUpserted,
                 EditionsUpserted = result.EditionsUpserted,
                 PeopleRecovered = 0,
-                UniversesUpserted = universeResult.UniversesUpserted,
-                EntitiesUpserted = universeResult.EntitiesUpserted,
-                RelationshipsUpserted = universeResult.RelationshipsUpserted,
-                Errors = result.Errors + universeResult.Errors,
+                EntitiesUpserted = 0,
+                RelationshipsUpserted = 0,
+                Errors = result.Errors,
                 ElapsedMs = (long)result.Elapsed.TotalMilliseconds,
             });
         })

@@ -92,54 +92,6 @@ public sealed class LibraryReadServicesTests : IDisposable
         Assert.Equal(assetId, targets[assetId]["episode_title"]);
     }
 
-    [Fact]
-    public async Task UniverseReads_SeparateCandidatesFromUnlinkedWorks()
-    {
-        var candidate = SeedStandaloneWork(
-            title: "Candidate Work",
-            qid: "QWORK1",
-            universeKey: "series_qid",
-            universeValue: "https://www.wikidata.org/entity/QSERIES::Series Label");
-        var unlinked = SeedStandaloneWork(
-            title: "Unlinked Work",
-            qid: "QWORK2");
-
-        var service = new LibraryCurationReadService(_db);
-
-        var candidates = await service.GetUniverseCandidatesAsync();
-        var unlinkedWorks = await service.GetUniverseUnlinkedAsync();
-        var assetId = await service.FindOwnedAssetIdForWorkAsync(candidate.WorkId);
-
-        var candidateDto = Assert.Single(candidates);
-        Assert.Equal(candidate.WorkId, candidateDto.WorkId);
-        Assert.Equal(candidate.AssetId, candidateDto.EntityId);
-        Assert.Equal("series", candidateDto.CandidateType);
-        Assert.Equal(candidate.AssetId, assetId);
-
-        var unlinkedDto = Assert.Single(unlinkedWorks);
-        Assert.Equal(unlinked.WorkId, unlinkedDto.WorkId);
-        Assert.Equal("QWORK2", unlinkedDto.WikidataQid);
-    }
-
-    [Fact]
-    public async Task BestUniverseCandidateQids_NormalizesValuesAndChunksWorkIds()
-    {
-        var candidate = SeedStandaloneWork(
-            title: "Candidate Work",
-            qid: "QWORK1",
-            universeKey: "franchise_qid",
-            universeValue: "https://www.wikidata.org/entity/Q42::Franchise Label");
-        var requested = Enumerable.Range(0, 405)
-            .Select(_ => Guid.NewGuid())
-            .Append(candidate.WorkId)
-            .ToArray();
-        var service = new LibraryCurationReadService(_db);
-
-        var values = await service.GetBestUniverseCandidateQidsAsync(requested);
-
-        Assert.Equal("Q42", values[candidate.WorkId]);
-    }
-
     private void SeedOwnedWork(Guid rootWorkId, Guid leafWorkId, Guid editionId, Guid assetId)
     {
         using var conn = _db.CreateConnection();
