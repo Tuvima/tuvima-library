@@ -8,6 +8,7 @@ namespace MediaEngine.Web.Models.ViewDTOs;
 /// </summary>
 public enum SettingsSection
 {
+    Overview,
     Profiles,
     Preferences,
     Playback,
@@ -148,9 +149,19 @@ public static class SettingsNav
     /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
+    /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
+    public const string AppsSubsection = "apps";
+
+    /// <summary>The Activity sub-page of Overview (built with the Activity page).</summary>
+    public const string ActivityRoute = "/settings/overview/activity";
+
+    /// <summary>The Taste sub-page of Overview (built with the Taste page).</summary>
+    public const string TasteRoute = "/settings/overview/taste";
+
     private static readonly IReadOnlyDictionary<SettingsSection, LaunchFeatureEvidence> LaunchContracts =
         new Dictionary<SettingsSection, LaunchFeatureEvidence>
         {
+            [SettingsSection.Overview] = Complete(),
             [SettingsSection.Profiles] = Complete(),
             [SettingsSection.Preferences] = Complete(),
             [SettingsSection.Playback] = Complete(),
@@ -180,7 +191,7 @@ public static class SettingsNav
 
     public static readonly SettingsGroupDef[] AllGroups =
     [
-        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, SettingsSection.Profiles),
+        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, SettingsSection.Overview),
         new("server", "Server", AppMaterialIcons.Outlined.Dns, true, SettingsSection.Ingestion),
         new("manage", "Manage", AppMaterialIcons.Outlined.ManageAccounts, true, SettingsSection.Access),
         new("developer", "Developer", AppMaterialIcons.Outlined.DataObject, true, SettingsSection.LocalAi),
@@ -188,9 +199,11 @@ public static class SettingsNav
 
     public static readonly SettingsItemDef[] AllItems =
     [
+        // Overview is the page everyone except a Kids profile lands on: your own profile, counts, recent activity and taste (D11).
+        new(SettingsSection.Overview, "personal", "overview", AppMaterialIcons.Outlined.AccountCircle, "Overview", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         // Profiles is an editing page for administrators (D29): a server administrator, or a household administrator for their own
         // household. It is not an administrator-PIN page, so AdminOnly stays false; HouseholdAdminAccess plus IsVisible decide who sees it.
-        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household", "overview"], "sqlite", Status: SettingsStatusKind.Live, HouseholdAdminAccess: true),
+        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live, HouseholdAdminAccess: true),
         new(SettingsSection.Preferences, "personal", "preferences", AppMaterialIcons.Outlined.Tune, "Preferences", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
@@ -227,6 +240,7 @@ public static class SettingsNav
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person,
         [
+            Node("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
             Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, children:
             [
                 Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Profiles, HouseholdsSubsection),
@@ -306,6 +320,10 @@ public static class SettingsNav
     public static readonly IReadOnlyDictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>> Subsections =
         new Dictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>>
         {
+            [SettingsSection.Overview] =
+            [
+                new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Devices),
+            ],
             [SettingsSection.Profiles] =
             [
                 new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
@@ -381,6 +399,7 @@ public static class SettingsNav
 
     private static readonly HashSet<SettingsSection> _landingSections =
     [
+        SettingsSection.Overview,
         SettingsSection.Profiles,
         SettingsSection.Preferences,
         SettingsSection.Playback,
@@ -499,6 +518,13 @@ public static class SettingsNav
             }
         }
 
+        if (fallback is not null && requested is not null
+            && OffMenuSubsections.Contains((section, requested))
+            && ResolveSubsection(section, requested) is { } offMenu)
+        {
+            return new SettingsMenuLocation(fallback.Group, [.. fallback.Trail, new SettingsMenuNode(offMenu.Label, offMenu.Icon, section, offMenu.Slug)]);
+        }
+
         if (fallback is null && OffMenuParents.TryGetValue(section, out var parentSection)
             && FindMenuLocation(parentSection) is { } parent)
         {
@@ -517,6 +543,16 @@ public static class SettingsNav
         new Dictionary<SettingsSection, SettingsSection>
         {
             [SettingsSection.RecentlyAdded] = SettingsSection.Ingestion,
+        };
+
+    /// <summary>
+    /// Sub-pages that have their own route but no row in the menu, because an icon on their section's main page opens them.
+    /// They sit under that section's main row in the breadcrumb (Personal, Overview, Apps). Slugs are in their normalised form.
+    /// </summary>
+    public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
+        new HashSet<(SettingsSection, string)>
+        {
+            (SettingsSection.Overview, AppsSubsection),
         };
 
     private static IEnumerable<IReadOnlyList<SettingsMenuNode>> Trails(
@@ -594,9 +630,9 @@ public static class SettingsNav
             return false;
         }
 
-        // Profiles is for administrators only: a member (and a Kids profile) never sees it. A household administrator reaches it
+        // Overview is everyone's own page. Profiles is for administrators only: a member (and a Kids profile) never sees it. A household administrator reaches it
         // through HouseholdAdminAccess; the Engine still limits what they can do there to their own household.
-        return administrationAllowed || section is SettingsSection.Preferences or SettingsSection.Playback
+        return administrationAllowed || section is SettingsSection.Overview or SettingsSection.Preferences or SettingsSection.Playback
             or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Security
             || householdAdministrator && item.HouseholdAdminAccess;
     }
@@ -731,7 +767,7 @@ public static class SettingsNav
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
-            return SettingsSection.Profiles;
+            return SettingsSection.Overview;
         }
 
         var resolution = ResolveRoute(segment, administrationAllowed: true);

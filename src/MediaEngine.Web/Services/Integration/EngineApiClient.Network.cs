@@ -21,6 +21,9 @@ public sealed partial class EngineApiClient
     public Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default) =>
         GetAsync<NetworkRuntimeStatusDto>("GET /network/status", "/network/status", ct: ct);
 
+    public Task<NetworkAppAddressesDto?> GetNetworkAppAddressesAsync(CancellationToken ct = default) =>
+        GetAsync<NetworkAppAddressesDto>("GET /network/app-addresses", "/network/app-addresses", ct: ct);
+
     public Task<NetworkTestResultDto?> TestLocalNetworkAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkTestResultDto>("POST /network/tests/local", "/network/tests/local", new { }, ct);
 

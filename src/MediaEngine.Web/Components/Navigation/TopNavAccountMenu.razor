@@ -75,14 +75,24 @@
                 @if (!IsKids)
                 {
                     <a class="top-nav-account-menu__item"
-                       href="/settings/profiles"
+                       href="@MyProfileHref"
                        role="menuitem"
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>Profile settings</span>
+                        <span>My profile</span>
                     </a>
                 }
+
+                @* A Kids profile does not reach Settings, so its My activity is its own page. *@
+                <a class="top-nav-account-menu__item"
+                   href="@(IsKids ? KidsActivityHref : MyActivityHref)"
+                   role="menuitem"
+                   @onclick="CloseMenu">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.History"
+                             Class="top-nav-account-menu__item-icon" />
+                    <span>My activity</span>
+                </a>
 
                 @if (Profiles.Count > 1)
                 {
@@ -184,6 +194,11 @@
     /// <summary>Raised when the person chooses Not now on the Secure your account card; the owner remembers it with the account.</summary>
     [Parameter] public EventCallback OnSecureAccountNotNow { get; set; }
     public const string ManageProfilesHref = "/settings/profiles";
+    /// <summary>My profile opens the person's own Overview.</summary>
+    public const string MyProfileHref = "/settings/overview";
+    /// <summary>My activity opens the Activity page under the Overview; a Kids profile uses <see cref="KidsActivityHref"/>.</summary>
+    public const string MyActivityHref = "/settings/overview/activity";
+    public const string KidsActivityHref = "/my-activity";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
     [Parameter] public string AvatarColor { get; set; } = "var(--tl-accent-primary)";

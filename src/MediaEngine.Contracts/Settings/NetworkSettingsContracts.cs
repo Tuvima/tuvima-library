@@ -47,6 +47,19 @@ public sealed class NetworkOutsideAddressDto
     [JsonPropertyName("outside_address")] public string? OutsideAddress { get; set; }
 }
 
+/// <summary>
+/// The addresses a phone or TV types into a Tuvima app, shown to every signed-in person. It carries no key, sign-in or other
+/// detail of the network settings.
+/// </summary>
+public sealed class NetworkAppAddressesDto
+{
+    /// <summary>The address on the home network (for example <c>http://192.168.1.20:5016</c>), or null while none is detected.</summary>
+    [JsonPropertyName("at_home")] public string? AtHome { get; set; }
+
+    /// <summary>The origin apps use away from home, or null while no way in from the internet is set up.</summary>
+    [JsonPropertyName("away_from_home")] public string? AwayFromHome { get; set; }
+}
+
 public sealed class NetworkRuntimeStatusDto
 {
     [JsonPropertyName("local_access")] public string LocalAccess { get; set; } = "unavailable";

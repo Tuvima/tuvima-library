@@ -4,7 +4,7 @@
 @* Avatar choices for the profile editor: a colour swatch, a built-in icon (or the person's initial), or an uploaded photo.
    The picker only reports choices; the editor owns the state and the preview. *@
 <div class="avatar-picker">
-    <AppSegmentedControl Class="avatar-picker__tabs" AriaLabel="Avatar type" Options="Tabs" Value="@_tab" ValueChanged="OnTabChanged" />
+    <AppSegmentedControl Class="avatar-picker__tabs" AriaLabel="Avatar type" Options="@TabChoices" Value="@_tab" ValueChanged="OnTabChanged" />
 
     @if (_tab == ColourTab)
     {
@@ -103,6 +103,11 @@
     [
         new(ColourTab, "Colour"), new(IconTab, "Icon"), new(PhotoTab, "Photo"),
     ];
+
+    /// <summary>False hides the built-in icons, for a person editing themselves: the Engine saves only a colour or a photo for them.</summary>
+    [Parameter] public bool ShowIcons { get; set; } = true;
+
+    private IReadOnlyList<AppSelectOption> TabChoices => ShowIcons ? Tabs : [Tabs[0], Tabs[2]];
 
     private string _tab = ColourTab;
 

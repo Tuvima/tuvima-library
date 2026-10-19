@@ -86,9 +86,49 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void RouteFor_Overview_UsesProfileSettingsUrl()
+    public void RouteFor_Profiles_UsesProfileSettingsUrl()
     {
         Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
+    }
+
+    [Fact]
+    public void Overview_IsTheFirstPersonalPage_AndTheLandingPageForEveryone()
+    {
+        Assert.Equal(SettingsSection.Overview, SettingsNav.AllItems[0].Value);
+        Assert.Equal("personal", SettingsNav.AllItems[0].GroupKey);
+        Assert.Equal("/settings/overview", SettingsNav.RouteFor(SettingsSection.Overview));
+        Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false));
+        Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: true));
+        Assert.Equal(SettingsSection.Overview, SettingsNav.FirstVisibleSection(administrationAllowed: false, householdAdministrator: true));
+        Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
+        Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).IsCanonicalRoute);
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.AppsSubsection));
+        Assert.Equal(SettingsSection.Overview, SettingsNav.GetDefaultSection("personal"));
+    }
+
+    [Fact]
+    public void Overview_HasNoMenuChildrenOfItsOwnYet_AndItsAppsPageIsOffMenuUnderIt()
+    {
+        var overview = SettingsNav.MenuGroups[0].Nodes[0];
+        Assert.Equal("Overview", overview.Label);
+        Assert.Empty(overview.Children);
+
+        // Apps opens from an icon on the Overview, so it is not a menu row but keeps its place in the breadcrumb.
+        Assert.DoesNotContain(SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)), node => node.Label == "Apps");
+        Assert.Equal("/settings/overview/apps", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.AppsSubsection));
+        var location = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.AppsSubsection);
+        Assert.NotNull(location);
+        Assert.Equal("personal", location!.Group.Key);
+        Assert.Equal(["Overview", "Apps"], location.Trail.Select(node => node.Label));
+        Assert.Equal(["Overview"], SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Trail.Select(node => node.Label));
+    }
+
+    [Fact]
+    public void Overview_RoutesForActivityAndTaste_AreTheStringsTheLinksUse()
+    {
+        Assert.Equal("/settings/overview/activity", SettingsNav.ActivityRoute);
+        Assert.Equal("/settings/overview/taste", SettingsNav.TasteRoute);
     }
 
     [Theory]
@@ -191,8 +231,8 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute(null, true);
 
-        Assert.Equal(SettingsSection.Profiles, resolution.Section);
-        Assert.Equal("/settings/profiles", resolution.CanonicalRoute);
+        Assert.Equal(SettingsSection.Overview, resolution.Section);
+        Assert.Equal("/settings/overview", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -203,7 +243,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("admin", true);
 
-        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -227,7 +267,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("display", true);
 
-        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
@@ -254,11 +294,11 @@ public sealed class SettingsNavTests
     [Fact]
     public void ResolveRoute_DisallowedAdminPage_FallsBackToTheFirstPageThePersonMaySee()
     {
-        // A member does not see Profiles, so the first page they may open is Preferences.
+        // Everyone's first page is their own Overview.
         var resolution = SettingsNav.ResolveRoute("metadata", false);
 
-        Assert.Equal(SettingsSection.Preferences, resolution.Section);
-        Assert.Equal("/settings/preferences", resolution.CanonicalRoute);
+        Assert.Equal(SettingsSection.Overview, resolution.Section);
+        Assert.Equal("/settings/overview", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.False(resolution.RequestedSectionAllowed);
@@ -272,7 +312,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute(segment, true);
 
-        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal(SettingsSection.Overview, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -294,7 +334,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["personal", "server", "manage", "developer"], groups.Select(group => group.Key));
         Assert.Equal(["Personal", "Server", "Manage", "Developer"], groups.Select(group => group.Label));
 
-        Assert.Equal(["Profiles", "Preferences", "Security"], Labels(groups, "personal"));
+        Assert.Equal(["Overview", "Profiles", "Preferences", "Security"], Labels(groups, "personal"));
         Assert.Equal(["Library and Ingestion", "Network and Remote Access", "Streaming"], Labels(groups, "server"));
         Assert.Equal(["Users and Sign-in", "System"], Labels(groups, "manage"));
         Assert.Equal(["Local AI", "Integrations", "Plugins", "Developer Tools"], Labels(groups, "developer"));
@@ -487,8 +527,8 @@ public sealed class SettingsNavTests
 
         Assert.Equal(["personal"], groups.Select(group => group.Key));
         // Profiles is for administrators: a member (and a Kids profile, which the shell keeps out of Settings) never sees it.
-        Assert.Equal(["Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
-        Assert.Equal(["Playback", "Listening", "Reading"], groups[0].Nodes[0].Children.Select(node => node.Label));
+        Assert.Equal(["Overview", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
+        Assert.Equal(["Playback", "Listening", "Reading"], groups[0].Nodes[1].Children.Select(node => node.Label));
     }
 
     [Fact]
@@ -497,7 +537,7 @@ public sealed class SettingsNavTests
         var groups = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true);
 
         Assert.Equal(["personal"], groups.Select(group => group.Key));
-        Assert.Equal(["Profiles", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
+        Assert.Equal(["Overview", "Profiles", "Preferences", "Security"], groups[0].Nodes.Select(node => node.Label));
         Assert.Empty(ChildLabels(groups, "Profiles"));
     }
 
@@ -519,10 +559,10 @@ public sealed class SettingsNavTests
         Assert.True(SettingsNav.ResolveRoute("profiles", false, householdAdministrator: true).RequestedSectionAllowed);
         Assert.True(SettingsNav.ResolveRoute("profiles", true).RequestedSectionAllowed);
 
-        // The bare /settings address opens the first page a person may see.
-        Assert.Equal(SettingsSection.Preferences, SettingsNav.ResolveRoute(null, false).Section);
-        Assert.Equal(SettingsSection.Profiles, SettingsNav.ResolveRoute(null, false, householdAdministrator: true).Section);
-        Assert.Equal(SettingsSection.Profiles, SettingsNav.ResolveRoute(null, true).Section);
+        // The bare /settings address opens the person's own Overview, whatever their role.
+        Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, false).Section);
+        Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, false, householdAdministrator: true).Section);
+        Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, true).Section);
     }
 
     private static string[] Labels(IReadOnlyList<SettingsMenuGroup> groups, string groupKey) =>
@@ -551,7 +591,7 @@ public sealed class SettingsNavTests
     [InlineData("server", SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData("manage", SettingsSection.Access, "/settings/access/users")]
     [InlineData("developer", SettingsSection.LocalAi, "/settings/ai")]
-    [InlineData("personal", SettingsSection.Profiles, "/settings/profiles")]
+    [InlineData("personal", SettingsSection.Overview, "/settings/overview")]
     public void GroupDefaults_ResolveToExpectedCanonicalRoutes(string groupKey, SettingsSection expectedSection, string expectedRoute)
     {
         var section = SettingsNav.GetDefaultSection(groupKey);
@@ -647,7 +687,7 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Member_PersonalTree_IsPreferencesWithItsThreePagesAndSecurityWithItsDevices()
+    public void Member_PersonalTree_IsOverviewThenPreferencesWithItsThreePagesAndSecurityWithItsDevices()
     {
         var personal = SettingsNav.FilteredMenuGroups(false).Single(group => group.Key == "personal");
 
@@ -655,6 +695,7 @@ public sealed class SettingsNavTests
 
         Assert.Equal(
             [
+                SettingsSection.Overview,
                 SettingsSection.Preferences, SettingsSection.Playback,
                 SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security,
                 SettingsSection.Security,
@@ -663,13 +704,14 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void HouseholdAdministrator_PersonalTree_StartsWithProfilesAndHasNoHouseholdsPage()
+    public void HouseholdAdministrator_PersonalTree_HasProfilesAfterOverviewAndNoHouseholdsPage()
     {
         var personal = SettingsNav.FilteredMenuGroups(false, householdAdministrator: true).Single(group => group.Key == "personal");
 
         var rows = SettingsNav.Flatten(personal.Nodes).Select(node => node.Route).ToArray();
 
-        Assert.Equal("/settings/profiles", rows[0]);
+        Assert.Equal("/settings/overview", rows[0]);
+        Assert.Equal("/settings/profiles", rows[1]);
         Assert.DoesNotContain("/settings/profiles/households", rows);
     }
 

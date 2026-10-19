@@ -31,6 +31,7 @@
                                      Icon="@_icon"
                                      HasPhoto="@HasPhoto"
                                      PhotoReplacedByChoices="@(HasPhoto || Profile?.AvatarImageUrl is { Length: > 0 })"
+                                     ShowIcons="@(!SelfEdit)"
                                      Disabled="@Saving"
                                      ColorChanged="OnColorChanged"
                                      IconChanged="OnIconChanged"
@@ -43,6 +44,8 @@
                 <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="Name" AriaLabel="Name" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
             </label>
 
+            @if (!SelfEdit)
+            {
             <div class="profile-editor__settings">
                 <label class="profile-editor__setting">
                     <span class="profile-editor__setting-text">
@@ -100,6 +103,7 @@
                     </div>
                 }
             </div>
+            }
 
             @if (!string.IsNullOrWhiteSpace(Error ?? _localError))
             {
@@ -129,7 +133,7 @@
             }
 
             <div class="profile-editor__actions">
-                @if (!IsAdd && CanDelete)
+                @if (!IsAdd && CanDelete && !SelfEdit)
                 {
                     <AppNativeButton Type="button" Class="who-button who-button--danger profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete">Delete profile</AppNativeButton>
                 }
@@ -185,6 +189,13 @@
 
     /// <summary>A failure from the page's last save, shown inside the sheet.</summary>
     [Parameter] public string? Error { get; set; }
+
+    /// <summary>
+    /// A person editing themselves (their Overview): only the name and the picture (a colour or a photo) are offered, because
+    /// those are what the Engine lets a person save for themselves. The Kids switch, what they may watch, the PIN, the icons and
+    /// Delete stay with the administrators, who change them from the person's page in Profiles.
+    /// </summary>
+    [Parameter] public bool SelfEdit { get; set; }
 
     /// <summary>Whether a Delete button is offered (the page decides: never the last profile).</summary>
     [Parameter] public bool CanDelete { get; set; }

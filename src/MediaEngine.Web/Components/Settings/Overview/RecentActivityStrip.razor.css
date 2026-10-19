@@ -1,0 +1,22 @@
+/* The strip scrolls sideways when the tiles do not fit; on a phone that is how it is always used. */
+.activity-strip {
+    display: flex;
+    margin: 0;
+    padding: 0 0 var(--tl-space-2, 8px);
+    align-items: flex-start;
+    gap: var(--tl-space-3, 12px);
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+}
+
+.activity-strip__item {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+}
+
+.activity-strip__message {
+    margin: 0;
+    color: var(--tl-text-secondary);
+}

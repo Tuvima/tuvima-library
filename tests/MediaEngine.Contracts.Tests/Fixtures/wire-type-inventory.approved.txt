@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1013; api=0; web-client=74
+# scopes: contracts=1015; api=0; web-client=74
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8940,6 +8940,12 @@
   AddressFamily: System.String | json=address_family | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"interface_id":"sample","interface_name":"sample","address":"sample","address_family":"sample"}
 
+[contracts] MediaEngine.Contracts.Settings.NetworkAppAddressesDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AtHome: System.String | json=at_home | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AwayFromHome: System.String | json=away_from_home | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"at_home":"sample","away_from_home":"sample"}
+
 [contracts] MediaEngine.Contracts.Settings.NetworkBandwidthStatusDto
   kind=class | converter=default | number-handling=default | unmapped=default
   UploadCapacityMbps: System.Double? | json=upload_capacity_mbps | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9560,6 +9566,13 @@
   AdaptiveHls: MediaEngine.Contracts.Settings.AdaptiveHlsSettings | json=adaptive_hls | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"ffmpeg_binary_path":"sample","ffprobe_binary_path":"sample","hardware_acceleration":"sample","max_concurrent_transcodes":7,"shadow_storage_limit_gb":7,"quality_profiles":[],"scheduled_encodes_enabled":true,"maintenance_window":"sample","variant_cache_path":"sample","variant_retention_days":7,"cleanup_lru_enabled":true,"default_mobile_profile":"sample","adaptive_hls":null}
 
+[contracts] MediaEngine.Contracts.Settings.UIAppStoreLinksContract
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AppStore: System.String | json=app_store | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GooglePlay: System.String | json=google_play | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Roku: System.String | json=roku | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"app_store":"sample","google_play":"sample","roku":"sample"}
+
 [contracts] MediaEngine.Contracts.Settings.UIDeviceConstraintsContract
   kind=class | converter=default | number-handling=default | unmapped=default
   FeaturesDisabled: System.Collections.Generic.List<System.String> | json=features_disabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9607,7 +9620,8 @@
   Features: MediaEngine.Contracts.Settings.UIFeatureFlagsContract | json=features | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Shell: MediaEngine.Contracts.Settings.UIShellSettingsContract | json=shell | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Pages: MediaEngine.Contracts.Settings.UIPageSettingsContract | json=pages | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"schema_version":"sample","dark_mode":true,"accent_color":"sample","content_padding":"sample","content_max_width":"sample","border_radius":7,"features":null,"shell":null,"pages":null}
+  AppStoreLinks: MediaEngine.Contracts.Settings.UIAppStoreLinksContract | json=app_store_links | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"schema_version":"sample","dark_mode":true,"accent_color":"sample","content_padding":"sample","content_max_width":"sample","border_radius":7,"features":null,"shell":null,"pages":null,"app_store_links":null}
 
 [contracts] MediaEngine.Contracts.Settings.UIHomePageSettingsContract
   kind=class | converter=default | number-handling=default | unmapped=default

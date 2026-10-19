@@ -63,6 +63,21 @@ public sealed class UIGlobalSettingsDto
 
     [JsonPropertyName("pages")]
     public UIPageSettingsContract Pages { get; set; } = new();
+
+    [JsonPropertyName("app_store_links")]
+    public UIAppStoreLinksContract AppStoreLinks { get; set; } = new();
+}
+
+public sealed class UIAppStoreLinksContract
+{
+    [JsonPropertyName("app_store")]
+    public string AppStore { get; set; } = string.Empty;
+
+    [JsonPropertyName("google_play")]
+    public string GooglePlay { get; set; } = string.Empty;
+
+    [JsonPropertyName("roku")]
+    public string Roku { get; set; } = string.Empty;
 }
 
 public sealed class UIDeviceProfileDto

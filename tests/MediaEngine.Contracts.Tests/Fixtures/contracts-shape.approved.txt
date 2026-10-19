@@ -7623,6 +7623,10 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAddressDto
   Address: System.String | nullability=not-null | accessors=get,set
   AddressFamily: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkAppAddressesDto
+  AtHome: System.String | nullability=nullable | accessors=get,set
+  AwayFromHome: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkBandwidthStatusDto
   UploadCapacityMbps: System.Double? | nullability=nullable | accessors=get,set
   ReservedMbps: System.Double | nullability=not-null | accessors=get,set
@@ -8142,6 +8146,11 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TranscodingSetting
   DefaultMobileProfile: System.String | nullability=not-null | accessors=get,set
   AdaptiveHls: MediaEngine.Contracts.Settings.AdaptiveHlsSettings | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIAppStoreLinksContract
+  AppStore: System.String | nullability=not-null | accessors=get,set
+  GooglePlay: System.String | nullability=not-null | accessors=get,set
+  Roku: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIDeviceConstraintsContract
   FeaturesDisabled: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   PagesDisabled: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -8182,6 +8191,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIGlobalSettingsDt
   Features: MediaEngine.Contracts.Settings.UIFeatureFlagsContract | nullability=not-null | accessors=get,set
   Shell: MediaEngine.Contracts.Settings.UIShellSettingsContract | nullability=not-null | accessors=get,set
   Pages: MediaEngine.Contracts.Settings.UIPageSettingsContract | nullability=not-null | accessors=get,set
+  AppStoreLinks: MediaEngine.Contracts.Settings.UIAppStoreLinksContract | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIHomePageSettingsContract
   CollectionHeroEnabled: System.Boolean | nullability=not-null | accessors=get,set
