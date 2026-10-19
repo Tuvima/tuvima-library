@@ -189,7 +189,10 @@ else
                                 <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
                                 break;
                             case SettingsSection.RecentlyAdded:
-                                <RecentlyAddedPageContent ReviewState="@ReviewState" InitialSearch="@RecentSearch" />
+                                <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
+                                break;
+                            case SettingsSection.Review:
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(
@@ -552,14 +555,22 @@ else
 
         if (!_legacyRedirectIssued
             && Section is not null
-            && (Section.Equals("review", StringComparison.OrdinalIgnoreCase)
-                || Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
+            && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
                 || Section.Equals("timeline", StringComparison.OrdinalIgnoreCase)))
         {
             _legacyRedirectIssued = true;
-            Nav.NavigateTo(Section.Equals("review", StringComparison.OrdinalIgnoreCase)
-                ? "/settings/recently-added?review=expanded"
-                : "/settings/recently-added", replace: true);
+            Nav.NavigateTo("/settings/recently-added", replace: true);
+            return;
+        }
+
+        // Needs Review has its own page now; the old Recently Added link that opened its collapsed block lands there.
+        if (!_legacyRedirectIssued
+            && Section is not null
+            && Section.Equals("recently-added", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(ReviewState, "expanded", StringComparison.OrdinalIgnoreCase))
+        {
+            _legacyRedirectIssued = true;
+            Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Review), replace: true);
             return;
         }
 

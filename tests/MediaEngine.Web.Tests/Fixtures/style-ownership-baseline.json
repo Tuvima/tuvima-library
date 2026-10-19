@@ -23,8 +23,8 @@
     "deep": 3639
   },
   "totals": {
-    "important": 1774,
-    "deep": 2865
+    "important": 1772,
+    "deep": 2863
   },
   "initialFiles": {
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
@@ -1402,8 +1402,8 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor.css": {
-      "important": 2,
-      "deep": 7
+      "important": 0,
+      "deep": 5
     },
     "src/MediaEngine.Web/Components/Pages/SearchPage.razor.css": {
       "important": 0,

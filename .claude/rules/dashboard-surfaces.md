@@ -49,7 +49,7 @@ View uses a common library-detail header and Folders, Organization, File Handlin
 
 The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. Settings > Overview > Apps offers an independent manual installation action ("Install on this device").
 
-_Note 2026-10-19: Operations pages now redirect; review lives in Settings → Server → Library and Ingestion → Recently Added (Needs Review), opened from "View all"; Recently Added is no longer a menu row._
+_Note 2026-10-19: Operations pages now redirect; review lives in Settings → Needs Review (`/settings/review`, an off-menu page under Library and Ingestion), opened from the administrator banner; Recently Added is no longer a menu row and holds no review list._
 
 ## UI action alignment completion rule
 
