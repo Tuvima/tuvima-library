@@ -53,7 +53,7 @@ internal static class AiEndpoints
             IModelLifecycleManager lifecycle,
             AiSettings settings,
             ModelInventory inventory,
-            AiModelSelectionAdvisor advisor) =>
+            [FromServices] AiModelSelectionAdvisor advisor) =>
         {
             var statuses = downloadManager.GetAllStatuses()
                 .Select(status =>
