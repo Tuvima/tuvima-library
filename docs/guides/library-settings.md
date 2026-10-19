@@ -16,7 +16,14 @@ Use Settings in Tuvima Library to add folders and check background work. This fi
 Libraries is one screen: **Settings > Libraries**. The six media types (Books, Audiobooks, Movies, TV Shows, Music, Comics) are always listed, with the Import folder as a seventh entry. There is no separate Library settings page.
 
 1. Open **Settings > Libraries** with admin access and choose a media type.
-2. Choose **Add folder** and pick the folder. Click a folder to open it; the path bar is the selected folder and can be typed into. Only folders are listed, Tuvima's own folders never appear, and **Add** turns on when the folder is valid.
+2. Choose **Add folder** and pick the folder.
+   - Paste or type a path into the full-width path box, then press Enter or **Go**.
+   - Single-click a folder to select it, and double-click to open it.
+   - Use **Back**, **Forward**, **Up** or the breadcrumbs to move around, and the folder search to find a folder by name.
+   - **Selected path** shows what you picked, with a copy button.
+   - Media locations are listed before drives. Only folders are listed, the Library's own folders never appear, and **Add** turns on when the folder is valid.
+   - Paths are shown as the server sees them. On Docker that means paths inside the container, such as `/library`, not paths on your computer.
+   - If a path does not exist, the picker says so in plain words.
 3. If the folder already has files, choose **Use as-is** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
 
 Every folder is handled one of two ways:
