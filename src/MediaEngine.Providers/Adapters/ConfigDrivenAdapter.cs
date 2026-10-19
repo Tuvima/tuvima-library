@@ -44,11 +44,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     private readonly IProviderResponseCacheRepository? _responseCache;
     private readonly IProviderHealthMonitor _healthMonitor;
     private readonly IProviderRateLimiterCoordinator _rateLimiter;
-    private readonly ConcurrentDictionary<string, Lazy<Task<ComicVineVolumeFacts?>>> _comicVineVolumeFacts =
-        new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lazy<Task<ProviderSequenceManifest?>>> _comicVineSequenceManifests =
-        new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lazy<Task<System.Text.Json.Nodes.JsonNode?>>> _memoryLookups =
+    private readonly ConcurrentDictionary<string, Lazy<Task<object?>>> _memoryLookups =
         new(StringComparer.OrdinalIgnoreCase);
 
     // Parsed once at construction.

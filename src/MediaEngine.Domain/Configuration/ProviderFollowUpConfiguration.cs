@@ -59,6 +59,13 @@ public sealed class LookupFollowUpConfiguration
     [JsonPropertyName("add")]
     public string Add { get; set; } = ClaimAddModes.IfMissingValue;
 
+    /// <summary>
+    /// Paths that must exist in the response; when one is missing the response is ignored, like a
+    /// lookup that found nothing.
+    /// </summary>
+    [JsonPropertyName("required_paths")]
+    public List<string> RequiredPaths { get; set; } = [];
+
     /// <summary>Ordered rules applied to the response.</summary>
     [JsonPropertyName("rules")]
     public List<ClaimRuleConfiguration> Rules { get; set; } = [];
@@ -89,6 +96,14 @@ public static class SequenceOrderKeys
 {
     public const string Date = "date";
     public const string Title = "title";
+    public const string OrdinalNumber = "ordinal_number";
+    public const string OrdinalText = "ordinal_text";
+}
+
+public static class SequenceDateModes
+{
+    public const string Parsed = "parsed";
+    public const string Text = "text";
 }
 
 /// <summary>Accepted values of <see cref="LookupFollowUpConfiguration.OnError"/>.</summary>
@@ -114,6 +129,7 @@ public static class ClaimRuleKinds
     public const string Items = "items";
     public const string Lookup = "lookup";
     public const string Sequence = "sequence";
+    public const string PagedSequence = "paged_sequence";
 }
 
 public sealed class FollowUpCacheConfiguration
@@ -189,6 +205,14 @@ public sealed class ClaimRuleConfiguration
     /// <summary>Joined list used instead of <c>json_path</c> when it produces anything.</summary>
     [JsonPropertyName("join")]
     public ClaimJoinConfiguration? Join { get; set; }
+
+    /// <summary>Fixed text used instead of reading the node.</summary>
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+
+    /// <summary>The rule only fires when the claims already hold one with this key.</summary>
+    [JsonPropertyName("requires_claim")]
+    public string? RequiresClaim { get; set; }
 
     /// <summary>Overrides the follow-up's <c>add</c> mode for this rule.</summary>
     [JsonPropertyName("add")]
@@ -272,6 +296,32 @@ public sealed class ClaimRuleConfiguration
 
     [JsonPropertyName("emit")]
     public List<SequenceEmitConfiguration>? Emit { get; set; }
+
+    // -- paged_sequence (the request itself is the provider's sequence_manifest) ----------------
+
+    /// <summary>Template over the lookup's inputs that names the container; fills <c>{container_id}</c> of the request.</summary>
+    [JsonPropertyName("container")]
+    public string? Container { get; set; }
+
+    /// <summary>Path, in every page, of the total number of items the provider reports.</summary>
+    [JsonPropertyName("total_path")]
+    public string? TotalPath { get; set; }
+
+    /// <summary>Path, in the current node, of the expected number of items; preferred over the page total.</summary>
+    [JsonPropertyName("expected_total_path")]
+    public string? ExpectedTotalPath { get; set; }
+
+    /// <summary>Keep only the first member for each id.</summary>
+    [JsonPropertyName("dedupe_by_id")]
+    public bool DedupeById { get; set; }
+
+    /// <summary><c>parsed</c> (default): dates are read and written as ISO dates; <c>text</c>: kept as the provider wrote them.</summary>
+    [JsonPropertyName("date_as")]
+    public string DateAs { get; set; } = SequenceDateModes.Parsed;
+
+    /// <summary>Remember the collected pages per container for the life of the running provider.</summary>
+    [JsonPropertyName("cache")]
+    public FollowUpCacheConfiguration? Cache { get; set; }
 
     [JsonPropertyName("manifest")]
     public SequenceManifestRuleConfiguration? Manifest { get; set; }
@@ -407,6 +457,17 @@ public sealed class SequenceItemConfiguration
     [JsonPropertyName("date_path")]
     public string? DatePath { get; set; }
 
+    /// <summary>Path of the member's own ordinal (issue number); without it members are numbered 1, 2, 3 after sorting.</summary>
+    [JsonPropertyName("ordinal_path")]
+    public string? OrdinalPath { get; set; }
+
+    /// <summary>
+    /// Titles tried when <c>title_paths</c> find nothing, such as <c>{series_label} #{ordinal}</c>; a
+    /// template that needs a blank value is skipped.
+    /// </summary>
+    [JsonPropertyName("title_fallbacks")]
+    public List<string> TitleFallbacks { get; set; } = [];
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
 }
@@ -458,6 +519,17 @@ public sealed class SequenceManifestRuleConfiguration
 
     [JsonPropertyName("authoritative")]
     public bool Authoritative { get; set; }
+
+    /// <summary>
+    /// Authoritative only when every page was read and the number of members equals the expected
+    /// total (paged sequences). Overrides <see cref="Authoritative"/>.
+    /// </summary>
+    [JsonPropertyName("authoritative_when_complete")]
+    public bool AuthoritativeWhenComplete { get; set; }
+
+    /// <summary>Confidence used instead of <see cref="Confidence"/> when the manifest is not authoritative.</summary>
+    [JsonPropertyName("confidence_when_not_authoritative")]
+    public double? ConfidenceWhenNotAuthoritative { get; set; }
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }

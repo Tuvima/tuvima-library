@@ -110,7 +110,7 @@ public sealed class ProviderFollowUpValidationTests
     }
 
     [Theory]
-    [InlineData("""{ "claim_key": "x", "confidence": 0.5 }""", "needs json_path, json_paths, template or join")]
+    [InlineData("""{ "claim_key": "x", "confidence": 0.5 }""", "needs json_path, json_paths, template, value or join")]
     [InlineData("""{ "claim_key": "x", "json_path": "a", "template": "{a}", "confidence": 0.5 }""", "only one of json_path")]
     [InlineData("""{ "claim_key": "x", "json_path": "a", "confidence": 0 }""", "confidence must be greater than 0")]
     [InlineData("""{ "claim_key": "x", "json_path": "a", "confidence": 1.5 }""", "at most 1")]

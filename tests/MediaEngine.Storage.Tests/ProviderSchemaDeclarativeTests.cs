@@ -15,7 +15,24 @@ public sealed class ProviderSchemaDeclarativeTests
     private static readonly (string Pointer, Type Type)[] Objects =
     [
         ("$defs/lookupFollowUp", typeof(LookupFollowUpConfiguration)),
-        ("$defs/lookupFollowUp/properties/cache", typeof(FollowUpCacheConfiguration)),
+        ("$defs/followUpCache", typeof(FollowUpCacheConfiguration)),
+        ("$defs/rankingField", typeof(RankingFieldConfiguration)),
+        ("$defs/rankingMatch", typeof(RankingMatchConfiguration)),
+        ("$defs/rankingTerm", typeof(RankingTermConfiguration)),
+        ("$defs/rankingTerm/properties/bands/items", typeof(RankingBandConfiguration)),
+        ("$defs/rankingScore", typeof(RankingScoreConfiguration)),
+        ("$defs/candidateRanking", typeof(CandidateRankingConfiguration)),
+        ("$defs/candidateRanking/properties/facts/additionalProperties", typeof(RankingFactConfiguration)),
+        ("$defs/candidateRanking/properties/candidates", typeof(RankingCandidateSetConfiguration)),
+        ("$defs/candidateRanking/properties/candidates/properties/identity", typeof(RankingIdentityConfiguration)),
+        ("$defs/candidateRanking/properties/preferred_run", typeof(RankingPreferredRunConfiguration)),
+        ("$defs/candidateRanking/properties/preferred_run/properties/search", typeof(RankingRunSearchConfiguration)),
+        ("$defs/candidateRanking/properties/preferred_run/properties/search/properties/reject_if_below", typeof(RankingRejectConfiguration)),
+        ("$defs/candidateRanking/properties/preferred_run/properties/result", typeof(RankingRunResultConfiguration)),
+        ("$defs/candidateRanking/properties/enrich_when_multiple", typeof(RankingEnrichmentConfiguration)),
+        ("$defs/resultClaimRules", typeof(ResultClaimRulesConfiguration)),
+        ("$defs/strategyClaimRules", typeof(StrategyClaimRulesConfiguration)),
+        ("$defs/strategyClaimRules/properties/derive/items", typeof(DerivedClaimConfiguration)),
         ("$defs/claimSort", typeof(ClaimSortConfiguration)),
         ("$defs/claimRule", typeof(ClaimRuleConfiguration)),
         ("$defs/claimRule/properties/join", typeof(ClaimJoinConfiguration)),
@@ -50,12 +67,16 @@ public sealed class ProviderSchemaDeclarativeTests
     }
 
     [Fact]
-    public void ProviderSchema_ListsFollowUpsAtTheTopLevel()
+    public void ProviderSchema_ListsTheDeclarativeBlocksAtTheTopLevel()
     {
         using var schema = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(FindRepoRoot(), "config", "schemas", "providers", "provider.schema.json")));
 
-        Assert.True(schema.RootElement.GetProperty("properties").TryGetProperty("follow_ups", out _));
+        var properties = schema.RootElement.GetProperty("properties");
+        foreach (var name in new[] { "follow_ups", "candidate_ranking", "result_rules" })
+        {
+            Assert.True(properties.TryGetProperty(name, out _), name);
+        }
     }
 
     private static string FindRepoRoot()

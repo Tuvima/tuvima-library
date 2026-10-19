@@ -72,9 +72,20 @@ public sealed partial class ConfigDrivenAdapter
             return;
         }
 
+        if (lookup.RequiredPaths.Any(path => JsonPathEvaluator.Evaluate(response, path) is null))
+        {
+            return;
+        }
+
         var context = new ClaimRuleContext(Name, request.MediaType, variables);
         foreach (var rule in lookup.Rules)
         {
+            if (rule.Kind == ClaimRuleKinds.PagedSequence)
+            {
+                await ApplyPagedSequenceAsync(claims, response, rule, lookup.Add, context, request, ct).ConfigureAwait(false);
+                continue;
+            }
+
             if (rule.Kind != ClaimRuleKinds.Lookup)
             {
                 ClaimRuleEngine.Apply(claims, response, rule, lookup.Add, context);
@@ -159,12 +170,18 @@ public sealed partial class ConfigDrivenAdapter
             return null;
         }
 
-        var url = lookup.Url
-            .Replace("{base_url}", baseUrl.TrimEnd('/'), StringComparison.Ordinal)
-            .Replace("{api_key}", Uri.EscapeDataString(EffectiveApiKey ?? string.Empty), StringComparison.Ordinal)
+        return ExpandUrlTemplate(lookup.Url, baseUrl, variables)
             .Replace("{locale}", Uri.EscapeDataString(
                 $"{request.Language.ToLowerInvariant()}-{request.Country.ToUpperInvariant()}"), StringComparison.Ordinal);
-        foreach (var (name, value) in variables)
+    }
+
+    /// <summary>Fills <c>{base_url}</c>, <c>{api_key}</c> and the named values (URI-escaped) into a URL template.</summary>
+    private string ExpandUrlTemplate(string template, string baseUrl, IReadOnlyDictionary<string, string> values)
+    {
+        var url = template
+            .Replace("{base_url}", baseUrl.TrimEnd('/'), StringComparison.Ordinal)
+            .Replace("{api_key}", Uri.EscapeDataString(EffectiveApiKey ?? string.Empty), StringComparison.Ordinal);
+        foreach (var (name, value) in values)
         {
             url = url.Replace("{" + name + "}", Uri.EscapeDataString(value), StringComparison.Ordinal);
         }
@@ -180,24 +197,27 @@ public sealed partial class ConfigDrivenAdapter
     {
         if (lookup.Cache?.Store != FollowUpCacheStores.Memory)
         {
-            return FetchJsonAsync(url, useResponseCache: lookup.Cache is not null, ct);
+            return FetchJsonAsync(url, useResponseCache: lookup.Cache is not null, notFoundIsError: false, ct);
         }
 
         var key = lookup.Cache.Key is null
             ? url
             : ClaimRuleEngine.ExpandVariables(lookup.Cache.Key, variables);
-        return FetchRememberedAsync(key, () => FetchJsonAsync(url, useResponseCache: false, ct));
+        return FetchRememberedAsync(key, () => FetchJsonAsync(url, useResponseCache: false, notFoundIsError: true, ct));
     }
 
     /// <summary>One fetch per key for the life of the provider; a failed fetch is forgotten so it can be retried.</summary>
-    private async Task<JsonNode?> FetchRememberedAsync(string key, Func<Task<JsonNode?>> fetch)
+    private async Task<T?> FetchRememberedAsync<T>(string key, Func<Task<T?>> fetch)
+        where T : class
     {
         var lazy = _memoryLookups.GetOrAdd(
             key,
-            _ => new Lazy<Task<JsonNode?>>(fetch, LazyThreadSafetyMode.ExecutionAndPublication));
+            _ => new Lazy<Task<object?>>(
+                async () => await fetch().ConfigureAwait(false),
+                LazyThreadSafetyMode.ExecutionAndPublication));
         try
         {
-            return await lazy.Value.ConfigureAwait(false);
+            return (T?)await lazy.Value.ConfigureAwait(false);
         }
         catch
         {
@@ -206,7 +226,8 @@ public sealed partial class ConfigDrivenAdapter
         }
     }
 
-    private async Task<JsonNode?> FetchJsonAsync(string url, bool useResponseCache, CancellationToken ct)
+    private async Task<JsonNode?> FetchJsonAsync(
+        string url, bool useResponseCache, bool notFoundIsError, CancellationToken ct)
     {
         var cacheKey = BuildCacheKey(url);
         var cacheTtlHours = _config.CacheTtlHours ?? 168;
@@ -225,7 +246,7 @@ public sealed partial class ConfigDrivenAdapter
         ApplyConfiguredAuthorization(request);
         using var response = await _rateLimiter.ExecuteAsync(
             Name, _config.RateLimit, token => client.SendAsync(request, token), ct).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        if (response.StatusCode == HttpStatusCode.NotFound && !notFoundIsError)
         {
             return null;
         }

@@ -815,28 +815,4 @@ public sealed partial class ConfigDrivenAdapter
             Country = country,
             HydrationPass = source.HydrationPass,
         };
-
-    private sealed record ComicVineVolumeFacts(
-        int? IssueCount,
-        int? StartYear,
-        string? Publisher);
-
-    private sealed record ComicIssueCandidate(
-        JsonNode Node,
-        double BaseScore,
-        int? CandidateYear,
-        string? VolumeId,
-        int? VolumeStartYear,
-        int? VolumeIssueCount,
-        string? Publisher)
-    {
-        public double Score => BaseScore;
-    }
-
-    private sealed record ComicVineVolumeSearchCandidate(
-        string VolumeId,
-        double Score,
-        int? IssueCount,
-        int? StartYear,
-        string? Publisher);
 }

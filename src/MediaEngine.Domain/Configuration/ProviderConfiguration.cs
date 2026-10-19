@@ -178,6 +178,17 @@ public sealed class ProviderConfiguration
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
     /// <summary>
+    /// Declared ways to choose between near-identical search results. See
+    /// <see cref="CandidateRankingConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("candidate_ranking")]
+    public List<CandidateRankingConfiguration>? CandidateRanking { get; set; }
+
+    /// <summary>Rules run on a matched result to add claims. See <see cref="ResultClaimRulesConfiguration"/>.</summary>
+    [JsonPropertyName("result_rules")]
+    public List<ResultClaimRulesConfiguration>? ResultRules { get; set; }
+
+    /// <summary>
     /// Extra lookups made after a strategy matched a result, each turning its response into more
     /// claims. See <see cref="LookupFollowUpConfiguration"/>.
     /// </summary>
@@ -732,6 +743,22 @@ public sealed class SearchStrategyConfig
     /// </summary>
     [JsonPropertyName("request_claim_overrides")]
     public Dictionary<string, string> RequestClaimOverrides { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary><c>container</c> when the strategy returns a run of a series, <c>item</c> when it returns single items.</summary>
+    [JsonPropertyName("role")]
+    public string? Role { get; set; }
+
+    /// <summary>Reshapes the claims this strategy produced.</summary>
+    [JsonPropertyName("claim_rules")]
+    public StrategyClaimRulesConfiguration? ClaimRules { get; set; }
+
+    /// <summary>
+    /// Extra names a mapped field is also kept under in search results, for example the same
+    /// <c>id</c> kept as a run identifier by a strategy that returns runs.
+    /// </summary>
+    [JsonPropertyName("extra_field_aliases")]
+    public Dictionary<string, string> ExtraFieldAliases { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 }
 

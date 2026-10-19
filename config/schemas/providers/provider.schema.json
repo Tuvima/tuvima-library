@@ -17,17 +17,217 @@
           }
         },
         "url": { "type": "string", "minLength": 1 },
-        "cache": {
-          "type": "object",
-          "properties": {
-            "store": { "enum": ["response_cache", "memory"] },
-            "key": { "type": "string" }
-          },
-          "additionalProperties": false
-        },
+        "cache": { "$ref": "#/$defs/followUpCache" },
+        "required_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "on_error": { "enum": ["log_and_continue", "propagate"] },
         "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
         "rules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/claimRule" } }
+      },
+      "additionalProperties": false
+    },
+    "followUpCache": {
+      "type": "object",
+      "properties": {
+        "store": { "enum": ["response_cache", "memory"] },
+        "key": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "rankingField": {
+      "type": "object",
+      "required": ["paths"],
+      "properties": {
+        "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "as": { "enum": ["text", "year", "leading_int"] },
+        "only_if_missing": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "rankingMatch": {
+      "type": "object",
+      "required": ["paths"],
+      "properties": {
+        "fact": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "compare": { "enum": ["equivalent_text", "equivalent_ordinal", "equals"] }
+      },
+      "additionalProperties": false
+    },
+    "rankingTerm": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["word_overlap", "year_bands", "english_text", "log_scale", "text_affinity"] },
+        "fact": { "type": "string", "minLength": 1 },
+        "field": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number" },
+        "bands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["max_delta", "score"],
+            "properties": {
+              "max_delta": { "type": "integer", "minimum": 0 },
+              "score": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "otherwise": { "type": "number" },
+        "no_fact_at_or_above": { "type": "integer" },
+        "no_fact_score": { "type": "number" },
+        "foreign": { "type": "number" },
+        "english": { "type": "number" },
+        "factor": { "type": "number", "exclusiveMinimum": 0 },
+        "cap": { "type": "number", "exclusiveMinimum": 0 },
+        "below_fact": { "type": "string", "minLength": 1 },
+        "below_score": { "type": "number" },
+        "at_most_count": { "type": "integer" },
+        "at_most_score": { "type": "number" },
+        "min": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "hit": { "type": "number" },
+        "miss": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "rankingScore": {
+      "type": "object",
+      "properties": {
+        "base": { "type": "number" },
+        "terms": { "type": "array", "items": { "$ref": "#/$defs/rankingTerm" } }
+      },
+      "additionalProperties": false
+    },
+    "candidateRanking": {
+      "type": "object",
+      "required": ["name", "candidates"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "media_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "facts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["from"],
+            "properties": {
+              "from": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "as": { "enum": ["text", "year", "leading_int", "clean_title"] },
+              "fallback": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "require_facts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "candidates": {
+          "type": "object",
+          "properties": {
+            "match": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/rankingMatch" } },
+            "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/rankingField" } },
+            "score": { "$ref": "#/$defs/rankingScore" },
+            "identity": {
+              "type": "object",
+              "properties": {
+                "id_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                "scope_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "ordinal_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "preferred_run": {
+          "type": "object",
+          "properties": {
+            "when_facts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "search": {
+              "type": "object",
+              "required": ["url", "items_path", "id_field"],
+              "properties": {
+                "url": { "type": "string", "minLength": 1 },
+                "items_path": { "type": "string", "minLength": 1 },
+                "match": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/rankingMatch" } },
+                "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/rankingField" } },
+                "id_field": { "type": "string", "minLength": 1 },
+                "reject_if_below": {
+                  "type": "object",
+                  "required": ["field", "fact"],
+                  "properties": {
+                    "field": { "type": "string", "minLength": 1 },
+                    "fact": { "type": "string", "minLength": 1 }
+                  },
+                  "additionalProperties": false
+                },
+                "score": { "$ref": "#/$defs/rankingScore" },
+                "order": { "type": "array", "items": { "type": "string", "pattern": "^[a-z_]+:(asc|desc)$" } },
+                "top": { "type": "integer", "minimum": 0 }
+              },
+              "additionalProperties": false
+            },
+            "result": {
+              "type": "object",
+              "required": ["url", "items_path"],
+              "properties": {
+                "url": { "type": "string", "minLength": 1 },
+                "items_path": { "type": "string", "minLength": 1 },
+                "match": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/rankingMatch" } },
+                "score_bonus": { "type": "number" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "enrich_when_multiple": {
+          "type": "object",
+          "required": ["url", "item_path", "key_field", "adds"],
+          "properties": {
+            "url": { "type": "string", "minLength": 1 },
+            "cache": { "$ref": "#/$defs/followUpCache" },
+            "item_path": { "type": "string", "minLength": 1 },
+            "key_field": { "type": "string", "minLength": 1 },
+            "adds": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/rankingField" } }
+          },
+          "additionalProperties": false
+        },
+        "final_terms": { "type": "array", "items": { "$ref": "#/$defs/rankingTerm" } },
+        "order": { "type": "array", "items": { "type": "string", "pattern": "^[a-z_]+:(asc|desc)$" } }
+      },
+      "additionalProperties": false
+    },
+    "resultClaimRules": {
+      "type": "object",
+      "required": ["name", "rules"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "media_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
+        "rules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/claimRule" } }
+      },
+      "additionalProperties": false
+    },
+    "strategyClaimRules": {
+      "type": "object",
+      "properties": {
+        "media_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "drop": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "drop_non_english_text": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "derive": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claim_key", "from", "confidence"],
+            "properties": {
+              "claim_key": { "type": "string", "minLength": 1 },
+              "from": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^(claim|request|hint):.+" } },
+              "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+              "add": { "enum": ["always", "if_missing_key", "if_missing_value"] }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -46,7 +246,7 @@
     "claimRule": {
       "type": "object",
       "properties": {
-        "kind": { "enum": ["field", "priority_pick", "items", "lookup", "sequence"] },
+        "kind": { "enum": ["field", "priority_pick", "items", "lookup", "sequence", "paged_sequence"] },
         "claim_key": { "type": "string", "minLength": 1 },
         "json_path": { "type": "string", "minLength": 1 },
         "json_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
@@ -70,6 +270,8 @@
           "additionalProperties": false
         },
         "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
+        "value": { "type": "string" },
+        "requires_claim": { "type": "string", "minLength": 1 },
         "array": { "type": "string", "minLength": 1 },
         "key_path": { "type": "string", "minLength": 1 },
         "order": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
@@ -125,11 +327,19 @@
           "properties": {
             "id_path": { "type": "string", "minLength": 1 },
             "title_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-            "date_path": { "type": "string" }
+            "date_path": { "type": "string" },
+            "ordinal_path": { "type": "string" },
+            "title_fallbacks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
           },
           "additionalProperties": false
         },
-        "order_by": { "type": "array", "items": { "enum": ["date", "title"] } },
+        "order_by": { "type": "array", "items": { "enum": ["date", "title", "ordinal_number", "ordinal_text"] } },
+        "container": { "type": "string", "minLength": 1 },
+        "total_path": { "type": "string", "minLength": 1 },
+        "expected_total_path": { "type": "string", "minLength": 1 },
+        "dedupe_by_id": { "type": "boolean" },
+        "date_as": { "enum": ["parsed", "text"] },
+        "cache": { "$ref": "#/$defs/followUpCache" },
         "current_id": { "type": "string" },
         "emit": {
           "type": "array",
@@ -154,7 +364,9 @@
             "container_id": { "type": "string", "minLength": 1 },
             "container_label": { "type": "string" },
             "external_id_key": { "type": "string", "minLength": 1 },
-            "authoritative": { "type": "boolean" }
+            "authoritative": { "type": "boolean" },
+            "authoritative_when_complete": { "type": "boolean" },
+            "confidence_when_not_authoritative": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
           },
           "additionalProperties": false
         }
@@ -193,6 +405,14 @@
         "max_concurrency": { "type": "integer", "minimum": 1 }
       },
       "additionalProperties": false
+    },
+    "candidate_ranking": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/candidateRanking" }
+    },
+    "result_rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resultClaimRules" }
     },
     "follow_ups": {
       "type": "array",
@@ -283,6 +503,9 @@
             },
             "additionalProperties": false
           },
+          "role": { "enum": ["container", "item"] },
+          "claim_rules": { "$ref": "#/$defs/strategyClaimRules" },
+          "extra_field_aliases": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
           "release_selection": {
             "type": ["object", "null"],
             "properties": {

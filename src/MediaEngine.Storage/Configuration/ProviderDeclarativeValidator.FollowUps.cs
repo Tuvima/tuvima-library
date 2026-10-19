@@ -19,14 +19,21 @@ internal static partial class ProviderDeclarativeValidator
 
     private static readonly string[] BuiltInUrlPlaceholders = ["base_url", "api_key", "locale"];
 
+    /// <summary>Facts about the surrounding provider file that rules are checked against.</summary>
+    private sealed record Scope(bool PagedRequestDeclared);
+
     public static void Validate(ProviderConfiguration provider, List<string> errors)
     {
-        ValidateFollowUps(provider.FollowUps, errors);
+        var scope = new Scope(provider.SequenceManifest?.Enabled == true);
+        ValidateFollowUps(provider.FollowUps, scope, errors);
+        ValidateResultRules(provider.ResultRules, errors);
+        ValidateCandidateRanking(provider.CandidateRanking, errors);
+        ValidateStrategyClaimRules(provider.SearchStrategies, errors);
     }
 
     // -- follow-ups ---------------------------------------------------------------------------
 
-    private static void ValidateFollowUps(List<LookupFollowUpConfiguration>? followUps, List<string> errors)
+    private static void ValidateFollowUps(List<LookupFollowUpConfiguration>? followUps, Scope scope, List<string> errors)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var followUp in followUps ?? [])
@@ -36,11 +43,12 @@ internal static partial class ProviderDeclarativeValidator
                 errors.Add("follow_ups[].name values must be unique.");
             }
 
-            ValidateLookup(followUp, $"follow_ups['{followUp.Name}']", 1, errors);
+            ValidateLookup(followUp, $"follow_ups['{followUp.Name}']", 1, scope, errors);
         }
     }
 
-    private static void ValidateLookup(LookupFollowUpConfiguration lookup, string path, int depth, List<string> errors)
+    private static void ValidateLookup(
+        LookupFollowUpConfiguration lookup, string path, int depth, Scope scope, List<string> errors)
     {
         AddRequired(errors, lookup.Name, $"{path}.name");
         AddUnknown(lookup.UnmappedProperties, path, errors);
@@ -96,6 +104,11 @@ internal static partial class ProviderDeclarativeValidator
         }
 
         ValidateAddMode(lookup.Add, $"{path}.add", errors);
+        if (lookup.RequiredPaths.Any(string.IsNullOrWhiteSpace))
+        {
+            errors.Add($"{path}.required_paths must not contain blank paths.");
+        }
+
         ValidateFollowUpCache(lookup.Cache, path, variables, errors);
         if (lookup.Rules.Count == 0)
         {
@@ -104,7 +117,7 @@ internal static partial class ProviderDeclarativeValidator
 
         for (var index = 0; index < lookup.Rules.Count; index++)
         {
-            ValidateRule(lookup.Rules[index], $"{path}.rules[{index}]", variables, depth, errors);
+            ValidateRule(lookup.Rules[index], $"{path}.rules[{index}]", variables, depth, scope, errors);
         }
     }
 
@@ -152,7 +165,7 @@ internal static partial class ProviderDeclarativeValidator
         [ClaimRuleKinds.Field] =
         [
             "claim_key", "json_path", "json_paths", "confidence", "transform", "transform_args", "prefix",
-            "trim_leading_slash", "template", "join", "add",
+            "trim_leading_slash", "template", "join", "add", "value", "requires_claim",
         ],
         [ClaimRuleKinds.PriorityPick] = ["claim_key", "confidence", "add", "array", "key_path", "order", "value_path"],
         [ClaimRuleKinds.Items] =
@@ -164,10 +177,15 @@ internal static partial class ProviderDeclarativeValidator
         [
             "add", "items_path", "item", "order_by", "current_id", "emit", "manifest",
         ],
+        [ClaimRuleKinds.PagedSequence] =
+        [
+            "add", "items_path", "item", "order_by", "manifest", "container", "total_path", "expected_total_path",
+            "dedupe_by_id", "date_as", "cache",
+        ],
     };
 
     private static void ValidateRule(
-        ClaimRuleConfiguration rule, string path, HashSet<string> variables, int depth, List<string> errors,
+        ClaimRuleConfiguration rule, string path, HashSet<string> variables, int depth, Scope scope, List<string> errors,
         bool insideItems = false)
     {
         AddUnknown(rule.UnmappedProperties, path, errors);
@@ -210,12 +228,15 @@ internal static partial class ProviderDeclarativeValidator
                 }
                 else
                 {
-                    ValidateLookup(rule.Lookup, $"{path}.lookup['{rule.Lookup.Name}']", depth + 1, errors);
+                    ValidateLookup(rule.Lookup, $"{path}.lookup['{rule.Lookup.Name}']", depth + 1, scope, errors);
                 }
 
                 break;
             case ClaimRuleKinds.Sequence:
                 ValidateSequenceRule(rule, path, variables, errors);
+                break;
+            case ClaimRuleKinds.PagedSequence:
+                ValidatePagedSequenceRule(rule, path, variables, scope, errors);
                 break;
         }
     }
@@ -224,6 +245,14 @@ internal static partial class ProviderDeclarativeValidator
     {
         (string Name, bool Used)[] properties =
         [
+            ("value", rule.Value is not null),
+            ("requires_claim", rule.RequiresClaim is not null),
+            ("container", rule.Container is not null),
+            ("total_path", rule.TotalPath is not null),
+            ("expected_total_path", rule.ExpectedTotalPath is not null),
+            ("dedupe_by_id", rule.DedupeById),
+            ("date_as", rule.DateAs != SequenceDateModes.Parsed),
+            ("cache", rule.Cache is not null),
             ("claim_key", rule.ClaimKey is not null),
             ("json_path", rule.JsonPath is not null),
             ("json_paths", rule.JsonPaths is not null),
@@ -262,16 +291,19 @@ internal static partial class ProviderDeclarativeValidator
     {
         AddRequired(errors, rule.ClaimKey, $"{path}.claim_key");
         AddConfidence(rule.Confidence, $"{path}.confidence", errors);
-        var sources = new[] { rule.JsonPath is not null, rule.JsonPaths is not null, rule.Template is not null }
+        var sources = new[]
+            {
+                rule.JsonPath is not null, rule.JsonPaths is not null, rule.Template is not null, rule.Value is not null,
+            }
             .Count(used => used);
         if (sources > 1)
         {
-            errors.Add($"{path} may use only one of json_path, json_paths and template.");
+            errors.Add($"{path} may use only one of json_path, json_paths, template and value.");
         }
 
         if (sources == 0 && rule.Join is null)
         {
-            errors.Add($"{path} needs json_path, json_paths, template or join.");
+            errors.Add($"{path} needs json_path, json_paths, template, value or join.");
         }
 
         if (rule.JsonPaths is { Count: 0 })
@@ -356,7 +388,7 @@ internal static partial class ProviderDeclarativeValidator
                     continue;
                 }
 
-                ValidateRule(child, $"{path}.{name}[{index}]", variables, depth, errors, insideItems: rule.Role is not null);
+                ValidateRule(child, $"{path}.{name}[{index}]", variables, depth, new Scope(false), errors, insideItems: rule.Role is not null);
             }
         }
 
@@ -415,7 +447,7 @@ internal static partial class ProviderDeclarativeValidator
 
         foreach (var key in rule.OrderBy ?? [])
         {
-            if (!Allowed(key, SequenceOrderKeys.Date, SequenceOrderKeys.Title))
+            if (!Allowed(key, SequenceOrderKeys.Date, SequenceOrderKeys.Title, SequenceOrderKeys.OrdinalNumber, SequenceOrderKeys.OrdinalText))
             {
                 errors.Add($"{path}.order_by contains unknown key '{key}'.");
             }
@@ -468,6 +500,123 @@ internal static partial class ProviderDeclarativeValidator
                     errors.Add($"{path} uses {{{match.Groups[1].Value}}}, which is not declared in the lookup's inputs.");
                 }
             }
+        }
+    }
+
+    private static void ValidatePagedSequenceRule(
+        ClaimRuleConfiguration rule, string path, HashSet<string> variables, Scope scope, List<string> errors)
+    {
+        if (!scope.PagedRequestDeclared)
+        {
+            errors.Add($"{path} needs an enabled sequence_manifest request on the provider.");
+        }
+
+        AddRequired(errors, rule.ItemsPath, $"{path}.items_path");
+        AddRequired(errors, rule.Container, $"{path}.container");
+        if (!Allowed(rule.DateAs, SequenceDateModes.Parsed, SequenceDateModes.Text))
+        {
+            errors.Add($"{path}.date_as must be parsed or text.");
+        }
+
+        if (rule.Item is null)
+        {
+            errors.Add($"{path}.item is required.");
+        }
+        else
+        {
+            AddUnknown(rule.Item.UnmappedProperties, $"{path}.item", errors);
+            AddRequired(errors, rule.Item.IdPath, $"{path}.item.id_path");
+            AddRequired(errors, rule.Item.OrdinalPath, $"{path}.item.ordinal_path");
+        }
+
+        foreach (var key in rule.OrderBy ?? [])
+        {
+            if (!Allowed(key, SequenceOrderKeys.Title, SequenceOrderKeys.Date, SequenceOrderKeys.OrdinalNumber, SequenceOrderKeys.OrdinalText))
+            {
+                errors.Add($"{path}.order_by contains unknown key '{key}'.");
+            }
+        }
+
+        if (rule.Manifest is not { } manifest)
+        {
+            errors.Add($"{path}.manifest is required.");
+        }
+        else
+        {
+            AddUnknown(manifest.UnmappedProperties, $"{path}.manifest", errors);
+            AddRequired(errors, manifest.ClaimKey, $"{path}.manifest.claim_key");
+            AddRequired(errors, manifest.ContainerId, $"{path}.manifest.container_id");
+            AddRequired(errors, manifest.ExternalIdKey, $"{path}.manifest.external_id_key");
+            AddConfidence(manifest.Confidence, $"{path}.manifest.confidence", errors);
+            if (manifest.ConfidenceWhenNotAuthoritative is { } lower)
+            {
+                AddConfidence(lower, $"{path}.manifest.confidence_when_not_authoritative", errors);
+            }
+        }
+
+        if (rule.Cache is not null)
+        {
+            AddUnknown(rule.Cache.UnmappedProperties, $"{path}.cache", errors);
+            if (rule.Cache.Store != FollowUpCacheStores.Memory)
+            {
+                errors.Add($"{path}.cache.store must be memory.");
+            }
+        }
+
+        foreach (var template in new[] { rule.Container, rule.Manifest?.ContainerId, rule.Manifest?.ContainerLabel }
+            .Concat(rule.Item?.TitleFallbacks ?? []))
+        {
+            foreach (Match match in Placeholder.Matches(template ?? string.Empty))
+            {
+                var name = match.Groups[1].Value;
+                if (name != "ordinal" && !variables.Contains(name))
+                {
+                    errors.Add($"{path} uses {{{name}}}, which is not declared in the lookup's inputs.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateResultRules(List<ResultClaimRulesConfiguration>? groups, List<string> errors)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups ?? [])
+        {
+            var path = $"result_rules['{group.Name}']";
+            AddRequired(errors, group.Name, $"{path}.name");
+            AddUnknown(group.UnmappedProperties, path, errors);
+            if (!string.IsNullOrWhiteSpace(group.Name) && !names.Add(group.Name))
+            {
+                errors.Add("result_rules[].name values must be unique.");
+            }
+
+            ValidateMediaTypes(group.MediaTypes, $"{path}.media_types", errors);
+            ValidateAddMode(group.Add, $"{path}.add", errors);
+            if (group.Rules.Count == 0)
+            {
+                errors.Add($"{path}.rules must contain at least one rule.");
+            }
+
+            for (var index = 0; index < group.Rules.Count; index++)
+            {
+                if (group.Rules[index].Kind is ClaimRuleKinds.Lookup or ClaimRuleKinds.PagedSequence)
+                {
+                    errors.Add($"{path}.rules[{index}] cannot be a {group.Rules[index].Kind} rule; results are not fetched.");
+                    continue;
+                }
+
+                ValidateRule(
+                    group.Rules[index], $"{path}.rules[{index}]", new HashSet<string>(StringComparer.Ordinal), 1,
+                    new Scope(false), errors);
+            }
+        }
+    }
+
+    private static void ValidateMediaTypes(List<string> mediaTypes, string path, List<string> errors)
+    {
+        foreach (var mediaType in mediaTypes.Where(name => !Enum.TryParse<MediaType>(name, true, out _)))
+        {
+            errors.Add($"{path} contains unknown media type '{mediaType}'.");
         }
     }
 

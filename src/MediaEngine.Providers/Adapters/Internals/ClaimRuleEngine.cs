@@ -97,6 +97,12 @@ internal static class ClaimRuleEngine
     private static void ApplyField(
         List<ProviderClaim> claims, JsonNode node, ClaimRuleConfiguration rule, string defaultAdd, string? roleKey)
     {
+        if (rule.RequiresClaim is not null
+            && !claims.Any(c => string.Equals(c.Key, rule.RequiresClaim, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
         var key = rule.ClaimKey ?? string.Empty;
         if (key.Contains(RoleToken, StringComparison.Ordinal))
         {
@@ -114,7 +120,11 @@ internal static class ClaimRuleEngine
     private static string? ResolveFieldValue(JsonNode node, ClaimRuleConfiguration rule)
     {
         string? value;
-        if (rule.Template is not null)
+        if (rule.Value is not null)
+        {
+            value = rule.Value;
+        }
+        else if (rule.Template is not null)
         {
             value = ExpandFromNode(rule.Template, node);
         }
@@ -307,16 +317,7 @@ internal static class ClaimRuleEngine
         return null;
     }
 
-    /// <summary>Lower-cases, strips accents, reads "&amp;" as "and" and turns other punctuation into single spaces.</summary>
-    internal static string NormalizeText(string value)
-    {
-        var chars = RetailTextSimilarity.StripDiacritics(value)
-            .Replace("&", " and ", StringComparison.Ordinal)
-            .ToLowerInvariant()
-            .Select(c => char.IsLetterOrDigit(c) ? c : ' ')
-            .ToArray();
-        return string.Join(' ', new string(chars).Split(' ', StringSplitOptions.RemoveEmptyEntries));
-    }
+    internal static string NormalizeText(string value) => ResultTextRules.NormalizeEquivalentText(value);
 
     private static IEnumerable<JsonNode> SortNodes(IEnumerable<JsonNode> nodes, IReadOnlyList<ClaimSortConfiguration> sort)
     {
