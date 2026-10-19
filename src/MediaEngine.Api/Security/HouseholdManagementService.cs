@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -70,7 +71,8 @@ public sealed class HouseholdManagementService(
     public async Task DeleteAsync(RequestAuthority actor, Guid householdId, CancellationToken ct = default)
     {
         await RequireServerWriteAsync(actor, ct).ConfigureAwait(false);
-        switch (await households.DeleteWhenEmptyAsync(householdId, ct).ConfigureAwait(false))
+        var outcome = await households.DeleteWhenEmptyAsync(householdId, ct).ConfigureAwait(false);
+        switch (outcome)
         {
             case HouseholdDeleteOutcome.Deleted:
                 await RecordAsync(actor, "household.deleted", householdId, ct).ConfigureAwait(false);
@@ -79,8 +81,10 @@ public sealed class HouseholdManagementService(
                 throw new KeyNotFoundException("Household not found.");
             case HouseholdDeleteOutcome.NotEmpty:
                 throw new InvalidOperationException(NotEmptyMessage);
-            default:
+            case HouseholdDeleteOutcome.HoldsSharedItems:
                 throw new InvalidOperationException(HoldsSharedItemsMessage);
+            default:
+                throw new UnreachableException($"Unhandled household delete outcome: {outcome}.");
         }
     }
 

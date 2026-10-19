@@ -797,6 +797,8 @@ These routes belong to the Access replacement under final integration. Inbound c
 | DELETE | `/access/sessions/{sessionId}` | Signs out one session of someone in the caller's scope (as above). Recent sign-in required. `204` on success, `400` (`Use Sign out for your own session`) for the caller's own session, `403` when the session belongs to someone outside the caller's scope, `404` when it is unknown or already ended. Audited as `account.session_revoked_by_administrator`. |
 | GET | `/access/self-service/external-logins` | Signed-in person. Lists their linked sign-ins (provider and email) for **Settings > Security**. |
 | DELETE | `/access/self-service/external-logins/{loginId}` | Signed-in person, recent sign-in required. Unlinks one of their own linked sign-ins. |
+| GET | `/access/self-service/notices` | Signed-in person. Lists the one-time reminders their account has dismissed (`dismissed`: notice keys, today only `secure-account`). Read from the caller's own account only. |
+| POST | `/access/self-service/notices/{key}/dismiss` | Signed-in person. Remembers "Not now" on a reminder for their own account. `204`; `400` for an unknown key (nothing saved). |
 | GET | `/access/admin-unlock` | Administrator or household administrator. Reads the administrator unlock state of this session. |
 | POST | `/access/admin-unlock` | Administrator or household administrator, rate limited. Unlocks admin settings for this session with the administrator PIN, when the grant's administrator protection is on. |
 | DELETE | `/access/admin-unlock` | Administrator or household administrator. Ends this session's administrator unlock. |

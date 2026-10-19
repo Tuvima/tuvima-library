@@ -1974,7 +1974,7 @@
         "::deep .sidebar-page-header p",
         "::deep .sidebar-page-header .app-page-header__actions"
       ],
-      "reason": "The Settings page frame now draws the breadcrumb and page header for every Settings page, so the rules that style them moved with the markup from Settings.razor.css to SettingsPageFrame.razor.css. The aggregate deep count is unchanged."
+      "reason": "The Settings page frame now draws the breadcrumb and page header for every Settings page, so the rules that style them moved with the markup from Settings.razor.css to SettingsPageFrame.razor.css. The aggregate deep count shrinks by 11 (264 to 239 here, 14 added in the frame)."
     },
     {
       "source": "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css",

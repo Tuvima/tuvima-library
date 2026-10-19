@@ -9,38 +9,68 @@ namespace MediaEngine.Web.Services.Navigation;
 /// </summary>
 public sealed class AccountNoticeState(DashboardIdentityClient identity, ILogger<AccountNoticeState>? logger = null)
 {
+    private readonly object _gate = new();
     private readonly HashSet<string> _dismissed = new(StringComparer.Ordinal);
+    private Task? _loading;
     private bool _loaded;
 
     /// <summary>Raised after a notice is dismissed or the dismissed list is loaded.</summary>
     public event Action? Changed;
 
-    public bool IsDismissed(string noticeKey) => _dismissed.Contains(noticeKey);
+    public bool IsDismissed(string noticeKey)
+    {
+        lock (_gate)
+        {
+            return _dismissed.Contains(noticeKey);
+        }
+    }
 
     /// <summary>
-    /// Loads the account's dismissed reminders once. If the Engine cannot answer, nothing counts as dismissed and the
-    /// next caller asks again.
+    /// Loads the account's dismissed reminders once. Callers that arrive while a load is running share it. If the
+    /// Engine cannot answer, nothing counts as dismissed and the next caller asks again.
     /// </summary>
-    public async Task EnsureLoadedAsync(CancellationToken ct = default)
+    public Task EnsureLoadedAsync(CancellationToken ct = default)
     {
-        if (_loaded)
+        lock (_gate)
         {
-            return;
-        }
+            if (_loaded)
+            {
+                return Task.CompletedTask;
+            }
 
-        var notices = await identity.GetAccountNoticesAsync(ct).ConfigureAwait(false);
-        if (notices is null)
+            _loading ??= LoadAsync(ct);
+            return _loading;
+        }
+    }
+
+    private async Task LoadAsync(CancellationToken ct)
+    {
+        try
         {
-            return;
-        }
+            var notices = await identity.GetAccountNoticesAsync(ct).ConfigureAwait(false);
+            if (notices is null)
+            {
+                return;
+            }
 
-        _loaded = true;
-        foreach (var key in notices.Dismissed ?? [])
+            lock (_gate)
+            {
+                _loaded = true;
+                foreach (var key in notices.Dismissed ?? [])
+                {
+                    _dismissed.Add(key);
+                }
+            }
+
+            Changed?.Invoke();
+        }
+        finally
         {
-            _dismissed.Add(key);
+            lock (_gate)
+            {
+                _loading = null;
+            }
         }
-
-        Changed?.Invoke();
     }
 
     /// <summary>
@@ -49,7 +79,13 @@ public sealed class AccountNoticeState(DashboardIdentityClient identity, ILogger
     /// </summary>
     public async Task DismissAsync(string noticeKey, CancellationToken ct = default)
     {
-        if (_dismissed.Add(noticeKey))
+        bool added;
+        lock (_gate)
+        {
+            added = _dismissed.Add(noticeKey);
+        }
+
+        if (added)
         {
             Changed?.Invoke();
         }
