@@ -46,6 +46,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<AudiobookAssetRow>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT @workId AS WorkId,
                    ma.id AS AssetId,
                    (SELECT metadata_json FROM playback_inspection_cache WHERE asset_id = ma.id AND source_hash = ma.content_hash LIMIT 1) AS InspectionJson,

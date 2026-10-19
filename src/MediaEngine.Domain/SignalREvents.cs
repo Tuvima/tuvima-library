@@ -18,6 +18,9 @@ public static class SignalREvents
     public const string IngestionProgress = "IngestionProgress";
     public const string IngestionItemProgress = "IngestionItemProgress";
     public const string BatchProgress = "BatchProgress";
+
+    /// <summary>The live ingestion numbers (files found, tally, bar, state), sent as one snapshot whenever they change.</summary>
+    public const string IngestionQueueProgress = "IngestionQueueProgress";
     public const string MediaOperationChanged = "MediaOperationChanged";
     public const string CapabilityStateChanged = "CapabilityStateChanged";
 

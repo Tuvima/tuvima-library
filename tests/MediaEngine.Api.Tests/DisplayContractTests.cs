@@ -186,8 +186,8 @@ public sealed class DisplayContractTests
         var workProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayWorkProjectionReader.cs"));
         var journeyProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayJourneyProjectionReader.cs"));
 
-        Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", workProjection, StringComparison.Ordinal);
-        Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", journeyProjection, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", workProjection, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", journeyProjection, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleAssetPathPredicate(\"ma.file_path_root\")", workProjection, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleAssetPathPredicate(\"ma.file_path_root\")", journeyProjection, StringComparison.Ordinal);
     }

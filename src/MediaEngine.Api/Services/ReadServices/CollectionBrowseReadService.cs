@@ -81,12 +81,14 @@ public sealed class CollectionBrowseReadService(
         {
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = """
+                cmd.CommandText = $"""
                     SELECT DISTINCT woa.work_id
                     FROM work_owned_assets woa
                     INNER JOIN media_assets ma ON ma.id = woa.asset_id
+                    INNER JOIN works w ON w.id = woa.work_id
                     WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
                       AND ma.file_path_root NOT LIKE '%\.data\staging\%'
+                      AND {WorkReadinessSql.ReadyWorkPredicate("w")}
                     """;
                 using var reader = await cmd.ExecuteReaderAsync(ct);
                 while (await reader.ReadAsync(ct))
@@ -143,6 +145,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var value = await conn.ExecuteScalarAsync<object?>(new CommandDefinition(
             """
+            -- readiness: root of one work, looked up by id
             SELECT COALESCE(gp.id, p.id, w.id)
             FROM works w
             LEFT JOIN works p ON p.id = w.parent_work_id
@@ -160,6 +163,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var value = await conn.ExecuteScalarAsync<object?>(new CommandDefinition(
             """
+            -- readiness: representative file of one work, looked up by id
             SELECT MIN(ma.id)
             FROM works w
             LEFT JOIN works child ON child.parent_work_id = w.id
@@ -221,7 +225,7 @@ public sealed class CollectionBrowseReadService(
     {
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<CollectionArtistWorkReadModel>(new CommandDefinition(
-            """
+            $"""
             WITH artist_works AS (
                 SELECT DISTINCT w.id AS work_id
                 FROM works w
@@ -233,6 +237,7 @@ public sealed class CollectionBrowseReadService(
                     ON cva.entity_id IN (w.id, ma.id, COALESCE(gp.id, p.id, w.id))
                    AND cva.key IN ('album_artist', 'artist', 'performer')
                 WHERE cva.value = @ArtistName COLLATE NOCASE
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             ),
             work_data AS (
                 SELECT
@@ -286,8 +291,8 @@ public sealed class CollectionBrowseReadService(
             _ => "Title",
         };
         var mediaTypeJoin = string.IsNullOrWhiteSpace(mediaType)
-            ? "INNER JOIN works w ON w.id = e.work_id"
-            : "INNER JOIN works w ON w.id = e.work_id AND w.media_type = @MediaType";
+            ? "-- readiness: join of the system-view detail query, which filters on the Ready rule\nINNER JOIN works w ON w.id = e.work_id"
+            : "-- readiness: join of the system-view detail query, which filters on the Ready rule\nINNER JOIN works w ON w.id = e.work_id AND w.media_type = @MediaType";
         var isMusicAlbumGroup = string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase)
             && string.Equals(groupField, "album", StringComparison.OrdinalIgnoreCase);
         var hierarchyRootSql = isMusicAlbumGroup
@@ -348,6 +353,7 @@ public sealed class CollectionBrowseReadService(
                             AND cva_artist.entity_id IN (ma.id, w.id, p.id, gp.id)
                       )
                   )
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             ),
             work_data AS (
                 SELECT
@@ -486,6 +492,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var sql = string.Equals(field, "media_type", StringComparison.OrdinalIgnoreCase)
             ? """
+              -- readiness: the media types that exist, for the rule editor's choices
               SELECT DISTINCT media_type
               FROM works
               WHERE NULLIF(media_type, '') IS NOT NULL
@@ -652,7 +659,7 @@ public sealed class CollectionBrowseReadService(
                 INNER JOIN editions e ON e.work_id = w.id
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE w.media_type = 'Music'
-                  AND COALESCE(w.is_catalog_only, 0) = 0
+                  AND {WorkReadinessSql.ReadyWorkPredicate("w")}
                   AND {visibleAssetPredicate}
                 """,
                 cancellationToken: ct)).ConfigureAwait(false))
@@ -692,6 +699,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var albumName = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
             """
+            -- readiness: name of one album root, looked up by id
             SELECT COALESCE(
                 (SELECT value FROM canonical_values WHERE entity_id = @RootWorkId AND key = 'album' LIMIT 1),
                 (SELECT value FROM canonical_values WHERE entity_id = @RootWorkId AND key = 'title' LIMIT 1),
@@ -727,6 +735,7 @@ public sealed class CollectionBrowseReadService(
         // Several artists released an album of this name: the root belongs to the group of its own album artist.
         var albumArtist = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
             """
+            -- readiness: artist of one album root, looked up by id
             SELECT cva.value
             FROM canonical_value_arrays cva
             WHERE cva.key IN ('album_artist', 'artist')
@@ -807,6 +816,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<CollectionSystemViewGroupReadModel>(new CommandDefinition(
             $"""
+            -- readiness: work ids come from the Ready-gated rule evaluation
             WITH work_assets AS (
                 SELECT w.id AS WorkId,
                        ma.id AS AssetId,
@@ -1024,6 +1034,7 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<CollectionSystemViewPreviewReadModel>(new CommandDefinition(
             $"""
+            -- readiness: work ids come from the Ready-gated rule evaluation
             WITH work_assets AS (
                 SELECT w.id AS WorkId,
                        MIN(ma.id) AS AssetId,

@@ -22,7 +22,7 @@ public sealed class DisplayJourneyProjectionReader
             return Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
         }
         using var conn = _db.CreateConnection();
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",

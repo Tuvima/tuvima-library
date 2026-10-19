@@ -221,6 +221,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         _arrayRepo = arrayRepo;
         _watcher = watcher;
         _debounce = debounce;
+        _debounce.FileVanished += OnFileVanished;
         _hasher = hasher;
         _processors = processors;
         _scorer = scorer;

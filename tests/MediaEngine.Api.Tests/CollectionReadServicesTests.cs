@@ -27,6 +27,7 @@ public sealed class CollectionReadServicesTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_database);
         var collectionRepository = new CollectionRepository(_database);
         _browse = new CollectionBrowseReadService(
             collectionRepository,

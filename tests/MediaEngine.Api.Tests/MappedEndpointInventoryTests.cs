@@ -77,7 +77,7 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionNotificationStatus", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetCurrentIngestionMediaGroups", "GetImportFolderWaiting", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
+            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionNotificationStatus", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetIngestionQueueProgress", "GetCurrentIngestionMediaGroups", "GetImportFolderWaiting", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
             [ApplicationPermissionIds.IngestionHistoryRead] = ["GetRecentIngestionAdditions", "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetRecentBatches", "GetBatchAttentionCount", "GetBatchItems", "GetBatchById", "GetMediaOperation", "GetActivityHistorySummary", "GetActivityBatches", "GetActivityBatch", "GetActivityBatchPresentation", "GetActivityBatchMediaGroups", "GetActivityBatchGroups", "GetActivityBatchInsights", "GetActivityBatchItems", "GetActivityBatchEvents", "GetActivityBatchItemDetail", "GetActivityByRunId"],
             [ApplicationPermissionIds.IngestionRun] = ["TriggerScan", "TriggerLibraryScan", "TriggerRescan", "TriggerReconciliation", "UploadMedia"],
             [ApplicationPermissionIds.IngestionRetry] = ["RereadAssetMetadata", "RetryMediaOperation"],

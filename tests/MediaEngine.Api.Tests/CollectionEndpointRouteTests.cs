@@ -19,7 +19,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.Contains("ICollectionSearchReadService searchReadService", source, StringComparison.Ordinal);
         Assert.Contains("ICollectionMediaLookupReadService mediaLookupReadService", source, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleAssetPathPredicate(\"ma.file_path_root\")", readServiceSource, StringComparison.Ordinal);
-        Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", readServiceSource, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", readServiceSource, StringComparison.Ordinal);
         Assert.Contains("row.DescriptionOverride ?? row.Description", browseReadServiceSource, StringComparison.Ordinal);
         Assert.Contains("Tagline = row.Tagline", browseReadServiceSource, StringComparison.Ordinal);
         Assert.Contains("Network = row.Network", browseReadServiceSource, StringComparison.Ordinal);
@@ -69,7 +69,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.DoesNotContain("IDatabaseConnection db", searchSource, StringComparison.Ordinal);
         Assert.Contains("QueryAsync<CollectionSearchRow>", serviceSource, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleAssetPathPredicate(\"ma.file_path_root\")", serviceSource, StringComparison.Ordinal);
-        Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", serviceSource, StringComparison.Ordinal);
         Assert.DoesNotContain("collectionRepo.GetAllAsync", searchSource, StringComparison.Ordinal);
     }
 

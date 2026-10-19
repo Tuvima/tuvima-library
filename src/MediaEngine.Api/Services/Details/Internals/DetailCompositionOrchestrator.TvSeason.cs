@@ -61,6 +61,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         return await conn.QueryFirstOrDefaultAsync<Guid?>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT season.parent_work_id
             FROM works season
             WHERE season.id = @seasonId

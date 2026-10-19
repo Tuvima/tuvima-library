@@ -39,8 +39,8 @@ public sealed class CollectionRepositoryOwnershipTests : IDisposable
                    (@libraryList, 'Library', 'Custom', 'library', 'materialized', 'Smart', 'Mixed', 'Library', 'Everyone', NULL),
                    (@series, 'Series', 'Series', 'library', 'query', 'Smart', 'Mixed', 'Library', 'Everyone', NULL);
             INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES (@sharedList, @guest);
-            INSERT INTO works (id, media_type, work_kind, curator_state, collection_id)
-            VALUES (@work, 'Movies', 'standalone', 'accepted', @series);
+            INSERT INTO works (id, media_type, work_kind, curator_state, collection_id, ready_at)
+            VALUES (@work, 'Movies', 'standalone', 'accepted', @series, '2026-01-01T00:00:00.0000000+00:00');
             INSERT INTO editions (id, work_id) VALUES (@edition, @work);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
             VALUES (@asset, @edition, 'hash-ownership', 'C:/library/ownership.mkv', CURRENT_TIMESTAMP);

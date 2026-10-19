@@ -167,23 +167,15 @@ public sealed class UiArchitectureGuardrailTests
     }
 
     [Fact]
-    public void IngestionDashboard_KeepsLifecycleProjectionSelectionAndPresentationSeparated()
+    public void IngestionDashboard_StateHoldsOnlyTheLifecycleAndTheEnginesSnapshots()
     {
         var lifecycle = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-        var projection = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.Projection.cs");
-        var markup = Read("src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor");
-        var codeBehind = Read("src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor.cs");
-        var selection = Read("src/MediaEngine.Web/Components/Settings/IngestionDashboardSelectionState.cs");
         var css = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css");
 
-        Assert.Contains("public sealed partial class IngestionLiveDashboardState", lifecycle);
-        Assert.Contains("public static IReadOnlyList<IngestionDashboardStage> BuildStages", projection);
-        Assert.DoesNotContain("public static IReadOnlyList<IngestionDashboardStage> BuildStages", lifecycle);
-        Assert.DoesNotContain("@code", markup);
-        Assert.Contains("public partial class IngestionLiveDashboard", codeBehind);
-        Assert.Contains("public sealed class IngestionDashboardSelectionState", selection);
-        Assert.Contains("library-update-stage-cards", markup);
-        Assert.Contains("library-update-stage-detail-panel", markup);
+        Assert.Contains("public sealed class IngestionLiveDashboardState", lifecycle);
+        Assert.Contains("public IngestionQueueProgressDto? QueueProgress", lifecycle);
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Services", "Integration", "IngestionLiveDashboardState.Projection.cs")));
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "IngestionLiveDashboard.razor")));
 
         var retiredCssFamilies = new[]
         {

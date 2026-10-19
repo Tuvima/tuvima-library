@@ -463,8 +463,8 @@ public sealed class LineageReaderTests : IDisposable
                 VALUES (@showId, @collectionId, 'TV');
             INSERT INTO works (id, collection_id, media_type, parent_work_id)
                 VALUES (@seasonId, @collectionId, 'TV', @showId);
-            INSERT INTO works (id, collection_id, media_type, parent_work_id)
-                VALUES (@episodeId, @collectionId, 'TV', @seasonId);
+            INSERT INTO works (id, collection_id, media_type, parent_work_id, ready_at)
+                VALUES (@episodeId, @collectionId, 'TV', @seasonId, '2026-01-01T00:00:00.0000000+00:00');
             INSERT INTO editions (id, work_id) VALUES (@editionId, @episodeId);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
                 VALUES (@assetId, @editionId, @hash, '/lib/test-blob.mkv', 'Normal');
@@ -495,8 +495,8 @@ public sealed class LineageReaderTests : IDisposable
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO collections (id, created_at) VALUES (@collectionId, datetime('now'));
-            INSERT INTO works (id, collection_id, media_type)
-                VALUES (@workId, @collectionId, @mediaType);
+            INSERT INTO works (id, collection_id, media_type, ready_at)
+                VALUES (@workId, @collectionId, @mediaType, '2026-01-01T00:00:00.0000000+00:00');
             INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
                 VALUES (@assetId, @editionId, @hash, '/lib/standalone.bin', 'Normal');

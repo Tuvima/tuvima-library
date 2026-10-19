@@ -8,6 +8,8 @@ public interface IMediaOperationTracker
     Task UpdateStageAsync(Guid operationId, string stage, int? progressPercent = null, string? message = null, object? detail = null, CancellationToken ct = default);
     Task MarkSucceededAsync(Guid operationId, string? resultSummary = null, object? detail = null, CancellationToken ct = default);
     Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default);
+    /// <summary>Closes an operation whose subject (usually a file) is confirmed to be gone, with a plain reason, a history entry and a published change.</summary>
+    Task MarkMissingConfirmedAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default);
     Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default);
     Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default);
 
