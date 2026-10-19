@@ -60,4 +60,39 @@ public sealed class BaselineRunTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => BaselineRun.RunAsync(["--repo", _root, "--generate", "--label", "bad label!"]));
         Assert.Empty(Directory.EnumerateFileSystemEntries(_root));
     }
+
+    [Fact]
+    public async Task RunAsync_WhenTheRunFails_StillRemovesTheCopiedProviderKeys()
+    {
+        var configSource = Path.Combine(_root, "source-config");
+        Directory.CreateDirectory(Path.Combine(configSource, "secrets"));
+        File.WriteAllText(Path.Combine(configSource, "core.json"), "{}");
+        File.WriteAllText(Path.Combine(configSource, "libraries.json"), "{}");
+        File.WriteAllText(Path.Combine(configSource, "secrets", "tmdb.json"), "{\"api_key\":\"not-a-real-key\"}");
+        var outRoot = Path.Combine(_root, "out");
+
+        await Assert.ThrowsAsync<DirectoryNotFoundException>(() => BaselineRun.RunAsync(
+            ["--repo", _root, "--sample-root", Path.Combine(_root, "missing-samples"), "--config-source", configSource, "--out-root", outRoot]));
+
+        var run = Assert.Single(Directory.GetDirectories(outRoot));
+        Assert.True(File.Exists(Path.Combine(run, "config", "core.json")));
+        Assert.False(Directory.Exists(Path.Combine(run, "config", "secrets")));
+        Assert.True(File.Exists(Path.Combine(configSource, "secrets", "tmdb.json")));
+    }
+
+    [Fact]
+    public async Task Prepare_RefusesAConfigFolderThatIsNotABaselineRunCopy()
+    {
+        var config = Path.Combine(_root, "config");
+        var samples = Path.Combine(_root, "samples");
+        Directory.CreateDirectory(config);
+        Directory.CreateDirectory(samples);
+        File.WriteAllText(Path.Combine(config, "core.json"), "{}");
+        File.WriteAllText(Path.Combine(config, "libraries.json"), "{}");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => BaselinePrepare.RunAsync(config, samples));
+
+        Assert.Equal("{}", File.ReadAllText(Path.Combine(config, "core.json")));
+        Assert.False(Directory.Exists(Path.Combine(_root, "data")));
+    }
 }

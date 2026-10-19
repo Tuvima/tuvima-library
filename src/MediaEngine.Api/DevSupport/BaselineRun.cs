@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -53,10 +54,38 @@ public static partial class BaselineRun
         var logDirectory = Path.Combine(run, "logs");
         var recordPath = Path.Combine(run, "baseline-record.json");
         Directory.CreateDirectory(logDirectory);
+        File.WriteAllText(Path.Combine(run, BaselinePrepare.RunMarkerFile), runId);
         Console.WriteLine($"Run folder: {run}");
 
         var exitCode = 0;
         Process? engine = null;
+        var cleanedUp = 0;
+
+        // Ctrl+C, closing the window or a stop signal end this process without running the finally block below, so the
+        // same cleanup also runs from those handlers: stop the Engine this run started, then remove the copied keys.
+        void CleanUp()
+        {
+            if (Interlocked.Exchange(ref cleanedUp, 1) == 1)
+            {
+                return;
+            }
+
+            if (engine is { HasExited: false })
+            {
+                StopEngine(engine);
+            }
+
+            RemoveCopiedKeys(configDirectory);
+        }
+
+        ConsoleCancelEventHandler onCancel = (_, _) =>
+        {
+            Console.WriteLine("Stopping the baseline run: stopping its Engine and removing the copied provider keys.");
+            CleanUp();
+        };
+        Console.CancelKeyPress += onCancel;
+        using var onTerminate = PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ => CleanUp());
+        using var onWindowClosed = PosixSignalRegistration.Create(PosixSignal.SIGHUP, _ => CleanUp());
         try
         {
             var copiedKeys = CopyConfig(configSource, configDirectory);
@@ -130,12 +159,8 @@ public static partial class BaselineRun
         finally
         {
             // Only the child this run started, and the copied keys always go.
-            if (engine is { HasExited: false })
-            {
-                StopEngine(engine);
-            }
-
-            RemoveCopiedKeys(configDirectory);
+            Console.CancelKeyPress -= onCancel;
+            CleanUp();
         }
 
         return exitCode;
@@ -223,14 +248,29 @@ public static partial class BaselineRun
         return main is null ? null : Path.Combine(main, "config");
     }
 
-    private static void RemoveCopiedKeys(string configDirectory)
+    internal static void RemoveCopiedKeys(string configDirectory)
     {
         foreach (var name in new[] { "secrets", ".secrets" })
         {
             var path = Path.Combine(configDirectory, name);
-            if (Directory.Exists(path))
+            for (var attempt = 1; Directory.Exists(path); attempt++)
             {
-                Directory.Delete(path, recursive: true);
+                try
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A file can stay locked briefly after the Engine stops (or by a virus scanner). Retry, then say
+                    // plainly where the keys are rather than hide them or the run's own error.
+                    if (attempt >= 10)
+                    {
+                        Console.Error.WriteLine($"WARNING: could not delete the copied provider keys at {path} ({ex.Message}). Delete that folder by hand.");
+                        break;
+                    }
+
+                    Thread.Sleep(TimeSpan.FromMilliseconds(500));
+                }
             }
         }
     }

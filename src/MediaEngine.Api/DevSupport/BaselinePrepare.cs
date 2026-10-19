@@ -30,6 +30,9 @@ public static class BaselinePrepare
 
     public static readonly string[] ViewFolders = ["personal_photos", "personal_videos"];
 
+    /// <summary>Written by <c>--run-baseline</c> into its run folder; prepare refuses any folder without it.</summary>
+    public const string RunMarkerFile = ".baseline-run";
+
     public static string DataDirectoryFor(string configDirectory) =>
         Path.Combine(Path.GetDirectoryName(Path.GetFullPath(configDirectory))!, "data");
 
@@ -42,6 +45,12 @@ public static class BaselinePrepare
         configDirectory = Path.GetFullPath(configDirectory);
         sampleRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sampleRoot));
         var dataDirectory = DataDirectoryFor(configDirectory);
+        if (!File.Exists(Path.Combine(Path.GetDirectoryName(configDirectory)!, RunMarkerFile)))
+        {
+            throw new InvalidOperationException(
+                $"'{configDirectory}' is not inside a baseline run folder (no {RunMarkerFile} beside it). Prepare only rewrites a copied config made by --run-baseline, never a real config folder.");
+        }
+
         if (!File.Exists(Path.Combine(configDirectory, "core.json")) || !File.Exists(Path.Combine(configDirectory, "libraries.json")))
         {
             throw new FileNotFoundException("The baseline config folder must be a copy of the Engine config folder (core.json and libraries.json are required).", configDirectory);
