@@ -93,7 +93,7 @@ public sealed class DatabaseConnectionGuardrailTests
         // leaked, so a process-wide pool clear disposes its handle (ObjectDisposedException on the
         // next command). Clear one database's pool instead: DatabaseConnection.ReleasePooledConnections
         // in the Engine, TestTemp.ReleaseSqlitePool / ReleaseSqlitePoolsIn in tests.
-        const string processWideClear = "ClearAll" + "Pools(";
+        const string processWideClear = "ClearAll" + "Pools";
         var repoRoot = FindRepoRoot();
         var offenders = new[] { "src", "tests" }
             .SelectMany(folder => Directory.EnumerateFiles(Path.Combine(repoRoot, folder), "*.cs", SearchOption.AllDirectories))

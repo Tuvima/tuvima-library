@@ -252,6 +252,7 @@ public sealed class MetadataResourceAdmissionTests : IDisposable
 
     public void Dispose()
     {
+        _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try
         {

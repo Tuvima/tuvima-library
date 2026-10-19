@@ -336,6 +336,7 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
 
     public void Dispose()
     {
+        _database.Dispose();
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch (IOException) { }
     }
