@@ -51,7 +51,7 @@ public partial interface IEngineApiClient
 
     Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default);
 
-    Task<bool> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default);
+    Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default);
 
     Task<bool> SavePluginSettingsAsync(string pluginId, Dictionary<string, JsonElement> settings, CancellationToken ct = default);
 

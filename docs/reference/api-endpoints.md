@@ -556,7 +556,7 @@ clients should use that contract value rather than derive pressure from labels.
 | GET | `/plugins` | List built-in and dynamic plugins loaded by the Engine | Administrator or application with `plugins.read` |
 | GET | `/plugins/approved` | Fetch the approved plugin discovery catalog from the configured GitHub source | Administrator or application with `plugins.read` |
 | GET | `/plugins/{pluginId}` | Plugin detail, manifest metadata, settings, permissions, and load state | Administrator or application with `plugins.read` |
-| POST | `/plugins/{pluginId}/enable` | Enable a plugin | Administrator or application with `plugins.manage` |
+| POST | `/plugins/{pluginId}/enable` | Enable a plugin. Returns `409 Conflict` (problem detail with the plain-English reason) when the plugin does not fit this Library version or platform, is a kind this version cannot run, or failed to load. | Administrator or application with `plugins.manage` |
 | POST | `/plugins/{pluginId}/disable` | Disable a plugin | Administrator or application with `plugins.manage` |
 | PUT | `/plugins/{pluginId}/settings` | Save plugin user settings JSON | Administrator or application with `plugins.manage` |
 | GET | `/plugins/{pluginId}/manifest` | Read dynamic plugin manifest JSON. Built-in manifests are compiled and are not returned here. | Administrator or application with `plugins.read` |
@@ -565,6 +565,11 @@ clients should use that contract value rather than derive pressure from labels.
 | POST | `/plugins/{pluginId}/health` | Run plugin health checks | Administrator or application with `plugins.read` |
 | GET | `/plugins/{pluginId}/jobs` | List recent durable plugin operation rows for one plugin. | Administrator or application with `plugins.jobs.read` |
 | POST | `/plugins/jobs/segment-detection/run` | Run scheduled playback segment detector plugins immediately | Administrator or application with `plugins.jobs.run` |
+
+Plugin summaries also carry `kind`, `trust_level`, `minimum_library_version`,
+`maximum_library_version`, `supported_platforms`, `is_compatible` and
+`compatibility_problem`; `enabled` is the effective state (saved as on and
+compatible).
 
 Plugin responses preserve manifest capabilities, permissions, tool
 requirements and per-platform artifacts, AI permissions, settings schema,

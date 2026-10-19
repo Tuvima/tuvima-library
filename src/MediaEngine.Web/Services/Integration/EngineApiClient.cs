@@ -88,19 +88,27 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<bool> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default)
+    public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default)
     {
         try
         {
             var encoded = Uri.EscapeDataString(pluginId);
             using var response = await _http.PostAsJsonAsync($"/plugins/{encoded}/{(enabled ? "enable" : "disable")}", new { }, ct);
-            return response.IsSuccessStatusCode;
+            if (response.IsSuccessStatusCode)
+            {
+                return PluginActionResult.Success;
+            }
+
+            // 409: the Engine refused to switch the plugin on and says why in plain English (problem detail).
+            return PluginActionResult.Failure(response.StatusCode == System.Net.HttpStatusCode.Conflict
+                ? await ReadProblemDetailAsync(response, ct)
+                : null);
         }
-        catch (OperationCanceledException) { return false; }
+        catch (OperationCanceledException) { return PluginActionResult.Failure(); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "POST /plugins/{PluginId}/enable|disable failed", pluginId);
-            return false;
+            return PluginActionResult.Failure();
         }
     }
 
@@ -1406,6 +1414,28 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         catch (JsonException)
         {
             return raw;
+        }
+    }
+
+    /// <summary>The problem's <c>detail</c> text alone (the reason an action was refused), or null when the body has none.</summary>
+    private static async Task<string?> ReadProblemDetailAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        var raw = await response.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                ? TryGetString(doc.RootElement, "detail")
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

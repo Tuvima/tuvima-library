@@ -1,4 +1,3 @@
-using System.Reflection;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
@@ -19,13 +18,8 @@ namespace MediaEngine.Api.Endpoints;
 
 public static class SystemEndpoints
 {
-    // Version sourced from the assembly at startup — no hard-coded string to forget to bump.
-    private static readonly string AppVersion =
-        typeof(SystemEndpoints).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion
-            ?.Split('+')[0]           // strip build metadata (e.g. git hash)
-        ?? "1.0.0";
+    // Version sourced from the assembly at startup (see LibraryVersion) — no hard-coded string to forget to bump.
+    private static readonly string AppVersion = LibraryVersion.Current;
 
     public static IEndpointRouteBuilder MapSystemEndpoints(this IEndpointRouteBuilder app)
     {

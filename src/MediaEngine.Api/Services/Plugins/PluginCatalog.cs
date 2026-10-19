@@ -30,6 +30,8 @@ public sealed class PluginCatalog
     private readonly PluginSettingsService _settingsService;
     private readonly ILogger<PluginCatalog> _logger;
     private readonly string _pluginRoot;
+    private readonly string _libraryVersion;
+    private readonly string _platform;
     private readonly object _lock = new();
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
@@ -39,10 +41,25 @@ public sealed class PluginCatalog
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
         ILogger<PluginCatalog> logger)
+        : this(builtInPlugins, settingsService, configurationLoader, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
+    {
+    }
+
+    // Internal so the app's service container (which only sees public constructors) keeps using the one above;
+    // tests pass any Library version and platform to exercise the compatibility checks.
+    internal PluginCatalog(
+        IEnumerable<ITuvimaPlugin> builtInPlugins,
+        PluginSettingsService settingsService,
+        IConfigurationLoader configurationLoader,
+        ILogger<PluginCatalog> logger,
+        string libraryVersion,
+        string platform)
     {
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
         _logger = logger;
+        _libraryVersion = libraryVersion;
+        _platform = platform;
 
         var core = configurationLoader.LoadCore();
         var root = string.IsNullOrWhiteSpace(core.LibraryRoot)
@@ -73,6 +90,15 @@ public sealed class PluginCatalog
     {
         var registration = Get(pluginId)
             ?? throw new InvalidOperationException($"Plugin '{pluginId}' is not registered.");
+
+        // Switching off always works; switching on needs a plugin that loaded and fits this Library and machine.
+        if (enabled && !registration.Compatibility.IsCompatible)
+        {
+            throw new PluginCannotBeEnabledException(
+                registration.Manifest.Id,
+                registration.Compatibility.Problem ?? "This plugin cannot be switched on.");
+        }
+
         _settingsService.SetEnabled(registration.Manifest, enabled);
         Reload();
     }
@@ -223,6 +249,8 @@ public sealed class PluginCatalog
             loadError = $"Plugin manifest declares unknown permission '{unknownPermission}'.";
         }
 
+        loadError ??= PluginCompatibility.ValidateManifest(manifest);
+
         if (loadError is null)
         {
             try { capabilities = plugin.CreateCapabilities(); }
@@ -234,16 +262,50 @@ public sealed class PluginCatalog
         }
 
         var settingsSchema = ResolveSettingsSchema(manifest, capabilities);
+        return CreateRegistration(manifest, config, isBuiltIn, capabilities, loadError, settingsSchema, manifestPath);
+    }
+
+    /// <summary>
+    /// Builds the registration and works out whether the plugin fits this Library and machine. The saved
+    /// on/off flag is only reported as on when the plugin is also compatible; the saved file is never rewritten.
+    /// </summary>
+    private PluginRegistration CreateRegistration(
+        PluginManifest manifest,
+        PluginUserConfiguration config,
+        bool isBuiltIn,
+        IReadOnlyList<IPluginCapability> capabilities,
+        string? loadError,
+        JsonElement? settingsSchema,
+        string? manifestPath)
+    {
+        var compatibility = PluginCompatibility.Evaluate(manifest, _libraryVersion, _platform, loadError);
+
+        // Trust is decided here, never read from the manifest. Anything in the plugins folder is a sideloaded
+        // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
+        var trust = isBuiltIn ? PluginTrustLevel.Official : PluginTrustLevel.Private;
+
         return new PluginRegistration(
             manifest,
-            config.Enabled,
+            config.Enabled && compatibility.IsCompatible,
             isBuiltIn,
             capabilities,
             config.Settings,
             loadError,
             settingsSchema,
-            manifestPath);
+            manifestPath,
+            trust,
+            compatibility);
     }
+
+    private PluginRegistration LoadFailure(PluginManifest? manifest, string message, string manifestPath) =>
+        CreateRegistration(
+            manifest ?? new PluginManifest { Id = Path.GetFileName(Path.GetDirectoryName(manifestPath)) ?? "unknown", Name = "Invalid plugin" },
+            new PluginUserConfiguration(),
+            isBuiltIn: false,
+            capabilities: [],
+            loadError: message,
+            settingsSchema: null,
+            manifestPath: manifestPath);
 
     private JsonElement? ResolveSettingsSchema(
         PluginManifest manifest,
@@ -424,17 +486,30 @@ public sealed class PluginCatalog
             try
             {
                 manifest = JsonSerializer.Deserialize<PluginManifest>(File.ReadAllText(manifestPath), JsonOptions);
+                if (manifest is not null && PluginCompatibility.ValidateManifest(manifest) is { } invalidManifest)
+                {
+                    results.Add(LoadFailure(manifest, invalidManifest, manifestPath));
+                    continue;
+                }
+
+                if (manifest is not null && manifest.Kind != PluginKind.Official)
+                {
+                    // Not an error: the manifest is fine, this version of the Library just cannot run this kind yet.
+                    // No code is loaded; the compatibility check reports why it cannot be switched on.
+                    results.Add(CreateRegistration(
+                        manifest,
+                        _settingsService.Load(manifest),
+                        isBuiltIn: false,
+                        capabilities: [],
+                        loadError: null,
+                        settingsSchema: null,
+                        manifestPath: manifestPath));
+                    continue;
+                }
+
                 if (manifest is null || string.IsNullOrWhiteSpace(manifest.EntryAssembly) || string.IsNullOrWhiteSpace(manifest.EntryType))
                 {
-                    results.Add(new PluginRegistration(
-                        manifest ?? new PluginManifest { Id = Path.GetFileName(Path.GetDirectoryName(manifestPath)) ?? "unknown", Name = "Invalid plugin" },
-                        false,
-                        false,
-                        [],
-                        new Dictionary<string, JsonElement>(),
-                        "Plugin manifest must include entry_assembly and entry_type.",
-                        null,
-                        manifestPath));
+                    results.Add(LoadFailure(manifest, "Plugin manifest must include entry_assembly and entry_type.", manifestPath));
                     continue;
                 }
 
@@ -443,12 +518,12 @@ public sealed class PluginCatalog
                 var normalizedPluginDirectory = pluginDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
                 if (!assemblyPath.StartsWith(normalizedPluginDirectory, StringComparison.OrdinalIgnoreCase))
                 {
-                    results.Add(new PluginRegistration(manifest, false, false, [], new Dictionary<string, JsonElement>(), "Entry assembly is outside the plugin directory.", null, manifestPath));
+                    results.Add(LoadFailure(manifest, "Entry assembly is outside the plugin directory.", manifestPath));
                     continue;
                 }
                 if (!File.Exists(assemblyPath))
                 {
-                    results.Add(new PluginRegistration(manifest, false, false, [], new Dictionary<string, JsonElement>(), "Entry assembly was not found.", null, manifestPath));
+                    results.Add(LoadFailure(manifest, "Entry assembly was not found.", manifestPath));
                     continue;
                 }
 
@@ -456,27 +531,19 @@ public sealed class PluginCatalog
                 var type = assembly.GetType(manifest.EntryType, throwOnError: false);
                 if (type is null || !typeof(ITuvimaPlugin).IsAssignableFrom(type))
                 {
-                    results.Add(new PluginRegistration(manifest, false, false, [], new Dictionary<string, JsonElement>(), "Entry type does not implement ITuvimaPlugin.", null, manifestPath));
+                    results.Add(LoadFailure(manifest, "Entry type does not implement ITuvimaPlugin.", manifestPath));
                     continue;
                 }
 
                 var plugin = (ITuvimaPlugin?)Activator.CreateInstance(type);
                 results.Add(plugin is null
-                    ? new PluginRegistration(manifest, false, false, [], new Dictionary<string, JsonElement>(), "Entry type could not be constructed.", null, manifestPath)
+                    ? LoadFailure(manifest, "Entry type could not be constructed.", manifestPath)
                     : BuildRegistration(plugin, manifest, isBuiltIn: false, loadError: null, manifestPath: manifestPath));
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to load plugin manifest {ManifestPath}", manifestPath);
-                results.Add(new PluginRegistration(
-                    manifest ?? new PluginManifest { Id = Path.GetFileName(Path.GetDirectoryName(manifestPath)) ?? "unknown", Name = "Invalid plugin" },
-                    false,
-                    false,
-                    [],
-                    new Dictionary<string, JsonElement>(),
-                    ex.Message,
-                    null,
-                    manifestPath));
+                results.Add(LoadFailure(manifest, ex.Message, manifestPath));
             }
         }
 
@@ -492,5 +559,13 @@ public sealed record PluginRegistration(
     IReadOnlyDictionary<string, JsonElement> Settings,
     string? LoadError,
     JsonElement? SettingsSchema,
-    string? ManifestPath);
+    string? ManifestPath,
+    PluginTrustLevel Trust,
+    PluginCompatibilityResult Compatibility);
+
+/// <summary>Switching a plugin on was refused; <see cref="Exception.Message"/> is the plain-English reason.</summary>
+public sealed class PluginCannotBeEnabledException(string pluginId, string problem) : InvalidOperationException(problem)
+{
+    public string PluginId { get; } = pluginId;
+}
 

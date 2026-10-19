@@ -39,13 +39,10 @@ internal static class PluginEndpoints
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
-        group.MapPost("/{pluginId}/enable", (string pluginId, PluginCatalog catalog) =>
-        {
-            catalog.SetEnabled(pluginId, true);
-            return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = true });
-        })
+        group.MapPost("/{pluginId}/enable", EnablePlugin)
         .WithName("EnablePlugin")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPost("/{pluginId}/disable", (string pluginId, PluginCatalog catalog) =>
@@ -197,7 +194,39 @@ internal static class PluginEndpoints
         return group;
     }
 
-    private static PluginSummaryResponse ToDto(PluginRegistration registration) => new()
+    internal static IResult EnablePlugin(string pluginId, PluginCatalog catalog)
+    {
+        try
+        {
+            catalog.SetEnabled(pluginId, true);
+            return Results.Ok(new PluginEnabledResponse { plugin_id = pluginId, enabled = true });
+        }
+        catch (PluginCannotBeEnabledException ex)
+        {
+            // The plain-English reason (Library version, platform, plugin kind or load problem) is the detail.
+            return ApiErrors.Conflict(ex.Message);
+        }
+    }
+
+    private static string PluginKindName(PluginKind kind) => kind switch
+    {
+        PluginKind.Official => "official",
+        PluginKind.Declarative => "declarative",
+        PluginKind.Service => "service",
+        PluginKind.Sandboxed => "sandboxed",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown plugin kind."),
+    };
+
+    private static string PluginTrustName(PluginTrustLevel trust) => trust switch
+    {
+        PluginTrustLevel.Official => "official",
+        PluginTrustLevel.Verified => "verified",
+        PluginTrustLevel.Community => "community",
+        PluginTrustLevel.Private => "private",
+        _ => throw new ArgumentOutOfRangeException(nameof(trust), trust, "Unknown plugin trust level."),
+    };
+
+    internal static PluginSummaryResponse ToDto(PluginRegistration registration) => new()
     {
         Id = registration.Manifest.Id,
         Name = registration.Manifest.Name,
@@ -206,6 +235,13 @@ internal static class PluginEndpoints
         Enabled = registration.Enabled,
         IsBuiltIn = registration.IsBuiltIn,
         LoadError = registration.LoadError,
+        Kind = PluginKindName(registration.Manifest.Kind),
+        TrustLevel = PluginTrustName(registration.Trust),
+        MinimumLibraryVersion = registration.Manifest.MinimumLibraryVersion,
+        MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
+        SupportedPlatforms = registration.Manifest.SupportedPlatforms.ToList(),
+        IsCompatible = registration.Compatibility.IsCompatible,
+        CompatibilityProblem = registration.Compatibility.Problem,
         Capabilities = registration.Manifest.Capabilities.Select(capability => new PluginCapabilityDto
         {
             Kind = capability.Kind,

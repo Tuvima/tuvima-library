@@ -84,7 +84,8 @@ public sealed class SamplePlugin : ITuvimaPlugin
         Id = "example.sample-plugin",
         Name = "Sample Plugin",
         Version = "0.1.0",
-        MinimumTuvimaApiVersion = "1.0.0",
+        Kind = PluginKind.Official,
+        MinimumLibraryVersion = "1.0.0",
         Description = "Shows the minimum plugin shape.",
         Capabilities =
         [
@@ -96,7 +97,7 @@ public sealed class SamplePlugin : ITuvimaPlugin
             },
         ],
         Permissions = [],
-        SupportedPlatforms = ["win-x64", "linux-x64", "osx-x64", "osx-arm64"],
+        SupportedPlatforms = [], // empty means every platform
         DefaultSettings = new Dictionary<string, JsonElement>
         {
             ["enabled_feature"] = JsonSerializer.SerializeToElement(true),
@@ -144,7 +145,9 @@ Dynamic plugins must include a manifest file named `plugin.json` in the plugin f
   "id": "example.sample-plugin",
   "name": "Sample Plugin",
   "version": "0.1.0",
-  "minimum_tuvima_api_version": "1.0.0",
+  "kind": "official",
+  "minimum_library_version": "1.0.0",
+  "maximum_library_version": null,
   "description": "Shows the minimum plugin shape.",
   "entry_assembly": "Tuvima.Plugin.Sample.dll",
   "entry_type": "Tuvima.Plugin.Sample.SamplePlugin",
@@ -152,11 +155,12 @@ Dynamic plugins must include a manifest file named `plugin.json` in the plugin f
     {
       "kind": "plugin-health-check",
       "name": "Sample health",
-      "description": "Reports that the plugin loaded."
+      "description": "Reports that the plugin loaded.",
+      "fields": []
     }
   ],
   "permissions": [],
-  "supported_platforms": ["win-x64", "linux-x64", "osx-x64", "osx-arm64"],
+  "supported_platforms": [],
   "default_settings": {
     "enabled_feature": true
   },
@@ -182,6 +186,17 @@ Required dynamic plugin fields:
 - `entry_type`
 
 Use reverse-DNS style ids when possible, such as `com.example.sample-plugin`.
+
+### Kind, versions and platforms
+
+The Library checks these fields before a plugin can be switched on:
+
+- `kind` is one of `official` (an in-process .NET plugin, today's contract), `declarative` (JSON only), `service` (a separate program) or `sandboxed` (WebAssembly). It defaults to `official`. Only `official` plugins run in this version of the Library; a manifest of any other kind loads without an error but cannot be switched on ("This kind of plugin (...) is not supported by this version of the Library yet.").
+- `minimum_library_version` (default `1.0.0`) and the optional `maximum_library_version` (inclusive; `null` or absent for no upper limit) are `major.minor.patch` versions. Any `-prerelease` or `+build` suffix on the Library version is ignored when comparing. A malformed version is a load error.
+- `supported_platforms` lists runtime identifiers for an exact match (`win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `linux-musl-x64`, `osx-x64`, `osx-arm64`, and the other `x86`/`x64`/`arm`/`arm64` combinations) or an operating-system family (`windows`, `linux`, `macos`) that matches any architecture. An empty list means every platform. An unknown value is a load error that names the value.
+- Each capability may list the `fields` it supplies (for example `series_position`); the list defaults to empty.
+
+The trust level shown in Settings > Plugins is decided by the Library, never by the manifest: built-in plugins are `official`, and anything loaded from the plugins folder is `private` (sideloaded), even if its manifest says `"kind": "official"`. Verified and community levels arrive with the plugin directory and signed releases.
 
 ## Expose settings clearly
 
@@ -215,7 +230,7 @@ Place the folder under:
 {library_root}/.data/plugins/sample-plugin/
 ```
 
-Restart the Engine, open **Settings > Plugins**, enable the plugin, and confirm it loads without a setup warning. The `minimum_tuvima_api_version` and `supported_platforms` fields describe compatibility; the current file loader does not enforce those declarations as an isolation or compatibility guarantee. Test the release against the actual host version and platform.
+Restart the Engine, open **Settings > Plugins**, enable the plugin, and confirm it loads without a setup warning. The loader enforces `kind`, `minimum_library_version`, `maximum_library_version` and `supported_platforms`: a plugin outside its supported range, on an unsupported platform or of a kind this version cannot run is refused when you try to switch it on (the Engine answers `409 Conflict` with the reason), and one that was saved as enabled before the Library changed is treated as off, with the reason shown in Settings > Plugins. These checks are not an isolation guarantee: an `official` plugin still runs inside the Engine with the Engine's trust. Test the release against the actual host version and platform.
 
 ## Use permissions honestly
 
@@ -262,6 +277,6 @@ To be listed as an approved plugin, publish a GitHub release that includes:
 
 Submit the release metadata for maintainer review through the repository's contribution process. Maintainers can then add the approved release to [the catalog source](../reference/approved-plugins.json). The catalog currently has no third-party entries; built-in plugins ship with the application.
 
-Match the [catalog shape and status values](../reference/plugin-catalog.md): include `id`, `name`, `version`, `description`, `author`, `status`, `repository_url`, `release_url`, `package_url`, `sha256`, `minimum_tuvima_api_version`, `capabilities`, and `install_notes`. Use a real archive checksum, not the illustrative placeholder. Catalog lookup is read-only and does not download or install an assembly. Catalog approval also does not sandbox the installed code.
+Match the [catalog shape and status values](../reference/plugin-catalog.md): include `id`, `name`, `version`, `description`, `author`, `status`, `repository_url`, `release_url`, `package_url`, `sha256`, `minimum_library_version`, `capabilities`, and `install_notes`. Use a real archive checksum, not the illustrative placeholder. Catalog lookup is read-only and does not download or install an assembly. Catalog approval also does not sandbox the installed code.
 
 Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release for catalog approval.

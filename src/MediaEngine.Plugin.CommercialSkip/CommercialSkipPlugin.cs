@@ -10,7 +10,8 @@ public sealed class CommercialSkipPlugin : ITuvimaPlugin
         Id = "tuvima.commercial-skip",
         Name = "Commercial Skip",
         Version = "0.1.0",
-        MinimumTuvimaApiVersion = "1.0.0",
+        Kind = PluginKind.Official,
+        MinimumLibraryVersion = "1.0.0",
         Description = "Detects likely commercial breaks in TV recordings using Comskip when available, with an FFmpeg-based fallback.",
         Capabilities =
         [
