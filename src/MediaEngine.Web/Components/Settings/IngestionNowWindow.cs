@@ -6,8 +6,9 @@ namespace MediaEngine.Web.Components.Settings;
 /// The small rotating window behind the Now panel: at most <see cref="MaxRows"/> of the items the Engine says are being
 /// worked on, most recently active first. The page never lists them all, and rows must not flicker, so:
 /// a row, once shown, stays for at least <see cref="MinimumDwell"/> even when a newer snapshot no longer holds it (its last
-/// known state is shown); a row keeps its place on screen; and a row whose time is up is replaced, in the same place, by
-/// the most recently active item that is waiting. Rows are keyed by <see cref="IngestionMediaGroupDto.GroupId"/>.
+/// known state is shown); a row keeps its place on screen while it is being worked on; and a row that has finished and
+/// served its time is replaced, in the same place, by the most recently active item that is waiting. Rows rotate as items
+/// finish (spec D13), never just because a newer item is waiting. Rows are keyed by <see cref="IngestionMediaGroupDto.GroupId"/>.
 /// It has no timer of its own: the page calls <see cref="Update"/> with each snapshot and <see cref="Tick"/> about once a
 /// second while <see cref="NeedsTick"/> is true.
 /// </summary>
@@ -35,15 +36,14 @@ public sealed class IngestionNowWindow
     public IReadOnlyList<IngestionMediaGroupDto> Rows => _slots.Select(slot => slot.Item).ToList();
 
     /// <summary>
-    /// True while something could still change without a new snapshot: a row is only held for its minimum time, or an
-    /// item is waiting for a place. The page ticks about once a second while this is true and stops when it is not.
+    /// True while something could still change without a new snapshot: a finished row is only held for its minimum time.
+    /// The page ticks about once a second while this is true and stops when it is not.
     /// </summary>
     public bool NeedsTick
     {
         get
         {
-            var shown = _slots.Select(slot => slot.Item.GroupId).ToHashSet();
-            return _slots.Any(slot => !slot.InSnapshot) || _latest.Any(item => !shown.Contains(item.GroupId));
+            return _slots.Any(slot => !slot.InSnapshot);
         }
     }
 
@@ -111,29 +111,6 @@ public sealed class IngestionNowWindow
         while (_slots.Count < MaxRows && next < waiting.Count)
         {
             _slots.Add(new Slot(waiting[next++], now));
-        }
-
-        // A full window rotates: a more recently active item that is waiting takes the place of the least recently
-        // active row that has served its time. Rows younger than the minimum time are never touched.
-        while (next < waiting.Count && _slots.Count >= MaxRows)
-        {
-            var leastRecent = -1;
-            for (var position = 0; position < _slots.Count; position++)
-            {
-                var candidate = _slots[position];
-                if (now - candidate.ShownAt >= MinimumDwell
-                    && (leastRecent < 0 || candidate.Item.UpdatedAt < _slots[leastRecent].Item.UpdatedAt))
-                {
-                    leastRecent = position;
-                }
-            }
-
-            if (leastRecent < 0 || waiting[next].UpdatedAt <= _slots[leastRecent].Item.UpdatedAt)
-            {
-                break;
-            }
-
-            _slots[leastRecent] = new Slot(waiting[next++], now);
         }
 
         return !string.Equals(before, Signature(), StringComparison.Ordinal);

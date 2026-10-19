@@ -110,18 +110,32 @@ public sealed class IngestionNowWindowTests
     }
 
     [Fact]
-    public void ARowWhoseTimeIsUp_IsReplacedByAMoreRecentlyActiveItemWhileTheWindowIsFull()
+    public void ARowStillBeingWorkedOn_IsNotReplacedByANewerItem_EvenAfterItsMinimumTime()
     {
         var window = new IngestionNowWindow(_clock);
         window.Update(Items(10));
-        var oldest = window.Rows.OrderBy(row => row.UpdatedAt).First();
+        var shown = window.Rows.Select(row => row.GroupId).ToList();
 
         _clock.Advance(TimeSpan.FromSeconds(4));
         window.Update(Items(10).Append(Item(99, updatedMinutes: 500)));
 
+        Assert.Equal(shown, window.Rows.Select(row => row.GroupId).ToList());
+        Assert.False(window.NeedsTick);
+    }
+
+    [Fact]
+    public void AFinishedRowWhoseTimeIsUp_IsReplacedInItsPlaceByTheMostRecentlyActiveWaitingItem()
+    {
+        var window = new IngestionNowWindow(_clock);
+        window.Update(Items(10));
+        var finished = window.Rows[3].GroupId;
+        var remaining = Items(10).Where(item => item.GroupId != finished).ToList();
+
+        _clock.Advance(TimeSpan.FromSeconds(4));
+        window.Update(remaining.Append(Item(98, updatedMinutes: 400)).Append(Item(99, updatedMinutes: 500)));
+
         Assert.Equal(10, window.Rows.Count);
-        Assert.Contains(window.Rows, row => row.GroupId == Id(99));
-        Assert.DoesNotContain(window.Rows, row => row.GroupId == oldest.GroupId);
+        Assert.Equal(Id(99), window.Rows[3].GroupId);
     }
 
     [Fact]

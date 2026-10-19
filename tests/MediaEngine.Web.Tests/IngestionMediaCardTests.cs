@@ -136,8 +136,8 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
         var slots = cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot");
         var dash = slots[4].QuerySelector(".ingestion-facet.is-none");
         Assert.NotNull(dash);
-        Assert.Equal("Doesn't apply to Book", dash.GetAttribute("aria-label"));
-        Assert.Equal("Doesn't apply to Book", slots[4].QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
+        Assert.Equal("Doesn't apply to books", dash.GetAttribute("aria-label"));
+        Assert.Equal("Doesn't apply to books", slots[4].QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
         Assert.Contains("–", dash.TextContent, StringComparison.Ordinal);
         Assert.Empty(slots.Take(4).SelectMany(slot => slot.QuerySelectorAll(".is-none")));
     }

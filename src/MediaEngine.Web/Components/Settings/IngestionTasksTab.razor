@@ -67,7 +67,14 @@
                 <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
                 @foreach (var item in Model.Attention)
                 {
-                    <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
+                    if (string.IsNullOrWhiteSpace(item.Route))
+                    {
+                        <div class="ingestion-attention__item"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span></div>
+                    }
+                    else
+                    {
+                        <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
+                    }
                 }
             </AppPanel>
         }

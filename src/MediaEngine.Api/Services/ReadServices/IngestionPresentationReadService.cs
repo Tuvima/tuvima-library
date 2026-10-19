@@ -79,7 +79,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
                 Description = "Tuvima will retry automatically",
-                Route = "/settings/ingestion",
+                // Shown on the page it would link to, so it is information, not a link.
+                Route = null,
             });
         }
 
@@ -91,7 +92,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = operationFacts.TextTrackWaiting,
                 Label = $"{operationFacts.TextTrackWaiting:N0} lyrics or subtitles in queue",
                 Description = "Fetching from providers",
-                Route = "/settings/ingestion",
+                Route = null,
             });
         }
 

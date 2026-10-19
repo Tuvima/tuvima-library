@@ -204,7 +204,7 @@ The pipeline is designed to fail safely:
 
 ## Watching Operations
 
-**Settings > Server > Library and Ingestion** is the single operational surface at `/settings/ingestion`. It opens on the library summary (counts by type and health), then the live ingestion panel, then a short Recently Added preview whose "View all" link opens `/settings/recently-added`. It answers what is happening now, whether the pipeline is waiting, whether anything needs attention, and what completed in earlier batches. **Needs Review** remains the human decision queue, on its own page at `/settings/review` that the administrator banner opens.
+**Settings > Server > Library and Ingestion** is the single operational surface at `/settings/ingestion`. It opens on the library summary (counts by type and health), then the live ingestion panel, then **Now** (the few items being worked on at this moment) and **Added** (what was fully added on each of the last few days, by type). Every Added count and its "View all" link open the Activity log on its Added filter. It answers what is happening now, whether the pipeline is waiting, whether anything needs attention, and what was added recently. **Needs Review** remains the human decision queue, on its own page at `/settings/review` that the administrator banner opens.
 
 It shows real application state from the Engine:
 
