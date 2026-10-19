@@ -1379,7 +1379,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         {
             _logger.LogInformation("Intercom reconnected (connectionId={Id})", connectionId);
             SetEngineConnectionState(EngineConnectionState.Online);
-            return Task.CompletedTask;
+            return RefreshIngestionQueueProgressAsync(CancellationToken.None);
         };
         _hubConnection.Closed += ex =>
         {
@@ -1391,6 +1391,16 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         await TryStartSignalRConnectionAsync(_hubConnection, collectionUrl, ct);
     }
 
+    // Live events only carry changes, so the latest ingestion numbers are read once on every (re)connect.
+    private async Task RefreshIngestionQueueProgressAsync(CancellationToken ct)
+    {
+        var snapshot = await _api.GetIngestionQueueProgressAsync(ct);
+        if (snapshot is not null)
+        {
+            _state.PushIngestionQueueProgress(snapshot);
+        }
+    }
+
     private async Task TryStartSignalRConnectionAsync(HubConnection connection, string? collectionUrl, CancellationToken ct)
     {
         try
@@ -1399,6 +1409,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _logger.LogInformation("Intercom connected ? {Url}", collectionUrl ?? connection.ConnectionId);
             SetEngineConnectionState(EngineConnectionState.Online);
             _state.PushServerStarted();
+            await RefreshIngestionQueueProgressAsync(ct);
         }
         catch (Exception ex)
         {
