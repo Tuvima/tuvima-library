@@ -410,7 +410,7 @@ public static class SettingsNav
     /// </summary>
     /// <param name="householdAdministrator">
     /// A household administrator who is not a server administrator: they also see the pages marked
-    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (none today), and nothing else in Server.
+    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (Profiles today), and nothing else in Server.
     /// </param>
     public static IReadOnlyList<SettingsMenuGroup> FilteredMenuGroups(
         bool administrationAllowed,

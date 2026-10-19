@@ -30,6 +30,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     private readonly Dictionary<string, string> _stored = new(StringComparer.Ordinal);
     private int _toolReads;
     private int _reviewCount;
+    private bool _reviewCountReadFails;
     private Func<ToolRequirementsDto?> _onTools = () => null;
     private Func<string, ToolActionResult> _onInstall = _ => new(false, ErrorMessage: "No.");
 
@@ -50,7 +51,8 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
                 _installs.Add((string)args![0]!);
                 return Task.FromResult(_onInstall((string)args[0]!));
             });
-            stub.SetHandler(nameof(IEngineApiClient.GetReviewCountAsync), _ => Task.FromResult(_reviewCount));
+            stub.SetHandler(nameof(IEngineApiClient.GetReviewCountAsync), _ =>
+                Task.FromResult<int?>(_reviewCountReadFails ? null : _reviewCount));
             stub.SetHandler(nameof(IEngineApiClient.GetSettingsNoticesAsync), _ =>
                 Task.FromResult<ProfileNoticesResponse?>(new ProfileNoticesResponse(
                     _stored.Select(pair => new ProfileNoticeDismissalDto(pair.Key, pair.Value)).ToList())));
@@ -275,6 +277,54 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.True(State.ToolsLineVisible);
     }
 
+    [Fact]
+    public async Task AFailedReviewCountRead_KeepsTheSavedDismissal_AndASuccessfulZeroThenResetsIt()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _reviewCount = 3;
+        _onTools = () => Tools();
+        await State.StartAsync();
+        await State.DismissReviewAsync();
+        Assert.Equal("3", _stored["needs-review"]);
+
+        // The Engine cannot answer: that is not "nothing needs review", so the choice is kept and the count stays as known.
+        _reviewCountReadFails = true;
+        _reviewCount = 0;
+        await State.RefreshAsync(reloadDismissals: false);
+        Assert.Equal("3", _stored["needs-review"]);
+        Assert.Equal(3, State.ReviewCount);
+        Assert.False(State.ReviewLineVisible);
+
+        // A reload of the page reads the saved choice again and still finds it.
+        await State.RefreshAsync(reloadDismissals: true);
+        Assert.Equal("3", _stored["needs-review"]);
+
+        // The Engine really answers zero: now the dismissal is replaced by the "nothing was wrong" mark.
+        _reviewCountReadFails = false;
+        await State.RefreshAsync(reloadDismissals: false);
+        Assert.Equal("0", _stored["needs-review"]);
+    }
+
+    [Fact]
+    public async Task AFailedToolsRead_KeepsTheSavedToolsDismissal_AndASuccessfulCleanReadResetsIt()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(Tool("ffmpeg", "FFmpeg"));
+        await State.StartAsync();
+        await State.DismissToolsAsync();
+        Assert.Equal("ffmpeg", _stored["missing-tools"]);
+
+        // The catalogue could not be read: the earlier read must not count as "every tool works".
+        _onTools = () => null;
+        await State.RefreshAsync(reloadDismissals: false);
+        Assert.Equal("ffmpeg", _stored["missing-tools"]);
+        Assert.False(State.ToolsLineVisible);
+
+        _onTools = () => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready));
+        await State.RefreshAsync(reloadDismissals: false);
+        Assert.Equal("none", _stored["missing-tools"]);
+    }
+
     // ── The missing tools line ───────────────────────────────────────────────
 
     [Fact]
@@ -465,19 +515,19 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     public async Task LocalAiNotice_ShowsWhileBlocked_HasNoDismiss_AndDownloadStartsTheMissingModels()
     {
         SignIn(SettingsRole.ServerAdministrator);
-        _onTools = () => Tools(Model("text", ToolRequirementStates.Missing), Model("audio", ToolRequirementStates.Ready));
+        _onTools = () => Tools(Model("text_fast", ToolRequirementStates.Missing), Model("audio", ToolRequirementStates.Ready));
         await State.StartAsync();
 
         var cut = Render<LocalAiBlockedNotice>();
 
         var notice = cut.Find("[data-settings-notice='local-ai-off']");
-        Assert.Contains("Local AI is switched off until the tools and libraries it needs are downloaded.", notice.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Local AI is switched off until the tools it needs are downloaded.", notice.TextContent, StringComparison.Ordinal);
         Assert.Empty(notice.QuerySelectorAll("button[aria-label='Dismiss']"));
         Assert.Contains("settings-notice--danger", notice.ClassName, StringComparison.Ordinal);
 
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Download").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal(["text"], _modelDownloads));
+        cut.WaitForAssertion(() => Assert.Equal(["text_fast"], _modelDownloads));
     }
 
     [Fact]
@@ -497,14 +547,76 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     public async Task LocalAiNotice_IsGoneOnceEverythingIsReady_AndNeverShownToAnyoneElse()
     {
         SignIn(SettingsRole.ServerAdministrator);
-        _onTools = () => Tools(Model("text", ToolRequirementStates.Ready), Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready));
+        _onTools = () => Tools(Model("text_fast", ToolRequirementStates.Ready), Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready));
         await State.StartAsync();
         Assert.Empty(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice]"));
 
         SignIn(SettingsRole.Member);
-        _onTools = () => Tools(Model("text", ToolRequirementStates.Missing));
+        _onTools = () => Tools(Model("text_fast", ToolRequirementStates.Missing));
         await State.RefreshAsync(reloadDismissals: false);
         Assert.Empty(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice]"));
+    }
+
+    [Fact]
+    public async Task LocalAi_WhenTheEngineAndEveryModelAreMissing_IsBlocked()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(
+            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional),
+            Model("text_fast", ToolRequirementStates.Missing),
+            Model("text_quality", ToolRequirementStates.Missing),
+            Model("audio", ToolRequirementStates.Missing));
+        await State.StartAsync();
+
+        Assert.True(State.LocalAiBlocked);
+        Assert.Equal(["ai_model:text_fast", "ai_runtime"], State.LocalAiBlockers.Select(tool => tool.Id).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task LocalAi_WhenTheEngineAndTheFastTextModelAreReady_IsNotBlockedByTheOptionalModels()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(
+            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready),
+            Model("text_fast", ToolRequirementStates.Ready),
+            Model("text_quality", ToolRequirementStates.Missing),
+            Model("audio", ToolRequirementStates.Missing),
+            Model("text_scholar", ToolRequirementStates.Problem));
+        await State.StartAsync();
+
+        Assert.False(State.LocalAiBlocked);
+        Assert.Empty(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice]"));
+        Assert.Equal(MediaSectionAttentionLevel.None,
+            Flatten(SettingsMenuBuilder.Build(MenuContext(State))).Single(row => row.Label == "Local AI").EffectiveAttention);
+    }
+
+    [Fact]
+    public async Task LocalAi_WhenOnlyTheFastTextModelIsMissing_IsBlocked_AndDownloadFetchesJustThatModel()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(
+            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready),
+            Model("text_fast", ToolRequirementStates.Missing),
+            Model("audio", ToolRequirementStates.Missing));
+        await State.StartAsync();
+        Assert.True(State.LocalAiBlocked);
+
+        await State.DownloadLocalAiAsync();
+
+        Assert.Equal(["text_fast"], _modelDownloads);
+    }
+
+    [Fact]
+    public async Task LocalAi_WhenTheEngineItselfIsNotReady_IsBlocked_EvenWithEveryModelReady()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(
+            Tool("ai_runtime", "Local AI engine", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Problem),
+            Model("text_fast", ToolRequirementStates.Ready),
+            Model("audio", ToolRequirementStates.Ready));
+        await State.StartAsync();
+
+        Assert.True(State.LocalAiBlocked);
     }
 
     [Fact]
@@ -512,7 +624,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
     {
         SignIn(SettingsRole.ServerAdministrator);
         _reviewCount = 3;
-        _onTools = () => Tools(Tool("ffmpeg", "FFmpeg"), Model("text", ToolRequirementStates.Missing));
+        _onTools = () => Tools(Tool("ffmpeg", "FFmpeg"), Model("text_fast", ToolRequirementStates.Missing));
         await State.StartAsync();
 
         var groups = SettingsMenuBuilder.Build(MenuContext(State));
@@ -523,6 +635,30 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Recently Added").Attention);
         Assert.Equal("3", rows.Single(row => row.Label == "Recently Added").Meta);
         Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "Tools and requirements").EffectiveAttention);
+    }
+
+    [Fact]
+    public async Task OnAPhone_NeitherPageNoticeIsDrawn_AndOnADesktopBothAre()
+    {
+        SignIn(SettingsRole.ServerAdministrator);
+        _onTools = () => Tools(Model("text_fast", ToolRequirementStates.Missing));
+        await State.StartAsync();
+
+        Assert.Single(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice='local-ai-off']"));
+        Assert.Single(Render<RemoteAccessOffNotice>().FindAll("[data-settings-notice='remote-access-off']"));
+
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        Assert.Empty(Render<LocalAiBlockedNotice>().FindAll("[data-settings-notice]"));
+        Assert.Empty(Render<RemoteAccessOffNotice>().FindAll("[data-settings-notice]"));
+    }
+
+    [Fact]
+    public void TheSettingsPage_DrawsNoPageNoticeSlotOnAPhone()
+    {
+        var settings = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+
+        Assert.Contains("PageNoticeFragment => DeviceContext.IsMobile ? null :", settings, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,19 +1,22 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @inject SettingsAttentionState Attention
+@inject DeviceContextService DeviceContext
 
 @* The permanent notice at the top of every Local AI page. It cannot be dismissed and lasts exactly as long as the
    problem: Local AI is off until the tools and libraries it needs are downloaded. Download starts the same downloads
-   the Tools page offers for the missing models; what the Library cannot fetch itself is left to the Tools page. It reads
-   the shared attention state, so it agrees with the red "Off" in the Settings menu. *@
-@if (Attention.IsServerAdministrator && Attention.LocalAiBlocked)
+   the Tools page offers for the models it needs; what the Library cannot fetch itself is left to the Tools page. It
+   reads the shared attention state, so it agrees with the red "Off" in the Settings menu. Like the banner, it is not
+   drawn on a phone. *@
+@if (Attention.IsServerAdministrator && Attention.LocalAiBlocked && !DeviceContext.IsMobile)
 {
     var downloadingNow = Attention.LocalAiBlockers.Where(tool => tool.State == ToolRequirementStates.Downloading).ToList();
     <SettingsNoticeBubble NoticeKey="local-ai-off"
                           Tone="AppUiTone.Error"
                           Icon="@AppMaterialIcons.Outlined.ErrorOutline"
-                          Message="Local AI is switched off until the tools and libraries it needs are downloaded."
+                          Message="Local AI is switched off until the tools it needs are downloaded."
                           Detail="@Attention.ActionError">
         <Actions>
             @if (Attention.LocalAiBlockers.Any(SettingsAttentionState.IsDownloadableModel))
@@ -36,9 +39,17 @@
 }
 
 @code {
-    protected override void OnInitialized() => Attention.Changed += OnAttentionChanged;
+    protected override void OnInitialized()
+    {
+        Attention.Changed += OnAttentionChanged;
+        DeviceContext.OnChanged += OnAttentionChanged;
+    }
 
     private void OnAttentionChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Attention.Changed -= OnAttentionChanged;
+    public void Dispose()
+    {
+        Attention.Changed -= OnAttentionChanged;
+        DeviceContext.OnChanged -= OnAttentionChanged;
+    }
 }

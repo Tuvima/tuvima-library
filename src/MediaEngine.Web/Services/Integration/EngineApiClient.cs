@@ -353,7 +353,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<int> GetReviewCountAsync(CancellationToken ct = default)
+    public async Task<int?> GetReviewCountAsync(CancellationToken ct = default)
     {
         const string endpoint = "GET /review/count";
         try
@@ -362,21 +362,21 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 await RecordHttpFailureAsync(endpoint, response, ct, logAsWarning: false);
-                return 0;
+                return null;
             }
 
             var raw = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Review.ReviewCountResponse>(
                 cancellationToken: ct);
             ClearFailure(endpoint);
-            return raw?.PendingCount ?? 0;
+            return raw?.PendingCount;
         }
-        catch (OperationCanceledException) { return 0; }
+        catch (OperationCanceledException) { return null; }
         catch (Exception ex)
         {
             // Debug level: this is polled for the badge count.
             _logger.LogDebug(ex, "GET /review/count failed");
             RecordExceptionFailure(endpoint, ex, logAsWarning: false);
-            return 0;
+            return null;
         }
     }
 
