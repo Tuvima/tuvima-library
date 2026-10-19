@@ -90,7 +90,7 @@
             count == 1 ? "1 item needs review" : $"{count} items need review",
             null,
             "Review",
-            $"{SettingsNav.RouteFor(SettingsSection.RecentlyAdded)}?review=expanded",
+            SettingsNav.RouteFor(SettingsSection.Review),
             default,
             EventCallback.Factory.Create(this, () => Attention.DismissReviewAsync()));
     }

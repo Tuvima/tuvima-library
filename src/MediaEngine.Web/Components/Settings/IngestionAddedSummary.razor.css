@@ -1,0 +1,50 @@
+.ingestion-added {
+    display: grid;
+    gap: .3rem;
+}
+
+.ingestion-added > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.ingestion-added h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.ingestion-added__empty {
+    margin: 0;
+    color: var(--tl-palette-text-secondary);
+    font-size: .85rem;
+}
+
+.ingestion-added__list {
+    display: grid;
+    gap: .35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: .88rem;
+}
+
+.ingestion-added__list a {
+    color: var(--tl-accent-secondary);
+    text-decoration: none;
+}
+
+.ingestion-added__list a:hover,
+.ingestion-added__list a:focus-visible {
+    text-decoration: underline;
+}
+
+/* Touch: each count is a 44px target. */
+@media (pointer: coarse) {
+    .ingestion-added__list a {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min, 44px);
+    }
+}

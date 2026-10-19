@@ -385,7 +385,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("@if (CanViewReview)", accountSource);
         Assert.Contains("TopBar_NeedsReview", accountSource);
         Assert.Contains("ShowSignOut", accountSource);
-        Assert.Contains("href=\"/settings/recently-added?review=expanded\"", accountSource);
+        Assert.Contains("href=\"/settings/review\"", accountSource);
         Assert.Contains("href=\"/settings\"", accountSource);
         Assert.DoesNotContain("<MudMenu", accountSource);
         Assert.DoesNotContain("SettingsSelected", accountSource);
@@ -797,11 +797,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LegacySettingsReviewPage_RedirectsToRecentlyAddedReviewSection()
+    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPageInSource()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
-        Assert.Contains("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
-        Assert.Contains("Section.Equals(\"review\"", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.RouteFor(SettingsSection.Review)", source, StringComparison.Ordinal);
+        Assert.Contains("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
     }
 
     [Fact]

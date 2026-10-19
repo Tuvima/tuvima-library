@@ -50,7 +50,7 @@ public static class IngestionEndpoints
             int? recentDayLimit,
             int? recentItemsPerDay,
             CancellationToken ct) => Results.Ok(await readService.GetSnapshotAsync(
-                currentLimit ?? 8,
+                currentLimit ?? 12,
                 recentDayLimit ?? 3,
                 recentItemsPerDay ?? 9,
                 ct)))

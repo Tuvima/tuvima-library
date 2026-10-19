@@ -14,7 +14,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Math.Max(item.Percent", source, StringComparison.Ordinal);
         Assert.Contains("<AppIconTile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<BackupRecoveryPanel", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/recently-added?review=expanded", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/review", source, StringComparison.Ordinal);
         Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI", source, StringComparison.Ordinal);
         Assert.DoesNotContain("optional setup", source, StringComparison.OrdinalIgnoreCase);
