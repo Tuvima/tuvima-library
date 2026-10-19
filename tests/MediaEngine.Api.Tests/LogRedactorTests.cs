@@ -237,6 +237,58 @@ public sealed class LogRedactorTests
         Assert.DoesNotContain("Folder", result.Replace("Library folder", string.Empty), StringComparison.Ordinal);
     }
 
+    // ── Names with an apostrophe and no extension: over-hide ────────────────
+
+    [Theory]
+    [InlineData(@"D:\Media\Schindler's List", "[path]")]
+    [InlineData(@"Could not open D:\Media\Schindler's List", "Could not open [path]")]
+    [InlineData(@"Could not open D:\Media\Schindler's List, skipping", "Could not open [path], skipping")]
+    [InlineData(@"Could not open D:\Media\Schindler's List; skipping", "Could not open [path]; skipping")]
+    [InlineData(@"Could not open (D:\Media\Schindler's List) today", "Could not open ([path]) today")]
+    [InlineData(@"Could not open D:\Media\Schindler's List. Next step ran", "Could not open [path]. Next step ran")]
+    [InlineData(@"Could not open D:\Media\Schindler's List is missing", "Could not open [path] is missing")]
+    [InlineData("Could not open /mnt/media/Schindler's List, skipping", "Could not open [path], skipping")]
+    [InlineData("Could not open /mnt/media/Schindler's List", "Could not open [path]")]
+    public void ANameWithAnApostropheAndNoExtension_IsHiddenWholeUpToTheEndOfThePath(string line, string expected)
+    {
+        var result = LogRedactor.Redact(line);
+
+        Assert.Equal(expected, result);
+        Assert.DoesNotContain("Schindler", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("List", result.Replace("[path]", string.Empty), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(@"Could not open 'D:\Media\Schindler's List' today", "Could not open '[path]' today")]
+    [InlineData(@"Could not open ""D:\Media\Schindler's List"" today", @"Could not open ""[path]"" today")]
+    [InlineData(@"Folder 'D:\My Music\Pink Floyd' is missing", "Folder '[path]' is missing")]
+    [InlineData("Watching '/home/shy/My Library/Schindler's List' for changes", "Watching '[path]' for changes")]
+    [InlineData(@"Could not open '\\NAS\Shy\Schindler's List' now", "Could not open '[path]' now")]
+    [InlineData(@"Could not open 'D:\Media\Schindler's List\a's file.mkv'", "Could not open '[path]'")]
+    public void AQuotedPath_IsHiddenBetweenItsQuotes_AnApostropheInsideDoesNotCloseThem(string line, string expected)
+    {
+        var result = LogRedactor.Redact(line);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void AQuotedPath_WithFileNamesOn_KeepsTheLastSegmentInsideTheQuotes()
+    {
+        var result = LogRedactor.Redact(@"Could not open 'D:\Media\Movies\Schindler's List\Schindler's List.mkv' now", showFileNames: true);
+
+        Assert.Equal("Could not open '[path]/Schindler's List.mkv' now", result);
+        Assert.DoesNotContain("Movies", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AQuoteThatIsNotAPath_IsLeftAlone()
+    {
+        const string line = "It's 'fine' and the user's setting is 'on' at /api";
+
+        Assert.Equal(line, LogRedactor.Redact(line));
+    }
+
     [Theory]
     [InlineData("Authorization: Basic dXNlcjpwYXNz", "Authorization: [hidden]")]
     [InlineData("Authorization: Bearer abc.def.ghi", "Authorization: [hidden]")]

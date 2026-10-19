@@ -25,10 +25,10 @@ public static partial class LogRedactor
     // Folders (which may hold spaces), then a file name with an extension, or a last folder name that may hold spaces and
     // ends where the sentence turns: at a quote, a comma, the end of the line, or a word like "is" or "was".
     private const string SentenceTurns =
-        @"\s+(?:is|was|are|were|not|could|can|cannot|failed|fails|because|from|to|for|at|and|with|has|have|had|does|did|will|when|while|after|before|which|but|or)\b|[,;]|\r|\n|$";
+        @"\s+(?:is|was|are|were|not|could|can|cannot|failed|fails|because|from|to|for|at|and|with|has|have|had|does|did|will|when|while|after|before|which|but|or)\b|[,;)]|\.\s|\r|\n|$";
 
     private const string WindowsRest =
-        @"(?:[^\\/:*?""<>|\r\n]+[\\/])*(?:[^\\/:*?""<>|\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^\\/:*?""<>|\r\n,;]*?(?=" + SentenceTurns + @"|""))";
+        @"(?:[^\\/:*?""<>|\r\n]+[\\/])*(?:[^\\/:*?""<>|\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^\\/:*?""<>|\r\n,;)]*?(?=" + SentenceTurns + @"|""))";
 
     // A Windows path: a drive, then the rest.
     [GeneratedRegex(@"(?<![A-Za-z0-9])[A-Za-z]:[\\/]" + WindowsRest)]
@@ -38,10 +38,16 @@ public static partial class LogRedactor
     [GeneratedRegex(@"(?<![\\/\w:.)\]\-])[\\/]{2}[^\\/:*?""<>|\s]+[\\/]" + WindowsRest)]
     private static partial Regex UncPath();
 
-    // A POSIX path: starts at the beginning of a word, never in the middle of a URL, and has at least two segments.
+    // A POSIX path: starts at the beginning of a word, never in the middle of a URL, and has at least two segments. A name
+    // may hold an apostrophe; a path written inside quotes is handled first, by QuotedPath.
     [GeneratedRegex(
-        @"(?<![\w:/.)\]\-])/(?:[^/\s'""<>|*?:][^/'""<>|*?:\r\n]*/)+(?:[^/'""<>|*?:\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^/'""<>|*?:\r\n,;]*?(?=" + SentenceTurns + @"|['""]))")]
+        @"(?<![\w:/.)\]\-])/(?:[^/\s""<>|*?:][^/""<>|*?:\r\n]*/)+(?:[^/""<>|*?:\r\n]*?\.[A-Za-z0-9]{2,5}(?![A-Za-z0-9])|[^/""<>|*?:\r\n,;)]*?(?=" + SentenceTurns + @"|""))")]
     private static partial Regex PosixPath();
+
+    // A path inside quotes: from the opening quote to the next quote of the same kind that is not followed by a letter or
+    // digit. An apostrophe inside a name (Schindler's List) is followed by a letter, so it does not close the quote.
+    [GeneratedRegex(@"(['""])((?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/\s'""]+[\\/]|/(?=[^/\r\n'""]+/))[^\r\n]*?)\1(?![A-Za-z0-9])")]
+    private static partial Regex QuotedPath();
 
     // An Authorization header (or JSON field): the scheme and everything after it are hidden, whatever the scheme is.
     [GeneratedRegex(@"(?i)([""']?\bauthorization[""']?\s*[:=]\s*)(?:""[^""]*""|'[^']*'|[^\r\n]*)")]
@@ -87,7 +93,8 @@ public static partial class LogRedactor
 
         // Paths first, parked behind markers so no later pattern can touch them.
         var parked = new List<string>();
-        var result = ParkPaths(UncPath(), text, showFileNames, parked);
+        var result = ParkQuotedPaths(text, showFileNames, parked);
+        result = ParkPaths(UncPath(), result, showFileNames, parked);
         result = ParkPaths(WindowsPath(), result, showFileNames, parked);
         result = ParkPaths(PosixPath(), result, showFileNames, parked);
 
@@ -107,6 +114,16 @@ public static partial class LogRedactor
 
         return RestorePaths(result, parked);
     }
+
+    // 'D:\Media\Schindler's List' becomes '[path]': the quotes stay, everything between them goes.
+    private static string ParkQuotedPaths(string text, bool showFileNames, List<string> parked) =>
+        QuotedPath().Replace(text, match =>
+        {
+            var replacement = showFileNames ? WithLastSegment(match.Groups[2].Value) : HiddenPath;
+            parked.Add(replacement);
+            var quote = match.Groups[1].Value;
+            return $"{quote}{MarkerStart}{parked.Count - 1}{MarkerEnd}{quote}";
+        });
 
     private static string ParkPaths(Regex pattern, string text, bool showFileNames, List<string> parked) =>
         pattern.Replace(text, match =>
