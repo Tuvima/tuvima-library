@@ -1615,6 +1615,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionIt
   CoverUrl: System.String | nullability=nullable | accessors=get,set
   SortOrder: System.Int32 | nullability=not-null | accessors=get,set
   DetailRoute: System.String | nullability=nullable | accessors=get,set
+  MembershipScope: System.String | nullability=not-null | accessors=get,set
+  PositionLabel: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionItemReorderRequest
   ItemIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
@@ -2508,6 +2510,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
   CurrentItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=not-null | accessors=get,init
   NextItem: MediaEngine.Contracts.Details.SequenceItemViewModel | nullability=nullable | accessors=get,init
   OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
+  AlsoInThisWorld: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
@@ -7295,6 +7298,36 @@ MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.SearchRetailResponseDt
   Query: System.String | nullability=not-null | accessors=get,set
   MediaType: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.SearchUniverseRequestDto
+  Query: System.String | nullability=not-null | accessors=get,set
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  MaxCandidates: System.Int32 | nullability=not-null | accessors=get,set
+  LocalTitle: System.String | nullability=nullable | accessors=get,set
+  LocalAuthor: System.String | nullability=nullable | accessors=get,set
+  LocalYear: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.SearchUniverseResponseDto
+  Candidates: System.Collections.Generic.List<MediaEngine.Contracts.Search.UniverseCandidateDto> | nullability=not-null | accessors=get,set
+  Query: System.String | nullability=not-null | accessors=get,set
+  MediaType: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Search.MediaEngine.Contracts.Search.UniverseCandidateDto
+  Qid: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=nullable | accessors=get,set
+  InstanceOf: System.String | nullability=nullable | accessors=get,set
+  Year: System.String | nullability=nullable | accessors=get,set
+  Author: System.String | nullability=nullable | accessors=get,set
+  Director: System.String | nullability=nullable | accessors=get,set
+  CoverUrl: System.String | nullability=nullable | accessors=get,set
+  WikipediaExtract: System.String | nullability=nullable | accessors=get,set
+  ResolutionTier: System.String | nullability=nullable | accessors=get,set
+  Confidence: System.Double | nullability=not-null | accessors=get,set
+  BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
+  MediaType: System.String | nullability=nullable | accessors=get,set
+  MediaTypeMetadata: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,set
+  MatchScores: MediaEngine.Contracts.Search.FieldMatchScoresDto | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AcceptedProviderTransitionConfiguration
   When: System.String | nullability=not-null | accessors=get,set
   Provider: System.String | nullability=not-null | accessors=get,set
@@ -8897,11 +8930,23 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseListItemDt
   has_graph: System.Boolean | nullability=not-null | accessors=get,init
   enrichment_status: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseLoreDeltaResponse
+  entity_qid: System.String | nullability=not-null | accessors=get,init
+  label: System.String | nullability=not-null | accessors=get,init
+  cached_revision: System.Int64 | nullability=not-null | accessors=get,init
+  current_revision: System.Int64 | nullability=not-null | accessors=get,init
+  has_changed: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseLoreEnrichResponse
   universe_qid: System.String | nullability=not-null | accessors=get,init
   sources_enriched: System.Int32 | nullability=not-null | accessors=get,init
   entities_written: System.Int32 | nullability=not-null | accessors=get,init
   relationships_written: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseLoreManualSourceRequest
+  SourceName: System.String | nullability=nullable | accessors=get,init
+  BaseUrl: System.String | nullability=not-null | accessors=get,init
+  ApiUrl: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseLoreSourceResponse
   id: System.Guid | nullability=not-null | accessors=get,init

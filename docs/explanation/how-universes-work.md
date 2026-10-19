@@ -19,6 +19,14 @@ Book, movie, and audiobook series normally need at least two distinct owned work
 
 Local or provider metadata can establish a shelf even when Wikidata cannot resolve an identity. A useful lane group does not require a broader universe.
 
+### How a Series is told apart, numbered and ordered
+
+A Series is identified by its Wikidata Series plus its kind of media. The Expanse novels, the Expanse audiobooks and the Expanse TV show are three separate Series, never merged, even though they share a name. When there is no Wikidata identity, the Series falls back to the retail name for that kind of media.
+
+Each Series shows its own numbering, and decimal positions are kept as the source gives them (1, 1.5, 2). Only the main sequence is numbered and counted in "x of y". Novellas, short fiction and other collected or companion works that Wikidata lists for the same world appear in a separate **Also in this world** row under the Series, never inside the numbered run. Works with no position stay in the Series after the numbered run, unnumbered.
+
+The shelf, the item page and the apps all use the same order: Wikidata's position first, then the position the work carries itself, then its date, then its title. A work is placed in one Series by one rule, so reprocessing the library never moves a sibling to a different shelf. If Wikidata puts a work in the main sequence of two different Series and nothing tells them apart, the work waits in **Needs Review** instead of being guessed into one.
+
 ## Understand broader Collections
 
 Automatic Collections need trusted shared series, franchise, or universe evidence. They connect at least two distinct lower-level groups, or a trusted series containing distinct owned titles across multiple lanes.

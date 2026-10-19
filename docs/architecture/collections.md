@@ -62,9 +62,67 @@ P527 works are `MainSequence`; incoming P361 works are `Supplementary`; children
 reached by expanding a P527 collection are `CollectedContent`; explicitly
 expanded P8345 franchise members are `BroaderContext`; ambiguous direct members
 without ordinal or chain evidence beside a positioned run are `Unpositioned`. All factual rows remain
-available, but lane totals use only the main sequence. Detail pages can switch
-to Short Fiction & Extras or Collected Content without inserting those works
-into the numbered main run.
+available, but lane totals use only the main sequence.
+
+### Series identity, scope and ordering
+
+These rules are the same for every reader (the shelf, the item page, the Series
+page and the native apps), so they cannot disagree.
+
+**Identity.** A Series is its Wikidata Series QID **plus its media type**
+(`collections.media_type`). A book Series and an audiobook Series with the same
+QID are two Series; the Expanse novels and the Expanse TV show are two Series.
+`ICollectionRepository.FindSeriesShelfAsync(qid, mediaType)` only ever returns a
+ContentGroup of that media type, never a Universe or a Series of another media
+type. Only when there is no QID does a Series fall back to a provider key
+(`tmdb:collection:{id}`, `tvdb:tv:{id}`, `comicvine:volume:{id}`) or the local
+`local:{type}:{label}` key.
+
+**Placement.** One pure rule, `SeriesPlacementRule` (Domain), says which Series a
+work belongs to and with what scope. `CollectionAssignmentService` and
+`SeriesManifestRepository.LinkOwnedWorksAsync` both call it, so running either
+any number of times, in any order relative to manifest hydration, leaves a work
+on the same shelf. Precedence:
+
+1. A hydrated Wikidata Series manifest that lists the work (any scope) decides
+   the Series, with the scope the manifest gives it.
+2. Otherwise a parent-collection manifest that lists the work places it in the
+   Series whose manifest lists that parent, as `CollectedContent`. A collection
+   is a parent (for example Memory's Legion) when another Series manifest of the
+   same media type lists its QID as a collection item; this is read from the
+   data every time, never from a flag. The parent collection never becomes a
+   shelf for those works, and manifest linking moves them to the listing Series
+   without waiting for a later assignment run.
+3. A Series of another media type is never a candidate. If two Series of the
+   work's own media type both list it in the main sequence, the work is
+   ambiguous: it is left on no Series and one Needs Review item
+   (`AmbiguousSeriesMembership`, category Metadata Conflicts) names the competing
+   Series; assignment and manifest linking raise the same item. Nothing is
+   guessed. A tie at any other scope is not ambiguous: the Series the work's own
+   `series_qid` claim names wins, else the lowest QID.
+4. With no Wikidata manifest, a retail provider's own manifest, then the retail
+   identity (provider key, then label plus media type), as `MainSequence`.
+
+A work moves only when the rule's shelf differs from its current one, and the
+log gives the real reason. A work with no manifest row (retail only) is
+`MainSequence` by definition.
+
+**Ordering.** `SeriesOrdering` (Domain) sorts a Series: the manifest's parsed
+ordinal for main-sequence members when present, then the work's own decimal
+position (`works.ordinal_sort`), then publication date, then title. A manifest
+ordinal counts only when its ordinal scope is this Series. Decimals are never
+rounded; the number shown is the source's own text (the manifest's raw ordinal,
+else the retail `series_position`), so 1.5 shows "1.5". A manifest row number is
+never used as a position.
+
+**Numbered run and "Also in this world".** Only main-sequence members are
+numbered and counted in "x of y". Unpositioned main-sequence members stay in the
+Series after the numbered run, unnumbered. Supplementary, collected-content and
+broader-context members are listed apart as **Also in this world** for the same
+Series, on the Series page (`AlsoInThisWorld`), on the item page and in the
+native items list (each item carries `membership_scope` and `position_label`).
+They are never numbered with the run. The existing missing-items preference
+applies to both lists.
 
 Domain note: `Collection`, `Work`, and `Edition` expose aggregate children and
 metadata property bags as read-only views. Code that changes membership or
@@ -208,9 +266,9 @@ ContentGroup collections represent natural groupings that emerge from the media 
 When a file is ingested:
 1. Processors and retail providers extract grouping metadata such as show name, album name, series name, Comic Vine series/volume facts, or TMDB `belongs_to_collection`.
 2. `CollectionFinalizationService` runs after quick hydration, or after retained-retail organization when Wikidata cannot resolve a QID.
-3. `CollectionAssignmentService` builds a stable shelf identity for the item. A Wikidata `series_qid` is preferred when known; otherwise provider-backed keys such as `tmdb:collection:{id}`, `tmdb:tv:{id}`, `tvdb:tv:{id}`, album IDs, or a normalized local series/show/album label are used.
-4. The service checks for an existing ContentGroup by QID or provider key (`rule_hash`) and creates one only when no matching shelf exists.
-5. The Work is linked to the shelf collection inside the per-shelf lock. If a later enrichment pass discovers the QID, the provider-backed shelf is upgraded instead of duplicated.
+3. `CollectionAssignmentService` asks `SeriesPlacementRule` which Series the item belongs to (see *Series identity, scope and ordering* above): hydrated Wikidata manifests first, then the retail identity. The retail identity prefers a Wikidata `series_qid` when known; otherwise provider-backed keys such as `tmdb:collection:{id}`, `tmdb:tv:{id}`, `tvdb:tv:{id}`, album IDs, or a normalized local series/show/album label are used.
+4. The service checks for an existing ContentGroup by QID **and media type** (`FindSeriesShelfAsync`) or provider key (`rule_hash`) and creates one only when no matching shelf exists.
+5. The Work is linked to the shelf collection inside the per-shelf lock, and only when that is not already its shelf. If a later enrichment pass discovers the QID, the provider-backed shelf is upgraded instead of duplicated.
 6. Parent rollup resolution runs only after shelf assignment and only creates a broader parent when trusted relationship rows connect at least two shelves.
 
 `CollectionBackfillService` repairs older works that have visible owned media assets but missed shelf assignment. It runs a bounded pass during library reconciliation and is also exposed through `POST /collections/reconcile` for manual repair.

@@ -170,6 +170,12 @@ internal sealed partial class DetailCompositionOrchestrator
         public double? SequenceSort { get; init; }
         public string? SequenceLabel { get; init; }
         public string? MembershipScope { get; init; }
+
+        /// <summary>The work's own decimal position (<c>works.ordinal_sort</c>); <see cref="Ordinal"/> drops decimals.</summary>
+        public double? OrdinalSort { get; init; }
+
+        /// <summary>The retail Series position as the source wrote it ("1.5").</summary>
+        public string? RetailSeriesPosition { get; init; }
         public string? DetailRoute { get; init; }
 
         public bool IsOwned =>

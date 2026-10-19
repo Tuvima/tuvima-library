@@ -143,7 +143,7 @@ Paired apps read the same Collections catalogue the Dashboard shows, limited to 
 |---|---|
 | `GET /api/v1/collections?cursor=&limit=` | `PagedResponse` of catalogue entries (`CollectionManagementCatalogDto`), default 24, at most 250, with `total_count` and `next_cursor`. Collections with nothing the profile may see are left out. |
 | `GET /api/v1/collections/{id}` | One catalogue entry. |
-| `GET /api/v1/collections/{id}/items?cursor=&limit=` | `PagedResponse` of `CollectionItemDto` (title, creator, media type, cover, detail route), in the collection's order, default 24, with `total_count` (at most the first 5,000 items). |
+| `GET /api/v1/collections/{id}/items?cursor=&limit=` | `PagedResponse` of `CollectionItemDto` (title, creator, media type, cover, detail route, `membership_scope`, `position_label`), default 24, with `total_count` (at most the first 5,000 items). A Series is listed in Series order: the numbered run first (`position_label` is the source's own text, so a decimal such as `1.5` stays `1.5`), then members with no position, then "Also in this world" members (`membership_scope` `Supplementary`, `CollectedContent` or `BroaderContext`), which are never numbered with the run. `sort_order` is the item's place in that list, counted from zero. |
 | `GET /api/v1/universe/{qid}` | `UniverseClientDetailDto`: the Universe's name, `item_count` and its member shelves. Each shelf is a `DisplayShelfDto` (the same card shape as `/api/v1/display`, first 24 cards, `seeAllRoute` pointing at `/api/v1/display/groups/{collection_id}`) with the member's own `collection_id`, `group_type` and total `item_count`. |
 
 `cursor` is the `next_cursor` of the previous page; pass it back unchanged. A malformed cursor is `400`. Catalogue entries carry `group_type`, the user-facing kind of group: `show`, `series`, `collection` (a rollup across shelves or a rule-built group) or `list` (a hand-picked or system list); the Universe detail uses `universe`. A catalogue entry that is a Universe has `group_type` `universe` and `universe_qid`, the Wikidata QID (`Q` and digits) that opens `GET /api/v1/universe/{qid}`; `universe_qid` is `null` for every other entry, and it is only set when that route would serve the Universe to the same profile. Authoring fields of an entry (`rule_json`, `rule_hash`, `selected_profile_ids`, `profile_id`, `refresh_schedule`, the `can_*` flags and the collection's own uploaded artwork URLs) are always blank for apps; member artwork is in `artwork_items`.
@@ -457,7 +457,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type | Effective administrator or precise Application permission |
+| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type; returns `candidates[]` (`qid`, `label`, `description`, `instance_of`, `year`, `author`, `director`, `cover_url`, `wikipedia_extract`, `resolution_tier`, `confidence`, `bridge_ids`, `media_type`, `media_type_metadata`, `match_scores`), `query` and `media_type` | Effective administrator or precise Application permission |
 | POST | `/search/retail` | Search configured retail providers for matching candidates | Effective administrator or precise Application permission |
 | POST | `/search/resolve` | Unified resolve search - queries all active providers and returns ranked candidates | Effective administrator or precise Application permission |
 
@@ -497,7 +497,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/universe/{qid}/family-tree` | Character family tree rooted at a specified character entity | Required |
 | GET | `/universe/{qid}/cast` | Characters with their linked performers, including era-correct actor data | Required |
 | GET | `/universe/{qid}/adaptations` | Adaptation chain - all works derived from or adapted into each other | Required |
-| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass | Required |
+| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass; returns a list of `entity_qid`, `label`, `cached_revision`, `current_revision`, `has_changed` | Required |
 
 ---
 

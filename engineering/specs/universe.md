@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress · **Version:** 4 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3 built) · **Version:** 4 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -186,6 +186,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Depends on:** none (can run with U-WP1).
 - **Size:** Standard.
 - **Done when:** the explorer renders unchanged and a guardrail test shows no Dashboard JSON copy of these shapes.
+- **Status:** Built (2026-10-19, branch `claude/universe-wave2-int`).
 
 ### U-WP3 — Fix Series identity, scope and ordering (bug 23)
 - **What it does:** group by ID plus media type; read membership scope; keep decimals; one ordering rule shared by shelf and item page; "Also in this world" row.
@@ -193,6 +194,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Depends on:** U-WP0 (Expanse data check, below).
 - **Size:** Complex.
 - **Done when:** a test library with Expanse novels, novellas and TV shows three separate Series, numbered correctly, decimals intact, shelf and item page agreeing.
+- **Status:** Built (2026-10-19, branch `claude/universe-wave2-int`; data store upgrade step 0012). Existing libraries need a data store reset and re-ingest (section 7): shelves made before this step have no media type, so they are not reused and can be left behind beside the new ones.
 
 ### U-WP0 — Confirm the real Expanse mix-up
 - **What it does:** read-only check on Shy's actual data to confirm which of the code paths in section 0 causes bug 23 (so U-WP3 fixes the real cause, not a guess).

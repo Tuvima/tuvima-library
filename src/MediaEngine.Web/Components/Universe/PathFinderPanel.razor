@@ -96,13 +96,15 @@
                     @for (var hi = 0; hi < path.Count; hi++)
                     {
                         var hop = path[hi];
-                        <span class="hop-node">@hop.Label</span>
+                        <span class="hop-node">@LabelFor(hop)</span>
                         @if (hi < path.Count - 1)
                         {
-                            var rel = path[hi + 1].Relationship;
+                            var rel = RelationshipBetween(hop, path[hi + 1]);
                             <span class="hop-arrow">
-                                @if (!string.IsNullOrWhiteSpace(rel))
-                                { <span class="tl-u-color-hex-888">-> (@rel) -></span> }
+                                @if (rel is { Reversed: false })
+                                { <span class="tl-u-color-hex-888">-> (@rel.Value.Label) -></span> }
+                                else if (rel is { Reversed: true })
+                                { <span class="tl-u-color-hex-888">&lt;- (@rel.Value.Label) &lt;-</span> }
                                 else
                                 { <span class="tl-u-color-hex-555">-></span> }
                             </span>
@@ -125,8 +127,30 @@
     private int _maxHops = 4;
     private bool _loading;
     private bool _noPathFound;
-    private List<List<PathHopDto>>? _paths;
+    private IReadOnlyList<IReadOnlyList<string>>? _paths;
     private int _selectedPath = 0;
+
+    // The Engine returns each path as entity QIDs; names and the relationship between two
+    // neighbouring hops come from the Universe graph this page has already loaded.
+    private string LabelFor(string qid) =>
+        Graph?.nodes.FirstOrDefault(node => node.id == qid)?.label is { Length: > 0 } label ? label : qid;
+
+    // Prefer an edge stored in path order; a reverse-only edge is marked Reversed so the
+    // label is drawn pointing back and never states the opposite fact.
+    private (string Label, bool Reversed)? RelationshipBetween(string fromQid, string toQid)
+    {
+        var forward = Graph?.edges.FirstOrDefault(candidate =>
+            candidate.source == fromQid && candidate.target == toQid && !string.IsNullOrWhiteSpace(candidate.label));
+        if (forward is not null)
+        {
+            return (forward.label, false);
+        }
+
+        var reverse = Graph?.edges.FirstOrDefault(candidate =>
+            candidate.source == toQid && candidate.target == fromQid && !string.IsNullOrWhiteSpace(candidate.label));
+        return reverse is null ? null : (reverse.label, true);
+    }
+
     public void SetNode(string qid, string label)
     {
         if (_startQid is null)
@@ -181,9 +205,9 @@
             var result = await ApiClient.FindPathsAsync(
                 UniverseQid, _startQid, _endQid, _maxHops);
 
-            if (result?.Paths.Count > 0)
+            if (result?.paths.Count > 0)
             {
-                _paths = result.Paths;
+                _paths = result.paths;
                 _selectedPath = 0;
                 await AnimatePath(0);
             }
@@ -215,7 +239,7 @@
     private async Task AnimatePath(int index)
     {
         if (_paths is null || index >= _paths.Count) return;
-        var qids = _paths[index].Select(h => h.EntityQid).ToArray();
+        var qids = _paths[index].ToArray();
         await JS.InvokeVoidAsync("CytoscapeInterop.animatePath", (object)qids);
     }
 }
