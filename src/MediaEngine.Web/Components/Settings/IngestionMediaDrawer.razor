@@ -30,7 +30,7 @@
                                 {
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.HourglassTop" aria-hidden="true" />
                                 }
-                                @Item.StatusLabel
+                                @ReadinessWaitingText.StatusFor(Item)
                             </span>
                         }
                     </section>
@@ -202,7 +202,7 @@
         ["Relationships"] = Item.Relationships,
     };
 
-    private string ProgressLabel => Item?.ChildUnit is null ? Item?.StatusLabel ?? "Adding" : $"{Item.ChildCompleted:N0} {DisplayChildUnit(Item.ChildUnit, Item.ChildCompleted)} added";
+    private string ProgressLabel => Item?.ChildUnit is null ? Item is null ? "Adding" : ReadinessWaitingText.StatusFor(Item) : $"{Item.ChildCompleted:N0} {DisplayChildUnit(Item.ChildUnit, Item.ChildCompleted)} added";
     private string ChildHeading => $"{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Item!.ChildUnit!)} ({Item.ChildCompleted:N0})";
     private static string DisplayChildUnit(string unit, int count) => count == 1 && unit.EndsWith('s') ? unit[..^1] : unit;
     private static string StateCopy(string state) => state.ToLowerInvariant() switch { "complete" => "Complete", "active" => "In progress…", "attention" => "Waiting to retry", "failed" => "Failed", _ => "Queued" };

@@ -3043,6 +3043,7 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionMediaGr
   CoverUrl: System.String | nullability=nullable | accessors=get,set
   Availability: System.String | nullability=not-null | accessors=get,set
   StatusLabel: System.String | nullability=not-null | accessors=get,set
+  WaitingFor: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   ProgressPercent: System.Int32? | nullability=nullable | accessors=get,set
   CurrentGateKey: System.String | nullability=nullable | accessors=get,set
   CurrentGateLabel: System.String | nullability=nullable | accessors=get,set
@@ -3306,6 +3307,8 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionStagePr
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionTypeCountDto
   MediaType: System.String | nullability=not-null | accessors=get,set
   Count: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionWaitingForKeys
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.LibraryScanResponse
   CollectionsUpserted: System.Int32 | nullability=not-null | accessors=get,init
