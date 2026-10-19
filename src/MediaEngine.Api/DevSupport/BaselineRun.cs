@@ -31,7 +31,8 @@ public static partial class BaselineRun
     public const string MissLogFile = "provider-answers-not-recorded.txt";
 
     private const int EngineLeaseExitCode = 73;
-    private const int EngineLeaseAttempts = 20;
+    // Another baseline run can hold the lease for an hour or more, so wait up to about three hours (30 s apart).
+    private const int EngineLeaseAttempts = 360;
 
     public static async Task<int> RunAsync(string[] arguments)
     {
@@ -375,6 +376,13 @@ public static partial class BaselineRun
             if (!engine.HasExited)
             {
                 return (engine, port);
+            }
+
+            // The next attempt opens the same log again, so let this attempt's output drain and close the file first.
+            engine.WaitForExit();
+            lock (gate)
+            {
+                writer.Dispose();
             }
 
             // Exit code 73: another Engine (or a test host) holds the Engine process lease. Wait for it rather than fight it.
