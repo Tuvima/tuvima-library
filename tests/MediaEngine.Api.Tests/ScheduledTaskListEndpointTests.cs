@@ -156,6 +156,30 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Catalog_NeverShowsAFileNameOrPath_InAnythingAUserReads()
+    {
+        var registry = new ScheduledTaskRegistry();
+        Directory.CreateDirectory(_configDirectory);
+        using var loader = new ConfigurationDirectoryLoader(_configDirectory);
+        loader.SaveMaintenance(new MaintenanceSettings());
+        ScheduledTaskCatalog.RegisterAll(registry, loader, new AiSettings(), new ApplicationWebhookRepository(_database));
+
+        var list = await ScheduledTaskListBuilder.BuildAsync(registry, _runs, DateTimeOffset.Now, default);
+
+        Assert.NotEmpty(list.Tasks);
+        Assert.All(list.Tasks, task =>
+        {
+            foreach (var text in new[] { task.Name, task.SettingsPlace })
+            {
+                Assert.DoesNotContain(".json", text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("config/", text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("config\\", text, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("/", text, StringComparison.Ordinal);
+            }
+        });
+    }
+
+    [Fact]
     public void MaintenanceDefaults_ListEveryScheduleKeyAServiceReads_AndNoneThatNothingReads()
     {
         var keys = new MaintenanceSettings().Schedules.Keys;

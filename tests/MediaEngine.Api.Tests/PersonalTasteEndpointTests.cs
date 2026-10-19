@@ -128,6 +128,18 @@ public sealed class PersonalTasteEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ARoutedRequestForAValueWithASlash_RemovesExactlyThatValue()
+    {
+        // The Dashboard sends "rhythm and blues/soul" as separate escaped path segments; Kestrel hands the router the decoded path.
+        var routed = await SendRoutedAsync("DELETE", "/api/v1/taste/items/genres/rhythm and blues/soul", "member");
+
+        Assert.Equal(StatusCodes.Status204NoContent, routed.Status);
+        var changes = await _overrides.ListAsync([_world.MemberA.ProfileId]);
+        var change = Assert.Single(changes);
+        Assert.Equal("rhythm and blues/soul", change.Value);
+    }
+
+    [Fact]
     public async Task EditingSignedOut_IsRefusedAndStoresNothing()
     {
         foreach (var caller in new string?[] { null })
@@ -236,6 +248,31 @@ public sealed class PersonalTasteEndpointTests : IAsyncLifetime
         using var response = new MemoryStream();
         context.Response.Body = response;
         await endpoint.RequestDelegate!(context);
+        return (context.Response.StatusCode, Encoding.UTF8.GetString(response.ToArray()));
+    }
+
+    /// <summary>Runs a request through the real router (matching, catch-all binding) and the matched endpoint, as the given caller.</summary>
+    private async Task<(int Status, string Body)> SendRoutedAsync(string method, string path, string? caller)
+    {
+        var pipeline = new ApplicationBuilder(_app.Services);
+        pipeline.Properties["__GlobalEndpointRouteBuilder"] = _app;
+        pipeline.UseRouting();
+        pipeline.Run(context => context.GetEndpoint()?.RequestDelegate?.Invoke(context)
+            ?? Task.Run(() => context.Response.StatusCode = StatusCodes.Status404NotFound));
+        var handler = pipeline.Build();
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var context = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        context.Request.Method = method;
+        context.Request.Path = path;
+        if (caller is not null)
+        {
+            context.Request.Headers[CallerHeader] = caller;
+        }
+
+        using var response = new MemoryStream();
+        context.Response.Body = response;
+        await handler(context);
         return (context.Response.StatusCode, Encoding.UTF8.GetString(response.ToArray()));
     }
 

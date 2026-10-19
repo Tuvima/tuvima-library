@@ -1,5 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
-<label class="app-timeline-grouping"><span>@Heading</span>
+<label class="@("app-timeline-grouping" + (Inline ? " app-timeline-grouping--inline" : string.Empty))"><span>@Heading</span>
     @if (Options is { Count: > 0 })
     {
         <AppNativeSelect Value="@SelectedKey" OnChange="OptionChanged" aria-label="@AriaLabel">
@@ -24,6 +24,9 @@
     [Parameter] public EventCallback<string> SelectedKeyChanged { get; set; }
     [Parameter] public string Heading { get; set; } = "Group by";
     [Parameter] public string AriaLabel { get; set; } = "Timeline grouping";
+
+    /// <summary>Puts the heading beside the selector on one line instead of above it, for a compact toolbar row.</summary>
+    [Parameter] public bool Inline { get; set; }
 
     private Task Changed(ChangeEventArgs args) => ValueChanged.InvokeAsync(args.Value?.ToString() == "Decade" ? TimelineGrouping.Decade : TimelineGrouping.Year);
     private Task OptionChanged(ChangeEventArgs args) => args.Value?.ToString() is { } key ? SelectedKeyChanged.InvokeAsync(key) : Task.CompletedTask;

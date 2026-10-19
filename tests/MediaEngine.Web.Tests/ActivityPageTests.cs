@@ -86,6 +86,13 @@ public sealed class ActivityPageTests : AsyncBunitContext
         return cut;
     }
 
+    /// <summary>Opens the Filters popover (desktop), the way a person does, so the Type, date, Outcome and Device controls are drawn.</summary>
+    private static void OpenFilters(IRenderedComponent<ActivityPage> cut)
+    {
+        cut.Find("[data-activity-filters-button]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-activity-filters]")));
+    }
+
     // ---- items ---------------------------------------------------------------------------------------------------------------
 
     private static string Utc(int daysAgo, int hour = 20) =>
@@ -166,7 +173,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
 
         Assert.Equal(["a", "b"], RowIds(cut));
         Assert.Empty(cut.FindAll("[data-activity-scope]"));
-        Assert.Empty(cut.FindAll("button[aria-label='Activity actions']"));
+        Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.DoesNotContain("Delete history", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("data-activity-person", cut.Markup, StringComparison.Ordinal);
         Assert.Equal("me", _engine.Lists.Single().Scope);
@@ -222,7 +229,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
             ["Me", "Household: Home", "Anna", "Ben"], OptionLabels(cut, "[data-activity-scope]")));
         Assert.DoesNotContain("Everyone", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Mary", cut.Find("[data-activity-scope]").TextContent, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button[aria-label='Activity actions']"));
+        Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.DoesNotContain("Delete history", cut.Markup, StringComparison.Ordinal);
     }
 
@@ -255,7 +262,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
             ["Me", "Everyone", "Household: Cabin", "Household: Home", "Anna (Home)", "Ben (Home)", "Mary (Cabin)"],
             OptionLabels(cut, "[data-activity-scope]")));
         Assert.Empty(cut.FindAll("[data-activity-person]"));
-        Assert.Equal("Search titles and devices", cut.Find(".app-filter-bar__search input").GetAttribute("placeholder"));
+        Assert.Equal("Search titles and devices", cut.Find(".activity-toolbar__search input").GetAttribute("placeholder"));
 
         cut.Find("[data-activity-scope]").Change("everyone");
 
@@ -263,7 +270,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         Assert.Equal("everyone", _engine.Lists.Last().Scope);
         Assert.Equal("everyone", _engine.Periods.Last().Scope);
         Assert.Contains("Person", cut.Find(".activity-list__head").TextContent, StringComparison.Ordinal);
-        Assert.Equal("Search titles, people and devices", cut.Find(".app-filter-bar__search input").GetAttribute("placeholder"));
+        Assert.Equal("Search titles, people and devices", cut.Find(".activity-toolbar__search input").GetAttribute("placeholder"));
 
         // Back to Me: the column goes again.
         cut.Find("[data-activity-scope]").Change("me");
@@ -319,7 +326,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage(standalone: true, scope: "everyone");
 
         Assert.Empty(cut.FindAll("[data-activity-scope]"));
-        Assert.Empty(cut.FindAll("button[aria-label='Activity actions']"));
+        Assert.Equal(["Refresh"], ActionMenuItems(cut));
         Assert.Equal("me", _engine.Lists.Single().Scope);
         Assert.NotEmpty(cut.FindAll("[data-activity-export]"));
         Assert.DoesNotContain(_identity.Paths, path => path is "/access/profiles" or "/access/households");
@@ -335,6 +342,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         _engine.OnList = _ => Page([Entry("a")]);
         var cut = RenderPage();
 
+        OpenFilters(cut);
         cut.Find("[data-activity-kind-filter='watch']").Change(true);
         cut.WaitForAssertion(() => Assert.Equal(["watch"], _engine.Lists.Last().Kinds));
         cut.Find("[data-activity-kind-filter='read']").Change(true);
@@ -366,16 +374,91 @@ public sealed class ActivityPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void OnDesktop_TheControlsAreOneCompactRow_AndFiltersStayInAPopoverUntilOpened()
+    {
+        SignIn(Role.ServerAdministrator);
+        _engine.OnList = _ => Page([Entry("a")]);
+        var cut = RenderPage();
+
+        var toolbar = cut.Find("[data-activity-toolbar]");
+        // Scope, search, Filters, Group by, the every-session switch, Export and the more menu share one row.
+        Assert.NotNull(toolbar.QuerySelector("[data-activity-scope]"));
+        Assert.NotNull(toolbar.QuerySelector(".activity-toolbar__search input"));
+        Assert.NotNull(toolbar.QuerySelector("[data-activity-filters-button]"));
+        Assert.NotNull(toolbar.QuerySelector("select[aria-label='Group the list']"));
+        Assert.NotNull(toolbar.QuerySelector("input[role='switch']"));
+        Assert.NotNull(toolbar.QuerySelector("[data-activity-export]"));
+        Assert.NotNull(toolbar.QuerySelector("button[aria-label='Activity actions']"));
+        // Type, dates, Outcome and Device are not an open form above the list.
+        Assert.Empty(cut.FindAll("[data-activity-filters]"));
+        Assert.Empty(cut.FindAll("[data-activity-filters-count]"));
+        Assert.Equal("false", cut.Find("[data-activity-filters-button]").GetAttribute("aria-expanded"));
+
+        OpenFilters(cut);
+
+        Assert.Equal("true", cut.Find("[data-activity-filters-button]").GetAttribute("aria-expanded"));
+        var popover = cut.Find(".activity-filters-popover");
+        Assert.NotNull(popover.QuerySelector("[data-activity-kind-filter='watch']"));
+        Assert.NotNull(popover.QuerySelector("[data-activity-from]"));
+        Assert.NotNull(popover.QuerySelector("[data-activity-to]"));
+        Assert.NotNull(popover.QuerySelector("[data-activity-outcome-filter]"));
+        Assert.NotNull(popover.QuerySelector("[data-activity-device-filter]"));
+    }
+
+    [Fact]
+    public void ActiveFilters_ShowAsAMarkOnTheFiltersButton_AndAsRemovableChipsUnderTheRow()
+    {
+        SignIn(Role.Member);
+        _engine.OnList = _ => Page([Entry("a")]);
+        var cut = RenderPage();
+        OpenFilters(cut);
+
+        cut.Find("[data-activity-outcome-filter]").Change("finished");
+        cut.Find("[data-activity-kind-filter='watch']").Change(true);
+
+        cut.WaitForAssertion(() => Assert.Equal("2", cut.Find("[data-activity-filters-count]").TextContent.Trim()));
+        // The chips follow the row and come before the list; the search box alone does not count as a filter.
+        var summary = cut.Find(".app-active-filter-summary");
+        Assert.True(cut.Markup.IndexOf("data-activity-toolbar", StringComparison.Ordinal) < cut.Markup.IndexOf("app-active-filter-summary", StringComparison.Ordinal));
+        Assert.True(cut.Markup.IndexOf("app-active-filter-summary", StringComparison.Ordinal) < cut.Markup.IndexOf("data-activity-list", StringComparison.Ordinal));
+        Assert.Equal(2, summary.QuerySelectorAll(".app-active-filter-summary__chip").Length);
+
+        cut.Find(".activity-toolbar__search input").Input("Tremors");
+        cut.WaitForAssertion(() => Assert.Equal("Tremors", _engine.Lists.Last().Search), TimeSpan.FromSeconds(5));
+        cut.WaitForAssertion(() => Assert.Equal(["a"], RowIds(cut)));
+        Assert.Equal("2", cut.Find("[data-activity-filters-count]").TextContent.Trim());
+
+        cut.FindAll(".app-active-filter-summary__chip").Single(chip => chip.TextContent.Contains("Finished", StringComparison.Ordinal)).Click();
+        cut.WaitForAssertion(() => Assert.Equal("1", cut.Find("[data-activity-filters-count]").TextContent.Trim()));
+    }
+
+    [Fact]
+    public void Refresh_LivesInTheMoreMenu_AndAsksForTheListAgain()
+    {
+        SignIn(Role.Member);
+        _engine.OnList = _ => Page([Entry("a")]);
+        var cut = RenderPage();
+        var asked = _engine.Lists.Count;
+        Assert.Empty(cut.FindAll(".app-filter-bar"));
+
+        Assert.Equal(["Refresh"], ActionMenuItems(cut));
+        cut.Find("[role='menuitem']").Click();
+
+        cut.WaitForAssertion(() => Assert.True(_engine.Lists.Count > asked));
+    }
+
+    [Fact]
     public void Search_AsksForTheTypedTitle_AfterItSettles_AndDevicesAreFilteredToo()
     {
         SignIn(Role.Member);
         _engine.OnList = _ => Page([Entry("a")]);
         var cut = RenderPage();
 
-        cut.Find(".app-filter-bar__search input").Input("Tremors");
+        cut.Find(".activity-toolbar__search input").Input("Tremors");
         cut.WaitForAssertion(() => Assert.Equal("Tremors", _engine.Lists.Last().Search), TimeSpan.FromSeconds(5));
         Assert.Contains("Search: Tremors", cut.Find(".app-active-filter-summary").TextContent, StringComparison.Ordinal);
 
+        OpenFilters(cut);
         cut.Find("[data-activity-device-filter]").Input("Kobo");
         cut.WaitForAssertion(() => Assert.Equal("Kobo", _engine.Lists.Last().Device), TimeSpan.FromSeconds(5));
     }
@@ -529,6 +612,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         _engine.OnList = _ => Page([Entry("a")]);
         _engine.OnPeriods = _ => new PersonalActivityPeriodsDto([new(2026, 2, [new(10, 1), new(3, 1)])]);
         var cut = RenderPage();
+        OpenFilters(cut);
         cut.Find("[data-activity-to]").Input("2026-04-10");
         cut.WaitForAssertion(() => Assert.Equal(ActivityListPresentation.StartOfLocalDay("2026-04-11"), _engine.Lists.Last().To));
 
@@ -557,8 +641,8 @@ public sealed class ActivityPageTests : AsyncBunitContext
         filters.Click();
 
         Assert.NotEmpty(cut.FindAll("[data-activity-filters]"));
-        // A tap on a row opens the item, and Export spans the width.
-        Assert.Contains("tl-full-width", cut.Find("[data-activity-export]").ClassName, StringComparison.Ordinal);
+        // The popover is a desktop surface: the phone uses the sheet only.
+        Assert.Empty(cut.FindAll("[data-activity-filters-button]"));
     }
 
     // ---- paging, export, states ----------------------------------------------------------------------------------------------
@@ -588,6 +672,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage();
         cut.Find("[data-activity-scope]").Change("everyone");
         cut.WaitForAssertion(() => Assert.Equal("everyone", _engine.Lists.Last().Scope));
+        OpenFilters(cut);
         cut.Find("[data-activity-kind-filter='watch']").Change(true);
         cut.Find("[data-activity-outcome-filter]").Change("not_finished");
         cut.WaitForAssertion(() => Assert.Equal("not_finished", _engine.Lists.Last().Outcome));
@@ -615,6 +700,7 @@ public sealed class ActivityPageTests : AsyncBunitContext
         var cut = RenderPage();
         Assert.Contains("Nothing here yet", cut.Find("[data-activity-state='empty']").TextContent, StringComparison.Ordinal);
 
+        OpenFilters(cut);
         cut.Find("[data-activity-outcome-filter]").Change("finished");
 
         cut.WaitForAssertion(() => Assert.Contains("Nothing matches these filters", cut.Find("[data-activity-state='empty']").TextContent, StringComparison.Ordinal));
@@ -681,6 +767,14 @@ public sealed class ActivityPageTests : AsyncBunitContext
     }
 
     // ---- deleting history ----------------------------------------------------------------------------------------------------
+
+    /// <summary>Opens the "…" menu and returns what it offers; only a server administrator is offered Delete history.</summary>
+    private static string[] ActionMenuItems(IRenderedComponent<ActivityPage> cut)
+    {
+        cut.Find("button[aria-label='Activity actions']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        return [.. cut.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim())];
+    }
 
     private static void OpenDelete(IRenderedComponent<ActivityPage> cut)
     {
@@ -761,6 +855,63 @@ public sealed class ActivityPageTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll(".admin-unlock button").Single(button => button.TextContent.Contains("Continue", StringComparison.Ordinal)).Click());
 
         cut.WaitForAssertion(() => Assert.Contains("3 entries will be deleted", cut.Find("[data-activity-delete-preview]").TextContent, StringComparison.Ordinal));
+    }
+
+    private static async Task EnterPinAsync(IRenderedComponent<ActivityPage> cut, string pin)
+    {
+        foreach (var digit in pin)
+        {
+            await cut.InvokeAsync(() => cut.Find($".pin-pad__key[aria-label='{digit}']").Click());
+        }
+
+        await cut.InvokeAsync(() => cut.FindAll(".admin-unlock button").Single(button => button.TextContent.Contains("Continue", StringComparison.Ordinal)).Click());
+    }
+
+    [Fact]
+    public async Task DeleteHistoryCount_ThatStillSaysUnlockIsRequiredAfterAGoodPin_ShowsAnErrorInsteadOfThePinPadAgain()
+    {
+        SignIn(Role.ServerAdministrator);
+        _engine.OnList = _ => Page([Entry("a")]);
+        _engine.PreviewOutcome = () =>
+            PersonalActivityOutcome<PersonalActivityDeletePreviewDto>.Failed(PersonalActivityOutcomeStatus.UnlockRequired);
+        var cut = RenderPage();
+        OpenDelete(cut);
+        cut.Find("[data-activity-delete-before]").Input("2026-01-01");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".admin-unlock")));
+        _identity.Unlocked = true;
+
+        await EnterPinAsync(cut, "5678");
+
+        cut.WaitForAssertion(() => Assert.Contains("still locked", cut.Find("[data-activity-delete-error]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(".admin-unlock"));
+        Assert.Equal(1, _identity.Unlocks);
+        Assert.Equal(2, _engine.Previews.Count);
+    }
+
+    [Fact]
+    public async Task DeleteHistory_ThatStillSaysUnlockIsRequiredAfterAGoodPin_ShowsAnErrorInsteadOfThePinPadAgain_AndDeletesNothing()
+    {
+        SignIn(Role.ServerAdministrator);
+        _engine.OnList = _ => Page([Entry("a")]);
+        _engine.PreviewCount = 4;
+        _engine.DeleteOutcome = () =>
+            PersonalActivityOutcome<PersonalActivityDeleteResultDto>.Failed(PersonalActivityOutcomeStatus.UnlockRequired);
+        var cut = RenderPage();
+        OpenDelete(cut);
+        cut.Find("[data-activity-delete-before]").Input("2026-01-01");
+        cut.WaitForAssertion(() => Assert.Contains("4 entries", cut.Find("[data-activity-delete-preview]").TextContent, StringComparison.Ordinal));
+        cut.Find("[data-activity-delete-confirm]").Input("DELETE");
+        cut.Find("[data-activity-delete-confirm-button]").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".admin-unlock")));
+        _identity.Unlocked = true;
+
+        await EnterPinAsync(cut, "5678");
+
+        cut.WaitForAssertion(() => Assert.Contains("still locked", cut.Find("[data-activity-delete-error]").TextContent, StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(".admin-unlock"));
+        Assert.Equal(1, _identity.Unlocks);
+        Assert.Equal(2, _engine.Deletes.Count);
+        Assert.NotEmpty(cut.FindAll("[data-activity-delete-dialog]"));
     }
 
     [Fact]

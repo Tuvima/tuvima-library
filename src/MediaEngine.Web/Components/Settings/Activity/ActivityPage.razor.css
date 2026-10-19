@@ -23,16 +23,56 @@
     align-self: start;
 }
 
+/* One compact row: scope (administrators), search, Filters, Group by, the every-session switch, then Export and the more menu. */
 .activity-toolbar {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
+    align-items: center;
     gap: var(--tl-space-3, 12px);
 }
 
 .activity-toolbar__scope {
-    min-width: min(100%, 16rem);
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+}
+
+.activity-toolbar__scope .activity-field__label {
+    white-space: nowrap;
+}
+
+.activity-toolbar__search {
+    flex: 1 1 14rem;
+    min-width: min(100%, 12rem);
+}
+
+.activity-toolbar__filters {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.activity-toolbar__filters-anchor {
+    display: inline-flex;
+}
+
+.activity-toolbar__count {
+    display: inline-flex;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    margin-inline-start: var(--tl-space-2, 8px);
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--tl-accent-primary);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.activity-toolbar__switch {
+    flex: 0 0 auto;
 }
 
 .activity-toolbar__actions {
@@ -59,15 +99,8 @@
 }
 
 .activity-filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
+    display: grid;
     gap: var(--tl-space-3, 12px);
-    grid-column: 1 / -1;
-}
-
-.activity-filters > * {
-    min-width: min(100%, 9.5rem);
 }
 
 .activity-filters__types {
@@ -85,13 +118,24 @@
     margin-bottom: 6px;
 }
 
-.activity-filters--sheet {
-    flex-direction: column;
-    align-items: stretch;
+.activity-filters__dates {
+    display: grid;
+    gap: var(--tl-space-3, 12px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.activity-filters--sheet > * {
-    width: 100%;
+.activity-filters-popover__body {
+    display: grid;
+    width: min(24rem, calc(100vw - 32px));
+    gap: var(--tl-space-3, 12px);
+    padding: var(--tl-space-4, 16px);
+}
+
+.activity-filters-popover__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2, 8px);
 }
 
 .activity-list {

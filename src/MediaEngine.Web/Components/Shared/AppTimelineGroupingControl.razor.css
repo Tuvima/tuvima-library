@@ -1,3 +1,4 @@
 .app-timeline-grouping{display:grid;grid-template-rows:auto 48px;align-items:end;gap:8px;white-space:nowrap;font-size:.8rem}
 .app-timeline-grouping>span{line-height:1;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tl-text-muted)}
 .app-timeline-grouping ::deep select{min-width:0;width:100%;height:48px}
+.app-timeline-grouping--inline{display:flex;align-items:center}
