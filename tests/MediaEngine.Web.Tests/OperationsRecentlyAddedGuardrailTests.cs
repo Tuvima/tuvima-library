@@ -24,12 +24,12 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("SharedMediaEditorMode.Review", recent, StringComparison.Ordinal);
         Assert.Contains("SharedMediaEditorMode.Normal", recent, StringComparison.Ordinal);
         Assert.Contains("<AppOverflowMenu", recent, StringComparison.Ordinal);
-        Assert.Contains("<IngestionRecentlyAddedPreview", ingestion, StringComparison.Ordinal);
+        Assert.Contains("<IngestionNowPanel", ingestion, StringComparison.Ordinal);
+        Assert.Contains("<IngestionAddedSummary", ingestion, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionBatchHistory", ingestion, StringComparison.Ordinal);
-        Assert.Contains("ingestion-media-card__art", card, StringComparison.Ordinal);
-        Assert.Contains("ingestion-media-card__progress", card, StringComparison.Ordinal);
-        Assert.Contains("ingestion-media-card__title", card, StringComparison.Ordinal);
-        Assert.DoesNotContain("ingestion-media-card__type", card, StringComparison.Ordinal);
+        Assert.Contains("ingestion-media-list-row__identity", card, StringComparison.Ordinal);
+        Assert.Contains("ingestion-media-list-row__step", card, StringComparison.Ordinal);
+        Assert.Contains("ingestion-media-list-row__details", card, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionSettingsTab", settings, StringComparison.Ordinal);

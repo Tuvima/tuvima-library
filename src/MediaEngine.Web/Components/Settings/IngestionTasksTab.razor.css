@@ -194,76 +194,6 @@
     font-size: var(--tl-font-size-xs);
 }
 
-.ingestion-section {
-    display: grid;
-    gap: .3rem;
-}
-
-.ingestion-section > header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.ingestion-section h2 {
-    margin: 0;
-    font-size: 1rem;
-}
-
-.ingestion-section header p {
-    display: flex;
-    align-items: center;
-    gap: .48rem;
-    margin: .1rem 0 0;
-    color: var(--tl-palette-text-secondary);
-    font-size: .76rem;
-}
-
-.ingestion-live-dot {
-    position: relative;
-    width: .5rem;
-    height: .5rem;
-    background: var(--tl-palette-success);
-    border-radius: 50%;
-}
-
-.ingestion-live-dot::after {
-    position: absolute;
-    inset: -.28rem;
-    border: 1px solid color-mix(in srgb, var(--tl-palette-success) 70%, transparent);
-    border-radius: inherit;
-    content: "";
-    animation: ingestion-live-pulse 1.8s ease-out infinite;
-}
-
-.ingestion-media-list {
-    display: grid;
-    border-top: 1px solid var(--app-border);
-}
-
-.ingestion-grouping-state {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-    min-height: 3.5rem;
-    padding: .6rem 0;
-    color: var(--tl-palette-text-secondary);
-}
-
-.ingestion-grouping-state > span {
-    display: grid;
-}
-
-.ingestion-grouping-state ::deep > .tl-icon-root {
-    color: var(--tl-palette-primary);
-    animation: ingestion-summary-spin 2s linear infinite;
-}
-
-@keyframes ingestion-summary-spin {
-    to { transform: rotate(360deg); }
-}
-
 @keyframes ingestion-summary-breathe {
     0%, 100% { opacity: .48; }
     50% { opacity: 1; }
@@ -273,16 +203,9 @@
     to { background-position: -220% 0; }
 }
 
-@keyframes ingestion-live-pulse {
-    0% { opacity: .8; transform: scale(.55); }
-    75%, 100% { opacity: 0; transform: scale(1.35); }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .ingestion-status.is-active::after,
-    .ingestion-status.is-active ::deep .ingestion-status__bar .app-progress-bar__fill,
-    .ingestion-live-dot::after,
-    .ingestion-grouping-state ::deep > .tl-icon-root {
+    .ingestion-status.is-active ::deep .ingestion-status__bar .app-progress-bar__fill {
         animation: none;
     }
 
@@ -298,9 +221,5 @@
 
     .ingestion-status__header {
         flex-wrap: wrap;
-    }
-
-    .ingestion-section header p {
-        max-width: 18rem;
     }
 }

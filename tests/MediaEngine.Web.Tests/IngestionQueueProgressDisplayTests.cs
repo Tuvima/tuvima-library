@@ -449,7 +449,7 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ViewAll_OpensTheActivityLogOnAdded()
+    public void ViewAll_OnTheAddedSummary_OpensTheActivityLogOnAdded()
     {
         _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto
         {
@@ -461,30 +461,17 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         var cut = Render<IngestionTasksTab>();
 
         cut.WaitForAssertion(() =>
-            Assert.Equal("/settings/system/logs?tab=events&filter=added", cut.Find("a[href*='/settings/system/logs']").GetAttribute("href")));
+            Assert.Equal("/settings/system/logs?tab=events&filter=added", cut.Find(".ingestion-added a[href*='/settings/system/logs']").GetAttribute("href")));
     }
 
     [Fact]
-    public void TheOldPagedViewAddress_WithoutARun_RedirectsToTheActivityLogOnAdded()
+    public void TheOldPagedViewAddress_RedirectsToTheActivityLogOnAdded()
     {
         var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
 
         Render<IngestionTasksTab>(parameters => parameters.Add(p => p.View, "all"));
 
         Assert.EndsWith("/settings/system/logs?tab=events&filter=added", navigation.Uri, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ABatchView_WithARun_StaysOnTheIngestionPage()
-    {
-        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
-        var before = navigation.Uri;
-
-        Render<IngestionTasksTab>(parameters => parameters
-            .Add(p => p.View, "all")
-            .Add(p => p.RunId, Guid.NewGuid()));
-
-        Assert.Equal(before, navigation.Uri);
     }
 
     private IRenderedComponent<IngestionTasksTab> RenderTab(IngestionQueueProgressDto queue)

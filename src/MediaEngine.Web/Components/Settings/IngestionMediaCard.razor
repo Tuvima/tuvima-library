@@ -1,60 +1,38 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
 
-<div class="ingestion-media-card-shell is-@Item.Availability @(IsList ? "is-list" : null)">
-    @if (IsList)
-    {
-        <AppNativeButton Type="button"
-                         Class="ingestion-media-list-row"
-                         AriaLabel="@CardAriaLabel"
-                         OnClick="@(_ => OnOpen.InvokeAsync(Item))">
-            <span class="ingestion-media-list-row__identity">
-                <span class="ingestion-media-list-row__art">
-                    <AppMediaArtwork ImageUrl="@Item.CoverUrl" Alt="" FallbackIcon="@MediaIcon(Item.MediaType)" />
-                </span>
-                <span class="ingestion-media-list-row__copy">
-                    <strong title="@Item.Title">@Item.Title</strong>
-                    <small title="@DisplaySubtitle">@DisplaySubtitle</small>
-                </span>
-            </span>
-            <span class="ingestion-media-list-row__format">
-                <strong><AppMaterialIcon Icon="@MediaIcon(Item.MediaType)" aria-hidden="true" />@FriendlyType(Item.MediaType)</strong>
-                <small title="@CountLabel">@CountLabel</small>
-            </span>
-            <span class="ingestion-media-list-row__status is-@Item.Availability" title="@ActivityLabel">
-                <AppMaterialIcon Icon="@ActivityIcon" aria-hidden="true" />
-                @if (!Item.Availability.Equals("ready", StringComparison.OrdinalIgnoreCase))
-                {
-                    <span>@ActivityLabel</span>
-                }
-            </span>
-            <span class="ingestion-media-list-row__details"><IngestionFacetIndicators Item="Item" /></span>
-        </AppNativeButton>
-    }
-    else
-    {
-        <AppNativeButton Type="button"
-                         Class="@($"ingestion-media-card {ProgressToneClass}")"
-                         AriaLabel="@CardAriaLabel"
-                         title="@ProgressTooltip"
-                         OnClick="@(_ => OnOpen.InvokeAsync(Item))">
-            <span class="ingestion-media-card__art">
-                <AppMediaArtwork ImageUrl="@Item.CoverUrl" Alt="" FallbackIcon="@MediaIcon(Item.MediaType)" />
-                <span class="ingestion-media-card__progress" aria-hidden="true">
-                    <AppProgressBar Value="@(Item.ProgressPercent ?? 0)" ShowValue="false" />
-                </span>
-            </span>
-            <strong class="ingestion-media-card__title" title="@Item.Title">@Item.Title</strong>
-        </AppNativeButton>
-    }
+@* One row of the Now panel. Five cells, always in this order for every media type: Title, Type, Step, Status, Details. *@
+<div class="ingestion-media-list-row is-@Item.Availability" role="row" data-group-id="@Item.GroupId">
+    <span class="ingestion-media-list-row__identity" role="cell">
+        <span class="ingestion-media-list-row__art">
+            <AppMediaArtwork ImageUrl="@Item.CoverUrl" Alt="" FallbackIcon="@MediaIcon(Item.MediaType)" />
+        </span>
+        <span class="ingestion-media-list-row__copy">
+            <AppNativeButton Type="button"
+                             Class="ingestion-media-list-row__open"
+                             Title="@Item.Title"
+                             AriaLabel="@OpenAriaLabel"
+                             OnClick="@(_ => OnOpen.InvokeAsync(Item))">
+                <strong>@Item.Title</strong>
+            </AppNativeButton>
+            <small title="@DisplaySubtitle">@DisplaySubtitle</small>
+        </span>
+    </span>
+    <span class="ingestion-media-list-row__format" role="cell">
+        <strong><AppMaterialIcon Icon="@MediaIcon(Item.MediaType)" aria-hidden="true" />@FriendlyType(Item.MediaType)</strong>
+        <small title="@CountLabel">@CountLabel</small>
+    </span>
+    <span class="ingestion-media-list-row__step" role="cell" title="@StepLabel">@StepLabel</span>
+    <span class="ingestion-media-list-row__status is-@Item.Availability" role="cell" title="@ActivityLabel">
+        <AppMaterialIcon Icon="@ActivityIcon" aria-hidden="true" />
+        <span>@ActivityLabel</span>
+    </span>
+    <span class="ingestion-media-list-row__details" role="cell"><IngestionFacetIndicators Item="Item" /></span>
 </div>
 
 @code {
     [Parameter, EditorRequired] public IngestionMediaGroupDto Item { get; set; } = new();
     [Parameter] public EventCallback<IngestionMediaGroupDto> OnOpen { get; set; }
-    [Parameter] public string DisplayMode { get; set; } = "card";
-
-    private bool IsList => DisplayMode.Equals("list", StringComparison.OrdinalIgnoreCase);
 
     // Reserve the contributor row while metadata loads. TV may supply season
     // context here; a fallback media type is not a contributor.
@@ -62,6 +40,9 @@
         || Item.Subtitle == Item.MediaType || Item.Subtitle == FriendlyType(Item.MediaType)
             ? null : Item.Subtitle;
     private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel;
+
+    // The Step column names the gate the item is working through; an item with none left says its status.
+    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel) ? ActivityLabel : Item.CurrentGateLabel;
     private string ActivityIcon => Item.Availability switch
     {
         "ready" => AppMaterialIcons.Outlined.CheckCircle,
@@ -84,27 +65,7 @@
             + (Item.FileCount > 0 && Item.ChildUnit != "files" ? $" · {FileLabel}" : string.Empty)
         : Item.FileCount > 0 ? FileLabel : null;
     private string FileLabel => $"{Item.FileCount:N0} {(Item.FileCount == 1 ? "file" : "files")}";
-    private IngestionProgressGateDto? CurrentGate => Item.ProgressGates.FirstOrDefault(gate => gate.Key == Item.CurrentGateKey)
-        ?? Item.ProgressGates.FirstOrDefault(gate => gate.State != "complete");
-    private string ProgressToneClass => CurrentGate?.State switch
-    {
-        "retry" => "is-retrying",
-        "blocked" => "is-blocked",
-        _ => string.Empty,
-    };
-    private string CardAriaLabel => $"Open ingestion details for {Item.Title}. {Item.ProgressPercent ?? 0}% complete. {Item.CurrentGateLabel ?? ActivityLabel}.";
-    private string ProgressTooltip => string.Join(Environment.NewLine,
-        new[] { Item.Title, $"{Item.ProgressPercent ?? 0}% · {Item.CurrentGateLabel ?? ActivityLabel}" }
-            .Concat(Item.ProgressGates.Select(gate => $"{GateMarker(gate.State)} {gate.Label}")));
-
-    private static string GateMarker(string state) => state switch
-    {
-        "complete" => "✓",
-        "active" => "●",
-        "retry" => "!",
-        "blocked" => "×",
-        _ => "○",
-    };
+    private string OpenAriaLabel => $"Open ingestion details for {Item.Title}. {Item.CurrentGateLabel ?? ActivityLabel}.";
 
     private string DisplayChildUnit(int count) => count == 1 && Item.ChildUnit!.EndsWith('s')
         ? Item.ChildUnit[..^1]

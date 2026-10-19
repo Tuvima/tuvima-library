@@ -6,8 +6,20 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
+/// <summary>
+/// A Now-panel row has the same five cells in the same order for every media type: Title, Type, Step, Status, Details.
+/// </summary>
 public sealed class IngestionMediaCardTests : AsyncBunitContext
 {
+    private static readonly string[] CellClasses =
+    [
+        "ingestion-media-list-row__identity",
+        "ingestion-media-list-row__format",
+        "ingestion-media-list-row__step",
+        "ingestion-media-list-row__status",
+        "ingestion-media-list-row__details",
+    ];
+
     public IngestionMediaCardTests()
     {
         Services.AddNativeUiServices();
@@ -16,7 +28,7 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ActiveGroup_SeparatesWorkFromIdentityAndDistinguishesFilesFromTracks()
+    public void ActiveGroup_ShowsTitleTypeStepStatusAndDetailsAndOpensFromTheTitle()
     {
         var item = new IngestionMediaGroupDto
         {
@@ -25,16 +37,8 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
             MediaType = "Music",
             Availability = "finishing",
             StatusLabel = "Adding lyrics",
-            ProgressPercent = 50,
             CurrentGateKey = "enriched",
             CurrentGateLabel = "Enriching details",
-            ProgressGates =
-            [
-                new() { Key = "identified", Label = "Identified", State = "complete" },
-                new() { Key = "matched", Label = "Matched metadata", State = "complete" },
-                new() { Key = "enriched", Label = "Enriching details", State = "active" },
-                new() { Key = "ready", Label = "Ready in library", State = "pending" },
-            ],
             ChildUnit = "tracks",
             ChildCompleted = 5,
             FileCount = 6,
@@ -46,36 +50,50 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
             .Add(component => component.Item, item)
             .Add(component => component.OnOpen, value => opened = value));
 
-        Assert.Equal(item.Title, cut.Find(".ingestion-media-card__title").TextContent);
-        Assert.Single(cut.FindAll(".ingestion-media-card__progress"));
-        Assert.Contains("Enriching details", cut.Find("button.ingestion-media-card").GetAttribute("title"));
-        Assert.DoesNotContain("Queen", cut.Markup);
-        Assert.DoesNotContain("tracks added", cut.Markup);
-        Assert.DoesNotContain("ingestion-facet", cut.Markup);
-        cut.Find("button.ingestion-media-card").Click();
+        Assert.Equal(item.Title, cut.Find(".ingestion-media-list-row__copy strong").TextContent);
+        Assert.Equal("Queen", cut.Find(".ingestion-media-list-row__copy small").TextContent);
+        Assert.Contains("Album", cut.Find(".ingestion-media-list-row__format").TextContent);
+        Assert.Contains("5 tracks added", cut.Find(".ingestion-media-list-row__format").TextContent);
+        Assert.Equal("Enriching details", cut.Find(".ingestion-media-list-row__step").TextContent);
+        Assert.Equal("Adding lyrics", cut.Find(".ingestion-media-list-row__status").TextContent.Trim());
+        cut.Find("button.ingestion-media-list-row__open").Click();
         Assert.Same(item, opened);
     }
 
-    [Theory]
-    [InlineData("ready", "Ready")]
-    [InlineData("review", "Needs review")]
-    [InlineData("failed", "Failed")]
-    public void MissingContributor_DoesNotInventPersistentTileMetadata(string availability, string status)
+    [Fact]
+    public void ReadyGroup_StillShowsItsStatusText()
+    {
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, new()
+        {
+            Title = "The Quiet Mind",
+            MediaType = "Audiobooks",
+            Availability = "ready",
+            StatusLabel = "Ready",
+            ChildUnit = "files",
+            ChildCompleted = 12,
+            FileCount = 12,
+        }));
+
+        Assert.Equal("Ready to browse", cut.Find(".ingestion-media-list-row__status").TextContent.Trim());
+        Assert.Contains("12 files added", cut.Find(".ingestion-media-list-row__format").TextContent);
+        // With no gate left the Step column says the status instead.
+        Assert.Equal("Ready to browse", cut.Find(".ingestion-media-list-row__step").TextContent);
+    }
+
+    [Fact]
+    public void MissingContributor_DoesNotInventPersistentRowMetadata()
     {
         var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, new()
         {
             Title = "The Quiet Mind",
             Subtitle = "Books",
             MediaType = "Books",
-            Availability = availability,
-            StatusLabel = status,
+            Availability = "review",
+            StatusLabel = "Needs review",
             FileCount = 1,
         }));
 
-        Assert.Equal("The Quiet Mind", cut.Find(".ingestion-media-card__title").TextContent);
-        Assert.DoesNotContain("Books", cut.Markup);
-        Assert.DoesNotContain("1 file", cut.Markup);
-        Assert.DoesNotContain("ingestion-facet", cut.Markup);
+        Assert.Equal(string.Empty, cut.Find(".ingestion-media-list-row__copy small").TextContent);
     }
 
     [Fact]
@@ -91,35 +109,82 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
             ChildCompleted = 0,
         }));
 
-        Assert.DoesNotContain("8 files", cut.Markup);
         Assert.DoesNotContain("8 tracks added", cut.Markup);
     }
 
-    [Fact]
-    public void ListMode_UsesCompactColumnsAndReadyStateIsOnlyACheckmark()
+    [Theory]
+    [InlineData("Movies")]
+    [InlineData("TV")]
+    [InlineData("Music")]
+    [InlineData("Books")]
+    [InlineData("Audiobooks")]
+    public void EveryMediaType_RendersTheSameFiveCellsInTheSameOrderWithFiveDetailSlots(string mediaType)
     {
-        var cut = Render<IngestionMediaCard>(parameters => parameters
-            .Add(component => component.DisplayMode, "list")
-            .Add(component => component.Item, new()
-            {
-                Title = "The Quiet Mind",
-                Subtitle = "Daniel Brooks",
-                MediaType = "Audiobooks",
-                Availability = "ready",
-                StatusLabel = "Ready",
-                ChildUnit = "files",
-                ChildCompleted = 12,
-                FileCount = 12,
-                Artwork = new() { State = "complete", Label = "Artwork complete" },
-                Metadata = new() { State = "complete", Label = "Metadata complete" },
-            }));
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, Item(mediaType)));
 
-        Assert.Single(cut.FindAll("button.ingestion-media-list-row"));
-        Assert.Equal("The Quiet Mind", cut.Find(".ingestion-media-list-row__copy strong").TextContent);
-        Assert.Equal("Daniel Brooks", cut.Find(".ingestion-media-list-row__copy small").TextContent);
-        Assert.Contains("Audiobook", cut.Find(".ingestion-media-list-row__format").TextContent);
-        Assert.Contains("12 files added", cut.Find(".ingestion-media-list-row__format").TextContent);
-        Assert.Empty(cut.FindAll(".ingestion-media-list-row__status span"));
-        Assert.Empty(cut.Find(".ingestion-media-list-row__status").TextContent.Trim());
+        var row = cut.Find("[role='row']");
+        var cells = row.QuerySelectorAll("[role='cell']").Select(cell => cell.ClassList.First()).ToArray();
+        Assert.Equal(CellClasses, cells);
+        Assert.Equal(5, cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot").Count);
     }
+
+    [Fact]
+    public void ASymbolThatDoesNotApplyToTheType_IsADashInItsSlotWithTheSameWordsForTooltipAndName()
+    {
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, Item("Books")));
+
+        var slots = cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot");
+        var dash = slots[4].QuerySelector(".ingestion-facet.is-none");
+        Assert.NotNull(dash);
+        Assert.Equal("Doesn't apply to Book", dash.GetAttribute("aria-label"));
+        Assert.Equal("Doesn't apply to Book", slots[4].QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
+        Assert.Contains("–", dash.TextContent, StringComparison.Ordinal);
+        Assert.Empty(slots.Take(4).SelectMany(slot => slot.QuerySelectorAll(".is-none")));
+    }
+
+    [Fact]
+    public void ASymbolThatHasNotStartedYet_StaysADimSymbolNotADash()
+    {
+        var item = Item("Movies");
+        item.People = IngestionFacetStateDto.NotApplicable("People");
+
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, item));
+
+        var people = cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot")[2];
+        Assert.Empty(people.QuerySelectorAll(".is-none"));
+        var symbol = people.QuerySelector(".ingestion-facet")!;
+        Assert.Equal("People", symbol.GetAttribute("aria-label"));
+        Assert.Equal("People", people.QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
+    }
+
+    [Fact]
+    public void EachSymbol_UsesTheSameWordsForItsTooltipAndItsAccessibleName()
+    {
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, Item("Music")));
+
+        foreach (var slot in cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot"))
+        {
+            var tooltip = slot.QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip");
+            var name = slot.QuerySelector("[aria-label]")!.GetAttribute("aria-label");
+            Assert.False(string.IsNullOrWhiteSpace(tooltip));
+            Assert.Equal(tooltip, name);
+        }
+    }
+
+    private static IngestionMediaGroupDto Item(string mediaType) => new()
+    {
+        Title = $"{mediaType} sample",
+        MediaType = mediaType,
+        Availability = "finishing",
+        StatusLabel = "Adding people",
+        CurrentGateLabel = "Enriching details",
+        FileCount = 3,
+        Artwork = new() { State = "complete", Label = "Artwork complete" },
+        Metadata = new() { State = "complete", Label = "Metadata complete" },
+        People = new() { State = "active", Label = "People active" },
+        Relationships = new() { State = "pending", Label = "Relationships pending" },
+        TextTracks = mediaType is "Music" or "Movies" or "TV"
+            ? new() { State = "pending", Label = "Subtitles pending" }
+            : IngestionFacetStateDto.NotApplicable("Subtitles"),
+    };
 }

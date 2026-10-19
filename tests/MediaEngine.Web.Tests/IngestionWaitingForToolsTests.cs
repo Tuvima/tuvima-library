@@ -25,7 +25,6 @@ public sealed class IngestionWaitingForToolsTests : AsyncBunitContext
     public void ListRow_ForAFileWaitingForTools_ShowsTheLabelAndAnHourglass()
     {
         var cut = Render<IngestionMediaCard>(parameters => parameters
-            .Add(component => component.DisplayMode, "list")
             .Add(component => component.Item, Waiting()));
 
         var status = cut.Find(".ingestion-media-list-row__status");

@@ -186,7 +186,7 @@ else
                                 <LibrariesTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Ingestion:
-                                <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
+                                <IngestionTasksTab View="@IngestionView" />
                                 break;
                             case SettingsSection.RecentlyAdded:
                                 <RecentlyAddedPageContent ReviewState="@ReviewState" InitialSearch="@RecentSearch" />
@@ -255,8 +255,6 @@ else
         }
     }
     [SupplyParameterFromQuery(Name = "view")] public string? IngestionView { get; set; }
-    [SupplyParameterFromQuery(Name = "itemId")] public Guid? IngestionItemId { get; set; }
-    [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
     [SupplyParameterFromQuery(Name = "filter")] public string? LogsFilter { get; set; }
@@ -297,9 +295,6 @@ else
     private bool _thisComputerOnly;
     private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
-    private Guid? _loadedBreadcrumbBatchId;
-    private string? _batchBreadcrumbLabel;
-    private int _breadcrumbLoadRevision;
     private SettingsMenuContext MenuContext => new(
         CanManageAdministration,
         CanManageHousehold,
@@ -434,7 +429,6 @@ else
         }
 
         _scrollToTopPending = true;
-        await LoadBatchBreadcrumbAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -795,36 +789,6 @@ else
             breadcrumbs.Add(new SettingsBreadcrumb(GetDetailBreadcrumbLabel(), null));
 
         return breadcrumbs;
-    }
-
-    private async Task LoadBatchBreadcrumbAsync()
-    {
-        if (_activeSection != SettingsSection.Ingestion || IngestionRunId is not { } batchId)
-        {
-            _loadedBreadcrumbBatchId = null;
-            _batchBreadcrumbLabel = null;
-            return;
-        }
-
-        if (_loadedBreadcrumbBatchId == batchId)
-            return;
-
-        var revision = ++_breadcrumbLoadRevision;
-        _loadedBreadcrumbBatchId = batchId;
-        _batchBreadcrumbLabel = "Selected batch";
-        try
-        {
-            var batch = await Orchestrator.GetActivityBatchAsync(batchId);
-            if (revision != _breadcrumbLoadRevision || batch is null)
-                return;
-
-            var started = batch.StartedAt.ToLocalTime();
-            _batchBreadcrumbLabel = $"{IngestionBatchDisplay.Title(batch)} · {started:MMM d, yyyy, h:mm tt}";
-        }
-        catch
-        {
-            // The detail view owns its unavailable state; retain a stable breadcrumb fallback.
-        }
     }
 
     private string GetDetailBreadcrumbLabel() => _activeSection switch
