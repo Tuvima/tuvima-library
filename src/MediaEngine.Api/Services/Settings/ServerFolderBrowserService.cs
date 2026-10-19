@@ -166,8 +166,18 @@ public sealed class ServerFolderBrowserService(
             issues.Add(Issue("write_required", "This folder must be writable for the selected managed mode."));
         }
 
-        AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
-        AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
+        if (request.SelectionMode == ServerFolderSelectionModes.ToolLocation)
+        {
+            // A tool's folder may be anywhere it was installed (often a folder named bin, or under Program Files) and
+            // may sit beside a library, so only the Library's own folders are refused.
+            AddOwnFolderIssue(resolved, issues);
+        }
+        else
+        {
+            AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
+            AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
+        }
+
         var (availableBytes, fileSystem) = GetDriveDetails(resolved.Path);
         return new ServerFolderValidationResultDto
         {
@@ -626,6 +636,16 @@ public sealed class ServerFolderBrowserService(
         var ownInsideLocation = OwnFolderPaths().Where(own => !IsWithin(own, selection.RootPath));
         if (RelativeSegments(relative).Any(segment => ProtectedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase))
             || IsInsideOwnFolder(ownInsideLocation, selection.Path))
+        {
+            issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+        }
+    }
+
+    private void AddOwnFolderIssue(ResolvedSelection selection, List<ServerFolderValidationIssueDto> issues)
+    {
+        var own = OwnFolderPaths();
+        if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
+            || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
         {
             issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
         }

@@ -45,6 +45,15 @@ public sealed record ToolRequirementDto(
     [property: JsonPropertyName("can_download_again")] bool CanDownloadAgain,
     [property: JsonPropertyName("download_percent")] int? DownloadPercent);
 
+/// <summary>
+/// The folder a person chose as the home of a tool the Library could not find. Give either a storage location with a
+/// relative path (as the folder picker returns it) or a full path typed or pasted in.
+/// </summary>
+public sealed record ToolLocationRequest(
+    [property: JsonPropertyName("storage_location_id")] string? StorageLocationId,
+    [property: JsonPropertyName("relative_path")] string? RelativePath,
+    [property: JsonPropertyName("manual_path")] string? ManualPath);
+
 public static class ToolRequirementIds
 {
     public const string Ffmpeg = "ffmpeg";

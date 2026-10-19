@@ -67,7 +67,7 @@ Search can use the titles and aliases actually indexed for a work. Try its displ
 
 The search store includes substring matching for CJK text and a fallback for short queries. Coverage still depends on the indexed metadata.
 
-A multilingual AI model is optional. Its role must pass the `text_multilingual` gate before dependent features are ready. Downloading a model alone does not enable a feature. Use **Settings → Local AI → Models & Runtime** to inspect readiness.
+A multilingual AI model is optional. Its role must pass the `text_multilingual` gate before dependent features are ready. Downloading a model alone does not enable a feature. Use **Settings → Tools and requirements** to see each model's state, and **Settings → Local AI → Runtime** for the AI settings.
 
 ## Next steps
 

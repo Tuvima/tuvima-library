@@ -10,6 +10,7 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
     {
         services.AddSingleton<IToolRuntimeProbe, ToolRuntimeProbe>();
         services.AddSingleton<IToolRequirementsService, ToolRequirementsService>();
+        services.AddSingleton<ToolLocationService>();
         // Nothing is held back until the work that holds files registers its own counter in place of this one.
         services.TryAddSingleton<IToolWaitingWorkCounter, NoToolWaitingWorkCounter>();
         services.AddHostedService<ToolRequirementsStartupService>();

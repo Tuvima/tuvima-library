@@ -488,11 +488,14 @@ public static class ServerFolderSelectionModes
     public const string PersonalSpaceManaged = "personal_space_managed";
     public const string PersonalSpaceExisting = "personal_space_existing";
 
+    /// <summary>Choosing the folder that holds an outside tool such as FFmpeg: read-only, and not tied to any library.</summary>
+    public const string ToolLocation = "tool_location";
+
     public static bool RequiresWrite(string? value) => value is
         ManagedLibrary or PersonalSpaceManaged;
 
     public static bool IsValid(string? value) => value is
-        ManagedLibrary or ExistingLibrary or PersonalSpaceManaged or PersonalSpaceExisting;
+        ManagedLibrary or ExistingLibrary or PersonalSpaceManaged or PersonalSpaceExisting or ToolLocation;
 }
 
 public sealed class ServerFolderValidationIssueDto
