@@ -33,6 +33,25 @@ public sealed class ProviderSchemaDeclarativeTests
         ("$defs/resultClaimRules", typeof(ResultClaimRulesConfiguration)),
         ("$defs/strategyClaimRules", typeof(StrategyClaimRulesConfiguration)),
         ("$defs/strategyClaimRules/properties/derive/items", typeof(DerivedClaimConfiguration)),
+        ("$defs/textTrack", typeof(TextTrackConfiguration)),
+        ("$defs/textTrack/properties/api", typeof(TextTrackApiConfiguration)),
+        ("$defs/textTrack/properties/http", typeof(TextTrackHttpConfiguration)),
+        ("$defs/textTrack/properties/language", typeof(TextTrackLanguageConfiguration)),
+        ("$defs/textTrack/properties/search", typeof(TextTrackSearchConfiguration)),
+        ("$defs/textTrack/properties/search/properties/requests/items", typeof(TextTrackRequestConfiguration)),
+        ("$defs/textTrack/properties/search/properties/requests/items/properties/title_check", typeof(TextTrackTitleCheckConfiguration)),
+        ("$defs/textTrack/properties/search/properties/item", typeof(TextTrackItemConfiguration)),
+        ("$defs/textTrack/properties/search/properties/item/properties/episode_match", typeof(TextTrackEpisodeMatchConfiguration)),
+        ("$defs/textTrack/properties/search/properties/item/properties/files", typeof(TextTrackFilesConfiguration)),
+        ("$defs/textTrack/properties/search/properties/score", typeof(TextTrackScoreConfiguration)),
+        ("$defs/textTrack/properties/search/properties/lyrics", typeof(TextTrackLyricsConfiguration)),
+        ("$defs/textTrack/properties/search/properties/lyrics/properties/sources/items", typeof(TextTrackLyricsSourceConfiguration)),
+        ("$defs/textTrack/properties/search/properties/lyrics/properties/duration", typeof(TextTrackDurationConfiguration)),
+        ("$defs/textTrack/properties/download", typeof(TextTrackDownloadConfiguration)),
+        ("$defs/textTrack/properties/download/properties/resolve", typeof(TextTrackResolveConfiguration)),
+        ("$defs/textTrack/properties/download/properties/archive", typeof(TextTrackArchiveConfiguration)),
+        ("$defs/textTrack/properties/errors", typeof(TextTrackErrorConfiguration)),
+        ("$defs/textTrack/properties/errors/properties/statuses/items", typeof(TextTrackErrorStatusConfiguration)),
         ("$defs/claimSort", typeof(ClaimSortConfiguration)),
         ("$defs/claimRule", typeof(ClaimRuleConfiguration)),
         ("$defs/claimRule/properties/join", typeof(ClaimJoinConfiguration)),
@@ -73,7 +92,7 @@ public sealed class ProviderSchemaDeclarativeTests
             Path.Combine(FindRepoRoot(), "config", "schemas", "providers", "provider.schema.json")));
 
         var properties = schema.RootElement.GetProperty("properties");
-        foreach (var name in new[] { "follow_ups", "candidate_ranking", "result_rules" })
+        foreach (var name in new[] { "follow_ups", "candidate_ranking", "result_rules", "text_track" })
         {
             Assert.True(properties.TryGetProperty(name, out _), name);
         }

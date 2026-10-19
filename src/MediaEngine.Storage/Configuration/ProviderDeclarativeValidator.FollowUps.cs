@@ -29,6 +29,7 @@ internal static partial class ProviderDeclarativeValidator
         ValidateResultRules(provider.ResultRules, errors);
         ValidateCandidateRanking(provider.CandidateRanking, errors);
         ValidateStrategyClaimRules(provider.SearchStrategies, errors);
+        ValidateTextTrack(provider, errors);
     }
 
     // -- follow-ups ---------------------------------------------------------------------------

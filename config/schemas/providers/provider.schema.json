@@ -231,6 +231,223 @@
       },
       "additionalProperties": false
     },
+    "textTrack": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["Subtitles", "Lyrics"] },
+        "noun": { "type": "string", "minLength": 1 },
+        "api": {
+          "type": "object",
+          "properties": {
+            "allowed_hosts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "accept": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "http": {
+          "type": "object",
+          "properties": {
+            "allow_auto_redirect": { "type": "boolean" },
+            "max_response_buffer_bytes": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "language": {
+          "type": "object",
+          "properties": {
+            "aliases": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } },
+            "unknown": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "search": {
+          "type": "object",
+          "properties": {
+            "needs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "requests": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["path"],
+                "properties": {
+                  "when_media_type": { "type": "string", "minLength": 1 },
+                  "needs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "path": { "type": "string", "pattern": "^/" },
+                  "query": {
+                    "type": "array",
+                    "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string" } }
+                  },
+                  "title_check": {
+                    "type": "object",
+                    "required": ["type", "id_path", "id"],
+                    "properties": {
+                      "type": { "type": "string", "minLength": 1 },
+                      "id_path": { "type": "string", "minLength": 1 },
+                      "id": { "type": "string", "minLength": 1 },
+                      "ignore_case": { "type": "boolean" }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "empty_search_minutes": { "type": "integer", "minimum": 0 },
+            "response_cache": { "type": "boolean" },
+            "success_path": { "type": "string" },
+            "titles_path": { "type": "string" },
+            "items_path": { "type": "string" },
+            "max_items": { "type": "integer", "minimum": 1 },
+            "item": {
+              "type": "object",
+              "properties": {
+                "id_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                "release_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "name_path": { "type": "string", "minLength": 1 },
+                "language_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                "hearing_impaired_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "episode_match": {
+                  "type": "object",
+                  "properties": {
+                    "season_path": { "type": "string", "minLength": 1 },
+                    "episode_path": { "type": "string", "minLength": 1 },
+                    "reject_true_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                    "range_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                  },
+                  "additionalProperties": false
+                },
+                "files": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string", "minLength": 1 },
+                    "max": { "type": "integer", "minimum": 1 },
+                    "id_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                    "name_path": { "type": "string", "minLength": 1 },
+                    "url_path": { "type": "string", "minLength": 1 },
+                    "language_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "score": {
+              "type": "object",
+              "properties": {
+                "base": { "type": "number" },
+                "release_overlap_weight": { "type": "number" },
+                "format_bonus": { "type": "object", "additionalProperties": { "type": "number" } },
+                "hearing_impaired": { "type": "number" }
+              },
+              "additionalProperties": false
+            },
+            "ambiguity_margin": { "type": "number", "minimum": 0 },
+            "max_candidates": { "type": "integer", "minimum": 1 },
+            "source_url": { "type": "string" },
+            "lyrics": {
+              "type": "object",
+              "properties": {
+                "sources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": ["path", "format"],
+                    "properties": {
+                      "path": { "type": "string", "minLength": 1 },
+                      "format": { "type": "string", "minLength": 1 }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "fallback_format": { "type": "string" },
+                "instrumental_path": { "type": "string" },
+                "id_path": { "type": "string" },
+                "duration": {
+                  "type": "object",
+                  "properties": {
+                    "path": { "type": "string" },
+                    "full_within_seconds": { "type": "number", "minimum": 0 },
+                    "reject_beyond_seconds": { "type": "number", "exclusiveMinimum": 0 },
+                    "strict_format": { "type": "string" },
+                    "lenient_floor": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "default_confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "download": {
+          "type": "object",
+          "properties": {
+            "mode": { "enum": ["payload", "fetch"] },
+            "resolve": {
+              "type": "object",
+              "required": ["path", "url_paths"],
+              "properties": {
+                "path": { "type": "string", "pattern": "^/.*\\{id\\}" },
+                "url_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+              },
+              "additionalProperties": false
+            },
+            "allowed_hosts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "relative_base": { "type": "string" },
+            "path_prefix": { "type": "string", "pattern": "^/" },
+            "max_bytes": { "type": "integer", "minimum": 1 },
+            "formats": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "archive": {
+              "type": "object",
+              "properties": {
+                "max_entries": { "type": "integer", "minimum": 1 },
+                "max_expansion_ratio": { "type": "integer", "minimum": 1 }
+              },
+              "additionalProperties": false
+            },
+            "output_format": { "type": "string" },
+            "null_means_incompatible": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "properties": {
+            "statuses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "codes": { "type": "array", "items": { "type": "integer", "minimum": 100, "maximum": 599 } },
+                  "min_code": { "type": "integer", "minimum": 100, "maximum": 599 },
+                  "error_code": { "type": "string" },
+                  "status": { "enum": ["AuthenticationRequired", "QuotaExceeded", "RateLimited", "ProviderUnavailable", "ProviderError"] }
+                },
+                "additionalProperties": false
+              }
+            },
+            "default_status": { "enum": ["AuthenticationRequired", "QuotaExceeded", "RateLimited", "ProviderUnavailable", "ProviderError"] },
+            "error_code_path": { "type": "string" },
+            "reset_header": { "type": "string" },
+            "not_outage_codes": { "type": "array", "items": { "type": "integer", "minimum": 100, "maximum": 599 } }
+          },
+          "additionalProperties": false
+        },
+        "messages": {
+          "type": "object",
+          "propertyNames": {
+            "enum": ["search_incomplete", "search_invalid", "identity_mismatch", "ambiguous", "unreachable", "download_failed",
+                     "provider_down", "AuthenticationRequired", "QuotaExceeded", "RateLimited", "ProviderUnavailable", "ProviderError"]
+          },
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
     "claimSort": {
       "type": "object",
       "required": ["path"],
@@ -406,6 +623,7 @@
       },
       "additionalProperties": false
     },
+    "text_track": { "$ref": "#/$defs/textTrack" },
     "candidate_ranking": {
       "type": "array",
       "items": { "$ref": "#/$defs/candidateRanking" }

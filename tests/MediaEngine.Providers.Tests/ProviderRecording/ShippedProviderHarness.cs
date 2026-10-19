@@ -54,26 +54,24 @@ internal static class ShippedProviderHarness
 
     public static ConfigDrivenAdapter ComicVine(RecordingHandler handler) => ConfigDriven("comicvine", handler);
 
-    public static ITextTrackProvider Subdl(RecordingHandler handler, string? apiKey = "example-key")
-    {
-        var config = LoadShipped("subdl", apiKey);
-        return new SubdlTextTrackProvider(
-            config,
-            new RecordingHttpFactory(handler),
-            NullProviderHealthMonitor.Instance,
-            NullLogger<SubdlTextTrackProvider>.Instance,
-            new ProviderRateLimiterCoordinator());
-    }
+    public static ITextTrackProvider Subdl(RecordingHandler handler, string? apiKey = "example-key") =>
+        TextTrack("subdl", handler, apiKey);
 
-    public static ITextTrackProvider Lrclib(RecordingHandler handler)
+    public static ITextTrackProvider Lrclib(RecordingHandler handler) => TextTrack("lrclib", handler, null);
+
+    /// <summary>Builds a subtitle or lyrics provider from its shipped file.</summary>
+    public static ITextTrackProvider TextTrack(
+        string name, RecordingHandler handler, string? apiKey, Action<ProviderConfiguration>? tweak = null)
     {
-        var config = LoadShipped("lrclib");
-        return new LrclibTextTrackProvider(
+        var config = LoadShipped(name, apiKey);
+        tweak?.Invoke(config);
+        return new TextTrackProviderAdapter(
             config,
             new RecordingHttpFactory(handler),
-            new NoCache(),
             NullProviderHealthMonitor.Instance,
-            NullLogger<LrclibTextTrackProvider>.Instance);
+            NullLogger<TextTrackProviderAdapter>.Instance,
+            new ProviderRateLimiterCoordinator(),
+            new NoCache());
     }
 
     /// <summary>TVDB lives in a temp config folder so its client can reload credentials per call.</summary>

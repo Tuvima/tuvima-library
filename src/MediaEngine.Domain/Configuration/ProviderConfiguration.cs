@@ -178,6 +178,13 @@ public sealed class ProviderConfiguration
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
     /// <summary>
+    /// How a subtitle or lyrics provider is searched and downloaded; used when <c>adapter_type</c>
+    /// is <c>text_track</c>. See <see cref="TextTrackConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("text_track")]
+    public TextTrackConfiguration? TextTrack { get; set; }
+
+    /// <summary>
     /// Declared ways to choose between near-identical search results. See
     /// <see cref="CandidateRankingConfiguration"/>.
     /// </summary>

@@ -155,39 +155,29 @@ public static class TuvimaProviderServiceCollectionExtensions
                 providerConfig.Name,
                 TimeSpan.FromSeconds(providerConfig.HttpClient?.TimeoutSeconds ?? 15),
                 providerConfig.HttpClient?.UserAgent);
-            if (string.Equals(providerConfig.Name, "subdl", StringComparison.OrdinalIgnoreCase))
+            var http = providerConfig.TextTrack?.Http;
+            if (http is { AllowAutoRedirect: false })
             {
                 // Credentials must never follow an unverified download redirect.
                 clientRegistration.ConfigurePrimaryHttpMessageHandler(() =>
                     new HttpClientHandler { AllowAutoRedirect = false });
+            }
+
+            if (http is { MaxResponseBufferBytes: > 0 })
+            {
                 clientRegistration.ConfigureHttpClient(client =>
-                    client.MaxResponseContentBufferSize = 1024 * 1024);
+                    client.MaxResponseContentBufferSize = http.MaxResponseBufferBytes);
             }
 
             var capturedConfig = providerConfig;
-            if (string.Equals(capturedConfig.Name, "lrclib", StringComparison.OrdinalIgnoreCase))
-            {
-                services.AddSingleton<ITextTrackProvider>(sp =>
-                    new LrclibTextTrackProvider(
-                        capturedConfig,
-                        sp.GetRequiredService<IHttpClientFactory>(),
-                        sp.GetRequiredService<IProviderResponseCacheRepository>(),
-                        sp.GetRequiredService<IProviderHealthMonitor>(),
-                        sp.GetRequiredService<ILogger<LrclibTextTrackProvider>>()));
-            }
-            else if (string.Equals(
-                         capturedConfig.Name,
-                         "subdl",
-                         StringComparison.OrdinalIgnoreCase))
-            {
-                services.AddSingleton<ITextTrackProvider>(sp =>
-                    new SubdlTextTrackProvider(
-                        capturedConfig,
-                        sp.GetRequiredService<IHttpClientFactory>(),
-                        sp.GetRequiredService<IProviderHealthMonitor>(),
-                        sp.GetRequiredService<ILogger<SubdlTextTrackProvider>>(),
-                        sp.GetRequiredService<IProviderRateLimiterCoordinator>()));
-            }
+            services.AddSingleton<ITextTrackProvider>(sp =>
+                new TextTrackProviderAdapter(
+                    capturedConfig,
+                    sp.GetRequiredService<IHttpClientFactory>(),
+                    sp.GetRequiredService<IProviderHealthMonitor>(),
+                    sp.GetRequiredService<ILogger<TextTrackProviderAdapter>>(),
+                    sp.GetRequiredService<IProviderRateLimiterCoordinator>(),
+                    sp.GetRequiredService<IProviderResponseCacheRepository>()));
         }
     }
 

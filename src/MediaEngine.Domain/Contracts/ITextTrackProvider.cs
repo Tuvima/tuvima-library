@@ -14,6 +14,12 @@ public interface ITextTrackProvider
 
     bool CanHandle(MediaType mediaType);
 
+    /// <summary>
+    /// True when a download that yields nothing means the provider's files are not playable (for
+    /// example subtitles in a format that cannot be converted), which the caller reports to the user.
+    /// </summary>
+    bool ReportsIncompatibleDownloads => false;
+
     TextTrackProviderAvailability GetAvailability(MediaType mediaType) =>
         !CanHandle(mediaType)
             ? new("Unsupported", $"{Name} does not support {mediaType}.")
