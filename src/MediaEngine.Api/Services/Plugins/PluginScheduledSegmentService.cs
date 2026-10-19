@@ -67,6 +67,11 @@ public sealed class PluginScheduledSegmentService : BackgroundService
 
         if (enabledSegmentPlugins.Count == 0)
         {
+            await _runner.RunAsync(
+                    ScheduledTaskKeys.PluginSegmentDetection,
+                    _ => Task.FromResult(TaskRunResult.Skipped("No playback segment plugin is switched on.")),
+                    ct)
+                .ConfigureAwait(false);
             return [];
         }
 

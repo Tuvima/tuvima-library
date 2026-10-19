@@ -54,8 +54,28 @@ public sealed class DevelopmentRouteAccessGuardrailTests
             .ToList();
 
         Assert.Empty(offenders);
+
+        // Development routes mapped one by one (outside the group) must each carry the administrator check themselves.
+        var directDevRoute = new Regex("""\.Map(Get|Post|Put|Patch|Delete|Methods)\(\s*"/dev/""", RegexOptions.CultureInvariant);
+        var unguarded = Directory.EnumerateFiles(Path.Combine(root, "src", "MediaEngine.Api"), "*.cs", SearchOption.AllDirectories)
+            .Select(file => (File: file, Source: File.ReadAllText(file)))
+            .Where(entry => directDevRoute.Matches(entry.Source).Count > CountOccurrences(entry.Source, ".RequireEffectiveAdministrator("))
+            .Select(entry => Path.GetRelativePath(root, entry.File))
+            .ToList();
+        Assert.Empty(unguarded);
         Assert.Contains("MapDevelopmentGroup()", File.ReadAllText(Path.Combine(devSupport, "DevSeedEndpoints.cs")), StringComparison.Ordinal);
         Assert.Contains("MapDevelopmentGroup()", File.ReadAllText(Path.Combine(devSupport, "IntegrationTestEndpoints.cs")), StringComparison.Ordinal);
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        for (var index = source.IndexOf(value, StringComparison.Ordinal); index >= 0; index = source.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     private static string FindRepoRoot()

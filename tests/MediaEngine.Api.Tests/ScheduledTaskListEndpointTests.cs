@@ -130,7 +130,7 @@ public sealed class ScheduledTaskListEndpointTests : IDisposable
 
         Assert.Equal(
             [
-                "activity_pruning", "description_insights", "library_reconciliation", "missing_universe_sweep",
+                "activity_pruning", "description_insights", "library_reconciliation", "missing_universe_sweep", "pass2_nightly_sweep",
                 "plugin_segment_detection", "rejected_file_cleanup", "retag_sweep", "series_order", "storage_maintenance",
                 "universe_enrichment", "vibe_tags", "webhook_delivery",
             ],

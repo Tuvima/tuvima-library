@@ -129,6 +129,17 @@ public sealed class PluginCompatibilityTests
     }
 
     [Fact]
+    public void UndefinedKindNumber_IsALoadError_InsteadOfBreakingThePluginList()
+    {
+        var manifest = new PluginManifest { Id = BuiltInId, Name = "Compatibility Test", Kind = (PluginKind)7 };
+
+        var problem = PluginCompatibility.ValidateManifest(manifest);
+
+        Assert.NotNull(problem);
+        Assert.Contains("unknown kind", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MalformedMaximumVersion_IsALoadError()
     {
         using var fixture = new Fixture("1.0.0", "win-x64", Manifest(maximum: "soon"));

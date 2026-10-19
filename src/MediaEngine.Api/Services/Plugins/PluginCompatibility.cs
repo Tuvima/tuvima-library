@@ -30,6 +30,11 @@ public static class PluginCompatibility
     /// </summary>
     public static string? ValidateManifest(PluginManifest manifest)
     {
+        if (!Enum.IsDefined(manifest.Kind))
+        {
+            return "Plugin manifest has an unknown kind. Use official, declarative, service or sandboxed.";
+        }
+
         if (!TryParseVersion(manifest.MinimumLibraryVersion, out _))
         {
             return $"Plugin manifest has an invalid minimum_library_version '{manifest.MinimumLibraryVersion}'. Use major.minor.patch, for example 1.0.0.";

@@ -311,9 +311,7 @@ The most thorough validation. Runs the complete cycle:
 4. Validates identification rates, metadata quality, and pipeline completion
 5. Writes a timestamped HTML report to `tools/reports/` and `src/MediaEngine.Api/DevSupport/`
 
-```bash
-curl -X POST http://localhost:61495/dev/integration-test
-```
+Development actions require a signed-in administrator, so run it from the Dashboard (Settings > Developer Tools) rather than an unauthenticated `curl`. `tools/Run-FullIntegration.ps1` and `tools/Test-BookIngestion.ps1` stop with that message when the Engine refuses them. For a repeatable before-and-after comparison that needs no sign-in, use the offline ingestion baseline (`tools/Run-IngestionBaseline.ps1`).
 
 The report file is named `integration-test-YYYY-MM-DD-HHmmss.html`. Open it in a browser
 to see per-asset results, claim values, confidence scores, and any failures. The latest

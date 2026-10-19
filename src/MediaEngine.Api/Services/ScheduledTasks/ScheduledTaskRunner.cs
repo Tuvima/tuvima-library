@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.ScheduledTasks;
@@ -7,7 +8,7 @@ namespace MediaEngine.Api.Services.ScheduledTasks;
 /// recorded as a failure with its message and then rethrown, so the calling loop logs and retries exactly as before.
 /// A problem writing the record is logged and never stops the task itself.
 /// </summary>
-public sealed class ScheduledTaskRunner
+public sealed class ScheduledTaskRunner : IRecurringTaskRecorder
 {
     private const int MaxMessageLength = 1000;
 
@@ -46,7 +47,7 @@ public sealed class ScheduledTaskRunner
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            await TryFinishAsync(runId, taskKey, ScheduledTaskOutcomes.Interrupted, null, "Stopped because the Engine was shutting down.")
+            await TryFinishAsync(runId, taskKey, ScheduledTaskOutcomes.Interrupted, null, "Stopped before it finished (the Engine was shutting down or the request was cancelled).")
                 .ConfigureAwait(false);
             throw;
         }
@@ -67,6 +68,14 @@ public sealed class ScheduledTaskRunner
             result.Outcome,
             result.ItemsProcessed,
             Trim(result.Message));
+    }
+
+    /// <inheritdoc />
+    public async Task RecordAsync(string taskKey, Func<CancellationToken, Task<int?>> run, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        await RunAsync(taskKey, async token => TaskRunResult.Succeeded(await run(token).ConfigureAwait(false)), ct)
+            .ConfigureAwait(false);
     }
 
     private async Task<Guid?> TryStartAsync(string taskKey, string? pluginId, DateTimeOffset startedAt)

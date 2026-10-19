@@ -13,6 +13,7 @@ public static class ScheduledTaskKeys
     public const string UniverseEnrichment = "universe_enrichment";
     public const string RetagSweep = "retag_sweep";
     public const string StorageMaintenance = "storage_maintenance";
+    public const string NightlyEnrichmentSweep = "pass2_nightly_sweep";
     public const string PluginSegmentDetection = "plugin_segment_detection";
     public const string VibeTags = "vibe_tags";
     public const string SeriesOrder = "series_order";

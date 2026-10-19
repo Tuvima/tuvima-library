@@ -60,6 +60,20 @@ public sealed class PluginJobRunRecordTests : IDisposable
     }
 
     [Fact]
+    public async Task ScheduledPass_WithNoSegmentPluginSwitchedOn_RecordsASkippedRunWithTheReason()
+    {
+        var (service, _) = CreateService(new ScheduledTaskRunRepository(_database), enable: false);
+
+        var snapshots = await service.RunScheduledPassAsync();
+
+        Assert.Empty(snapshots);
+        var stored = Assert.Single(await new ScheduledTaskRunRepository(_database)
+            .ListRecentAsync(ScheduledTaskKeys.PluginSegmentDetection, 10));
+        Assert.Equal(ScheduledTaskOutcomes.Skipped, stored.Outcome);
+        Assert.Equal("No playback segment plugin is switched on.", stored.Message);
+    }
+
+    [Fact]
     public async Task JobHistory_SurvivesARestart_BecauseANewRepositoryReadsTheSameRecords()
     {
         var (service, pluginId) = CreateService(new ScheduledTaskRunRepository(_database));
@@ -100,7 +114,7 @@ public sealed class PluginJobRunRecordTests : IDisposable
         Assert.Equal("ffmpeg could not open the file.", snapshot.Error);
     }
 
-    private (PluginScheduledSegmentService Service, string PluginId) CreateService(IScheduledTaskRunRepository runs)
+    private (PluginScheduledSegmentService Service, string PluginId) CreateService(IScheduledTaskRunRepository runs, bool enable = true)
     {
         var configDirectory = Path.Combine(_root, "config");
         var libraryRoot = Path.Combine(_root, "library");
@@ -111,7 +125,7 @@ public sealed class PluginJobRunRecordTests : IDisposable
         var catalog = new PluginCatalog(
             [new IntroSkipPlugin()], new PluginSettingsService(loader), loader, NullLogger<PluginCatalog>.Instance);
         var pluginId = Assert.Single(catalog.List()).Manifest.Id;
-        catalog.SetEnabled(pluginId, true);
+        catalog.SetEnabled(pluginId, enable);
 
         var services = new ServiceCollection();
         services.AddSingleton<IMediaAssetRepository>(new MediaAssetRepository(_database));

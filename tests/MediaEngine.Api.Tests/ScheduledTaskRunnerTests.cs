@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -26,6 +27,20 @@ public sealed class ScheduledTaskRunnerTests
         Assert.Equal(stored.Id, run.Id);
         Assert.Equal(ScheduledTaskOutcomes.Succeeded, run.Outcome);
         Assert.Empty(runs.StillRunning());
+    }
+
+    [Fact]
+    public async Task RecordAsync_ForWorkOutsideTheEngineProject_RecordsASucceededRunWithItsItemCount()
+    {
+        var runs = new SpyRunRepository();
+        IRecurringTaskRecorder recorder = new ScheduledTaskRunner(runs, NullLogger<ScheduledTaskRunner>.Instance);
+
+        await recorder.RecordAsync("pass2_nightly_sweep", _ => Task.FromResult<int?>(3), CancellationToken.None);
+
+        var stored = Assert.Single(runs.Finished);
+        Assert.Equal("pass2_nightly_sweep", stored.TaskKey);
+        Assert.Equal(ScheduledTaskOutcomes.Succeeded, stored.Outcome);
+        Assert.Equal(3, stored.ItemsProcessed);
     }
 
     [Fact]

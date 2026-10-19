@@ -193,6 +193,10 @@ function Invoke-Api {
         return Invoke-RestMethod -Uri "$EngineUrl$Path" -Method $Method -TimeoutSec 10 -ErrorAction Stop
     }
     catch {
+        $status = $_.Exception.Response.StatusCode.value__
+        if ($status -eq 401 -or $status -eq 403) {
+            throw "Development actions need a signed-in administrator. Run this from the Dashboard (Settings > Developer Tools) or use tools/Run-IngestionBaseline.ps1, which runs offline."
+        }
         return $null
     }
 }
