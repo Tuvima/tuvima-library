@@ -9,18 +9,20 @@
    them out. *@
 <AppCard Title="Events" Description="What was added, what needs review, what failed and what the system did, newest first.">
     <div class="activity-log__toolbar">
-        <AppSegmentedControl Options="FilterOptions"
-                             Value="@_filter"
-                             ValueChanged="OnFilterChanged"
-                             AriaLabel="Filter the activity log"
-                             Class="activity-log__filters" />
-        <AppSearchField Label="Search the activity log"
-                        HideLabel="true"
-                        Placeholder="Search titles and details"
-                        Value="@_search"
-                        ValueChanged="OnSearchChanged"
-                        DebounceInterval="300"
-                        Class="activity-log__search" />
+        <div class="activity-log__filters">
+            <AppSegmentedControl Options="FilterOptions"
+                                 Value="@_filter"
+                                 ValueChanged="OnFilterChanged"
+                                 AriaLabel="Filter the activity log" />
+        </div>
+        <div class="activity-log__search">
+            <AppSearchField Label="Search the activity log"
+                            HideLabel="true"
+                            Placeholder="Search titles and details"
+                            Value="@_search"
+                            ValueChanged="OnSearchChanged"
+                            DebounceInterval="300" />
+        </div>
     </div>
 
     @if (_loading)

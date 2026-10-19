@@ -134,6 +134,15 @@
     gap: var(--tl-space-2);
 }
 
+/* The shared 44px tap-target contract, for the log's own title links. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    .activity-log__title--link {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min);
+    }
+}
+
 @media (max-width: 600px) {
     .activity-log__toolbar {
         flex-direction: column;
