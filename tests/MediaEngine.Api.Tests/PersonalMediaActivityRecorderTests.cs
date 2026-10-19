@@ -36,6 +36,27 @@ public sealed class PersonalMediaActivityRecorderTests
         Assert.Contains("\"count\":3000", row.ChangesJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task InProgressCounts_SumEveryLibraryAndDropOnceTheCountsAreWritten()
+    {
+        var recorder = Recorder();
+        var otherLibrary = Guid.Parse("11111111-2222-4333-8444-555555555555");
+        for (var index = 0; index < 3000; index++)
+        {
+            recorder.Record(Library, "Family photos", isVideo: false);
+        }
+
+        recorder.Record(otherLibrary, "Holiday clips", isVideo: true);
+        recorder.Record(otherLibrary, "Holiday clips", isVideo: false);
+
+        Assert.Equal((3001, 1), recorder.GetInProgress());
+
+        await recorder.FlushAsync(Library);
+        await recorder.FlushAsync(otherLibrary);
+
+        Assert.Equal((0, 0), recorder.GetInProgress());
+    }
+
     [Theory]
     [InlineData(1, 0, "1 photo")]
     [InlineData(0, 1, "1 video")]

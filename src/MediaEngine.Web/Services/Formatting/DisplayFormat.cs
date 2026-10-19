@@ -19,8 +19,7 @@ public static class DisplayFormat
     /// <summary>
     /// "Xh Ym" when the duration is at least an hour, otherwise "Xm Ys".
     /// Normalizes the sign via <see cref="TimeSpan.Duration()"/> first.
-    /// Originally duplicated (identical formatting logic) in a retired overview page and, via
-    /// <see cref="FormatDurationHoursMinutesOrNull"/>, Components/Settings/IngestionBatchHistory.razor.
+    /// Originally duplicated (identical formatting logic) in a retired overview page and a retired ingestion history list.
     /// </summary>
     public static string FormatDurationHoursMinutes(TimeSpan duration)
     {
@@ -33,7 +32,7 @@ public static class DisplayFormat
     /// <summary>
     /// Nullable-seconds overload of <see cref="FormatDurationHoursMinutes(TimeSpan)"/>;
     /// returns <c>null</c> when <paramref name="seconds"/> is missing or not positive.
-    /// Originally private in Components/Settings/IngestionBatchHistory.razor.
+    /// Originally private in a retired ingestion history list.
     /// </summary>
     public static string? FormatDurationHoursMinutesOrNull(double? seconds)
         => seconds is > 0 ? FormatDurationHoursMinutes(TimeSpan.FromSeconds(seconds.Value)) : null;
