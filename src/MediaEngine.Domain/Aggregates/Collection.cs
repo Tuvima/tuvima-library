@@ -61,6 +61,13 @@ public sealed class Collection
     /// </summary>
     public string? WikidataQid { get; set; }
 
+    /// <summary>
+    /// The media type a Series shelf holds (a <c>MediaType</c> name such as Books or Audiobooks). A Series is identified
+    /// by its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same QID are
+    /// two Series. Null on collections that are not Series shelves.
+    /// </summary>
+    public string? MediaType { get; set; }
+
     /// <summary>When this Collection was first registered in the system.</summary>
     public DateTimeOffset CreatedAt { get; set; }
 

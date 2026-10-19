@@ -23,7 +23,7 @@ public static class SearchEndpoints
 
         // ── POST /search/universe ────────────────────────────────────────────
         group.MapPost("/universe", async (
-            SearchUniverseRequest request,
+            SearchUniverseRequestDto request,
             ISearchService searchService,
             CancellationToken ct) =>
         {
@@ -32,12 +32,18 @@ public static class SearchEndpoints
                 return ApiErrors.BadRequest("Query is required.");
             }
 
-            var result = await searchService.SearchUniverseAsync(request, ct);
-            return Results.Ok(result);
+            var result = await searchService.SearchUniverseAsync(new SearchUniverseRequest(
+                request.Query,
+                request.MediaType,
+                request.MaxCandidates,
+                request.LocalTitle,
+                request.LocalAuthor,
+                request.LocalYear), ct);
+            return Results.Ok(MapUniverseResponse(result));
         })
         .WithName("SearchUniverse")
         .WithSummary("Search Wikidata for identity candidates, enriched with cover art from retail providers.")
-        .Produces<SearchUniverseResult>(StatusCodes.Status200OK)
+        .Produces<SearchUniverseResponseDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch);
 
@@ -194,6 +200,35 @@ public static class SearchEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch);
 
         return app;
+    }
+
+    internal static SearchUniverseResponseDto MapUniverseResponse(SearchUniverseResult result)
+    {
+        return new SearchUniverseResponseDto
+        {
+            Query = result.Query,
+            MediaType = result.MediaType,
+            Candidates = result.Candidates.Select(candidate => new UniverseCandidateDto
+            {
+                Qid = candidate.Qid,
+                Label = candidate.Label,
+                Description = candidate.Description,
+                InstanceOf = candidate.InstanceOf,
+                Year = candidate.Year,
+                Author = candidate.Author,
+                Director = candidate.Director,
+                CoverUrl = candidate.CoverUrl,
+                WikipediaExtract = candidate.WikipediaExtract,
+                ResolutionTier = candidate.ResolutionTier,
+                Confidence = candidate.Confidence,
+                BridgeIds = new Dictionary<string, string>(candidate.BridgeIds),
+                MediaType = candidate.MediaType,
+                MediaTypeMetadata = candidate.MediaTypeMetadata is null
+                    ? null
+                    : new Dictionary<string, string>(candidate.MediaTypeMetadata),
+                MatchScores = MapMatchScores(candidate.MatchScores),
+            }).ToList(),
+        };
     }
 
     private static SearchRetailResponseDto MapRetailResponse(SearchRetailResult result)

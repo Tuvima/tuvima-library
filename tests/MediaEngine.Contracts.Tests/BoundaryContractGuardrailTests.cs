@@ -16,22 +16,8 @@ public sealed partial class BoundaryContractGuardrailTests
     private static readonly IReadOnlyDictionary<string, BoundaryClassification> ReviewedBoundaryClassifications =
         new Dictionary<string, BoundaryClassification>(StringComparer.Ordinal)
         {
-            // Frozen Universe/Chronicle wire. These packet types are deliberately preserved byte-for-byte.
-            ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/SearchEndpoints.cs|Produces|SearchUniverseResult|1|MediaEngine.Domain.Models.SearchUniverseResult"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs|Produces|IReadOnlyList<LoreDeltaResult>|1|MediaEngine.Domain.Models.LoreDeltaResult"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|List<LoreDeltaResultDto>|1|MediaEngine.Web.Models.ViewDTOs.LoreDeltaResultDto"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|List<UniverseLoreSourceViewModel>|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseAdaptationsResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseAdaptationsResponse"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseCastResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseCastResponse"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseGraphResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseGraphResponse"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniversePathsResponse|1|MediaEngine.Web.Models.ViewDTOs.UniversePathsResponse"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|List<UniverseLoreSourceViewModel>|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|List<UniverseLoreSourceViewModel>|2|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|SearchUniverseResponseDto|1|MediaEngine.Web.Models.ViewDTOs.SearchUniverseResponseDto"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|UniverseLoreEnrichmentSummaryViewModel|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreEnrichmentSummaryViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|UniverseLoreSourceViewModel|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
+            // Frozen Universe/Chronicle wire: only the SignalR progress event remains. Every Universe/Chronicle HTTP shape is a Contracts type.
             ["SignalR|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs|On|UniverseEnrichmentProgressEvent|1|MediaEngine.Web.Services.Integration.UniverseEnrichmentProgressEvent"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|misc-wire|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|FamilyTreeResponse|1|MediaEngine.Web.Models.ViewDTOs.FamilyTreeResponse"] = BoundaryClassification.FrozenUniverseChronicle,
 
             // Local serialization that never crosses the Engine/Dashboard HTTP or SignalR boundary.
             ["WebJson|ingestion-operations|src/MediaEngine.Web/Models/ViewDTOs/ActivityEntryPresentation.cs|Deserialize|ActivityRichData|1|MediaEngine.Web.Models.ViewDTOs.ActivityRichData"] = BoundaryClassification.PresentationOnly,
@@ -113,6 +99,37 @@ public sealed partial class BoundaryContractGuardrailTests
             + ". Actual: "
             + string.Join(", ", frozenActual.Order())
             + ". Move non-frozen payloads to MediaEngine.Contracts; do not expand this exception.");
+    }
+
+    [Fact]
+    public void FrozenUniverseChronicleClassification_HoldsOnlyTheSignalRProgressEvent_SoNoDashboardJsonCopyReturns()
+    {
+        var frozen = Audit.Value.Classified
+            .Where(item => item.Classification == BoundaryClassification.FrozenUniverseChronicle)
+            .ToList();
+
+        var notSignalR = frozen
+            .Where(item => item.Entry.Kind != BoundaryKind.SignalR)
+            .Select(item => item.Entry.Key)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.True(
+            notSignalR.Count == 0,
+            "Universe/Chronicle HTTP shapes belong in MediaEngine.Contracts; no WebJson or Endpoint entry may be frozen:"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, notSignalR));
+
+        var reviewedNotSignalR = ReviewedBoundaryClassifications
+            .Where(pair => pair.Value == BoundaryClassification.FrozenUniverseChronicle
+                && !pair.Key.StartsWith("SignalR|", StringComparison.Ordinal))
+            .Select(pair => pair.Key)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.True(
+            reviewedNotSignalR.Count == 0,
+            "The reviewed classification list may freeze only the Universe enrichment SignalR event:"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, reviewedNotSignalR));
     }
 
     [Fact]

@@ -48,11 +48,19 @@ internal sealed partial class DetailCompositionOrchestrator
                        COUNT(*)) AS ItemCount,
                    MIN(CASE WHEN smi.parsed_ordinal IS NOT NULL OR NULLIF(smi.raw_ordinal, '') IS NOT NULL THEN 0 ELSE 1 END) AS HasOrderingRank
             FROM series_manifest_items smi
-            LEFT JOIN series_manifest_hydrations h ON h.series_qid = smi.series_qid
+            LEFT JOIN series_manifest_hydrations h ON h.collection_id = smi.collection_id AND h.series_qid = smi.series_qid
             LEFT JOIN collections c ON c.id = smi.collection_id
             WHERE smi.linked_work_id = @workId
               AND NULLIF(smi.series_qid, '') IS NOT NULL
-              AND smi.membership_scope IN ('MainSequence', 'Supplementary', 'Unpositioned')
+              AND smi.membership_scope IN ('MainSequence', 'Supplementary', 'CollectedContent', 'BroaderContext', 'Unpositioned')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM series_manifest_items listing
+                  WHERE listing.is_collection = 1
+                    AND listing.item_qid = smi.series_qid
+                    AND listing.series_qid <> smi.series_qid
+                    AND LOWER(COALESCE(listing.media_type, '')) = LOWER(COALESCE(c.media_type, smi.media_type, ''))
+              )
               AND COALESCE(CAST(json_extract(h.api_metadata_json, '$.containerKind') AS TEXT), 'OrderedSeries') NOT IN ('Franchise', 'Universe', 'WikimediaList', 'PublisherOrProductionList')
             GROUP BY smi.series_qid
             ORDER BY HasOrderingRank, ItemCount DESC, ContainerTitle;

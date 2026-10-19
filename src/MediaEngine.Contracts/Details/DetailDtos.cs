@@ -362,6 +362,11 @@ public sealed class SequencePlacementViewModel
     public SequenceItemViewModel CurrentItem { get; init; } = new();
     public SequenceItemViewModel? NextItem { get; init; }
     public IReadOnlyList<SequenceItemViewModel> OrderedItems { get; init; } = [];
+    /// <summary>
+    /// Supplementary, collected-content and broader-context members of the same Series ("Also in this world"), in
+    /// Series order. They are never numbered with, or counted in, the Series run in <see cref="OrderedItems"/>.
+    /// </summary>
+    public IReadOnlyList<SequenceItemViewModel> AlsoInThisWorld { get; init; } = [];
     public IReadOnlyList<SequenceGroupViewModel> Groups { get; init; } = [];
 }
 
