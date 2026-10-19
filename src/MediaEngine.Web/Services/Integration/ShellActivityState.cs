@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
+using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Playback;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -81,7 +82,7 @@ public sealed class ShellActivityState : IDisposable
 
     /// <summary>True when the Engine's ingestion queue reports it is working (waiting and idle are not work).</summary>
     public static bool IsQueueWorking(IngestionQueueProgressDto? queue) =>
-        string.Equals(queue?.State, "working", StringComparison.OrdinalIgnoreCase);
+        queue is not null && IngestionQueueProgressText.IsWorking(queue);
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {

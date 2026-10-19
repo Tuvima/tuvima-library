@@ -35,8 +35,8 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var button = cut.Find("button.system-activity-indicator");
         Assert.Contains("is-working", button.ClassList);
         Assert.DoesNotContain("is-idle", button.ClassList);
-        Assert.Equal("Found 508 files · 120 done · About 4 min left", Tooltip(cut));
-        Assert.Equal("Working. Found 508 files · 120 done · About 4 min left", button.GetAttribute("aria-label"));
+        Assert.Equal("Found 508 files · 120 of 508 done · About 4 min left", Tooltip(cut));
+        Assert.Equal("Working. Found 508 files · 120 of 508 done · About 4 min left", button.GetAttribute("aria-label"));
         Assert.Equal("Working", cut.Find(".sr-only").TextContent);
     }
 
@@ -111,7 +111,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
 
         var cut = Render<SystemActivityIndicator>();
 
-        Assert.Equal("Found 5 files · 1 done · About 1 min left • Enriching Dune (25%)", Tooltip(cut));
+        Assert.Equal("Found 5 files · 1 of 5 done · Less than a minute left • Enriching Dune (25%)", Tooltip(cut));
         Assert.Equal("2", cut.Find(".system-activity-indicator__count").TextContent);
     }
 
@@ -147,10 +147,10 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var queue = Queue("working", found: 508, done: 120, progress: 0.3);
         queue.StartedAt = now.AddMinutes(-4);
 
-        Assert.Equal("Found 508 files · 120 done · Running for 4 min", SystemActivityText.Ingestion(queue, now));
+        Assert.Equal("Found 508 files · 120 of 508 done · Running for 4m 0s", SystemActivityText.Ingestion(queue, now));
 
         queue.StartedAt = now.AddSeconds(-20);
-        Assert.Equal("Found 508 files · 120 done · Running for under a minute", SystemActivityText.Ingestion(queue, now));
+        Assert.Equal("Found 508 files · 120 of 508 done · Running for 0m 20s", SystemActivityText.Ingestion(queue, now));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var queue = Queue("idle", found: 0, done: 0, progress: 1);
         queue.LastActivityAt = now.AddMinutes(-3);
 
-        Assert.Equal("Library is up to date · last activity 3 min ago", SystemActivityText.Idle(queue, now));
+        Assert.Equal("Library is up to date · Last activity 3 minutes ago", SystemActivityText.Idle(queue, now));
         Assert.Equal("Library is up to date", SystemActivityText.Idle(null, now));
     }
 

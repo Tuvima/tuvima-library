@@ -108,9 +108,20 @@ public static class IngestionQueueProgressText
     {
         if (snapshot.EstimatedSecondsRemaining is { } seconds)
         {
-            return seconds < 60
-                ? "Less than a minute left"
-                : $"About {(int)Math.Ceiling(seconds / 60d)} min left";
+            if (seconds < 60)
+            {
+                return "Less than a minute left";
+            }
+
+            var minutes = (int)Math.Ceiling(seconds / 60d);
+            if (minutes < 60)
+            {
+                return $"About {minutes} min left";
+            }
+
+            return minutes % 60 == 0
+                ? $"About {minutes / 60} hr left"
+                : $"About {minutes / 60} hr {minutes % 60} min left";
         }
 
         return snapshot.StartedAt is { } startedAt

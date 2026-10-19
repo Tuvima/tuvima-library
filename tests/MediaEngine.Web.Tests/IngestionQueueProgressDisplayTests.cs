@@ -165,6 +165,8 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
     [InlineData(60, "About 1 min left")]
     [InlineData(61, "About 2 min left")]
     [InlineData(600, "About 10 min left")]
+    [InlineData(3600, "About 1 hr left")]
+    [InlineData(7800, "About 2 hr 10 min left")]
     public void TimeLine_WithAnEstimate_RoundsUpToWholeMinutes(int seconds, string expected)
     {
         var snapshot = Working();
