@@ -15,6 +15,7 @@ public static class TuvimaSecurityServiceCollectionExtensions
         services.AddScoped<HouseholdManagementService>();
         services.AddScoped<IPersonalScopeAuthorizer, PersonalScopeAuthorizer>();
         services.AddScoped<AccountNoticeService>();
+        services.AddScoped<ProfileNoticeService>();
         services.AddScoped<ManagedClientDeviceService>();
         services.AddScoped<ManagedSessionService>();
         services.AddSingleton<ClientAuthorizationService>();

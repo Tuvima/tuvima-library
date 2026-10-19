@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0004 shared_library_removable_when_empty).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0005 profile_notice_dismissals).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1869,6 +1869,14 @@ CREATE TABLE profile_credentials (
     updated_at           TEXT NOT NULL,
     last_used_at         TEXT,
     UNIQUE(profile_id, credential_kind)
+);
+
+CREATE TABLE profile_notice_dismissals (
+    profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    notice_key   TEXT NOT NULL,   -- a known notice, for example needs-review or missing-tools
+    fingerprint  TEXT NOT NULL,   -- what was true when it was dismissed (the review count, or the sorted missing tool ids)
+    dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, notice_key)
 );
 
 CREATE TABLE profile_person_preferences (

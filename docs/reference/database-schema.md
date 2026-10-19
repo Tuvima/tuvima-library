@@ -45,7 +45,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 Startup safety:
 
 - Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
-- `storage_metadata` also holds server-wide flags as `key`/`value` rows. The tools banner's "Not now" answers are `tool_install_declined:{tool id}` rows (value `1`), removed when the tool works again.
+- `storage_metadata` also holds server-wide flags as `key`/`value` rows.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.
@@ -860,6 +860,10 @@ A profile's PIN, when one is set (`credential_kind` = `ProfilePin`, one row per 
 ### account_notice_dismissals
 
 Which one-time reminders an account chose **Not now** for, so the choice follows the person to any browser (for example the **Secure your account** card in the profile menu, key `secure-account`). One row per account and notice: `account_id` (deleting the account removes its rows), `notice_key` (primary key with `account_id`; the Engine accepts only known keys) and `dismissed_at`.
+
+### profile_notice_dismissals
+
+Which Settings attention lines (the Needs Review line and the missing tools line in the banner above every Settings page) a profile dismissed with the X, and what was true when it did, so a line returns only when something new needs attention. One row per profile and notice: `profile_id` (deleting the profile removes its rows), `notice_key` (primary key with `profile_id`; `needs-review` or `missing-tools`; the Engine accepts only known keys), `fingerprint` (the Needs Review count, or the sorted comma-joined ids of the missing tools; `0` or `none` once the problem was solved) and `dismissed_at`.
 
 ### account_passkeys
 

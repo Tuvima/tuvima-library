@@ -7,11 +7,11 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("GetAiStatusAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAiProfileAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetEnrichmentProgressAsync", source, StringComparison.Ordinal);
-        Assert.Contains("_status?.IsReady != true", source, StringComparison.Ordinal);
+        // Whether Local AI can run is told by the permanent page notice from the shared attention state, not by an alert here.
+        Assert.DoesNotContain("_status?.IsReady", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         Assert.Contains("MaxConcurrentInferences", source, StringComparison.Ordinal);
         Assert.Contains("MinimumFreeDiskMB", source, StringComparison.Ordinal);

@@ -7228,6 +7228,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFolder
   DisplayPath: System.String | nullability=not-null | accessors=get,init
   Directories: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderEntryDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.DismissProfileNoticeRequest
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExternalAuthProviderDto
   Id: System.String | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -7686,6 +7689,15 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.PortAvailabilityRe
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,set
   Message: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProfileNoticeDismissalDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProfileNoticeKeys
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProfileNoticesResponse
+  Dismissed: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Settings.ProfileNoticeDismissalDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ProviderCatalogueDto
   ProviderId: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
@@ -8000,7 +8012,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementDto
   CanInstall: System.Boolean | nullability=not-null | accessors=get,init
   CanDownloadAgain: System.Boolean | nullability=not-null | accessors=get,init
   DownloadPercent: System.Int32? | nullability=nullable | accessors=get,init
-  InstallDeclined: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementIds
 
