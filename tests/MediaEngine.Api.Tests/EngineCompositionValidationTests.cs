@@ -10,6 +10,7 @@ using MediaEngine.Plugins;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.Storage.Secrets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -103,6 +104,8 @@ public sealed class EngineCompositionValidationTests
         services.AddSingleton<IHostApplicationLifetime, TestHostApplicationLifetime>();
         services.AddSingleton<IEventPublisher, SignalREventPublisher>();
         services.AddSingleton<ISecretStore, DataProtectionSecretStore>();
+        // Program.cs builds this one before the container (the config loader shares it), so it is registered by hand here too.
+        services.AddSingleton<IConfigSecretsStore>(new ConfigFolderSecretsStore(Path.Combine(repoRoot, "config")));
 
         services.AddTuvimaStorage();
         services.AddSingleton<IPermissionRegistry, PermissionRegistry>();
