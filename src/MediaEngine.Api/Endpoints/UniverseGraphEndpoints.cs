@@ -123,9 +123,14 @@ public static class UniverseGraphEndpoints
             CancellationToken ct) =>
         {
             var results = await loreDeltaService.CheckForUpdatesAsync(qid, ct);
-            return Results.Ok(results);
+            return Results.Ok(results.Select(r => new UniverseLoreDeltaResponse(
+                entity_qid: r.EntityQid,
+                label: r.Label,
+                cached_revision: r.CachedRevision,
+                current_revision: r.CurrentRevision,
+                has_changed: r.HasChanged)).ToList());
         })
-        .Produces<IReadOnlyList<LoreDeltaResult>>(StatusCodes.Status200OK)
+        .Produces<IReadOnlyList<UniverseLoreDeltaResponse>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRead)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.MetadataEnrichmentRead);
 

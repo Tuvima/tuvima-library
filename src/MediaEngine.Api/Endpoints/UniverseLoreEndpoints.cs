@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Plugins;
@@ -41,7 +40,7 @@ internal static class UniverseLoreEndpoints
 
         group.MapPost("/lore-sources/manual", async (
             string qid,
-            ManualLoreSourceRequest request,
+            UniverseLoreManualSourceRequest request,
             PluginUniverseLoreService lore,
             CancellationToken ct) =>
         {
@@ -157,8 +156,3 @@ internal static class UniverseLoreEndpoints
         created_at: source.CreatedAt,
         updated_at: source.UpdatedAt);
 }
-
-internal sealed record ManualLoreSourceRequest(
-    [property: JsonPropertyName("source_name")] string? SourceName,
-    [property: JsonPropertyName("base_url")] string BaseUrl,
-    [property: JsonPropertyName("api_url")] string? ApiUrl);

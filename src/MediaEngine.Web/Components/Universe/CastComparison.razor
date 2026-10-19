@@ -21,7 +21,7 @@
             <AppSpinner Indeterminate="true" Color="AppColor.Warning" />
         </div>
     }
-    else if (_castData?.Characters.Count > 0)
+    else if (_castData?.characters.Count > 0)
     {
         <div class="cast-grid">
             @foreach (var character in FilteredCharacters)
@@ -29,9 +29,9 @@
                 <div class="cast-card">
                     @* Character portrait *@
                     <div class="character-portrait">
-                        @if (!string.IsNullOrWhiteSpace(character.Image))
+                        @if (!string.IsNullOrWhiteSpace(character.image))
                         {
-                            <img src="@character.Image" alt="@character.Label" class="char-img" />
+                            <img src="@character.image" alt="@character.label" class="char-img" />
                         }
                         else
                         {
@@ -44,37 +44,39 @@
                     @* Character name *@
                     <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-2 tl-sp-mb-1 tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-160px"
                              >
-                        @character.Label
+                        @character.label
                     </AppText>
-                    @if (!string.IsNullOrWhiteSpace(character.Description))
+                    @if (!string.IsNullOrWhiteSpace(character.description))
                     {
                         <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-overflow-hidden tl-u-display-webkit-box tl-u-webkit-line-clamp-2 tl-u-webkit-box-orient-vertical tl-u-max-width-160px">
-                            @character.Description
+                            @character.description
                         </AppText>
                     }
 
                     @* Performer chips *@
-                    @if (character.Performers.Count > 0)
+                    @if (character.performers.Any())
                     {
+                        var performers = character.performers.ToList();
                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-accent-primary tl-u-margin-top-8px tl-u-margin-bottom-4px tl-u-font-size-xs tl-u-font-weight-600">
-                            PERFORMERS (@character.Performers.Count)
+                            PERFORMERS (@performers.Count)
                         </AppText>
                         <div class="performer-row">
-                            @foreach (var performer in character.Performers)
+                            @foreach (var performer in performers)
                             {
-                                <div class="performer-chip">
-                                    @if (!string.IsNullOrWhiteSpace(performer.HeadshotUrl))
+                                var performerName = performer.name ?? string.Empty;
+                                <div class="performer-chip" title="@PerformerTitle(performer)">
+                                    @if (!string.IsNullOrWhiteSpace(performer.headshot_url))
                                     {
-                                        <AppAvatar Size="AppSize.Small"><img src="@performer.HeadshotUrl" alt="@performer.Name" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
+                                        <AppAvatar Size="AppSize.Small"><img src="@performer.headshot_url" alt="@performerName" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
                                     }
                                     else
                                     {
                                         <AppAvatar Size="AppSize.Small" Color="AppColor.Secondary">
-                                            @(performer.Name.Length > 0 ? performer.Name[0].ToString() : "?")
+                                            @(performerName.Length > 0 ? performerName[0].ToString() : "?")
                                         </AppAvatar>
                                     }
                                     <AppText Typo="AppTypo.caption" Class="tl-u-font-size-xs tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-80px">
-                                        @performer.Name
+                                        @performerName
                                     </AppText>
                                 </div>
                             }
@@ -105,22 +107,39 @@
 @code {
     [Parameter] public string UniverseQid { get; set; } = string.Empty;
 
+    /// <summary>The Universe graph the explorer already loaded; used to name the work a performer appears in.</summary>
+    [Parameter] public UniverseGraphResponse? Graph { get; set; }
+
     private bool _multiActorOnly;
     private string _search = string.Empty;
     private bool _loading;
     private UniverseCastResponse? _castData;
 
-    private IEnumerable<CastCharacterDto> FilteredCharacters
+    private IEnumerable<UniverseCastCharacterDto> FilteredCharacters
     {
         get
         {
-            var source = _castData?.Characters ?? [];
+            IEnumerable<UniverseCastCharacterDto> source = _castData?.characters ?? [];
             if (_multiActorOnly)
-                source = source.Where(c => c.Performers.Count > 1).ToList();
+                source = source.Where(c => c.performers.Count() > 1).ToList();
             if (!string.IsNullOrWhiteSpace(_search))
-                source = source.Where(c => c.Label.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
+                source = source.Where(c => c.label.Contains(_search, StringComparison.OrdinalIgnoreCase)).ToList();
             return source;
         }
+    }
+
+    // The Engine names the work by QID; the title comes from the work links on the loaded graph
+    // when one of them carries it, otherwise no work is named.
+    private string? PerformerTitle(UniverseCastPerformerDto performer)
+    {
+        if (string.IsNullOrWhiteSpace(performer.work_qid))
+            return null;
+
+        var workTitle = Graph?.nodes
+            .SelectMany(node => node.works)
+            .FirstOrDefault(work => work.qid == performer.work_qid && !string.IsNullOrWhiteSpace(work.label))
+            ?.label;
+        return string.IsNullOrWhiteSpace(workTitle) ? null : $"{performer.name} in {workTitle}";
     }
 
     protected override async Task OnParametersSetAsync()

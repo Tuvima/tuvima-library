@@ -13,7 +13,7 @@
                    Placeholder="Select a character...">
             @foreach (var node in Characters)
             {
-                <AppSelectItem T="string" Value="@node.Id">@node.Label</AppSelectItem>
+                <AppSelectItem T="string" Value="@node.id">@node.label</AppSelectItem>
             }
         </AppSelect>
         <AppNumericField T="int" @bind-Value="_generations" Label="Generations"
@@ -28,10 +28,10 @@
     </AppStack>
 
     @* Tree display *@
-    @if (_tree is not null && _tree.Generations.Count > 0)
+    @if (_tree is not null && _tree.generations.Count > 0)
     {
         <div class="family-tree-container">
-            @foreach (var gen in _tree.Generations.OrderBy(g => int.TryParse(g.Key, out var n) ? n : 0))
+            @foreach (var gen in _tree.generations.OrderBy(g => int.TryParse(g.Key, out var n) ? n : 0))
             {
                 var genNum = gen.Key;
                 var genLabel = genNum switch
@@ -47,28 +47,24 @@
                 <div class="gen-row">
                     <AppText Typo="AppTypo.caption" Class="gen-label">@genLabel</AppText>
                     <div class="gen-members">
-                        @foreach (var member in gen.Value)
+                        @foreach (var memberQid in gen.Value)
                         {
-                            <div class="family-node @(member.Qid == _selectedCharQid ? "family-node-center" : "")">
-                                @if (!string.IsNullOrWhiteSpace(member.Image))
+                            var memberLabel = LabelFor(memberQid);
+                            var memberImage = ImageFor(memberQid);
+                            <div class="family-node @(memberQid == _selectedCharQid ? "family-node-center" : "")">
+                                @if (!string.IsNullOrWhiteSpace(memberImage))
                                 {
-                                    <AppAvatar Size="AppSize.Medium"><img src="@member.Image" alt="@member.Label" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
+                                    <AppAvatar Size="AppSize.Medium"><img src="@memberImage" alt="@memberLabel" class="tl-u-width-100pct tl-u-height-100pct tl-u-object-fit-cover" /></AppAvatar>
                                 }
                                 else
                                 {
                                     <AppAvatar Color="AppColor.Primary" Size="AppSize.Medium">
-                                        @(member.Label.Length > 0 ? member.Label[0].ToString() : "?")
+                                        @(memberLabel.Length > 0 ? memberLabel[0].ToString() : "?")
                                     </AppAvatar>
                                 }
                                 <AppText Typo="AppTypo.caption" Class="tl-sp-mt-1 tl-u-text-align-center tl-u-max-width-80px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap" >
-                                    @member.Label
+                                    @memberLabel
                                 </AppText>
-                                @if (!string.IsNullOrWhiteSpace(member.Relationship))
-                                {
-                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs tl-u-text-align-center">
-                                        @member.Relationship
-                                    </AppText>
-                                }
                             </div>
                         }
                     </div>
@@ -90,11 +86,19 @@
     private int _generations = 2;
     private bool _loading;
     private bool _noResults;
-    private FamilyTreeResponse? _tree;
+    private UniverseFamilyTreeResponse? _tree;
 
-    private IEnumerable<GraphNodeDto> Characters =>
-        Graph?.Nodes.Where(n =>
-            string.Equals(n.Type, "Character", StringComparison.OrdinalIgnoreCase)) ?? [];
+    private IEnumerable<UniverseGraphNodeDto> Characters =>
+        Graph?.nodes.Where(n =>
+            string.Equals(n.type, "Character", StringComparison.OrdinalIgnoreCase)) ?? [];
+
+    // The Engine returns each generation as entity QIDs; names and pictures come from the
+    // Universe graph this page has already loaded, falling back to the QID itself.
+    private string LabelFor(string qid) =>
+        Graph?.nodes.FirstOrDefault(node => node.id == qid)?.label is { Length: > 0 } label ? label : qid;
+
+    private string? ImageFor(string qid) =>
+        Graph?.nodes.FirstOrDefault(node => node.id == qid)?.image;
 
     private async Task OnCharacterSelected(string qid)
     {
@@ -115,7 +119,7 @@
         {
             _tree = await ApiClient.GetFamilyTreeAsync(
                 UniverseQid, _selectedCharQid, _generations);
-            _noResults = _tree is null || _tree.Generations.Count == 0;
+            _noResults = _tree is null || _tree.generations.Count == 0;
         }
         finally
         {

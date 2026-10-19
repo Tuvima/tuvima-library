@@ -457,7 +457,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type | Effective administrator or precise Application permission |
+| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type; returns `candidates[]` (`qid`, `label`, `description`, `instance_of`, `year`, `author`, `director`, `cover_url`, `wikipedia_extract`, `resolution_tier`, `confidence`, `bridge_ids`, `media_type`, `media_type_metadata`, `match_scores`), `query` and `media_type` | Effective administrator or precise Application permission |
 | POST | `/search/retail` | Search configured retail providers for matching candidates | Effective administrator or precise Application permission |
 | POST | `/search/resolve` | Unified resolve search - queries all active providers and returns ranked candidates | Effective administrator or precise Application permission |
 
@@ -497,7 +497,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/universe/{qid}/family-tree` | Character family tree rooted at a specified character entity | Required |
 | GET | `/universe/{qid}/cast` | Characters with their linked performers, including era-correct actor data | Required |
 | GET | `/universe/{qid}/adaptations` | Adaptation chain - all works derived from or adapted into each other | Required |
-| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass | Required |
+| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass; returns a list of `entity_qid`, `label`, `cached_revision`, `current_revision`, `has_changed` | Required |
 
 ---
 

@@ -8,3 +8,4 @@ global using MediaEngine.Contracts.Operations;
 global using MediaEngine.Contracts.Persons;
 global using MediaEngine.Contracts.Plugins;
 global using MediaEngine.Contracts.Search;
+global using MediaEngine.Contracts.Universe;
