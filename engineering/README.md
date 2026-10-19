@@ -28,7 +28,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/settings-revamp.md) | In progress (v1.1, 2026-10-19) |
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0, U-WP1 started 2026-10-19) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | Locked (v4, 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Editing Mode on the item page (as built)](specs/editing-mode.md) | Built (v1, 2026-10-18; not yet archived) |
 | [Archive](specs/archive/README.md) | Built specs |
@@ -75,7 +75,6 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Doc | Status |
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
-| [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 
 ## History (pre-2026-10-17 engineering records)
 
