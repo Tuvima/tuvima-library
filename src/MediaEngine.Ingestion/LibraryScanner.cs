@@ -179,22 +179,6 @@ public sealed class LibraryScanner : ILibraryScanner
         _logger.LogDebug("Great Inhale: legacy person sidecar recovery is disabled; people are sourced from the database and .data/assets.");
         return Task.FromResult(0);
     }
-    // -------------------------------------------------------------------------
-    // Universe scanning (no-op — universe data is stored in the database)
-    // -------------------------------------------------------------------------
-
-    /// <inheritdoc/>
-    public Task<UniverseScanResult> ScanUniversesAsync(
-        string libraryRoot,
-        CancellationToken ct = default)
-    {
-        // Universe sidecar files (universe.xml) have been removed. Universe data
-        // (fictional_entities, entity_relationships, narrative_roots) is stored
-        // exclusively in the database and does not require filesystem recovery.
-        _logger.LogDebug(
-            "ScanUniversesAsync called — no-op (universe data is stored in the database)");
-        return Task.FromResult(new UniverseScanResult());
-    }
 
     // -------------------------------------------------------------------------
     // Helpers

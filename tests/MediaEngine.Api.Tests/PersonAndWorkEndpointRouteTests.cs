@@ -26,13 +26,14 @@ public sealed class PersonAndWorkEndpointRouteTests
     }
 
     [Fact]
-    public void CharacterEndpoints_KeepOnlyThePortraitStreamAndAssetActions()
+    public void CharacterEndpoints_KeepOnlyThePortraitStreamAction()
     {
         var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CharacterEndpoints.cs"));
         var querySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
         Assert.Contains("group.MapGet(\"/portraits/{portraitId:guid}\"", endpointSource, StringComparison.Ordinal);
-        Assert.Contains("group.MapGet(\"/assets/{entityId}\"", endpointSource, StringComparison.Ordinal);
+        // The entity-assets listing action was removed as unused (Universes spec U-WP1).
+        Assert.DoesNotContain("group.MapGet(\"/assets/{entityId}\"", endpointSource, StringComparison.Ordinal);
         Assert.DoesNotContain("character-roles", endpointSource, StringComparison.Ordinal);
         Assert.DoesNotContain("/characters/", endpointSource, StringComparison.Ordinal);
         Assert.DoesNotContain("/characters\"", endpointSource, StringComparison.Ordinal);

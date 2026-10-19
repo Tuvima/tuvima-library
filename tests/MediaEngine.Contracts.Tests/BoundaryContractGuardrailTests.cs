@@ -17,24 +17,19 @@ public sealed partial class BoundaryContractGuardrailTests
         new Dictionary<string, BoundaryClassification>(StringComparer.Ordinal)
         {
             // Frozen Universe/Chronicle wire. These packet types are deliberately preserved byte-for-byte.
-            ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs|Produces|List<UniverseCandidateDto>|1|MediaEngine.Api.Models.UniverseCandidateDto"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs|Produces|UniverseBatchAcceptResult|1|MediaEngine.Api.Models.UniverseBatchAcceptResult"] = BoundaryClassification.FrozenUniverseChronicle,
             ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/SearchEndpoints.cs|Produces|SearchUniverseResult|1|MediaEngine.Domain.Models.SearchUniverseResult"] = BoundaryClassification.FrozenUniverseChronicle,
             ["Endpoint|frozen-universe-chronicle|src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs|Produces|IReadOnlyList<LoreDeltaResult>|1|MediaEngine.Domain.Models.LoreDeltaResult"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.LibraryOperations.cs|GetFromJsonAsync|List<UniverseCandidateViewModel>|1|MediaEngine.Web.Models.ViewDTOs.UniverseCandidateViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|List<LoreDeltaResultDto>|1|MediaEngine.Web.Models.ViewDTOs.LoreDeltaResultDto"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|List<UniverseLoreSourceViewModel>|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseAdaptationsResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseAdaptationsResponse"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseCastResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseCastResponse"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseGraphResponse|1|MediaEngine.Web.Models.ViewDTOs.UniverseGraphResponse"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniverseHealthRaw|1|MediaEngine.Web.Services.Integration.UniverseHealthRaw"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|UniversePathsResponse|1|MediaEngine.Web.Models.ViewDTOs.UniversePathsResponse"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|List<UniverseLoreSourceViewModel>|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|List<UniverseLoreSourceViewModel>|2|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|SearchUniverseResponseDto|1|MediaEngine.Web.Models.ViewDTOs.SearchUniverseResponseDto"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|UniverseLoreEnrichmentSummaryViewModel|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreEnrichmentSummaryViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|ReadFromJsonAsync|UniverseLoreSourceViewModel|1|MediaEngine.Web.Models.ViewDTOs.UniverseLoreSourceViewModel"] = BoundaryClassification.FrozenUniverseChronicle,
-            ["SignalR|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs|On|LoreDeltaDiscoveredEvent|1|MediaEngine.Web.Services.Integration.LoreDeltaDiscoveredEvent"] = BoundaryClassification.FrozenUniverseChronicle,
             ["SignalR|frozen-universe-chronicle|src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs|On|UniverseEnrichmentProgressEvent|1|MediaEngine.Web.Services.Integration.UniverseEnrichmentProgressEvent"] = BoundaryClassification.FrozenUniverseChronicle,
             ["WebJson|misc-wire|src/MediaEngine.Web/Services/Integration/EngineApiClient.cs|GetFromJsonAsync|FamilyTreeResponse|1|MediaEngine.Web.Models.ViewDTOs.FamilyTreeResponse"] = BoundaryClassification.FrozenUniverseChronicle,
 
@@ -54,7 +49,6 @@ public sealed partial class BoundaryContractGuardrailTests
 
     private static readonly HashSet<string> FrozenUniverseChronicleSignalRPayloads =
     [
-        "LoreDeltaDiscoveredEvent",
         "UniverseEnrichmentProgressEvent",
     ];
 

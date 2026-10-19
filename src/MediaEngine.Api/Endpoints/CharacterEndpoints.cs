@@ -10,11 +10,10 @@ namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
 /// Library character endpoints — the character portrait image stream,
-/// entity assets, and manual Stage 3 trigger.
+/// and manual Stage 3 trigger.
 ///
 /// <list type="bullet">
 /// <item><c>GET  /library/portraits/{portraitId}</c> — serves a character portrait image</item>
-/// <item><c>GET  /library/assets/{entityId}</c> — entity assets grouped by type</item>
 /// <item><c>POST /library/enrichment/universe/trigger</c> — manual Stage 3 trigger</item>
 /// </list>
 /// </summary>
@@ -87,27 +86,6 @@ public static class CharacterEndpoints
         .Produces(StatusCodes.Status200OK)
         .RequireClientScope(ApplicationPermissionIds.ArtworkRead.Value)
         .RequireCatalogueCharacterPortraitAccess(ApplicationPermissionIds.ArtworkRead);
-
-        // GET /library/assets/{entityId}
-        // Returns all entity assets, grouped by type.
-        group.MapGet("/assets/{entityId}", async (
-            string entityId,
-            IEntityAssetRepository assetRepo,
-            CancellationToken ct) =>
-        {
-            var assets = await assetRepo.GetByEntityAsync(entityId, null, ct);
-            var result = assets.Select(a => new EntityAssetSummaryDto(
-                id: a.Id,
-                entity_id: a.EntityId,
-                asset_type: a.AssetTypeValue,
-                image_url: a.ImageUrl,
-                is_preferred: a.IsPreferred,
-                source_provider: a.SourceProvider));
-            return Results.Ok(result);
-        })
-        .Produces<IEnumerable<EntityAssetSummaryDto>>(StatusCodes.Status200OK)
-        .RequireClientScope(ApplicationPermissionIds.MetadataRead.Value)
-        .RequireCatalogueEntityAssetContainerAccess(ApplicationPermissionIds.MetadataRead);
 
         // POST /library/enrichment/universe/trigger
         // Manually trigger Stage 3 universe enrichment on the next cycle.

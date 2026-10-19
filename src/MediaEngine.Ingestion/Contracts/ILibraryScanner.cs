@@ -31,21 +31,6 @@ public interface ILibraryScanner
         CancellationToken ct = default);
 
     /// <summary>
-    /// Scans <c>{libraryRoot}/.universe/*/universe.xml</c> files and upserts
-    /// narrative roots, fictional entities, entity relationships, and work links
-    /// from the XML sidecar snapshots.
-    ///
-    /// Called as part of the Great Inhale to recover the universe graph from
-    /// the filesystem after a database wipe.
-    /// </summary>
-    /// <param name="libraryRoot">Absolute path to the Library Root directory.</param>
-    /// <param name="ct">Cancellation token; checked between files.</param>
-    /// <returns>Counts of universes, entities, and relationships restored.</returns>
-    Task<UniverseScanResult> ScanUniversesAsync(
-        string libraryRoot,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Retired compatibility hook. Person recovery from filesystem sidecars is disabled;
     /// people are sourced from the database and canonical headshot assets.
     /// </summary>

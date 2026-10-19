@@ -53,7 +53,6 @@ public static class SignalREvents
 
     // ── Universe enrichment ──────────────────────────────────────────
     public const string UniverseEnrichmentProgress = "UniverseEnrichmentProgress";
-    public const string LoreDeltaDiscovered = "LoreDeltaDiscovered";
 
     // ── Auto re-tag sweep ────────────────────────────────────────────
     public const string WritebackConfigChanged = "WritebackConfigChanged";

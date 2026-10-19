@@ -197,8 +197,6 @@ public sealed class RelationshipPopulationServiceTests : IDisposable
             Task.FromResult<IReadOnlyList<IReadOnlyList<string>>>([]);
         public Task<IReadOnlyDictionary<int, IReadOnlyList<string>>> GetFamilyTreeAsync(string universeQid, string characterQid, int generations = 3, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyDictionary<int, IReadOnlyList<string>>>(new Dictionary<int, IReadOnlyList<string>>());
-        public Task<IReadOnlyList<string>> FindCrossMediaEntitiesAsync(string universeQid, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<string>>([]);
         public void InvalidateCache(string universeQid) { }
     }
 }

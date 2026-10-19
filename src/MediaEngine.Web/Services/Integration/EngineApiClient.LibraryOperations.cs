@@ -163,33 +163,4 @@ public sealed partial class EngineApiClient
             return null;
         }
     }
-
-    public async Task<List<UniverseCandidateViewModel>> GetUniverseCandidatesAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<List<UniverseCandidateViewModel>>("library/universe-candidates", ct) ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/universe-candidates failed");
-            return [];
-        }
-    }
-
-    public async Task<List<UnlinkedWorkViewModel>> GetUniverseUnlinkedAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<List<UnlinkedWorkDto>>("library/universe-unlinked", ct);
-            return response?.Select(UnlinkedWorkViewModel.FromContract).ToList() ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/universe-unlinked failed");
-            return [];
-        }
-    }
 }

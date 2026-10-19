@@ -75,12 +75,6 @@ public sealed class WireContractSnapshotTests
         var shapes = new WireShapeCatalog();
 
         Assert.Equal(
-            shapes.GetShapeId(typeof(MediaEngine.Api.Models.UniverseCandidateDto), ShapeDirection.Read),
-            shapes.GetShapeId(typeof(UniverseCandidateViewModel), ShapeDirection.Read));
-        Assert.Equal(
-            shapes.GetShapeId(typeof(MediaEngine.Contracts.Library.UnlinkedWorkDto), ShapeDirection.Read),
-            shapes.GetShapeId(typeof(UnlinkedWorkViewModel), ShapeDirection.Read));
-        Assert.Equal(
             shapes.GetShapeId(typeof(SystemStatusResponse), ShapeDirection.Read),
             shapes.GetShapeId(typeof(SystemStatusViewModel), ShapeDirection.Read));
     }

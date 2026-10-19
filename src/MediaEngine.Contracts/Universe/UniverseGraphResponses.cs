@@ -39,15 +39,6 @@ public sealed record UniverseDetailResponse(
 
 public sealed record UniverseDetailRef(string qid, string label, string level);
 
-public sealed record UniverseHealthResponse(
-    string qid,
-    string label,
-    int entities_total,
-    int entities_enriched,
-    int entities_with_images,
-    int relationships_total,
-    double health_percent);
-
 public sealed record UniverseGraphResponse(
     UniverseGraphRef universe,
     IReadOnlyList<UniverseGraphNodeDto> nodes,
@@ -116,12 +107,6 @@ public sealed record UniverseGraphQualifierDto(
     string? source_provider,
     double? confidence);
 
-public sealed record UniverseDeepEnrichResponse(
-    string entity_qid,
-    int neighbors_found,
-    int enrichment_enqueued,
-    string message);
-
 public sealed record UniversePathsResponse(
     string universe_qid,
     string from_qid,
@@ -132,10 +117,6 @@ public sealed record UniverseFamilyTreeResponse(
     string universe_qid,
     string character_qid,
     Dictionary<string, IReadOnlyList<string>> generations);
-
-public sealed record UniverseCrossMediaResponse(
-    string universe_qid,
-    IReadOnlyList<string> cross_media_entities);
 
 public sealed record UniverseCastResponse(
     string universe_qid,

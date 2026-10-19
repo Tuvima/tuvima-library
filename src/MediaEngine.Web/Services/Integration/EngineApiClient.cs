@@ -2115,37 +2115,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         [property: JsonPropertyName("language")] string? Language);
 
 
-    // -- Universe health + character data -------------------------------------
-
-    public async Task<UniverseHealthDto?> GetUniverseHealthAsync(string qid, CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<UniverseHealthRaw>($"/universe/{Uri.EscapeDataString(qid)}/health", ct);
-            if (raw is null)
-            {
-                return null;
-            }
-
-            return new UniverseHealthDto
-            {
-                Qid = raw.Qid ?? qid,
-                Label = raw.Label ?? string.Empty,
-                EntitiesTotal = raw.EntitiesTotal,
-                EntitiesEnriched = raw.EntitiesEnriched,
-                EntitiesWithImages = raw.EntitiesWithImages,
-                RelationshipsTotal = raw.RelationshipsTotal,
-                HealthPercent = raw.HealthPercent,
-            };
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /universe/{Qid}/health failed", qid);
-            return null;
-        }
-    }
-
+    // -- Character data -------------------------------------
     public async Task<List<CastCreditDto>> GetWorkCastAsync(Guid workId, CancellationToken ct = default)
     {
         try
@@ -2239,18 +2209,4 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
         return result;
     }
-
-    // -- Raw deserialization models (character/universe health) ----------------
-
-    private sealed class UniverseHealthRaw
-    {
-        [JsonPropertyName("qid")] public string? Qid { get; set; }
-        [JsonPropertyName("label")] public string? Label { get; set; }
-        [JsonPropertyName("entities_total")] public int EntitiesTotal { get; set; }
-        [JsonPropertyName("entities_enriched")] public int EntitiesEnriched { get; set; }
-        [JsonPropertyName("entities_with_images")] public int EntitiesWithImages { get; set; }
-        [JsonPropertyName("relationships_total")] public int RelationshipsTotal { get; set; }
-        [JsonPropertyName("health_percent")] public double HealthPercent { get; set; }
-    }
-
 }

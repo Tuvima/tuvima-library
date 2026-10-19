@@ -120,7 +120,7 @@ The Universe swimlane and card components (`PosterSwimlane`, `LibraryCard`, `Squ
 Future cleanup can migrate related-content shelves to `MediaTile` or a display-card adapter, but detail and operational APIs should stay separate from display shelf APIs.
 
 Universe and Chronicle HTTP responses use Contracts like every other API area.
-The only frozen boundary exception is the exact Dashboard-local SignalR pair
-`LoreDeltaDiscoveredEvent` and `UniverseEnrichmentProgressEvent`; it does not
+The only frozen boundary exception is the exact Dashboard-local SignalR payload
+`UniverseEnrichmentProgressEvent`; it does not
 apply to display or detail HTTP DTOs and must not be expanded.
 
