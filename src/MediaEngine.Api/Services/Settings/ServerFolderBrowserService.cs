@@ -122,7 +122,9 @@ public sealed class ServerFolderBrowserService(
         }
         catch (ServerFolderAccessException exception)
         {
-            issues.Add(Issue("invalid_path", exception.Message));
+            // A typed path that is simply not there gets its own code, so the picker can say so in plain words.
+            var missing = !string.IsNullOrWhiteSpace(request.ManualPath) && !TypedFolderExists(request.ManualPath);
+            issues.Add(Issue(missing ? "not_found" : "invalid_path", exception.Message));
         }
 
         if (resolved is null)
@@ -317,6 +319,18 @@ public sealed class ServerFolderBrowserService(
             .Select(item => item.Location)
             .FirstOrDefault()
             ?? throw new ServerFolderAccessException("This path is outside the server storage locations approved for Tuvima.");
+    }
+
+    private static bool TypedFolderExists(string manualPath)
+    {
+        try
+        {
+            return Directory.Exists(Path.GetFullPath(manualPath.Trim()));
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static ResolvedSelection ResolveManualSelection(ServerStorageLocationConfig location, string manualPath, bool allowCreate = false)

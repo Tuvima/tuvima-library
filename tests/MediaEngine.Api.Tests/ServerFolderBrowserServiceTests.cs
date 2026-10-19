@@ -192,6 +192,23 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
+    public void ATypedPathThatDoesNotExistIsReportedAsNotFoundAndCannotBeSelected()
+    {
+        using var fixture = new Fixture();
+        var missing = Path.Combine(fixture.Root, "no-such-folder");
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = missing,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+
+        Assert.False(result.CanSelect);
+        Assert.False(result.Exists);
+        Assert.Contains(result.Issues, issue => issue.Code == "not_found");
+    }
+
+    [Fact]
     public void MachineRootsAreListedAndTuvimasOwnFoldersAreNeverOffered()
     {
         using var fixture = new Fixture();
