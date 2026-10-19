@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Processors;
@@ -13,46 +15,62 @@ namespace MediaEngine.Processors;
 /// <b>Auto-detection order (first found wins):</b>
 /// <list type="number">
 ///   <item>Explicit paths from <c>config/transcoding.json</c> — authoritative deployment configuration.</item>
+///   <item><c>tools/ffmpeg/</c> in the Tuvima data folder — where a fetched copy lives.</item>
 ///   <item><c>tools/ffmpeg/</c> relative to the app base directory — self-contained deployment.</item>
 ///   <item>System PATH — user-managed system-wide installation.</item>
+///   <item>The operating system's standard install folders.</item>
 /// </list>
+/// </para>
+/// <para>
+/// All detection state lives in one immutable snapshot that <see cref="Redetect"/> replaces atomically. Every
+/// member reads the snapshot once per call, so a job already running keeps the paths it started with.
 /// </para>
 /// </summary>
 public sealed class FFmpegService : IFFmpegService
 {
     private readonly ILogger<FFmpegService> _logger;
+    private readonly IConfigurationLoader _config;
+    private readonly FFmpegEnvironment _environment;
+    private readonly object _redetectGate = new();
+    private FFmpegInstallation _installation;
 
-    public string? FfmpegPath { get; }
-    public string? FfprobePath { get; }
-    public bool IsAvailable => FfmpegPath is not null && FfprobePath is not null;
+    public string? FfmpegPath => Current.FfmpegPath;
+    public string? FfprobePath => Current.FfprobePath;
+    public bool IsAvailable => Current.IsAvailable;
 
-    public HardwareCapabilities HardwareCapabilities { get; }
+    public HardwareCapabilities HardwareCapabilities => Current.Hardware;
 
-    public FFmpegService(IConfigurationLoader config, ILogger<FFmpegService> logger)
+    public FFmpegDetection Detection => Current.Detection;
+
+    internal FFmpegInstallation Current => Volatile.Read(ref _installation);
+
+    public FFmpegService(
+        IConfigurationLoader config,
+        TuvimaDataPaths dataPaths,
+        ILogger<FFmpegService> logger,
+        FFmpegEnvironment? environment = null)
     {
+        _config = config;
         _logger = logger;
+        _environment = environment ?? FFmpegEnvironment.Current(dataPaths.Root);
+        _installation = Detect(config.LoadTranscoding(), previous: null);
+        LogOutcome(_installation);
+    }
 
-        var settings = config.LoadTranscoding();
-
-        // ── Binary resolution ────────────────────────────────────────────────
-        FfmpegPath = ResolveBinary("ffmpeg", settings.FfmpegBinaryPath);
-        FfprobePath = ResolveBinary("ffprobe", settings.FfprobeBinaryPath);
-
-        if (IsAvailable)
+    public bool Redetect()
+    {
+        lock (_redetectGate)
         {
-            _logger.LogInformation("FFmpeg located: {Path}", FfmpegPath);
-            HardwareCapabilities = DetectHardware(settings.HardwareAcceleration);
-            _logger.LogInformation(
-                "Hardware acceleration: {Accel} (preferred encoder: {Enc})",
-                HardwareCapabilities.DetectedAccelerator ?? "none (software)",
-                HardwareCapabilities.PreferredEncoder);
-        }
-        else
-        {
-            _logger.LogWarning(
-                "FFmpeg binaries not found. Check explicit transcoding paths, tools/ffmpeg/, " +
-                "or the system PATH. Transcoding and video metadata extraction are disabled.");
-            HardwareCapabilities = new HardwareCapabilities();
+            var previous = Current;
+            var next = Detect(_config.LoadTranscoding(), previous);
+            Volatile.Write(ref _installation, next);
+            if (!string.Equals(previous.FfmpegPath, next.FfmpegPath, StringComparison.Ordinal)
+                || !string.Equals(previous.FfprobePath, next.FfprobePath, StringComparison.Ordinal))
+            {
+                LogOutcome(next);
+            }
+
+            return next.IsAvailable;
         }
     }
 
@@ -60,14 +78,15 @@ public sealed class FFmpegService : IFFmpegService
 
     public async Task<MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default)
     {
-        if (!IsAvailable || !File.Exists(filePath))
+        var installation = Current;
+        if (!installation.IsAvailable || !File.Exists(filePath))
         {
             return null;
         }
 
         // ffprobe -v quiet -print_format json -show_format -show_streams -show_chapters
         var args = $"-v quiet -print_format json -show_format -show_streams -show_chapters \"{filePath}\"";
-        var (exit, stdout, _) = await RunProcessAsync(FfprobePath!, args, ct).ConfigureAwait(false);
+        var (exit, stdout, _) = await RunProcessAsync(installation.FfprobePath!, args, ct).ConfigureAwait(false);
         if (exit != 0 || string.IsNullOrWhiteSpace(stdout))
         {
             return null;
@@ -79,40 +98,95 @@ public sealed class FFmpegService : IFFmpegService
     public async Task<(int ExitCode, string Output, string Error)> RunAsync(
         string arguments, CancellationToken ct = default)
     {
-        if (!IsAvailable)
+        var installation = Current;
+        if (!installation.IsAvailable)
         {
             throw new InvalidOperationException("FFmpeg is not available. Check tools/ffmpeg/ or system PATH.");
         }
 
-        return await RunProcessAsync(FfmpegPath!, arguments, ct).ConfigureAwait(false);
+        return await RunProcessAsync(installation.FfmpegPath!, arguments, ct).ConfigureAwait(false);
     }
 
     public async Task<(int ExitCode, string Output, string Error)> RunAsync(
         IReadOnlyList<string> arguments, CancellationToken ct = default)
     {
-        if (!IsAvailable)
+        var installation = Current;
+        if (!installation.IsAvailable)
         {
             throw new InvalidOperationException("FFmpeg is not available. Check tools/ffmpeg/ or system PATH.");
         }
 
-        return await RunProcessAsync(FfmpegPath!, arguments, ct).ConfigureAwait(false);
+        return await RunProcessAsync(installation.FfmpegPath!, arguments, ct).ConfigureAwait(false);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private static string? ResolveBinary(string name, string? configuredPath)
+    private FFmpegInstallation Detect(TranscodingSettings settings, FFmpegInstallation? previous)
+    {
+        var ffmpeg = ResolveBinary("ffmpeg", settings.FfmpegBinaryPath, _environment);
+        var ffprobe = ResolveBinary("ffprobe", settings.FfprobeBinaryPath, _environment);
+        var available = ffmpeg.Path is not null && ffprobe.Path is not null;
+        var detection = new FFmpegDetection(
+            available ? ffmpeg.Source : FFmpegDetectionSource.None,
+            ffmpeg.ExplicitPathMissing || ffprobe.ExplicitPathMissing,
+            Version: null);
+        var mode = settings.HardwareAcceleration;
+
+        // Hardware probing starts several processes, so keep the earlier answer while the tool has not moved.
+        var hardware = !available
+            ? new HardwareCapabilities()
+            : previous is { IsAvailable: true } && previous.FfmpegPath == ffmpeg.Path && previous.HardwareMode == mode
+                ? previous.Hardware
+                : DetectHardware(ffmpeg.Path!, mode);
+        return new FFmpegInstallation(ffmpeg.Path, ffprobe.Path, hardware, mode, detection);
+    }
+
+    private void LogOutcome(FFmpegInstallation installation)
+    {
+        if (!installation.IsAvailable)
+        {
+            _logger.LogWarning(
+                "FFmpeg binaries not found. Check explicit transcoding paths, tools/ffmpeg/, " +
+                "or the system PATH. Transcoding and video metadata extraction are disabled.");
+            return;
+        }
+
+        _logger.LogInformation(
+            "FFmpeg located: {Path} (found via {Source})", installation.FfmpegPath, installation.Detection.Source);
+        _logger.LogInformation(
+            "Hardware acceleration: {Accel} (preferred encoder: {Enc})",
+            installation.Hardware.DetectedAccelerator ?? "none (software)",
+            installation.Hardware.PreferredEncoder);
+    }
+
+    internal readonly record struct BinaryResolution(string? Path, FFmpegDetectionSource Source, bool ExplicitPathMissing);
+
+    internal static BinaryResolution ResolveBinary(string name, string? configuredPath, FFmpegEnvironment environment)
     {
         // 1. An explicit deployment path is authoritative. Do not silently
         // hide a stale container/NAS configuration by falling back elsewhere.
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
-            return File.Exists(configuredPath) ? Path.GetFullPath(configuredPath) : null;
+            return File.Exists(configuredPath)
+                ? new BinaryResolution(Path.GetFullPath(configuredPath), FFmpegDetectionSource.ExplicitPath, false)
+                : new BinaryResolution(null, FFmpegDetectionSource.None, true);
         }
 
-        // 2. tools/ffmpeg/ relative to app base directory
-        var appBase = AppContext.BaseDirectory;
+        var exe = OperatingSystem.IsWindows() ? $"{name}.exe" : name;
+
+        // 2. tools/ffmpeg/ in the Tuvima data folder
+        if (!string.IsNullOrWhiteSpace(environment.DataRoot))
+        {
+            var fetched = Path.Combine(environment.DataRoot, "tools", "ffmpeg", exe);
+            if (File.Exists(fetched))
+            {
+                return new BinaryResolution(fetched, FFmpegDetectionSource.DataFolder, false);
+            }
+        }
+
+        // 3. tools/ffmpeg/ relative to app base directory
         // Walk up from bin/Debug/net10.0/ to repo root looking for tools/ffmpeg/
-        var dir = new DirectoryInfo(appBase);
+        var dir = new DirectoryInfo(environment.BaseDirectory);
         for (int depth = 0; depth < 6; depth++)
         {
             if (dir is null)
@@ -120,38 +194,40 @@ public sealed class FFmpegService : IFFmpegService
                 break;
             }
 
-            var candidate = Path.Combine(dir.FullName, "tools", "ffmpeg",
-                OperatingSystem.IsWindows() ? $"{name}.exe" : name);
+            var candidate = Path.Combine(dir.FullName, "tools", "ffmpeg", exe);
             if (File.Exists(candidate))
             {
-                return candidate;
+                return new BinaryResolution(candidate, FFmpegDetectionSource.AppFolder, false);
             }
 
             dir = dir.Parent;
         }
 
-        // 3. System PATH
-        var onPath = FindOnPath(name);
-        return onPath;
+        // 4. System PATH
+        var onPath = FindIn(environment.PathDirectories, exe);
+        if (onPath is not null)
+        {
+            return new BinaryResolution(onPath, FFmpegDetectionSource.SystemPath, false);
+        }
+
+        // 5. The operating system's standard install folders
+        var standard = FindIn(environment.StandardFolders, exe);
+        return standard is not null
+            ? new BinaryResolution(standard, FFmpegDetectionSource.StandardFolder, false)
+            : new BinaryResolution(null, FFmpegDetectionSource.None, false);
     }
 
-    private static string? FindOnPath(string name)
-    {
-        var exe = OperatingSystem.IsWindows() ? $"{name}.exe" : name;
-        var paths = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-        return paths
-            .Select(p => Path.Combine(p, exe))
-            .FirstOrDefault(File.Exists);
-    }
+    private static string? FindIn(IEnumerable<string> folders, string exe) => folders
+        .Select(folder => Path.Combine(folder, exe))
+        .FirstOrDefault(File.Exists);
 
-    private HardwareCapabilities DetectHardware(string mode)
+    private HardwareCapabilities DetectHardware(string ffmpegPath, string mode)
     {
         try
         {
             mode = mode.Trim().ToLowerInvariant();
             // Query available encoders synchronously at startup.
-            var psi = new ProcessStartInfo(FfmpegPath!, "-hide_banner -encoders")
+            var psi = new ProcessStartInfo(ffmpegPath, "-hide_banner -encoders")
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -166,7 +242,7 @@ public sealed class FFmpegService : IFFmpegService
 
             var output = p.StandardOutput.ReadToEnd();
             p.WaitForExit(10_000);
-            var muxers = QueryCapabilityOutput("-hide_banner -muxers");
+            var muxers = QueryCapabilityOutput(ffmpegPath, "-hide_banner -muxers");
 
             bool hasNvenc = ListsCapability(output, "h264_nvenc");
             bool hasQsv = ListsCapability(output, "h264_qsv");
@@ -176,9 +252,9 @@ public sealed class FFmpegService : IFFmpegService
             bool hasWebVtt = ListsCapability(output, "webvtt");
             bool hasHls = ListsCapability(muxers, "hls");
 
-            hasNvenc = hasNvenc && ProbeEncoder("h264_nvenc");
-            hasQsv = hasQsv && ProbeEncoder("h264_qsv");
-            hasVaapi = hasVaapi && ProbeEncoder("h264_vaapi");
+            hasNvenc = hasNvenc && ProbeEncoder(ffmpegPath, "h264_nvenc");
+            hasQsv = hasQsv && ProbeEncoder(ffmpegPath, "h264_qsv");
+            hasVaapi = hasVaapi && ProbeEncoder(ffmpegPath, "h264_vaapi");
 
             // If mode is "auto", pick best; if mode is explicit, honour it.
             bool softwareOnly = mode is "none" or "cpu";
@@ -524,9 +600,9 @@ public sealed class FFmpegService : IFFmpegService
         }
     }
 
-    private string QueryCapabilityOutput(string arguments)
+    private string QueryCapabilityOutput(string ffmpegPath, string arguments)
     {
-        var psi = new ProcessStartInfo(FfmpegPath!, arguments)
+        var psi = new ProcessStartInfo(ffmpegPath, arguments)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -544,11 +620,11 @@ public sealed class FFmpegService : IFFmpegService
         return output;
     }
 
-    private bool ProbeEncoder(string encoder)
+    private bool ProbeEncoder(string ffmpegPath, string encoder)
     {
         try
         {
-            var psi = new ProcessStartInfo(FfmpegPath!)
+            var psi = new ProcessStartInfo(ffmpegPath)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

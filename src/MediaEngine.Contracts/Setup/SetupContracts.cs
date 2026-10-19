@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Settings;
 
 namespace MediaEngine.Contracts.Setup;
 
@@ -81,8 +82,8 @@ public sealed record SetupPreflightDto(
     [property: JsonPropertyName("runtime_identifier")] string RuntimeIdentifier,
     [property: JsonPropertyName("os_architecture")] string OsArchitecture,
     [property: JsonPropertyName("process_architecture")] string ProcessArchitecture,
-    [property: JsonPropertyName("ffmpeg_status")] string FfmpegStatus,
-    [property: JsonPropertyName("checks")] IReadOnlyList<SetupPathCheckDto> Checks);
+    [property: JsonPropertyName("checks")] IReadOnlyList<SetupPathCheckDto> Checks,
+    [property: JsonPropertyName("tools")] ToolRequirementsDto Tools);
 
 /// <summary>How the first administrator will sign in. <see cref="Password"/> is the default.</summary>
 public static class SetupSignInModes
