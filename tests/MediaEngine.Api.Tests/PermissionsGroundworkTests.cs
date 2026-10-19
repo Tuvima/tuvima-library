@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Aggregates;
@@ -433,6 +434,177 @@ public sealed class PermissionsGroundworkTests
         Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await world.Devices.RevokeAsync(world.AdminOfA, devices.MemberA));
     }
 
+    [Fact]
+    public async Task AHouseholdAdministrator_NeverListsOrSignsOutTheDevicesOfAServerAdministratorOrAnotherHouseholdAdministratorInTheHousehold()
+    {
+        await using var world = await World.CreateAsync();
+        var devices = await world.PairDevicesAsync();
+        var (serverInA, otherAdminInA) = await world.PairOtherAdministratorsInAAsync();
+
+        var listed = await ListIdsAsync(world, world.AdminOfA);
+        Assert.Equivalent(new[] { devices.OwnerA, devices.MemberA }, listed);
+        Assert.DoesNotContain(serverInA, listed);
+        Assert.DoesNotContain(otherAdminInA, listed);
+
+        Assert.Equal(ManagedDeviceRevokeOutcome.Forbidden, await world.Devices.RevokeAsync(world.AdminOfA, serverInA));
+        Assert.Equal(ManagedDeviceRevokeOutcome.Forbidden, await world.Devices.RevokeAsync(world.AdminOfA, otherAdminInA));
+        Assert.Empty(world.Notifier.Revoked);
+
+        // A server administrator still sees and signs out everything, and an ordinary member of the household stays in reach.
+        Assert.Contains(serverInA, await ListIdsAsync(world, world.ServerAdmin));
+        Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await world.Devices.RevokeAsync(world.AdminOfA, devices.MemberA));
+        Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await world.Devices.RevokeAsync(world.ServerAdmin, serverInA));
+    }
+
+    [Fact]
+    public async Task AHouseholdAdministratorWhoHasNotUnlocked_SeesAndSignsOutOnlyTheirOwnDevices()
+    {
+        await using var world = await World.CreateAsync();
+        var devices = await world.PairDevicesAsync();
+
+        Assert.Equivalent(new[] { devices.OwnerA }, await ListIdsAsync(world, world.LockedAdminOfA));
+        Assert.Equal(ManagedDeviceRevokeOutcome.Forbidden, await world.Devices.RevokeAsync(world.LockedAdminOfA, devices.MemberA));
+        Assert.Equal(ManagedDeviceRevokeOutcome.Revoked, await world.Devices.RevokeAsync(world.LockedAdminOfA, devices.OwnerA));
+    }
+
+    // ----- Starting profile and "always open as" -----
+
+    [Fact]
+    public async Task AnOutOfHouseholdAlwaysOpenAs_IsRefusedWhenSet_AndAnInHouseholdOneIsKept()
+    {
+        await using var world = await World.CreateAsync();
+        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
+        var session = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-pref", "Test", "Dashboard");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Identity.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id, world.B.Person.Id));
+        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id));
+
+        await world.Identity.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id, world.A.Person.Id);
+        Assert.Equal(world.A.Person.Id, await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, session.Session.Id));
+    }
+
+    [Fact]
+    public async Task AnOutOfHouseholdAlwaysOpenAs_IsIgnoredAtSignIn_AndAServerAdministratorKeepsTheirs()
+    {
+        await using var world = await World.CreateAsync();
+        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
+        world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
+        // Set directly, as a data store from before this rule could hold it.
+        await world.Identities.SetDeviceProfilePreferenceAsync(world.A.Owner.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
+        await world.Identities.SetDeviceProfilePreferenceAsync(world.ServerAdminAccount.Id, "device-old", world.B.Person.Id, DateTimeOffset.UtcNow);
+
+        var member = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-old", "Test", "Dashboard");
+        var administrator = await world.Identity.CreatePasskeySessionAsync(world.ServerAdminAccount.Id, "device-old", "Test", "Dashboard");
+
+        Assert.NotEqual(world.B.Person.Id, member.ActiveProfile.Id);
+        Assert.Equal(world.A.Id, member.ActiveProfile.HouseholdId);
+        Assert.True(member.ChooseProfile);
+        Assert.Null(await world.Identity.GetDeviceProfilePreferenceAsync(world.A.Owner.Id, member.Session.Id));
+        Assert.Equal(world.B.Person.Id, administrator.ActiveProfile.Id);
+    }
+
+    [Fact]
+    public async Task ADefaultProfileOutsideTheHousehold_IsNeverTheStartingProfile()
+    {
+        await using var world = await World.CreateAsync();
+        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("UPDATE account_profile_grants SET is_default = 0 WHERE account_id = @account;", new { account = world.A.Owner.Id });
+            connection.Execute("UPDATE account_profile_grants SET is_default = 1 WHERE account_id = @account AND profile_id = @profile;",
+                new { account = world.A.Owner.Id, profile = world.B.Person.Id });
+        }
+
+        var session = await world.Identity.CreatePasskeySessionAsync(world.A.Owner.Id, "device-default", "Test", "Dashboard");
+
+        Assert.Equal(world.A.Id, session.ActiveProfile.HouseholdId);
+    }
+
+    // ----- Profile list -----
+
+    [Fact]
+    public async Task TheProfileList_HoldsOnlyPeopleInTheCallersHousehold_ExceptForAServerAdministrator()
+    {
+        await using var world = await World.CreateAsync();
+        world.GrantDirectly(world.A.Owner.Id, world.B.Person.Id);
+        world.GrantDirectly(world.ServerAdminAccount.Id, world.B.Person.Id);
+        var everyone = await world.Profiles.GetAllAsync();
+
+        var member = ProfileEndpoints.ProfilesForCaller(world.A.Owner, everyone, (await world.Accounts.GetProfileIdsAsync(world.A.Owner.Id)).ToHashSet());
+        var administrator = ProfileEndpoints.ProfilesForCaller(world.ServerAdminAccount, everyone, (await world.Accounts.GetProfileIdsAsync(world.ServerAdminAccount.Id)).ToHashSet());
+
+        Assert.DoesNotContain(member, profile => profile.Id == world.B.Person.Id);
+        Assert.Contains(member, profile => profile.Id == world.A.Person.Id);
+        Assert.All(member, profile => Assert.Equal(world.A.Id, profile.HouseholdId));
+        Assert.Contains(administrator, profile => profile.Id == world.B.Person.Id);
+        Assert.Empty(ProfileEndpoints.ProfilesForCaller(null, everyone, everyone.Select(profile => profile.Id).ToHashSet()));
+    }
+
+    // ----- Households with a Shared Library -----
+
+    [Fact]
+    public async Task AHouseholdWithSharedPhotos_IsRefusedWithAPlainMessage_AndNothingIsRemoved()
+    {
+        await using var world = await World.CreateAsync();
+        var shared = new ViewSharedLibraryRepository(world.Database);
+        var full = await world.Management.CreateAsync(world.ServerAdmin, "Full shared");
+        var library = await shared.EnsureForHouseholdAsync(full.Household.Id);
+        using (var connection = world.Database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
+                """, new { id = Guid.NewGuid(), library = library.LibraryId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            world.Management.DeleteAsync(world.ServerAdmin, full.Household.Id));
+
+        Assert.Equal("This household still has shared photos in View. Remove them first.", refusal.Message);
+        Assert.NotNull(await world.Households.GetByIdAsync(full.Household.Id));
+        Assert.Empty(world.AuditRows("household.deleted"));
+    }
+
+    [Fact]
+    public async Task AHouseholdWhoseSharedLibraryIsEmpty_IsRemovedAndAudited()
+    {
+        await using var world = await World.CreateAsync();
+        var empty = await world.Management.CreateAsync(world.ServerAdmin, "Empty shared");
+        await new ViewSharedLibraryRepository(world.Database).EnsureForHouseholdAsync(empty.Household.Id);
+
+        await world.Management.DeleteAsync(world.ServerAdmin, empty.Household.Id);
+
+        Assert.Null(await world.Households.GetByIdAsync(empty.Household.Id));
+        Assert.Equal(empty.Household.Id.ToString("D"), Assert.Single(world.AuditRows("household.deleted")).SubjectId);
+    }
+
+    // ----- Paired apps -----
+
+    [Fact]
+    public async Task APairedAppActingForAnAdministrator_GetsOnlyTheirOwnScope_AndCannotDeleteHistory()
+    {
+        await using var world = await World.CreateAsync();
+        var serverApp = world.ServerAdmin with { PrincipalKind = PrincipalKind.DelegatedUserClient, ApplicationId = Guid.NewGuid(), ApplicationEnabled = true };
+        var householdApp = world.AdminOfA with { PrincipalKind = PrincipalKind.DelegatedUserClient, ApplicationId = Guid.NewGuid(), ApplicationEnabled = true };
+
+        foreach (var app in new[] { serverApp, householdApp })
+        {
+            Assert.True((await world.Scope.AuthorizeAsync(app, PersonalScopeKind.Activity, PersonalScope.Self)).Allowed);
+            foreach (var scope in new[] { PersonalScope.Everyone, PersonalScope.Household(world.A.Id), PersonalScope.Profile(world.A.Person.Id) })
+            {
+                var decision = await world.Scope.AuthorizeAsync(app, PersonalScopeKind.Taste, scope);
+                Assert.False(decision.Allowed);
+                Assert.Equal(PersonalScopeRefusal.NotAllowed, decision.Refusal);
+            }
+
+            Assert.False(await world.Scope.CanDeletePersonalHistoryAsync(app));
+        }
+
+        Assert.Empty(world.AuditRows(PersonalScopeAuthorizer.TasteViewedOthers));
+        Assert.True(await world.Scope.CanDeletePersonalHistoryAsync(world.ServerAdmin));
+    }
+
     private static async Task<IReadOnlyList<Guid>> ListIdsAsync(World world, RequestAuthority authority) =>
         (await world.Devices.ListAsync(authority)).Select(device => device.Id).ToList();
 
@@ -506,6 +678,9 @@ public sealed class PermissionsGroundworkTests
         public HouseholdManagementService Management { get; private set; } = null!;
         public PersonalScopeAuthorizer Scope { get; private set; } = null!;
         public ManagedClientDeviceService Devices { get; private set; } = null!;
+        public ProfileRepository Profiles { get; private set; } = null!;
+        public IdentityRepository Identities { get; private set; } = null!;
+        public DatabaseConnection Database => _database;
         public SpyNotifier Notifier { get; } = new();
         public ManualClock Clock { get; } = new(new DateTimeOffset(2026, 10, 18, 9, 0, 0, TimeSpan.Zero));
         public Decisions Decisions { get; private set; } = null!;
@@ -517,6 +692,7 @@ public sealed class PermissionsGroundworkTests
         public RequestAuthority AdminOfB { get; private set; } = null!;
         public RequestAuthority MemberOfA { get; private set; } = null!;
         public RequestAuthority KidOfA { get; private set; } = null!;
+        public RequestAuthority LockedAdminOfA { get; private set; } = null!;
         public Place A { get; private set; } = null!;
         public Place B { get; private set; } = null!;
         public IReadOnlyList<Actor> Actors { get; private set; } = [];
@@ -550,7 +726,9 @@ public sealed class PermissionsGroundworkTests
             var clientAuthorization = new ClientAuthorizationRepository(world._database);
             world._authorization = new ClientAuthorizationService(
                 clientAuthorization, world.Accounts, new ApplicationRepository(world._database), new PermissionRegistry(), TimeProvider.System);
-            world.Devices = new ManagedClientDeviceService(clientAuthorization, world.Accounts, profiles, world.Notifier, TimeProvider.System);
+            world.Devices = new ManagedClientDeviceService(clientAuthorization, world.Accounts, profiles, world.Notifier, world.Decisions, TimeProvider.System);
+            world.Profiles = profiles;
+            world.Identities = identities;
 
             var bootstrap = ServerAuthority(Guid.NewGuid(), Guid.NewGuid());
             world.ServerAdminAccount = await world.Mutations.CreateAsync(bootstrap, new CreateAccountAccessCommand(
@@ -570,6 +748,7 @@ public sealed class PermissionsGroundworkTests
             world.AdminOfB = HouseholdAuthority(world.B.Owner, ownerProfileB);
             world.MemberOfA = HouseholdAuthority(world.A.OwnSignIn, world.A.Person.Id, isHouseholdAdmin: false);
             world.KidOfA = HouseholdAuthority(world.A.Owner, world.A.Kid.Id, restricted: true);
+            world.LockedAdminOfA = HouseholdAuthority(world.A.Owner, ownerProfileA, sessionId: world._lockedSession);
             world.Actors =
             [
                 new("server administrator", world.ServerAdmin, null),
@@ -630,6 +809,28 @@ public sealed class PermissionsGroundworkTests
             await PairAsync(A.OwnSignIn.Id, A.Person.Id, "Friend phone"),
             await PairAsync(B.Owner.Id, (await Accounts.GetDefaultProfileIdAsync(B.Owner.Id))!.Value, "Bea phone"));
 
+        /// <summary>
+        /// Two more sign-ins in household A that a household administrator must not manage: a server administrator and
+        /// another household administrator, each with a paired device.
+        /// </summary>
+        public async Task<(Guid ServerAdminInA, Guid OtherAdminInA)> PairOtherAdministratorsInAAsync()
+        {
+            var serverInA = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
+                "server.in.a@example.com", IsAdministrator: true, ProfileId: A.Spare.Id, NewProfile: null,
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            var otherAdmin = await Mutations.CreateAsync(ServerAdmin, new CreateAccountAccessCommand(
+                "other.admin.in.a@example.com", IsAdministrator: false, ProfileId: A.Kid.Id, NewProfile: null,
+                Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read },
+                Libraries: new HashSet<Guid>(), TemporaryPassword: null));
+            await Mutations.SetHouseholdAdminAsync(ServerAdmin, otherAdmin.Id, true);
+            Assert.Equal(A.Id, (await Accounts.GetByIdAsync(serverInA.Id))!.HouseholdId);
+            Assert.Equal(A.Id, (await Accounts.GetByIdAsync(otherAdmin.Id))!.HouseholdId);
+            return (
+                await PairAsync(serverInA.Id, A.Spare.Id, "Server admin phone in A"),
+                await PairAsync(otherAdmin.Id, A.Kid.Id, "Other admin phone in A"));
+        }
+
         public IReadOnlyList<AuditRow> AuditRows(string eventType)
         {
             using var connection = _database.CreateConnection();
@@ -685,11 +886,11 @@ public sealed class PermissionsGroundworkTests
             return new Place(household, (await Accounts.GetByIdAsync(owner.Id))!, person, given.Account, spare, kid);
         }
 
-        private static RequestAuthority HouseholdAuthority(Account account, Guid profileId, bool isHouseholdAdmin = true, bool restricted = false) =>
+        private static RequestAuthority HouseholdAuthority(Account account, Guid profileId, bool isHouseholdAdmin = true, bool restricted = false, Guid? sessionId = null) =>
             new(PrincipalKind.Human, true,
                 AccountId: account.Id,
                 ActiveProfileId: profileId,
-                SessionId: Guid.NewGuid(),
+                SessionId: sessionId ?? Guid.NewGuid(),
                 AccountEnabled: true,
                 GrantEnabled: true,
                 ActiveProfileIsRestricted: restricted,
@@ -741,9 +942,11 @@ public sealed class PermissionsGroundworkTests
     {
         public ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(RequestAuthority authority,
             bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(authority.IsEffectiveHouseholdAdministrator
-                ? AuthorizationDecision.Allow()
-                : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
+            ValueTask.FromResult(!authority.IsEffectiveHouseholdAdministrator
+                ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired)
+                : requireSurfaceUnlock && authority.SessionId == lockedSession
+                    ? AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorUnlockRequired)
+                    : AuthorizationDecision.Allow());
 
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
             CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());

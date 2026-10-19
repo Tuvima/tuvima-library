@@ -16,6 +16,6 @@ public enum HouseholdDeleteOutcome
     /// <summary>The household still has at least one person or sign-in.</summary>
     NotEmpty,
 
-    /// <summary>The household holds the View Shared Library, which has to stay with a household.</summary>
-    HoldsSharedLibrary,
+    /// <summary>The household's Shared Library in View still holds shared photos or videos.</summary>
+    HoldsSharedItems,
 }

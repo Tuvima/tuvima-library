@@ -51,6 +51,7 @@ public sealed class PersonalScopeAuthorizer(
     }
 
     public async ValueTask<bool> CanDeletePersonalHistoryAsync(RequestAuthority authority, CancellationToken ct = default) =>
+        authority.PrincipalKind == PrincipalKind.Human &&
         (await decisions.EvaluateAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed;
 
     public bool CanEditTaste(RequestAuthority authority, Guid profileId) =>
@@ -60,6 +61,12 @@ public sealed class PersonalScopeAuthorizer(
     private async Task<PersonalScopeDecision> ResolveOthersAsync(
         RequestAuthority authority, Guid active, PersonalScope requested, CancellationToken ct)
     {
+        // A paired app acting for a person sees that person's own data only; wider views are for a signed-in person.
+        if (authority.PrincipalKind != PrincipalKind.Human)
+        {
+            return PersonalScopeDecision.Refuse(PersonalScopeRefusal.NotAllowed);
+        }
+
         if (authority.IsEffectiveAdministrator)
         {
             if (!(await decisions.EvaluateAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed)

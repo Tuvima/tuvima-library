@@ -57,7 +57,8 @@ public static class ProfileEndpoints
             var authority = await resolver.ResolveAsync(http, ct);
             var profiles = await svc.GetAllProfilesAsync(ct);
             var allowed = (await accounts.GetProfileIdsAsync(authority.AccountId!.Value, ct)).ToHashSet();
-            profiles = profiles.Where(profile => allowed.Contains(profile.Id)).ToList();
+            profiles = ProfilesForCaller(
+                await accounts.GetByIdAsync(authority.AccountId!.Value, ct), profiles, allowed);
             var withPin = await identity.GetProfileIdsWithPinAsync([.. profiles.Select(profile => profile.Id)], ct);
             var dtos = profiles.Select(profile => ProfileContractMapper.ToResponse(profile, withPin.Contains(profile.Id))).ToList();
             return Results.Ok(dtos);
@@ -388,6 +389,13 @@ public static class ProfileEndpoints
 
         return app;
     }
+
+    /// <summary>
+    /// The people a caller's account may open: its granted profiles, and for anyone but a server administrator only those
+    /// in the account's own household (the same rule as switching person).
+    /// </summary>
+    public static IReadOnlyList<Profile> ProfilesForCaller(Account? account, IEnumerable<Profile> profiles, IReadOnlySet<Guid> granted) =>
+        [.. profiles.Where(profile => granted.Contains(profile.Id) && account is not null && account.MaySwitchInto(profile.HouseholdId))];
 
     private static SeriesMissingItemPreferenceDto ToSeriesMissingItemPreferenceDto(
         Guid profileId,
