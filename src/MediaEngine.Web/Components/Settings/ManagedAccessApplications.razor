@@ -6,7 +6,7 @@
 @inject DeviceContextService DeviceContext
 @implements IDisposable
 
-<SettingsSectionPanel Title="Applications" Description="Applications receive live service permissions. Credentials identify an application without storing its authorization." Icon="@AppMaterialIcons.Outlined.Apps">
+<SettingsSectionPanel Title="Integrations" Description="Other software you connect receives live service permissions. Credentials identify an application without storing its authorization." Icon="@AppMaterialIcons.Outlined.Apps">
     @if (!CanManage)
     {
         <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage applications.</AppAlert>
@@ -90,7 +90,7 @@
     <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><AppText Typo="AppTypo.overline">Access · Applications</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <div><AppText Typo="AppTypo.overline">Developer · Integrations</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
             <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close application drawer" OnClick="Close" />
         </header>
         <div class="access-drawer__body">

@@ -64,7 +64,8 @@ public sealed class SettingsServerAdministrationTests
         var applications = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
         Assert.Contains("Last active", users, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
+        Assert.Contains("Profile access", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("Manage profiles", users, StringComparison.Ordinal);
         Assert.DoesNotContain("pending invite", users, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Copy this credential now", applications, StringComparison.Ordinal);
         Assert.DoesNotContain("ToggleReveal", applications, StringComparison.Ordinal);

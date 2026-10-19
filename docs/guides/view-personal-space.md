@@ -81,7 +81,7 @@ Every time you open someone's space or a household's Shared Library, Tuvima reco
 
 ## Switch View on for a person
 
-People outside your household start with **View** off. Open **Settings > Users & Access** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
+People outside your household start with **View** off. Open **Settings > Users and Sign-in** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
 
 ## Browse People and Places
 
