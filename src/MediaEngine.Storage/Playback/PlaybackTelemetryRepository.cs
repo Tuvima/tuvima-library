@@ -130,16 +130,6 @@ public sealed class PlaybackTelemetryRepository(
         }, ct);
     }
 
-    public Task<int> DeleteHistoryBeforeAsync(DateTimeOffset endedBefore, CancellationToken ct = default) =>
-        database.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            return connection.Execute("""
-                DELETE FROM playback_telemetry_sessions
-                WHERE ended_at IS NOT NULL AND ended_at < @endedBefore;
-                """, new { endedBefore = Iso(endedBefore) }, transaction);
-        }, ct);
-
     public Task<PlaybackTelemetryPage> GetActiveAsync(
         PlaybackTelemetryReadScope scope,
         int limit,

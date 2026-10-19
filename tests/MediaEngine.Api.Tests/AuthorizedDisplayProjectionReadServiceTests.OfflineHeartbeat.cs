@@ -45,6 +45,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
             new PlaybackTelemetryRepository(_database, new ApplicationEventOutboxWriter()),
             new ClientAuthorizationRepository(_database),
             new IdentityRepository(_database),
+            PersonalActivityTestKit.CreateRecorder(_database),
             TimeProvider.System);
         var states = new UserStateRepository(_database);
         var player = new PlayerService(

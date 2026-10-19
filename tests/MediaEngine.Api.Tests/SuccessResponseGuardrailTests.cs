@@ -49,6 +49,9 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetPersonHeadshot",
         // The Documents list export streams a CSV file, not JSON.
         "ExportViewDocumentsCsv",
+        // The Activity export streams a CSV file and the activity picture route returns an image, not JSON.
+        "ExportPersonalActivityCsv",
+        "GetPersonalActivityArtwork",
         "GetViewItemContent",
         "GetViewItemThumbnail",
         // The paired-app Photos routes that return JPEG or the original photo or video file, not JSON.
