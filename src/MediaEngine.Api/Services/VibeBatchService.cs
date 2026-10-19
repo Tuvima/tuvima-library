@@ -1,5 +1,6 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Jobs;
@@ -27,6 +28,7 @@ public sealed class VibeBatchService : BackgroundService
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
     private readonly BackgroundAiAdmissionController _admission;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<VibeBatchService> _logger;
 
     public VibeBatchService(
@@ -39,8 +41,10 @@ public sealed class VibeBatchService : BackgroundService
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
         BackgroundAiAdmissionController admission,
+        ScheduledTaskRunner runner,
         ILogger<VibeBatchService> logger)
     {
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(featureGate);
         ArgumentNullException.ThrowIfNull(configurationStore);
@@ -61,6 +65,7 @@ public sealed class VibeBatchService : BackgroundService
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
         _admission = admission;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -80,7 +85,7 @@ public sealed class VibeBatchService : BackgroundService
         {
             try
             {
-                await RunBatchAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.VibeTags, RunBatchAsync, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
@@ -96,12 +101,12 @@ public sealed class VibeBatchService : BackgroundService
         }
     }
 
-    private async Task RunBatchAsync(CancellationToken ct)
+    private async Task<TaskRunResult> RunBatchAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.VibeTags, MediaEngine.Domain.Enums.AiModelRole.TextQuality))
         {
             _logger.LogDebug("VibeBatchService: feature disabled or selected model unavailable — skipping before scan");
-            return;
+            return TaskRunResult.Skipped("Vibe tags is off");
         }
 
         _logger.LogInformation("VibeBatchService: scanning for entities needing vibe tags");
@@ -165,7 +170,7 @@ public sealed class VibeBatchService : BackgroundService
                 ct);
             if (admission is null)
             {
-                return;
+                return TaskRunResult.Skipped("Waiting: the machine is busy");
             }
 
             try
@@ -207,7 +212,7 @@ public sealed class VibeBatchService : BackgroundService
             catch (OperationCanceledException) when (admission.WasPreempted)
             {
                 _logger.LogInformation("VibeBatchService: yielding to interactive traffic");
-                return;
+                return TaskRunResult.Skipped("Paused to make way for something you were doing");
             }
             catch (Exception ex)
             {
@@ -231,5 +236,6 @@ public sealed class VibeBatchService : BackgroundService
         }
 
         _logger.LogInformation("VibeBatchService: tagged {Count} entities", tagged);
+        return TaskRunResult.Succeeded(tagged);
     }
 }

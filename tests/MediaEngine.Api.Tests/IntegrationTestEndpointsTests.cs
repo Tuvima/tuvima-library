@@ -45,7 +45,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
 
-        Assert.Contains("app.MapGroup(\"/dev\")", source, StringComparison.Ordinal);
+        Assert.Contains("app.MapDevelopmentGroup()", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/integration-test\", RunIntegrationTestAsync)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("app.MapPost(\"/integration-test\"", source, StringComparison.Ordinal);
     }

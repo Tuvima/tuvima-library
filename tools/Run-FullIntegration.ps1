@@ -83,7 +83,16 @@ else {
 }
 Write-Host "Saving report to: $OutputPath" -ForegroundColor DarkGray
 
-Invoke-WebRequest -Method Post -Uri $uri -OutFile $OutputPath -UseBasicParsing -TimeoutSec $TimeoutSec | Out-Null
+try {
+    Invoke-WebRequest -Method Post -Uri $uri -OutFile $OutputPath -UseBasicParsing -TimeoutSec $TimeoutSec | Out-Null
+}
+catch {
+    $status = $_.Exception.Response.StatusCode.value__
+    if ($status -eq 401 -or $status -eq 403) {
+        throw "Development actions need a signed-in administrator. Run this from the Dashboard (Settings > Developer Tools) or use tools/Run-IngestionBaseline.ps1, which runs offline."
+    }
+    throw
+}
 
 Write-Host ""
 Write-Host "Report saved to $OutputPath" -ForegroundColor Green

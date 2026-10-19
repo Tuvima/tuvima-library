@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=994; api=0; web-client=74
+# scopes: contracts=997; api=0; web-client=74
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7385,10 +7385,10 @@
   ReleaseUrl: System.String | json=release_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PackageUrl: System.String | json=package_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sha256: System.String | json=sha256 | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  MinimumTuvimaApiVersion: System.String | json=minimum_tuvima_api_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MinimumLibraryVersion: System.String | json=minimum_library_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.List<System.String> | json=capabilities | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InstallNotes: System.String | json=install_notes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","version":"sample","description":"sample","author":"sample","status":"sample","repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","minimum_tuvima_api_version":"sample","capabilities":[],"install_notes":"sample"}
+  sample={"id":"sample","name":"sample","version":"sample","description":"sample","author":"sample","status":"sample","repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","minimum_library_version":"sample","capabilities":[],"install_notes":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7499,6 +7499,13 @@
   Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsBuiltIn: System.Boolean | json=is_built_in | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LoadError: System.String | json=load_error | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TrustLevel: System.String | json=trust_level | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MinimumLibraryVersion: System.String | json=minimum_library_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaximumLibraryVersion: System.String | json=maximum_library_version | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedPlatforms: System.Collections.Generic.List<System.String> | json=supported_platforms | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsCompatible: System.Boolean | json=is_compatible | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CompatibilityProblem: System.String | json=compatibility_problem | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCapabilityDto> | json=capabilities | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Permissions: System.Collections.Generic.List<System.String> | json=permissions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ToolRequirements: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginToolRequirementDto> | json=tool_requirements | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7506,7 +7513,7 @@
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | json=settings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SettingsSchema: System.Text.Json.JsonElement? | json=settings_schema | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ManifestPath: System.String | json=manifest_path | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"load_error":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample"}
+  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"load_error":"sample","kind":"sample","trust_level":"sample","minimum_library_version":"sample","maximum_library_version":"sample","supported_platforms":[],"is_compatible":true,"compatibility_problem":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginToolPlatformDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9765,6 +9772,33 @@
   Scheduled: System.Boolean | json=scheduled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Owner: System.String | json=owner | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginId: System.String | json=plugin_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Schedule: System.String | json=schedule | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsContinuous: System.Boolean | json=is_continuous | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SettingsPlace: System.String | json=settings_place | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRun: MediaEngine.Contracts.System.ScheduledTaskLastRunDto | json=last_run | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","name":"sample","owner":"sample","plugin_id":"sample","schedule":"sample","is_continuous":true,"settings_place":"sample","next_run_at":"2025-01-02T03:04:05+00:00","last_run":null}
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskLastRunDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  StartedAt: System.DateTimeOffset | json=started_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FinishedAt: System.DateTimeOffset? | json=finished_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsProcessed: System.Int32? | json=items_processed | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"started_at":"2025-01-02T03:04:05+00:00","finished_at":"2025-01-02T03:04:05+00:00","outcome":"sample","items_processed":7,"message":"sample"}
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskListResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Tasks: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskDto> | json=tasks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"tasks":[]}
 
 [contracts] MediaEngine.Contracts.System.StartupReadinessCheckResponse
   kind=class | converter=default | number-handling=default | unmapped=default

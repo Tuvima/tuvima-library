@@ -62,10 +62,14 @@ public static class EpubBuilder
     // the exact ASCII bytes "application/epub+zip" (no BOM prefix).
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
+    // A fixed entry time keeps the archive bytes identical between runs (the ingestion baseline compares content hashes).
+    private static readonly DateTimeOffset FixedEntryTime = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     private static void AddEntry(ZipArchive archive, string path, string content,
         CompressionLevel level = CompressionLevel.Fastest)
     {
         ZipArchiveEntry entry = archive.CreateEntry(path, level);
+        entry.LastWriteTime = FixedEntryTime;
         using StreamWriter writer = new(entry.Open(), Utf8NoBom);
         writer.Write(content);
     }
@@ -182,8 +186,9 @@ public static class EpubBuilder
     private static string CoverSvg(string title, string author, int year)
     {
         // Generate a unique but deterministic colour from the title hash.
-        int hash = title.GetHashCode(StringComparison.Ordinal);
-        int hue = Math.Abs(hash) % 360;
+        // string.GetHashCode is randomised per process, so a stable digest keeps the cover (and the EPUB bytes) identical between runs.
+        uint hash = BitConverter.ToUInt32(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(title)), 0);
+        int hue = (int)(hash % 360);
         string colour1 = $"hsl({hue}, 60%, 30%)";
         string colour2 = $"hsl({(hue + 40) % 360}, 50%, 20%)";
 

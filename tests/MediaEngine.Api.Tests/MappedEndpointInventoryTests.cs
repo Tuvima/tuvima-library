@@ -197,6 +197,9 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/system/activity-status", HttpMethods.Get)
             .RequiresHumanOrApplicationPermission(ApplicationPermissionIds.SystemActivityRead);
 
+        inventory.Require("/system/scheduled-tasks", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
+
         inventory.Require("/system/data-store-version", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
 
@@ -309,6 +312,7 @@ public sealed class MappedEndpointInventoryTests
             "Endpoint inventory must not resolve AI model downloads."));
         builder.Services.AddApiReadServices();
         builder.Services.AddTuvimaHostedServices();
+        builder.Services.AddTuvimaScheduledTasks();
         builder.Services.AddTuvimaToolRequirements();
         builder.Services.AddTuvimaPlugins();
         builder.Services.AddPluginApplicationServices();

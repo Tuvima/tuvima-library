@@ -946,6 +946,22 @@ One row per upgrade step the data store has had (see [Changing the data store](.
 | `applied_at` | TEXT | ISO-8601 time the step ran |
 | `engine_version` | TEXT | Version of the Engine that ran it |
 
+### scheduled_task_runs
+
+One row per run of a recurring background task (activity log cleanup, Local AI batches, plugin segment detection, and the other tasks listed by `GET /system/scheduled-tasks`). A run is written when it starts and finished when it ends; any run still marked `running` when the Engine starts is marked `interrupted`. Plugin job history is read from here, so it survives a restart. Webhook delivery ticks every few seconds and writes no rows; its last run comes from `application_webhook_deliveries`. When a run finishes, that task's rows older than 90 days are deleted and so is everything past its newest 500.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `task_key` | TEXT | Snake_case task key, such as `vibe_tags` or `plugin_segment_detection` |
+| `plugin_id` | TEXT | Set when the run belongs to a plugin |
+| `started_at` | TEXT | ISO 8601 UTC |
+| `finished_at` | TEXT | ISO 8601 UTC; null while the run is going |
+| `outcome` | TEXT | `running`, `succeeded`, `failed`, `skipped` or `interrupted` |
+| `items_processed` | INTEGER | How many items the run handled, when that applies |
+| `message` | TEXT | Plain-English result, failure message or skip reason |
+
+**Indices:** `ix_scheduled_task_runs_task_started (task_key, started_at DESC)`. Added by upgrade step `0005_scheduled_task_runs`.
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

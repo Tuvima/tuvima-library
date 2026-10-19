@@ -130,6 +130,7 @@ public sealed class EngineCompositionValidationTests
         services.AddTuvimaProviders(configLoader);
         services.AddTuvimaAi(configLoader);
         services.AddTuvimaPlugins();
+        services.AddTuvimaScheduledTasks();
         services.AddPluginApplicationServices();
         services.AddApplicationEvents();
         services.AddApplicationWebhooks();

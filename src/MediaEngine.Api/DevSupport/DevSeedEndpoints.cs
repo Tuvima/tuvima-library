@@ -30,7 +30,7 @@ public enum DevelopmentFixtureSet
 ///   POST /dev/wipe           — Wipe DB, library root, watch folder, and reinitialize
 ///   POST /dev/full-test      — Wipe → Seed → return summary
 /// </summary>
-public static class DevSeedEndpoints
+public static partial class DevSeedEndpoints
 {
     private static readonly HashSet<string> StandardBookTitles = new(StringComparer.Ordinal)
     {
@@ -1041,8 +1041,7 @@ public static class DevSeedEndpoints
 
     public static void MapDevSeedEndpoints(this WebApplication app)
     {
-        RouteGroupBuilder group = app.MapGroup("/dev")
-            .WithTags("Development");
+        RouteGroupBuilder group = app.MapDevelopmentGroup();
 
         group.MapGet("/check-keys", CheckKeysAsync)
             .WithSummary("Probe each configured provider with real credentials — confirms all API keys are valid before seeding");

@@ -38,6 +38,10 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
     private readonly IConfigurationLoader _config;
     private readonly IEntityTimelineRepository _timelineRepo;
     private readonly ILogger<DeferredEnrichmentService> _logger;
+    private readonly IRecurringTaskRecorder? _recorder;
+
+    // Same key as the maintenance schedule and the Scheduled tasks list (ScheduledTaskKeys.NightlyEnrichmentSweep).
+    private const string NightlySweepTaskKey = "pass2_nightly_sweep";
 
     /// <summary>Signalled when the user clicks "Run Pass 2 Now".</summary>
     private readonly ManualResetEventSlim _manualTrigger = new(false);
@@ -51,8 +55,10 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
         IIdentityJobRepository jobRepo,
         IConfigurationLoader config,
         IEntityTimelineRepository timelineRepo,
-        ILogger<DeferredEnrichmentService> logger)
+        ILogger<DeferredEnrichmentService> logger,
+        IRecurringTaskRecorder? recorder = null)
     {
+        _recorder = recorder;
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _jobRepo = jobRepo ?? throw new ArgumentNullException(nameof(jobRepo));
@@ -129,7 +135,23 @@ public sealed class DeferredEnrichmentService : BackgroundService, IDeferredEnri
                 {
                     _logger.LogInformation("Nightly sweep triggered for stale Pass 2 items");
                     _lastNightlyRun = DateTime.Now;
-                    await ProcessStaleAsync(settings, stoppingToken).ConfigureAwait(false);
+                    if (_recorder is null)
+                    {
+                        await ProcessStaleAsync(settings, stoppingToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await _recorder.RecordAsync(
+                                NightlySweepTaskKey,
+                                async token =>
+                                {
+                                    await ProcessStaleAsync(settings, token).ConfigureAwait(false);
+                                    return null;
+                                },
+                                stoppingToken)
+                            .ConfigureAwait(false);
+                    }
+
                     continue;
                 }
 

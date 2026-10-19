@@ -198,6 +198,7 @@ compatibility versions.
 | GET | `/system/activity-status` | Sanitized leased/running durable operations used to seed the Dashboard navbar activity indicator; excludes media titles and filesystem paths | Required |
 | GET | `/system/watcher-status` | File watcher diagnostic - shows monitored folders and last event | Required |
 | GET | `/system/data-store-version` | Latest upgrade step applied to the data store (`step_number`, `step_name`, `applied_at`); step 0 with no date means none is recorded yet. Shown as a read-only line in Settings. | Administrator |
+| GET | `/system/scheduled-tasks` | Every recurring background task with its schedule, next run and last run: `tasks[]` of `key`, `name`, `owner` (`Library`, `Local AI` or `Plugin`), `plugin_id`, `schedule` (a cron expression read from settings at request time, or plain text such as `every 5 seconds` for continuous work), `is_continuous`, `settings_place`, `next_run_at` (UTC, null for continuous work) and `last_run` (`started_at`, `finished_at`, `outcome` of `running`, `succeeded`, `failed`, `skipped` or `interrupted`, `items_processed`, `message`; null when the task has never run). Sorted by name. Reads the durable `scheduled_task_runs` records; webhook delivery reports its newest delivery attempt instead. | Administrator, or application with `system.status.read` |
 | POST | `/maintenance/sweep-orphan-assets` | Scan `.data/assets/` for managed files with no database reference and remove them. | Administrator |
 | POST | `/maintenance/storage/run` | Run storage maintenance on demand. Supports `dryRun`, cache retention, image retention, and claim compaction batch query parameters. | Administrator |
 
@@ -554,7 +555,7 @@ clients should use that contract value rather than derive pressure from labels.
 | GET | `/plugins` | List built-in and dynamic plugins loaded by the Engine | Administrator or application with `plugins.read` |
 | GET | `/plugins/approved` | Fetch the approved plugin discovery catalog from the configured GitHub source | Administrator or application with `plugins.read` |
 | GET | `/plugins/{pluginId}` | Plugin detail, manifest metadata, settings, permissions, and load state | Administrator or application with `plugins.read` |
-| POST | `/plugins/{pluginId}/enable` | Enable a plugin | Administrator or application with `plugins.manage` |
+| POST | `/plugins/{pluginId}/enable` | Enable a plugin. Returns `409 Conflict` (problem detail with the plain-English reason) when the plugin does not fit this Library version or platform, is a kind this version cannot run, or failed to load. | Administrator or application with `plugins.manage` |
 | POST | `/plugins/{pluginId}/disable` | Disable a plugin | Administrator or application with `plugins.manage` |
 | PUT | `/plugins/{pluginId}/settings` | Save plugin user settings JSON | Administrator or application with `plugins.manage` |
 | GET | `/plugins/{pluginId}/manifest` | Read dynamic plugin manifest JSON. Built-in manifests are compiled and are not returned here. | Administrator or application with `plugins.read` |
@@ -563,6 +564,11 @@ clients should use that contract value rather than derive pressure from labels.
 | POST | `/plugins/{pluginId}/health` | Run plugin health checks | Administrator or application with `plugins.read` |
 | GET | `/plugins/{pluginId}/jobs` | List recent durable plugin operation rows for one plugin. | Administrator or application with `plugins.jobs.read` |
 | POST | `/plugins/jobs/segment-detection/run` | Run scheduled playback segment detector plugins immediately | Administrator or application with `plugins.jobs.run` |
+
+Plugin summaries also carry `kind`, `trust_level`, `minimum_library_version`,
+`maximum_library_version`, `supported_platforms`, `is_compatible` and
+`compatibility_problem`; `enabled` is the effective state (saved as on and
+compatible).
 
 Plugin responses preserve manifest capabilities, permissions, tool
 requirements and per-platform artifacts, AI permissions, settings schema,
@@ -714,7 +720,7 @@ that exception.
 
 ## Development
 
-Available in development environments only. These endpoints are removed in production builds.
+Available in development environments only. These endpoints are removed in production builds. Every one requires a signed-in administrator (with the administrator PIN unlocked when it is turned on); scripts that relied on the development localhost bypass alone are refused.
 
 | Method | Path | Description |
 |---|---|---|

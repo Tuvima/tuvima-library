@@ -47,6 +47,37 @@ if (args.Length >= 2 && args[0] == "--audit-real-media")
     await RealMediaAudit.RunAsync(args[1], args.Contains("--verify"));
     return;
 }
+// Repeatable ingestion baseline: isolated-run helpers. None of them starts the Engine, so none needs its process lease.
+if (args.Length >= 1 && args[0] == "--run-baseline")
+{
+    Environment.ExitCode = await BaselineRun.RunAsync(args[1..]);
+    return;
+}
+if (args.Length == 2 && args[0] == "--generate-baseline-samples")
+{
+    await BaselineSampleGenerator.RunAsync(args[1]);
+    return;
+}
+if (args.Length == 3 && args[0] == "--prepare-baseline")
+{
+    await BaselinePrepare.RunAsync(args[1], args[2]);
+    return;
+}
+if (args.Length >= 2 && args[0] == "--wait-baseline")
+{
+    Environment.ExitCode = await BaselineWait.RunAsync(args[1], args[2..]);
+    return;
+}
+if (args.Length == 3 && args[0] == "--export-baseline")
+{
+    await BaselineExport.RunAsync(args[1], args[2]);
+    return;
+}
+if (args.Length >= 4 && args[0] == "--compare-baseline")
+{
+    Environment.ExitCode = await BaselineComparer.RunAsync(args[1], args[2], args[3], args[4..]);
+    return;
+}
 #endif
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
 if (!processInstanceLease.IsAcquired)
@@ -450,6 +481,7 @@ builder.Services.AddTuvimaIntelligence();
 builder.Services.AddTuvimaProviders(configLoader);
 builder.Services.AddTuvimaAi(configLoader);
 builder.Services.AddTuvimaPlugins();
+builder.Services.AddTuvimaScheduledTasks();
 builder.Services.AddPluginApplicationServices();
 builder.Services.AddApplicationEvents();
 builder.Services.AddApplicationWebhooks();

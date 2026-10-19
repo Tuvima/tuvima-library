@@ -6,7 +6,8 @@
     "activity_retention_days": { "type": "integer", "minimum": 1 },
     "weekly_sync_interval_days": { "type": "integer", "minimum": 1 },
     "weekly_sync_batch_size": { "type": "integer", "minimum": 1 },
-    "retag_sweep": { "type": "object" }
+    "retag_sweep": { "type": "object" },
+    "schedules": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
   },
   "additionalProperties": true
 }

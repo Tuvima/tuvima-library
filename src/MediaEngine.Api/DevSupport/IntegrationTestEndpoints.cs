@@ -715,7 +715,7 @@ public static class IntegrationTestEndpoints
 
     public static void MapIntegrationTestEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/dev").WithTags("Development");
+        var group = app.MapDevelopmentGroup();
 
         group.MapPost("/integration-test", RunIntegrationTestAsync)
             .WithSummary("Full integration test: wipe -> seed -> ingest -> validate -> HTML report")
@@ -4879,42 +4879,12 @@ public static class IntegrationTestEndpoints
         {
             ct.ThrowIfCancellationRequested();
             using var stage3Conn = db.CreateConnection();
-            return await stage3Conn.ExecuteScalarAsync<int>("""
-                SELECT COUNT(*)
-                FROM identity_jobs j
-                LEFT JOIN canonical_values stage3_enhanced
-                       ON stage3_enhanced.entity_id = j.entity_id
-                      AND stage3_enhanced.key = 'stage3_enhanced_at'
-                WHERE j.state NOT IN (
-                    'Ready',
-                    'ReadyWithoutUniverse',
-                    'Failed',
-                    'RetailNoMatch',
-                    'QidNoMatch',
-                    'QidNeedsReview'
-                )
-                AND (
-                    j.state <> 'UniverseEnriching'
-                    OR stage3_enhanced.entity_id IS NULL
-                );
-                """);
+            return await stage3Conn.ExecuteScalarAsync<int>(IngestionSettleQueries.ActiveJobsThroughStage3);
         }
 
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
-        return await conn.ExecuteScalarAsync<int>("""
-            SELECT COUNT(*)
-            FROM identity_jobs
-            WHERE state NOT IN (
-                'Ready',
-                'ReadyWithoutUniverse',
-                'Failed',
-                'RetailNoMatch',
-                'QidNoMatch',
-                'QidNeedsReview',
-                'UniverseEnriching'
-            );
-            """);
+        return await conn.ExecuteScalarAsync<int>(IngestionSettleQueries.ActiveJobsThroughStage2);
     }
 
     private static async Task<Dictionary<Guid, Guid>> LoadWorkAssetIdsAsync(IDatabaseConnection db)
