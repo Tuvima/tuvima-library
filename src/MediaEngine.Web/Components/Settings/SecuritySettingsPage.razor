@@ -11,6 +11,7 @@
 @inject ConfirmedActionRunner Confirmed
 @inject AuthenticationStateProvider AuthenticationState
 @inject NavigationManager Navigation
+@inject AccountNoticeState Notices
 @implements IAsyncDisposable
 
 @* Settings > Security: two short row lists. Each row opens a sheet (a bottom sheet on phones, a dialog on larger screens)
@@ -33,6 +34,10 @@
     else
     {
         <div class="security-settings__content">
+            @if (ShowAwayFromHomeNote)
+            {
+                <p class="security-settings__note">Your account has no password, so it only works at home. Add one any time below.</p>
+            }
             <section class="security-settings__group" aria-labelledby="security-account-details">
                 <h3 id="security-account-details" class="security-settings__group-title">Account details</h3>
                 <ul class="security-settings__list" role="list">
@@ -128,7 +133,7 @@
     {
         @if (!Capabilities.HasPassword)
         {
-            <p>Add a password to use Tuvima on your phone, TV and other devices at home. Your library, history and favourites stay just as they are.</p>
+            <p>Add a password to use the Library away from home. Phones and TVs at home keep working without one. Your library, history and favourites stay just as they are.</p>
             <form method="post" action="/account/secure" class="security-sheet__fields">
                 <AntiforgeryToken />
                 @if (NeedsEmail)
@@ -365,6 +370,9 @@
     private string _secureConfirm = string.Empty;
     private string _secureEmail = string.Empty;
     private bool _thisComputerOnly;
+    // After Not now on the profile menu card the reminder is a quiet note here instead of a dot and a card.
+    private bool ShowAwayFromHomeNote => _thisComputerOnly && !Capabilities.HasPassword && Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
     private bool _accountLoading = true;
@@ -483,6 +491,8 @@
     protected override async Task OnInitializedAsync()
     {
         _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
+        Notices.Changed += OnNoticesChanged;
+        if (_thisComputerOnly) await Notices.EnsureLoadedAsync(_lifetime.Token);
         await LoadAccountAsync();
         if (_account is null || _disposed) return;
         StateHasChanged();
@@ -698,6 +708,7 @@
     {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
+        Notices.Changed -= OnNoticesChanged;
         _recoveryCodes = [];
         _lifetime.Cancel();
         _lifetime.Dispose();

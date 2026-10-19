@@ -821,6 +821,13 @@ public sealed class DashboardIdentityClient(
     public async Task<List<AccountExternalLoginDto>> GetExternalLoginsAsync(CancellationToken ct = default) =>
         await GetAsync<List<AccountExternalLoginDto>>("/access/self-service/external-logins", ct).ConfigureAwait(false) ?? [];
 
+    /// <summary>The reminders the signed-in account chose "Not now" for. Null means the Engine could not answer.</summary>
+    public Task<AccountNoticesResponse?> GetAccountNoticesAsync(CancellationToken ct = default) =>
+        GetAsync<AccountNoticesResponse>("/access/self-service/notices", ct);
+
+    public Task<DashboardAccessMutationResult> DismissAccountNoticeAsync(string noticeKey, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Post, $"/access/self-service/notices/{Uri.EscapeDataString(noticeKey)}/dismiss", ct);
+
     public async Task<bool> UnlinkExternalLoginAsync(Guid id, CancellationToken ct = default) =>
         (await UnlinkExternalLoginResultAsync(id, ct).ConfigureAwait(false)).Succeeded;
 

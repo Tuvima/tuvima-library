@@ -21,6 +21,7 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
         Services.AddNativeUiServices();
         Services.AddSingleton<IHttpClientFactory>(_factory);
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddSingleton(System.Reflection.DispatchProxy.Create<IEngineApiClient, EmptyEngineApiClient>());
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
