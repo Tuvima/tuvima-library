@@ -901,6 +901,12 @@ public sealed class FirstPartyIdentityService(
         }
 
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
+        // Beyond the grant, a member or household administrator switches only inside their own household.
+        if (!current.Account.MaySwitchInto(target.HouseholdId))
+        {
+            throw new UnauthorizedAccessException("This account cannot use that profile.");
+        }
+
         // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
         // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
         await VerifyProfilePinAsync(target.Id, pin, true, ct).ConfigureAwait(false);
