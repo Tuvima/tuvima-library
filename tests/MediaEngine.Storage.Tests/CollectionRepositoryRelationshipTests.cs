@@ -326,7 +326,7 @@ public sealed class CollectionRepositoryRelationshipTests : IDisposable
     {
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO works (id, collection_id, parent_work_id, media_type) VALUES ($id, $collectionId, $parentWorkId, $mediaType)";
+        cmd.CommandText = "INSERT INTO works (id, collection_id, parent_work_id, media_type, ready_at) VALUES ($id, $collectionId, $parentWorkId, $mediaType, '2026-01-01T00:00:00.0000000+00:00')";
         cmd.Parameters.Add("$id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(workId);
         cmd.Parameters.Add("$collectionId", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(collectionId);
         cmd.Parameters.Add("$parentWorkId", Microsoft.Data.Sqlite.SqliteType.Blob).Value =

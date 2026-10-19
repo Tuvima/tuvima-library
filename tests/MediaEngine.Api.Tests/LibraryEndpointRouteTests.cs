@@ -38,7 +38,7 @@ public sealed class LibraryEndpointRouteTests
         Assert.Contains("display.LoadWorksAsync(ct)", source, StringComparison.Ordinal);
         Assert.DoesNotContain(".RequireAdminOrStandardUser()", source, StringComparison.Ordinal);
         Assert.DoesNotContain(".RequireAnyRole()", source, StringComparison.Ordinal);
-        Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("WorkReadinessSql.ReadyWorkPredicate(\"w\")", serviceSource, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleAssetPathPredicate(\"ad.file_path_root\")", serviceSource, StringComparison.Ordinal);
         Assert.Contains("w.collection_id AS collection_id", serviceSource, StringComparison.Ordinal);
         Assert.Contains("w.work_kind AS work_kind", serviceSource, StringComparison.Ordinal);

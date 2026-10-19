@@ -110,6 +110,7 @@ public sealed class PersonWorksReadService : IPersonWorksReadService
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
+            -- readiness: membership lookup from a person or collection id to files, not a listing
             SELECT DISTINCT w.collection_id
             FROM primary_person_media_credits primary_credit
             JOIN media_assets ma ON ma.id = primary_credit.media_asset_id
@@ -153,6 +154,7 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
     public async Task<IReadOnlyList<PersonSummaryResponse>> GetByCollectionAsync(Guid collectionId, CancellationToken ct)
     {
         return await GetByAssetQueryAsync("""
+            -- readiness: membership lookup from a person or collection id to files, not a listing
             SELECT ma.id
             FROM media_assets ma
             JOIN editions e ON e.id = ma.edition_id
@@ -204,6 +206,7 @@ public sealed class PersonAssetScopeReadService : IPersonAssetScopeReadService
         using var connection = _db.CreateConnection();
         var people = connection.Query<Guid>(
             """
+            -- readiness: membership lookup from a person or collection id to files, not a listing
             SELECT DISTINCT credit.person_id
             FROM primary_person_media_credits credit
             JOIN media_assets asset ON asset.id=credit.media_asset_id

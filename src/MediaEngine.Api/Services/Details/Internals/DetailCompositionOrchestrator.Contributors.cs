@@ -456,6 +456,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var row = await conn.QueryFirstOrDefaultAsync<ContributorTargetRow>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT w.id AS WorkId,
                    COALESCE(gp.id, p.id, w.id) AS RootWorkId,
                    MIN(ma.id) AS AssetId

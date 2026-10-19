@@ -22,6 +22,7 @@ public sealed class SavedPlaybackTimingReadTests : IDisposable
         _db = new DatabaseConnection(_path);
         _db.InitializeSchema();
         _db.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_db);
     }
 
     [Theory]

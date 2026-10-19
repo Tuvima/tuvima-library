@@ -180,6 +180,30 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// Links the file's durable operation to its media asset the moment the asset is known (newly registered, or the
+    /// existing asset a duplicate or same-path re-detection resolves to), so the live ingestion numbers can follow the
+    /// file from intake into identity.
+    /// </summary>
+    private async Task AttachOperationAssetAsync(MediaOperation? operation, Guid assetId, CancellationToken ct)
+    {
+        if (_operationRepository is null || operation is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _operationRepository
+                .AttachEntityAsync(operation.Id, assetId, EntityType.MediaAsset.ToString(), ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Durable operation asset link failed for {OperationId}", operation.Id);
+        }
+    }
+
     private async Task CompleteOperationAsync(MediaOperation? operation, string? summary, CancellationToken ct)
     {
         if (_operationTracker is null || operation is null)
@@ -213,6 +237,95 @@ public sealed partial class IngestionEngine
             _logger.LogDebug(ex, "Durable operation no-result update failed for {OperationId}", operation.Id);
         }
     }
+
+    /// <summary>The reason shown when a file the Engine had noticed was gone before its intake could read it.</summary>
+    private const string VanishedFileReason =
+        "The file was detected but is no longer available. It may have been moved, deleted, or locked before ingestion could read it.";
+
+    /// <summary>
+    /// The debounce queue dropped a noticed file because it is no longer there. Nothing else will ever finish the job
+    /// that was opened when the file was first noticed, so close it here.
+    /// </summary>
+    private void OnFileVanished(FileEvent evt)
+    {
+        if (LifetimeToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        TrackBackgroundTask(
+            CloseVanishedFileOperationAsync(IngestionCandidate.FromEvent(evt), LifetimeToken),
+            "vanished-file intake close-out");
+    }
+
+    /// <summary>
+    /// A file that is gone before the pipeline could read it: closes its waiting intake job (see
+    /// <see cref="CloseWaitingFileOperationAsync"/>) and, when there was one, settles the file in the ingestion log and its
+    /// batch the same way the pipeline does for a file it finds missing.
+    /// </summary>
+    private async Task CloseVanishedFileOperationAsync(IngestionCandidate candidate, CancellationToken ct)
+    {
+        ReleaseActivePath(candidate.Path);
+
+        if (!await CloseWaitingFileOperationAsync(candidate.Path, ct).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "Ingestion closed - file vanished before it could be read: \"{FileName}\"",
+            Path.GetFileName(candidate.Path));
+        await _ingestionLogScribe.RecordTerminalAsync(
+            candidate,
+            candidate.BatchId,
+            "missing",
+            VanishedFileReason,
+            ct).ConfigureAwait(false);
+        if (candidate.BatchId.HasValue)
+        {
+            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
+            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
+            await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Closes the file's open intake job as <c>missing_confirmed</c> with a plain reason, through the tracker (so a history
+    /// entry is written and the change is published). Only a job still waiting for the pipeline (just noticed, or waiting
+    /// for a lock retry) is closed; a job the pipeline is already running is left to it. A job is found by the file's path,
+    /// because its key includes the file's size and time, which change once the file is gone.
+    /// Returns whether a job was closed.
+    /// </summary>
+    private async Task<bool> CloseWaitingFileOperationAsync(string path, CancellationToken ct)
+    {
+        if (_operationTracker is null || _operationRepository is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var open = await _operationRepository
+                .GetActiveBySourcePathAsync(Path.GetFullPath(path), ct)
+                .ConfigureAwait(false);
+            if (open is null || !IsWaitingForPipeline(open))
+            {
+                return false;
+            }
+
+            await _operationTracker.MarkMissingConfirmedAsync(open.Id, VanishedFileReason, null, ct).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Durable operation close-out failed for vanished file {Path}", path);
+            return false;
+        }
+    }
+
+    private static bool IsWaitingForPipeline(MediaOperation operation) =>
+        string.Equals(operation.Stage, MediaOperationStage.Discovered, StringComparison.Ordinal)
+        || string.Equals(operation.Status, MediaOperationStatus.FailedRetryable, StringComparison.Ordinal);
 
     private async Task MarkBlockedOperationAsync(
         MediaOperation? operation,
@@ -305,6 +418,7 @@ public sealed partial class IngestionEngine
             await Task.Delay(delay, ct).ConfigureAwait(false);
             if (!File.Exists(candidate.Path))
             {
+                await CloseVanishedFileOperationAsync(candidate, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -415,6 +529,7 @@ public sealed partial class IngestionEngine
         UnsubscribeFromFolderChanges();
         _watcher.FileDetected -= OnFileDetected;
         _watcher.WatcherError -= OnWatcherError;
+        _debounce.FileVanished -= OnFileVanished;
         lock (_fswBufferLock)
         {
             _fswFlushTimer?.Dispose();

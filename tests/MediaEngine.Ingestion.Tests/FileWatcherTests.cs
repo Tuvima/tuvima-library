@@ -6,6 +6,17 @@ namespace MediaEngine.Ingestion.Tests;
 
 public sealed class FileWatcherTests
 {
+    [Theory]
+    [InlineData(@"C:\Library\Books\Dune\Dune.epub.tuvima.bak", true)]
+    [InlineData(@"C:\Library\Books\Dune\Dune.EPUB.TUVIMA.BAK", true)]
+    [InlineData(@"C:\Library\Books\Dune\Dune.epub", false)]
+    public void TheLibrarysOwnTagBackups_AreNeverPickedUpAsNewFiles(string path, bool ignored)
+    {
+        var method = typeof(IngestionEngine).GetMethod("IsIgnoredScanFile", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        Assert.Equal(ignored, (bool)method.Invoke(null, [path])!);
+    }
+
     [Fact]
     public void OnError_RecordsStatusAndRaisesWatcherError()
     {

@@ -306,6 +306,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             new { entityId, preferredAssetId });
 
         var lineageRow = conn.QueryFirstOrDefault<(Guid? AssetId, Guid RootParentWorkId, string MediaType)>("""
+            -- readiness: tree of one work, looked up by id
             WITH RECURSIVE work_tree(id, depth) AS (
                 SELECT w.id, 0
                 FROM works w
@@ -485,7 +486,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 """, new { assetId });
 
         var workIdentity = conn.QueryFirstOrDefault<(string? MatchLevel, string? WorkKind)>(
-            "SELECT match_level AS MatchLevel, work_kind AS WorkKind FROM works WHERE id = @entityId;",
+            "-- readiness: match level of one work, looked up by id\nSELECT match_level AS MatchLevel, work_kind AS WorkKind FROM works WHERE id = @entityId;",
             new { entityId });
         var matchLevel = workIdentity.MatchLevel ?? "work";
 
@@ -859,6 +860,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     {
         using var conn = _db.CreateConnection();
         var rows = conn.Query<(string MediaType, int Count)>("""
+            -- readiness: administrator count of the files in the library
             SELECT w.media_type AS MediaType,
                    COUNT(DISTINCT CASE WHEN LOWER(w.media_type) IN ('audiobook', 'audiobooks')
                                        THEN w.id ELSE ma.id END) AS Count
@@ -941,6 +943,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     w.media_type,
                     w.wikidata_status,
                     w.curator_state,
+                    w.ready_at,
                     CASE WHEN w.collection_id IS NOT NULL THEN 1 ELSE 0 END AS universe_assigned,
                     MAX(CASE WHEN acv.key = 'title' THEN acv.value END) AS title,
                     MAX(CASE WHEN acv.key = 'issue_title' THEN acv.value END) AS issue_title,
@@ -1183,7 +1186,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 LEFT JOIN asset_cv acv ON acv.work_id = w.id
                 LEFT JOIN work_cv wcv ON wcv.work_id = w.id
                 WHERE w.work_kind != 'parent'
-                GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.collection_id
+                GROUP BY w.id, w.media_type, w.wikidata_status, w.curator_state, w.ready_at, w.collection_id
             )
             """;
 
@@ -1353,6 +1356,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     wd.qid_resolution_method,
                     wd.wikidata_status,
                     wd.curator_state,
+                    wd.ready_at,
                     wd.universe_assigned,
                     pad.asset_id,
                     pad.file_path_root AS file_path,
@@ -1470,16 +1474,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     rd.universe_assigned,
                     rd.created_at,
                     rd.asset_status,
-                    CASE
-                        WHEN rd.has_quality_title = 1
-                             AND rd.has_resolved_media_type = 1
-                             AND COALESCE(rd.job_state, '') NOT IN ('RetailNoMatch', 'Failed')
-                             AND (
-                                 rd.artwork_state = 'present'
-                                 OR rd.artwork_settled_at IS NOT NULL
-                             )
-                            THEN 1 ELSE 0
-                    END AS is_ready_for_library,
+                    CASE WHEN rd.ready_at IS NOT NULL THEN 1 ELSE 0 END AS is_ready_for_library,
                     CASE
                         WHEN rd.curator_state IN ('rejected', 'provisional')
                              OR rd.job_state = 'QidNeedsReview'
@@ -1503,13 +1498,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                                  )
                              )
                             THEN 'review_only'
-                        WHEN rd.has_quality_title = 1
-                             AND rd.has_resolved_media_type = 1
-                             AND (
-                                 rd.artwork_state = 'present'
-                                 OR rd.artwork_settled_at IS NOT NULL
-                             )
-                            THEN 'visible'
+                        WHEN rd.ready_at IS NOT NULL THEN 'visible'
                         ELSE 'hidden'
                     END AS library_visibility,
                     CASE

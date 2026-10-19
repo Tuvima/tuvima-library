@@ -312,6 +312,18 @@ Managed artwork is stored through `AssetPathService` and `entity_assets` under `
 
 ---
 
+## When an item becomes Ready
+
+The Engine keeps one stored "Ready" mark per leaf Work (`works.ready_at`, with `works.first_ready_at` recording the first time). Display queries read only this mark, through `WorkReadinessSql` (`ReadyWorkPredicate`); a guardrail test fails if a query over `works` omits it or defines its own rule. The rule itself lives in `WorkReadinessSql`: a leaf Work is Ready when it is not rejected or provisional, has a visible file (including the files that cover it, such as one file holding several episodes), its latest identity job is matched (Wikidata is not required; libraries whose metadata policy skips identity count as matched without a job), no Needs Review row is pending, an episode sits under its show and a track under its album, and its artwork is stored as present or settled. That full rule is needed for the first Ready; after that only the "still ready" rule is checked (`StillReadyPredicate`), so a rematch (Queued, searching, hydrating) does not remove the mark and artwork is not asked for again. Review, no match, failure, rejection, a lost file or a lost place clear it.
+
+`WorkReadinessService` (a hosted service) keeps the mark current:
+
+- **Startup.** It takes the change watermarks, then checks every Work and sets the mark. It announces nothing, because those items are already known.
+- **Every 2 seconds.** It asks which Works had an identity job, a review row or a stored artwork value change since the last pass (`FindTouchedWorkIdsAsync`), re-checks only those, and for each Work that became Ready for the first time publishes `MediaAdded` (with the real work id). A failed announcement is kept and retried on the next passes, up to a limit.
+- **Every 10 minutes.** It re-checks every Work, which catches inputs that carry no timestamp (curator changes, parent placement, files that moved), re-reads the libraries configuration for the identity-bypass list, and forgets timing entries for Works no longer waiting for artwork.
+
+Change detection uses one watermark per table, each the newest value seen in that table's own time column (the tables write different text formats, so values are never compared across tables). Each pass also re-reads a 30 second stretch below the watermark, because a row is stamped before its write commits and a slow write can appear behind it; once a row is older than that stretch an idle library re-reads nothing. Re-checking a Work is idempotent. The look-ups use the `idx_identity_jobs_updated_at` and partial `idx_canonical_values_artwork_scored` indexes. The Engine logs how long each Work waited between being matched and being Ready (`Work {WorkId} is ready ({MediaType}) {Seconds}s after it was matched`).
+
 ## Staging-First Flow
 
 All ingested files land in `.staging/` before reaching the organised library. The library invariant is that every file within the library root (outside `.staging/`) has been hydrated, has reached a settled identity outcome, and has a settled artwork outcome. That may mean a resolved QID with art present, or a precision-preserving QID-missing result with artwork explicitly confirmed missing.

@@ -115,6 +115,7 @@ public sealed class JourneyReadService : IJourneyReadService
     }
 
     private const string BaseSelect = """
+        -- readiness: a profile's own progress rows; they exist only for items that were played
         SELECT
             us.asset_id,
             w.id            AS work_id,

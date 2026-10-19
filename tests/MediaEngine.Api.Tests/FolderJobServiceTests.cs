@@ -786,6 +786,8 @@ public sealed class FolderJobServiceTests : IDisposable
 
         public Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
 
+        public Task MarkMissingConfirmedAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
+
         public Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
 
         public Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default) => Task.CompletedTask;
@@ -817,6 +819,9 @@ public sealed class FolderJobServiceTests : IDisposable
 
         public Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) =>
             inner.MarkNoResultAsync(operationId, reason, detail, ct);
+
+        public Task MarkMissingConfirmedAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkMissingConfirmedAsync(operationId, reason, detail, ct);
 
         public Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default) =>
             inner.MarkBlockedAsync(operationId, reason, detail, ct);

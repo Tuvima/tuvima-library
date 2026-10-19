@@ -182,6 +182,7 @@ public sealed class UniversalSearchReadService(
         using var conn = db.CreateConnection();
         var rows = (await conn.QueryAsync<CollectionSearchRow>(new CommandDefinition(
             """
+            -- readiness: searches only the works the Ready-gated display projection returned for the caller
             SELECT c.id AS Id,
                    COALESCE(c.display_name, title.value, 'Untitled collection') AS Name,
                    c.collection_type AS CollectionType,
@@ -260,6 +261,7 @@ public sealed class UniversalSearchReadService(
         using var conn = db.CreateConnection();
         var members = await conn.QueryAsync<CollectionMemberRow>(new CommandDefinition(
             """
+            -- readiness: searches only the works the Ready-gated display projection returned for the caller
             SELECT membership.collection_id AS CollectionId, membership.work_id AS WorkId
             FROM (
                 SELECT ci.collection_id AS collection_id, ci.work_id AS work_id, ci.sort_order AS sort_order

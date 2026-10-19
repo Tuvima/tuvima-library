@@ -41,11 +41,10 @@ public static class DisplayFormat
 
     /// <summary>
     /// Three-tier "Xs" / "Xm Ys" / "Xh Ym" format that rounds a sub-minute
-    /// duration to the nearest whole second. Originally private in
-    /// Components/Settings/IngestionLiveDashboard.razor.cs. Distinct from
-    /// <see cref="FormatDurationCompactFloor"/> (Services/Integration/IngestionLiveDashboardState.Projection.cs),
-    /// which floors instead of rounds for sub-minute durations — the two diverge
-    /// on fractional-second input and must not be merged.
+    /// duration to the nearest whole second. Distinct from
+    /// <see cref="FormatDurationCompactFloor"/>, which floors instead of rounds
+    /// for sub-minute durations — the two diverge on fractional-second input and
+    /// must not be merged.
     /// </summary>
     public static string FormatDurationCompact(TimeSpan value)
     {
@@ -65,7 +64,6 @@ public static class DisplayFormat
     /// <summary>
     /// Three-tier "Xs" / "Xm Ys" / "Xh Ym" format that floors (rather than rounds)
     /// the sub-minute remainder and normalizes sign via <see cref="TimeSpan.Duration()"/>.
-    /// Originally private in Services/Integration/IngestionLiveDashboardState.Projection.cs.
     /// See <see cref="FormatDurationCompact"/> for the rounding sibling.
     /// </summary>
     public static string FormatDurationCompactFloor(TimeSpan duration)
@@ -121,23 +119,18 @@ public static class DisplayFormat
     // ---- Count ------------------------------------------------------------
 
     /// <summary>
-    /// Thousands-separated count using the current culture. Originally
-    /// duplicated (identical) in Components/Settings/IngestionLiveDashboard.razor.cs
-    /// and Components/Settings/OverviewTab.razor.
+    /// Thousands-separated count using the current culture.
     /// </summary>
     public static string FormatCount(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
 
     /// <summary>
-    /// <see cref="long"/> overload of <see cref="FormatCount(int)"/>. Originally
-    /// private in Components/Settings/IngestionLiveDashboard.razor.cs.
+    /// <see cref="long"/> overload of <see cref="FormatCount(int)"/>.
     /// </summary>
     public static string FormatCount(long value) => value.ToString("N0", CultureInfo.CurrentCulture);
 
     /// <summary>
     /// Thousands-separated count that clamps negative input to zero before
-    /// formatting. Originally private in
-    /// Services/Integration/IngestionLiveDashboardState.Projection.cs — kept
-    /// distinct from <see cref="FormatCount(int)"/> because of the clamp.
+    /// formatting. Kept distinct from <see cref="FormatCount(int)"/> because of the clamp.
     /// </summary>
     public static string FormatCountClamped(int value) => Math.Max(0, value).ToString("N0", CultureInfo.CurrentCulture);
 

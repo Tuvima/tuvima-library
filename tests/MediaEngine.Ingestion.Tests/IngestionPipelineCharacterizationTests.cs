@@ -19,7 +19,7 @@ public sealed class IngestionPipelineCharacterizationTests
         var recovery = Find(source, "var missingIdentityJob = context.Library?.BypassesExternalIdentity != true");
         var refresh = Find(source, "if (contentChanged || missingIdentityJob)", recovery);
         var fail = Find(source, "if (missingIdentityJob && !metadataRefreshed)", refresh);
-        var completion = Find(source, "CompleteOperationAsync(durableOperation, \"same_path_redetected\"", fail);
+        var completion = Find(source, "CompleteOperationAsync(durableOperation, summary, ct)", fail);
         Assert.True(recovery < refresh && refresh < fail && fail < completion);
         Assert.Contains("queueIdentityRefresh: context.Library?.BypassesExternalIdentity != true", source);
     }
