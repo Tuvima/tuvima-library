@@ -306,7 +306,8 @@ else
         Attention.ReviewCount,
         ShowSecurityAttentionDot,
         IsSectionEnabledByUiSettings,
-        Attention.LocalAiBlocked);
+        Attention.LocalAiBlocked,
+        Attention.PluginsBroken);
 
     // One menu tree: the desktop rail and the phone page selector are both built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
