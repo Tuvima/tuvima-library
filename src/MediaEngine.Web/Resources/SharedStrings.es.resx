@@ -488,9 +488,6 @@
   <data name="Schedule_ItemsEnriched" xml:space="preserve">
     <value>elementos enriquecidos</value>
   </data>
-  <data name="Schedule_ItemsPending" xml:space="preserve">
-    <value>elementos pendientes - procesados en lotes en segundo plano</value>
-  </data>
   <data name="Schedule_AllItemsEnriched" xml:space="preserve">
     <value>Todos los elementos enriquecidos</value>
   </data>
@@ -1274,9 +1271,6 @@
   </data>
   <data name="Wikidata_Stage3Schedule" xml:space="preserve">
     <value>Programación</value>
-  </data>
-  <data name="Wikidata_Stage3BatchSize" xml:space="preserve">
-    <value>Tamaño del lote</value>
   </data>
   <data name="Wikidata_Stage3BatchSizeHelper" xml:space="preserve">
     <value>Máximo de obras procesadas por barrido.</value>

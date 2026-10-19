@@ -58,6 +58,12 @@ public sealed class IngestionPresentationSnapshotDto
     [JsonPropertyName("recent_days")]
     public List<IngestionRecentDayDto> RecentDays { get; set; } = [];
 
+    /// <summary>
+    /// Photos and personal videos being taken in right now. Shown as counts only; they never become rows in the Now panel.
+    /// </summary>
+    [JsonPropertyName("personal_media_in_progress")]
+    public IngestionPersonalMediaProgressDto PersonalMediaInProgress { get; set; } = new();
+
     [JsonPropertyName("generated_at")]
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -229,8 +235,33 @@ public sealed class IngestionRecentDayDto
     [JsonPropertyName("total_count")]
     public int TotalCount { get; set; }
 
+    /// <summary>
+    /// What was fully added that day, by media type, counted over every item of the day (not only <see cref="Items"/>).
+    /// The unit is the leaf item of the type: movies, episodes, songs, books, audiobooks, comic issues. Largest first.
+    /// </summary>
+    [JsonPropertyName("type_counts")]
+    public List<IngestionTypeCountDto> TypeCounts { get; set; } = [];
+
     [JsonPropertyName("items")]
     public List<IngestionMediaGroupDto> Items { get; set; } = [];
+}
+
+public sealed class IngestionTypeCountDto
+{
+    [JsonPropertyName("media_type")]
+    public string MediaType { get; set; } = "Unknown";
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+}
+
+public sealed class IngestionPersonalMediaProgressDto
+{
+    [JsonPropertyName("photos")]
+    public int Photos { get; set; }
+
+    [JsonPropertyName("videos")]
+    public int Videos { get; set; }
 }
 
 public sealed class ActivityHistorySummaryDto
