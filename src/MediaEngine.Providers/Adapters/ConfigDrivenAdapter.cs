@@ -36,7 +36,10 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     private readonly IProviderResponseCacheRepository? _responseCache;
     private readonly IProviderHealthMonitor _healthMonitor;
     private readonly IProviderRateLimiterCoordinator _rateLimiter;
-    private readonly ConcurrentDictionary<string, Lazy<Task<object?>>> _memoryLookups =
+    // One typed memory cache per kind of remembered lookup, so keys of different kinds never meet.
+    private readonly ConcurrentDictionary<string, Lazy<Task<JsonNode?>>> _jsonLookups =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<Task<CollectedMembers?>>> _pagedLookups =
         new(StringComparer.OrdinalIgnoreCase);
 
     // Parsed once at construction.

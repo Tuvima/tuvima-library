@@ -184,13 +184,17 @@ internal sealed partial class ProviderFlowRunner(
 
         return array.FirstOrDefault(node => node is not null && find.Tests.All(test =>
         {
-            var actual = TextOf(JsonPathEvaluator.Evaluate(node, test.Path));
+            var actual = TrimmedTextOf(JsonPathEvaluator.Evaluate(node, test.Path));
             var expected = TextOf(Evaluate(test.Expected));
             return test.AsNumber
                 ? SameNumber(actual, expected)
                 : string.Equals(actual, expected, test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         }))?.DeepClone();
     }
+
+    /// <summary>The trimmed text of a field read from an answer, or nothing when it is blank.</summary>
+    private static string? TrimmedTextOf(JsonNode? node) =>
+        TextOf(node) is { } text && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
 
     private async Task<JsonNode?> PickAsync(PickStep pick, CancellationToken ct)
     {
@@ -219,7 +223,7 @@ internal sealed partial class ProviderFlowRunner(
                 }
 
                 if (string.Equals(
-                        TextOf(JsonPathEvaluator.Evaluate(subject, test.Path)),
+                        TrimmedTextOf(JsonPathEvaluator.Evaluate(subject, test.Path)),
                         TextOf(Evaluate(test.Expected)),
                         test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                 {

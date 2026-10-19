@@ -161,6 +161,7 @@ public sealed class TextTrackEnrichmentWorker
         }
         var instrumentalDetected = false;
         var incompatibleSubtitleDetected = false;
+        string? incompatibleProviderName = null;
         foreach (var provider in availableProviders)
         {
             IReadOnlyList<TextTrackCandidate> candidates;
@@ -197,7 +198,12 @@ public sealed class TextTrackEnrichmentWorker
                 }
                 if (download is null)
                 {
-                    incompatibleSubtitleDetected |= provider.ReportsIncompatibleDownloads;
+                    if (provider.ReportsIncompatibleDownloads)
+                    {
+                        incompatibleSubtitleDetected = true;
+                        incompatibleProviderName ??= provider.DisplayName;
+                    }
+
                     continue;
                 }
 
@@ -239,7 +245,7 @@ public sealed class TextTrackEnrichmentWorker
                 : instrumentalDetected
                     ? "The provider identifies this track as instrumental, so there are no lyrics to download."
                     : incompatibleSubtitleDetected
-                    ? "SubDL found a subtitle, but its file could not be safely matched or imported."
+                    ? $"{incompatibleProviderName} found a subtitle, but its file could not be safely matched or imported."
                     : $"No matching {kind.ToString().ToLowerInvariant()} were found.");
     }
 

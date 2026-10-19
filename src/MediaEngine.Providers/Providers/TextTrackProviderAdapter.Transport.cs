@@ -99,14 +99,9 @@ public sealed partial class TextTrackProviderAdapter
         }
 
         var hosts = _text.Api.AllowedHosts;
-        if (hosts.Count == 0)
-        {
-            return baseUri;
-        }
-
         return baseUri.Scheme == Uri.UriSchemeHttps
             && hosts.Contains(baseUri.Host, StringComparer.OrdinalIgnoreCase)
-            && baseUri.Port == 443 && string.IsNullOrEmpty(baseUri.UserInfo)
+            && baseUri.IsDefaultPort && string.IsNullOrEmpty(baseUri.UserInfo)
             && baseUri.AbsolutePath == "/" && string.IsNullOrEmpty(baseUri.Query) && string.IsNullOrEmpty(baseUri.Fragment)
             ? baseUri
             : null;
@@ -138,7 +133,6 @@ public sealed partial class TextTrackProviderAdapter
             var response = await _rateLimiter.ExecuteAsync(Name, _config.RateLimit,
                 token => client.SendAsync(request, token), ct).ConfigureAwait(false);
             if (response.RequestMessage?.RequestUri is { } finalUri
-                && _text.Api.AllowedHosts.Count > 0
                 && (finalUri.Scheme != Uri.UriSchemeHttps
                     || !_text.Api.AllowedHosts.Contains(finalUri.Host, StringComparer.OrdinalIgnoreCase)))
             {
@@ -186,9 +180,10 @@ public sealed partial class TextTrackProviderAdapter
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
                 errorCode = ReadPath(doc.RootElement, _text.Errors.ErrorCodePath);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
                 // The HTTP status stays authoritative when the body is not JSON.
+                _logger.LogDebug(ex, "{Provider} error answer was not JSON", Name);
             }
         }
 

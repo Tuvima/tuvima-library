@@ -79,7 +79,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<ITmdbSeasonEpisodeCatalogue, TmdbSeasonEpisodeCatalogue>();
         services.AddSingleton<ITvEpisodeCrosswalk, TvEpisodeCrosswalk>();
         services.AddSingleton<ProviderApiClient>();
-        AddLateRegisteredProviders(services, configLoader);
+        AddOrderedProviders(services, configLoader);
         services.AddSingleton<RetailCandidateScorer>();
         services.AddSingleton<RetailMatchWorker>();
         services.AddSingleton<WikidataBridgeWorker>();
@@ -187,11 +187,11 @@ public static class TuvimaProviderServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Providers whose file asks to register after the built-in reconciliation provider
-    /// (<c>registration_order</c> above 0), in ascending order. Registration order decides
-    /// enumeration order, which decides which provider answers first.
+    /// Providers whose file sets <c>registration_order</c> above 0: they register after the ordinary
+    /// file-based providers and the built-in reconciliation provider, lowest number first.
+    /// Registration order decides enumeration order, which decides which provider answers first.
     /// </summary>
-    private static void AddLateRegisteredProviders(IServiceCollection services, IConfigurationLoader configLoader)
+    private static void AddOrderedProviders(IServiceCollection services, IConfigurationLoader configLoader)
     {
         foreach (var providerConfig in ConfigDrivenProviders(configLoader.LoadAllProviders())
                      .Where(config => config.RegistrationOrder > 0)

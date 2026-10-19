@@ -53,6 +53,8 @@ public sealed partial class TextTrackProviderAdapter : ITextTrackProvider, IProv
 
     public string Name => _config.Name;
 
+    public string DisplayName => string.IsNullOrWhiteSpace(_config.DisplayName) ? Name : _config.DisplayName;
+
     public TextTrackKind Kind => Enum.Parse<TextTrackKind>(_text.Kind, ignoreCase: true);
 
     public bool IsEnabled => _config.Enabled;
@@ -110,5 +112,5 @@ public sealed partial class TextTrackProviderAdapter : ITextTrackProvider, IProv
     private string Message(string key, string fallback) =>
         (_text.Messages.GetValueOrDefault(key) ?? fallback)
             .Replace("{name}", Name, StringComparison.Ordinal)
-            .Replace("{display_name}", string.IsNullOrWhiteSpace(_config.DisplayName) ? Name : _config.DisplayName, StringComparison.Ordinal);
+            .Replace("{display_name}", DisplayName, StringComparison.Ordinal);
 }

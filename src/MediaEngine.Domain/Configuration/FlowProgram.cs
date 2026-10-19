@@ -26,6 +26,9 @@ public sealed record BuiltInExpression(string Name) : FlowExpression;
 /// <summary>The first of several expressions that has a value.</summary>
 public sealed record CoalesceExpression(IReadOnlyList<FlowExpression> Items) : FlowExpression;
 
+/// <summary>The first of several expressions that is not missing; unlike <see cref="CoalesceExpression"/> it keeps a blank text.</summary>
+public sealed record FirstNonNullExpression(IReadOnlyList<FlowExpression> Items) : FlowExpression;
+
 /// <summary>The first <c>Count</c> characters of a text, when it has at least that many.</summary>
 public sealed record FirstCharsExpression(FlowExpression Source, int Count) : FlowExpression;
 
@@ -51,6 +54,9 @@ public abstract record FlowCondition;
 public sealed record BlankCondition(FlowExpression Value) : FlowCondition;
 
 public sealed record PresentCondition(FlowExpression Value) : FlowCondition;
+
+/// <summary>The value is not missing; a blank text still counts.</summary>
+public sealed record NotNullCondition(FlowExpression Value) : FlowCondition;
 
 public sealed record EqualsCondition(FlowExpression Left, FlowExpression Right, bool IgnoreCase) : FlowCondition;
 

@@ -349,6 +349,11 @@ memory only, renewed `refresh_early_minutes` before it expires, requested by one
 requested again once if a call is refused with 401. A removed key stops access at once, cached
 answers included.
 
+Each value in `login.body` is either exactly one credential placeholder (`"{api_key}"`, or `"{pin?}"`
+when the credential is optional) or plain text with no braces; mixed text such as `"key-{api_key}"` fails
+the load. When an administrator has set an API key override for the provider, `{api_key}` uses it in
+place of the project key, as it does for every other provider.
+
 ```json
 "auth": {
   "login": { "path": "/login", "body": { "apikey": "{api_key}", "pin": "{pin?}" },
@@ -403,7 +408,9 @@ other claims, the request or hints. A strategy `role` (`container` or `item`) sa
 `flows.fetch` and `flows.search` are short programs of steps (`set`, `slice`, `call`, `pages`, `find`,
 `pick`, `stop_if`, `skip_if`, `if`, `each`, `emit`, `claims`, `return`) over the named endpoints.
 Expressions are `$variable.path`, `@request.field`, `@hint.key`, `@name`, `@limit`, lists (first with a
-value) and the operations `first_chars`, `format`, `url_on_hosts`, `digits_of`, `clamp`, `int`, `object`.
+value, skipping blank text) and the operations `first_chars`, `format`, `url_on_hosts`, `digits_of`,
+`first_non_null` (the first value that exists, even blank text), `clamp`, `int`, `object`. Conditions
+include `blank`, `present` and `not_null` (exists, even if blank).
 A flow that fails answers "nothing found" and logs a warning. See the `flows` block of `tvdb.json`.
 
 ### Subtitle and lyrics sources (`adapter_type: "text_track"`)

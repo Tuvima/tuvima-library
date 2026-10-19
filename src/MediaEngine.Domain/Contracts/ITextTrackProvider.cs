@@ -8,6 +8,9 @@ public interface ITextTrackProvider
 {
     string Name { get; }
 
+    /// <summary>The name shown to people in messages; the provider's name unless it declares one.</summary>
+    string DisplayName => Name;
+
     TextTrackKind Kind { get; }
 
     bool IsEnabled { get; }

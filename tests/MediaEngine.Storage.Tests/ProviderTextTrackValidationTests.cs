@@ -119,6 +119,26 @@ public sealed class ProviderTextTrackValidationTests
     }
 
     [Fact]
+    public void KeyedProviderWithoutAllowedHosts_IsRejected()
+    {
+        var errors = Errors("subdl", config => config.TextTrack!.Api.AllowedHosts.Clear());
+
+        Assert.Contains(errors, error => error.Contains("api.allowed_hosts must list at least one host when requires_api_key is true", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("http://api.subdl.com")]
+    [InlineData("https://api.subdl.com:8443")]
+    [InlineData("https://user:secret@api.subdl.com")]
+    [InlineData("https://other.example")]
+    public void KeyedProviderWithAnUnsafeApiAddress_IsRejected(string address)
+    {
+        var errors = Errors("subdl", config => config.Endpoints["api"] = address);
+
+        Assert.Contains(errors, error => error.Contains("endpoints['api'] must be an HTTPS address", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void LyricsRules_AreChecked()
     {
         var errors = Errors("lrclib", config =>

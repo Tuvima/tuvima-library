@@ -16,7 +16,7 @@ public sealed class ProviderNamingGuardrailTests
     // Key catalogues and identifier placeholders are data about identifiers, not branches on a provider.
     private static readonly Regex[] CatalogueReferences =
     [
-        new(@"\b(?:BridgeIdKeys|WellKnownProviders|MetadataFieldConstants|ProviderRateLimitDefaults)\.\w+", RegexOptions.Compiled),
+        new(@"\b(?:BridgeIdKeys|MetadataFieldConstants)\.\w+", RegexOptions.Compiled),
         new(@"\{(?:tvdb|tmdb|comic_vine)_id\}", RegexOptions.Compiled),
         new(@"\b(?:request|source)\.TmdbId\b|\bTmdbId = ", RegexOptions.Compiled),
     ];
