@@ -269,7 +269,13 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
 
         var lineage = await _workRepo.GetLineageByAssetAsync(candidate.AssetId, ct).ConfigureAwait(false);
-        await ScoringHelper.PersistAndScoreWithLineageAsync(
+
+        // The album's tracks report its release; the per-album lock and the claims as written keep the
+        // album's bridge ids on the release the album agreed on (SharedParentIdentity).
+        using var albumLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
+            ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
+            : null;
+        var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
             candidate.AssetId,
             claims,
             provider.ProviderId,
@@ -282,6 +288,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             ct,
             arrayRepo: _arrayRepo,
             logger: _logger).ConfigureAwait(false);
+        claims = written.Claims;
 
         var bridgeEntries = claims
             .Where(claim => BridgeIdHelper.IsBridgeId(claim.Key) && !string.IsNullOrWhiteSpace(claim.Value))

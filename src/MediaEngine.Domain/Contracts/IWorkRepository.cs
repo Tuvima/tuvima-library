@@ -152,14 +152,16 @@ public interface IWorkRepository
 
     /// <summary>
     /// Merges the given identifiers into <c>works.external_identifiers</c>.
-    /// Existing keys are NOT overwritten — only missing keys are added.
+    /// Existing keys are NOT overwritten — only missing keys are added — unless
+    /// <paramref name="overwrite"/> is set, for a report that replaced the Work's identity.
     /// Each pipeline layer (file processor → retail → Wikidata) calls this
     /// with the IDs it knows about.
     /// </summary>
     Task WriteExternalIdentifiersAsync(
         Guid workId,
         IReadOnlyDictionary<string, string> identifiers,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        bool overwrite = false);
 
     /// <summary>
     /// Resolves the parent/child lineage for a given media asset.

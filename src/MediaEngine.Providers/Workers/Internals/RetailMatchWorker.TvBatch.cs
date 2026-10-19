@@ -843,11 +843,15 @@ public sealed partial class RetailMatchWorker
             return;
         }
 
+        // TMDB lists one person once per job ("Original Music Composer" and "Music"); both map to one role,
+        // so a second listing would only repeat the first credit's claims.
+        var credited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var crewNode in crew.Where(node => node is not null))
         {
             var name = crewNode?["name"]?.GetValue<string>();
             var key = ResolveEpisodeCrewClaimKey(crewNode);
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(key))
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(key)
+                || !credited.Add($"{key}\u001f{crewNode?["id"]?.ToString() ?? name}"))
             {
                 continue;
             }

@@ -21,7 +21,30 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        conn.Execute("""
+        // The part files of one audiobook recording share one identity job. It belongs to the lead part (the
+        // lowest part number, then the first path), not to whichever part finished ingesting first: a later,
+        // lower part takes over a sibling's job while that job still waits for its first lease.
+        conn.Execute($"""
+            UPDATE identity_jobs
+            SET    entity_id = @EntityId,
+                   updated_at = @UpdatedAt
+            WHERE  @MediaType = 'Audiobooks'
+              AND  pass = @Pass
+              AND  state = 'Queued'
+              AND  lease_owner IS NULL
+              AND  entity_id IN (
+                  SELECT sibling.id
+                  FROM   media_assets current_asset
+                  JOIN   editions current_edition ON current_edition.id = current_asset.edition_id
+                  JOIN   works recording ON recording.id = current_edition.work_id
+                  JOIN   editions sibling_edition ON sibling_edition.work_id = recording.id
+                  JOIN   media_assets sibling ON sibling.edition_id = sibling_edition.id
+                  WHERE  current_asset.id = @EntityId
+                    AND  sibling.id != @EntityId
+                    AND  recording.parent_key LIKE 'source-folder:%'
+                    AND  ({AudiobookPartOrderSql("current_asset")}) < ({AudiobookPartOrderSql("sibling")})
+              );
+
             INSERT OR IGNORE INTO identity_jobs
                 (id, entity_id, entity_type, media_type, ingestion_run_id,
                  state, pass, attempt_count, poison_attempt_count, last_outcome_category, lease_owner, lease_expires_at,
@@ -72,6 +95,41 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             });
         return Task.CompletedTask;
     }
+
+    /// <summary>Row value ordering an audiobook part asset: its part number, then its path.</summary>
+    private static string AudiobookPartOrderSql(string assetAlias) => $"""
+        COALESCE((SELECT CAST(part.value AS INTEGER) FROM canonical_values part
+                  WHERE part.entity_id = {assetAlias}.id AND part.key = 'audiobook_part_number'), 2147483647),
+        COALESCE({assetAlias}.file_path_root, '')
+        """;
+
+    /// <summary>
+    /// A recording's job is not leased while some of its part files have not been registered yet (fewer part
+    /// assets than the folder's part count), so the lead part has carried the job before identification starts.
+    /// A part that never arrives (unreadable, removed) holds the recording back only until
+    /// <see cref="IncompleteRecordingHold"/> has passed since the job was created.
+    /// </summary>
+    private const string IncompleteAudiobookRecordingSql = """
+        identity_jobs.media_type = 'Audiobooks'
+        AND identity_jobs.state = 'Queued'
+        AND identity_jobs.created_at > @incompleteRecordingCutoff
+        AND EXISTS (
+            SELECT 1
+            FROM   media_assets job_asset
+            JOIN   editions job_edition ON job_edition.id = job_asset.edition_id
+            JOIN   works recording ON recording.id = job_edition.work_id
+            JOIN   canonical_values part_count ON part_count.entity_id = job_asset.id
+                                              AND part_count.key = 'audiobook_part_count'
+            WHERE  job_asset.id = identity_jobs.entity_id
+              AND  recording.parent_key LIKE 'source-folder:%'
+              AND  CAST(part_count.value AS INTEGER) > (
+                       SELECT COUNT(*)
+                       FROM   editions part_edition
+                       JOIN   media_assets part_asset ON part_asset.edition_id = part_edition.id
+                       WHERE  part_edition.work_id = recording.id))
+        """;
+
+    internal static readonly TimeSpan IncompleteRecordingHold = TimeSpan.FromMinutes(10);
 
     public Task<Guid> CreateOrResumeUserResolutionAsync(IdentityJob job, CancellationToken ct = default)
     {
@@ -224,6 +282,7 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 WHERE  state IN ({stateList})
                   AND  (lease_owner IS NULL OR lease_expires_at < @now)
                   AND  (next_retry_at IS NULL OR next_retry_at <= @now)
+                  AND  NOT ({IncompleteAudiobookRecordingSql})
                   {excludeClause}
                 ORDER BY created_at ASC
                 LIMIT  @batchSize
@@ -249,7 +308,16 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             """;
 
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<IdentityJobRow>(sql, new { workerName, leaseExpiry, now, batchSize, excludeRunIds = validExcludeRunIds });
+        var incompleteRecordingCutoff = DateTimeOffset.UtcNow.Subtract(IncompleteRecordingHold).ToString("O");
+        var rows = conn.Query<IdentityJobRow>(sql, new
+        {
+            workerName,
+            leaseExpiry,
+            now,
+            batchSize,
+            excludeRunIds = validExcludeRunIds,
+            incompleteRecordingCutoff,
+        });
         return Task.FromResult<IReadOnlyList<IdentityJob>>(rows.Select(MapRow).ToList());
     }
 

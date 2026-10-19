@@ -2436,7 +2436,7 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<Guid> InsertStandaloneAsync(MediaType mediaType, CancellationToken ct = default) => Task.FromResult(Guid.NewGuid());
         public Task<Guid> InsertCatalogChildAsync(MediaType mediaType, Guid parentWorkId, int? ordinal, IReadOnlyDictionary<string, string>? externalIdentifiers, CancellationToken ct = default) => Task.FromResult(Guid.NewGuid());
         public Task PromoteCatalogToOwnedAsync(Guid workId, CancellationToken ct = default) => Task.CompletedTask;
-        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default) => Task.CompletedTask;
+        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default, bool overwrite = false) => Task.CompletedTask;
         public Task<WorkLineage?> GetLineageByAssetAsync(Guid assetId, CancellationToken ct = default) => Task.FromResult<WorkLineage?>(null);
         public Task<ConfirmedSiblingWorkQid?> FindConfirmedSiblingQidAsync(MediaType sourceMediaType, IReadOnlyList<MediaType> candidateMediaTypes, string title, string? creator, Guid? excludeWorkId = null, CancellationToken ct = default) => Task.FromResult<ConfirmedSiblingWorkQid?>(null);
     }

@@ -4735,7 +4735,7 @@ public sealed class WorkerPipelineTests
         public Task PromoteCatalogToOwnedAsync(Guid workId, CancellationToken ct = default)
             => Task.CompletedTask;
 
-        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default)
+        public Task WriteExternalIdentifiersAsync(Guid workId, IReadOnlyDictionary<string, string> identifiers, CancellationToken ct = default, bool overwrite = false)
             => Task.CompletedTask;
 
         public Task<WorkLineage?> GetLineageByAssetAsync(Guid assetId, CancellationToken ct = default)

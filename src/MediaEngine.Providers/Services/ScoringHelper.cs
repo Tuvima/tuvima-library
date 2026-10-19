@@ -56,8 +56,10 @@ public static class ScoringHelper
         // Wrap provider claims as domain MetadataClaim rows. One observation, one timestamp:
         // claims from the same response tie on claimed_at, so a
         // multi-valued field (composers, authors) resolves by the provider's own order instead of
-        // by whichever clock ticks happened to separate them.
+        // by whichever clock ticks happened to separate them. One observation set id groups them too,
+        // so two reports stamped in the same clock tick stay apart (SharedParentIdentity compares reports).
         var claimedAt = DateTimeOffset.UtcNow;
+        var observationSetId = Guid.NewGuid();
         var domainClaims = claims
             .Select(pc => new MetadataClaim
             {
@@ -65,6 +67,7 @@ public static class ScoringHelper
                 EntityId = entityId,
                 ProviderId = providerId,
                 DecisionSourceProviderId = decisionSourceProviderId,
+                ObservationSetId = observationSetId,
                 ClaimKey = pc.Key,
                 ClaimValue = pc.Value,
                 Confidence = pc.Confidence,
@@ -522,16 +525,56 @@ public static class ScoringHelper
         ISearchIndexRepository? searchIndex = null,
         Guid? decisionSourceProviderId = null)
     {
+        var written = await PersistAndScoreWithLineageDetailedAsync(
+            entityId, claims, providerId, lineage,
+            claimRepo, canonicalRepo, scoringEngine, configLoader, allProviders, ct,
+            arrayRepo, logger, searchIndex, decisionSourceProviderId).ConfigureAwait(false);
+        return written.AssetResult;
+    }
+
+    /// <summary>
+    /// What a lineage write stored. <paramref name="Claims"/> are the claims as written: when an earlier sibling's
+    /// report of a shared parent's identity wins (<see cref="SharedParentIdentity"/>), its parent-scope claims
+    /// replace the incoming ones, so bridge ids and external identifiers written from them agree with the parent.
+    /// <paramref name="ParentIdentityReplaced"/> is true when this report replaced a different stored identity.
+    /// </summary>
+    public sealed record LineageWriteResult(
+        ScoringResult AssetResult,
+        IReadOnlyList<ProviderClaim> Claims,
+        bool ParentIdentityReplaced);
+
+    /// <summary>
+    /// <see cref="PersistAndScoreWithLineageAsync"/>, also returning the claims as written. A caller that writes
+    /// a shared parent's bridge ids or external identifiers from those claims holds
+    /// <see cref="SharedParentIdentity.AcquireAsync"/> for the parent across this call and those writes.
+    /// </summary>
+    public static async Task<LineageWriteResult> PersistAndScoreWithLineageDetailedAsync(
+        Guid entityId,
+        IReadOnlyList<ProviderClaim> claims,
+        Guid providerId,
+        WorkLineage? lineage,
+        IMetadataClaimRepository claimRepo,
+        ICanonicalValueRepository canonicalRepo,
+        IScoringEngine scoringEngine,
+        IConfigurationLoader configLoader,
+        IEnumerable<IExternalMetadataProvider> allProviders,
+        CancellationToken ct,
+        ICanonicalValueArrayRepository? arrayRepo = null,
+        ILogger? logger = null,
+        ISearchIndexRepository? searchIndex = null,
+        Guid? decisionSourceProviderId = null)
+    {
         // No lineage → fall back to single-target write on the asset id.
         if (lineage is null)
         {
             var snapshotKeys = StructuredSnapshotKeys(providerId, detectedMediaType: MediaType.Unknown, scope: null);
-            return await PersistClaimsAndScoreAsync(
+            var result = await PersistClaimsAndScoreAsync(
                 entityId, claims, providerId,
                 claimRepo, canonicalRepo, scoringEngine, configLoader, allProviders, ct,
                 arrayRepo, logger, searchIndex,
                 decisionSourceProviderId: decisionSourceProviderId,
                 snapshotFieldKeys: snapshotKeys).ConfigureAwait(false);
+            return new LineageWriteResult(result, claims, ParentIdentityReplaced: false);
         }
 
         // Partition claims by scope. The split is media-type aware.
@@ -616,7 +659,39 @@ public static class ScoringHelper
         MaybeSynthesizeParentTitle(claims, parentClaims, lineage, logger);
 
         var parentSnapshotKeys = StructuredSnapshotKeys(providerId, lineage.MediaType, ClaimScope.Parent);
-        if (parentClaims.Count > 0 || parentSnapshotKeys is { Count: > 0 })
+        var writtenClaims = claims;
+        var parentIdentityReplaced = false;
+        var writeParent = true;
+        if (lineage.TargetForParentScope != lineage.TargetForSelfScope
+            && providerId != WellKnownProviders.Wikidata
+            && parentClaims.Count > 0)
+        {
+            var stored = await claimRepo.GetByEntityAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false);
+            var decision = SharedParentIdentity.Decide(
+                parentClaims,
+                stored.Where(claim => claim.ProviderId == providerId).ToList());
+            switch (decision.Outcome)
+            {
+                case SharedParentIdentity.Outcome.IncomingWins:
+                    // Supersede the provider's earlier reports so the parent holds one coherent identity.
+                    parentSnapshotKeys = decision.SupersededKeys;
+                    parentIdentityReplaced = true;
+                    break;
+                case SharedParentIdentity.Outcome.ExistingWins:
+                    writeParent = false;
+                    writtenClaims = claims
+                        .Where(claim => ClaimScopeCatalog.GetScope(claim.Key, lineage.MediaType) != ClaimScope.Parent)
+                        .Concat(decision.ParentClaims.Where(claim =>
+                            ClaimScopeCatalog.GetScope(claim.Key, lineage.MediaType) == ClaimScope.Parent))
+                        .ToList();
+                    logger?.LogDebug(
+                        "Shared parent {ParentWorkId}: an earlier sibling report wins over asset {AssetId}; the asset adopts its identity",
+                        lineage.TargetForParentScope, entityId);
+                    break;
+            }
+        }
+
+        if (writeParent && (parentClaims.Count > 0 || parentSnapshotKeys is { Count: > 0 }))
         {
 
             try
@@ -641,7 +716,7 @@ public static class ScoringHelper
             }
         }
 
-        return assetResult;
+        return new LineageWriteResult(assetResult, writtenClaims, parentIdentityReplaced);
     }
 
     private static IReadOnlyCollection<string>? StructuredSnapshotKeys(

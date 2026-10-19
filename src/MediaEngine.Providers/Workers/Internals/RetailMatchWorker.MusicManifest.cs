@@ -54,8 +54,8 @@ public sealed partial class RetailMatchWorker
         CancellationToken ct)
     {
         if (_musicBrainzReleaseClient is null
-            || !bridgeIds.TryGetValue(BridgeIdKeys.MusicBrainzReleaseId, out var releaseId)
-            || string.IsNullOrWhiteSpace(releaseId))
+            || !bridgeIds.TryGetValue(BridgeIdKeys.MusicBrainzReleaseId, out var trackReleaseId)
+            || string.IsNullOrWhiteSpace(trackReleaseId))
         {
             return;
         }
@@ -66,6 +66,15 @@ public sealed partial class RetailMatchWorker
         try
         {
             var rootValues = await _canonicalRepo.GetByEntityAsync(rootWorkId, ct).ConfigureAwait(false);
+
+            // The album's agreed release (SharedParentIdentity) can differ from the one this track's own
+            // lookup chose, and a sibling may have changed it since this job read it: the manifest follows
+            // the album, whichever track gets here last.
+            var releaseId = rootValues.FirstOrDefault(value =>
+                    string.Equals(value.Key, BridgeIdKeys.MusicBrainzReleaseId, StringComparison.OrdinalIgnoreCase)
+                    && value.WinningProviderId == WellKnownProviders.MusicBrainz
+                    && !string.IsNullOrWhiteSpace(value.Value))?.Value
+                ?? trackReleaseId;
             var existingManifest = rootValues.FirstOrDefault(value =>
                 string.Equals(value.Key, MetadataFieldConstants.ChildEntitiesJson, StringComparison.OrdinalIgnoreCase))?.Value;
             if (MusicBrainzAlbumManifestJson.IsCompleteForRelease(existingManifest, releaseId))

@@ -463,6 +463,10 @@ public sealed partial class ConfigDrivenAdapter
             return;
         }
 
+        // TMDB lists one person once per job (Hans Zimmer as "Original Music Composer" and "Music"); both
+        // map to one role, so a repeat listing only duplicates the first credit. Duplicate claims are also
+        // what storage compaction removes, so keeping them would let its timing decide the first credit.
+        var credited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var crewNode in crewArray.Where(node => node is not null))
         {
             var name = crewNode?["name"]?.GetValue<string>();
@@ -485,10 +489,14 @@ public sealed partial class ConfigDrivenAdapter
                 continue;
             }
 
-            claims.Add(new ProviderClaim(key, name, 0.88));
-
             var tmdbPersonId = crewNode?["id"]?.GetValue<long?>()?.ToString(CultureInfo.InvariantCulture)
                 ?? crewNode?["id"]?.GetValue<string>();
+            if (!credited.Add($"{key}\u001f{tmdbPersonId ?? name}"))
+            {
+                continue;
+            }
+
+            claims.Add(new ProviderClaim(key, name, 0.88));
             AddIfPresent(claims, $"{key}_tmdb_id", tmdbPersonId, 0.92);
 
             var profilePath = crewNode?["profile_path"]?.GetValue<string>();

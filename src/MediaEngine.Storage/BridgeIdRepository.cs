@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
@@ -143,26 +144,7 @@ public sealed class BridgeIdRepository : IBridgeIdRepository
         ArgumentNullException.ThrowIfNull(entry);
 
         using var conn = _db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO bridge_ids
-                (id, entity_id, id_type, id_value, wikidata_property, provider_id, created_at)
-            VALUES
-                (@id, @entityId, @idType, @idValue, @wikidataProperty, @providerId, @createdAt)
-            ON CONFLICT(entity_id, id_type) DO UPDATE SET
-                id_value          = excluded.id_value,
-                wikidata_property = excluded.wikidata_property,
-                provider_id       = excluded.provider_id;
-            """,
-            new
-            {
-                id = entry.Id,
-                entityId = entry.EntityId,
-                idType = entry.IdType,
-                idValue = entry.IdValue,
-                wikidataProperty = entry.WikidataProperty,
-                providerId = entry.ProviderId,
-                createdAt = entry.CreatedAt.ToString("O"),
-            });
+        conn.Execute(UpsertSql, UpsertParameters(entry));
 
         return Task.CompletedTask;
     }
@@ -192,29 +174,43 @@ public sealed class BridgeIdRepository : IBridgeIdRepository
     {
         foreach (var entry in entries)
         {
-            conn.Execute("""
-                INSERT INTO bridge_ids
-                    (id, entity_id, id_type, id_value, wikidata_property, provider_id, created_at)
-                VALUES
-                    (@id, @entityId, @idType, @idValue, @wikidataProperty, @providerId, @createdAt)
-                ON CONFLICT(entity_id, id_type) DO UPDATE SET
-                    id_value          = excluded.id_value,
-                    wikidata_property = excluded.wikidata_property,
-                    provider_id       = excluded.provider_id;
-                """,
-                new
-                {
-                    id = entry.Id,
-                    entityId = entry.EntityId,
-                    idType = entry.IdType,
-                    idValue = entry.IdValue,
-                    wikidataProperty = entry.WikidataProperty,
-                    providerId = entry.ProviderId,
-                    createdAt = entry.CreatedAt.ToString("O"),
-                },
-                transaction: tx);
+            conn.Execute(UpsertSql, UpsertParameters(entry), transaction: tx);
         }
     }
+
+    // A Wikidata confirmation of the value a retail provider already gave keeps the retail provider as the
+    // source. Bridge resolution only trusts ids Wikidata did not supply, so taking the source over would leave
+    // a sibling (the next episode of a show whose first episode was confirmed) with no ids to resolve from,
+    // and whether it resolved would depend on which episode finished first.
+    private const string UpsertSql = """
+        INSERT INTO bridge_ids
+            (id, entity_id, id_type, id_value, wikidata_property, provider_id, created_at)
+        VALUES
+            (@id, @entityId, @idType, @idValue, @wikidataProperty, @providerId, @createdAt)
+        ON CONFLICT(entity_id, id_type) DO UPDATE SET
+            id_value          = excluded.id_value,
+            wikidata_property = excluded.wikidata_property,
+            provider_id       = CASE
+                WHEN bridge_ids.id_value = excluded.id_value
+                     AND bridge_ids.provider_id IS NOT NULL
+                     AND LOWER(bridge_ids.provider_id) NOT IN (@wikidataProviderId, 'wikidata')
+                     AND LOWER(COALESCE(excluded.provider_id, '')) IN (@wikidataProviderId, 'wikidata')
+                THEN bridge_ids.provider_id
+                ELSE excluded.provider_id
+            END;
+        """;
+
+    private static object UpsertParameters(BridgeIdEntry entry) => new
+    {
+        id = entry.Id,
+        entityId = entry.EntityId,
+        idType = entry.IdType,
+        idValue = entry.IdValue,
+        wikidataProperty = entry.WikidataProperty,
+        providerId = entry.ProviderId,
+        createdAt = entry.CreatedAt.ToString("O"),
+        wikidataProviderId = WellKnownProviders.Wikidata.ToString(),
+    };
 
     /// <inheritdoc/>
     public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default)

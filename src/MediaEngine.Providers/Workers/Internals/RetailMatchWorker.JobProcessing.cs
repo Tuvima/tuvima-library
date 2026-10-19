@@ -487,13 +487,21 @@ public sealed partial class RetailMatchWorker
                         enrichmentProviderAddedByAttempt = acceptedEnrichmentProviders.Add(provider.Name);
                     }
 
+                    // Siblings (an album's tracks) report their shared parent's identity in parallel jobs:
+                    // comparing with the stored reports and writing claims, bridge ids and external
+                    // identifiers happen under one per-parent lock, so the agreed identity is what lands.
+                    using var parentLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
+                        ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
+                        : null;
+
                     // Phase 3c: pass lineage so parent-scope claims mirror
                     // onto the parent Work (book series → series Work,
                     // audiobook series → series Work, etc.).
-                    await ScoringHelper.PersistAndScoreWithLineageAsync(
+                    var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
                         job.EntityId, claims, provider.ProviderId, lineage,
                         _claimRepo, _canonicalRepo, _scoringEngine, _configLoader, _providers, ct,
                         arrayRepo: _arrayRepo, logger: _logger);
+                    claims = written.Claims;
 
                     // Extract bridge IDs for Stage 2
                     var bridgeEntries = claims
@@ -516,7 +524,8 @@ public sealed partial class RetailMatchWorker
                     // the asset's own Work; album/show/series-level IDs land on
                     // the parent. WriteExternalIdentifiersAsync is no-overwrite,
                     // so re-running this for sibling tracks of the same album
-                    // is harmless.
+                    // is harmless; a report that replaced the parent's identity
+                    // overwrites the parent's ids with its own.
                     if (lineage is not null && bridgeEntries.Count > 0)
                     {
                         var bridgeDict = bridgeEntries
@@ -529,7 +538,7 @@ public sealed partial class RetailMatchWorker
                         if (forParent.Count > 0)
                         {
                             await _workRepo.WriteExternalIdentifiersAsync(
-                                lineage.TargetForParentScope, forParent, ct);
+                                lineage.TargetForParentScope, forParent, ct, overwrite: written.ParentIdentityReplaced);
                         }
 
                         if (forSelf.Count > 0)
