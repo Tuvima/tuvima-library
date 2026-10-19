@@ -46,7 +46,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     {
         var overview = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
         var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css");
-        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
         Assert.Contains("admin-overview-card--attention admin-attention-strip", overview, StringComparison.Ordinal);

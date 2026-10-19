@@ -26,7 +26,8 @@ public sealed class SettingsNavTests
         Assert.Contains("<IngestionTasksTab", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("<SidebarPageHeader", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<SettingsPageFrame", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<SidebarPageHeader", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor")), StringComparison.Ordinal);
         Assert.DoesNotContain("<SidebarPageShell", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SidebarNavGroup", settingsSource, StringComparison.Ordinal);
         Assert.Contains("media-section-shell__rail-item--child", mediaShellSource, StringComparison.Ordinal);

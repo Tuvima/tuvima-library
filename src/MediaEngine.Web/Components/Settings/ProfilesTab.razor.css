@@ -1,4 +1,4 @@
-.profiles-tab { display: grid; gap: 24px; width: 100%; max-width: 900px; margin: 0 auto; box-sizing: border-box; }
+.profiles-tab { display: grid; gap: 24px; width: 100%; box-sizing: border-box; }
 .profiles-tab__card { display: grid; gap: 16px; padding: 16px; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: var(--tl-bg-surface); }
 .profiles-tab__loading { display: grid; gap: 12px; }
 .profiles-tab__identity { display: flex; align-items: center; gap: 16px; }
@@ -40,7 +40,6 @@
 }
 
 @media (min-width: 1600px) {
-    .profiles-tab { max-width: 1100px; }
     .profiles-tab__name { font-size: 2rem; }
     .profiles-tab__stat dd { font-size: 1.6rem; }
     .profiles-tab__row-avatar { width: 48px; height: 48px; }
