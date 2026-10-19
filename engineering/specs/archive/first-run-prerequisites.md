@@ -1,6 +1,6 @@
 # Spec: First run and prerequisites
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Windows install (public)](../../docs/install/windows.md) · [Install from source (public)](../../docs/install/from-source.md) · [Configuration reference (public)](../../docs/reference/configuration.md)
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../../product/overview.md) · [Windows install (public)](../../../docs/install/windows.md) · [Install from source (public)](../../../docs/install/from-source.md) · [Configuration reference (public)](../../../docs/reference/configuration.md)
 
 > Written 2026-10-18 after Shy's first test run on a fresh data store, Group 1 of the bug list (bugs 25, 26, 3, 1, 2). Everything below was checked against the code on main (merge of PR 259). Where something is inferred rather than seen, it says so. Shy answered every question and Locked the spec on 2026-10-18. Nothing is built. Shy said not to download FFmpeg by hand during the test, then asked whether the Library should fetch missing tools itself at start-up and clarified that privacy first means not sharing data, not refusing to download what the app needs. Options are in section 7 (Q5); the recommended one is WP7.
 
@@ -127,7 +127,7 @@ Whoever installs the Library, however they installed it, is told up front which 
 - **Depends on:** none
 - **Size:** Standard
 - **Done when:** at desktop and narrow widths the path bar spans the dialog and can be selected and copied in one go; opening the picker for Movies, TV, Music, Books, Comics and Audiobooks shows six different icons.
-- **Addendum (Shy, 2026-10-18, added during the build).** Reference layout: [folder picker mockup](../design/mockups/first-run-prerequisites-folder-picker.webp) (layout only; values come from the shipped tokens). Title and help text at the top, then a full-width path box with a clear button and **Go**; a folder list down the left; on the right Back, Forward and Up buttons, a breadcrumb trail, a folder search box, and a Name / Modified list; at the bottom a "Selected path" box with a copy button beside Cancel and the select button. Required behaviour:
+- **Addendum (Shy, 2026-10-18, added during the build).** Reference layout: [folder picker mockup](../../design/mockups/first-run-prerequisites-folder-picker.webp) (layout only; values come from the shipped tokens). Title and help text at the top, then a full-width path box with a clear button and **Go**; a folder list down the left; on the right Back, Forward and Up buttons, a breadcrumb trail, a folder search box, and a Name / Modified list; at the bottom a "Selected path" box with a copy button beside Cancel and the select button. Required behaviour:
   - **AD1. Paste a path.** Typing or pasting a full path (for example `/media/movies`) and pressing Enter or **Go** goes straight there.
   - **AD2. Browse.** Single-click selects a folder, double-click opens it; breadcrumbs and an Up button move back up.
   - **AD3. Copy.** The complete selected path copies with one click.
@@ -201,7 +201,18 @@ Options: **None** (check and tell only), **Offer** (an Install for me button, no
 
 ## 8. Gaps and drift
 
-Not applicable (new spec).
+As built (2026-10-18). Every acceptance criterion A1 to A9 and A8b is met; differences and choices made during the build:
+
+- **FFmpeg is always Required** (Shy's amendment to D4), because every Library starts with all six media types and the check runs before any folder is chosen.
+- **Setup shows "A few things to install" the first time the server check runs.** Going back or reloading does not show it again, so the last setup step ("All set") repeats a one-line reminder for any Required tool still missing, and the administrator banner and Tools page keep saying it afterwards.
+- **Smooth streaming** is its own Optional row ("It needs FFmpeg first" while FFmpeg is missing).
+- **Waiting files** are held in a small new data-store table and resume on their own after any successful tools check: start-up, **Check again**, a finished **Install for me**, or the page refreshing a check older than five minutes. Files that failed the old way are repaired on the next Engine start or scan.
+- **A damaged file** goes to Needs Review under the existing "Provider Failures" group, with the reason "This file couldn't be read. It may be damaged or incomplete." A dedicated group can come with the live ingestion page spec.
+- **Install for me** is offered only on Windows x64: FFmpeg and Tesseract for runs from source, FFmpeg alone as a repair for Windows installer copies (Tesseract repair is a reinstall), never in Docker. Downloads follow redirects only to GitHub's own download hosts. Tesseract's installer is offered only when the Engine runs as an ordinary program, not as a Windows service. A "Not now" on the banner is remembered until the tool is Ready again.
+- **Locate it** uses the folder picker in a read-only "tool location" mode that allows folders such as `bin` but still never the Library's own folders.
+- **Key screen:** SubDL's homepage link was removed from its settings so **Get your key** opens its key page.
+- **Folder picker:** the media-type icon mapping is now shared, so TV and Comics also show their own icons on other library surfaces.
+- Decision recorded as ADR 0010.
 
 ---
 

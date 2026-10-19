@@ -1,6 +1,6 @@
 # Spec: The live ingestion page and when items appear
 
-> **Status:** Locked · **Version:** 3 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites](first-run-prerequisites.md) (Locked; this spec builds on its "waiting, not failed" rule and does not redo it)
+> **Status:** Locked · **Version:** 3 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites](archive/first-run-prerequisites.md) (Built; this spec builds on its "waiting, not failed" rule and does not redo it)
 
 > Groups 2 and 3 of the 2026-10-18 bug list, combined at Shy's request because both depend on one question: when is an item "fully added"? Group 2: bugs 21, 5, 6, 20, 4, 15, 27, 28, 13 and planning items A, B. Group 3: bugs 11, 22 and planning item G. Shy answered the questions in two rounds (23:51Z and 00:01Z); his answers are recorded in section 3. His 00:01Z redesign of "View all" replaces the earlier decision to retire it. Everything below was read in the code on main. Where something is inferred or not yet reproduced it says so. Shy locked it on 2026-10-19. Nothing is built.
 
