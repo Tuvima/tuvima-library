@@ -1,0 +1,39 @@
+== requests ==
+GET https://api.themoviedb.org/3/search/tv?query=Severance&first_air_date_year=2022&include_adult=false&language=en-US&page=1
+GET https://api.themoviedb.org/3/tv/95396?language=en-US&append_to_response=aggregate_credits,content_ratings,external_ids,images
+== claims ==
+title=Severance@0.85
+description=Work-life separation.@0.85
+short_description=Work-life separation.@0.84
+year=2022@0.9
+cover=https://image.tmdb.org/t/p/w500/sev.jpg@0.9
+tmdb_id=95396@1
+original_language=en@0.85
+content_rating=TV-MA@0.88
+network=Apple TV+@0.88
+network_logo_url=https://image.tmdb.org/t/p/original/atv.png@0.84
+studio=Fifth Season@0.88
+studio_logo_url=https://image.tmdb.org/t/p/original/fs.png@0.84
+production_company=Fifth Season; Red Hour@0.86
+imdb_id=tt11280740@0.98
+tvdb_id=371980@0.98
+cast_member=Adam Scott@0.9
+cast_member_character=Mark / Mark X / mark s.@0.9
+cast_member_tmdb_id=1@0.92
+cast_member_tmdb_identity=1::Adam Scott@0.92
+cast_member_profile_url=https://image.tmdb.org/t/p/original/as.jpg@0.9
+cast_member=Britt Lower@0.9
+cast_member_character=Helly R.@0.9
+cast_member_tmdb_id=2@0.92
+cast_member_tmdb_identity=2::Britt Lower@0.92
+cast_member=Zach Cherry@0.9
+cast_member_character=Dylan G.@0.9
+cast_member_tmdb_id=3@0.92
+cast_member_tmdb_identity=3::Zach Cherry@0.92
+director=Ben Stiller@0.88
+director_tmdb_id=20@0.92
+screenwriter=Dan Erickson@0.88
+screenwriter_tmdb_id=21@0.92
+screenwriter_profile_url=https://image.tmdb.org/t/p/original/de.jpg@0.9
+composer=Theodore Shapiro@0.88
+composer_tmdb_id=22@0.92

@@ -1,0 +1,6 @@
+== requests ==
+GET https://api.subdl.com/api/v2/subtitles/search?tmdb_id=1396&type=tv&season=1&episode=13&languages=en&unpack=1 [auth:Bearer]
+GET https://dl.subdl.com/subtitle/pack/file42
+== results ==
+subdl|Subtitles|pack/file42|https://subdl.com/subtitle/pack|en|srt|0.8|True|-|False|Breaking.Bad.S01|False|-
+download: srt->vtt 1\n00:00:01,000 --> 00:00:02,000\nHello\n

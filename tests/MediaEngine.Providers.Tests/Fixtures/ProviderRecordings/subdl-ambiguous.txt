@@ -1,0 +1,4 @@
+== requests ==
+GET https://api.subdl.com/api/v2/subtitles/search?tmdb_id=693134&type=movie&languages=en&unpack=1 [auth:Bearer]
+== results ==
+EXCEPTION AmbiguousMatch: Several SubDL subtitles match equally well; no automatic choice was made.
