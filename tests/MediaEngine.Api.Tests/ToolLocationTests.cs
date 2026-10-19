@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -49,8 +50,8 @@ public sealed class ToolLocationTests : IDisposable
         _folders = new ServerFolderBrowserService(_configuration, NullLogger<ServerFolderBrowserService>.Instance);
         _ffmpeg = new ConfigurationBackedFfmpeg(_configuration);
         _tools = new ToolRequirementsService(
-            _ffmpeg, _ocr, _configuration, new NoModels(), new WorkingProbe(), new NoToolWaitingWorkCounter(),
-            [], new NotAContainer(), NullLogger<ToolRequirementsService>.Instance, _ => null);
+            _ffmpeg, _ocr, new NoModels(), new WorkingProbe(), new NoToolWaitingWorkCounter(),
+            [], new RunningLifetime(), new NotAContainer(), NullLogger<ToolRequirementsService>.Instance, _ => null);
         _service = new ToolLocationService(_folders, _configuration, _ocr, _tools, NullLogger<ToolLocationService>.Instance);
     }
 
@@ -414,5 +415,15 @@ public sealed class ToolLocationTests : IDisposable
     private sealed class NotAContainer : IContainerProbe
     {
         public bool IsContainer() => false;
+    }
+
+    private sealed class RunningLifetime : IHostApplicationLifetime
+    {
+        public CancellationToken ApplicationStarted => CancellationToken.None;
+        public CancellationToken ApplicationStopping => CancellationToken.None;
+        public CancellationToken ApplicationStopped => CancellationToken.None;
+        public void StopApplication()
+        {
+        }
     }
 }
