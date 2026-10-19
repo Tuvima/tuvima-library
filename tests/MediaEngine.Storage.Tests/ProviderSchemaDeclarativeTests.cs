@@ -33,6 +33,15 @@ public sealed class ProviderSchemaDeclarativeTests
         ("$defs/resultClaimRules", typeof(ResultClaimRulesConfiguration)),
         ("$defs/strategyClaimRules", typeof(StrategyClaimRulesConfiguration)),
         ("$defs/strategyClaimRules/properties/derive/items", typeof(DerivedClaimConfiguration)),
+        ("$defs/providerAuth", typeof(ProviderAuthConfiguration)),
+        ("$defs/providerAuth/properties/login", typeof(ProviderLoginConfiguration)),
+        ("$defs/providerAuth/properties/deliver", typeof(ProviderTokenDeliveryConfiguration)),
+        ("$defs/providerApi", typeof(ProviderApiConfiguration)),
+        ("$defs/providerApi/properties/endpoints/additionalProperties", typeof(ApiEndpointConfiguration)),
+        ("$defs/providerApi/properties/endpoints/additionalProperties/properties/paging", typeof(ApiPagingConfiguration)),
+        ("$defs/providerFlow", typeof(ProviderFlowConfiguration)),
+        ("$defs/claimCondition", typeof(ClaimConditionConfiguration)),
+        ("properties/flows", typeof(ProviderFlowsConfiguration)),
         ("$defs/textTrack", typeof(TextTrackConfiguration)),
         ("$defs/textTrack/properties/api", typeof(TextTrackApiConfiguration)),
         ("$defs/textTrack/properties/http", typeof(TextTrackHttpConfiguration)),
@@ -92,7 +101,7 @@ public sealed class ProviderSchemaDeclarativeTests
             Path.Combine(FindRepoRoot(), "config", "schemas", "providers", "provider.schema.json")));
 
         var properties = schema.RootElement.GetProperty("properties");
-        foreach (var name in new[] { "follow_ups", "candidate_ranking", "result_rules", "text_track" })
+        foreach (var name in new[] { "follow_ups", "candidate_ranking", "result_rules", "text_track", "auth", "api", "flows", "registration_order" })
         {
             Assert.True(properties.TryGetProperty(name, out _), name);
         }

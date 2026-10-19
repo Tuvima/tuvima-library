@@ -214,6 +214,14 @@ public sealed class ClaimRuleConfiguration
     [JsonPropertyName("requires_claim")]
     public string? RequiresClaim { get; set; }
 
+    /// <summary>Remove leading and trailing blanks from the value (and from the fields of a template).</summary>
+    [JsonPropertyName("trim")]
+    public bool Trim { get; set; }
+
+    /// <summary>The value must have at least this many characters (after trimming) to be used.</summary>
+    [JsonPropertyName("min_length")]
+    public int MinLength { get; set; }
+
     /// <summary>Overrides the follow-up's <c>add</c> mode for this rule.</summary>
     [JsonPropertyName("add")]
     public string? Add { get; set; }
@@ -245,6 +253,10 @@ public sealed class ClaimRuleConfiguration
     /// <summary>Keeps only items whose field at this path is not blank.</summary>
     [JsonPropertyName("where_not_blank")]
     public string? WhereNotBlank { get; set; }
+
+    /// <summary>Keeps only items that pass every condition (in addition to <c>where_not_blank</c>).</summary>
+    [JsonPropertyName("where")]
+    public List<ClaimConditionConfiguration>? Where { get; set; }
 
     [JsonPropertyName("sort")]
     public List<ClaimSortConfiguration>? Sort { get; set; }
@@ -325,6 +337,25 @@ public sealed class ClaimRuleConfiguration
 
     [JsonPropertyName("manifest")]
     public SequenceManifestRuleConfiguration? Manifest { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+}
+
+/// <summary>A test on a field of an item: not blank, or equal to a text.</summary>
+public sealed class ClaimConditionConfiguration
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    [JsonPropertyName("not_blank")]
+    public bool NotBlank { get; set; }
+
+    [JsonPropertyName("equals")]
+    public string? EqualsValue { get; set; }
+
+    [JsonPropertyName("ignore_case")]
+    public bool IgnoreCase { get; set; }
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }

@@ -6,9 +6,13 @@ using MediaEngine.Providers.Models;
 namespace MediaEngine.Providers.Tests.ProviderRecording;
 
 /// <summary>One outgoing provider request as the recording handler saw it.</summary>
-internal sealed record RecordedRequest(string Method, Uri Uri, string Body, string? BearerToken)
+internal sealed record RecordedRequest(
+    string Method, Uri Uri, string Body, string? BearerToken, IReadOnlyDictionary<string, string>? Headers = null)
 {
     public string Url => Uri.AbsoluteUri;
+
+    /// <summary>The value of a request header, or <c>null</c> when it was not sent.</summary>
+    public string? Header(string name) => Headers?.GetValueOrDefault(name);
 }
 
 /// <summary>
@@ -39,7 +43,9 @@ internal sealed class RecordingHandler(Func<RecordedRequest, HttpResponseMessage
         }
 
         Lines.Add(line);
-        return respond(new RecordedRequest(request.Method.Method, uri, body, request.Headers.Authorization?.Parameter));
+        var headers = request.Headers.ToDictionary(
+            header => header.Key, header => string.Join(',', header.Value), StringComparer.OrdinalIgnoreCase);
+        return respond(new RecordedRequest(request.Method.Method, uri, body, request.Headers.Authorization?.Parameter, headers));
     }
 
     internal static string RedactKeys(string url)

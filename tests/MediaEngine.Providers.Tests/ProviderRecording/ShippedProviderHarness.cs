@@ -36,6 +36,10 @@ internal static class ShippedProviderHarness
         return config;
     }
 
+    /// <summary>Saves the shipped file of a provider, with a key, into a test configuration folder.</summary>
+    public static void SaveShipped(IConfigurationLoader loader, string name, string? apiKey, string? pin = null) =>
+        loader.SaveProvider(LoadShipped(name, apiKey, pin));
+
     public static ConfigDrivenAdapter ConfigDriven(
         string name, RecordingHandler handler, string? apiKey = "test-key", Action<ProviderConfiguration>? tweak = null)
     {
@@ -91,8 +95,15 @@ internal static class ShippedProviderHarness
 
         private static IExternalMetadataProvider CreateProvider(ConfigurationDirectoryLoader loader, RecordingHandler handler)
         {
-            var client = new TvdbRetailClient(loader, new RecordingHttpFactory(handler), new ProviderRateLimiterCoordinator());
-            return new TvdbMetadataProvider(client, NullLogger<TvdbMetadataProvider>.Instance);
+            var factory = new RecordingHttpFactory(handler);
+            var limiter = new ProviderRateLimiterCoordinator();
+            return new ConfigDrivenAdapter(
+                loader.LoadProvider("tvdb")!,
+                factory,
+                NullLogger<ConfigDrivenAdapter>.Instance,
+                NullProviderHealthMonitor.Instance,
+                rateLimiter: limiter,
+                apiClient: new ProviderApiClient(loader, factory, limiter));
         }
 
         public void Dispose()

@@ -41,7 +41,7 @@ public static partial class MetadataEndpoints
             Guid entityId, string scopeId, string role, int? page, int? pageSize,
             string? sourceAssetType, string? provider, string? providerItemId, string? releaseId, string? orderContext,
             HttpContext http, ArtworkScopeService scopes,
-            IImageEnrichmentService images, TvdbRetailClient tvdb,
+            IImageEnrichmentService images, ProviderApiClient tvdb,
             ICanonicalValueRepository canonicals, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
         {
             var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
@@ -77,7 +77,7 @@ public static partial class MetadataEndpoints
             string? attributionUrl = null;
             if (requestContext.Provider == "tvdb")
             {
-                if (!tvdb.IsConfigured())
+                if (!tvdb.IsConfigured("tvdb"))
                 {
                     return Results.Ok(new ProviderArtworkDiscoveryDto([], "Connect TheTVDB in Settings to browse its artwork."));
                 }

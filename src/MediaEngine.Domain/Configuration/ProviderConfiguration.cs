@@ -177,6 +177,26 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("search_strategies")]
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
+    /// <summary>How the provider signs in. See <see cref="ProviderAuthConfiguration"/>.</summary>
+    [JsonPropertyName("auth")]
+    public ProviderAuthConfiguration? Auth { get; set; }
+
+    /// <summary>Named API endpoints other code can call. See <see cref="ProviderApiConfiguration"/>.</summary>
+    [JsonPropertyName("api")]
+    public ProviderApiConfiguration? Api { get; set; }
+
+    /// <summary>Multi-step fetch and search lookups. See <see cref="ProviderFlowsConfiguration"/>.</summary>
+    [JsonPropertyName("flows")]
+    public ProviderFlowsConfiguration? Flows { get; set; }
+
+    /// <summary>
+    /// Where the provider registers among the others: providers with a positive number register
+    /// after the built-in reconciliation provider, in ascending order. Order is behaviour, since
+    /// it decides which provider answers first.
+    /// </summary>
+    [JsonPropertyName("registration_order")]
+    public int RegistrationOrder { get; set; }
+
     /// <summary>
     /// How a subtitle or lyrics provider is searched and downloaded; used when <c>adapter_type</c>
     /// is <c>text_track</c>. See <see cref="TextTrackConfiguration"/>.

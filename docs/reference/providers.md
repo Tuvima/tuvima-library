@@ -276,6 +276,27 @@ Embedded cover art from the file is perceptually hashed (aHash - 64-bit fingerpr
 
 All provider configs live in `config/providers/` as individual JSON files. Each is self-contained with connection details, search strategies, response mappings, and bridge ID preferences. Adding a new REST+JSON provider is a zero-code operation: create a config file, restart the Engine.
 
+### Declarative blocks
+
+Beyond `search_strategies` and `field_mappings`, a provider file may carry the blocks below. They are
+how the shipped providers work; none of them is tied to a provider name in code.
+
+| Block | What it declares | Shipped use |
+|---|---|---|
+| `auth`, `api` | Sign-in request, token lifetime and delivery; named endpoints with argument checks, paging and caching; allowed hosts | `tvdb.json` |
+| `flows` | `fetch` and `search` as step programs over the named endpoints | `tvdb.json` |
+| `follow_ups` | Extra lookups after a match and the rules that turn them into claims | `tmdb.json` (detail, collection), `comicvine.json` (volume details, issue manifest) |
+| `candidate_ranking` | Facts, matching, scoring terms, preferred-run search and ordering for near-identical results | `comicvine.json` |
+| `result_rules` | Claim rules run on the matched result | `comicvine.json` (creator credits) |
+| `search_strategies[].claim_rules`, `.role`, `.extra_field_aliases` | Drop, derive and language-guard claims; what a strategy returns | `comicvine.json` |
+| `sequence_manifest` | The paged request a `paged_sequence` rule reads | `comicvine.json` |
+| `text_track` (with `adapter_type: "text_track"`) | Subtitle and lyrics search, download, archive limits, error mapping | `subdl.json`, `lrclib.json` |
+| `registration_order` | Registers after the built-in reconciliation provider when positive | `tvdb.json` |
+
+All blocks are validated when the file loads (unknown properties and bad shapes name their path) and are
+documented in `config/schemas/providers/provider.schema.json`. See
+[How to add a metadata provider](../guides/adding-a-provider.md#step-2b---beyond-search-and-field-mappings-the-declarative-blocks).
+
 ### Config File Structure
 
 ```

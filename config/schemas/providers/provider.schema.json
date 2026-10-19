@@ -448,6 +448,101 @@
       },
       "additionalProperties": false
     },
+    "providerAuth": {
+      "type": "object",
+      "required": ["login"],
+      "properties": {
+        "login": {
+          "type": "object",
+          "required": ["path", "body", "token_path", "lifetime_days"],
+          "properties": {
+            "method": { "const": "POST" },
+            "path": { "type": "string", "pattern": "^/" },
+            "body": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string" } },
+            "token_path": { "type": "string", "minLength": 1 },
+            "lifetime_days": { "type": "number", "exclusiveMinimum": 0 },
+            "refresh_early_minutes": { "type": "number", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "deliver": {
+          "type": "object",
+          "properties": {
+            "header": { "type": "string", "minLength": 1 },
+            "format": { "type": "string", "pattern": "\\{token\\}" }
+          },
+          "additionalProperties": false
+        },
+        "retry_on_unauthorized": { "enum": [0, 1] }
+      },
+      "additionalProperties": false
+    },
+    "providerApi": {
+      "type": "object",
+      "required": ["allowed_hosts", "endpoints"],
+      "properties": {
+        "allowed_hosts": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "data_path": { "type": "string" },
+        "cache_minutes": { "type": "integer", "minimum": 0 },
+        "cache_max_entries": { "type": "integer", "minimum": 1 },
+        "endpoints": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "pattern": "^/" },
+              "args": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^(digits|alpha3|text|one_of:.+)\\??$" } },
+              "defaults": { "type": "object", "additionalProperties": { "type": "string" } },
+              "cache_minutes": { "type": "integer", "minimum": 0 },
+              "paging": {
+                "type": "object",
+                "required": ["max_pages", "items_path", "next_path"],
+                "properties": {
+                  "start": { "type": "integer", "minimum": 0 },
+                  "max_pages": { "type": "integer", "minimum": 1 },
+                  "items_path": { "type": "string", "minLength": 1 },
+                  "next_path": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "providerFlow": {
+      "type": "object",
+      "required": ["steps"],
+      "properties": {
+        "media_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "entity_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "requires_credentials": { "type": "boolean" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "description": "One step: exactly one of set, slice, call, pages, find, pick, stop_if, stop_if_all, skip_if, skip_if_all, if, each, emit, claims, return, plus that step's own properties. The load-time check (FlowParser) reports unknown properties and bad shapes.",
+            "minProperties": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "claimCondition": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "not_blank": { "type": "boolean" },
+        "equals": { "type": "string" },
+        "ignore_case": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
     "claimSort": {
       "type": "object",
       "required": ["path"],
@@ -489,6 +584,9 @@
         "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
         "value": { "type": "string" },
         "requires_claim": { "type": "string", "minLength": 1 },
+        "trim": { "type": "boolean" },
+        "min_length": { "type": "integer", "minimum": 0 },
+        "where": { "type": "array", "items": { "$ref": "#/$defs/claimCondition" } },
         "array": { "type": "string", "minLength": 1 },
         "key_path": { "type": "string", "minLength": 1 },
         "order": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
@@ -620,6 +718,17 @@
         "requests_per_minute": { "type": "integer", "minimum": 1 },
         "burst": { "type": "integer", "minimum": 1 },
         "max_concurrency": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "registration_order": { "type": "integer", "minimum": 0 },
+    "auth": { "$ref": "#/$defs/providerAuth" },
+    "api": { "$ref": "#/$defs/providerApi" },
+    "flows": {
+      "type": "object",
+      "properties": {
+        "fetch": { "$ref": "#/$defs/providerFlow" },
+        "search": { "$ref": "#/$defs/providerFlow" }
       },
       "additionalProperties": false
     },

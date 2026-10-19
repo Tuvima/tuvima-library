@@ -30,6 +30,7 @@ internal static partial class ProviderDeclarativeValidator
         ValidateCandidateRanking(provider.CandidateRanking, errors);
         ValidateStrategyClaimRules(provider.SearchStrategies, errors);
         ValidateTextTrack(provider, errors);
+        ValidateApiAndFlows(provider, errors);
     }
 
     // -- follow-ups ---------------------------------------------------------------------------
@@ -166,12 +167,12 @@ internal static partial class ProviderDeclarativeValidator
         [ClaimRuleKinds.Field] =
         [
             "claim_key", "json_path", "json_paths", "confidence", "transform", "transform_args", "prefix",
-            "trim_leading_slash", "template", "join", "add", "value", "requires_claim",
+            "trim_leading_slash", "template", "join", "add", "value", "requires_claim", "trim", "min_length",
         ],
         [ClaimRuleKinds.PriorityPick] = ["claim_key", "confidence", "add", "array", "key_path", "order", "value_path"],
         [ClaimRuleKinds.Items] =
         [
-            "add", "path", "where_not_blank", "sort", "take", "role", "each", "first", "joined",
+            "add", "path", "where_not_blank", "where", "sort", "take", "role", "each", "first", "joined",
         ],
         [ClaimRuleKinds.Lookup] = ["lookup"],
         [ClaimRuleKinds.Sequence] =
@@ -246,6 +247,9 @@ internal static partial class ProviderDeclarativeValidator
     {
         (string Name, bool Used)[] properties =
         [
+            ("trim", rule.Trim),
+            ("min_length", rule.MinLength != 0),
+            ("where", rule.Where is not null),
             ("value", rule.Value is not null),
             ("requires_claim", rule.RequiresClaim is not null),
             ("container", rule.Container is not null),
@@ -312,6 +316,11 @@ internal static partial class ProviderDeclarativeValidator
             errors.Add($"{path}.json_paths must not be empty.");
         }
 
+        if (rule.MinLength < 0)
+        {
+            errors.Add($"{path}.min_length must not be negative.");
+        }
+
         if (rule.ClaimKey?.Contains("{role}", StringComparison.Ordinal) == true && !insideItems)
         {
             errors.Add($"{path}.claim_key uses {{role}} outside an items rule with a role.");
@@ -338,6 +347,21 @@ internal static partial class ProviderDeclarativeValidator
         ClaimRuleConfiguration rule, string path, HashSet<string> variables, int depth, List<string> errors)
     {
         AddRequired(errors, rule.Path, $"{path}.path");
+        foreach (var condition in rule.Where ?? [])
+        {
+            AddUnknown(condition.UnmappedProperties, $"{path}.where[]", errors);
+            AddRequired(errors, condition.Path, $"{path}.where[].path");
+            if (!condition.NotBlank && condition.EqualsValue is null)
+            {
+                errors.Add($"{path}.where[] needs not_blank or equals.");
+            }
+
+            if (condition.IgnoreCase && condition.EqualsValue is null)
+            {
+                errors.Add($"{path}.where[].ignore_case is only valid with equals.");
+            }
+        }
+
         if (rule.Take < 0)
         {
             errors.Add($"{path}.take must not be negative.");

@@ -126,7 +126,7 @@ internal static class ClaimRuleEngine
         }
         else if (rule.Template is not null)
         {
-            value = ExpandFromNode(rule.Template, node);
+            value = ExpandFromNode(rule.Template, node, rule.Trim);
         }
         else
         {
@@ -136,6 +136,16 @@ internal static class ClaimRuleEngine
         }
 
         if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (rule.Trim)
+        {
+            value = value.Trim();
+        }
+
+        if (value.Length < rule.MinLength)
         {
             return null;
         }
@@ -159,12 +169,13 @@ internal static class ClaimRuleEngine
         return rule.Prefix is null ? value : rule.Prefix + value;
     }
 
-    private static string? ExpandFromNode(string template, JsonNode node)
+    private static string? ExpandFromNode(string template, JsonNode node, bool trim)
     {
         var missing = false;
         var expanded = Regex.Replace(template, @"\{([^{}]+)\}", match =>
         {
             var text = FirstText(node, [match.Groups[1].Value]);
+            text = trim ? text?.Trim() : text;
             missing |= string.IsNullOrWhiteSpace(text);
             return text ?? string.Empty;
         });
@@ -240,6 +251,11 @@ internal static class ClaimRuleEngine
                 JsonPathEvaluator.GetStringValue(JsonPathEvaluator.Evaluate(item, rule.WhereNotBlank))));
         }
 
+        foreach (var condition in rule.Where ?? [])
+        {
+            items = items.Where(item => PassesCondition(item, condition));
+        }
+
         if (rule.Sort is { Count: > 0 })
         {
             items = SortNodes(items, rule.Sort);
@@ -291,6 +307,18 @@ internal static class ClaimRuleEngine
                     joined.Add ?? rule.Add ?? defaultAdd);
             }
         }
+    }
+
+    private static bool PassesCondition(JsonNode item, ClaimConditionConfiguration condition)
+    {
+        var text = JsonPathEvaluator.GetStringValue(JsonPathEvaluator.Evaluate(item, condition.Path))?.Trim();
+        if (condition.NotBlank && string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return condition.EqualsValue is null
+            || string.Equals(text, condition.EqualsValue, condition.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     }
 
     private static string? ResolveRole(JsonNode item, ClaimRoleConfiguration role)

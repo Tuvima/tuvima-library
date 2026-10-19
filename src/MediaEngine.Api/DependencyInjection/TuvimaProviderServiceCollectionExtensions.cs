@@ -73,12 +73,13 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IProviderRateLimiterCoordinator, ProviderRateLimiterCoordinator>();
         services.AddSingleton<AppleRetailClient>();
         services.AddSingleton<MusicBrainzReleaseClient>();
+        // Retail-match services that still name TMDB; they move with the Plugins work (WP20).
         services.AddSingleton<TmdbRetailClient>();
         services.AddSingleton<TmdbTvSuggestionService>();
         services.AddSingleton<ITmdbSeasonEpisodeCatalogue, TmdbSeasonEpisodeCatalogue>();
         services.AddSingleton<ITvEpisodeCrosswalk, TvEpisodeCrosswalk>();
-        services.AddSingleton<TvdbRetailClient>();
-        services.AddSingleton<IExternalMetadataProvider, TvdbMetadataProvider>();
+        services.AddSingleton<ProviderApiClient>();
+        AddLateRegisteredProviders(services, configLoader);
         services.AddSingleton<RetailCandidateScorer>();
         services.AddSingleton<RetailMatchWorker>();
         services.AddSingleton<WikidataBridgeWorker>();
@@ -111,7 +112,6 @@ public static class TuvimaProviderServiceCollectionExtensions
             "wikidata_reconciliation",
             TimeSpan.FromSeconds(30));
         services.AddTuvimaHttpClient("cover_download", TimeSpan.FromSeconds(20));
-        services.AddTuvimaHttpClient("tvdb", TimeSpan.FromSeconds(20));
         services.AddTuvimaHttpClient("headshot_download", TimeSpan.FromSeconds(20));
         // Plugin tools can legitimately run for several minutes. The standard
         // resilience pipeline's much shorter attempt timeout would silently
@@ -123,26 +123,9 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddTuvimaHttpClient("plugin_catalog", TimeSpan.FromSeconds(15));
 
         var providerConfigurations = configLoader.LoadAllProviders();
-        foreach (var providerConfig in providerConfigurations
-                     .Where(config => string.Equals(
-                         config.AdapterType,
-                         "config_driven",
-                         StringComparison.OrdinalIgnoreCase)))
+        foreach (var providerConfig in ConfigDrivenProviders(providerConfigurations).Where(config => config.RegistrationOrder <= 0))
         {
-            services.AddTuvimaHttpClient(
-                providerConfig.Name,
-                TimeSpan.FromSeconds(providerConfig.HttpClient?.TimeoutSeconds ?? 10),
-                providerConfig.HttpClient?.UserAgent);
-
-            var capturedConfig = providerConfig;
-            services.AddSingleton<IExternalMetadataProvider>(sp =>
-                new ConfigDrivenAdapter(
-                    capturedConfig,
-                    sp.GetRequiredService<IHttpClientFactory>(),
-                    sp.GetRequiredService<ILogger<ConfigDrivenAdapter>>(),
-                    sp.GetRequiredService<IProviderHealthMonitor>(),
-                    sp.GetRequiredService<IProviderResponseCacheRepository>(),
-                    sp.GetRequiredService<IProviderRateLimiterCoordinator>()));
+            RegisterConfigDrivenProvider(services, providerConfig);
         }
 
         foreach (var providerConfig in providerConfigurations
@@ -178,6 +161,43 @@ public static class TuvimaProviderServiceCollectionExtensions
                     sp.GetRequiredService<ILogger<TextTrackProviderAdapter>>(),
                     sp.GetRequiredService<IProviderRateLimiterCoordinator>(),
                     sp.GetRequiredService<IProviderResponseCacheRepository>()));
+        }
+    }
+
+    private static IEnumerable<ProviderConfiguration> ConfigDrivenProviders(IEnumerable<ProviderConfiguration> configurations) =>
+        configurations.Where(config => string.Equals(config.AdapterType, "config_driven", StringComparison.OrdinalIgnoreCase));
+
+    private static void RegisterConfigDrivenProvider(IServiceCollection services, ProviderConfiguration providerConfig)
+    {
+        services.AddTuvimaHttpClient(
+            providerConfig.Name,
+            TimeSpan.FromSeconds(providerConfig.HttpClient?.TimeoutSeconds ?? 10),
+            providerConfig.HttpClient?.UserAgent);
+
+        var capturedConfig = providerConfig;
+        services.AddSingleton<IExternalMetadataProvider>(sp =>
+            new ConfigDrivenAdapter(
+                capturedConfig,
+                sp.GetRequiredService<IHttpClientFactory>(),
+                sp.GetRequiredService<ILogger<ConfigDrivenAdapter>>(),
+                sp.GetRequiredService<IProviderHealthMonitor>(),
+                sp.GetRequiredService<IProviderResponseCacheRepository>(),
+                sp.GetRequiredService<IProviderRateLimiterCoordinator>(),
+                sp.GetRequiredService<ProviderApiClient>()));
+    }
+
+    /// <summary>
+    /// Providers whose file asks to register after the built-in reconciliation provider
+    /// (<c>registration_order</c> above 0), in ascending order. Registration order decides
+    /// enumeration order, which decides which provider answers first.
+    /// </summary>
+    private static void AddLateRegisteredProviders(IServiceCollection services, IConfigurationLoader configLoader)
+    {
+        foreach (var providerConfig in ConfigDrivenProviders(configLoader.LoadAllProviders())
+                     .Where(config => config.RegistrationOrder > 0)
+                     .OrderBy(config => config.RegistrationOrder))
+        {
+            RegisterConfigDrivenProvider(services, providerConfig);
         }
     }
 
