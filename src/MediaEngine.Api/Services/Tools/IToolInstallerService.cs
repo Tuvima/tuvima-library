@@ -100,9 +100,18 @@ public sealed class ToolDownload(Stream content, long? length, IDisposable? owne
 /// <summary>Starts a downloaded setup program and waits for it to close. A seam so tests never launch anything.</summary>
 public interface IToolProcessLauncher
 {
+    /// <param name="programPath">The program to start.</param>
+    /// <param name="started">Called once, right after the program has been started, before waiting for it to close.</param>
+    /// <param name="ct">Cancels the wait (not the program).</param>
     /// <returns>The program's exit code.</returns>
-    Task<int> RunAndWaitAsync(string programPath, CancellationToken ct);
+    Task<int> RunAndWaitAsync(string programPath, Action started, CancellationToken ct);
 }
+
+/// <summary>
+/// A download was refused before any file was written: the address, or a redirect it led to, is not on the short list
+/// of hosts the Library fetches from.
+/// </summary>
+public sealed class ToolDownloadRefusedException(string message) : Exception(message);
 
 /// <summary>What the machine running the Engine allows. A seam so tests can ask for any combination.</summary>
 /// <param name="WindowsX64">The pinned builds are for 64-bit Windows.</param>

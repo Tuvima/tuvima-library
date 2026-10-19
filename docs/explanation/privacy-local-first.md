@@ -48,7 +48,9 @@ Tuvima never downloads a helper tool or a model by itself. The only downloads ar
 | Extra text recognition languages | `github.com` (tesseract-ocr/tessdata_fast) | Choosing a language under **Settings > Libraries > View > Documents** |
 | Local AI model files | The model host named for each model on the Local AI pages | **Download** on the Tools and requirements page |
 
-Every address and every checksum for the tools above is written in `config/tool_downloads.json`. The Library only accepts fixed `https` addresses on `github.com`, checks each download (and each FFmpeg program inside its archive) against the recorded SHA-256 value, and throws away anything that does not match. Each attempt, including a refusal or a cancel, is written to the system activity log.
+The address and checksum of every FFmpeg and Tesseract download (the setup program and its English and page-orientation data) are written in `config/tool_downloads.json`. Extra text recognition languages use `language_download_url` in `config/ocr.json`, and each Local AI model uses the address and checksum in `config/ai.json`. For FFmpeg and Tesseract the Library only accepts fixed `https` addresses on `github.com`, checks each download (and each FFmpeg program inside its archive) against the recorded SHA-256 value, and throws away anything that does not match. Each attempt, including a refusal or a cancel, is written to the system activity log.
+
+GitHub hands release and raw files on to its own storage, so a download from `github.com` may be redirected. The Library follows a redirect only over `https`, only to `github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com` or `raw.githubusercontent.com`, and for at most five hops; a redirect anywhere else is refused and nothing is saved.
 
 **No library data is sent.** A download is a plain request for one file. The only thing the host can learn from it is that someone fetched that file from that internet address; no titles, file names, folders, profile or account details leave your host. Containers never download tools into themselves.
 

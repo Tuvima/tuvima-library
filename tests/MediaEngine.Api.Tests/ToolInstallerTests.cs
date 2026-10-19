@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -61,7 +62,7 @@ public sealed class ToolInstallerTests : IDisposable
         Directory.CreateDirectory(_dataRoot);
         _configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         _ffmpeg = new FolderFfmpeg(Path.Combine(_dataRoot, "tools", "ffmpeg"));
-        _ocr = new FolderOcr(_ocrData, Path.Combine(_dataRoot, "tools", "tesseract"));
+        _ocr = new FolderOcr(_ocrData, Path.Combine(_dataRoot, "tools", "tesseract"), _configuration);
         Build();
     }
 
@@ -402,6 +403,156 @@ public sealed class ToolInstallerTests : IDisposable
     }
 
     [Fact]
+    public async Task RunInstaller_ForAFileThatCannotBeOpened_FailsPlainly_AndLeavesTheRowRunnableAgain()
+    {
+        await DownloadTesseractAsync();
+        var installer = Path.Combine(_dataRoot, "tools", "installers", "tesseract-setup.exe");
+        using (new FileStream(installer, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var refused = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+
+            Assert.Equal(ToolInstallOutcome.NotOffered, refused.Outcome);
+            Assert.Equal("The installer couldn't be checked just now. Try again in a moment.", refused.Message);
+        }
+
+        var snapshot = _installer.GetSnapshot(ToolRequirementIds.Tesseract);
+        Assert.False(snapshot.InstallerRunning);
+        Assert.Equal(ToolInstallPhase.InstallerReady, snapshot.Phase);
+        Assert.Equal(ToolRequirementStates.InstallerReady, (await Row(ToolRequirementIds.Tesseract)).State);
+
+        var again = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        Assert.Equal(ToolInstallOutcome.Accepted, again.Outcome);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+    }
+
+    [Fact]
+    public async Task RunInstaller_IsNotTiedToTheRequestsOwnCancellation()
+    {
+        await DownloadTesseractAsync();
+        using var closedRequest = new CancellationTokenSource();
+        await closedRequest.CancelAsync();
+
+        var result = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, closedRequest.Token);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+
+        Assert.Equal(ToolInstallOutcome.Accepted, result.Outcome);
+        Assert.Equal(1, _launcher.Runs);
+    }
+
+    [Fact]
+    public async Task RunInstaller_WhenTheProgramCannotBeStarted_LeavesTheRowRunnableAgain_WithAPlainReason()
+    {
+        await DownloadTesseractAsync();
+        _launcher.Throw = new Win32Exception(1223, "The operation was canceled by the user.");
+
+        var first = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+
+        Assert.Equal(ToolInstallOutcome.Accepted, first.Outcome);
+        var row = await Row(ToolRequirementIds.Tesseract);
+        Assert.Equal(ToolRequirementStates.InstallerReady, row.State);
+        Assert.Equal("The installer didn't start. Run it again to finish.", row.StateReason);
+
+        _launcher.Throw = new InvalidOperationException("The launcher broke in some other way.");
+        await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+        Assert.Equal(ToolRequirementStates.InstallerReady, (await Row(ToolRequirementIds.Tesseract)).State);
+
+        _launcher.Throw = null;
+        var third = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+        Assert.Equal(ToolInstallOutcome.Accepted, third.Outcome);
+        Assert.Equal(1, _launcher.Runs);
+    }
+
+    [Fact]
+    public async Task RunInstaller_HoldsTheCheckedFile_UntilTheProgramHasStarted()
+    {
+        await DownloadTesseractAsync();
+
+        await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+
+        // Nobody could change or replace the file between the check and the start, and it is let go once started.
+        Assert.True(_launcher.HandleHeldBeforeStart);
+        Assert.True(_launcher.HandleReleasedAfterStart);
+    }
+
+    [Fact]
+    public async Task AfterTheInstaller_ASavedTesseractLocationThatDoesNotWork_IsClearedSoTheNewCopyIsFound()
+    {
+        await DownloadTesseractAsync();
+        var broken = Path.Combine(_root, "old-tesseract.exe");
+        File.WriteAllText(broken, "broken");
+        var settings = _configuration.LoadOcr();
+        settings.TesseractBinaryPath = broken;
+        _configuration.SaveOcr(settings);
+        _launcher.OnRun = () => _ocr.Install();
+
+        await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => _installer.GetSnapshot(ToolRequirementIds.Tesseract).Phase == ToolInstallPhase.Idle);
+
+        Assert.Equal(string.Empty, _configuration.LoadOcr().TesseractBinaryPath);
+        Assert.Equal(ToolRequirementStates.Ready, (await Row(ToolRequirementIds.Tesseract)).State);
+    }
+
+    [Fact]
+    public async Task AfterTheInstaller_ASavedTesseractLocationThatStillWorks_IsLeftAlone()
+    {
+        await DownloadTesseractAsync();
+        var working = Path.Combine(_root, "chosen-tesseract.exe");
+        File.WriteAllText(working, "works");
+        var settings = _configuration.LoadOcr();
+        settings.TesseractBinaryPath = working;
+        _configuration.SaveOcr(settings);
+
+        await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilAsync(() => !_installer.GetSnapshot(ToolRequirementIds.Tesseract).InstallerRunning);
+
+        Assert.Equal(working, _configuration.LoadOcr().TesseractBinaryPath);
+    }
+
+    [Fact]
+    public async Task ACancelThatArrivesAfterTheNewCopyIsInPlace_ReportsFinished_NotCancelled()
+    {
+        UseFfmpeg(FfmpegArchive());
+        await Row(ToolRequirementIds.Ffmpeg);
+        _ffmpeg.HoldVersionCheck = new TaskCompletionSource();
+
+        await _installer.StartAsync(ToolRequirementIds.Ffmpeg, CancellationToken.None);
+        await WaitUntilAsync(() => _ffmpeg.CheckStarted);
+        await _installer.CancelAsync(ToolRequirementIds.Ffmpeg, CancellationToken.None);
+        _ffmpeg.HoldVersionCheck.SetResult();
+        await WaitUntilIdleAsync(ToolRequirementIds.Ffmpeg);
+
+        Assert.True(File.Exists(Path.Combine(_dataRoot, "tools", "ffmpeg", "ffmpeg.exe")));
+        Assert.Contains(SystemActionType.ToolDownloadFinished, _activity.ActionTypes);
+        Assert.DoesNotContain(SystemActionType.ToolDownloadCancelled, _activity.ActionTypes);
+    }
+
+    [Fact]
+    public async Task ARedirectThatIsRefused_FailsWithAPlainReason_AndNothingIsInstalled()
+    {
+        UseFfmpeg(FfmpegArchive());
+        _source.Refuse = true;
+
+        await _installer.StartAsync(ToolRequirementIds.Ffmpeg, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.Ffmpeg);
+
+        var row = await Row(ToolRequirementIds.Ffmpeg);
+        Assert.Equal("The download address in settings isn't allowed, so nothing was downloaded.", row.StateReason);
+        Assert.False(Directory.Exists(Path.Combine(_dataRoot, "tools", "ffmpeg")));
+        Assert.Contains(SystemActionType.ToolDownloadFailed, _activity.ActionTypes);
+    }
+
+    private async Task DownloadTesseractAsync()
+    {
+        UseTesseract();
+        await _installer.StartAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
+        await WaitUntilIdleAsync(ToolRequirementIds.Tesseract);
+    }
+
+    [Fact]
     public async Task RunInstaller_WithNothingDownloaded_IsNotOffered()
     {
         var result = await _installer.RunInstallerAsync(ToolRequirementIds.Tesseract, CancellationToken.None);
@@ -711,6 +862,7 @@ public sealed class ToolInstallerTests : IDisposable
         public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal);
         public List<string> Requests { get; } = [];
         public bool Offline { get; set; }
+        public bool Refuse { get; set; }
         public TaskCompletionSource? HoldAfterFirstChunk { get; set; }
         public volatile bool Held;
 
@@ -720,6 +872,11 @@ public sealed class ToolInstallerTests : IDisposable
             if (Offline)
             {
                 throw new HttpRequestException("The network is unreachable.");
+            }
+
+            if (Refuse)
+            {
+                throw new ToolDownloadRefusedException("A redirect led to a host that is not allowed.");
             }
 
             if (!Files.TryGetValue(address.ToString(), out var bytes))
@@ -794,13 +951,38 @@ public sealed class ToolInstallerTests : IDisposable
         public int Runs { get; private set; }
         public string? LastPath { get; private set; }
         public Action? OnRun { get; set; }
+        public Exception? Throw { get; set; }
+        public bool HandleHeldBeforeStart { get; private set; }
+        public bool HandleReleasedAfterStart { get; private set; }
 
-        public Task<int> RunAndWaitAsync(string programPath, CancellationToken ct)
+        public Task<int> RunAndWaitAsync(string programPath, Action started, CancellationToken ct)
         {
+            if (Throw is not null)
+            {
+                throw Throw;
+            }
+
             Runs++;
             LastPath = programPath;
+            HandleHeldBeforeStart = IsLocked(programPath);
+            started();
+            HandleReleasedAfterStart = !IsLocked(programPath);
             OnRun?.Invoke();
             return Task.FromResult(0);
+        }
+
+        // A file someone else still has open cannot be opened for exclusive use.
+        private static bool IsLocked(string path)
+        {
+            try
+            {
+                using var probe = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                return false;
+            }
+            catch (IOException)
+            {
+                return true;
+            }
         }
     }
 
@@ -844,6 +1026,8 @@ public sealed class ToolInstallerTests : IDisposable
         private string? _ffprobe;
 
         public int VersionExitCode { get; set; }
+        public TaskCompletionSource? HoldVersionCheck { get; set; }
+        public volatile bool CheckStarted;
         public string? FfmpegPath => _ffmpeg;
         public string? FfprobePath => _ffprobe;
         public bool IsAvailable => _ffmpeg is not null && _ffprobe is not null;
@@ -861,12 +1045,20 @@ public sealed class ToolInstallerTests : IDisposable
         public Task<MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default) =>
             Task.FromResult<MediaProbeResult?>(null);
 
-        public Task<(int ExitCode, string Output, string Error)> RunAsync(string arguments, CancellationToken ct = default) =>
-            Task.FromResult((VersionExitCode, "ffmpeg version 9.0.1", string.Empty));
+        public async Task<(int ExitCode, string Output, string Error)> RunAsync(string arguments, CancellationToken ct = default)
+        {
+            if (HoldVersionCheck is { } hold)
+            {
+                CheckStarted = true;
+                await hold.Task.WaitAsync(ct);
+            }
+
+            return (VersionExitCode, "ffmpeg version 9.0.1", string.Empty);
+        }
     }
 
     /// <summary>Text recognition that finds Tesseract once <see cref="Install"/> has put a program in the data folder.</summary>
-    private sealed class FolderOcr(string languageData, string toolFolder) : IOcrService
+    private sealed class FolderOcr(string languageData, string toolFolder, IConfigurationLoader configuration) : IOcrService
     {
         public string LanguageDataDirectory => languageData;
         public string TemporaryRoot => Path.Combine(languageData, "tmp");
@@ -880,6 +1072,15 @@ public sealed class ToolInstallerTests : IDisposable
 
         public Task<OcrCapability> GetCapabilityAsync(CancellationToken ct = default)
         {
+            // A saved location wins, as in the real detection; a file that says "broken" is found but does not work.
+            var saved = configuration.LoadOcr().TesseractBinaryPath;
+            if (!string.IsNullOrWhiteSpace(saved))
+            {
+                return Task.FromResult(File.Exists(saved) && File.ReadAllText(saved) != "broken"
+                    ? new OcrCapability(true, saved, "5.4.0", languageData, ["eng"], true, null)
+                    : OcrCapability.Unavailable("Text recognition is not installed."));
+            }
+
             var path = Path.Combine(toolFolder, "tesseract.exe");
             return Task.FromResult(File.Exists(path)
                 ? new OcrCapability(true, path, "5.4.0", languageData, ["eng"], true, null)

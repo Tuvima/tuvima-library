@@ -87,6 +87,31 @@ public sealed class ToolDownloadConfigAndPreferenceTests : IDisposable
         Assert.Null(LoadWith(tesseractLanguageName: "tessdata/eng.traineddata").Tesseract);
     }
 
+    [Theory]
+    [InlineData("ffmpeg/../ffmpeg.exe")]
+    [InlineData("..\\ffmpeg.exe")]
+    [InlineData("C:ffmpeg.exe")]
+    [InlineData("ffmpeg?.exe")]
+    [InlineData("ffm|peg.exe")]
+    [InlineData("")]
+    [InlineData("..")]
+    public void AFileNameThatIsNotAPlainName_IsRefused_ForFfmpegAndForTesseractLanguageData(string name)
+    {
+        Assert.Null(LoadWith(ffmpegFileName: name).Ffmpeg);
+        Assert.Null(LoadWith(tesseractLanguageName: name).Tesseract);
+    }
+
+    [Theory]
+    [InlineData("tesseract-setup.msi")]
+    [InlineData("tesseract-setup.zip")]
+    [InlineData("tesseract-setup")]
+    [InlineData("tesseract-setup.exe.txt")]
+    public void ATesseractInstallerThatIsNotAnExe_IsRefused(string name)
+    {
+        Assert.Null(LoadWith(tesseractInstallerName: name).Tesseract);
+        Assert.NotNull(LoadWith(tesseractInstallerName: "Tesseract-Setup.EXE").Tesseract);
+    }
+
     [Fact]
     public void AGithubAddressWithValidChecksums_IsKept()
     {
@@ -147,13 +172,15 @@ public sealed class ToolDownloadConfigAndPreferenceTests : IDisposable
 
     private ToolDownloadSettings LoadWith(
         string? ffmpegUrl = null, string? ffmpegSha256 = null, string? ffmpegFileName = null,
-        string? tesseractInstallerUrl = null, string? tesseractLanguageUrl = null, string? tesseractLanguageName = null)
+        string? tesseractInstallerUrl = null, string? tesseractLanguageUrl = null, string? tesseractLanguageName = null,
+        string? tesseractInstallerName = null)
     {
         var defaults = new ToolDownloadSettings();
         defaults.Ffmpeg!.Url = ffmpegUrl ?? defaults.Ffmpeg.Url;
         defaults.Ffmpeg.Sha256 = ffmpegSha256 ?? defaults.Ffmpeg.Sha256;
         defaults.Ffmpeg.Files[0].Name = ffmpegFileName ?? defaults.Ffmpeg.Files[0].Name;
         defaults.Tesseract!.Installer.Url = tesseractInstallerUrl ?? defaults.Tesseract.Installer.Url;
+        defaults.Tesseract.Installer.Name = tesseractInstallerName ?? defaults.Tesseract.Installer.Name;
         defaults.Tesseract.LanguageFiles[0].Url = tesseractLanguageUrl ?? defaults.Tesseract.LanguageFiles[0].Url;
         defaults.Tesseract.LanguageFiles[0].Name = tesseractLanguageName ?? defaults.Tesseract.LanguageFiles[0].Name;
 

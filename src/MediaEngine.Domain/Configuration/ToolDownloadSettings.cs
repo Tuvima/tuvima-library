@@ -35,6 +35,34 @@ public sealed class ToolDownloadSettings
         && string.IsNullOrEmpty(uri.UserInfo)
         && uri.IsDefaultPort;
 
+    /// <summary>
+    /// The hosts a download may be handed on to. GitHub serves release and raw files from its own storage hosts, so a
+    /// fixed <see cref="AllowedHost"/> address redirects to one of these; anything else is refused.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AllowedRedirectHosts =
+    [
+        AllowedHost,
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+        "raw.githubusercontent.com",
+    ];
+
+    /// <summary>True for an <c>https</c> address on <see cref="AllowedRedirectHosts"/> with no user name, password or port.</summary>
+    public static bool IsAllowedRedirectAddress(string? address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && AllowedRedirectHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase)
+        && string.IsNullOrEmpty(uri.UserInfo)
+        && uri.IsDefaultPort;
+
+    /// <summary>A plain file name: not empty, no folders, no drive, none of the characters a file name cannot hold.</summary>
+    public static bool IsPlainFileName(string? name) =>
+        !string.IsNullOrWhiteSpace(name)
+        && name is not ("." or "..")
+        && name.IndexOfAny(['/', '\\', ':']) < 0
+        && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+        && string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal);
+
     /// <summary>True for a 64-character hexadecimal SHA-256 value.</summary>
     public static bool IsSha256(string? value) =>
         value is { Length: 64 } && value.All(Uri.IsHexDigit);
@@ -73,9 +101,7 @@ public sealed class DownloadFile
     internal bool IsValid() =>
         ToolDownloadSettings.IsAllowedAddress(Url)
         && ToolDownloadSettings.IsSha256(Sha256)
-        && !string.IsNullOrWhiteSpace(Name)
-        && string.Equals(Path.GetFileName(Name), Name, StringComparison.Ordinal)
-        && Name is not ("." or "..");
+        && ToolDownloadSettings.IsPlainFileName(Name);
 }
 
 /// <summary>The pinned FFmpeg build: one archive, and the two programs and licence taken out of it.</summary>
@@ -128,8 +154,7 @@ public sealed class ExtractedFile
 
     internal bool IsValid() =>
         ToolDownloadSettings.IsSha256(Sha256)
-        && !string.IsNullOrWhiteSpace(Name)
-        && string.Equals(Path.GetFileName(Name), Name, StringComparison.Ordinal);
+        && ToolDownloadSettings.IsPlainFileName(Name);
 }
 
 /// <summary>The pinned Tesseract setup program and the language data it is used with.</summary>
@@ -175,6 +200,7 @@ public sealed class TesseractDownload
     internal bool IsValid() =>
         Platform == ToolDownloadSettings.WindowsX64
         && Installer?.IsValid() == true
+        && Installer.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
         && LanguageFiles is not null
         && LanguageFiles.All(file => file?.IsValid() == true);
 }

@@ -159,7 +159,8 @@ public sealed class ToolInstallerService : IToolInstallerService
         Task execution;
         lock (_gate)
         {
-            if (!_jobs.TryGetValue(toolId, out var job) || job.Phase != ToolInstallPhase.Downloading)
+            // Once the new copy is in place there is nothing left to cancel; the job only finishes and looks again.
+            if (!_jobs.TryGetValue(toolId, out var job) || job.Phase != ToolInstallPhase.Downloading || job.Committed)
             {
                 return;
             }
@@ -202,7 +203,7 @@ public sealed class ToolInstallerService : IToolInstallerService
                 Finish(job, ToolInstallPhase.InstallerReady, null);
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested && !job.Committed)
         {
             Finish(job, ToolInstallPhase.Idle, null);
             await LogAsync(ToolDownloadActivity.Cancelled(name, version, host)).ConfigureAwait(false);
@@ -260,7 +261,12 @@ public sealed class ToolInstallerService : IToolInstallerService
         }
 
         ct.ThrowIfCancellationRequested();
-        ReplaceFolder(staging, Path.Combine(ToolsRoot, "ffmpeg"), Path.Combine(work, "previous"));
+        ReplaceFolder(staging, Path.Combine(ToolsRoot, "ffmpeg"));
+        lock (_gate)
+        {
+            job.Committed = true;
+        }
+
         SetPercent(job, 98);
 
         // The person asked the Library to fetch its own copy, so a saved location that no longer works must not
@@ -364,14 +370,17 @@ public sealed class ToolInstallerService : IToolInstallerService
     }
 
     /// <summary>Puts the new folder in place of the old one; the old copy is kept if anything goes wrong.</summary>
-    private void ReplaceFolder(string staged, string target, string previous)
+    private void ReplaceFolder(string staged, string target)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        // Outside the job's own work folder, which is always deleted: if putting the old copy back fails it must stay.
+        var previous = Path.Combine(ToolsRoot, ".previous", Path.GetFileName(target) + "-" + Guid.NewGuid().ToString("N"));
         var movedAside = false;
         try
         {
             if (Directory.Exists(target))
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(previous)!);
                 Directory.Move(target, previous);
                 movedAside = true;
             }
@@ -383,10 +392,23 @@ public sealed class ToolInstallerService : IToolInstallerService
             _logger.LogWarning(ex, "Could not put the new copy of a tool in place; the old copy was kept.");
             if (movedAside && !Directory.Exists(target))
             {
-                Directory.Move(previous, target);
+                try
+                {
+                    Directory.Move(previous, target);
+                }
+                catch (Exception restoreError) when (restoreError is IOException or UnauthorizedAccessException)
+                {
+                    // Never delete the only remaining copy: it stays in the previous-copies folder for the person to recover.
+                    _logger.LogError(restoreError, "Could not put the previous copy of a tool back; it was left at {Previous}.", previous);
+                }
             }
 
             throw new ToolInstallException(ToolRequirementsService.Copy.InstallFolderBusy, "The tool folder could not be replaced.", ex);
+        }
+
+        if (movedAside)
+        {
+            DeleteQuietly(previous);
         }
     }
 
@@ -445,6 +467,7 @@ public sealed class ToolInstallerService : IToolInstallerService
         }
 
         string path;
+        Job current;
         lock (_gate)
         {
             if (!_jobs.TryGetValue(toolId, out var job) || job.Phase != ToolInstallPhase.InstallerReady || job.InstallerPath is null)
@@ -459,80 +482,126 @@ public sealed class ToolInstallerService : IToolInstallerService
 
             job.InstallerRunning = true;
             path = job.InstallerPath;
+            current = job;
         }
 
-
-        var expected = _configuration.LoadToolDownloads().Tesseract?.Installer.Sha256;
-        // The file is checked again right before it runs, so one that changed on disk since the download never starts.
-        if (expected is null || !File.Exists(path) || !HashesMatch(await HashFileAsync(path, ct).ConfigureAwait(false), expected))
+        if (!File.Exists(path))
         {
-            DeleteQuietly(path);
-            lock (_gate)
+            ReleaseInstaller(current, ToolInstallPhase.Idle, null, clearPath: true);
+            return new ToolInstallResult(ToolInstallOutcome.NotOffered, ToolRequirementsService.Copy.NoInstallerReady);
+        }
+
+        // The checked file is held open (readable by others, not changeable) from the hash until the program has
+        // started, so what was checked is exactly what runs. The service's own lifetime token is used, never the
+        // request's, so a closed browser tab cannot leave the row stuck on "running".
+        FileStream? held = null;
+        try
+        {
+            held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            var expected = _configuration.LoadToolDownloads().Tesseract?.Installer.Sha256;
+            if (expected is null || !HashesMatch(await HashStreamAsync(held, _lifetime.ApplicationStopping).ConfigureAwait(false), expected))
             {
-                var job = _jobs[toolId];
-                job.InstallerRunning = false;
-                job.Phase = ToolInstallPhase.Failed;
-                job.InstallerPath = null;
-                job.Reason = ToolRequirementsService.Copy.InstallerChecksum;
+                await held.DisposeAsync().ConfigureAwait(false);
+                held = null;
+                DeleteQuietly(path);
+                ReleaseInstaller(current, ToolInstallPhase.Failed, ToolRequirementsService.Copy.InstallerChecksum, clearPath: true);
+                return new ToolInstallResult(ToolInstallOutcome.NotOffered, ToolRequirementsService.Copy.InstallerChecksum);
             }
 
-            return new ToolInstallResult(ToolInstallOutcome.NotOffered, ToolRequirementsService.Copy.InstallerChecksum);
-        }
+            var stream = held;
+            held = null;
+            lock (_gate)
+            {
+                current.Execution = Task.Run(() => RunInstallerCoreAsync(current, path, stream));
+            }
 
-        Job current;
-        lock (_gate)
+            return new ToolInstallResult(ToolInstallOutcome.Accepted);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
-            current = _jobs[toolId];
-            current.Execution = Task.Run(() => RunInstallerCoreAsync(current, path));
+            // A locked file or an Engine that is stopping: the installer is still there, so it can be run again.
+            _logger.LogWarning(ex, "Tesseract's installer could not be checked before running.");
+            ReleaseInstaller(current, ToolInstallPhase.InstallerReady, ToolRequirementsService.Copy.InstallerCouldNotBeChecked, clearPath: false);
+            return new ToolInstallResult(ToolInstallOutcome.NotOffered, ToolRequirementsService.Copy.InstallerCouldNotBeChecked);
         }
-
-        return new ToolInstallResult(ToolInstallOutcome.Accepted);
+        finally
+        {
+            if (held is not null)
+            {
+                await held.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 
-    private async Task RunInstallerCoreAsync(Job job, string path)
+    /// <summary>Marks the setup program as not running and moves the job to the given phase.</summary>
+    private void ReleaseInstaller(Job job, ToolInstallPhase phase, string? reason, bool clearPath)
+    {
+        lock (_gate)
+        {
+            job.InstallerRunning = false;
+            job.Phase = phase;
+            job.Reason = reason;
+            if (clearPath)
+            {
+                job.InstallerPath = null;
+            }
+        }
+    }
+
+    private async Task RunInstallerCoreAsync(Job job, string path, FileStream held)
     {
         var stopping = _lifetime.ApplicationStopping;
         string? note = null;
         var exitCode = -1;
+        var ready = false;
         try
         {
-            exitCode = await _launcher.RunAndWaitAsync(path, stopping).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
-        {
-            // Most often the person said no to Windows' approval prompt.
-            _logger.LogInformation(ex, "Tesseract's installer did not start.");
-            note = ToolRequirementsService.Copy.InstallerDidNotStart;
-        }
-        catch (OperationCanceledException) when (stopping.IsCancellationRequested)
-        {
-            note = ToolRequirementsService.Copy.TesseractInstallerReady;
-        }
+            try
+            {
+                // The held handle is let go the moment the program has started, and not before.
+                exitCode = await _launcher.RunAndWaitAsync(path, held.Dispose, stopping).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (stopping.IsCancellationRequested)
+            {
+                note = ToolRequirementsService.Copy.TesseractInstallerReady;
+            }
+            catch (Exception ex)
+            {
+                // Most often the person said no to Windows' approval prompt; whatever it was, the row must be usable again.
+                _logger.LogInformation(ex, "Tesseract's installer did not start.");
+                note = ToolRequirementsService.Copy.InstallerDidNotStart;
+            }
+            finally
+            {
+                await held.DisposeAsync().ConfigureAwait(false);
+            }
 
-        var ready = false;
-        if (note is null)
-        {
-            ready = await ReadyAfterInstallerAsync(exitCode).ConfigureAwait(false);
-        }
+            if (note is null)
+            {
+                ready = await ReadyAfterInstallerAsync(exitCode).ConfigureAwait(false);
+            }
 
-        if (ready)
-        {
-            // The setup program has done its job; it goes before the row stops showing it as waiting.
-            DeleteQuietly(path);
-        }
-
-        lock (_gate)
-        {
-            job.InstallerRunning = false;
             if (ready)
             {
-                job.Phase = ToolInstallPhase.Idle;
-                job.InstallerPath = null;
-                job.Reason = null;
+                // The setup program has done its job; it goes before the row stops showing it as waiting.
+                DeleteQuietly(path);
             }
-            else
+        }
+        finally
+        {
+            lock (_gate)
             {
-                job.Reason = note ?? ToolRequirementsService.Copy.TesseractNotReadyYet;
+                job.InstallerRunning = false;
+                if (ready)
+                {
+                    job.Phase = ToolInstallPhase.Idle;
+                    job.InstallerPath = null;
+                    job.Reason = null;
+                }
+                else
+                {
+                    job.Reason = note ?? ToolRequirementsService.Copy.TesseractNotReadyYet;
+                }
             }
         }
     }
@@ -543,12 +612,18 @@ public sealed class ToolInstallerService : IToolInstallerService
         {
             if (exitCode == 0)
             {
-                // An explicit location that no longer works must not win over the copy just installed.
+                // A saved location that does not hold a working Tesseract (gone, or found but broken) must not win
+                // over the copy just installed, so it is cleared, as it is after an FFmpeg install.
                 var settings = _configuration.LoadOcr();
-                if (!string.IsNullOrWhiteSpace(settings.TesseractBinaryPath) && !File.Exists(settings.TesseractBinaryPath))
+                if (!string.IsNullOrWhiteSpace(settings.TesseractBinaryPath))
                 {
-                    settings.TesseractBinaryPath = string.Empty;
-                    _configuration.SaveOcr(settings);
+                    _ocr.Invalidate();
+                    var saved = await _ocr.GetCapabilityAsync(_lifetime.ApplicationStopping).ConfigureAwait(false);
+                    if (!saved.IsAvailable)
+                    {
+                        settings.TesseractBinaryPath = string.Empty;
+                        _configuration.SaveOcr(settings);
+                    }
                 }
             }
 
@@ -574,7 +649,17 @@ public sealed class ToolInstallerService : IToolInstallerService
             throw new ToolInstallException(ToolRequirementsService.Copy.InstallAddressRefused, "A download address was refused.");
         }
 
-        await using var download = await _source.OpenAsync(new Uri(address), ct).ConfigureAwait(false);
+        ToolDownload download;
+        try
+        {
+            download = await _source.OpenAsync(new Uri(address), ct).ConfigureAwait(false);
+        }
+        catch (ToolDownloadRefusedException ex)
+        {
+            throw new ToolInstallException(ToolRequirementsService.Copy.InstallAddressRefused, ex.Message, ex);
+        }
+
+        await using var _ = download.ConfigureAwait(false);
         if (download.Length is { } declared)
         {
             if (declared > maxBytes)
@@ -652,8 +737,11 @@ public sealed class ToolInstallerService : IToolInstallerService
     private static async Task<string> HashFileAsync(string path, CancellationToken ct)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-        return Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false));
+        return await HashStreamAsync(stream, ct).ConfigureAwait(false);
     }
+
+    private static async Task<string> HashStreamAsync(Stream stream, CancellationToken ct) =>
+        Convert.ToHexString(await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false));
 
     private static bool HashesMatch(string actual, string expected) =>
         string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
@@ -742,6 +830,9 @@ public sealed class ToolInstallerService : IToolInstallerService
         public int Percent { get; set; }
         public string? Reason { get; set; }
         public bool InstallerRunning { get; set; }
+
+        /// <summary>The new copy is in place, so the job can no longer be cancelled.</summary>
+        public bool Committed { get; set; }
         public string? InstallerPath { get; set; }
         public Task Execution { get; set; } = Task.CompletedTask;
         public bool IsRunning => Phase == ToolInstallPhase.Downloading || InstallerRunning;

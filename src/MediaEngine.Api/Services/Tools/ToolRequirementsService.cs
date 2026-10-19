@@ -473,6 +473,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string InstallerDidNotStart = "The installer didn't start. Run it again to finish.";
         public const string TesseractNotReadyYet = "Tesseract isn't ready yet. Run the installer again, or press Check again.";
         public const string NoInstallerReady = "There's no installer ready to run.";
+        public const string InstallerCouldNotBeChecked = "The installer couldn't be checked just now. Try again in a moment.";
         public const string InstallerChecksum = "The installer no longer matches what the Library downloaded, so it wasn't run. Download it again.";
 
         public static readonly (string Windows, string Linux, string Mac) FfmpegPackages =

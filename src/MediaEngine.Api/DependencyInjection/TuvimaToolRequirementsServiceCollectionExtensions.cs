@@ -14,7 +14,9 @@ public static class TuvimaToolRequirementsServiceCollectionExtensions
         services.AddSingleton<IToolRequirementsService, ToolRequirementsService>();
         services.AddSingleton<ToolLocationService>();
         // Fetching FFmpeg and Tesseract on request: fixed addresses and checksums from config/tool_downloads.json.
-        services.AddTuvimaHttpClient(HttpToolDownloadSource.HttpClientName, TimeSpan.FromMinutes(30), addStandardResilience: false);
+        // Redirects are followed by hand, to an allow-list of hosts, so the client itself must not follow them.
+        services.AddTuvimaHttpClient(HttpToolDownloadSource.HttpClientName, TimeSpan.FromMinutes(30), addStandardResilience: false)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddSingleton<IToolDownloadSource, HttpToolDownloadSource>();
         services.AddSingleton<IToolProcessLauncher, ShellProcessLauncher>();
         services.AddSingleton(ToolInstallPlatform.Current);
