@@ -282,6 +282,7 @@ builder.Services.AddScoped<DashboardIdentityClient>(services =>
         services, services.GetRequiredService<DashboardCircuitHttpClientFactory>()));
 builder.Services.AddScoped<AccountNoticeState>();
 builder.Services.AddScoped<SettingsAttentionState>();
+builder.Services.AddScoped<DevelopmentToolsState>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();
 builder.Services.AddScoped<AdministratorSurfaceAccessService>();
