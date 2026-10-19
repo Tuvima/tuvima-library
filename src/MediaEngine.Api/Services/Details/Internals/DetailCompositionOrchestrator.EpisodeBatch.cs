@@ -127,7 +127,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 WHERE entity_id IN @entityIds
                   AND claim_key IN @claimKeys
                   AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL
-                ORDER BY entity_id, confidence DESC, claimed_at DESC, id;
+                ORDER BY entity_id, confidence DESC, claimed_at DESC, rowid;
                 """,
                 new { entityIds = entityBlobs, claimKeys = TechnicalClaimKeys },
                 cancellationToken: ct)));

@@ -260,6 +260,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             _ => await _tvdb.GetEpisodeAsync(tvdbId, ct).ConfigureAwait(false),
         };
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var held = 0;
         var preferred = 0;
         if (detail is not null)
         {
@@ -294,15 +295,17 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 var processed = await ProcessRemoteImageAsync(url!, type.Value, ownerWorkId, ct, "tvdb")
                     .ConfigureAwait(false);
                 AddCount(counts, type.Value, processed.StoredCount);
+                held += processed.HeldCount;
                 preferred += processed.UpdatedPreferredCount;
             }
-            if (scopeId != "episode" && counts.Count == 0
+            if (scopeId != "episode" && held == 0
                 && IsSafeTvdbImageUrl(detail["image"]?.ToString()))
             {
                 var fallbackType = scopeId == "season" ? AssetType.SeasonPoster : AssetType.CoverArt;
                 var processed = await ProcessRemoteImageAsync(detail["image"]!.ToString(), fallbackType,
                     ownerWorkId, ct, "tvdb").ConfigureAwait(false);
                 AddCount(counts, fallbackType, processed.StoredCount);
+                held += processed.HeldCount;
                 preferred += processed.UpdatedPreferredCount;
             }
         }
@@ -310,7 +313,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         {
             Provider = "tvdb",
             ProviderName = "TheTVDB",
-            Status = counts.Values.Sum() > 0 || preferred > 0 ? "Completed" : "NoImages",
+            Status = held > 0 || preferred > 0 ? "Completed" : "NoImages",
             MediaType = "TV",
             BridgeKey = scopeId switch
             {
@@ -321,11 +324,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             BridgeId = tvdbId,
             LastCheckedAt = DateTimeOffset.UtcNow,
             DownloadedCount = counts.Values.Sum(),
+            HeldCount = held,
             UpdatedPreferredCount = preferred,
             StoredVariantCounts = counts,
             Message = counts.Values.Sum() > 0
                 ? $"Stored {counts.Values.Sum()} managed TheTVDB image(s)."
-                : "TheTVDB returned no usable images for this scope.",
+                : held > 0
+                    ? "TheTVDB artwork for this scope is already stored."
+                    : "TheTVDB returned no usable images for this scope.",
         };
     }
 
@@ -408,13 +414,23 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
 
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var held = 0;
         var preferredUpdates = 0;
         var owner = context.MediaType == MediaType.TV ? context.RootWorkId : context.SelfWorkId;
         foreach (var mapping in RootMappings)
         {
+            if (rootAlreadyChecked)
+            {
+                // A repeat pass skips the provider call; report what the earlier pass left in place
+                // so the diagnostics do not flip to NoImages depending on which pass ran last.
+                held += await CountHeldVariantsAsync(owner, mapping.AssetType, TmdbProviderName, ct).ConfigureAwait(false);
+                continue;
+            }
+
             var processed = await ProcessRankedImagesAsync(response.Json?[mapping.JsonField]?.AsArray() ?? [], mapping.AssetType,
                 owner, mapping.UpdatePreferred, metadataLanguage, ct).ConfigureAwait(false);
             AddCount(counts, mapping.AssetType, processed.StoredCount);
+            held += processed.HeldCount;
             preferredUpdates += processed.UpdatedPreferredCount;
         }
 
@@ -428,6 +444,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
             var processed = await ProcessRemoteImageAsync(imageUrl, mapping.AssetType, owner, ct).ConfigureAwait(false);
             AddCount(counts, mapping.AssetType, processed.StoredCount);
+            held += processed.HeldCount;
             preferredUpdates += processed.UpdatedPreferredCount;
         }
 
@@ -447,6 +464,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                         var seasonResult = await RefreshTvdbScopeImagesAsync(season.WorkId, "season", tvdbSeasonId, ct)
                             .ConfigureAwait(false);
                         MergeCounts(counts, seasonResult.StoredVariantCounts);
+                        held += seasonResult.HeldCount;
                         preferredUpdates += seasonResult.UpdatedPreferredCount;
                     }
                     continue;
@@ -474,6 +492,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                         metadataLanguage,
                         ct).ConfigureAwait(false);
                     AddCount(counts, mapping.AssetType, processed.StoredCount);
+                    held += processed.HeldCount;
                     preferredUpdates += processed.UpdatedPreferredCount;
                 }
 
@@ -501,15 +520,17 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 var episodeResult = await RefreshTvdbScopeImagesAsync(context.SelfWorkId, "episode", tvdbEpisodeId, ct)
                     .ConfigureAwait(false);
                 MergeCounts(counts, episodeResult.StoredVariantCounts);
+                held += episodeResult.HeldCount;
                 preferredUpdates += episodeResult.UpdatedPreferredCount;
             }
         }
 
         var downloaded = counts.Values.Sum();
-        return await PersistDiagnosticsAsync(context, CreateResult(downloaded > 0 || preferredUpdates > 0 ? "Completed" : "NoImages",
+        return await PersistDiagnosticsAsync(context, CreateResult(held > 0 || preferredUpdates > 0 ? "Completed" : "NoImages",
             checkedAt, mediaType, BridgeIdKeys.TmdbId, tmdbId, endpoint, response.HttpStatusCode,
-            message: downloaded > 0 ? $"Stored {downloaded} TMDB artwork variant(s)." : "TMDB returned no compatible artwork variants.",
-            storedCounts: counts, updatedPreferredCount: preferredUpdates), ct);
+            message: downloaded > 0 ? $"Stored {downloaded} TMDB artwork variant(s)."
+                : held > 0 ? "TMDB artwork is already stored." : "TMDB returned no compatible artwork variants.",
+            storedCounts: counts, updatedPreferredCount: preferredUpdates, heldCount: held), ct);
     }
 
     private static readonly ArtworkMapping[] RootMappings =
@@ -554,6 +575,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
 
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var heldTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var held = 0;
+        var showHeld = 0;
         var preferred = 0;
         async Task AddAsync(string? value, AssetType type, Guid owner)
         {
@@ -567,6 +591,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb")
                 .ConfigureAwait(false);
             AddCount(counts, type, processed.StoredCount);
+            if (processed.HeldCount > 0)
+            {
+                heldTypes.Add(type.ToString());
+            }
+            held += processed.HeldCount;
+            showHeld += owner == context.RootWorkId ? processed.HeldCount : 0;
             preferred += processed.UpdatedPreferredCount;
         }
         async Task AddArtworksAsync(JsonNode? record, string scope, Guid owner)
@@ -587,7 +617,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
 
         await AddArtworksAsync(show, "series", context.RootWorkId).ConfigureAwait(false);
-        if (!counts.ContainsKey(AssetType.CoverArt.ToString()))
+        if (!heldTypes.Contains(AssetType.CoverArt.ToString()))
         {
             await AddAsync(show["image"]?.ToString(), AssetType.CoverArt, context.RootWorkId).ConfigureAwait(false);
         }
@@ -622,7 +652,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
             var detail = await _tvdb.GetSeasonAsync(seasonId, ct).ConfigureAwait(false);
             await AddArtworksAsync(detail, "season", season.WorkId).ConfigureAwait(false);
-            if (!counts.ContainsKey(AssetType.SeasonPoster.ToString()))
+            if (!heldTypes.Contains(AssetType.SeasonPoster.ToString()))
             {
                 await AddAsync(detail?["image"]?.ToString(), AssetType.SeasonPoster, season.WorkId).ConfigureAwait(false);
             }
@@ -648,18 +678,20 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         {
             Provider = "tvdb",
             ProviderName = "TheTVDB",
-            Status = counts.Values.Sum() > 0 ? "Completed" : "NoImages",
+            Status = held > 0 ? "Completed" : "NoImages",
             MediaType = "TV",
             BridgeKey = BridgeIdKeys.TvdbId,
             BridgeId = showId,
             Endpoint = "/series/{id}/extended",
             LastCheckedAt = checkedAt,
             DownloadedCount = counts.Values.Sum(),
+            HeldCount = held,
             UpdatedPreferredCount = preferred,
             StoredVariantCounts = counts,
             Message = counts.Values.Sum() > 0 ? "TheTVDB artwork was stored as managed images."
+                : held > 0 ? "TheTVDB artwork for the owned TV scopes is already stored."
                 : "TheTVDB returned no compatible images for the owned TV scopes.",
-        }, ct);
+        }, ct, rootHeldCount: showHeld);
     }
 
     private static AssetType? ResolveTvdbArtworkType(JsonNode artwork, string scope,
@@ -741,6 +773,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             var url = BuildImageUrl(node!["file_path"]!.GetValue<string>());
             await using var lease = await _imageDownloadCoordinator.AcquireAsync(url, ct).ConfigureAwait(false);
             var existing = variants.FirstOrDefault(asset => string.Equals(asset.ImageUrl, url, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                // Another pass over the same owner may have stored this image while we waited for the lease.
+                variants = (await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct)).ToList();
+                existing = variants.FirstOrDefault(asset => string.Equals(asset.ImageUrl, url, StringComparison.OrdinalIgnoreCase));
+            }
             if (existing is not null && !string.IsNullOrWhiteSpace(existing.LocalImagePath) && File.Exists(existing.LocalImagePath))
             {
                 if (assetType == AssetType.Logo)
@@ -813,7 +851,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
         if (!updatePreferred || preferred is null)
         {
-            return new ImageAssetProcessingResult(preferred?.LocalImagePath, stored, 0);
+            return new ImageAssetProcessingResult(preferred?.LocalImagePath, stored, accepted, 0);
         }
         await _assetRepo.SetPreferredAsync(preferred.Id, ct).ConfigureAwait(false);
         await PersistPreferredAssetCanonicalsAsync(ownerEntityId, preferred, ct).ConfigureAwait(false);
@@ -821,7 +859,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         {
             await _assetExportService.ReconcileArtworkAsync(preferred.EntityId, preferred.EntityType, preferred.AssetTypeValue, ct).ConfigureAwait(false);
         }
-        return new ImageAssetProcessingResult(preferred.LocalImagePath, stored, currentPreferred == preferred.Id ? 0 : 1);
+        return new ImageAssetProcessingResult(preferred.LocalImagePath, stored, accepted, currentPreferred == preferred.Id ? 0 : 1);
     }
 
     private async Task<ImageAssetProcessingResult> ProcessRemoteImageAsync(
@@ -841,44 +879,71 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         var existing = variants.FirstOrDefault(asset => string.Equals(asset.ImageUrl, url, StringComparison.OrdinalIgnoreCase));
         var stored = 0;
-        if (existing is null || string.IsNullOrWhiteSpace(existing.LocalImagePath) || !File.Exists(existing.LocalImagePath))
+        if (!IsHeld(existing))
         {
             await using var lease = await _imageDownloadCoordinator.AcquireAsync(url, ct).ConfigureAwait(false);
-            var bytes = await GetCachedOrDownloadAsync(url, ct).ConfigureAwait(false);
-            if (bytes is null || bytes.Length == 0)
-            {
-                return ImageAssetProcessingResult.Empty;
-            }
 
-            existing ??= new EntityAsset
+            // Another pass over the same owner (a sibling episode sharing the show) may have stored
+            // this image while we waited for the lease; reuse its row instead of adding a duplicate.
+            variants = (await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct)).ToList();
+            currentPreferred = variants.FirstOrDefault(asset => asset.IsPreferred);
+            existing = variants.FirstOrDefault(asset => string.Equals(asset.ImageUrl, url, StringComparison.OrdinalIgnoreCase));
+            if (!IsHeld(existing))
             {
-                Id = Guid.NewGuid(),
-                EntityId = ownerEntityId.ToString(),
-                EntityType = "Work",
-                AssetTypeValue = assetType.ToString(),
-                ImageUrl = url,
-                SourceProvider = sourceProvider,
-                AssetClassValue = "Artwork",
-                StorageLocationValue = "Central",
-                OwnerScope = "Work",
-                CreatedAt = DateTimeOffset.UtcNow,
-            };
-            existing.LocalImagePath ??= _assetPaths.GetCentralAssetPath(
-                "Work", ownerEntityId, assetType.ToString(), existing.Id, InferExtension(url));
-            await PersistImageAsync(bytes, existing.LocalImagePath, url, ct).ConfigureAwait(false);
-            ArtworkVariantHelper.StampMetadataAndRenditions(existing, _assetPaths);
-            await _assetRepo.UpsertAsync(existing, ct).ConfigureAwait(false);
-            stored = 1;
+                var bytes = await GetCachedOrDownloadAsync(url, ct).ConfigureAwait(false);
+                if (bytes is null || bytes.Length == 0)
+                {
+                    return ImageAssetProcessingResult.Empty;
+                }
+
+                existing = await StoreRemoteImageAsync(existing, bytes, url, assetType, ownerEntityId, sourceProvider, ct)
+                    .ConfigureAwait(false);
+                stored = 1;
+            }
         }
 
         if (currentPreferred?.IsUserOverride == true)
         {
-            return new ImageAssetProcessingResult(existing.LocalImagePath, stored, 0);
+            return new ImageAssetProcessingResult(existing!.LocalImagePath, stored, 1, 0);
         }
 
-        await _assetRepo.SetPreferredAsync(existing.Id, ct).ConfigureAwait(false);
+        await _assetRepo.SetPreferredAsync(existing!.Id, ct).ConfigureAwait(false);
         await PersistPreferredAssetCanonicalsAsync(ownerEntityId, existing, ct).ConfigureAwait(false);
-        return new ImageAssetProcessingResult(existing.LocalImagePath, stored, currentPreferred?.Id == existing.Id ? 0 : 1);
+        return new ImageAssetProcessingResult(existing.LocalImagePath, stored, 1, currentPreferred?.Id == existing.Id ? 0 : 1);
+    }
+
+    private async Task<int> CountHeldVariantsAsync(Guid ownerEntityId, AssetType assetType, string sourceProvider, CancellationToken ct)
+    {
+        var variants = await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false);
+        return Math.Min(MaxVariantsPerAssetType, variants.Count(asset =>
+            string.Equals(asset.SourceProvider, sourceProvider, StringComparison.OrdinalIgnoreCase) && IsHeld(asset)));
+    }
+
+    private static bool IsHeld(EntityAsset? asset) =>
+        asset is not null && !string.IsNullOrWhiteSpace(asset.LocalImagePath) && File.Exists(asset.LocalImagePath);
+
+    private async Task<EntityAsset> StoreRemoteImageAsync(EntityAsset? existing, byte[] bytes, string url,
+        AssetType assetType, Guid ownerEntityId, string sourceProvider, CancellationToken ct)
+    {
+        existing ??= new EntityAsset
+        {
+            Id = Guid.NewGuid(),
+            EntityId = ownerEntityId.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = assetType.ToString(),
+            ImageUrl = url,
+            SourceProvider = sourceProvider,
+            AssetClassValue = "Artwork",
+            StorageLocationValue = "Central",
+            OwnerScope = "Work",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        existing.LocalImagePath ??= _assetPaths.GetCentralAssetPath(
+            "Work", ownerEntityId, assetType.ToString(), existing.Id, InferExtension(url));
+        await PersistImageAsync(bytes, existing.LocalImagePath, url, ct).ConfigureAwait(false);
+        ArtworkVariantHelper.StampMetadataAndRenditions(existing, _assetPaths);
+        await _assetRepo.UpsertAsync(existing, ct).ConfigureAwait(false);
+        return existing;
     }
 
     /// <summary>
@@ -1084,7 +1149,15 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         return await _providerConfigRepo.GetDecryptedValueAsync(WellKnownProviders.Tmdb.ToString(), "api_key", ct).ConfigureAwait(false);
     }
 
-    private async Task<ImageEnrichmentResult> PersistDiagnosticsAsync(ArtworkContext context, ImageEnrichmentResult result, CancellationToken ct)
+    /// <summary>
+    /// Records the pass on the item, its work and its root. The held count is what the scope holds after
+    /// the pass, not what this pass newly downloaded, so concurrent passes over a shared show record the
+    /// same value whichever finishes first. When <paramref name="rootHeldCount"/> is given, a root that
+    /// differs from the item (a TV show above an episode) records only its own show-level count, so
+    /// sibling episodes cannot overwrite it with their per-episode totals.
+    /// </summary>
+    private async Task<ImageEnrichmentResult> PersistDiagnosticsAsync(ArtworkContext context, ImageEnrichmentResult result,
+        CancellationToken ct, int? rootHeldCount = null)
     {
         var now = DateTimeOffset.UtcNow;
         var providerName = string.Equals(result.Provider, "tvdb", StringComparison.OrdinalIgnoreCase) ? "tvdb" : "tmdb";
@@ -1092,9 +1165,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var values = new List<CanonicalValue>();
         foreach (var id in new[] { context.RootWorkId, context.SelfWorkId, context.AssetId }.Distinct())
         {
-            AddDiagnostic(values, id, $"{providerName}_artwork_status", result.Status, now, providerId);
+            var isSeparateRoot = rootHeldCount.HasValue && id == context.RootWorkId && id != context.SelfWorkId;
+            var heldCount = isSeparateRoot ? rootHeldCount!.Value : result.HeldCount;
+            var status = isSeparateRoot && result.Success ? (heldCount > 0 ? "Completed" : "NoImages") : result.Status;
+            AddDiagnostic(values, id, $"{providerName}_artwork_status", status, now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_last_checked_at", result.LastCheckedAt.ToString("O", CultureInfo.InvariantCulture), now, providerId);
-            AddDiagnostic(values, id, $"{providerName}_artwork_downloaded_count", result.DownloadedCount.ToString(CultureInfo.InvariantCulture), now, providerId);
+            AddDiagnostic(values, id, $"{providerName}_artwork_held_count", heldCount.ToString(CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_http_status", result.HttpStatusCode?.ToString(CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_skipped_reason", result.SkippedReason, now, providerId);
@@ -1108,7 +1184,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
     private static ImageEnrichmentResult CreateResult(string status, DateTimeOffset checkedAt, string? mediaType, string? bridgeKey = null,
         string? bridgeId = null, string? endpoint = null, int? httpStatus = null, string? skippedReason = null, string? message = null,
-        IReadOnlyDictionary<string, int>? storedCounts = null, int updatedPreferredCount = 0) => new()
+        IReadOnlyDictionary<string, int>? storedCounts = null, int updatedPreferredCount = 0, int heldCount = 0) => new()
         {
             Provider = TmdbProviderName,
             ProviderName = "TMDB",
@@ -1122,6 +1198,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             Message = message,
             StoredVariantCounts = storedCounts ?? new Dictionary<string, int>(),
             DownloadedCount = storedCounts?.Values.Sum() ?? 0,
+            HeldCount = heldCount,
             UpdatedPreferredCount = updatedPreferredCount,
             LastCheckedAt = checkedAt,
         };
@@ -1241,7 +1318,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     }
     private sealed record ArtworkMapping(string JsonField, AssetType AssetType, bool UpdatePreferred);
     private sealed record BrandArtworkMapping(string CanonicalKey, AssetType AssetType);
-    private sealed record ImageAssetProcessingResult(string? PreferredLocalPath, int StoredCount, int UpdatedPreferredCount) { public static readonly ImageAssetProcessingResult Empty = new(null, 0, 0); }
+    /// <summary>
+    /// <paramref name="StoredCount"/> is what this pass newly saved; <paramref name="HeldCount"/> is what the
+    /// scope holds once the pass is done (newly saved or already present). Concurrent passes over a shared
+    /// show see different stored counts depending on who arrives first, but always the same held count.
+    /// </summary>
+    private sealed record ImageAssetProcessingResult(string? PreferredLocalPath, int StoredCount, int HeldCount, int UpdatedPreferredCount) { public static readonly ImageAssetProcessingResult Empty = new(null, 0, 0, 0); }
     private sealed record ArtworkContext(Guid AssetId, Guid SelfWorkId, Guid RootWorkId, Guid? SeasonWorkId, int? SeasonNumber, MediaType MediaType);
     private sealed record SeasonArtworkTarget(Guid WorkId, int SeasonNumber);
 }

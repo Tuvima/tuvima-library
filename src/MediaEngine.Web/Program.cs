@@ -454,6 +454,7 @@ app.UseAuthorization();
 app.UseMiddleware<PasswordChangeRedirectMiddleware>();
 app.UseAntiforgery();
 
+app.MapFaviconIco();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

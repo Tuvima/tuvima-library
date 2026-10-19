@@ -51,6 +51,51 @@ public sealed class StartWithoutPasswordTests
     }
 
     [Theory]
+    [InlineData("image", "no-cors", null)]
+    [InlineData("empty", "no-cors", null)]
+    [InlineData("empty", "cors", null)]
+    [InlineData("iframe", "navigate", null)]
+    [InlineData("document", "navigate", "prefetch")]
+    [InlineData("document", "navigate", "prefetch;prerender")]
+    public async Task BackgroundFetchOrPrefetch_NeverStartsASession(string destination, string mode, string? purpose)
+    {
+        // A browser fetching /favicon.ico without cookies is redirected here; each one used to start a new Engine session
+        // until the Engine's session limit ended the one an open screen was using.
+        var headers = new List<(string, string)> { ("Sec-Fetch-Dest", destination), ("Sec-Fetch-Mode", mode) };
+        if (purpose is not null)
+        {
+            headers.Add(("Sec-Purpose", purpose));
+        }
+
+        var run = await RunAsync(accountName: "Sam", session: Session(chooseProfile: false), headers.ToArray());
+
+        Assert.Null(run.Result);
+        Assert.Equal(0, run.AccountNameCalls);
+        Assert.Equal(0, run.SignInCalls);
+        Assert.Equal(0, run.SignedIn);
+    }
+
+    [Fact]
+    public async Task PageVisitWithFetchMetadata_StillGoesStraightIn()
+    {
+        var run = await RunAsync(accountName: "Sam", session: Session(chooseProfile: false),
+            ("Sec-Fetch-Dest", "document"), ("Sec-Fetch-Mode", "navigate"), ("Sec-Fetch-User", "?1"));
+
+        Assert.Equal("/watch", run.Redirect);
+        Assert.Equal(1, run.SignInCalls);
+        Assert.Equal(1, run.SignedIn);
+    }
+
+    [Fact]
+    public async Task OlderPrefetchHeader_NeverStartsASession()
+    {
+        var run = await RunAsync(accountName: "Sam", session: Session(chooseProfile: false), ("Purpose", "prefetch"));
+
+        Assert.Null(run.Result);
+        Assert.Equal(0, run.SignInCalls);
+    }
+
+    [Theory]
     [InlineData("/watch", "/watch")]
     [InlineData("/\\evil.com", "/")]
     [InlineData("//evil.com", "/")]
@@ -66,7 +111,15 @@ public sealed class StartWithoutPasswordTests
         Assert.Equal("/auth/login?signedOut=1", DashboardAuthenticationEndpoints.SignedOutRedirect);
         var source = File.ReadAllText(RepoPath("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs"));
         Assert.Contains("Results.Redirect(SignedOutRedirect)", source, StringComparison.Ordinal);
-        Assert.Contains("if (string.IsNullOrEmpty(signedOut))", source, StringComparison.Ordinal);
+        Assert.Contains("if (string.IsNullOrEmpty(signedOut) &&", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PrerenderedSignInPage_StillOffersGoBackIn()
+    {
+        // A prerendered copy starts no session, so it must show the button rather than a password form the person cannot use.
+        var source = File.ReadAllText(RepoPath("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs"));
+        Assert.Contains("if (string.IsNullOrEmpty(signedOut) && IsPageVisit(context.Request))", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -151,7 +204,7 @@ public sealed class StartWithoutPasswordTests
         ChooseProfile = chooseProfile,
     };
 
-    private static async Task<Run> RunAsync(string? accountName, AuthSessionResponse? session)
+    private static async Task<Run> RunAsync(string? accountName, AuthSessionResponse? session, params (string Name, string Value)[] headers)
     {
         var auth = new CountingAuthentication();
         var services = new ServiceCollection();
@@ -161,11 +214,21 @@ public sealed class StartWithoutPasswordTests
         using var provider = services.BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = provider };
         context.Response.Body = new MemoryStream();
+        foreach (var (name, value) in headers)
+        {
+            context.Request.Headers[name] = value;
+        }
+
+        var nameCalls = 0;
         var calls = 0;
 
         var result = await DashboardAuthenticationEndpoints.StartWithoutPasswordAsync(
             context, "device", "/watch",
-            _ => Task.FromResult(accountName),
+            _ =>
+            {
+                nameCalls++;
+                return Task.FromResult(accountName);
+            },
             (_, _) =>
             {
                 calls++;
@@ -179,10 +242,10 @@ public sealed class StartWithoutPasswordTests
             redirect = context.Response.Headers.Location.ToString();
         }
 
-        return new Run(result, redirect, auth.SignedIn, calls);
+        return new Run(result, redirect, auth.SignedIn, calls, nameCalls);
     }
 
-    private sealed record Run(IResult? Result, string? Redirect, int SignedIn, int SignInCalls);
+    private sealed record Run(IResult? Result, string? Redirect, int SignedIn, int SignInCalls, int AccountNameCalls);
 
     private sealed class CountingAuthentication : IAuthenticationService
     {

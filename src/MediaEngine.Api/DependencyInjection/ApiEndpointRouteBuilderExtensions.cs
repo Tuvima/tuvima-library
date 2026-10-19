@@ -13,10 +13,10 @@ public static class ApiEndpointRouteBuilderExtensions
     public static WebApplication MapEngineEndpoints(this WebApplication app)
     {
         app.MapHub<Intercom>(SignalREvents.IntercomPath)
-            .RequireRateLimiting("intercom")
+            .RequireRateLimiting(LiveUpdatesRateLimitPolicies.IntercomHub)
             .AllowAnonymous();
         app.MapHub<ApplicationEventsHub>(MediaEngine.Contracts.Authentication.ApplicationEventClientMethods.HubPath)
-            .RequireRateLimiting("intercom")
+            .RequireRateLimiting(LiveUpdatesRateLimitPolicies.ApplicationEventsHub)
             .RequireAuthorization(AuthPolicies.Authenticated);
         app.MapSystemEndpoints();
         app.MapSetupEndpoints();
