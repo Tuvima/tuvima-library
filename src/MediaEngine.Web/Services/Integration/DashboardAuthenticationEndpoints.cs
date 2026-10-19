@@ -38,8 +38,9 @@ public static class DashboardAuthenticationEndpoints
             var deviceId = EnsureDeviceCookie(context);
             // Only asked on this computer or the home network; anywhere else the Engine never says the account exists.
             // After an explicit sign-out the person chooses to go back in, so they are not signed straight back in.
+            // A prerendered or background copy of this page starts no session but still offers the Go back in button.
             string? thisComputerName = null;
-            if (string.IsNullOrEmpty(signedOut))
+            if (string.IsNullOrEmpty(signedOut) && IsPageVisit(context.Request))
             {
                 var started = await StartWithoutPasswordAsync(
                     context, deviceId, SafeReturnUrl(returnUrl),
@@ -667,7 +668,10 @@ public static class DashboardAuthenticationEndpoints
         Func<CancellationToken, Task<string?>> accountName,
         Func<ThisComputerSignInRequest, CancellationToken, Task<AuthSessionResponse?>> signIn)
     {
-        if (await accountName(context.RequestAborted).ConfigureAwait(false) is null)
+        // Every sign-in here is a new Engine session, and the Engine ends the least recently used ones past its limit,
+        // so only a person opening the page may start one. An icon or background fetch redirected here would otherwise
+        // start a session each time and soon end the one an open screen is using.
+        if (!IsPageVisit(context.Request) || await accountName(context.RequestAborted).ConfigureAwait(false) is null)
         {
             return null;
         }
@@ -679,6 +683,27 @@ public static class DashboardAuthenticationEndpoints
             Client = "Tuvima Library Dashboard",
         }, context.RequestAborted).ConfigureAwait(false);
         return issued is null ? null : await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// True for a top-level page the browser is opening for the person. A browser that sends no fetch metadata counts as
+    /// one; a prefetch, an image or icon, a frame or a script fetch does not.
+    /// </summary>
+    internal static bool IsPageVisit(HttpRequest request)
+    {
+        var headers = request.Headers;
+        if (headers.TryGetValue("Sec-Fetch-Dest", out var destination) && !destination.ToString().Equals("document", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (headers.TryGetValue("Sec-Fetch-Mode", out var mode) && !mode.ToString().Equals("navigate", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !headers["Sec-Purpose"].ToString().Contains("prefetch", StringComparison.OrdinalIgnoreCase)
+            && !headers["Purpose"].ToString().Contains("prefetch", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Signs the browser in with the session the Engine issued, then sends the person where they were going.</summary>
