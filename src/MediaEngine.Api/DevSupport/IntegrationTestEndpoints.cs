@@ -715,7 +715,7 @@ public static class IntegrationTestEndpoints
 
     public static void MapIntegrationTestEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/dev").WithTags("Development");
+        var group = app.MapDevelopmentGroup();
 
         group.MapPost("/integration-test", RunIntegrationTestAsync)
             .WithSummary("Full integration test: wipe -> seed -> ingest -> validate -> HTML report")

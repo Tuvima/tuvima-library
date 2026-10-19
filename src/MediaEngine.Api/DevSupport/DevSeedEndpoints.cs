@@ -1041,8 +1041,7 @@ public static class DevSeedEndpoints
 
     public static void MapDevSeedEndpoints(this WebApplication app)
     {
-        RouteGroupBuilder group = app.MapGroup("/dev")
-            .WithTags("Development");
+        RouteGroupBuilder group = app.MapDevelopmentGroup();
 
         group.MapGet("/check-keys", CheckKeysAsync)
             .WithSummary("Probe each configured provider with real credentials — confirms all API keys are valid before seeding");

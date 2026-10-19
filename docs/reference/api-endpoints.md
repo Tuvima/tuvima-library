@@ -718,7 +718,7 @@ that exception.
 
 ## Development
 
-Available in development environments only. These endpoints are removed in production builds.
+Available in development environments only. These endpoints are removed in production builds. Every one requires a signed-in administrator (with the administrator PIN unlocked when it is turned on); scripts that relied on the development localhost bypass alone are refused.
 
 | Method | Path | Description |
 |---|---|---|
