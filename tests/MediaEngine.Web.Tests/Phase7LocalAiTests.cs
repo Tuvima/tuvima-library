@@ -9,7 +9,7 @@ public sealed class Phase7LocalAiTests
 
         var runtime = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiRuntimePanel.razor");
 
-        // The overview keeps AI settings only; the runtime (profile, limits, diagnostics) moved to Tools and requirements.
+        // The overview keeps AI settings only; the runtime (profile, limits, diagnostics) is the Runtime page of Local AI.
         Assert.DoesNotContain("GetAiProfileAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetEnrichmentProgressAsync", source, StringComparison.Ordinal);
@@ -125,9 +125,11 @@ public sealed class Phase7LocalAiTests
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         Assert.Contains("Enabled features", source, StringComparison.Ordinal);
         Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/tools", source, StringComparison.Ordinal);
-        // Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page.
-        Assert.DoesNotContain("/settings/ai/", source, StringComparison.Ordinal);
+        Assert.Contains("Tools and requirements", source, StringComparison.Ordinal);
+        // Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page; only Runtime is linked.
+        Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/ai/automation", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);
     }
 

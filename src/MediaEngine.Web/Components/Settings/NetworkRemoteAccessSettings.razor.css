@@ -117,18 +117,19 @@
 
 .network-settings ::deep .network-card-actions { justify-content: flex-end; margin-top: 16px; }
 .network-settings ::deep .network-advanced { gap: 10px; }
-.network-settings ::deep .network-advanced-card { border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: var(--tl-bg-surface-raised); overflow: hidden; }
-.network-settings ::deep .network-advanced-card summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 14px; cursor: pointer; list-style: none; }
+/* Each advanced group sits inside a standard settings card, so the disclosure draws no box of its own. */
+.network-settings ::deep .network-advanced-card { overflow: hidden; }
+.network-settings ::deep .network-advanced-card summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
 .network-settings ::deep .network-advanced-card summary::-webkit-details-marker { display: none; }
 .network-settings ::deep .network-advanced-card summary > span:nth-child(2) { display: grid; gap: 2px; }
 .network-settings ::deep .network-advanced-card summary strong { color: var(--tl-text-primary); font-size: 0.84rem; }
 .network-settings ::deep .network-advanced-card summary small { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
 .network-settings ::deep .network-advanced-card[open] summary > .tl-icon-root:last-child { transform: rotate(90deg); }
 .network-settings ::deep .network-advanced-card__icon { display: inline-grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; background: rgba(255,255,255,.06); }
-.network-settings ::deep .network-advanced-card__body { padding: 0 14px 14px 60px; }
+.network-settings ::deep .network-advanced-card__body { padding: 14px 0 0 46px; }
 .network-settings ::deep .network-advanced-fields { display: grid; gap: 12px; }
 .network-settings ::deep .network-advanced-warning { margin-top: 8px; }
-.network-settings ::deep .network-danger-row { margin-top: 10px; padding: 16px; border: 1px solid color-mix(in srgb, var(--tl-palette-error) 35%, transparent); border-radius: 10px; }
+.network-settings ::deep 
 
 .network-settings ::deep .network-port-dialog__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
 
@@ -145,5 +146,5 @@
     .network-settings ::deep .network-panel__heading,
     .network-settings ::deep .network-panel__actions,
     .network-settings ::deep .network-danger-row { align-items: stretch; flex-direction: column; }
-    .network-settings ::deep .network-advanced-card__body { padding-left: 14px; }
+    .network-settings ::deep .network-advanced-card__body { padding-left: 0; }
 }

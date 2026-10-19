@@ -3,6 +3,12 @@
 .settings-frame {
     --settings-frame-max-width: 1180px;
     --settings-frame-gap: var(--tl-space-5, 20px);
+    /* The one card padding and card heading size. Every AppCard inside the frame reads them (wwwroot/app.css), so the
+       first line of text inside any card starts the same distance from the card edge on every page, and every card
+       heading is the same size. Pages never set card padding or heading size themselves. */
+    --settings-card-padding: var(--tl-card-padding, 20px);
+    --settings-card-title-size: 18px;
+    --settings-card-description-size: 14px;
     display: flex;
     width: 100%;
     min-width: 0;

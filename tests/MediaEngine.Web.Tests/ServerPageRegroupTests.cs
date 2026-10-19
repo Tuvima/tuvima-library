@@ -48,12 +48,13 @@ public sealed class ServerPageRegroupTests
             "EncodeSettingsTab.razor", "<OfflineDownloadsTab />", "PlaybackDeliverySettingsTab.razor", "OfflineDownloadsTab"),
         new("Playback tools and services (was Current status)", "/settings/delivery", "/settings/tools", SettingsSection.Tools, null,
             "PlaybackToolsStatusCard.razor", "Title=\"Playback tools and services\"", "PlaybackDeliverySettingsTab.razor", "Current status"),
-        new("Resource profile and benchmark", "/settings/ai/models", "/settings/tools", SettingsSection.Tools, null,
-            "LocalAiRuntimePanel.razor", "<ModelsTab />", "LocalAiSettingsTab.razor", "<ModelsTab />"),
-        new("Runtime settings", "/settings/ai/models", "/settings/tools", SettingsSection.Tools, null,
-            "LocalAiRuntimePanel.razor", "Title=\"Runtime settings\"", "LocalAiSettingsTab.razor", "Runtime settings"),
-        new("Runtime diagnostics", "/settings/ai/models", "/settings/tools", SettingsSection.Tools, null,
-            "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "LocalAiSettingsTab.razor", "Runtime diagnostics"),
+        // The runtime stays on Local AI > Runtime until Developer tools rebuilds Local AI; it is not on Tools and requirements.
+        new("Resource profile and benchmark", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+            "LocalAiRuntimePanel.razor", "<ModelsTab />", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
+        new("Runtime settings", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+            "LocalAiRuntimePanel.razor", "Title=\"Runtime settings\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
+        new("Runtime diagnostics", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+            "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("Feature readiness", "/settings/ai/models", "/settings/ai", SettingsSection.LocalAi, null,
             "LocalAiSettingsTab.razor", "<AiFeaturesTab />", null, null),
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
@@ -88,7 +89,6 @@ public sealed class ServerPageRegroupTests
     [InlineData(SettingsSection.Delivery, "scheduling")]
     [InlineData(SettingsSection.Delivery, "storage")]
     [InlineData(SettingsSection.Delivery, "active-jobs")]
-    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]
     [InlineData(SettingsSection.Plugins, "capabilities")]
@@ -110,7 +110,7 @@ public sealed class ServerPageRegroupTests
             rows.Single(node => node is { Section: SettingsSection.Network, Subsection: null }).Children.Select(node => node.Label));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"],
             rows.Single(node => node is { Section: SettingsSection.Delivery, Subsection: null }).Children.Select(node => node.Label));
-        Assert.Equal(["Vocabulary", "Automation"],
+        Assert.Equal(["Runtime", "Vocabulary", "Automation"],
             rows.Single(node => node is { Section: SettingsSection.LocalAi, Subsection: null }).Children.Select(node => node.Label));
         Assert.Empty(rows.Single(node => node is { Section: SettingsSection.Plugins, Subsection: null }).Children);
     }

@@ -5,19 +5,16 @@
     min-height: 360px;
 }
 
-.library-folders__types,
-.library-folders__detail {
-    border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
+/* Both columns are standard cards; their padding and surface come from the card itself. */
+.library-folders__types {
+    min-width: 0;
+    align-self: start;
 }
 
-.library-folders__types {
+.library-folders__nav {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px;
-    align-self: start;
 }
 
 ::deep .library-folders__type {
@@ -57,11 +54,7 @@
 }
 
 .library-folders__detail {
-    display: flex;
     min-width: 0;
-    flex-direction: column;
-    gap: 14px;
-    padding: 16px;
 }
 
 .library-folders__detail-header {
@@ -151,7 +144,7 @@
         min-height: 0;
     }
 
-    .library-folders__types {
+    .library-folders__nav {
         flex-direction: row;
         overflow-x: auto;
     }

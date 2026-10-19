@@ -281,6 +281,7 @@ public static class SettingsNav
         [
             Node("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, children:
             [
+                Node("Runtime", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
                 Node("Vocabulary", AppMaterialIcons.Outlined.Spellcheck, SettingsSection.LocalAi, "vocabulary"),
                 Node("Automation", AppMaterialIcons.Outlined.Schedule, SettingsSection.LocalAi, "automation"),
             ]),
@@ -329,6 +330,7 @@ public static class SettingsNav
             ],
             [SettingsSection.LocalAi] =
             [
+                new("models", "Runtime", AppMaterialIcons.Outlined.Storage),
                 new("vocabulary", "Vocabulary", AppMaterialIcons.Outlined.Spellcheck),
                 new("automation", "Automation", AppMaterialIcons.Outlined.Schedule),
             ],

@@ -3,10 +3,10 @@
 .profiles-tab__people { display: grid; gap: 16px; }
 .profiles-tab__toolbar { display: flex; justify-content: flex-end; }
 .profiles-tab__group { display: grid; gap: 8px; }
-.profiles-tab__group-title { margin: 0; color: var(--tl-text-muted); font-size: .85rem; font-weight: 600; }
-.profiles-tab__list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: var(--tl-bg-surface); overflow: hidden; }
+/* The people sit inside a standard settings card, so the list draws no box of its own. */
+.profiles-tab__list { margin: 0; padding: 0; list-style: none; }
 .profiles-tab__item + .profiles-tab__item { border-top: 1px solid var(--tl-border-subtle); }
-.profiles-tab__line { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; }
+.profiles-tab__line { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 0; box-sizing: border-box; }
 .profiles-tab__row-avatar { flex: none; display: inline-grid; place-items: center; width: 40px; height: 40px; }
 .profiles-tab__row-avatar--add { border-radius: 50%; border: 1px dashed var(--tl-border-strong); color: var(--tl-text-muted); }
 .profiles-tab__row-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }

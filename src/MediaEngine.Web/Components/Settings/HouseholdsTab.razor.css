@@ -3,8 +3,9 @@
 .households-tab__error { margin: 0 0 12px; color: var(--tl-status-error, var(--tl-text-primary)); font-size: .9rem; }
 .households-tab__form { display: grid; gap: 12px; margin-bottom: 12px; }
 .households-tab__form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.households-tab__list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: var(--tl-bg-surface); overflow: hidden; }
-.households-tab__item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 16px; }
+/* The households sit inside a standard settings card, so the list draws no box of its own. */
+.households-tab__list { margin: 0; padding: 0; list-style: none; }
+.households-tab__item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; }
 .households-tab__item + .households-tab__item { border-top: 1px solid var(--tl-border-subtle); }
 .households-tab__identity { display: grid; gap: 2px; min-width: 0; }
 .households-tab__name { overflow-wrap: anywhere; }

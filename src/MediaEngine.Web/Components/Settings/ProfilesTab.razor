@@ -55,7 +55,7 @@ else
                 @foreach (var group in Groups)
                 {
                     <div class="profiles-tab__group" @key="group.Id" data-household-group="@group.Id">
-                        <h2 class="profiles-tab__group-title">@group.Title</h2>
+                        <SettingsSectionPanel Title="@group.Title">
                         <ul class="profiles-tab__list" role="list">
                             @foreach (var person in group.People)
                             {
@@ -92,6 +92,7 @@ else
                                 </li>
                             }
                         </ul>
+                        </SettingsSectionPanel>
                     </div>
                 }
             }

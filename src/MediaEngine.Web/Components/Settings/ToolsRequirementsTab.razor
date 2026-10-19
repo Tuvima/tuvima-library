@@ -3,7 +3,6 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
-@inject DeviceContextService DeviceContext
 @inject ILogger<ToolsRequirementsTab> Logger
 
 <div class="tl-page tools-requirements">
@@ -88,13 +87,6 @@
             </AppCard>
         }
 
-        @* The Local AI runtime (resource profile, benchmark, limits) sits beside the model files; editing it is desktop and tablet only. *@
-        @if (!DeviceContext.IsMobile)
-        {
-            <div class="tools-requirements__stack">
-                <LocalAiRuntimePanel />
-            </div>
-        }
     }
 </div>
 

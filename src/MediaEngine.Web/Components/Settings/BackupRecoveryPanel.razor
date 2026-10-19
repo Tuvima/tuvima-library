@@ -24,8 +24,7 @@
             <AppText Class="tl-u-color-tl-text-muted" data-testid="data-store-version">@versionLine</AppText>
         }
 
-        <AppPanel Class="tl-card backup-status">
-            <AppText Typo="AppTypo.h6">Backup status</AppText>
+        <AppCard Title="Backup status" Class="backup-status">
             @if (LatestBackup is null)
             {
                 <div class="backup-status__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /><span><strong>No recovery points yet</strong><small>Create a backup before significant library or configuration changes.</small></span></div>
@@ -42,7 +41,7 @@
                     <p class="backup-status__mobile-note">Creating, downloading, testing, and restoring recovery points is available on desktop and tablet.</p>
                 }
             }
-        </AppPanel>
+        </AppCard>
 
         @if (_lastValidation is { Valid: false })
         {
@@ -55,14 +54,12 @@
         @if (!DeviceContext.IsMobile)
         {
         <div class="backup-actions-grid">
-            <AppPanel Class="tl-card backup-action-card">
-                <AppText Typo="AppTypo.h6">Create backup</AppText>
+            <AppCard Title="Create backup" Class="backup-action-card">
                 <p>Back up the library database and safe configuration. Provider secrets stay on this server.</p>
                 <AppButton Label="Create backup" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
-            </AppPanel>
+            </AppCard>
 
-            <AppPanel Class="tl-card backup-action-card">
-                <AppText Typo="AppTypo.h6">Restore</AppText>
+            <AppCard Title="Restore" Class="backup-action-card">
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
                 @if (_backups.Count == 0)
                 {
@@ -84,9 +81,10 @@
                         }
                     </div>
                 }
-            </AppPanel>
+            </AppCard>
         </div>
 
+        <AppCard>
         <details class="backup-advanced">
             <summary>Advanced</summary>
             <div class="backup-advanced__content">
@@ -95,6 +93,7 @@
                 <p>Backup location and retention are controlled by the Engine's server configuration.</p>
             </div>
         </details>
+        </AppCard>
         }
     }
 

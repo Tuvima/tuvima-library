@@ -5,17 +5,18 @@
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
     {
+        case "models":
+            @* Desktop and tablet only, like the other runtime controls. *@
+            @if (!DeviceContext.IsMobile)
+            {
+                <LocalAiRuntimePanel />
+            }
+            break;
         case "vocabulary":
-            <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Vocabulary", "Manage the controlled terms used by local enrichment.", AppMaterialIcons.Outlined.Spellcheck)
-                <VibeVocabularyTab />
-            </AppPanel>
+            <VibeVocabularyTab />
             break;
         case "automation":
-            <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Automation", "Control saved enrichment and maintenance schedules.", AppMaterialIcons.Outlined.Schedule)
-                <AiScheduleTab />
-            </AppPanel>
+            <AiScheduleTab />
             break;
         default:
             @OverviewContent()
@@ -28,6 +29,7 @@
 
     private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
     {
+        "models" => "models",
         "vocabulary" => "vocabulary",
         "automation" => "automation",
         _ => "overview",
@@ -89,7 +91,7 @@
 
             @if (!DeviceContext.IsMobile)
             {
-            <SettingsAdvancedLinkRow Title="Models and runtime" Description="Model files, downloads and the Local AI runtime are on Tools and requirements." Href="/settings/tools" ActionLabel="Open" />
+            <SettingsAdvancedLinkRow Title="Models and runtime" Description="The resource profile, runtime limits and diagnostics are on Runtime. Model files and downloads are on Tools and requirements." Href="/settings/ai/models" ActionLabel="Open" />
             <AppCard Title="Enabled features" Description="Choose which connected Local AI capabilities Tuvima Library may use.">
                 @if (_config is null)
                 {
@@ -154,8 +156,6 @@
         _savingFeatures = false;
         _featureMessage = saved ? "Local AI features saved." : "Local AI features could not be saved.";
     }
-
-    private static RenderFragment SectionHeading(string title, string description, string icon) => @<SettingsSectionHeader Title="@title" Description="@description" Icon="@icon" Divider="true" />;
 
     private sealed record FeatureDefinition(string Key, string Name, string Description, bool Connected = true);
 

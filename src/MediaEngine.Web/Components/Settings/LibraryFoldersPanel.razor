@@ -30,7 +30,8 @@
     {
         @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
         <p class="library-folders__phone-note">@PhoneNote</p>
-        <nav class="library-folders__types" aria-label="Library types">
+        <AppCard Class="library-folders__types">
+        <nav class="library-folders__nav" aria-label="Library types">
             @foreach (var type in LibraryTypes)
             {
                 var count = FolderCount(type);
@@ -71,10 +72,11 @@
                 }
             }
         </nav>
+        </AppCard>
 
         @if (ImportSelected)
         {
-            <section class="library-folders__detail" aria-labelledby="library-import-title">
+            <AppCard Class="library-folders__detail">
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
@@ -166,11 +168,11 @@
                         <p class="library-folders__hint library-folders__hint--merge">To bring in a whole existing folder once, use Merge into on a managed folder.</p>
                     }
                 }
-            </section>
+            </AppCard>
         }
         else
         {
-            <section class="library-folders__detail" aria-labelledby="library-folders-title">
+            <AppCard Class="library-folders__detail">
                 <header class="library-folders__detail-header">
                     <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
                     <div>
@@ -222,7 +224,7 @@
                         <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
                     }
                 }
-            </section>
+            </AppCard>
         }
 
         @if (!Embedded)

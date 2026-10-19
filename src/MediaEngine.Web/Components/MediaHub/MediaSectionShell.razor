@@ -744,6 +744,7 @@
             <a id="@ItemId(item)"
                href="@item.Route"
                class="media-section-shell__tree-link"
+               title="@item.Label"
                aria-current="@(IsTreeRowCurrent(item) ? "page" : null)"
                @onclick="@(() => NavigateTreeNode(item))"
                @onclick:preventDefault="@HasChildren(item)">
