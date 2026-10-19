@@ -157,7 +157,7 @@ else
                             case SettingsSection.AdminOverview:
                                 @if (_activeSubsection == SettingsNav.LogsSubsection)
                                 {
-                                    <LogsPage Tab="@LogsTab" />
+                                    <LogsPage Tab="@LogsTab" Filter="@LogsFilter" />
                                 }
                                 else
                                 {
@@ -259,6 +259,7 @@ else
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
+    [SupplyParameterFromQuery(Name = "filter")] public string? LogsFilter { get; set; }
 
     /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
     [SupplyParameterFromQuery(Name = "scope")] public string? ActivityScope { get; set; }

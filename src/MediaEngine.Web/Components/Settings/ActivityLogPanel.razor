@@ -1,0 +1,295 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@implements IDisposable
+
+@* The Events part of System > Logs (ingestion WP12): one flat, time-stamped, paged, searchable log of what was added, what needs
+   review, what failed and what the system did. Server administrators only; the Engine enforces that, and the Settings shell only
+   offers the page to administrators. The Engine writes every word shown here (title, detail, media type); this panel only lays
+   them out. *@
+<AppCard Title="Events" Description="What was added, what needs review, what failed and what the system did, newest first.">
+    <div class="activity-log__toolbar">
+        <AppSegmentedControl Options="FilterOptions"
+                             Value="@_filter"
+                             ValueChanged="OnFilterChanged"
+                             AriaLabel="Filter the activity log"
+                             Class="activity-log__filters" />
+        <AppSearchField Label="Search the activity log"
+                        HideLabel="true"
+                        Placeholder="Search titles and details"
+                        Value="@_search"
+                        ValueChanged="OnSearchChanged"
+                        DebounceInterval="300"
+                        Class="activity-log__search" />
+    </div>
+
+    @if (_loading)
+    {
+        <div class="activity-log__skeleton" aria-busy="true" data-testid="activity-log-loading">
+            @for (var row = 0; row < 6; row++)
+            {
+                <div class="activity-log__skeleton-row">
+                    <AppSkeleton Width="5rem" Height="0.875rem" />
+                    <AppSkeleton Width="@(row % 2 == 0 ? "55%" : "40%")" Height="1rem" />
+                </div>
+            }
+        </div>
+    }
+    else if (_failed)
+    {
+        <div data-testid="activity-log-error">
+            <AppErrorState Title="The Library's engine isn't responding"
+                           Message="Check that the Engine is running, then try again."
+                           Retry="ReloadAsync"
+                           Compact="true" />
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div data-testid="activity-log-empty">
+            <AppEmptyState Title="@EmptyTitle" />
+        </div>
+    }
+    else
+    {
+        <ol class="activity-log__list" aria-label="Events, newest first" data-testid="activity-log-rows">
+            @foreach (var entry in _items)
+            {
+                <li class="activity-log__row activity-log__row--@CategoryKey(entry.Category)" data-testid="activity-log-row" data-category="@entry.Category">
+                    <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
+                    <span class="activity-log__symbol" aria-hidden="true">
+                        <AppMaterialIcon Icon="@SymbolFor(entry.Category)" Size="AppSize.Small" />
+                    </span>
+                    <div class="activity-log__body">
+                        <div class="activity-log__headline">
+                            @if (!string.IsNullOrWhiteSpace(entry.Route))
+                            {
+                                <a class="activity-log__title activity-log__title--link" href="@entry.Route">@entry.Title</a>
+                            }
+                            else
+                            {
+                                <strong class="activity-log__title">@entry.Title</strong>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(entry.MediaType))
+                            {
+                                <span class="activity-log__media-type">@entry.MediaType</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                        {
+                            <p class="activity-log__detail">@entry.Detail</p>
+                        }
+                    </div>
+                </li>
+            }
+        </ol>
+
+        <div class="activity-log__pager" data-testid="activity-log-pager">
+            <span class="activity-log__pager-summary" aria-live="polite">@PagerSummary</span>
+            <div class="activity-log__pager-actions">
+                <AppButton Label="Previous"
+                           Size="AppControlSize.Compact"
+                           StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
+                           Disabled="@(_offset <= 0)"
+                           OnClick="PreviousAsync" />
+                <AppButton Label="Next"
+                           Size="AppControlSize.Compact"
+                           EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
+                           Disabled="@(!_hasMore)"
+                           OnClick="NextAsync" />
+            </div>
+        </div>
+    }
+</AppCard>
+
+@code {
+    private const int PageSize = 50;
+
+    private static readonly IReadOnlyList<AppSelectOption> FilterOptions =
+    [
+        new(ActivityLogCategoryValues.Added, "Added"),
+        new(ActivityLogCategoryValues.Review, "Needs Review"),
+        new(ActivityLogCategoryValues.Failed, "Failed"),
+        new(ActivityLogCategoryValues.System, "System"),
+        new(ActivityLogCategoryValues.All, "All"),
+    ];
+
+    /// <summary>The filter the log opens on: <c>added</c>, <c>review</c>, <c>failed</c>, <c>system</c> or <c>all</c> (the default).</summary>
+    [Parameter] public string? Filter { get; set; }
+
+    private readonly List<ActivityLogEntryDto> _items = [];
+    private CancellationTokenSource? _load;
+    private string _filter = ActivityLogCategoryValues.All;
+    private string? _appliedParameter;
+    private bool _parameterApplied;
+    private string? _search;
+    private int _offset;
+    private int? _total;
+    private bool _hasMore;
+    private bool _loading = true;
+    private bool _failed;
+
+    protected override Task OnParametersSetAsync()
+    {
+        // Only a changed address moves the filter; a parent re-render must not undo the chip the person picked.
+        if (_parameterApplied && _appliedParameter == Filter)
+        {
+            return Task.CompletedTask;
+        }
+
+        _parameterApplied = true;
+        _appliedParameter = Filter;
+        _filter = NormalizeFilter(Filter);
+        _offset = 0;
+        return LoadAsync();
+    }
+
+    private Task OnFilterChanged(string value)
+    {
+        _filter = NormalizeFilter(value);
+        _offset = 0;
+        return LoadAsync();
+    }
+
+    private Task OnSearchChanged(string? value)
+    {
+        _search = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        _offset = 0;
+        return LoadAsync();
+    }
+
+    private Task ReloadAsync() => LoadAsync();
+
+    private Task PreviousAsync()
+    {
+        _offset = Math.Max(0, _offset - PageSize);
+        return LoadAsync();
+    }
+
+    private Task NextAsync()
+    {
+        _offset += PageSize;
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        // A newer request replaces an older one, so a slow answer never overwrites a fresher one.
+        _load?.Cancel();
+        _load?.Dispose();
+        var source = _load = new CancellationTokenSource();
+        var token = source.Token;
+
+        _loading = true;
+        _failed = false;
+        await InvokeAsync(StateHasChanged);
+
+        var page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, token);
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (page is not null && page.Items.Count == 0 && _offset > 0)
+        {
+            // The log shrank under a later page (for example after old entries were pruned): go back to the first page.
+            _offset = 0;
+            page = await ApiClient.GetActivityLogAsync(_filter, _search, _offset, PageSize, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+        }
+
+        _items.Clear();
+        if (page is null)
+        {
+            _failed = true;
+            _total = null;
+            _hasMore = false;
+        }
+        else
+        {
+            _items.AddRange(page.Items);
+            _total = page.TotalCount;
+            _hasMore = page.HasMore;
+        }
+
+        _loading = false;
+    }
+
+    private static string NormalizeFilter(string? value) => value?.ToLowerInvariant() switch
+    {
+        ActivityLogCategoryValues.Added => ActivityLogCategoryValues.Added,
+        ActivityLogCategoryValues.Review => ActivityLogCategoryValues.Review,
+        ActivityLogCategoryValues.Failed => ActivityLogCategoryValues.Failed,
+        ActivityLogCategoryValues.System => ActivityLogCategoryValues.System,
+        _ => ActivityLogCategoryValues.All,
+    };
+
+    private string EmptyTitle
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_search))
+            {
+                return $"Nothing matches “{_search}”";
+            }
+
+            return _filter switch
+            {
+                ActivityLogCategoryValues.Added => "Nothing added yet",
+                ActivityLogCategoryValues.Review => "Nothing needs review",
+                ActivityLogCategoryValues.Failed => "No failures",
+                ActivityLogCategoryValues.System => "No system events",
+                _ => "No activity yet",
+            };
+        }
+    }
+
+    private string PagerSummary
+    {
+        get
+        {
+            var first = _offset + 1;
+            var last = _offset + _items.Count;
+            var total = Math.Max(_total ?? last, last);
+            return $"{first:N0}–{last:N0} of {total:N0}";
+        }
+    }
+
+    // One symbol and colour per category, from the theme tokens in the stylesheet.
+    private static string CategoryKey(string category) => category.ToLowerInvariant() switch
+    {
+        ActivityLogCategoryValues.Added => ActivityLogCategoryValues.Added,
+        ActivityLogCategoryValues.Review => ActivityLogCategoryValues.Review,
+        ActivityLogCategoryValues.Failed => ActivityLogCategoryValues.Failed,
+        _ => ActivityLogCategoryValues.System,
+    };
+
+    private static string SymbolFor(string category) => CategoryKey(category) switch
+    {
+        ActivityLogCategoryValues.Added => AppMaterialIcons.Outlined.AddCircleOutline,
+        ActivityLogCategoryValues.Review => AppMaterialIcons.Outlined.RateReview,
+        ActivityLogCategoryValues.Failed => AppMaterialIcons.Outlined.ErrorOutline,
+        _ => AppMaterialIcons.Outlined.Settings,
+    };
+
+    // Today shows just the time; an older entry shows the date as well. The tooltip always carries the full timestamp.
+    private static string ShortTime(DateTimeOffset occurredAt)
+    {
+        var local = occurredAt.ToLocalTime();
+        return local.Date == DateTimeOffset.Now.Date
+            ? local.ToString("h:mm tt")
+            : local.ToString("MMM d, h:mm tt");
+    }
+
+    private static string FullTime(DateTimeOffset occurredAt) =>
+        occurredAt.ToLocalTime().ToString("dddd, MMMM d, yyyy h:mm:ss tt");
+
+    public void Dispose()
+    {
+        _load?.Cancel();
+        _load?.Dispose();
+    }
+}

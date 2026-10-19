@@ -20,6 +20,7 @@ public sealed class LogsPageTests : AsyncBunitContext
     private static readonly DateTimeOffset Now = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
 
     private readonly List<TechnicalLogRequest> _logRequests = [];
+    private readonly List<(string Category, string? Search, int Offset, int Limit)> _activityRequests = [];
     private readonly List<LogRetentionSettingsDto> _saves = [];
     private Func<TechnicalLogRequest, TechnicalLogPageDto?> _onLog = _ => new TechnicalLogPageDto();
     private Func<ScheduledTaskListResponse?> _onTasks = () => null;
@@ -42,6 +43,12 @@ public sealed class LogsPageTests : AsyncBunitContext
                 var request = (TechnicalLogRequest)args![0]!;
                 _logRequests.Add(request);
                 return Task.FromResult(_onLog(request));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetActivityLogAsync), args =>
+            {
+                _activityRequests.Add(((string)args![0]!, (string?)args[1], (int)args[2]!, (int)args[3]!));
+                return Task.FromResult<MediaEngine.Contracts.Paging.PagedResponse<MediaEngine.Contracts.Activity.ActivityLogEntryDto>?>(
+                    new([], 0, 50, false, 0));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetScheduledTasksAsync), _ => Task.FromResult(_onTasks()));
             stub.SetHandler(nameof(IEngineApiClient.GetLogRetentionAsync), _ => Task.FromResult(_onRetention()));
@@ -112,14 +119,35 @@ public sealed class LogsPageTests : AsyncBunitContext
     // ── Logs page ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LogsPage_OpensOnTheTechnicalLog_WithRetentionAsTheOtherTab()
+    public void LogsPage_WithNoTabRequested_OpensOnEvents_WithTheOtherSectionsAfterIt()
     {
         var cut = Render<LogsPage>();
 
         var tabs = cut.FindAll("[role=tab]").Select(tab => tab.TextContent.Trim()).ToArray();
-        Assert.Equal(["Technical log", "Retention", "Export"], tabs);
+        Assert.Equal(["Events", "Technical log", "Retention", "Export"], tabs);
+        Assert.Contains("Events", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("all", Assert.Single(_activityRequests).Category);
+        Assert.Empty(_logRequests);
+    }
+
+    [Fact]
+    public void LogsPage_WithTheTechnicalTabRequested_OpensOnTheTechnicalLog()
+    {
+        var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "technical"));
+
         Assert.Contains("Technical log", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
         Assert.NotEmpty(_logRequests);
+    }
+
+    [Fact]
+    public void LogsPage_WithAFilterRequested_PassesItToTheEventsLog()
+    {
+        var cut = Render<LogsPage>(parameters => parameters
+            .Add(p => p.Tab, "events")
+            .Add(p => p.Filter, "added"));
+
+        Assert.Contains("Events", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        Assert.Equal("added", Assert.Single(_activityRequests).Category);
     }
 
     [Fact]
