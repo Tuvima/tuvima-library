@@ -90,12 +90,4 @@ internal static class ProfileContractMapper
         Summary = profile.Summary,
         LastUpdatedAt = profile.LastUpdatedAt,
     };
-
-    internal static TasteProfileBuildResponse ToResponse(TasteProfileBuildResult result) => new(
-        (TasteProfileBuildStatusDto)result.Status,
-        result.UserId,
-        result.Profile is null ? null : ToResponse(result.Profile),
-        result.SignalCount,
-        result.InputFingerprint,
-        result.Reason);
 }

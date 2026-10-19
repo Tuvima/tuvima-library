@@ -122,9 +122,6 @@ public partial interface IEngineApiClient
     /// <summary>DELETE /profiles/{id}/avatar - remove a persisted profile avatar image.</summary>
     Task<ProfileViewModel?> RemoveProfileAvatarAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>GET /profiles/{id}/taste — read the computed taste profile for a user.</summary>
-    Task<TasteProfileBuildResponse?> GetTasteProfileAsync(Guid id, CancellationToken ct = default);
-
     /// <summary>GET /profiles/{id}/overview - read user-facing profile details, history, and stats.</summary>
     Task<ProfileOverviewViewModel?> GetProfileOverviewAsync(Guid id, CancellationToken ct = default);
 

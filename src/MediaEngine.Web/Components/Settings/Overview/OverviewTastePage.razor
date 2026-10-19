@@ -1,0 +1,374 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Contracts.Taste
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject DashboardIdentityClient Identity
+@inject DashboardSessionAccessor Session
+@inject ILogger<OverviewTastePage> Logger
+@* Personal > Overview > Taste (D34): what the Library has learned about a person's taste, in plain groups. A person removes or adds
+   values on their own taste; everyone else's is read-only. Administrators get a Scope filter (Me, a household, a person or Everyone);
+   the Engine decides what each person may see, so the filter only offers choices and never grants anything. The layout is a
+   placeholder until the taste design lands. *@
+<div class="taste-page" data-settings-taste>
+    @if (ShowScopeFilter)
+    {
+        <div class="taste-page__filter" data-taste-scope>
+            <label class="taste-page__scope">
+                <span class="taste-page__scope-label">Scope</span>
+                <AppNativeSelect Value="@_scope"
+                                 ValueChanged="@OnScopeChangedAsync"
+                                 Disabled="@_loading"
+                                 data-taste-scope-select
+                                 aria-label="Scope">
+                    @foreach (var option in ScopeOptions)
+                    {
+                        <option value="@option.Value">@option.Label</option>
+                    }
+                </AppNativeSelect>
+            </label>
+        </div>
+    }
+
+    @if (_loading && _view is null)
+    {
+        <div class="taste-page__loading" aria-busy="true" aria-label="Loading taste">
+            <AppSkeleton Width="100%" Height="140px" />
+            <AppSkeleton Width="100%" Height="140px" />
+        </div>
+    }
+    else if (_view is null)
+    {
+        <AppErrorState Title="Taste couldn't be loaded"
+                       Message="@(_scope == MeScope ? "Start the Engine or try again." : "That view isn't available. Pick another scope, or unlock administrator access and try again.")"
+                       Retry="@(() => LoadAsync())" />
+    }
+    else if (_view.People.Count == 0)
+    {
+        <AppEmptyState Title="No one to show" Message="Nobody is in this scope yet." />
+    }
+    else
+    {
+        @foreach (var person in _view.People)
+        {
+            <SettingsSectionPanel Title="@PanelTitle(person)"
+                                  Icon="@AppMaterialIcons.Outlined.Category"
+                                  Class="tl-card settings-section-card settings-section-card--dense taste-page__person">
+                <div data-taste-person="@person.ProfileId" data-taste-editable="@(person.IsYou ? "true" : "false")">
+                    @if (!string.IsNullOrWhiteSpace(person.Summary))
+                    {
+                        <p class="taste-page__summary" data-taste-summary>@person.Summary</p>
+                    }
+                    @if (MediaMixLine(person) is { } mix)
+                    {
+                        <p class="taste-page__mix" data-taste-mix>@mix</p>
+                    }
+                    @if (person.LastUpdatedAt is not null && UpdatedLine(person.LastUpdatedAt) is { } updated)
+                    {
+                        <p class="taste-page__updated" data-taste-updated>@updated</p>
+                    }
+
+                    @foreach (var group in Groups)
+                    {
+                        var items = ItemsFor(person, group.Key);
+                        <section class="taste-group" data-taste-group="@group.Key" aria-label="@group.Label">
+                            <h3 class="taste-group__title">@group.Label</h3>
+                            @if (items.Count == 0)
+                            {
+                                <p class="taste-group__empty" data-taste-empty>@(person.IsYou ? $"Nothing here yet. Add {group.Article} below." : "Nothing here yet.")</p>
+                            }
+                            else
+                            {
+                                <ul class="taste-group__chips" role="list">
+                                    @foreach (var item in items)
+                                    {
+                                        var captured = item;
+                                        <li class="taste-group__chip" data-taste-item="@item.Value" data-taste-source="@item.Source">
+                                            @if (person.IsYou)
+                                            {
+                                                <AppChip Title="@ChipTitle(item)" OnClose="@(() => RemoveAsync(group.Key, captured.Value))" Disabled="@_busy">
+                                                    <span class="taste-chip__text">@item.Value</span>
+                                                    @if (item.Source == TasteValues.SourceAdded)
+                                                    {
+                                                        <span class="taste-chip__note">Added by you</span>
+                                                    }
+                                                </AppChip>
+                                            }
+                                            else
+                                            {
+                                                <AppChip Title="@ChipTitle(item)">
+                                                    <span class="taste-chip__text">@item.Value</span>
+                                                    @if (item.Source == TasteValues.SourceAdded)
+                                                    {
+                                                        <span class="taste-chip__note">Added by them</span>
+                                                    }
+                                                </AppChip>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            }
+
+                            @if (person.IsYou)
+                            {
+                                <div class="taste-group__add" data-taste-add="@group.Key">
+                                    <AppTextField Label="@($"Add {group.Article}")"
+                                                  HideLabel="true"
+                                                  Placeholder="@($"Add {group.Article}")"
+                                                  HelpText="@group.Help"
+                                                  MaxLength="60"
+                                                  Value="@TextFor(group.Key)"
+                                                  ValueChanged="@(value => SetText(group.Key, value))"
+                                                  OnKeyDown="@(args => OnAddKeyDownAsync(group.Key, args))"
+                                                  Disabled="@_busy"
+                                                  aria-label="@($"Add {group.Article}")" />
+                                    <AppButton Label="Add"
+                                               StartIcon="@AppMaterialIcons.Outlined.Add"
+                                               Disabled="@(_busy || string.IsNullOrWhiteSpace(TextFor(group.Key)))"
+                                               OnClick="@(() => AddAsync(group.Key, TextFor(group.Key)))"
+                                               UserAttributes="@(new Dictionary<string, object> { ["data-taste-add-button"] = group.Key })" />
+                                </div>
+                                @if (SuggestionsFor(group.Key, person) is { Count: > 0 } suggestions)
+                                {
+                                    <ul class="taste-group__suggestions" role="list" aria-label="@($"Suggested {group.Label.ToLowerInvariant()}")" data-taste-suggestions="@group.Key">
+                                        @foreach (var suggestion in suggestions)
+                                        {
+                                            var chosen = suggestion;
+                                            <li>
+                                                <AppChip Text="@suggestion" Icon="@AppMaterialIcons.Outlined.Add" OnClick="@(() => AddAsync(group.Key, chosen))" Disabled="@_busy" />
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                        </section>
+                    }
+                </div>
+            </SettingsSectionPanel>
+        }
+
+        @if (_message is not null)
+        {
+            <p class="taste-page__message" role="alert" data-taste-message>@_message</p>
+        }
+    }
+</div>
+
+@code {
+    private const string MeScope = "me";
+    private const int SuggestionLimit = 6;
+
+    private sealed record TasteGroupDef(string Key, string Label, string Article, string? Help);
+
+    private static readonly IReadOnlyList<TasteGroupDef> Groups =
+    [
+        new(TasteValues.Genres, "Genres", "a genre", null),
+        new(TasteValues.Moods, "Moods", "a mood", null),
+        new(TasteValues.Eras, "Eras", "an era", "An era is a decade, such as 1990s."),
+    ];
+
+    private readonly Dictionary<string, string> _texts = [];
+    private TasteViewDto? _view;
+    private IReadOnlyList<AppSelectOption> _scopeOptions = [new(MeScope, "Me")];
+    private string _scope = MeScope;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _message;
+
+    // A server administrator can look at anyone. A household administrator can look at their own household and its people.
+    // Anyone else sees only their own taste, so no filter is drawn.
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    private bool ShowScopeFilter => (IsServerAdministrator || Session.HasAction("household.manage")) && _scopeOptions.Count > 1;
+
+    private IReadOnlyList<AppSelectOption> ScopeOptions => _scopeOptions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadScopeChoicesAsync();
+        await LoadAsync();
+    }
+
+    // The people and households the Engine lets this administrator see. The Engine checks the scope again on every read, so these
+    // are only the choices offered; a refusal (an administrator PIN not yet entered) leaves just Me.
+    private async Task LoadScopeChoicesAsync()
+    {
+        if (!IsServerAdministrator && !Session.HasAction("household.manage"))
+        {
+            return;
+        }
+
+        try
+        {
+            var people = Identity.GetManagedProfilesAsync();
+            var households = Identity.GetManagedHouseholdsAsync();
+            var managedPeople = await people;
+            var managedHouseholds = await households;
+            var options = new List<AppSelectOption> { new(MeScope, "Me") };
+            if (IsServerAdministrator)
+            {
+                options.Add(new("everyone", "Everyone"));
+            }
+
+            options.AddRange(managedHouseholds
+                .OrderBy(household => household.Name, StringComparer.CurrentCultureIgnoreCase)
+                .Select(household => new AppSelectOption($"household:{household.Id:D}", $"Household: {household.Name}")));
+            options.AddRange(managedPeople
+                .Where(person => person.Id != Session.ActiveProfileId)
+                .OrderBy(person => person.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .Select(person => new AppSelectOption($"profile:{person.Id:D}", person.DisplayName)));
+            _scopeOptions = options;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the people and households for the Taste scope filter.");
+            _scopeOptions = [new(MeScope, "Me")];
+        }
+    }
+
+    private async Task LoadAsync(bool showSkeleton = true)
+    {
+        _loading = true;
+        if (showSkeleton)
+        {
+            _view = null;
+        }
+
+        try
+        {
+            _view = await Api.GetPersonalTasteAsync(_scope == MeScope ? null : _scope);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(exception, "Taste could not be loaded.");
+            _view = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnScopeChangedAsync(object? chosen)
+    {
+        var value = chosen?.ToString();
+        _scope = string.IsNullOrWhiteSpace(value) ? MeScope : value;
+        _message = null;
+        _texts.Clear();
+        await LoadAsync();
+    }
+
+    private string PanelTitle(TastePersonDto person) =>
+        person.IsYou ? (_view!.IncludesOthers ? "You" : "Your taste") : person.Person ?? "Taste";
+
+    private static IReadOnlyList<TasteItemDto> ItemsFor(TastePersonDto person, string group) => group switch
+    {
+        TasteValues.Genres => person.Genres,
+        TasteValues.Moods => person.Moods,
+        _ => person.Eras,
+    };
+
+    private static string ChipTitle(TasteItemDto item) => item.Source == TasteValues.SourceAdded
+        ? "Added by you"
+        : item.Weight is { } weight
+            ? $"Learned from what has been watched, read and listened to ({Math.Round(weight * 100).ToString("0", CultureInfo.CurrentCulture)}%)"
+            : "Learned from what has been watched, read and listened to";
+
+    private static string? MediaMixLine(TastePersonDto person)
+    {
+        var parts = person.MediaMix
+            .Where(pair => pair.Value > 0 && !string.IsNullOrWhiteSpace(pair.Key))
+            .OrderByDescending(pair => pair.Value)
+            .ThenBy(pair => pair.Key, StringComparer.CurrentCultureIgnoreCase)
+            .Select(pair => $"{pair.Key} {Math.Round(pair.Value * 100).ToString("0", CultureInfo.CurrentCulture)}%")
+            .ToList();
+        return parts.Count == 0 ? null : "Mostly " + string.Join(", ", parts) + ".";
+    }
+
+    private static string? UpdatedLine(string? lastUpdatedAt) =>
+        DateTimeOffset.TryParse(lastUpdatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)
+            ? $"Last worked out {at.ToLocalTime().ToString("d MMMM yyyy", CultureInfo.CurrentCulture)}."
+            : null;
+
+    private string TextFor(string group) => _texts.GetValueOrDefault(group) ?? string.Empty;
+
+    private void SetText(string group, string? value) => _texts[group] = value ?? string.Empty;
+
+    // Known values that match what is typed and are not already shown. With nothing typed, the first few are offered.
+    private IReadOnlyList<string> SuggestionsFor(string group, TastePersonDto person)
+    {
+        var known = group switch
+        {
+            TasteValues.Genres => _view?.Suggestions.Genres,
+            TasteValues.Moods => _view?.Suggestions.Moods,
+            _ => _view?.Suggestions.Eras,
+        };
+        if (known is null)
+        {
+            return [];
+        }
+
+        var shown = ItemsFor(person, group).Select(item => item.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var typed = TextFor(group).Trim();
+        return [.. known
+            .Where(value => !shown.Contains(value))
+            .Where(value => typed.Length == 0 || value.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .Take(SuggestionLimit)];
+    }
+
+    private async Task OnAddKeyDownAsync(string group, KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await AddAsync(group, TextFor(group));
+        }
+    }
+
+    private async Task AddAsync(string group, string value)
+    {
+        value = value.Trim();
+        if (_busy || value.Length == 0)
+        {
+            return;
+        }
+
+        await ChangeAsync(
+            () => Api.AddPersonalTasteItemAsync(group, value),
+            group == TasteValues.Eras
+                ? "That couldn't be added. An era is a decade, such as 1990s."
+                : "That couldn't be added. Try again.",
+            () => _texts[group] = string.Empty);
+    }
+
+    private Task RemoveAsync(string group, string value) =>
+        _busy
+            ? Task.CompletedTask
+            : ChangeAsync(() => Api.RemovePersonalTasteItemAsync(group, value), "That couldn't be removed. Try again.", null);
+
+    private async Task ChangeAsync(Func<Task<bool>> change, string failure, Action? onSuccess)
+    {
+        _busy = true;
+        _message = null;
+        try
+        {
+            if (await change())
+            {
+                onSuccess?.Invoke();
+                await LoadAsync(showSkeleton: false);
+                return;
+            }
+
+            _message = failure;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            Logger.LogWarning(exception, "A taste change could not be saved.");
+            _message = failure;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

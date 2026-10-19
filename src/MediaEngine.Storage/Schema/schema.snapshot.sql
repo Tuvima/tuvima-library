@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0008 personal_activity).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0009 profile_taste_overrides).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1945,6 +1945,15 @@ CREATE TABLE profile_sequence_preferences (
     show_missing  INTEGER NOT NULL,
     updated_at    TEXT NOT NULL,
     PRIMARY KEY (profile_id, media_type, container_key)
+);
+
+CREATE TABLE profile_taste_overrides (
+    profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    taste_group TEXT NOT NULL CHECK (taste_group IN ('genre', 'mood', 'era')),
+    value       TEXT NOT NULL,   -- trimmed and lower-cased, the same way the taste profiler writes its keys
+    action      TEXT NOT NULL CHECK (action IN ('removed', 'added')),
+    created_at  TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, taste_group, value)
 );
 
 CREATE TABLE profile_view_policies (

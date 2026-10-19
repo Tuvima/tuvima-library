@@ -117,6 +117,10 @@ else
                                 {
                                     <OverviewAppsPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.TasteSubsection)
+                                {
+                                    <OverviewTastePage />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -838,7 +842,9 @@ else
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
             ? "Install the Tuvima app on your phone or TV and connect it to this server."
-            : "You, what you have been watching, reading and listening to, and your taste.",
+            : _activeSubsection == SettingsNav.TasteSubsection
+                ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
+                : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => _activeSubsection == SettingsNav.HouseholdsSubsection
             ? "Add, rename and remove households. Each has its own people, library access and Shared Library."
             : "Add and look after the people in your household. Switch profile from the profile menu.",

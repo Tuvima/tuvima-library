@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1024; api=0; web-client=76
+# scopes: contracts=1027; api=0; web-client=76
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7730,20 +7730,6 @@
   HasPin: System.Boolean | json=has_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","display_name":"sample","avatar_color":"sample","role":"sample","created_at":"2025-01-02T03:04:05+00:00","navigation_config":"sample","avatar_image_url":"sample","avatar_icon":"sample","content_limit":"sample","content_limit_allow_unrated":true,"has_pin":true}
 
-[contracts] MediaEngine.Contracts.Profiles.TasteProfileBuildResponse
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Status: MediaEngine.Contracts.Profiles.TasteProfileBuildStatusDto | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  UserId: System.Guid | json=userId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Profile: MediaEngine.Contracts.Profiles.TasteProfileDto | json=profile | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  SignalCount: System.Int32 | json=signalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  InputFingerprint: System.String | json=inputFingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-
-[contracts] MediaEngine.Contracts.Profiles.TasteProfileBuildStatusDto
-  kind=enum | converter=default | number-handling=default | unmapped=default
-  enum Generated=0 | json=0
-  enum InsufficientData=1 | json=1
-
 [contracts] MediaEngine.Contracts.Profiles.TasteProfileDto
   kind=class | converter=default | number-handling=default | unmapped=default
   UserId: System.Guid | json=userId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10031,6 +10017,45 @@
   Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | json=lines | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NextCursor: System.String | json=next_cursor | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"lines":[],"next_cursor":"sample"}
+
+[contracts] MediaEngine.Contracts.Taste.AddTasteItemRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Group: System.String | json=group | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Taste.TasteItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Weight: System.Double? | json=weight | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Source: System.String | json=source | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Taste.TastePersonDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.String | json=profile_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Person: System.String | json=person | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsYou: System.Boolean | json=is_you | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Genres: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | json=genres | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Moods: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | json=moods | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Eras: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | json=eras | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaMix: System.Collections.Generic.Dictionary<System.String, System.Double> | json=media_mix | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Summary: System.String | json=summary | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastUpdatedAt: System.String | json=last_updated_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"profile_id":"sample","person":"sample","is_you":true,"genres":[],"moods":[],"eras":[],"media_mix":{},"summary":"sample","last_updated_at":"sample"}
+
+[contracts] MediaEngine.Contracts.Taste.TasteSuggestionsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Genres: System.Collections.Generic.List<System.String> | json=genres | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Moods: System.Collections.Generic.List<System.String> | json=moods | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Eras: System.Collections.Generic.List<System.String> | json=eras | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"genres":[],"moods":[],"eras":[]}
+
+[contracts] MediaEngine.Contracts.Taste.TasteViewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Scope: System.String | json=scope | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IncludesOthers: System.Boolean | json=includes_others | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  People: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TastePersonDto> | json=people | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Suggestions: MediaEngine.Contracts.Taste.TasteSuggestionsDto | json=suggestions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"scope":"sample","includes_others":true,"people":[],"suggestions":null}
 
 [contracts] MediaEngine.Contracts.Timeline.EntityTimelineEventDto
   kind=class | converter=default | number-handling=default | unmapped=default

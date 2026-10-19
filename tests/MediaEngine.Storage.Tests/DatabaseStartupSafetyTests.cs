@@ -618,6 +618,7 @@ public sealed class DatabaseStartupSafetyTests
             ("profile_saved_items", "entity_id"),
             ("profile_saved_items", "profile_id"),
             ("profile_sequence_preferences", "profile_id"),
+            ("profile_taste_overrides", "profile_id"),
             ("profile_work_preferences", "profile_id"),
             ("profile_work_preferences", "work_id"),
             ("consumption_history", "id"),

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Api.Services.Taste;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Profiles;
 using MediaEngine.Domain.Contracts;
@@ -13,7 +14,8 @@ public sealed class ProfileOverviewReadService(
     IProfileService profiles,
     IDatabaseConnection db,
     ISystemActivityRepository activity,
-    ITasteProfiler tasteProfiler) : IProfileOverviewReadService
+    ITasteProfiler tasteProfiler,
+    ITasteOverrideRepository tasteOverrides) : IProfileOverviewReadService
 {
     public async Task<ProfileOverviewResponseDto?> GetOverviewAsync(Guid profileId, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public sealed class ProfileOverviewReadService(
         var libraryCounts = ReadLibraryCounts();
         var profileActivity = await activity.GetRecentByProfileAsync(profileId, 20, ct);
         var tasteResult = await tasteProfiler.GetProfileAsync(profileId, ct);
+        var tasteChanges = await tasteOverrides.ListAsync([profileId], ct);
         var completedThreshold = 95d;
 
         var stats = new ProfileOverviewStatsDto
@@ -72,7 +75,7 @@ public sealed class ProfileOverviewReadService(
                 EntityId = entry.EntityId,
             }).ToList(),
             Taste = tasteResult.Status == Domain.Models.TasteProfileBuildStatus.Generated
-                ? ProfileContractMapper.ToResponse(tasteResult.Profile!)
+                ? ProfileContractMapper.ToResponse(TasteOverrides.Apply(tasteResult.Profile!, tasteChanges.ToList()))
                 : null,
         };
     }

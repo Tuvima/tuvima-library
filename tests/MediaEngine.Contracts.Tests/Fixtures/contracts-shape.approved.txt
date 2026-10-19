@@ -6609,16 +6609,6 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileBuildResponse
-  Status: MediaEngine.Contracts.Profiles.TasteProfileBuildStatusDto | nullability=not-null | accessors=get,init
-  UserId: System.Guid | nullability=not-null | accessors=get,init
-  Profile: MediaEngine.Contracts.Profiles.TasteProfileDto | nullability=nullable | accessors=get,init
-  SignalCount: System.Int32 | nullability=not-null | accessors=get,init
-  InputFingerprint: System.String | nullability=not-null | accessors=get,init
-  Reason: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileBuildStatusDto
-
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileDto
   UserId: System.Guid | nullability=not-null | accessors=get,init
   GenreDistribution: System.Collections.Generic.IReadOnlyDictionary<System.String, System.Double> | nullability=not-null | accessors=get,init
@@ -8535,6 +8525,39 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogLineDto
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.TechnicalLogPageDto
   Lines: System.Collections.Generic.List<MediaEngine.Contracts.System.TechnicalLogLineDto> | nullability=not-null | accessors=get,init
   NextCursor: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.AddTasteItemRequest
+  Group: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteItemDto
+  Value: System.String | nullability=not-null | accessors=get,init
+  Weight: System.Double? | nullability=nullable | accessors=get,init
+  Source: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TastePersonDto
+  ProfileId: System.String | nullability=not-null | accessors=get,set
+  Person: System.String | nullability=nullable | accessors=get,set
+  IsYou: System.Boolean | nullability=not-null | accessors=get,set
+  Genres: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | nullability=not-null | accessors=get,set
+  Moods: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | nullability=not-null | accessors=get,set
+  Eras: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TasteItemDto> | nullability=not-null | accessors=get,set
+  MediaMix: System.Collections.Generic.Dictionary<System.String, System.Double> | nullability=not-null | accessors=get,set
+  Summary: System.String | nullability=nullable | accessors=get,set
+  LastUpdatedAt: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteSuggestionsDto
+  Genres: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Moods: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Eras: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteValues
+
+MediaEngine.Contracts.Taste.MediaEngine.Contracts.Taste.TasteViewDto
+  Scope: System.String | nullability=not-null | accessors=get,set
+  IncludesOthers: System.Boolean | nullability=not-null | accessors=get,set
+  People: System.Collections.Generic.List<MediaEngine.Contracts.Taste.TastePersonDto> | nullability=not-null | accessors=get,set
+  Suggestions: MediaEngine.Contracts.Taste.TasteSuggestionsDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Timeline.MediaEngine.Contracts.Timeline.EntityTimelineEventDto
   Id: System.Guid | nullability=not-null | accessors=get,set

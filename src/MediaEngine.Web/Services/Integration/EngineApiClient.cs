@@ -288,20 +288,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<TasteProfileBuildResponse?> GetTasteProfileAsync(Guid id, CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<TasteProfileBuildResponse>($"/profiles/{id}/taste", ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /profiles/{Id}/taste failed", id);
-            return null;
-        }
-    }
-
     // -- Review queue (/review) -------------------------------------------
 
     public async Task<List<ReviewItemViewModel>> GetPendingReviewsAsync(

@@ -84,27 +84,6 @@ public static class ProfileEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireActiveProfile();
 
-        group.MapGet("/{id:guid}/taste", async (
-            Guid id,
-            IProfileService svc,
-            [FromServices] ITasteProfiler tasteProfiler,
-            CancellationToken ct) =>
-        {
-            var profile = await svc.GetProfileAsync(id, ct);
-            if (profile is null)
-            {
-                return ApiErrors.NotFound($"Profile '{id}' not found.");
-            }
-
-            var taste = await tasteProfiler.GetProfileAsync(id, ct);
-            return Results.Ok(ProfileContractMapper.ToResponse(taste));
-        })
-        .WithName("GetProfileTaste")
-        .WithSummary("Get the computed taste profile for a user profile.")
-        .Produces<TasteProfileBuildResponse>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireActiveProfile();
-
         group.MapGet("/{id:guid}/overview", async (
             Guid id,
             IProfileOverviewReadService overviewReadService,
