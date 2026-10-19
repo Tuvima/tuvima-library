@@ -478,7 +478,7 @@ public sealed class DashboardIdentityClient(
     /// <summary>Removes a person. Their habits always go; <paramref name="keepPhotos"/> moves their personal photos to the Shared Library (true) or deletes them (false).</summary>
     public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, bool keepPhotos = true, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.ProfileId == profileId);
@@ -553,7 +553,7 @@ public sealed class DashboardIdentityClient(
 
     public async Task<DashboardAccessMutationResult<AccountAccessResponse>> UpdateManagedAccountResultAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct).ConfigureAwait(false);
+        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded && !request.IsEnabled)
         {
             // A disabled account's open screens go to sign-in at once instead of at the next check.
@@ -568,7 +568,7 @@ public sealed class DashboardIdentityClient(
 
     public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.AccountId == accountId);
@@ -578,20 +578,20 @@ public sealed class DashboardIdentityClient(
     }
 
     public Task<DashboardAccessMutationResult> ReplaceManagedAccountAccessResultAsync(Guid accountId, ReplaceAccountAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct, includeMessage: true);
 
     public Task<DashboardAccessMutationResult> SetManagedProfileGrantResultAsync(Guid accountId, Guid profileId, SetAccountProfileGrantAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}", request, ct, includeMessage: true);
 
     public Task<DashboardAccessMutationResult> SetGrantProtectionResultAsync(Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct, includeMessage: true);
 
     public async Task<bool> RevokeManagedProfileGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
         (await RevokeManagedProfileGrantResultAsync(accountId, profileId, ct).ConfigureAwait(false)).Succeeded;
 
     public async Task<DashboardAccessMutationResult> RevokeManagedProfileGrantResultAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.ProfileId == profileId);
@@ -775,7 +775,7 @@ public sealed class DashboardIdentityClient(
 
     /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
-        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct);
+        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
 
     private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
     {
@@ -989,7 +989,8 @@ public sealed class DashboardIdentityClient(
         HttpMethod method,
         string path,
         object body,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -997,7 +998,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode
                 ? DashboardAccessMutationResult.Success()
-                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+                : await ReadMutationFailureAsync(response, ct, includeMessage).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {

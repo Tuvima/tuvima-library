@@ -24,7 +24,8 @@ public sealed class AccountAccessMutationService(
     IFirstPartyIdentityService firstParty,
     IProfilePhotoDisposer photoDisposer,
     TimeProvider clock,
-    IUsableAdministratorService usableAdministrators) : IAccountAccessMutationService
+    IUsableAdministratorService usableAdministrators,
+    AuthenticationPolicyMutationGate mutationGate) : IAccountAccessMutationService
 {
     /// <summary>What a person is told when a change would leave nobody able to sign in as a server administrator.</summary>
     public const string LastAdministratorMessage =
@@ -265,6 +266,8 @@ public sealed class AccountAccessMutationService(
         UpdateAccountAccessCommand command,
         CancellationToken ct = default)
     {
+        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Account not found.");
@@ -332,6 +335,8 @@ public sealed class AccountAccessMutationService(
         Guid accountId,
         CancellationToken ct = default)
     {
+        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } doomed)
         {
@@ -710,8 +715,9 @@ public sealed class AccountAccessMutationService(
 
     /// <summary>
     /// Refuses a change that would leave no enabled server administrator with a working sign-in under the current
-    /// sign-in policy. Judged after the change, so a second administrator who can sign in makes it allowed. The data
-    /// store keeps its own, simpler last-administrator rule as a backstop.
+    /// sign-in policy. Judged after the change, so a second administrator who can sign in makes it allowed. Callers hold
+    /// <c>mutationGate</c> from this check until the change is saved. The data store keeps its own, simpler
+    /// last-administrator rule as a backstop.
     /// </summary>
     private async Task RequireAdministratorRemainsAsync(AdministratorSignInLoss loss, CancellationToken ct)
     {
@@ -837,6 +843,8 @@ public sealed class AccountAccessMutationService(
         ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         CancellationToken ct = default)
     {
+        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
         if (householdOnly && profile is not null)
@@ -905,6 +913,8 @@ public sealed class AccountAccessMutationService(
         AccountProfileGrant grant,
         CancellationToken ct = default)
     {
+        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         var grantee = await accounts.GetByIdAsync(grant.AccountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, grantee?.HouseholdId, ct).ConfigureAwait(false);
         var grantedProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
@@ -966,6 +976,8 @@ public sealed class AccountAccessMutationService(
         Guid profileId,
         CancellationToken ct = default)
     {
+        // Held across the last-administrator check and the save, so two administrators removing each other cannot both pass.
+        using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
         var grantee = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var householdOnly = await RequireHouseholdWriteAsync(actor, grantee?.HouseholdId, ct).ConfigureAwait(false);
         if (householdOnly && grantee is not null)

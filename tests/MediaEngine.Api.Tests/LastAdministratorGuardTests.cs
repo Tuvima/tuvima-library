@@ -34,6 +34,7 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         GrantEnabled: true,
         AccountIsAdministrator: true,
         GrantAdminEnabled: true);
+    private readonly SlowAfterCheck _slowCheck;
     private int _counter;
 
     public LastAdministratorGuardTests()
@@ -54,11 +55,12 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
             _accounts, identities,
             new AccountExternalLoginService(new AccountExternalLoginRepository(_database), _accounts),
             null!, new AuthenticationProviderConfigurationService(_configuration), _configuration, TimeProvider.System);
+        _slowCheck = new SlowAfterCheck(usable);
         _mutations = new AccountAccessMutationService(
             _accounts, identities, profiles, _configuration,
             new AllowAdministratorDecisions(), new AllowEvaluator(),
             new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(),
-            identity, new NoProfilePhotos(), TimeProvider.System, usable);
+            identity, new NoProfilePhotos(), TimeProvider.System, _slowCheck, new AuthenticationPolicyMutationGate());
     }
 
     // ---- Disabling and demoting ----
@@ -253,6 +255,53 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         Assert.Equal(Refusal, refused.Message);
     }
 
+    [Fact]
+    public async Task DeletingThePersonAnAdministratorAdministersAs_IsAllowed_OnceAnotherAdministratorCanSignIn()
+    {
+        var first = await CreateAdministratorAsync();
+        await CreateAdministratorAsync();
+        var adminProfile = Assert.Single(await _accounts.GetGrantsAsync(first.Id)).ProfileId;
+        await _mutations.CreateProfileAsync(_actor, new CreateManagedProfileCommand(first.Id, "Other", "#778899", false));
+
+        await _mutations.DeleteProfileAsync(_actor, adminProfile);
+
+        Assert.Null(await _accounts.GetGrantAsync(first.Id, adminProfile));
+    }
+
+    // ---- Two changes at once ----
+
+    [Fact]
+    public async Task TwoAdministratorsDemotedAtTheSameTime_OnlyOneChangeGoesThrough_AndTheOtherIsToldWhy()
+    {
+        var first = await CreateAdministratorAsync();
+        var second = await CreateAdministratorAsync();
+        // Each check takes a while, so without the shared gate both would see the other as "still an administrator".
+        _slowCheck.Delay = TimeSpan.FromMilliseconds(300);
+
+        var attempts = await Task.WhenAll(
+            TryAsync(() => _mutations.UpdateAsync(_actor, first.Id, new UpdateAccountAccessCommand(first.Email, true, false))),
+            TryAsync(() => _mutations.UpdateAsync(_actor, second.Id, new UpdateAccountAccessCommand(second.Email, true, false))));
+
+        Assert.Equal(1, attempts.Count(error => error is null));
+        var refused = Assert.Single(attempts, error => error is not null);
+        Assert.Equal(Refusal, refused!.Message);
+        var remaining = (await _accounts.GetAllAsync()).Count(account => account.IsAdministrator);
+        Assert.Equal(1, remaining);
+    }
+
+    private static async Task<InvalidOperationException?> TryAsync(Func<Task> change)
+    {
+        try
+        {
+            await change();
+            return null;
+        }
+        catch (InvalidOperationException refused)
+        {
+            return refused;
+        }
+    }
+
     // ---- Helpers ----
 
     private static AccountProfileGrant WithoutAdministrator(AccountProfileGrant grant) => new()
@@ -295,6 +344,26 @@ public sealed class LastAdministratorGuardTests : IAsyncDisposable
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>The real check, with a pause after it so tests can make two changes overlap.</summary>
+    private sealed class SlowAfterCheck(IUsableAdministratorService inner) : IUsableAdministratorService
+    {
+        public TimeSpan Delay { get; set; }
+
+        public async Task<bool> HasUsableAdministratorSignInAfterAsync(AdministratorSignInLoss loss, CancellationToken ct)
+        {
+            var answer = await inner.HasUsableAdministratorSignInAfterAsync(loss, ct);
+            await Task.Delay(Delay, ct);
+            return answer;
+        }
+
+        public Task<bool> HasUsableAdministratorSignInAsync(MediaEngine.Domain.Configuration.AuthSettings policy, CancellationToken ct) =>
+            inner.HasUsableAdministratorSignInAsync(policy, ct);
+
+        public Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct) => inner.EvaluateForRemoteAsync(ct);
+
+        public Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct) => inner.OnlyThisComputerAdministratorsAsync(ct);
     }
 
     private sealed class AllowAdministratorDecisions : IAccountAccessDecisionService

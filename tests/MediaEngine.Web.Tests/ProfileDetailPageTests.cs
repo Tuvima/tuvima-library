@@ -34,6 +34,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private readonly List<AccessLibraryOptionDto> _libraries = [];
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.OK;
     private HttpStatusCode _profileDeleteStatus = HttpStatusCode.NoContent;
+    private string? _profileDeleteDetail;
     private bool _confirmTwoStepOff = true;
     private int _confirmCount;
     private static readonly Guid LibraryA = Guid.Parse("00000000-0000-0000-0000-00000000000a");
@@ -640,6 +641,28 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void DeleteRefusedWithAnEngineSentence_ShowsThatSentenceInsteadOfTheGenericLine()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _profileDeleteStatus = HttpStatusCode.Conflict;
+        _profileDeleteDetail = "This is the last administrator who can sign in. Make someone else an administrator first.";
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
+        Row(cut, "delete").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
+        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            var message = cut.Find(".who-page__error").TextContent;
+            Assert.Contains("This is the last administrator who can sign in.", message);
+            Assert.DoesNotContain("Remove or move their sign-in first", message);
+        });
+    }
+
+    [Fact]
     public void ProfileDetailsRow_OpensTheEditorWithoutTheDeleteConfirmation()
     {
         Setup(actions: ["household.manage"], navigation: []);
@@ -826,7 +849,10 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
             if (request.Method == HttpMethod.Delete && path.StartsWith("/access/profiles/", StringComparison.Ordinal))
             {
-                return new HttpResponseMessage(owner._profileDeleteStatus);
+                return new HttpResponseMessage(owner._profileDeleteStatus)
+                {
+                    Content = owner._profileDeleteDetail is null ? null : JsonContent.Create(new { detail = owner._profileDeleteDetail }),
+                };
             }
 
             if (request.Method == HttpMethod.Delete || request.Method == HttpMethod.Put)

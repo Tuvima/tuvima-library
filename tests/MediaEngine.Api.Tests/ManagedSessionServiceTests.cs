@@ -206,7 +206,7 @@ public sealed class ManagedSessionServiceTests
             world._mutations = new AccountAccessMutationService(
                 world._accounts, world.Identities, world._profiles, world._configuration,
                 new AllowAllDecisions(), new AllowEvaluator(), new PasswordHasher<GrantAdminProtection>(),
-                new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators());
+                new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate());
             world._setupActor = new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
                 AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);

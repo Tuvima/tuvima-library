@@ -83,6 +83,23 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Permissions_ConflictWithAnEngineSentence_ShowsThatSentenceInsteadOfTheGenericLine()
+    {
+        _handler.AccessStatus = HttpStatusCode.Conflict;
+        _handler.AccessDetail = "This is the last administrator who can sign in. Make someone else an administrator first.";
+        var cut = RenderUsers();
+        OpenAction(cut, "Edit permissions");
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("This is the last administrator who can sign in. Make someone else an administrator first.", cut.Markup);
+            Assert.DoesNotContain("This change conflicts with the current account state.", cut.Markup);
+        });
+    }
+
+    [Fact]
     public void Permissions_ConflictKeepsDrawerOpen_AndRendersUsefulError()
     {
         _handler.AccessStatus = HttpStatusCode.Conflict;
@@ -313,6 +330,9 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         public Guid OwnerProfileId { get; } = Guid.NewGuid();
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
         public HttpStatusCode AccessStatus { get; set; } = HttpStatusCode.NoContent;
+
+        /// <summary>The Engine's plain sentence sent with a refusal of the access save, when a test wants one.</summary>
+        public string? AccessDetail { get; set; }
         public TaskCompletionSource? AccessGate { get; set; }
         public TaskCompletionSource? AccessStarted { get; set; }
         public string Email { get; set; } = "owner@example.test";
@@ -352,7 +372,10 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                     await AccessGate.Task.WaitAsync(cancellationToken);
                 }
 
-                return new HttpResponseMessage(AccessStatus);
+                return new HttpResponseMessage(AccessStatus)
+                {
+                    Content = AccessDetail is null ? null : JsonContent.Create(new { detail = AccessDetail }),
+                };
             }
             if (request.Method == HttpMethod.Post && path == "/access/invitations")
             {

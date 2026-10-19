@@ -622,7 +622,7 @@
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(signIn.AccountId, request);
             if (!result.Succeeded)
             {
-                _accessError = AccessFailureMessage(result.Failure);
+                _accessError = AccessFailureMessage(result.Failure, result.Message);
                 return;
             }
 
@@ -661,7 +661,7 @@
             {
                 _protectionError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
                     ? "Nothing was changed. Confirm it's you to continue."
-                    : AccessFailureMessage(result.Failure);
+                    : AccessFailureMessage(result.Failure, result.Message);
                 return;
             }
 
@@ -702,14 +702,17 @@
 
         _accessMessage = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
             ? "Nothing was changed. Confirm it's you to continue."
-            : AccessFailureMessage(result.Failure);
+            : AccessFailureMessage(result.Failure, result.Message);
     }
 
-    private static string AccessFailureMessage(DashboardAccessMutationFailure failure) => failure switch
+    // The Engine's own sentence for a conflict is shown as it is; the generic line is for a conflict with no reason given.
+    private static string AccessFailureMessage(DashboardAccessMutationFailure failure, string? engineMessage = null) => failure switch
     {
         DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
             => "That wasn't saved. You can only give what your household has, and only to people in it.",
-        DashboardAccessMutationFailure.Conflict => "This change conflicts with the current account state.",
+        DashboardAccessMutationFailure.Conflict => string.IsNullOrWhiteSpace(engineMessage)
+            ? "This change conflicts with the current account state."
+            : engineMessage,
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
         DashboardAccessMutationFailure.NotFound => "This account no longer exists.",
         DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
