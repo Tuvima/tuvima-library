@@ -12,16 +12,23 @@ namespace MediaEngine.Api.DevSupport;
 
 /// <summary>
 /// One complete, isolated baseline run: <c>--run-baseline --repo &lt;folder&gt; (--generate | --sample-root &lt;folder&gt;)
-/// [--label &lt;name&gt;] [--config-source &lt;folder&gt;] [--out-root &lt;folder&gt;] [--budget-minutes N] [--poll-seconds N]</c>.
+/// [--label &lt;name&gt;] [--replay-from &lt;run folder | run id | label&gt;] [--config-source &lt;folder&gt;] [--out-root &lt;folder&gt;]
+/// [--budget-minutes N] [--poll-seconds N]</c>.
 /// <c>tools/Run-IngestionBaseline.ps1</c> builds and then calls this. The run lives in
 /// <c>&lt;out-root&gt;/&lt;run-id&gt;/</c>: a copy of the config folder, its own data store, logs and (with
 /// <c>--generate</c>) samples. The Engine it starts is the same build as this process, runs from that copy on its own
 /// port, and is the only process the run ever stops. The caller's config folder is only read; a sample root is only read.
+/// Without <c>--replay-from</c> the run records every outside answer into <c>&lt;run&gt;/provider-answers/</c>; with it the
+/// Engine answers from that earlier recording and never reaches the network (<see cref="ProviderAnswerStore"/>).
 /// </summary>
 public static partial class BaselineRun
 {
     public const int ExitFailed = 1;
     public const int ExitSampleRootChanged = 4;
+    public const int ExitReplayIncomplete = 5;
+    public const int ExitAnswersLeakedKeys = 6;
+    public const string AnswersFolder = "provider-answers";
+    public const string MissLogFile = "provider-answers-not-recorded.txt";
 
     private const int EngineLeaseExitCode = 73;
     private const int EngineLeaseAttempts = 20;
@@ -46,6 +53,8 @@ public static partial class BaselineRun
         var outRoot = Path.GetFullPath(Option(arguments, "--out-root") ?? Path.Combine(repo, ".tmp", "ingestion-baseline"));
         var budget = TimeSpan.FromMinutes(double.Parse(Option(arguments, "--budget-minutes") ?? "180", CultureInfo.InvariantCulture));
         var poll = Option(arguments, "--poll-seconds") ?? "15";
+        var replayOption = Option(arguments, "--replay-from");
+        var replayFrom = replayOption is null ? null : ResolveAnswers(replayOption, outRoot);
 
         var runId = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + (label.Length > 0 ? "-" + label : string.Empty);
         var run = Path.Combine(outRoot, runId);
@@ -56,6 +65,12 @@ public static partial class BaselineRun
         Directory.CreateDirectory(logDirectory);
         File.WriteAllText(Path.Combine(run, BaselinePrepare.RunMarkerFile), runId);
         Console.WriteLine($"Run folder: {run}");
+        var answersMode = replayFrom is null ? ProviderAnswerMode.Record : ProviderAnswerMode.Replay;
+        var answersFolder = replayFrom ?? Path.Combine(run, AnswersFolder);
+        var missLog = Path.Combine(run, MissLogFile);
+        Console.WriteLine(replayFrom is null
+            ? $"Provider answers: recording into {answersFolder}"
+            : $"Provider answers: replaying from {answersFolder} (no outside requests)");
 
         var exitCode = 0;
         Process? engine = null;
@@ -113,7 +128,7 @@ public static partial class BaselineRun
             var startedAt = DateTimeOffset.UtcNow;
             var engineLog = Path.Combine(run, "engine-console.log");
             int port;
-            (engine, port) = await StartEngineAsync(run, configDirectory, dataDirectory, logDirectory, engineLog).ConfigureAwait(false);
+            (engine, port) = await StartEngineAsync(run, configDirectory, dataDirectory, logDirectory, engineLog, answersMode, answersFolder, missLog).ConfigureAwait(false);
             Console.WriteLine($"Engine started: PID {engine.Id} on port {port}");
 
             var waitExit = await BaselineWait.RunAsync(configDirectory,
@@ -124,7 +139,19 @@ public static partial class BaselineRun
             StopEngine(engine);
             Console.WriteLine($"Engine stopped (PID {engine.Id}).");
 
-            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog);
+            // Before the copied keys go: prove no saved answer holds one; any file that does is deleted, never kept.
+            var leaks = answersMode == ProviderAnswerMode.Record
+                ? ProviderAnswerStore.FindLeaks(answersFolder, ProviderAnswerStore.LoadSecrets(configDirectory))
+                : [];
+            foreach (var leak in leaks)
+            {
+                File.Delete(leak);
+            }
+
+            var misses = File.Exists(missLog) ? File.ReadAllLines(missLog).Count(line => line.Length > 0) : 0;
+            var answers = ProviderAnswerStore.Describe(answersMode, answersFolder, misses);
+            Console.WriteLine($"Provider answers: {answers}");
+            RecordRunFacts(repo, configDirectory, label, startedAt, endedAt, waitExit == BaselineWait.ExitSettled, engineLog, answers);
             await BaselineExport.RunAsync(configDirectory, recordPath).ConfigureAwait(false);
             if (label.Length > 0)
             {
@@ -140,6 +167,17 @@ public static partial class BaselineRun
             else
             {
                 Console.WriteLine("Sample root unchanged (names, sizes and times match before and after).");
+            }
+
+            if (leaks.Count > 0)
+            {
+                Console.WriteLine($"WARNING: {leaks.Count} saved provider answer file(s) contained a key and were deleted; replays of this recording will miss those answers. Fix the scrubbing in ProviderAnswerStore.");
+                exitCode = ExitAnswersLeakedKeys;
+            }
+            else if (misses > 0)
+            {
+                Console.WriteLine($"WARNING: {misses} request(s) were not in the recording (listed in {missLog}); the code asked for something new, so differences are expected there.");
+                exitCode = ExitReplayIncomplete;
             }
 
             if (waitExit == BaselineWait.ExitTimedOut)
@@ -278,7 +316,8 @@ public static partial class BaselineRun
     // -- the Engine -----------------------------------------------------------------------------------------
 
     private static async Task<(Process Engine, int Port)> StartEngineAsync(
-        string run, string configDirectory, string dataDirectory, string logDirectory, string engineLog)
+        string run, string configDirectory, string dataDirectory, string logDirectory, string engineLog,
+        ProviderAnswerMode answersMode, string answersFolder, string missLog)
     {
         var enginePath = typeof(BaselineRun).Assembly.Location;
         var port = FreePort();
@@ -309,6 +348,9 @@ public static partial class BaselineRun
             info.Environment["TUVIMA_DATA_PROTECTION_DIR"] = Path.Combine(run, "keys");
             info.Environment["TUVIMA_MODELS_DIR"] = Path.Combine(run, "models");
             info.Environment["TUVIMA_AI_RUNTIME_DIR"] = Path.Combine(run, "ai-runtime");
+            info.Environment[ProviderAnswerStore.ModeVariable] = answersMode.ToString().ToLowerInvariant();
+            info.Environment[ProviderAnswerStore.FolderVariable] = answersFolder;
+            info.Environment[ProviderAnswerStore.MissLogVariable] = missLog;
 
             var engine = new Process { StartInfo = info };
             var writer = new StreamWriter(engineLog, append: true, new UTF8Encoding(false)) { AutoFlush = true };
@@ -367,10 +409,49 @@ public static partial class BaselineRun
         return port;
     }
 
+    /// <summary>
+    /// The recording to replay: a run folder (or its <c>provider-answers</c> folder), a run id under the output root, or a
+    /// label (the newest run with that label).
+    /// </summary>
+    internal static string ResolveAnswers(string value, string outRoot)
+    {
+        static string? AnswersIn(string folder)
+        {
+            if (Directory.Exists(Path.Combine(folder, ProviderAnswerStore.EntriesFolder)))
+            {
+                return folder;
+            }
+
+            var nested = Path.Combine(folder, AnswersFolder);
+            return Directory.Exists(Path.Combine(nested, ProviderAnswerStore.EntriesFolder)) ? nested : null;
+        }
+
+        if (Directory.Exists(value) && AnswersIn(Path.GetFullPath(value)) is { } direct)
+        {
+            return direct;
+        }
+
+        if (Directory.Exists(outRoot))
+        {
+            var byName = Directory.GetDirectories(outRoot)
+                .Where(folder => Path.GetFileName(folder) is var name && (name == value || name.EndsWith("-" + value, StringComparison.Ordinal)))
+                .OrderDescending(StringComparer.Ordinal)
+                .Select(AnswersIn)
+                .FirstOrDefault(found => found is not null);
+            if (byName is not null)
+            {
+                return byName;
+            }
+        }
+
+        throw new DirectoryNotFoundException($"No recorded provider answers found for '{value}' (a run folder, run id or label under {outRoot}).");
+    }
+
     // -- facts and inventory --------------------------------------------------------------------------------
 
     private static void RecordRunFacts(
-        string repo, string configDirectory, string label, DateTimeOffset startedAt, DateTimeOffset endedAt, bool settled, string engineLog)
+        string repo, string configDirectory, string label, DateTimeOffset startedAt, DateTimeOffset endedAt, bool settled, string engineLog,
+        string providerAnswers)
     {
         var hosts = new JsonObject();
         if (File.Exists(engineLog))
@@ -400,6 +481,7 @@ public static partial class BaselineRun
         info["ended_at"] = endedAt.ToString("O", CultureInfo.InvariantCulture);
         info["settled"] = settled;
         info["http_hosts"] = hosts;
+        info["provider_answers"] = providerAnswers;
         File.WriteAllText(path, info.ToJsonString(RealMediaHarness.Json));
     }
 

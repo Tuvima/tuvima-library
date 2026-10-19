@@ -474,6 +474,14 @@ builder.Services.AddMediaEngineIngestion(config, configLoader);
 builder.Services.AddSingleton<DevHarnessResetService>();
 builder.Services.AddSingleton<DevelopmentTestService>();
 builder.Services.AddSingleton<ViewPhotoHarnessService>();
+// Ingestion baseline only (--run-baseline sets the variables): record every outside answer, or replay a recording.
+if (builder.Environment.IsDevelopment() && ProviderAnswerStore.FromEnvironment(configDirectory) is { } providerAnswers)
+{
+    builder.Services.AddSingleton(providerAnswers);
+    builder.Services.ConfigureHttpClientDefaults(client =>
+        client.AddHttpMessageHandler(() => new ProviderAnswerHandler(providerAnswers)));
+    Console.WriteLine($"Provider answers: {providerAnswers.Mode} ({providerAnswers.Folder})");
+}
 #endif
 builder.Services.AddSingleton<AssetStoreCleanupService>();
 builder.Services.AddSingleton(sp => new DatabaseBackupService(

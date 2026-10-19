@@ -299,6 +299,7 @@ public static class BaselineComparer
         text.AppendLine($"| Label | {Cell(before.Metadata.Label)} | {Cell(after.Metadata.Label)} |");
         text.AppendLine($"| Build | {Cell(before.Metadata.BuildCommit)} | {Cell(after.Metadata.BuildCommit)} |");
         text.AppendLine($"| Started | {Cell(before.Metadata.StartedAt)} | {Cell(after.Metadata.StartedAt)} |");
+        text.AppendLine($"| Provider answers | {Cell(before.Metadata.ProviderAnswers ?? "live")} | {Cell(after.Metadata.ProviderAnswers ?? "live")} |");
         text.AppendLine($"| Duration (s) | {Cell(before.Metadata.TotalDurationSeconds?.ToString("0.0", CultureInfo.InvariantCulture))} | {Cell(after.Metadata.TotalDurationSeconds?.ToString("0.0", CultureInfo.InvariantCulture))} |");
         text.AppendLine($"| Items / View items | {before.Items.Count} / {before.ViewItems.Count} | {after.Items.Count} / {after.ViewItems.Count} |");
         text.AppendLine();

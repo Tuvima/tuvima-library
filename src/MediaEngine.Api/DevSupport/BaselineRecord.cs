@@ -76,6 +76,10 @@ public sealed class BaselineMetadata
     /// <summary>Outgoing request counts per host, read from the Engine log by the run script.</summary>
     [JsonPropertyName("http_hosts")]
     public IDictionary<string, int> HttpHosts { get; set; } = new SortedDictionary<string, int>(StringComparer.Ordinal);
+
+    /// <summary>Whether the run recorded outside answers or replayed a recording, with counts and the folder.</summary>
+    [JsonPropertyName("provider_answers")]
+    public string? ProviderAnswers { get; set; }
 }
 
 public sealed class BaselineCounts
@@ -424,7 +428,8 @@ public sealed record BaselineRunInfo(
     string? BuildCommit,
     string? StartedAt,
     string? EndedAt,
-    IReadOnlyDictionary<string, int> HttpHosts)
+    IReadOnlyDictionary<string, int> HttpHosts,
+    string? ProviderAnswers = null)
 {
     public static BaselineRunInfo? Load(string configDirectory)
     {
@@ -450,7 +455,7 @@ public sealed record BaselineRunInfo(
 
         return new BaselineRunInfo(
             Text("sample_root") ?? string.Empty, List("catalogue_folders"), List("view_folders"),
-            Text("label"), Text("build_commit"), Text("started_at"), Text("ended_at"), hosts);
+            Text("label"), Text("build_commit"), Text("started_at"), Text("ended_at"), hosts, Text("provider_answers"));
     }
 }
 
