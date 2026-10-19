@@ -175,13 +175,13 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LibrariesAndLanes_OffersOnlyTheLibrariesTheEngineListed_AndSavesOrderedIdsForThatAccount()
+    public async Task LibrariesAndLanes_OffersOnlyTheLibrariesTheEngineListed_AndSavesOrderedIdsForThatAccount()
     {
         SamWithSignIn();
         var cut = RenderFor(SamId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
 
-        Row(cut, "access").Click();
+        await cut.ClickAsync(page => Row(page, "access"));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
         var libraryLabels = cut.FindAll(".profile-access-sheet .access-user-permissions__libraries label").Select(label => label.TextContent.Trim()).ToList();
@@ -189,9 +189,8 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Contains(_requests, request => request.Method == HttpMethod.Get && request.Path == "/access/libraries");
 
         // Add the Listen lane; Read and Watch (and the Books library) were already on.
-        var listen = cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen");
-        listen.Change(true);
-        cut.FindAll(".profile-access-sheet button").Single(button => button.TextContent.Trim() == "Save").Click();
+        await cut.InvokeAsync(() => cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen").Change(true));
+        await ClickSaveAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-access-sheet")));
         var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
@@ -201,16 +200,18 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LibrariesAndLanes_WhenTheEngineRefuses_StaysOpenWithAReason()
+    public async Task LibrariesAndLanes_WhenTheEngineRefuses_StaysOpenWithAReason()
     {
         SamWithSignIn();
         _accessSaveStatus = HttpStatusCode.Forbidden;
         var cut = RenderFor(SamId);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
-        Row(cut, "access").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet button")));
+        await cut.ClickAsync(page => Row(page, "access"));
+        // The sheet draws its buttons first and re-renders when the Engine's library list arrives, which hands them new
+        // handler ids; the click waits for that list and is then made on the renderer thread.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
 
-        cut.FindAll(".profile-access-sheet button").Single(button => button.TextContent.Trim() == "Save").Click();
+        await ClickSaveAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("only give what your household has", cut.Find(".profile-access-sheet [role='alert']").TextContent));
         Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
@@ -799,6 +800,9 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
     private static AngleSharp.Dom.IElement Row(IRenderedComponent<ProfileDetailPage> cut, string key) =>
         cut.Find($"[data-nav-row='{key}']");
+
+    private static Task ClickSaveAsync(IRenderedComponent<ProfileDetailPage> cut) =>
+        cut.ClickAsync(page => page.FindAll(".profile-access-sheet button").Single(button => button.TextContent.Trim() == "Save"));
 
     private void Setup(string[] actions, string[] navigation)
     {

@@ -105,7 +105,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NeedsReviewRow_ForTheTrigger_ShowsTheCardWithThreeActions_AndOtherTriggersKeepTheReviewButton()
+    public async Task NeedsReviewRow_ForTheTrigger_ShowsTheCardWithThreeActions_AndOtherTriggersKeepTheReviewButton()
     {
         var moved = new List<Guid>();
         var dismissed = new List<Guid>();
@@ -131,7 +131,8 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         Assert.DoesNotContain(tvRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
         Assert.Contains(plainRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
 
-        cut.FindAll(".movie-as-tv-card__actions button")[0].Click();
+        // The review list re-renders as the page finishes loading; the click is found and made in one step on the renderer thread.
+        await cut.ClickAsync(".movie-as-tv-card__actions button", 0);
         cut.WaitForAssertion(() =>
         {
             Assert.Equal([ReviewId], moved);
@@ -140,7 +141,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NeedsReviewRow_KeepAsFilmDismissesTheReviewItem()
+    public async Task NeedsReviewRow_KeepAsFilmDismissesTheReviewItem()
     {
         var dismissed = new List<Guid>();
         RegisterReviewServices([Item()], null, dismissed);
@@ -148,7 +149,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
 
-        cut.FindAll(".movie-as-tv-card__actions button")[2].Click();
+        await cut.ClickAsync(".movie-as-tv-card__actions button", 2);
 
         cut.WaitForAssertion(() =>
         {

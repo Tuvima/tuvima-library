@@ -59,13 +59,79 @@ internal sealed class StubFileWatcher : IFileWatcher
 
 internal sealed class InlineBackgroundWorker : IBackgroundWorker
 {
+    private readonly object _gate = new();
+    private readonly List<(int Target, TaskCompletionSource Reached)> _waiters = [];
+    private int _completed;
+
     public int PendingCount => 0;
+
+    /// <summary>How many work items have finished, whether they succeeded or threw.</summary>
+    public int Completed
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _completed;
+            }
+        }
+    }
 
     public async ValueTask EnqueueAsync<T>(
         T workItem, Func<T, CancellationToken, Task> handler, CancellationToken ct = default)
     {
         // Execute synchronously for test determinism.
-        await handler(workItem, ct);
+        try
+        {
+            await handler(workItem, ct);
+        }
+        finally
+        {
+            MarkCompleted();
+        }
+    }
+
+    /// <summary>
+    /// Completes once <paramref name="target"/> work items have finished in total. A test that waits for the pipeline to
+    /// have handled its files uses this instead of sleeping for a guessed time, which a busy machine outlasts.
+    /// </summary>
+    public Task WaitForCompletedAsync(int target, CancellationToken ct)
+    {
+        TaskCompletionSource reached;
+        lock (_gate)
+        {
+            if (_completed >= target)
+            {
+                return Task.CompletedTask;
+            }
+
+            reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _waiters.Add((target, reached));
+        }
+
+        return reached.Task.WaitAsync(ct);
+    }
+
+    private void MarkCompleted()
+    {
+        List<TaskCompletionSource> ready = [];
+        lock (_gate)
+        {
+            _completed++;
+            for (var i = _waiters.Count - 1; i >= 0; i--)
+            {
+                if (_completed >= _waiters[i].Target)
+                {
+                    ready.Add(_waiters[i].Reached);
+                    _waiters.RemoveAt(i);
+                }
+            }
+        }
+
+        foreach (var waiter in ready)
+        {
+            waiter.TrySetResult();
+        }
     }
 
     public Task DrainAsync(CancellationToken ct = default) => Task.CompletedTask;
