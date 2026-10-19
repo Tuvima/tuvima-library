@@ -7,6 +7,8 @@ using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
+using ManifestItem = MediaEngine.Domain.Entities.SeriesManifestItemRecord;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -21,7 +23,8 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed partial class UniverseClientReadService(
     ICollectionRepository collections,
     IDisplayProjectionReadService display,
-    DisplayCardBuilder cards)
+    DisplayCardBuilder cards,
+    ISeriesManifestRepository? manifests = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -72,6 +75,9 @@ public sealed partial class UniverseClientReadService(
             .GroupBy(row => row.CollectionId!.Value)
             .ToDictionary(group => group.Key, group => group.ToList());
 
+        // One read for every member shelf's manifest rows, not one per shelf.
+        var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+
         var shelves = new List<UniverseMemberShelfDto>();
         foreach (var member in members)
         {
@@ -80,7 +86,11 @@ public sealed partial class UniverseClientReadService(
                 continue;
             }
 
-            var memberCards = BuildCards(rows);
+            var memberCards = BuildCards(
+                rows,
+                placementsByShelf.TryGetValue(member.Id, out var placements)
+                    ? placements
+                    : new Dictionary<Guid, ManifestItem>());
             if (memberCards.Count == 0)
             {
                 continue;
@@ -148,17 +158,58 @@ public sealed partial class UniverseClientReadService(
         return members;
     }
 
-    private IReadOnlyList<DisplayCardDto> BuildCards(IReadOnlyList<DisplayWorkRow> rows)
+    /// <summary>The manifest row that places each owned work on this Series shelf, for the shared Series ordering.</summary>
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>> LoadManifestPlacementsAsync(
+        IReadOnlyCollection<Guid> shelfIds,
+        CancellationToken ct)
+    {
+        if (manifests is null || shelfIds.Count == 0)
+        {
+            return new Dictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>();
+        }
+
+        var rows = await manifests.GetLinkedItemsByCollectionIdsAsync(shelfIds, ct).ConfigureAwait(false);
+        return rows
+            .GroupBy(item => item.CollectionId)
+            .ToDictionary(
+                shelf => shelf.Key,
+                shelf => (IReadOnlyDictionary<Guid, ManifestItem>)shelf
+                    .GroupBy(item => item.LinkedWorkId!.Value)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group
+                            .OrderBy(item => item.IsExpandedFromCollection)
+                            .ThenBy(item => SeriesPlacementRule.ScopeRank(item.MembershipScope))
+                            .First()));
+    }
+
+    private IReadOnlyList<DisplayCardDto> BuildCards(
+        IReadOnlyList<DisplayWorkRow> rows,
+        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
     {
         var result = new List<DisplayCardDto>();
         var tvRows = rows.Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV").ToList();
         result.AddRange(cards.BuildTvShowCards(tvRows));
-        result.AddRange(rows
+        // The same Series ordering as the shelf and the item page: the manifest's ordinal, then the work's own decimal
+        // position, then publication date, then title, with "Also in this world" members after the Series run.
+        var seriesRows = rows
             .Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) != "TV")
             .GroupBy(row => row.WorkId)
             .Select(group => group.First())
-            .OrderBy(row => DisplayMediaRules.ParseDouble(row.SeriesPosition) ?? double.MaxValue)
-            .ThenBy(row => row.SortTitle ?? row.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        result.AddRange(SeriesOrdering
+            .Order(seriesRows, row =>
+            {
+                manifestByWork.TryGetValue(row.WorkId, out var placement);
+                return SeriesOrdering.BuildInput(
+                    placement?.MembershipScope,
+                    placement?.ParsedOrdinal,
+                    placement?.OrdinalScopeQid,
+                    placement?.SeriesQid,
+                    DisplayMediaRules.ParseDouble(row.SeriesPosition),
+                    row.Year,
+                    row.SortTitle ?? row.Title);
+            })
             .Select(row => cards.FromWork(row, "collection", null)));
         return result;
     }

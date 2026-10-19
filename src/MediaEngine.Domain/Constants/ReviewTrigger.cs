@@ -136,4 +136,11 @@ public static class ReviewTrigger
     /// A missing tool is never this trigger: those files wait instead (<c>media_inspection_holds</c>).
     /// </summary>
     public const string MediaInspectionFailed = "MediaInspectionFailed";
+
+    /// <summary>
+    /// Wikidata says a Work is a main-sequence member of two different Series of its own media type and nothing
+    /// separates them. The Work is left unplaced (on no Series shelf) rather than guessed into one; a person chooses.
+    /// <c>candidates_json</c> names the competing Series.
+    /// </summary>
+    public const string AmbiguousSeriesMembership = "AmbiguousSeriesMembership";
 }

@@ -25,13 +25,13 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | In progress (v5, started 2026-10-19) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
-| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1, WP9 and WP12 built) |
+| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1, WP2, WP3, WP5, WP9 and WP12 built) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0, U-WP1 started 2026-10-19) |
-| [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Editing Mode on the item page (as built)](specs/editing-mode.md) | Built (v1, 2026-10-18; not yet archived) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
+| [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
+| [Spec: Profiles and setup (as built)](specs/archive/profiles-setup-redesign.md) | Built (v2, archived 2026-10-19) |
 | [Spec: First run and prerequisites](specs/archive/first-run-prerequisites.md) | Built (v1, archived 2026-10-18) |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |

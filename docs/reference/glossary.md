@@ -17,6 +17,10 @@ Look up a product term in Tuvima Library in a minute. These are the terms used t
 
 ## A
 
+### Also in this world
+
+The row under a Series that lists its supplementary, collected-content and broader-context members: novellas, short fiction and companion works Wikidata ties to the same Series without putting them in the main sequence. They are never numbered with the Series or counted in "x of y".
+
 ### Artwork Outcome
 
 Whether artwork is present, missing after an explicit artwork pass, or still pending.
@@ -241,7 +245,7 @@ A set of Documents filters a person keeps under a name: a Smart Gallery whose ru
 
 ### Series
 
-A lane-level shelf, such as a book series in Read, a film series in Watch, or an album/audio series in Listen. Comics use volume/issue wording on user-facing surfaces even when the stored metadata field is still `series`.
+A lane-level shelf, such as a book series in Read, a film series in Watch, or an album/audio series in Listen. Comics use volume/issue wording on user-facing surfaces even when the stored metadata field is still `series`. A Series is identified by its Wikidata Series plus its kind of media, so the Expanse novels, audiobooks and TV show are three Series.
 
 ### Shelf
 

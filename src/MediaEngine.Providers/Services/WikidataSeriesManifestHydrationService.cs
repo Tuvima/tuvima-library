@@ -19,6 +19,7 @@ public sealed class WikidataSeriesManifestHydrationService
     private readonly ICollectionRepository _collectionRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<WikidataSeriesManifestHydrationService> _logger;
+    private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
 
     private readonly ConcurrentDictionary<string, Lazy<Task>> _inFlight = new(StringComparer.OrdinalIgnoreCase);
 
@@ -31,13 +32,15 @@ public sealed class WikidataSeriesManifestHydrationService
         ISeriesManifestRepository manifestRepo,
         ICollectionRepository collectionRepo,
         IConfigurationLoader configLoader,
-        ILogger<WikidataSeriesManifestHydrationService> logger)
+        ILogger<WikidataSeriesManifestHydrationService> logger,
+        SeriesAmbiguityReviewer? ambiguityReviewer = null)
     {
         _reconciler = reconciler;
         _manifestRepo = manifestRepo;
         _collectionRepo = collectionRepo;
         _configLoader = configLoader;
         _logger = logger;
+        _ambiguityReviewer = ambiguityReviewer;
     }
 
     public async Task HydrateAsync(SeriesManifestHydrationContext context, CancellationToken ct = default)
@@ -96,13 +99,14 @@ public sealed class WikidataSeriesManifestHydrationService
             var ttlDays = Math.Max(1, _configLoader.LoadHydration().SeriesManifestRefreshDays);
             var language = NormalizeLanguage(_configLoader.LoadCore().Language.Metadata);
             var now = DateTimeOffset.UtcNow;
-            var cachedHydration = await _manifestRepo.GetHydrationAsync(seriesQid, ct).ConfigureAwait(false);
+            var mediaType = context.MediaType.ToString();
+            var cachedHydration = await _manifestRepo.GetHydrationAsync(seriesQid, mediaType, ct).ConfigureAwait(false);
 
             if (cachedHydration is not null
                 && IsCachedHydrationCurrent(cachedHydration)
                 && now - cachedHydration.LastHydratedAt < TimeSpan.FromDays(ttlDays))
             {
-                var cachedItems = await _manifestRepo.GetItemsBySeriesQidAsync(seriesQid, ct).ConfigureAwait(false);
+                var cachedItems = await _manifestRepo.GetItemsBySeriesQidAsync(seriesQid, mediaType, ct).ConfigureAwait(false);
                 if (cachedItems.Count > 0
                     && cachedItems.Any(i => string.Equals(i.ItemQid, context.ResolvedWorkQid, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -114,8 +118,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
                     await _manifestRepo.UpsertManifestAsync(cachedHydration.WithUpdatedTimestamp(), relinked, ct)
                         .ConfigureAwait(false);
-                    await _manifestRepo.LinkOwnedWorksAsync(cachedHydration.CollectionId, relinked, ct)
-                        .ConfigureAwait(false);
+                    await LinkAndReportAsync(cachedHydration.CollectionId, relinked, ct).ConfigureAwait(false);
 
                     _logger.LogDebug(
                         "Series manifest cache hit for {SeriesQid}; relinked {Count} cached rows",
@@ -153,6 +156,7 @@ public sealed class WikidataSeriesManifestHydrationService
             var collection = await UpsertCollectionAsync(
                 manifest.SeriesQid,
                 StringHelpers.FirstNonBlankOr("Unknown series", manifest.SeriesLabel, seriesLabel, context.SeriesHint, manifest.SeriesQid),
+                mediaType,
                 ct).ConfigureAwait(false);
 
             var scopedItems = FilterManifestItems(manifest.Items, context, manifest.SeriesQid).ToList();
@@ -204,7 +208,7 @@ public sealed class WikidataSeriesManifestHydrationService
             };
 
             await _manifestRepo.UpsertManifestAsync(hydration, itemRecords, ct).ConfigureAwait(false);
-            await _manifestRepo.LinkOwnedWorksAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
+            await LinkAndReportAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Hydrated Wikidata series manifest {SeriesQid} ({SeriesLabel}) with {Count} named items",
@@ -277,12 +281,13 @@ public sealed class WikidataSeriesManifestHydrationService
         int ttlDays,
         CancellationToken ct)
     {
-        var cachedHydration = await _manifestRepo.GetHydrationAsync(parent.Qid, ct).ConfigureAwait(false);
+        var mediaType = context.MediaType.ToString();
+        var cachedHydration = await _manifestRepo.GetHydrationAsync(parent.Qid, mediaType, ct).ConfigureAwait(false);
         if (cachedHydration is not null
             && IsCachedHydrationCurrent(cachedHydration)
             && now - cachedHydration.LastHydratedAt < TimeSpan.FromDays(ttlDays))
         {
-            var cachedItems = await _manifestRepo.GetItemsBySeriesQidAsync(parent.Qid, ct).ConfigureAwait(false);
+            var cachedItems = await _manifestRepo.GetItemsBySeriesQidAsync(parent.Qid, mediaType, ct).ConfigureAwait(false);
             if (cachedItems.Count > 0
                 && cachedItems.Any(i => string.Equals(i.ItemQid, context.ResolvedWorkQid, StringComparison.OrdinalIgnoreCase)))
             {
@@ -294,8 +299,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
                 await _manifestRepo.UpsertManifestAsync(cachedHydration.WithUpdatedTimestamp(), relinked, ct)
                     .ConfigureAwait(false);
-                await _manifestRepo.LinkOwnedWorksAsync(cachedHydration.CollectionId, relinked, ct)
-                    .ConfigureAwait(false);
+                await LinkAndReportAsync(cachedHydration.CollectionId, relinked, ct).ConfigureAwait(false);
                 return;
             }
         }
@@ -315,9 +319,12 @@ public sealed class WikidataSeriesManifestHydrationService
             return;
         }
 
+        // The parent collection keeps its manifest (the rows say which works it lists) but never becomes the shelf of
+        // those works: the placement rule puts them in the Series whose manifest lists this parent.
         var collection = await UpsertCollectionAsync(
             manifest.SeriesQid,
             StringHelpers.FirstNonBlankOr("Unknown series", manifest.SeriesLabel, parent.Label, manifest.SeriesQid),
+            mediaType,
             ct).ConfigureAwait(false);
 
         var scopedItems = FilterManifestItems(manifest.Items, context, manifest.SeriesQid).ToList();
@@ -349,18 +356,14 @@ public sealed class WikidataSeriesManifestHydrationService
             ManifestHash = Hashing.Sha256Hex(manifestJson),
             KnownItemQidsHash = Hashing.Sha256Hex(string.Join('\n', itemQids)),
             WarningsJson = JsonSerializer.Serialize(warningDtos, MediaEngineJson.Web),
-            ApiMetadataJson = BuildApiMetadataJson(
-                language,
-                manifest,
-                sourceSeriesQid: childSeriesQid,
-                parentCollectionHydration: true),
+            ApiMetadataJson = BuildApiMetadataJson(language, manifest),
             LastHydratedAt = now,
             CreatedAt = cachedHydration?.CreatedAt ?? now,
             UpdatedAt = now,
         };
 
         await _manifestRepo.UpsertManifestAsync(hydration, itemRecords, ct).ConfigureAwait(false);
-        await _manifestRepo.LinkOwnedWorksAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
+        await LinkAndReportAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
 
         _logger.LogInformation(
             "Hydrated Wikidata parent collection manifest {SeriesQid} ({SeriesLabel}) from series {ChildSeriesQid} with {Count} named items",
@@ -368,6 +371,27 @@ public sealed class WikidataSeriesManifestHydrationService
             manifest.SeriesLabel ?? parent.Label,
             childSeriesQid,
             itemRecords.Count);
+    }
+
+    /// <summary>
+    /// Links the owned works with the one placement rule. A work that two Series claim equally as main sequence is taken
+    /// off both by the repository; it raises the same Needs Review item as collection assignment does.
+    /// </summary>
+    internal async Task LinkAndReportAsync(
+        Guid collectionId,
+        IReadOnlyList<SeriesManifestItemRecord> items,
+        CancellationToken ct)
+    {
+        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, items, ct).ConfigureAwait(false);
+        if (_ambiguityReviewer is null)
+        {
+            return;
+        }
+
+        foreach (var work in ambiguous)
+        {
+            await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
+        }
     }
 
     private static SeriesManifestRequest CreateManifestRequest(string seriesQid, string language) => new()
@@ -510,9 +534,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
     private static string BuildApiMetadataJson(
         string language,
-        SeriesManifestResult manifest,
-        string? sourceSeriesQid = null,
-        bool parentCollectionHydration = false)
+        SeriesManifestResult manifest)
     {
         var expectedCounts = manifest.ExpectedCounts;
         var expectedTotal = SelectExpectedTotalFact(expectedCounts);
@@ -525,8 +547,6 @@ public sealed class WikidataSeriesManifestHydrationService
             includePublicationDate = true,
             includeDescriptions = true,
             scopeFilter = ManifestScopeFilter,
-            sourceSeriesQid,
-            parentCollectionHydration,
             maxDepth = ManifestMaxDepth,
             maxItems = ManifestMaxItems,
             containerKind = manifest.ContainerKind.ToString(),
@@ -787,9 +807,10 @@ public sealed class WikidataSeriesManifestHydrationService
         return false;
     }
 
-    private async Task<Collection> UpsertCollectionAsync(string seriesQid, string label, CancellationToken ct)
+    private async Task<Collection> UpsertCollectionAsync(string seriesQid, string label, string mediaType, CancellationToken ct)
     {
-        var existing = await _collectionRepo.FindByQidAsync(seriesQid, ct).ConfigureAwait(false);
+        // A Series is its QID plus its media type: a book Series and an audiobook Series of the same QID are two shelves.
+        var existing = await _collectionRepo.FindSeriesShelfAsync(seriesQid, mediaType, ct).ConfigureAwait(false);
         if (existing is not null)
         {
             return existing;
@@ -800,6 +821,7 @@ public sealed class WikidataSeriesManifestHydrationService
             Id = Guid.NewGuid(),
             DisplayName = string.IsNullOrWhiteSpace(label) ? seriesQid : label,
             WikidataQid = seriesQid,
+            MediaType = mediaType,
             IconName = "collections_bookmark",
             CreatedAt = DateTimeOffset.UtcNow,
             SortField = "sort_order",
@@ -822,8 +844,10 @@ public sealed class WikidataSeriesManifestHydrationService
         SeriesManifestHydrationContext context,
         CancellationToken ct)
     {
+        // A Series only holds works of its own media type, so an audiobook is never linked into the book Series.
         var workMatches = await _manifestRepo.FindWorkIdsByQidsAsync(
             items.Select(i => i.ItemQid).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            context.MediaType.ToString(),
             ct).ConfigureAwait(false);
 
         var relinked = new List<SeriesManifestItemRecord>(items.Count);

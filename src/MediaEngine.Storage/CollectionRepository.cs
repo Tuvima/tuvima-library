@@ -87,7 +87,8 @@ public sealed class CollectionRepository : ICollectionRepository
         secondary_sort_direction AS SecondarySortDirection,
         refresh_schedule  AS RefreshSchedule,
         last_refreshed_at AS LastRefreshedAt,
-        modified_at       AS ModifiedAt
+        modified_at       AS ModifiedAt,
+        media_type        AS MediaType
         """;
 
     // Reusable SELECT list for collection_relationships rows.
@@ -621,6 +622,21 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
+    public Task ClearWorkCollectionAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            conn.Execute(
+                "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IS NOT NULL;",
+                new { workId },
+                transaction: tx);
+        }, ct);
+    }
+
+    /// <inheritdoc/>
     public Task MergeCollectionsAsync(Guid keepCollectionId, Guid mergeCollectionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -690,13 +706,13 @@ public sealed class CollectionRepository : ICollectionRepository
                 banner_artwork_path, banner_artwork_mime_type, logo_artwork_path, logo_artwork_mime_type, scope, profile_id,
                 membership_mode, primary_area, owner_kind, audience,
                 is_enabled, is_featured, min_items, rule_json, resolution, rule_hash,
-                group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction)
+                group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction, media_type)
                 VALUES (@id, @uid, @phid, @dn, @ca, @us, @wqid, @ht, @desc, @icon,
                     @coverArtworkPath, @coverArtworkMimeType, @backgroundArtworkPath, @backgroundArtworkMimeType,
                     @bannerArtworkPath, @bannerArtworkMimeType, @logoArtworkPath, @logoArtworkMimeType, @scope, @pid,
                     @membershipMode, @primaryArea, @ownerKind, @audience,
                     @enabled, @featured, @minItems, @ruleJson, @resolution, @ruleHash,
-                    @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection);
+                    @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection, @mediaType);
             UPDATE collections SET display_name = @dn, universe_status = @us, parent_collection_id = @phid,
                             wikidata_qid = @wqid, collection_type = @ht, description = @desc,
                             icon_name = @icon,
@@ -715,7 +731,8 @@ public sealed class CollectionRepository : ICollectionRepository
                             rule_json = @ruleJson, resolution = @resolution, rule_hash = @ruleHash,
                             group_by_field = @groupByField, match_mode = @matchMode,
                             sort_field = @sortField, sort_direction = @sortDirection,
-                            secondary_sort_field = @secondarySortField, secondary_sort_direction = @secondarySortDirection
+                            secondary_sort_field = @secondarySortField, secondary_sort_direction = @secondarySortDirection,
+                            media_type = COALESCE(@mediaType, media_type)
                     WHERE id = @id;
             """,
             new
@@ -756,6 +773,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 sortDirection = collection.SortDirection.ToStorageValue(),
                 secondarySortField = collection.SecondarySortField,
                 secondarySortDirection = collection.SecondarySortDirection?.ToStorageValue(),
+                mediaType = collection.MediaType,
             }, transaction);
     }
 
@@ -1334,6 +1352,32 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
+    public Task<Collection?> FindSeriesShelfAsync(string qid, string mediaType, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(qid);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+        using var conn = _db.CreateConnection();
+        var collection = conn.QueryFirstOrDefault<Collection>($"""
+            SELECT {CollectionSelectColumns}
+            FROM   collections
+            WHERE  wikidata_qid = @qid
+              AND  collection_type = 'ContentGroup'
+              AND  LOWER(media_type) = LOWER(@mediaType)
+            ORDER  BY created_at, id
+            LIMIT  1;
+            """, new { qid, mediaType });
+
+        if (collection is not null)
+        {
+            HydrateAudienceProfiles(conn, [collection]);
+        }
+
+        return Task.FromResult(collection is null ? null : (Collection)NormalizeCollection(collection));
+    }
+
+    /// <inheritdoc/>
     public Task<Collection?> FindUniverseByQidAsync(string qid, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -1720,7 +1764,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 INNER JOIN works w ON w.collection_id = h.id
                                AND {visibleWorkPredicate}
                 WHERE  h.collection_type IN ('ContentGroup', 'Series', 'Universe')
-                ORDER  BY h.display_name, h.created_at, w.ordinal, w.id;
+                ORDER  BY h.display_name, h.created_at, COALESCE(w.ordinal_sort, w.ordinal), w.id;
                 """;
 
             using var reader = cmd.ExecuteReader();
@@ -1805,7 +1849,7 @@ public sealed class CollectionRepository : ICollectionRepository
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 WHERE  h.id IN ({string.Join(", ", parameterNames)})
-                ORDER  BY h.id, w.ordinal, w.id;
+                ORDER  BY h.id, COALESCE(w.ordinal_sort, w.ordinal), w.id;
                 """;
 
             for (var index = 0; index < batch.Length; index++)

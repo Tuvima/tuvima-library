@@ -204,6 +204,13 @@ public interface ICollectionRepository
         return found is { CollectionType: CollectionType.Universe, ParentCollectionId: null } ? found : null;
     }
 
+    /// <summary>
+    /// Finds the Series shelf (a ContentGroup collection) with this Wikidata Series QID and this media type. A Series is
+    /// identified by its QID plus its media type, so a Series of another media type, a Universe, or any other
+    /// collection that shares the QID is never returned. Returns null when there is no such Series shelf.
+    /// </summary>
+    Task<Collection?> FindSeriesShelfAsync(string qid, string mediaType, CancellationToken ct = default);
+
     /// <summary>Finds an Edition by its Wikidata QID. Returns null when no match exists.</summary>
     Task<Edition?> FindEditionByQidAsync(string wikidataQid, CancellationToken ct = default);
 
@@ -289,6 +296,12 @@ public interface ICollectionRepository
 
     /// <summary>Finds a collection by its rule hash for deduplication.</summary>
     Task<Collection?> FindByRuleHashAsync(string ruleHash, CancellationToken ct = default);
+
+    /// <summary>
+    /// Takes a work off its shelf (sets <c>works.collection_id</c> to null). Used when placement is ambiguous and the
+    /// work must not sit on a Series it may not belong to.
+    /// </summary>
+    Task ClearWorkCollectionAsync(Guid workId, CancellationToken ct = default);
 
     /// <summary>Counts owned, visible works that have media assets but no shelf collection assignment.</summary>
     Task<int> CountCollectionBackfillCandidatesAsync(CancellationToken ct = default);

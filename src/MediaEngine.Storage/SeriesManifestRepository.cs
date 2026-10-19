@@ -1,41 +1,49 @@
+using System.Data;
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Storage;
 
 public sealed class SeriesManifestRepository : ISeriesManifestRepository
 {
     private readonly IDatabaseConnection _db;
+    private readonly ILogger<SeriesManifestRepository>? _logger;
 
     private static readonly JsonSerializerOptions JsonOptions = MediaEngineJson.Web;
 
-    public SeriesManifestRepository(IDatabaseConnection db)
+    public SeriesManifestRepository(IDatabaseConnection db, ILogger<SeriesManifestRepository>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(db);
         _db = db;
+        _logger = logger;
     }
 
-    public Task<SeriesManifestHydration?> GetHydrationAsync(string seriesQid, CancellationToken ct = default)
+    public Task<SeriesManifestHydration?> GetHydrationAsync(string seriesQid, string mediaType, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HydrationRow>(
             """
-            SELECT series_qid AS SeriesQid, collection_id AS CollectionId, series_label AS SeriesLabel,
-                   manifest_source AS ManifestSource, manifest_version AS ManifestVersion,
-                   manifest_hash AS ManifestHash, known_item_qids_hash AS KnownItemQidsHash,
-                   warnings_json AS WarningsJson, api_metadata_json AS ApiMetadataJson,
-                   last_hydrated_at AS LastHydratedAt, created_at AS CreatedAt, updated_at AS UpdatedAt
-            FROM series_manifest_hydrations
-            WHERE series_qid = @seriesQid
+            SELECT h.series_qid AS SeriesQid, h.collection_id AS CollectionId, h.series_label AS SeriesLabel,
+                   h.manifest_source AS ManifestSource, h.manifest_version AS ManifestVersion,
+                   h.manifest_hash AS ManifestHash, h.known_item_qids_hash AS KnownItemQidsHash,
+                   h.warnings_json AS WarningsJson, h.api_metadata_json AS ApiMetadataJson,
+                   h.last_hydrated_at AS LastHydratedAt, h.created_at AS CreatedAt, h.updated_at AS UpdatedAt
+            FROM series_manifest_hydrations h
+            INNER JOIN collections c ON c.id = h.collection_id
+            WHERE h.series_qid = @seriesQid
+              AND LOWER(c.media_type) = LOWER(@mediaType)
+            ORDER BY h.last_hydrated_at DESC
             LIMIT 1;
             """,
-            new { seriesQid });
+            new { seriesQid, mediaType });
 
         return Task.FromResult(row?.ToEntity());
     }
@@ -43,6 +51,18 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
     public Task<IReadOnlyList<SeriesManifestItemRecord>> GetItemsBySeriesQidAsync(
         string seriesQid,
         CancellationToken ct = default)
+        => GetItemsBySeriesQidCoreAsync(seriesQid, mediaType: null, ct);
+
+    public Task<IReadOnlyList<SeriesManifestItemRecord>> GetItemsBySeriesQidAsync(
+        string seriesQid,
+        string mediaType,
+        CancellationToken ct = default)
+        => GetItemsBySeriesQidCoreAsync(seriesQid, mediaType, ct);
+
+    private Task<IReadOnlyList<SeriesManifestItemRecord>> GetItemsBySeriesQidCoreAsync(
+        string seriesQid,
+        string? mediaType,
+        CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
@@ -66,9 +86,10 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                    last_hydrated_at AS LastHydratedAt, created_at AS CreatedAt, updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE series_qid = @seriesQid
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { seriesQid }).AsList();
+            new { seriesQid, mediaType }).AsList();
 
         return Task.FromResult<IReadOnlyList<SeriesManifestItemRecord>>(rows.Select(r => r.ToEntity()).ToList());
     }
@@ -76,6 +97,18 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
     public Task<IReadOnlyDictionary<string, IReadOnlyList<Guid>>> FindWorkIdsByQidsAsync(
         IReadOnlyCollection<string> qids,
         CancellationToken ct = default)
+        => FindWorkIdsByQidsCoreAsync(qids, mediaType: null, ct);
+
+    public Task<IReadOnlyDictionary<string, IReadOnlyList<Guid>>> FindWorkIdsByQidsAsync(
+        IReadOnlyCollection<string> qids,
+        string mediaType,
+        CancellationToken ct = default)
+        => FindWorkIdsByQidsCoreAsync(qids, mediaType, ct);
+
+    private Task<IReadOnlyDictionary<string, IReadOnlyList<Guid>>> FindWorkIdsByQidsCoreAsync(
+        IReadOnlyCollection<string> qids,
+        string? mediaType,
+        CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (qids.Count == 0)
@@ -87,12 +120,14 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         using var conn = _db.CreateConnection();
         var rows = conn.Query<WorkQidRow>(
             """
+            -- readiness: lookup of works by their Wikidata ids, to link manifest rows
             SELECT id AS WorkId,
                    CAST(COALESCE(NULLIF(wikidata_qid, ''), json_extract(external_identifiers, '$.wikidata_qid')) AS TEXT) AS Qid
             FROM works
-            WHERE COALESCE(NULLIF(wikidata_qid, ''), json_extract(external_identifiers, '$.wikidata_qid')) IN @qids;
+            WHERE COALESCE(NULLIF(wikidata_qid, ''), json_extract(external_identifiers, '$.wikidata_qid')) IN @qids
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType));
             """,
-            new { qids = qids.Distinct(StringComparer.OrdinalIgnoreCase).ToArray() }).AsList();
+            new { qids = qids.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), mediaType }).AsList();
 
         var result = rows
             .Where(r => !string.IsNullOrWhiteSpace(r.Qid))
@@ -192,8 +227,7 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                     (@SeriesQid, @CollectionId, @SeriesLabel, @ManifestSource, @ManifestVersion,
                      @ManifestHash, @KnownItemQidsHash, @WarningsJson, @ApiMetadataJson,
                      @LastHydratedAt, @CreatedAt, @UpdatedAt)
-                ON CONFLICT(series_qid) DO UPDATE SET
-                    collection_id = excluded.collection_id,
+                ON CONFLICT(collection_id, series_qid) DO UPDATE SET
                     series_label = excluded.series_label,
                     manifest_source = excluded.manifest_source,
                     manifest_version = excluded.manifest_version,
@@ -276,82 +310,301 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         }, ct);
     }
 
-    public Task LinkOwnedWorksAsync(
+    public async Task<IReadOnlyList<AmbiguousSeriesPlacement>> LinkOwnedWorksAsync(
         Guid collectionId,
         IReadOnlyList<SeriesManifestItemRecord> items,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        var ambiguous = new List<AmbiguousSeriesPlacement>();
+        await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
-            foreach (var item in items.Where(i =>
-                         i.OwnershipState == "Owned"
-                         && !i.IsCollection
-                         && !i.IsExpandedFromCollection))
+            // The one Series placement rule decides where every work these rows touch sits, so the order in which
+            // manifests are hydrated (or this method is called) never decides it. A work is touched when a row names
+            // it, or when it is listed in a parent collection that one of these rows lists (so placement through a
+            // parent collection needs no later assignment run). Several rows may name the same work; the row that is
+            // not an expansion of a collection supplies its position.
+            var sortOrders = new Dictionary<Guid, double>();
+            foreach (var group in items
+                         .Where(i => i.OwnershipState == "Owned" && !i.IsCollection && i.LinkedWorkId.HasValue)
+                         .GroupBy(i => i.LinkedWorkId!.Value))
             {
-                if (item.LinkedWorkId is not { } workId)
+                var row = group.OrderBy(i => i.IsExpandedFromCollection).First();
+                sortOrders[group.Key] = row.ParsedOrdinal ?? row.SortOrder ?? 0d;
+            }
+
+            var shelfMediaType = conn.ExecuteScalar<string?>(
+                "SELECT media_type FROM collections WHERE id = @collectionId;",
+                new { collectionId },
+                tx);
+            foreach (var listed in items.Where(i => i.IsCollection))
+            {
+                var mediaType = !string.IsNullOrWhiteSpace(shelfMediaType) ? shelfMediaType : listed.MediaType;
+                var parentWorkIds = conn.Query<Guid>(
+                    """
+                    SELECT DISTINCT linked_work_id
+                    FROM series_manifest_items
+                    WHERE series_qid = @parentQid
+                      AND linked_work_id IS NOT NULL
+                      AND is_collection = 0
+                      AND LOWER(COALESCE(media_type, '')) = LOWER(COALESCE(@mediaType, ''));
+                    """,
+                    new { parentQid = listed.ItemQid, mediaType },
+                    tx);
+                foreach (var parentWorkId in parentWorkIds)
                 {
+                    sortOrders.TryAdd(parentWorkId, 0d);
+                }
+            }
+
+            foreach (var (workId, sortOrder) in sortOrders)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                var workMediaType = conn.ExecuteScalar<string?>(
+                    "-- readiness: media type of one work, looked up by id\nSELECT media_type FROM works WHERE id = @workId;",
+                    new { workId },
+                    tx) ?? string.Empty;
+                var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
+                    workMediaType,
+                    LoadMemberships(conn, tx, workId),
+                    Retail: null,
+                    ClaimedSeriesQid: LoadClaimedSeriesQid(conn, tx, workId)));
+
+                if (decision.Kind == SeriesPlacementKind.Ambiguous)
+                {
+                    // Two Series claim the work equally: it sits on neither until a person decides.
+                    var candidateIds = decision.Candidates.Select(c => c.CollectionId).Distinct().Select(GuidSql.ToBlob).ToArray();
+                    var cleared = conn.Execute(
+                        "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IN @candidateIds;",
+                        new { workId, candidateIds },
+                        tx);
+                    conn.Execute(
+                        "DELETE FROM collection_items WHERE work_id = @workId AND collection_id IN @candidateIds;",
+                        new { workId, candidateIds },
+                        tx);
+                    if (cleared > 0)
+                    {
+                        _logger?.LogInformation(
+                            "Series linking: took work {WorkId} off its shelf: {Reason}",
+                            workId,
+                            decision.Reason);
+                    }
+
+                    ambiguous.Add(new AmbiguousSeriesPlacement(workId, decision.Candidates));
                     continue;
                 }
 
-                var sortOrder = item.SortOrder.HasValue
-                    ? (int)Math.Round(item.SortOrder.Value, MidpointRounding.AwayFromZero)
-                    : 0;
+                if (decision.Kind != SeriesPlacementKind.Placed || decision.ShelfCollectionId is not { } target)
+                {
+                    // No rule-chosen shelf: this manifest does not hold the work on a shelf.
+                    conn.Execute(
+                        "DELETE FROM collection_items WHERE collection_id = @collectionId AND work_id = @workId;",
+                        new { collectionId, workId },
+                        tx);
+                    continue;
+                }
 
+                var current = conn.ExecuteScalar<Guid?>(
+                    "-- readiness: current shelf of one work, looked up by id\nSELECT collection_id FROM works WHERE id = @workId;",
+                    new { workId },
+                    tx);
+
+                // Decimal positions stay decimals: collection_items.sort_order has integer affinity, which keeps a
+                // fractional value as a real number.
                 conn.Execute(
                     """
                     INSERT INTO collection_items
                         (id, collection_id, work_id, sort_order, progress_state, added_at)
-                    SELECT @id, @collectionId, @workId, @sortOrder, 'not_started', @addedAt
+                    SELECT @id, @target, @workId, @sortOrder, 'not_started', @addedAt
                     WHERE NOT EXISTS (
                         SELECT 1 FROM collection_items
-                        WHERE collection_id = @collectionId AND work_id = @workId
+                        WHERE collection_id = @target AND work_id = @workId
                     );
 
                     UPDATE collection_items
                     SET sort_order = @sortOrder
-                    WHERE collection_id = @collectionId AND work_id = @workId;
+                    WHERE collection_id = @target AND work_id = @workId
+                      AND @target = @collectionId;
 
-                    UPDATE works
-                    SET collection_id = @collectionId
-                    WHERE id = @workId
-                      AND (
-                          collection_id IS NULL
-                          OR collection_id = @collectionId
-                          OR EXISTS (
-                              SELECT 1
-                              FROM collections current_collection
-                              LEFT JOIN series_manifest_items current_item
-                                ON current_item.collection_id = current_collection.id
-                               AND current_item.linked_work_id = @workId
-                              WHERE current_collection.id = works.collection_id
-                                AND current_collection.collection_type = 'ContentGroup'
-                                AND (
-                                    (
-                                        current_collection.wikidata_qid IS NULL
-                                        AND NULLIF(TRIM(current_collection.rule_hash), '') IS NULL
-                                    )
-                                    OR (
-                                        current_item.is_expanded_from_collection = 1
-                                        AND current_item.parent_collection_qid = @seriesQid
-                                    )
-                                )
-                          )
-                      );
+                    DELETE FROM collection_items
+                    WHERE work_id = @workId
+                      AND collection_id <> @target
+                      AND collection_id IN (SELECT id FROM collections WHERE collection_type = 'ContentGroup');
                     """,
                     new
                     {
                         id = Guid.NewGuid(),
+                        target,
                         collectionId,
                         workId,
-                        seriesQid = item.SeriesQid,
                         sortOrder,
                         addedAt = DateTimeOffset.UtcNow.ToString("O"),
                     },
                     tx);
+
+                if (current != target)
+                {
+                    conn.Execute(
+                        "UPDATE works SET collection_id = @target WHERE id = @workId;",
+                        new { target, workId },
+                        tx);
+                    _logger?.LogInformation(
+                        "Series linking: moved work {WorkId} from shelf {From} to shelf {To}: {Reason}",
+                        workId,
+                        current,
+                        target,
+                        decision.Reason);
+                }
+            }
+        }, ct).ConfigureAwait(false);
+
+        return ambiguous;
+    }
+
+    private const string LinkedItemColumns = """
+        id AS Id, collection_id AS CollectionId, series_qid AS SeriesQid,
+        item_qid AS ItemQid, item_label AS ItemLabel, item_description AS ItemDescription,
+        media_type AS MediaType, media_kind AS MediaKind,
+        instance_of_qids_json AS InstanceOfQidsJson,
+        raw_ordinal AS RawOrdinal, parsed_ordinal AS ParsedOrdinal,
+        ordinal_scope_qid AS OrdinalScopeQid,
+        sort_order AS SortOrder, publication_date AS PublicationDate, duration AS Duration,
+        previous_qid AS PreviousQid, next_qid AS NextQid,
+        parent_collection_qid AS ParentCollectionQid,
+        parent_collection_label AS ParentCollectionLabel,
+        is_collection AS IsCollection, is_expanded_from_collection AS IsExpandedFromCollection,
+        membership_scope AS MembershipScope,
+        source_properties_json AS SourcePropertiesJson,
+        relationships_json AS RelationshipsJson, order_source AS OrderSource,
+        ownership_state AS OwnershipState, linked_work_id AS LinkedWorkId,
+        last_hydrated_at AS LastHydratedAt, created_at AS CreatedAt, updated_at AS UpdatedAt
+        """;
+
+    public Task<IReadOnlyList<SeriesManifestItemRecord>> GetLinkedItemsByCollectionIdsAsync(
+        IReadOnlyCollection<Guid> collectionIds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (collectionIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<SeriesManifestItemRecord>>([]);
+        }
+
+        using var conn = _db.CreateConnection();
+        var rows = new List<SeriesManifestItemRecord>();
+        foreach (var chunk in collectionIds.Distinct().Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            rows.AddRange(conn.Query<ItemRow>(
+                $"""
+                SELECT {LinkedItemColumns}
+                FROM series_manifest_items
+                WHERE collection_id IN @collectionIds
+                  AND linked_work_id IS NOT NULL
+                  AND is_collection = 0;
+                """,
+                new { collectionIds = chunk.Select(GuidSql.ToBlob).ToArray() }).Select(r => r.ToEntity()));
+        }
+
+        return Task.FromResult<IReadOnlyList<SeriesManifestItemRecord>>(rows);
+    }
+
+    public Task<IReadOnlyList<SeriesManifestMembership>> GetMembershipsForWorkAsync(
+        Guid workId,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        return Task.FromResult(LoadMemberships(conn, transaction: null, workId));
+    }
+
+    /// <summary>The Series QID the work's own <c>series_qid</c> claim names, used only to break a tie that is not at main sequence.</summary>
+    private static string? LoadClaimedSeriesQid(IDbConnection conn, IDbTransaction? transaction, Guid workId)
+    {
+        var raw = conn.ExecuteScalar<string?>(
+            "SELECT CAST(value AS TEXT) FROM canonical_values WHERE entity_id = @workId AND key = 'series_qid' LIMIT 1;",
+            new { workId },
+            transaction);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var qid = raw.Contains('/') ? raw.Split('/')[^1] : raw;
+        return qid.Contains("::") ? qid.Split("::", 2)[0].Trim() : qid.Trim();
+    }
+
+    /// <summary>
+    /// Every stored manifest row that names the work, as input for <see cref="SeriesPlacementRule"/>. A collection is a
+    /// parent collection (for example Memory's Legion) when another Series manifest of the same media type lists its QID
+    /// as a collection item; that is read from the data every time, never from a flag a later hydration could overwrite.
+    /// A parent collection's membership reports the Series that list it, and is not itself a Series.
+    /// </summary>
+    private static IReadOnlyList<SeriesManifestMembership> LoadMemberships(
+        IDbConnection conn,
+        IDbTransaction? transaction,
+        Guid workId)
+    {
+        var rows = conn.Query<MembershipRow>(
+            """
+            SELECT smi.collection_id AS CollectionId,
+                   smi.series_qid AS SeriesQid,
+                   COALESCE(NULLIF(c.media_type, ''), NULLIF(smi.media_type, ''), '') AS MediaType,
+                   smi.membership_scope AS Scope,
+                   CASE WHEN COALESCE(h.manifest_source, 'Tuvima.Wikidata') = 'Tuvima.Wikidata' THEN 1 ELSE 0 END AS IsWikidata
+            FROM series_manifest_items smi
+            LEFT JOIN collections c ON c.id = smi.collection_id
+            LEFT JOIN series_manifest_hydrations h
+                   ON h.collection_id = smi.collection_id AND h.series_qid = smi.series_qid
+            WHERE smi.linked_work_id = @workId
+              AND smi.is_collection = 0;
+            """,
+            new { workId },
+            transaction).AsList();
+
+        var memberships = new List<SeriesManifestMembership>(rows.Count);
+        var listedCache = new Dictionary<string, IReadOnlyList<SeriesParentListing>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (row.IsWikidata != 1)
+            {
+                memberships.Add(new SeriesManifestMembership(
+                    row.CollectionId, row.SeriesQid, row.MediaType, row.Scope, SeriesMembershipOrigin.ProviderSequence));
+                continue;
             }
 
-        }, ct);
+            var cacheKey = $"{row.SeriesQid}|{row.MediaType}";
+            if (!listedCache.TryGetValue(cacheKey, out var listed))
+            {
+                listed = conn.Query<ParentListingRow>(
+                    """
+                    SELECT s.collection_id AS CollectionId,
+                           s.series_qid AS SeriesQid,
+                           COALESCE(NULLIF(sc.media_type, ''), NULLIF(s.media_type, ''), '') AS MediaType
+                    FROM series_manifest_items s
+                    LEFT JOIN collections sc ON sc.id = s.collection_id
+                    WHERE s.is_collection = 1
+                      AND s.item_qid = @parentQid
+                      AND s.series_qid <> @parentQid
+                    GROUP BY s.collection_id, s.series_qid;
+                    """,
+                    new { parentQid = row.SeriesQid },
+                    transaction)
+                    .Where(r => SeriesPlacementRule.MediaMatches(r.MediaType, row.MediaType))
+                    .Select(r => new SeriesParentListing(r.SeriesQid, r.MediaType, r.CollectionId))
+                    .ToList();
+                listedCache[cacheKey] = listed;
+            }
+
+            memberships.Add(listed.Count > 0
+                ? new SeriesManifestMembership(
+                    row.CollectionId, row.SeriesQid, row.MediaType, row.Scope,
+                    SeriesMembershipOrigin.WikidataParentCollection, listed)
+                : new SeriesManifestMembership(
+                    row.CollectionId, row.SeriesQid, row.MediaType, row.Scope, SeriesMembershipOrigin.WikidataSeries));
+        }
+
+        return memberships;
     }
 
     public Task<SeriesManifestViewDto?> GetViewByCollectionIdAsync(Guid collectionId, CancellationToken ct = default)
@@ -765,6 +1018,22 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
             OwnershipState = OwnershipState,
             LinkedWorkId = LinkedWorkId,
         };
+    }
+
+    private sealed class MembershipRow
+    {
+        public Guid CollectionId { get; init; }
+        public string SeriesQid { get; init; } = string.Empty;
+        public string MediaType { get; init; } = string.Empty;
+        public string Scope { get; init; } = SeriesMembershipScopeNames.MainSequence;
+        public int IsWikidata { get; init; }
+    }
+
+    private sealed class ParentListingRow
+    {
+        public Guid CollectionId { get; init; }
+        public string SeriesQid { get; init; } = string.Empty;
+        public string MediaType { get; init; } = string.Empty;
     }
 
     private sealed class WorkQidRow

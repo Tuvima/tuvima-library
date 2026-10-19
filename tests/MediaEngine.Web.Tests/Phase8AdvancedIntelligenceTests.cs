@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -48,21 +49,17 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetUniverseGraphAsync), _ =>
-                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse
-                {
-                    Universe = new UniverseInfo { Qid = "Q1", Label = "Dune" },
-                    Nodes =
+                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse(
+                    new UniverseGraphRef("Q1", "Dune"),
                     [
-                        new GraphNodeDto { Id = "Q10", Label = "Paul Atreides", Type = "Character" },
-                        new GraphNodeDto { Id = "Q11", Label = "Arrakis", Type = "Location" },
+                        Node("Q10", "Paul Atreides", "Character"),
+                        Node("Q11", "Arrakis", "Location"),
                     ],
-                    Edges =
                     [
-                        new GraphEdgeDto { Source = "Q10", Target = "Q11", Type = "residence", Label = "resides in" },
-                    ],
-                }));
+                        Edge("Q10", "Q11", "residence", "resides in"),
+                    ])));
             stub.SetHandler(nameof(IEngineApiClient.CheckLoreDeltaAsync), _ =>
-                Task.FromResult<IReadOnlyList<LoreDeltaResultDto>>([]));
+                Task.FromResult<IReadOnlyList<UniverseLoreDeltaResponse>>([]));
         }));
         Services.AddScoped<DeviceContextService>();
 
@@ -166,28 +163,30 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
         });
     }
 
+    internal static UniverseGraphNodeDto Node(string id, string label, string type) =>
+        new(id, label, type, null, null, [], false, "wikidata", null, null);
+
+    internal static UniverseGraphEdgeDto Edge(string source, string target, string type, string label) =>
+        new(source, target, type, label, 1.0, null, null, null, false, "wikidata", null, null);
+
     private void AddThreeNodeGraph()
     {
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetUniverseGraphAsync), _ =>
-                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse
-                {
-                    Universe = new UniverseInfo { Qid = "Q1", Label = "Dune" },
-                    Nodes =
+                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse(
+                    new UniverseGraphRef("Q1", "Dune"),
                     [
-                        new GraphNodeDto { Id = "Q10", Label = "Paul Atreides", Type = "Character" },
-                        new GraphNodeDto { Id = "Q11", Label = "Arrakis", Type = "Location" },
-                        new GraphNodeDto { Id = "Q12", Label = "Bene Gesserit", Type = "Organization" },
+                        Node("Q10", "Paul Atreides", "Character"),
+                        Node("Q11", "Arrakis", "Location"),
+                        Node("Q12", "Bene Gesserit", "Organization"),
                     ],
-                    Edges =
                     [
-                        new GraphEdgeDto { Source = "Q10", Target = "Q11", Type = "residence", Label = "resides in" },
-                        new GraphEdgeDto { Source = "Q10", Target = "Q12", Type = "member", Label = "member of" },
-                    ],
-                }));
+                        Edge("Q10", "Q11", "residence", "resides in"),
+                        Edge("Q10", "Q12", "member", "member of"),
+                    ])));
             stub.SetHandler(nameof(IEngineApiClient.CheckLoreDeltaAsync), _ =>
-                Task.FromResult<IReadOnlyList<LoreDeltaResultDto>>([]));
+                Task.FromResult<IReadOnlyList<UniverseLoreDeltaResponse>>([]));
         }));
     }
 
@@ -197,12 +196,12 @@ public sealed class Phase8AdvancedIntelligenceTests : AsyncBunitContext
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetUniverseGraphAsync), _ =>
-                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse
-                {
-                    Universe = new UniverseInfo { Qid = "Q1", Label = "Unenriched Universe" },
-                }));
+                Task.FromResult<UniverseGraphResponse?>(new UniverseGraphResponse(
+                    new UniverseGraphRef("Q1", "Unenriched Universe"),
+                    [],
+                    [])));
             stub.SetHandler(nameof(IEngineApiClient.CheckLoreDeltaAsync), _ =>
-                Task.FromResult<IReadOnlyList<LoreDeltaResultDto>>([]));
+                Task.FromResult<IReadOnlyList<UniverseLoreDeltaResponse>>([]));
         }));
         Services.AddScoped<DeviceContextService>();
 

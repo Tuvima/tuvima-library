@@ -22,11 +22,24 @@ public sealed class CollectionItemDto
     [JsonPropertyName("cover_url")]
     public string? CoverUrl { get; set; }
 
+    /// <summary>Where the item sits in the list, counted from zero. The list is already in Series order.</summary>
     [JsonPropertyName("sort_order")]
     public int SortOrder { get; set; }
 
     [JsonPropertyName("detail_route")]
     public string? DetailRoute { get; set; }
+
+    /// <summary>
+    /// How the Series holds the item: <c>MainSequence</c> (numbered, counted), <c>Unpositioned</c> (in the Series after
+    /// the numbered run, unnumbered), or <c>Supplementary</c>, <c>CollectedContent</c> and <c>BroaderContext</c>
+    /// ("Also in this world", listed after the Series run and never numbered with it).
+    /// </summary>
+    [JsonPropertyName("membership_scope")]
+    public string MembershipScope { get; set; } = "MainSequence";
+
+    /// <summary>The position as the source gives it, decimals intact ("1.5"); null when the source gives none.</summary>
+    [JsonPropertyName("position_label")]
+    public string? PositionLabel { get; set; }
 }
 
 public sealed class CollectionResolvedItemDto
