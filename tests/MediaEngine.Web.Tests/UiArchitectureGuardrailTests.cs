@@ -217,7 +217,8 @@ public sealed class UiArchitectureGuardrailTests
 
         Assert.DoesNotContain("<SidebarPageHeader", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("<nav", shell, StringComparison.Ordinal);
-        Assert.Contains("<SidebarPageHeader", settings, StringComparison.Ordinal);
+        Assert.Contains("<SettingsPageFrame", settings, StringComparison.Ordinal);
+        Assert.Contains("<SidebarPageHeader", Read("src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
         Assert.Contains("<MetadataAdminShell ActiveSubsection=\"@ActiveSurface\">", metadata, StringComparison.Ordinal);
         Assert.Contains("<SettingsSubsectionNav", metadata, StringComparison.Ordinal);

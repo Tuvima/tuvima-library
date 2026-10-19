@@ -15,6 +15,7 @@ using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -162,7 +163,7 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     {
         await _app.DisposeAsync();
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_path);
         foreach (var file in new[] { _path, $"{_path}-wal", $"{_path}-shm" }.Where(File.Exists))
         {
             File.Delete(file);

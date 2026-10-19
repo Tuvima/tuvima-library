@@ -154,7 +154,7 @@ public static class SettingsNav
 
     public static readonly SettingsGroupDef[] AllGroups =
     [
-        new("personal", "Account", AppMaterialIcons.Outlined.Person, false, SettingsSection.Profiles),
+        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, SettingsSection.Profiles),
         new("administration", "Administration", AppMaterialIcons.Outlined.AdminPanelSettings, true, SettingsSection.AdminOverview),
         new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune, true, SettingsSection.LocalAi),
     ];

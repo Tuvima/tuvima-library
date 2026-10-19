@@ -371,6 +371,7 @@ public sealed class CastAccessGrantServiceTests : IDisposable
 
     public void Dispose()
     {
+        _database.Dispose();
         using (var pool = new SqliteConnection($"Data Source={_databasePath}"))
         {
             SqliteConnection.ClearPool(pool);

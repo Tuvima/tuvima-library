@@ -7,6 +7,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
@@ -196,7 +197,7 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
     {
         _configuration.Dispose();
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePoolsIn(_root);
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);

@@ -86,7 +86,7 @@ internal static class StorageEpochGuard
 
     private static void BackupAndRemove(string databasePath)
     {
-        SqliteConnection.ClearAllPools();
+        SqliteConnectionFactory.ClearPool(databasePath);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
         foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
         {

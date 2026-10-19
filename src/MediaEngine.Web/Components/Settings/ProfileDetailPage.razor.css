@@ -1,4 +1,4 @@
-.profile-detail { display: grid; gap: 24px; width: 100%; max-width: 720px; margin: 0 auto; box-sizing: border-box; }
+.profile-detail { display: grid; gap: 24px; width: 100%; box-sizing: border-box; }
 .profile-detail__back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--tl-accent-primary); font-weight: 600; text-decoration: none; }
 .profile-detail__back:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; border-radius: 4px; }
 .profile-detail__loading { display: grid; gap: 12px; }
@@ -22,7 +22,6 @@
 }
 
 @media (min-width: 1600px) {
-    .profile-detail { max-width: 900px; }
     .profile-detail__avatar { width: 128px; height: 128px; }
     .profile-detail__name { font-size: 2.25rem; }
     .profile-detail__role { font-size: 1.15rem; }

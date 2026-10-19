@@ -9,6 +9,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -978,7 +979,7 @@ public sealed class ViewSharedTransferServiceTests
         {
             _configuration.Dispose();
             _database.Dispose();
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePoolsIn(Root);
             if (Directory.Exists(Root))
             {
                 Directory.Delete(Root, recursive: true);

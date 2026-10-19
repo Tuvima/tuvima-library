@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -359,7 +360,7 @@ public sealed class DetailActionDestinationTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try { _database.Dispose(); } catch (ObjectDisposedException) { /* Already closed by the pool sweep. */ }
         try { File.Delete(_databasePath); } catch (IOException) { /* The OS temp sweep removes a handle SQLite releases late. */ }
     }

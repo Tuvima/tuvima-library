@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Performance.Tests;
@@ -135,7 +136,7 @@ public sealed class LargeLibraryFixture : IDisposable
     public void Dispose()
     {
         Database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_path);
         if (File.Exists(_path))
         {
             File.Delete(_path);

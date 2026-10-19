@@ -380,7 +380,7 @@ public sealed class DatabaseBackupService
 
         var targetDatabase = Path.GetFullPath(databasePath);
         Directory.CreateDirectory(Path.GetDirectoryName(targetDatabase)!);
-        SqliteConnection.ClearAllPools();
+        DatabaseConnection.ReleasePooledConnections(databasePath);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
         if (File.Exists(targetDatabase))
         {
