@@ -17,10 +17,6 @@
     {
         <IngestionMediaPagedView Mode="batch" BatchId="batchId" OnOpen="OpenDrawer" />
     }
-    else if (IsCurrentPagedView)
-    {
-        <IngestionMediaPagedView Mode="@PagedViewMode" OnOpen="OpenDrawer" />
-    }
     else
     {
         <LibrarySummary RefreshToken="_summaryRefresh" />
@@ -132,8 +128,6 @@
     private Guid? _requestedItemId;
     private IngestionPresentationSnapshotDto Model => Dashboard.Presentation!;
     private bool IsHistoricalBatchView => _view == "all" && _runId.HasValue;
-    private bool IsCurrentPagedView => _view == "all" && !_runId.HasValue;
-    private string PagedViewMode => "current";
     private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
     private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
     private string StatusPanelClass
@@ -212,6 +206,12 @@
         _view = View?.ToLowerInvariant();
         _runId = RunId;
         _requestedItemId = ItemId;
+
+        // The old paged list of what is being added right now is the Activity log's Added filter; only a run's batch view stays here.
+        if (_view == "all" && !_runId.HasValue)
+        {
+            Nav.NavigateTo(SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added), replace: true);
+        }
     }
 
     private async Task OpenDrawer(IngestionMediaGroupDto item)
