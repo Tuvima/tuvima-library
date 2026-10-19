@@ -445,26 +445,17 @@ set `Minimum Level: Verbose` in the Serilog config section of `appsettings.Devel
 
 ## 10. Cleaning up after work
 
-After finishing a coding session, stop the Engine, Dashboard and test processes you
-started to release file locks on build outputs, the SQLite database and log files.
-Stop them where you started them (Ctrl+C, or by process ID), or let the script stop
-every .NET process that belongs to this checkout:
+After finishing a coding session, stop the Engine and Dashboard you started (Ctrl+C in
+their terminals, or end those processes by their process id) and release build-server
+locks:
 
 ```bash
-pwsh -File tools/Stop-WorktreeDotnet.ps1
+dotnet build-server shutdown
 ```
 
-Add `-WhatIf` to list what it would stop. A process belongs to the checkout whose
-folder it names in its command line or executable path; because worktrees live inside
-the main checkout (`.claude/worktrees/`), the longest matching folder wins, so the main
-checkout never claims a worktree's processes. Shared MSBuild build nodes and commands
-started with relative paths name no checkout and are left alone. If something is still
-locked afterwards, the script exits with an error: find out which session owns the
-process instead of stopping it.
-
-Never run `taskkill /IM dotnet.exe` or `pkill -f dotnet`. Several sessions often build,
-test and run ingestion baselines on the same machine at once, and a machine-wide kill
-stops all of them mid-run.
+Avoid stopping every `dotnet` process (`taskkill //F //IM dotnet.exe` or `pkill -f dotnet`):
+it also ends test runs, baseline runs and Engines that other work on the same machine
+started.
 
 This is especially important before switching branches or running migrations, as an
 open `dotnet` process holds a write lock on `library.db`.
@@ -528,9 +519,8 @@ Either add `await` to an async operation in the body, or remove `async` and retu
 `Task.CompletedTask` or `ValueTask.CompletedTask`.
 
 **`dotnet test` fails with SQLite locked**
-Another `dotnet` process has the database open. Run
-`pwsh -File tools/Stop-WorktreeDotnet.ps1` to stop this checkout's processes and retry
-(see [Cleaning up after work](#10-cleaning-up-after-work)).
+Another `dotnet` process has the database open. Stop the Engine or test run that holds it
+(by its process id, or Ctrl+C in its terminal) and retry.
 
 **`/dev/seed-library` returns 0 seeded files**
 The configured library source path in `config/libraries.json` does not exist or the Engine does

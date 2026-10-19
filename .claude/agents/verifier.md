@@ -13,7 +13,7 @@ Commands (run from the repo root; run only what the brief asks for):
 - **Targeted:** `dotnet test tests/<Project>.Tests/<Project>.Tests.csproj --no-build --filter "<expr>"`
 - **Node tests:** `node --test tests/build/*.test.mjs tests/MediaEngine.Web.Tests/JavaScript/*.test.mjs`
 - **Docs:** `pwsh -File scripts/docs/build-docs.ps1` (add `-InstallDependencies` if `website/node_modules` is missing)
-- If binaries are locked, run `pwsh -File tools/Stop-WorktreeDotnet.ps1`; it stops only this checkout's Engine, Dashboard and test processes. If anything is still locked, report it. Never run `taskkill /IM dotnet.exe` or otherwise stop processes from other checkouts: parallel sessions build, test and run ingestion baselines at the same time.
+- Other sessions and helpers may be running builds, tests or an Engine from other worktrees at the same time. **Never stop a process you did not start** (no `taskkill //IM dotnet.exe`, no `pkill -f dotnet`). If binaries in this checkout are locked by an Engine/Dashboard started from this checkout, report it instead of killing it. Afterwards, release your own build locks with `dotnet build-server shutdown`.
 - Keep the selected-runtime build filtering enabled. Never disable it. If the build fails because foreign runtime or AI native files are in `bin`, report it and suggest `pwsh -File tools/Clean-RepoOutputs.ps1`.
 
 Report format (under ~300 words):
