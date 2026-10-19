@@ -1,0 +1,187 @@
+@namespace MediaEngine.Web.Components.Shared.Tools
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject DashboardSessionAccessor Session
+@inject NavigationManager Navigation
+@inject ILogger<ToolsAttentionBanner> Logger
+
+@* An administrator-only note in the app shell when a Required tool is missing or broken. It offers the install, never
+   starts it, and the choice "Not now" is remembered by the Engine, so the banner does not ask about that tool again.
+   The Tools page always offers the button. It is not shown to anyone else and not on the Tools page itself. *@
+@if (_rows.Count > 0 && !OnToolsPage)
+{
+    <div class="tools-banner" data-testid="tools-banner">
+        @foreach (var tool in _rows)
+        {
+            <AppAlert Tone="AppUiTone.Warning" Class="tools-banner__alert" data-tool-id="@tool.Id">
+                <div class="tools-banner__body">
+                    <span class="tools-banner__text">@TextFor(tool)</span>
+                    @if (!string.IsNullOrWhiteSpace(_error))
+                    {
+                        <small class="tools-banner__error">@_error</small>
+                    }
+                    @if (tool.State == ToolRequirementStates.Downloading)
+                    {
+                        <AppProgressBar Value="@(tool.DownloadPercent ?? 0)" ShowValue="true" />
+                    }
+                    <div class="tools-banner__actions">
+                        @if (tool.CanInstall || tool.CanDownloadAgain)
+                        {
+                            <AppButton Label="@(tool.CanInstall ? "Install for me" : "Download again")" Size="AppControlSize.Compact"
+                                       Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="_busy"
+                                       OnClick="@(() => InstallAsync(tool))" />
+                        }
+                        <AppLink Href="/settings/tools">See tools</AppLink>
+                        @if (tool.State != ToolRequirementStates.Downloading)
+                        {
+                            <AppButton Label="Not now" Size="AppControlSize.Compact" Disabled="_busy"
+                                       OnClick="@(() => DeclineAsync(tool))" />
+                        }
+                    </div>
+                </div>
+            </AppAlert>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>How often the list is read again while nothing is happening: rarely, because the banner is a note, not a monitor.</summary>
+    [Parameter] public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>How often progress is read while a download this banner may show is running.</summary>
+    [Parameter] public TimeSpan ProgressInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<ToolRequirementDto> _rows = [];
+    private bool _busy;
+    private string? _error;
+    private bool _disposed;
+    private bool _watching;
+
+    private bool OnToolsPage =>
+        new Uri(Navigation.Uri).AbsolutePath.StartsWith("/settings/tools", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.OnAuthorityChanged += OnAuthorityChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+        await RefreshAsync();
+        StartWatching();
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_disposed || !IsAdministrator)
+        {
+            _rows = [];
+            return;
+        }
+
+        var tools = await ApiClient.GetToolRequirementsAsync(_lifetime.Token);
+        Apply(tools);
+    }
+
+    private void Apply(ToolRequirementsDto? tools)
+    {
+        // A Required tool that is not ready, unless the administrator said "Not now" (a running download is always shown).
+        _rows = tools?.Tools
+            .Where(tool => tool.Requirement == ToolRequirementLevels.Required
+                && (tool.State == ToolRequirementStates.Downloading
+                    || (tool.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem && !tool.InstallDeclined)))
+            .ToList() ?? [];
+    }
+
+    private static string TextFor(ToolRequirementDto tool) => tool.State switch
+    {
+        ToolRequirementStates.Downloading => $"Downloading {tool.Name}. Files that need it wait until it finishes.",
+        ToolRequirementStates.Problem => $"{tool.Name} isn't working. {tool.Effect}",
+        _ => $"{tool.Name} is missing. {tool.Effect}",
+    };
+
+    private async Task InstallAsync(ToolRequirementDto tool)
+    {
+        _busy = true;
+        _error = null;
+        var result = await ApiClient.InstallToolAsync(tool.Id, _lifetime.Token);
+        _busy = false;
+        if (result.Success)
+        {
+            Apply(result.Tools);
+        }
+        else
+        {
+            _error = result.ErrorMessage;
+        }
+    }
+
+    private async Task DeclineAsync(ToolRequirementDto tool)
+    {
+        _busy = true;
+        _error = null;
+        var result = await ApiClient.DeclineToolInstallAsync(tool.Id, _lifetime.Token);
+        _busy = false;
+        if (result.Success)
+        {
+            Apply(result.Tools);
+        }
+        else
+        {
+            _error = result.ErrorMessage;
+        }
+    }
+
+    // ── Looking again ────────────────────────────────────────────────────────
+
+    private void StartWatching()
+    {
+        if (_watching || _disposed)
+        {
+            return;
+        }
+
+        _watching = true;
+        _ = WatchAsync(_lifetime.Token);
+    }
+
+    private async Task WatchAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var downloading = _rows.Any(tool => tool.State == ToolRequirementStates.Downloading);
+                await Task.Delay(downloading ? ProgressInterval : RefreshInterval, ct);
+                await RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed; there is nothing left to refresh.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Refreshing the tools banner stopped.");
+        }
+    }
+
+    private void OnAuthorityChanged() => _ = InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        StateHasChanged();
+    });
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Session.OnAuthorityChanged -= OnAuthorityChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

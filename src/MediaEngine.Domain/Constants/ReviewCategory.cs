@@ -54,7 +54,7 @@ public static class ReviewCategory
         ReviewTrigger.RootWatchFolder or ReviewTrigger.PlaceholderTitle or ReviewTrigger.AmbiguousMediaType
             or ReviewTrigger.NameCollision or ReviewTrigger.FromMerge
             => Naming,
-        ReviewTrigger.WritebackFailed
+        ReviewTrigger.WritebackFailed or ReviewTrigger.MediaInspectionFailed
             => ProviderFailures,
         ReviewTrigger.MetadataConflict or ReviewTrigger.UserFixMatch or ReviewTrigger.LanguageMismatch
             => MetadataConflicts,

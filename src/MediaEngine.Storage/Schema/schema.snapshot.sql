@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0002 work_ready_state).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0003 work_ready_state).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1380,6 +1380,12 @@ CREATE TABLE media_file_write_intents (
     last_error TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+
+CREATE TABLE media_inspection_holds (
+    asset_id BLOB NOT NULL PRIMARY KEY REFERENCES media_assets(id) ON DELETE CASCADE,
+    tool_id  TEXT NOT NULL,   -- the tool that is missing, for example ffmpeg
+    held_at  TEXT NOT NULL    -- ISO 8601 UTC
 );
 
 CREATE TABLE media_operation_events (
@@ -3150,6 +3156,8 @@ CREATE INDEX ix_media_editor_commits_asset ON media_editor_commits(asset_id, com
 
 CREATE INDEX ix_media_file_write_intents_dispatch
     ON media_file_write_intents(status, lease_expires_at, updated_at);
+
+CREATE INDEX ix_media_inspection_holds_tool ON media_inspection_holds(tool_id, held_at);
 
 CREATE INDEX ix_personal_status_history ON personal_status_commands(profile_id, target_id, changed_at);
 

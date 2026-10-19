@@ -256,6 +256,21 @@ public static class SystemActionType
 
     /// <summary>A curator dismissed a user problem report without action.</summary>
     public const string UserReportDismissed = "UserReportDismissed";
+
+    // -- Tool and model downloads --------------------------------------------
+
+    /// <summary>A person asked for a tool or model to be downloaded and the download began.</summary>
+    public const string ToolDownloadStarted = "ToolDownloadStarted";
+
+    /// <summary>A tool or model download finished and every file matched its recorded checksum.</summary>
+    public const string ToolDownloadFinished = "ToolDownloadFinished";
+
+    /// <summary>A tool or model download did not finish (offline, blocked, out of space). The entry carries a plain reason.</summary>
+    public const string ToolDownloadFailed = "ToolDownloadFailed";
+
+    /// <summary>A downloaded file did not match its recorded checksum and was thrown away unused.</summary>
+    public const string ToolDownloadChecksumRefused = "ToolDownloadChecksumRefused";
+
+    /// <summary>A tool or model download was cancelled by the person.</summary>
+    public const string ToolDownloadCancelled = "ToolDownloadCancelled";
 }
-
-

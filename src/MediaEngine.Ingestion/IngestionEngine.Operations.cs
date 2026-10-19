@@ -460,6 +460,8 @@ public sealed partial class IngestionEngine
             reason,
             ct).ConfigureAwait(false);
 
+        await CloseFailedOperationAsync(candidate, reason, ct).ConfigureAwait(false);
+
         await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
         {
             ActionType = Domain.Constants.SystemActionType.MediaFailed,
@@ -485,6 +487,32 @@ public sealed partial class IngestionEngine
             await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
             await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
             await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Closes the file's durable operation as a terminal failure, so a file that failed is never left "running" for ever.
+    /// </summary>
+    private async Task CloseFailedOperationAsync(IngestionCandidate candidate, string reason, CancellationToken ct)
+    {
+        if (_operationRepository is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var operation = await _operationRepository
+                .GetByIdempotencyKeyAsync(BuildIngestionOperationKey(candidate.Path), ct)
+                .ConfigureAwait(false);
+            if (operation is { CompletedAt: null })
+            {
+                await _operationRepository.MarkFailedTerminalAsync(operation.Id, reason, ct).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Durable operation failure close failed for {Path}", candidate.Path);
         }
     }
 

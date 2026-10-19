@@ -291,6 +291,7 @@ public static class LibraryHelpers
         "RootWatchFolder" => "This file was placed in the root watch folder  -  its media type couldn't be determined.",
         "UserFixMatch" => "You requested to fix the match for this item.",
         "WritebackFailed" => "Re-tagging this file failed. It may be locked, corrupt, or unwritable.",
+        "MediaInspectionFailed" => "This file couldn't be read. It may be damaged or incomplete.",
         _ => "This item needs your attention.",
     };
 
@@ -313,6 +314,7 @@ public static class LibraryHelpers
         "MultipleQidMatches" => "Multiple possible Wikidata matches found",
         "RootWatchFolder" => "Dropped into root watch folder  -  please confirm the media type",
         "WritebackFailed" => "Re-tag failed  -  file may be locked or corrupt",
+        "MediaInspectionFailed" => "This file couldn't be read",
         _ => trigger ?? "This item needs review",
     };
 

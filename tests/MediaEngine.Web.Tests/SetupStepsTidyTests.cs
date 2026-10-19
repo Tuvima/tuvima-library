@@ -11,6 +11,9 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     private static readonly string[] SixSteps =
         ["Name your server", "Your account", "Libraries", "Language", "Enhance your library", "All set"];
 
+    private static readonly ToolRequirementsDto NoToolsNeeded = new(
+        ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, []);
+
     private static IReadOnlyList<SetupStepStatusDto> Statuses(string deferredKey = "") => SetupWorkflow.StepKeys
         .Select(key => new SetupStepStatusDto(key, key == deferredKey ? "deferred" : "passed", null, null, null))
         .ToList();
@@ -60,11 +63,12 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     [Fact]
     public void FailedCheck_ShowsOnePlainMessageAndRetry_WithNoStorageList()
     {
-        var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64", "ok",
+        var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64",
         [
             new SetupPathCheckDto("storage-media", "Tuvima library folder", "/data/media", "config", "failed", false, false, null,
                 "Tuvima cannot write to the folder it keeps your library in."),
-        ]);
+        ],
+            NoToolsNeeded);
 
         var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, failed));
 
@@ -81,13 +85,14 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     [Fact]
     public void SeveralFailingChecksRenderOneMessage_AndRawExceptionTextIsNeverShown()
     {
-        var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64", "ok",
+        var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64",
         [
             new SetupPathCheckDto("database", "Database", "/data/library.db", "config", "blocked", false, false, null,
                 "SQLite quick_check did not pass."),
             new SetupPathCheckDto("artwork", "Artwork", "/data/.data", "config", "blocked", false, false, null,
                 "IOException: The process cannot access the file '/data/x' because it is being used by another process."),
-        ]);
+        ],
+            NoToolsNeeded);
 
         var cut = Render<SetupPreflightStage>(parameters => parameters
             .Add(p => p.Preflight, failed)

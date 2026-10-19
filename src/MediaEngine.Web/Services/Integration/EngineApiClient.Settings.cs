@@ -21,6 +21,85 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    // -- /settings/tools ---------------------------------------------------------
+
+    public Task<ToolRequirementsDto?> GetToolRequirementsAsync(CancellationToken ct = default) =>
+        GetAsync<ToolRequirementsDto>("GET /settings/tools", "/settings/tools", ct: ct);
+
+    public Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default) =>
+        PostAsync<object?, ToolRequirementsDto>("POST /settings/tools/check", "/settings/tools/check", null, ct: ct);
+
+    public async Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            // The Engine's refusal is a short plain sentence meant for the person, so it is passed on as it is
+            // rather than wrapped in the shared failure state's "HTTP 400: ..." summary.
+            using var message = new HttpRequestMessage(HttpMethod.Put, $"/settings/tools/{Uri.EscapeDataString(toolId)}/location")
+            {
+                Content = JsonContent.Create(request),
+            };
+            using var response = await _http.SendAsync(message, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new(false, ErrorMessage: await ReadViewErrorAsync(response, ct));
+            }
+
+            var tools = await response.Content.ReadFromJsonAsync<ToolRequirementsDto>(cancellationToken: ct);
+            return tools is null ? new(false, ErrorMessage: "The Engine returned no result.") : new(true, tools);
+        }
+        catch (OperationCanceledException) { return new(false, ErrorMessage: "That was canceled."); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "PUT /settings/tools/{ToolId}/location failed", toolId);
+            return new(false, ErrorMessage: "The Library could not save that location. Check that the server is online and try again.");
+        }
+    }
+
+    public Task<ToolActionResult> InstallToolAsync(string toolId, CancellationToken ct = default) =>
+        SendToolActionAsync(HttpMethod.Post, toolId, "install",
+            "The Library could not start that download. Check that the server is online and try again.", ct);
+
+    public Task<ToolActionResult> CancelToolInstallAsync(string toolId, CancellationToken ct = default) =>
+        SendToolActionAsync(HttpMethod.Delete, toolId, "install",
+            "The Library could not cancel that download. Check that the server is online and try again.", ct);
+
+    public Task<ToolActionResult> RunToolInstallerAsync(string toolId, CancellationToken ct = default) =>
+        SendToolActionAsync(HttpMethod.Post, toolId, "run-installer",
+            "The Library could not start the installer. Check that the server is online and try again.", ct);
+
+    public Task<ToolActionResult> DeclineToolInstallAsync(string toolId, CancellationToken ct = default) =>
+        SendToolActionAsync(HttpMethod.Post, toolId, "decline",
+            "The Library could not save that. Check that the server is online and try again.", ct);
+
+    // The Engine's refusal is a short plain sentence meant for the person, so it is passed on as it is.
+    private async Task<ToolActionResult> SendToolActionAsync(
+        HttpMethod method, string toolId, string action, string failure, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
+        var path = $"/settings/tools/{Uri.EscapeDataString(toolId)}/{action}";
+        try
+        {
+            using var message = new HttpRequestMessage(method, path);
+            using var response = await _http.SendAsync(message, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new(false, ErrorMessage: await ReadViewErrorAsync(response, ct));
+            }
+
+            var tools = await response.Content.ReadFromJsonAsync<ToolRequirementsDto>(cancellationToken: ct);
+            return tools is null ? new(false, ErrorMessage: "The Engine returned no result.") : new(true, tools);
+        }
+        catch (OperationCanceledException) { return new(false, ErrorMessage: "That was canceled."); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "{Method} {Path} failed", method, path);
+            return new(false, ErrorMessage: failure);
+        }
+    }
+
     // -- /profiles ---------------------------------------------------------------
 
     public async Task<List<ProfileViewModel>> GetProfilesAsync(CancellationToken ct = default)

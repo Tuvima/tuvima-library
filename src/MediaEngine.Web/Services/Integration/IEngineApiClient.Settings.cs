@@ -13,6 +13,27 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    /// <summary>The Engine's last tools check, or <c>null</c> when the Engine could not be asked.</summary>
+    Task<ToolRequirementsDto?> GetToolRequirementsAsync(CancellationToken ct = default);
+
+    /// <summary>Asks the Engine to look for its tools again and returns the fresh result.</summary>
+    Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default);
+
+    /// <summary>Saves the folder a person chose as a tool's home and returns the fresh tools check, or the Engine's plain reason it was refused.</summary>
+    Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default);
+
+    /// <summary>Starts downloading FFmpeg or Tesseract (Install for me, Download again) and returns the tools list with the download in progress, or the Engine's plain reason it was refused.</summary>
+    Task<ToolActionResult> InstallToolAsync(string toolId, CancellationToken ct = default);
+
+    /// <summary>Cancels a tool download in progress and returns the fresh tools list.</summary>
+    Task<ToolActionResult> CancelToolInstallAsync(string toolId, CancellationToken ct = default);
+
+    /// <summary>Starts Tesseract's downloaded setup program on the machine running the Engine and returns the tools list.</summary>
+    Task<ToolActionResult> RunToolInstallerAsync(string toolId, CancellationToken ct = default);
+
+    /// <summary>Records "Not now" for the tools banner and returns the fresh tools list.</summary>
+    Task<ToolActionResult> DeclineToolInstallAsync(string toolId, CancellationToken ct = default);
+
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 
     /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>
@@ -387,3 +408,9 @@ public partial interface IEngineApiClient
         CancellationToken ct = default);
 
 }
+
+/// <summary>The outcome of saving a tool's location: the fresh tools check, or a short plain reason it was refused.</summary>
+public sealed record ToolLocationResult(bool Success, ToolRequirementsDto? Tools = null, string? ErrorMessage = null);
+
+/// <summary>The outcome of an install, cancel, run-installer or decline request: the fresh tools list, or a short plain reason it was refused.</summary>
+public sealed record ToolActionResult(bool Success, ToolRequirementsDto? Tools = null, string? ErrorMessage = null);

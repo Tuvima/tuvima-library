@@ -1,6 +1,6 @@
 # Spec: First run and prerequisites
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Windows install (public)](../../docs/install/windows.md) · [Install from source (public)](../../docs/install/from-source.md) · [Configuration reference (public)](../../docs/reference/configuration.md)
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Windows install (public)](../../docs/install/windows.md) · [Install from source (public)](../../docs/install/from-source.md) · [Configuration reference (public)](../../docs/reference/configuration.md)
 
 > Written 2026-10-18 after Shy's first test run on a fresh data store, Group 1 of the bug list (bugs 25, 26, 3, 1, 2). Everything below was checked against the code on main (merge of PR 259). Where something is inferred rather than seen, it says so. Shy answered every question and Locked the spec on 2026-10-18. Nothing is built. Shy said not to download FFmpeg by hand during the test, then asked whether the Library should fetch missing tools itself at start-up and clarified that privacy first means not sharing data, not refusing to download what the app needs. Options are in section 7 (Q5); the recommended one is WP7.
 
@@ -26,6 +26,7 @@
 - **A6.** Settings has one **Tools and requirements** page listing every tool and the Local AI models with their state, matching what setup showed, and for anything missing it says what is blocked and how many files are held. The Local AI page keeps only AI settings. (WP2, WP7)
 - **A7.** Each key-needing service connects from a single screen: link, paste, Test. (WP4)
 - **A8.** The folder picker's path bar spans the full width above the lists, and the icon follows the media type. (WP5)
+- **A8b.** (Added by Shy 2026-10-18.) The folder picker follows the reference layout and behaviours AD1 to AD6 under WP5: paste a path and go, single-click select and double-click open, one-click copy, container paths, a plain message for a missing or unreadable path, and media locations first. (WP5)
 - **A9.** The from-source install page lists every tool and how to get it. (WP6)
 
 ## 1. Goal
@@ -54,6 +55,7 @@ Whoever installs the Library, however they installed it, is told up front which 
 - **D2.** Privacy first means the Library never shares your data; it does not mean it cannot fetch the tools it needs (Shy, 2026-10-18). Fetching is offered, not automatic (Q5). Reason: Reliability and Privacy.
 - **D3.** One catalogue of tools drives setup, Settings, the start-up log and the existing health check, so they can never disagree. Reason: Maintenance.
 - **D4.** Whether a tool is Required depends on the media types chosen: FFmpeg is Required when Movies, TV, Music or Audiobooks are in use, and Optional for a books-and-comics-only library. Reason: do not nag people about tools they will never need.
+  - *Amended by Shy, 2026-10-18, during the build:* FFmpeg is always Required. Every new Library starts with Movies, TV, Music and Audiobooks set up, and the tools check runs before any folders are chosen, so "books and comics only" never applies in practice. Someone with only books presses Continue past the note.
 - **D5.** Setup warns about a missing tool and never blocks (Q1, Shy 2026-10-18). FFmpeg is needed for the app's video and audio work; a library with only books or comics does not care. Files that need a missing tool are held back, not failed, until it is fixed (D5). Fixing is offered, not automatic: an alert plus an install or download-again button (Q5), and the page shows exactly what is blocked while a tool is missing.
 - **D6.** One **Tools and requirements** page in Settings (Q3, Shy's decision) lists every tool and every on-demand download, including the Local AI models, using one shared download mechanic (same pinned, checked, logged approach). The Local AI page keeps only the AI settings; the model files and their download state move to the new page. Reason: Maintenance, one mechanic and one place to look.
 - **D7.** Every download or repair writes entries to the system activity log (started, finished, failed, checksum refused, cancelled).
@@ -125,6 +127,13 @@ Whoever installs the Library, however they installed it, is told up front which 
 - **Depends on:** none
 - **Size:** Standard
 - **Done when:** at desktop and narrow widths the path bar spans the dialog and can be selected and copied in one go; opening the picker for Movies, TV, Music, Books, Comics and Audiobooks shows six different icons.
+- **Addendum (Shy, 2026-10-18, added during the build).** Reference layout: [folder picker mockup](../design/mockups/first-run-prerequisites-folder-picker.webp) (layout only; values come from the shipped tokens). Title and help text at the top, then a full-width path box with a clear button and **Go**; a folder list down the left; on the right Back, Forward and Up buttons, a breadcrumb trail, a folder search box, and a Name / Modified list; at the bottom a "Selected path" box with a copy button beside Cancel and the select button. Required behaviour:
+  - **AD1. Paste a path.** Typing or pasting a full path (for example `/media/movies`) and pressing Enter or **Go** goes straight there.
+  - **AD2. Browse.** Single-click selects a folder, double-click opens it; breadcrumbs and an Up button move back up.
+  - **AD3. Copy.** The complete selected path copies with one click.
+  - **AD4. Container-aware.** Paths are shown as the Engine sees them (inside the container when it runs in Docker), never translated to host paths.
+  - **AD5. Validate.** A path that does not exist or cannot be opened says so plainly beside the path box, and nothing is selected.
+  - **AD6. Simple navigation.** The left list shows the configured media locations first, not every system folder. The picker never opens up folders outside the locations it is already allowed to browse.
 
 ### WP6 — Install pages list every tool
 - **What it does:** The from-source page currently covers Tesseract but not FFmpeg. Add both, with what each affects, where to get them, and how to check. Align the Windows and Docker pages and the configuration reference with the new tools list. Update the status and feature inventory pages per the docs rules.
@@ -161,6 +170,7 @@ Whoever installs the Library, however they installed it, is told up front which 
 | Internet access to metadata services | Needed for identification | Items wait and retry | Your network | Provider health monitor; not part of setup |
 
 - **Why one file looked like a stall (bug 21).** Each file is handled on its own, so one failure does not block the others, which is how the pipeline is built. But a failed file leaves its file row registered with no further steps and increments the "failed" and "done" counts. When every file is a video, everything fails in turn and the page ends up at "0 items being processed" with nothing identified. This is inferred from the code; WP0 confirms it.
+- **WP0 findings (2026-10-18; the movie, song, book and corrupt-video outcomes are confirmed by tests, the rest by reading the code).** With FFmpeg missing, a movie and a song each end up with a file record but no identification job, a "failed" entry in the ingestion log and the activity log, and the batch counts one failure. Their background task is left marked "running" for ever. A book in the same situation is fine. With FFmpeg present, a corrupt video fails the same way and does not reach Needs Review, while a good video in the same batch carries on normally. So the queue never stops; every video and audio file simply fails in turn, which is what looked like a stall. A restart or re-scan creates the missing identification job but then fails inspection again and counts another failure. Asking for a file's details to be re-read hits the same failure and returns an unexpected error. The tests for these cases fail today and are fixed by WP3.
 - **Risk:** hiding a missing tool as "waiting" could leave a user wondering why titles are not appearing. Mitigation: the setup note, the "Waiting for media tools" label and the Settings list all say the same thing.
 - **Note:** the Windows installer and the Docker image already bundle both tools, with their licences shipped (Apache 2.0 for Tesseract, GPLv3 for FFmpeg, both recorded in the project's attributions). Q5 therefore mostly affects people running from source.
 - **Risk:** Tesseract on Windows is installed by running its setup program, which needs administrator approval and puts the tool outside the Library's folders; detection must look there, and the person must finish the installer for the tool to become Ready. Until then the page shows it as downloaded and waiting for install.

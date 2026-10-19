@@ -276,7 +276,11 @@ A short label on a View photo, video or document, such as "Taxes" or "Holiday". 
 
 ### Text recognition (OCR)
 
-Reading the words in a picture of text. Tuvima Library uses it for scanned PDF pages and photos of paper in View, so those documents can be searched. It runs on your own computer with Tesseract, one file at a time, and never changes the original. English is included; other languages are an optional download, the only time it uses the internet.
+Reading the words in a picture of text. Tuvima Library uses it for scanned PDF pages and photos of paper in View, so those documents can be searched. It runs on your own computer with Tesseract, one file at a time, and never changes the original. English is included; other languages are an optional download, fetched only when you ask.
+
+### Tools and requirements
+
+The Settings page (Administration) that lists every helper tool the Library relies on, such as FFmpeg for video and audio and Tesseract for scanned documents, plus the local AI models. Each shows Ready, Missing or Optional, what it affects, how to fix it for your kind of install, how many files are waiting for it, and **Check again**. You can point the Library at a tool with **Locate it**, and on Windows runs from source it can fetch a checked copy with **Install for me**. First-run setup shows the same list when a required tool is missing.
 
 ## U
 
@@ -289,6 +293,10 @@ A larger world or franchise that can connect multiple shelves. Tuvima uses unive
 One numbered, forward-only change to the data store, such as adding a table or column. Each step runs once at Engine start and is recorded in the data store; a released step is never edited. See [Changing the data store](../develop/changing-the-data-store.md).
 
 ## W
+
+### Waiting for media tools
+
+The label on a video or audio file that arrived while FFmpeg was missing. The file is added and identified as usual; only reading its technical details waits. It finishes by itself once FFmpeg is found, with no restart or re-scan. See [Tools and requirements](#tools-and-requirements).
 
 ### Wikidata
 

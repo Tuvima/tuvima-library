@@ -510,6 +510,33 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RecentAdditions_ShowsAFileHeldForAMissingMediaToolAsWaitingNotFailed()
+    {
+        var batchId = AddBatch("completed", 3, 3);
+        var plain = AddStandalone(batchId, "Movies", "Added Normally", presented: true);
+        var waiting = AddStandalone(batchId, "Movies", "Waiting For FFmpeg", presented: true);
+        var waitingButReview = AddStandalone(batchId, "Movies", "Waiting And Unreadable", presented: true);
+        HoldInspection(waiting);
+        HoldInspection(waitingButReview);
+        using (var conn = _db.CreateConnection())
+        {
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            conn.Execute("""
+                INSERT INTO review_queue (id, entity_id, entity_type, trigger, status, review_ready_at, created_at)
+                VALUES (@id, @work, 'Work', 'MediaInspectionFailed', 'Pending', @now, @now);
+                """, new { id = Guid.NewGuid(), work = waitingButReview, now });
+        }
+
+        var page = await new IngestionPresentationReadService(_db).GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+
+        var held = page.Items.Single(item => item.GroupId == waiting);
+        Assert.Equal("waiting_for_tools", held.Availability);
+        Assert.Equal("Waiting for media tools", held.StatusLabel);
+        Assert.NotEqual("waiting_for_tools", page.Items.Single(item => item.GroupId == plain).Availability);
+        Assert.Equal("review", page.Items.Single(item => item.GroupId == waitingButReview).Availability);
+    }
+
+    [Fact]
     public async Task OperationsArtwork_UsesSmallPreviewAndMediumGridRenditions()
     {
         var batchId = AddBatch("completed", 1, 1);
@@ -983,6 +1010,17 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             """, new { artId = Guid.NewGuid(), workId, now });
         InsertLog(conn, logId, batchId, assetId, mediaType, title, now);
         return workId;
+    }
+
+    private void HoldInspection(Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        var assetId = conn.QuerySingle<Guid>(
+            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
+            new { workId });
+        conn.Execute(
+            "INSERT INTO media_inspection_holds (asset_id, tool_id, held_at) VALUES (@assetId, 'ffmpeg', @now);",
+            new { assetId, now = DateTimeOffset.UtcNow.ToString("O") });
     }
 
     private static void InsertLog(System.Data.IDbConnection conn, Guid logId, Guid batchId, Guid assetId, string mediaType, string title, string now)

@@ -54,45 +54,9 @@
     {
         <AppProgressBar Indeterminate="true" />
     }
-    else if (_models.Count == 0)
-    {
-        <AppAlert Tone="AppUiTone.Warning">The selected model status is unavailable.</AppAlert>
-    }
-    else
-    {
-        <div class="models-grid">
-            @foreach (var model in _models)
-            {
-                <AppCard Class="model-card">
-                    <div class="model-card__header">
-                        <AppChip Text="@(model.ModelType.Equals("Audio", StringComparison.OrdinalIgnoreCase) ? "Optional audio" : "Selected text")" Tone="AppUiTone.Primary" />
-                        <AppChip Text="@StateLabel(model)" Tone="@StateTone(model)" />
-                    </div>
-                    <strong class="model-card__title">@ModelTitle(model)</strong>
-                    <span class="model-card__meta">@model.ModelFile · @FormatMb(model.SizeMB) · @model.Quantization</span>
-                    <span class="model-card__meta">On disk: @DiskLabel(model) · Checksum: @model.ChecksumStatus</span>
-                    @foreach (var warning in model.ValidationWarnings.Concat(model.BlockingReasons).Distinct(StringComparer.Ordinal))
-                    {
-                        <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mt-2">@warning</AppAlert>
-                    }
-                    @if (model.State.Equals("Downloading", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <AppProgressBar Value="@model.DownloadProgressPercent" ShowValue="true" Class="tl-sp-mt-3" />
-                    }
-                    <AppActionBar Align="AppHorizontalAlignment.Start" Class="tl-sp-mt-3">
-                        <AppButton Label="Download" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="@(!CanDownload(model))" OnClick="@(() => RunAction(model.Role, AiModelAction.Download))" />
-                        <AppButton Label="Cancel" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(!CanCancel(model))" OnClick="@(() => RunAction(model.Role, AiModelAction.Cancel))" />
-                        <AppButton Label="Load" Size="AppControlSize.Compact" Tone="AppUiTone.Success" Disabled="@(!CanLoad(model))" OnClick="@(() => RunAction(model.Role, AiModelAction.Load))" />
-                        <AppButton Label="Unload" Size="AppControlSize.Compact" Disabled="@(!CanUnload(model))" OnClick="@(() => RunAction(model.Role, AiModelAction.Unload))" />
-                    </AppActionBar>
-                </AppCard>
-            }
-        </div>
-    }
 </div>
 
 @code {
-    private List<AiModelStatusDto> _models = [];
     private AiConfigDto? _config;
     private HardwareProfileDto? _profile;
     private bool _loading;
@@ -115,7 +79,6 @@
         _loading = true;
         _config = await Orchestrator.GetAiConfigAsync();
         _profile = await Orchestrator.GetAiProfileAsync();
-        _models = (await Orchestrator.GetAiModelStatusesAsync()).ToList();
         _loading = false;
     }
 
@@ -170,21 +133,6 @@
         await RefreshAsync();
     }
 
-    private async Task RunAction(string role, AiModelAction action)
-    {
-        var result = action switch
-        {
-            AiModelAction.Download => await Orchestrator.StartAiModelDownloadAsync(role),
-            AiModelAction.Cancel => await Orchestrator.CancelAiModelDownloadAsync(role),
-            AiModelAction.Load => await Orchestrator.LoadAiModelAsync(role),
-            AiModelAction.Unload => await Orchestrator.UnloadAiModelAsync(role),
-            _ => AiOperationResultDto.Failure(new AiProblemDetailsDto { Title = "Unsupported AI action" }),
-        };
-        _messageSeverity = result.Succeeded ? AppSeverity.Success : AppSeverity.Error;
-        _message = result.Succeeded ? $"{action} requested for {role}." : result.Problem?.ToUserMessage() ?? $"{action} failed.";
-        await RefreshAsync();
-    }
-
     private static string BenchmarkSummary(HardwareProfileDto? profile) => profile?.Outcome switch
     {
         "succeeded" => $"Succeeded on this machine at {profile.TokensPerSecond.GetValueOrDefault():F1} tokens/sec. Advanced eligibility: {(profile.AdvancedEligible ? "eligible" : "not eligible")}.",
@@ -192,22 +140,4 @@
         "invalidated" => "The prior benchmark is invalid for this machine and will not be reused.",
         _ => "No benchmark has been recorded for this machine.",
     };
-
-    private static bool CanDownload(AiModelStatusDto model) => model.CanOperate && IsState(model, "NotDownloaded", "Error");
-    private static bool CanCancel(AiModelStatusDto model) => IsState(model, "Downloading");
-    private static bool CanLoad(AiModelStatusDto model) => model.CanOperate && IsState(model, "Ready") && !model.Loaded;
-    private static bool CanUnload(AiModelStatusDto model) => model.Loaded || model.Active || IsState(model, "Loaded");
-    private static bool IsState(AiModelStatusDto model, params string[] states) => states.Any(state => model.State.Equals(state, StringComparison.OrdinalIgnoreCase));
-    private static string StateLabel(AiModelStatusDto model) => model.Active ? "Active" : model.Loaded ? "Loaded" : model.State;
-    private static string ModelTitle(AiModelStatusDto model) => string.IsNullOrWhiteSpace(model.DisplayName) ? model.Description : model.DisplayName;
-    private static AppUiTone StateTone(AiModelStatusDto model) => StateLabel(model).ToLowerInvariant() switch
-    {
-        "active" or "loaded" or "ready" => AppUiTone.Success,
-        "downloading" => AppUiTone.Info,
-        "error" => AppUiTone.Error,
-        _ => AppUiTone.Warning,
-    };
-    private static string FormatMb(long mb) => mb >= 1024 ? $"{mb / 1024.0:F1} GB" : $"{mb} MB";
-    private static string DiskLabel(AiModelStatusDto model) => model.DiskStatus == "present" ? "present" : "not downloaded";
-    private enum AiModelAction { Download, Cancel, Load, Unload }
 }

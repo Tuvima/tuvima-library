@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Ingestion
+
+@* One notice for any list of library additions: shown only while some visible item is waiting for a media tool. *@
+@if (Items.Any(item => IsWaiting(item)))
+{
+    <AppAlert Tone="AppUiTone.Info" Class="media-tools-waiting-notice">
+        Some files are waiting for media tools. See <AppLink Href="/settings/tools">Tools and requirements</AppLink>.
+    </AppAlert>
+}
+
+@code {
+    /// <summary>The availability value the Engine gives a group while a media tool it needs is missing.</summary>
+    public const string WaitingAvailability = "waiting_for_tools";
+
+    [Parameter] public IReadOnlyList<IngestionMediaGroupDto> Items { get; set; } = [];
+
+    public static bool IsWaiting(IngestionMediaGroupDto item) =>
+        string.Equals(item.Availability, WaitingAvailability, StringComparison.OrdinalIgnoreCase);
+}

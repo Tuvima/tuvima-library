@@ -1,3 +1,4 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 namespace MediaEngine.Web.Tests;
 
@@ -19,11 +20,74 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("BrowseServerFoldersAsync", picker, StringComparison.Ordinal);
         Assert.Contains("ValidateServerFolderAsync", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("Enter path manually", picker, StringComparison.Ordinal);
-        Assert.Contains("Label=\"Add\"", picker, StringComparison.Ordinal);
+        Assert.Contains("Label=\"@ConfirmLabel\"", picker, StringComparison.Ordinal);
+        Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("InputFile", picker, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(275)", picker, StringComparison.Ordinal);
         Assert.Contains("preserveSelection: true", picker, StringComparison.Ordinal);
         Assert.Contains("_browseRequest?.Cancel()", picker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Picker_ShowsPathsExactlyAsTheEngineReportsThemWithNoHostTranslation()
+    {
+        var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
+        var engine = Read("src/MediaEngine.Api/Services/Settings/ServerFolderBrowserService.cs");
+
+        // The path box and the footer take the Engine's own text (display path / validated path), never a host-mapped one.
+        Assert.Contains("_pathText = browse.DisplayPath", picker, StringComparison.Ordinal);
+        Assert.Contains("_selectedPathText = _validation.Path", picker, StringComparison.Ordinal);
+        foreach (var translation in new[] { "HostPath", "host_path", "HOST_PATH", "PathMapping", "MapToHost", "TranslatePath" })
+        {
+            Assert.DoesNotContain(translation, picker, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(translation, engine, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void Picker_PutsThePathRowAboveTheListsAndTakesAnOptionalMediaType()
+    {
+        var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
+
+        Assert.Contains("[Parameter] public string? MediaType", picker, StringComparison.Ordinal);
+        Assert.Contains("AppMediaPresentation.IconFor(MediaType, outlined: true)", picker, StringComparison.Ordinal);
+        Assert.True(
+            picker.IndexOf("server-folder-picker__pathbar", StringComparison.Ordinal) < picker.IndexOf("server-folder-picker__body", StringComparison.Ordinal),
+            "The path row must come before the location list and browser.");
+        Assert.Contains("@ondblclick", picker, StringComparison.Ordinal);
+        Assert.Contains("navigator.clipboard.writeText", picker, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OneSharedMappingGivesSixDistinctIconsForTheSixMediaTypesAndAGenericFolderOtherwise(bool outlined)
+    {
+        var types = new[] { "Movies", "TV", "Music", "Books", "Comics", "Audiobooks" };
+        var icons = types.Select(type => AppMediaPresentation.IconFor(type, outlined)).ToList();
+        var generic = AppMediaPresentation.IconFor(null, outlined);
+
+        Assert.Equal(6, icons.Distinct().Count());
+        Assert.DoesNotContain(generic, icons);
+        Assert.Equal(generic, AppMediaPresentation.IconFor("Photos", outlined));
+        Assert.Equal(AppMediaPresentation.IconFor("TV", outlined), AppMediaPresentation.IconFor("TVShows", outlined));
+    }
+
+    [Fact]
+    public void LibraryFoldersPanel_PassesTheSelectedMediaTypeAndOnlyThatCallerDoes()
+    {
+        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
+
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(panel, @"component\.MediaType"));
+        Assert.Contains("_selected.MediaTypes.FirstOrDefault()", panel, StringComparison.Ordinal);
+        foreach (var untyped in new[]
+                 {
+                     "src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor",
+                     "src/MediaEngine.Web/Components/Settings/ToolsRequirementsTab.razor",
+                 })
+        {
+            Assert.DoesNotContain(".MediaType", Read(untyped), StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -95,7 +159,8 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("\"providers\" => \"Enhance your library\"", stepper, StringComparison.Ordinal);
         Assert.Contains("\"language\" => \"Language\"", stepper, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderStatus(", providers, StringComparison.Ordinal);
-        Assert.Contains("Approved folders", picker, StringComparison.Ordinal);
+        Assert.Contains("Media locations", picker, StringComparison.Ordinal);
+        Assert.DoesNotContain("Approved folders", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("Revisiting", preflight, StringComparison.Ordinal);
     }
 

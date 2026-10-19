@@ -31,6 +31,7 @@ public static class ReviewIssueClassifier
         {
             "MissingQid" or "WikidataBridgeFailed" => new(ReviewIssueBucket.QuickFix, "No canonical identity found", "The retail match is retained, but no Wikidata identity could be confirmed.", false),
             "WritebackFailed" => new(ReviewIssueBucket.HighPriority, "File write-back failed", "Metadata could not be written to the physical file after retrying.", true),
+            "MediaInspectionFailed" => new(ReviewIssueBucket.ManualReview, "File couldn't be read", "This file couldn't be read. It may be damaged or incomplete.", false),
             "StagedUnidentifiable" => new(ReviewIssueBucket.HighPriority, "Item could not be identified", "The file is blocked in staging because there is not enough reliable identity evidence.", true),
             "LanguageMismatch" => new(ReviewIssueBucket.ManualReview, "Language needs confirmation", "The file language conflicts with the configured library language.", false),
             "AmbiguousMediaType" or "RootWatchFolder" => new(ReviewIssueBucket.ManualReview, "Media type is uncertain", "The file could belong to more than one media lane and needs a person to choose.", false),

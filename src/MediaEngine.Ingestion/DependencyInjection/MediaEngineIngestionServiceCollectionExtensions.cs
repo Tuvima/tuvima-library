@@ -123,7 +123,14 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         });
 
         services.TryAddSingleton<MediaEngine.Storage.Playback.PlaybackStateRepository>();
+        services.TryAddSingleton<IMediaInspectionHoldRepository, MediaEngine.Storage.MediaInspectionHoldRepository>();
         services.TryAddSingleton<PlaybackInspectionWriter>();
+        services.TryAddSingleton<MediaInspectionReviewRecorder>();
+        // Waiting files resume on their own whenever a tools check finds FFmpeg (including the one at start-up).
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMediaToolStatusListener, PendingMediaInspectionResumer>());
+        // The tools page asks this for "how many files are held": the real counter replaces the "nothing held" default,
+        // whichever module registered first.
+        services.Replace(ServiceDescriptor.Singleton<IToolWaitingWorkCounter, MediaInspectionWaitingWorkCounter>());
         services.TryAddSingleton<IngestionEngine>();
         services.TryAddSingleton<IIngestionEngine>(sp => sp.GetRequiredService<IngestionEngine>());
 

@@ -1,7 +1,27 @@
+/* Layout follows the reference mockup only; every colour, radius and size comes from the shipped tokens. */
 .server-folder-picker {
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     min-height: min(620px, 68vh);
+}
+
+/* The path row spans the whole dialog above the location list and the browser. */
+.server-folder-picker__pathbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.server-folder-picker__pathbar ::deep .tl-input-adornment { min-width: 44px; min-height: 44px; }
+
+.server-folder-picker__body {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 0;
 }
 
 .server-folder-picker__locations {
@@ -24,7 +44,7 @@
 
 .server-folder-picker__locations h3:first-child { margin-top: 0; }
 
-::deep .server-folder-picker__location {
+.server-folder-picker__location {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -36,22 +56,24 @@
     border-radius: var(--app-radius-sm, 6px);
     background: transparent;
     color: inherit;
+    font: inherit;
     text-align: left;
+    cursor: pointer;
 }
 
-::deep .server-folder-picker__location:hover,
-::deep .server-folder-picker__location:focus-visible,
-::deep .server-folder-picker__location.is-active {
+.server-folder-picker__location:hover,
+.server-folder-picker__location:focus-visible,
+.server-folder-picker__location.is-active {
     border-color: var(--tl-accent-primary-border);
     background: var(--tl-accent-primary-soft);
 }
 
-::deep .server-folder-picker__location > span {
+.server-folder-picker__location > span {
     display: grid;
     min-width: 0;
 }
 
-::deep .server-folder-picker__location small {
+.server-folder-picker__location small {
     overflow: hidden;
     color: var(--tl-text-muted);
     text-overflow: ellipsis;
@@ -66,17 +88,58 @@
     padding: 20px;
 }
 
-.server-folder-picker__pathbar {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+/* Back, Forward and Up, then the folder trail, then the folder search. */
+.server-folder-picker__toolbar {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 8px 12px;
+}
+
+.server-folder-picker__history {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.server-folder-picker__crumbs {
+    display: flex;
+    flex: 1 1 220px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+}
+
+.server-folder-picker__crumb {
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--app-radius-sm, 6px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.server-folder-picker__crumb:hover,
+.server-folder-picker__crumb:focus-visible { background: var(--tl-accent-primary-soft); }
+
+.server-folder-picker__crumb.is-current {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--tl-accent-primary);
+    font-weight: 600;
 }
 
 .server-folder-picker__search {
     display: flex;
+    flex: 1 1 200px;
     align-items: center;
     gap: 8px;
+    max-width: 280px;
     min-height: 44px;
     padding: 0 10px;
     border: 1px solid var(--tl-border-subtle);
@@ -113,7 +176,7 @@
     align-items: center;
     gap: 8px;
     min-height: 44px;
-    padding: 0 12px;
+    padding: 0 56px 0 12px;
     border-bottom: 1px solid var(--tl-border-subtle);
     position: sticky;
     z-index: 1;
@@ -123,6 +186,84 @@
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+/* A folder row: the select button fills the row and a separate 44px button opens it, for touch and keyboard. */
+.server-folder-picker__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: stretch;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.server-folder-picker__folder {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 52px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.server-folder-picker__folder:hover,
+.server-folder-picker__folder.is-highlighted { background: var(--tl-accent-primary-soft); }
+
+.server-folder-picker__folder.is-selected {
+    background: var(--tl-accent-primary-soft);
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
+}
+
+.server-folder-picker__list:focus-visible .server-folder-picker__folder.is-highlighted {
+    box-shadow: inset 0 0 0 2px var(--tl-accent-primary);
+}
+
+.server-folder-picker__folder-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--tl-accent-primary);
+}
+
+.server-folder-picker__folder-name strong {
+    overflow: hidden;
+    color: var(--tl-text-primary);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.server-folder-picker__modified {
+    color: var(--tl-text-muted);
+    font-size: 0.82rem;
+    text-align: right;
+}
+
+.server-folder-picker__row ::deep .server-folder-picker__open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tl-text-muted);
+    cursor: pointer;
+}
+
+.server-folder-picker__row ::deep .server-folder-picker__open:hover,
+.server-folder-picker__row ::deep .server-folder-picker__open:focus-visible {
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-text-primary);
 }
 
 .server-folder-picker__state {
@@ -155,40 +296,79 @@
 /* Reserve room for validation notices so the folder list does not jump when one appears. */
 .server-folder-picker__notices { display: grid; align-content: start; gap: 8px; min-height: 76px; }
 
-@media (min-width: 1600px) {
-    .server-folder-picker { grid-template-columns: 340px minmax(0, 1fr); }
+/* Footer: the selected path with its copy button, then Cancel and the confirm button. */
+.server-folder-picker__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    width: 100%;
 }
 
-/* Under 840px (the one card breakpoint shared with the Libraries panel): drives become a compact row above the path bar, folders stay one column, Modified is hidden. */
+.server-folder-picker__selected {
+    display: flex;
+    flex: 1 1 320px;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.server-folder-picker__selected-label {
+    color: var(--tl-text-muted);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.server-folder-picker__selected-field {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.server-folder-picker__selected-field ::deep .tl-input-adornment { min-width: 44px; min-height: 44px; }
+
+.server-folder-picker__copied {
+    min-width: 3.5rem;
+    color: var(--tl-text-muted);
+    font-size: 0.8rem;
+}
+
+/* Under 840px (the one card breakpoint shared with the Libraries panel): a narrower location column, and Modified is hidden. */
 @media (max-width: 840px) {
-    .server-folder-picker {
-        grid-template-columns: minmax(0, 1fr);
-        min-height: 0;
-    }
+    .server-folder-picker__body { grid-template-columns: 220px minmax(0, 1fr); }
+
+    .server-folder-picker__list-header { grid-template-columns: minmax(0, 1fr); }
+    .server-folder-picker__list-header span:nth-child(2) { display: none; }
+    .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 56px; }
+    .server-folder-picker__modified { display: none; }
+}
+
+/* Under 600px the locations sit above the browser as a wrapping list, so nothing scrolls sideways. */
+@media (max-width: 600px) {
+    .server-folder-picker__pathbar { padding: 12px 14px; }
+    .server-folder-picker__body { grid-template-columns: minmax(0, 1fr); }
 
     .server-folder-picker__locations {
-        flex-direction: row;
+        flex-flow: row wrap;
         align-items: center;
         gap: 8px;
         padding: 10px 12px;
-        overflow-x: auto;
         border-right: 0;
         border-bottom: 1px solid var(--tl-border-subtle);
     }
 
     .server-folder-picker__locations h3 { display: none; }
 
-    ::deep .server-folder-picker__location {
-        flex: 0 0 auto;
-        min-width: 150px;
+    .server-folder-picker__location {
+        flex: 1 1 150px;
+        width: auto;
         min-height: 48px;
         padding: 6px 12px;
     }
 
-    .server-folder-picker__list-header { grid-template-columns: minmax(0, 1fr); }
-    .server-folder-picker__list-header span:nth-child(2) { display: none; }
-}
-
-@media (max-width: 520px) {
     .server-folder-picker__browser { padding: 14px; }
+    .server-folder-picker__search { max-width: none; }
+    .server-folder-picker__selected { flex-flow: row wrap; flex-basis: 100%; }
+    .server-folder-picker__selected-label { flex-basis: 100%; }
+    .server-folder-picker__selected-field { flex: 1 1 0; }
 }

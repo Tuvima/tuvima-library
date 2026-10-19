@@ -109,7 +109,7 @@ Long-lived keys belong in `config/secrets/`. A blank key in the public provider 
 
 ## Local AI is unavailable
 
-Open **Settings → Local AI → Models & Runtime**. Check whether a role is missing, downloading, ready, loaded, or failed.
+Open **Settings → Tools and requirements**. Check whether a model is missing, downloading, ready or failed, and use **Download again** if a download did not finish. Loading and unloading a model are on the same page; the runtime limits are on **Settings → Local AI → Runtime**.
 
 Confirm model storage, native runtime availability, and capability gates. Saved feature flags do not make missing dependencies ready. Local AI is optional for initial catalogue setup.
 

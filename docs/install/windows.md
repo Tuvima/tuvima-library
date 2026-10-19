@@ -46,10 +46,16 @@ Continue with [Your first library](../tutorials/first-library.md).
 | App files | `C:\Program Files\Tuvima Library` (or your chosen folder) |
 | Windows services | `TuvimaEngine` (port `61495`) and `TuvimaDashboard` (port `5016`), set to start automatically |
 | Data folders | `config`, `db`, `watch` and `library` under `C:\ProgramData\Tuvima` |
-| Media tools | FFmpeg and FFprobe, included with the app |
+| Media tools | FFmpeg, FFprobe and Tesseract, included with the app |
 | Shortcuts | **Open Tuvima Library** in the Start menu, plus an optional desktop shortcut |
 
 The Engine listens only on this computer, so other devices reach Tuvima Library through the Dashboard on port `5016` only. Keep port `61495` blocked in Windows Firewall as an extra safeguard.
+
+## Helper tools
+
+The installer includes FFmpeg, FFprobe and Tesseract, so the Library normally shows every tool as **Ready**. To see them, open **Settings > Tools and requirements** in the Dashboard. The Library also checks the tools at first run and at every start-up.
+
+If FFmpeg is missing or broken, open **Settings > Tools and requirements** and choose **Download again** on that page to repair it. Until FFmpeg is found, video and audio files show **Waiting for media tools** and finish by themselves; nothing fails. Tesseract is optional. Without it, scanned pages and photos of paper are not searchable.
 
 ## Update or uninstall
 

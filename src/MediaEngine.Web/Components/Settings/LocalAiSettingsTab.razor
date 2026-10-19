@@ -7,7 +7,8 @@
     {
         case "models":
             <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Models & Runtime", "Manage local model files, lifecycle actions, and runtime limits.", AppMaterialIcons.Outlined.Storage)
+                @SectionHeading("Runtime", "Choose the resource profile and set runtime limits.", AppMaterialIcons.Outlined.Storage)
+                <SettingsAdvancedLinkRow Title="Model files and downloads" Description="Model files and downloads are on Tools and requirements." Href="/settings/tools" ActionLabel="Open" />
                 <ModelsTab />
                 <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
                     @if (_config is null)
@@ -184,7 +185,7 @@
             @if (!DeviceContext.IsMobile)
             {
             <AppCard Title="Advanced AI" Description="Technical controls stay available when you need them.">
-                <SettingsAdvancedLinkRow Title="Models & Runtime" Description="Manage model files, lifecycle actions, validation, and runtime limits." Href="/settings/ai/models" ActionLabel="Manage" />
+                <SettingsAdvancedLinkRow Title="Runtime" Description="Choose the resource profile, run the benchmark, and set runtime limits." Href="/settings/ai/models" ActionLabel="Manage" />
                 <SettingsAdvancedLinkRow Title="Vocabulary" Description="Edit the controlled vocabulary used by local tagging." Href="/settings/ai/vocabulary" ActionLabel="Manage" />
                 <SettingsAdvancedLinkRow Title="Automation" Description="Review enrichment progress and edit saved schedules." Href="/settings/ai/automation" ActionLabel="Manage" />
             </AppCard>

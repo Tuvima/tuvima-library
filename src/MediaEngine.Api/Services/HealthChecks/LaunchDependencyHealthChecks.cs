@@ -1,10 +1,11 @@
 using System.Runtime.InteropServices;
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.Tools;
+using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using SkiaSharp;
 
 namespace MediaEngine.Api.Services.HealthChecks;
 
@@ -55,71 +56,30 @@ public sealed class ConfigurationHealthCheck(
     }
 }
 
-public sealed class MediaRuntimeHealthCheck(IFFmpegService ffmpeg, SharedAiRuntime runtime) : IHealthCheck
+public sealed class MediaRuntimeHealthCheck(IToolRequirementsService tools, SharedAiRuntime runtime) : IHealthCheck
 {
+    private static readonly string[] RuntimeToolIds =
+    [
+        ToolRequirementIds.Ffmpeg,
+        ToolRequirementIds.AdaptiveStreaming,
+        ToolRequirementIds.ImageEngine,
+        ToolRequirementIds.AiRuntime,
+    ];
+
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var failures = new List<string>();
-        string? ffmpegVersion = null;
-        var skiaAvailable = false;
-        var llamaAvailable = false;
+        // The tools catalogue is the one source; this check only turns its rows into a health result.
+        var catalogue = await tools.GetAsync(cancellationToken).ConfigureAwait(false);
+        var rows = catalogue.Tools.Where(tool => RuntimeToolIds.Contains(tool.Id, StringComparer.Ordinal)).ToList();
+        ToolRequirementDto? Row(string id) => rows.FirstOrDefault(tool => tool.Id == id);
+        bool Ready(string id) => Row(id)?.State == ToolRequirementStates.Ready;
 
-        if (!ffmpeg.IsAvailable)
-        {
-            failures.Add("FFmpeg and FFprobe are not both available.");
-        }
-        else
-        {
-            try
-            {
-                var version = await ffmpeg.RunAsync("-version", cancellationToken).ConfigureAwait(false);
-                ffmpegVersion = version.Output
-                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault();
-                if (version.ExitCode != 0)
-                {
-                    failures.Add("FFmpeg version probe returned a non-zero exit code.");
-                }
-
-                if (!ffmpeg.HardwareCapabilities.AdaptiveHlsReady)
-                {
-                    failures.Add("FFmpeg lacks an HLS muxer, H.264 encoder, or AAC encoder required for adaptive delivery.");
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                failures.Add($"FFmpeg version probe failed: {ex.Message}");
-            }
-        }
-
-        try
-        {
-            using var bitmap = new SKBitmap(2, 2);
-            bitmap.Erase(SKColors.Purple);
-            using var image = SKImage.FromBitmap(bitmap);
-            using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
-            skiaAvailable = encoded is { Size: > 0 };
-            if (!skiaAvailable)
-            {
-                failures.Add("SkiaSharp could not encode a probe image.");
-            }
-        }
-        catch (Exception ex)
-        {
-            failures.Add($"SkiaSharp native runtime failed: {ex.Message}");
-        }
-
-        try
-        {
-            runtime.EnsureLlama();
-            llamaAvailable = true;
-        }
-        catch (Exception ex)
-        {
-            failures.Add($"LLamaSharp native runtime failed: {ex.Message}");
-        }
+        var failures = rows
+            .Where(tool => tool.State != ToolRequirementStates.Ready)
+            .Select(tool => $"{tool.Name} is {tool.State.Replace('_', ' ')}.")
+            .ToList();
 
         var required = string.Equals(
             Environment.GetEnvironmentVariable("TUVIMA_REQUIRE_MEDIA_RUNTIME"),
@@ -130,9 +90,9 @@ public sealed class MediaRuntimeHealthCheck(IFFmpegService ffmpeg, SharedAiRunti
             ["category"] = "native_media_runtime",
             ["required"] = required,
             ["runtime_identifier"] = RuntimeInformation.RuntimeIdentifier,
-            ["ffmpeg"] = ffmpegVersion ?? "unavailable",
-            ["skia"] = skiaAvailable,
-            ["llama_available"] = llamaAvailable,
+            ["ffmpeg"] = Ready(ToolRequirementIds.Ffmpeg) ? Row(ToolRequirementIds.Ffmpeg)?.Version ?? "available" : "unavailable",
+            ["skia"] = Ready(ToolRequirementIds.ImageEngine),
+            ["llama_available"] = Ready(ToolRequirementIds.AiRuntime),
             ["llama_backend"] = runtime.LoadedBackend ?? "unavailable",
             ["llama_path"] = runtime.LoadedLlamaPath ?? "unavailable",
             ["llama_version"] = SharedAiRuntime.LlamaVersion,
@@ -150,32 +110,32 @@ public sealed class MediaRuntimeHealthCheck(IFFmpegService ffmpeg, SharedAiRunti
     }
 }
 
-public sealed class ModelReadinessHealthCheck(ModelInventory inventory, AiSettings settings) : IHealthCheck
+public sealed class ModelReadinessHealthCheck(IToolRequirementsService tools, AiSettings settings) : IHealthCheck
 {
-    public Task<HealthCheckResult> CheckHealthAsync(
+    public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        inventory.Refresh();
-        var statuses = inventory.GetAllStatuses();
-        var unavailable = statuses
-            .Where(status => status.State is AiModelState.NotDownloaded or AiModelState.Error)
-            .Select(status => $"{status.Role}:{status.State}")
+        var catalogue = await tools.GetAsync(cancellationToken).ConfigureAwait(false);
+        var models = catalogue.Tools.Where(tool => tool.Kind == "ai_model").ToList();
+        var unavailable = models
+            .Where(model => model.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem)
+            .Select(model => $"{model.Id[ToolRequirementIds.AiModelPrefix.Length..]}:{model.State}")
             .ToArray();
         var data = new Dictionary<string, object>
         {
             ["category"] = "models",
             ["required"] = false,
-            ["configured"] = statuses.Count,
+            ["configured"] = models.Count,
             ["unavailable"] = string.Join(", ", unavailable),
             ["automatic_download"] = settings.DevSkipDownload ? "bypassed" : "enabled",
         };
 
-        return Task.FromResult(unavailable.Length == 0
+        return unavailable.Length == 0
             ? HealthCheckResult.Healthy("Configured AI model artifacts are ready.", data)
             : HealthCheckResult.Degraded(
                 $"{unavailable.Length} AI model role(s) are unavailable; dependent features will wait without consuming poison attempts.",
-                data: data));
+                data: data);
     }
 }
 

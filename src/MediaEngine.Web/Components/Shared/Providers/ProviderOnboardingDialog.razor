@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared.Providers
 @inject IEngineApiClient ApiClient
+@inject ILogger<ProviderOnboardingDialog> Logger
 
 <AppHostedDialog Title="@DialogTitle"
                  Subtitle="@DialogSubtitle"
@@ -28,46 +29,34 @@
             }
             else
             {
-                @if (Steps.Count > 1)
-                {
-                    <ol class="provider-onboarding__progress" aria-label="Connection progress">
-                        @for (var index = 0; index < Steps.Count; index++)
-                        {
-                            var step = Steps[index];
-                            <li class="@StepClass(index)" aria-current="@(index == _activeStep ? "step" : null)">
-                                <span>@(index + 1)</span><strong>@step.Title</strong>
-                            </li>
-                        }
-                    </ol>
-                }
-
-                var current = Steps[_activeStep];
                 <section class="provider-onboarding__step" aria-live="polite">
-                    <h3>@current.Title</h3>
-                    @if (!string.IsNullOrWhiteSpace(current.Description))
+                    @if (KeyLink is not null || Notices.Count > 0)
                     {
-                        <p>@current.Description</p>
+                        <div class="provider-onboarding__step-action">
+                            @if (KeyLink is not null)
+                            {
+                                @RenderAction(KeyLink)
+                            }
+                            @foreach (var notice in Notices)
+                            {
+                                @RenderAction(notice)
+                            }
+                        </div>
                     }
-                    @if (current.Instructions.Count > 0)
+
+                    @if (Instructions.Count > 0)
                     {
                         <ol class="provider-onboarding__instructions">
-                            @foreach (var instruction in current.Instructions)
+                            @foreach (var instruction in Instructions)
                             {
                                 <li>@instruction</li>
                             }
                         </ol>
                     }
 
-                    @if (current.Action is not null)
+                    @if (UserFields.Count > 0)
                     {
-                        <div class="provider-onboarding__step-action">
-                            @RenderAction(current.Action)
-                        </div>
-                    }
-
-                    @if (FieldsFor(current).Count > 0)
-                    {
-                        <ProviderCredentialForm Fields="@FieldsFor(current)"
+                        <ProviderCredentialForm Fields="@UserFields"
                                                 Values="@_credentials"
                                                 FieldErrors="@FieldErrors"
                                                 Replacing="@(Operation == ProviderOnboardingOperation.Replace)"
@@ -109,19 +98,11 @@
                 {
                     <AppButton Label="Cancel" Disabled="@_busy" OnClick="Cancel" />
                 }
-                @if (_result?.Success != true && _activeStep > 0)
-                {
-                    <AppButton Label="Back" Disabled="@_busy" OnClick="Previous" />
-                }
             </div>
             <div class="provider-onboarding__footer-end">
             @if (_result?.Success == true)
             {
                 <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
-            }
-            else if (_activeStep < Steps.Count - 1)
-            {
-                <AppButton Label="Continue" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="Next" />
             }
             else
             {
@@ -147,19 +128,24 @@
 
     private readonly Dictionary<string, string> _credentials = new(StringComparer.OrdinalIgnoreCase);
     private ProviderCredentialOperationResultDto? _result;
-    private int _activeStep;
     private bool _busy;
 
     private ProviderOnboardingDto Onboarding => Catalogue.Onboarding ?? new ProviderOnboardingDto();
-    private IReadOnlyList<ProviderOnboardingStepDto> Steps => Onboarding.Steps.Count > 0
-        ? Onboarding.Steps
-        : [new ProviderOnboardingStepDto
-        {
-            Id = "credentials",
-            Title = Operation == ProviderOnboardingOperation.Test ? "Test connection" : "Connect provider",
-            Description = Onboarding.Intro?.Summary,
-            CredentialKeys = UserFields.Select(credential => credential.Key).ToList(),
-        }];
+    private IReadOnlyList<ProviderOnboardingActionDto> StepActions => Onboarding.Steps
+        .Select(step => step.Action)
+        .OfType<ProviderOnboardingActionDto>()
+        .ToList();
+    // One screen per service: the first external link across the config steps is the "Get your key" link.
+    private ProviderOnboardingActionDto? KeyLink => StepActions.FirstOrDefault(action =>
+        string.Equals(action.Kind, "external_link", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(action.Url));
+    private IReadOnlyList<ProviderOnboardingActionDto> Notices => StepActions
+        .Where(action => string.Equals(action.Kind, "information", StringComparison.OrdinalIgnoreCase))
+        .ToList();
+    private IReadOnlyList<string> Instructions => Onboarding.Steps
+        .SelectMany(step => step.Instructions)
+        .Where(instruction => !string.IsNullOrWhiteSpace(instruction))
+        .ToList();
     private IReadOnlyList<ProviderCredentialFieldDto> UserFields => Onboarding.Credentials
         .Where(credential => string.Equals(credential.Ownership, "user_supplied", StringComparison.OrdinalIgnoreCase))
         .ToList();
@@ -174,18 +160,10 @@
     private string ProviderPurpose => Onboarding.SupportedLanes.Count > 0
         ? $"Supports {string.Join(", ", Onboarding.SupportedLanes)}."
         : "Metadata provider";
-    private string SubmitLabel => string.Equals(Steps[_activeStep].Action?.Kind, "credential_probe", StringComparison.OrdinalIgnoreCase)
-        && !string.IsNullOrWhiteSpace(Steps[_activeStep].Action?.Label)
-            ? Steps[_activeStep].Action!.Label!
-            : Operation switch
-            {
-                ProviderOnboardingOperation.Test => "Test connection",
-                ProviderOnboardingOperation.Replace => "Save replacement",
-                _ => "Save and verify",
-            };
+    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test ? "Test connection" : "Test";
     private string SuccessTitle => Operation == ProviderOnboardingOperation.Test
         ? "Connection verified"
-        : "Provider connected";
+        : "Key saved";
     private ProviderOnboardingTroubleshootingDto? Troubleshooting => Onboarding.Troubleshooting.FirstOrDefault(item =>
         string.Equals(item.Status, _result?.Status, StringComparison.OrdinalIgnoreCase));
     private string FailureTitle => _result?.Status switch
@@ -218,14 +196,6 @@
     private string? FailureHelpUrl => Troubleshooting?.HelpUrl ?? Onboarding.HelpUrl;
     private string AccentStyle => $"--provider-accent:{Catalogue.AccentColor}";
 
-    private IReadOnlyList<ProviderCredentialFieldDto> FieldsFor(ProviderOnboardingStepDto step)
-    {
-        if (step.CredentialKeys.Count == 0)
-            return Steps.Count == 1 ? UserFields : [];
-
-        return UserFields.Where(credential => step.CredentialKeys.Contains(credential.Key, StringComparer.OrdinalIgnoreCase)).ToList();
-    }
-
     private RenderFragment RenderAction(ProviderOnboardingActionDto? action) => builder =>
     {
         if (action is null) return;
@@ -233,7 +203,7 @@
         if (kind == "external_link" && !string.IsNullOrWhiteSpace(action.Url))
         {
             builder.OpenComponent<AppButton>(0);
-            builder.AddAttribute(1, nameof(AppButton.Label), action.Label ?? "Open provider website");
+            builder.AddAttribute(1, nameof(AppButton.Label), string.IsNullOrWhiteSpace(action.Label) ? "Get your key" : action.Label);
             builder.AddAttribute(2, nameof(AppButton.Href), action.Url);
             builder.AddAttribute(3, nameof(AppButton.Target), "_blank");
             builder.AddAttribute(4, nameof(AppButton.EndIcon), AppMaterialIcons.Outlined.OpenInNew);
@@ -258,18 +228,6 @@
         return Task.CompletedTask;
     }
 
-    private void Next()
-    {
-        if (_activeStep < Steps.Count - 1) _activeStep++;
-        _result = null;
-    }
-
-    private void Previous()
-    {
-        if (_activeStep > 0) _activeStep--;
-        _result = null;
-    }
-
     private async Task SubmitAsync()
     {
         if (_busy || !CanSubmit) return;
@@ -283,10 +241,15 @@
                     .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
                     .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
             };
-            _result = !string.IsNullOrWhiteSpace(SetupSession)
-                ? await ApiClient.SaveSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
-                : Operation == ProviderOnboardingOperation.Test
-                    ? await ApiClient.TestProviderCredentialsAsync(Catalogue.Name, request)
+            // The Engine's save action checks the key with the service first and stores it only when that
+            // succeeds (ProviderCredentialService.SaveAsync), so Test is a single call: a good key is saved,
+            // a bad one is refused. Only the explicit Test operation stays test-only.
+            _result = Operation == ProviderOnboardingOperation.Test
+                ? !string.IsNullOrWhiteSpace(SetupSession)
+                    ? await ApiClient.TestSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
+                    : await ApiClient.TestProviderCredentialsAsync(Catalogue.Name, request)
+                : !string.IsNullOrWhiteSpace(SetupSession)
+                    ? await ApiClient.SaveSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
                     : await ApiClient.SaveProviderCredentialsAsync(Catalogue.Name, request);
             _result ??= new ProviderCredentialOperationResultDto
             {
@@ -295,8 +258,9 @@
                 Message = "The Engine did not return a provider connection result.",
             };
         }
-        catch
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
         {
+            Logger.LogWarning(exception, "Testing the {Provider} key could not reach the Engine.", Catalogue.Name);
             _result = new ProviderCredentialOperationResultDto
             {
                 Success = false,
@@ -315,10 +279,6 @@
         _result?.Status ?? "success",
         _result?.Message ?? "Provider connected.")));
     private void Cancel() => DialogInstance.Cancel();
-
-    private string StepClass(int index) => index == _activeStep
-        ? "is-active"
-        : index < _activeStep ? "is-complete" : string.Empty;
 
     private static string Initials(string name) => string.Concat(name
         .Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries)

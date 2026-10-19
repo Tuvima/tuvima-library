@@ -52,6 +52,40 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// Records a file's technical facts. A missing media tool never stops the file: it waits (the writer keeps the hold)
+    /// and every later step runs as normal. A file the working tool cannot read goes to Needs Review, and still carries on
+    /// to its identity job.
+    /// </summary>
+    private async Task InspectPlaybackAsync(MediaAsset asset, Guid? ingestionRunId, CancellationToken ct)
+    {
+        if (_playbackInspection is null)
+        {
+            return;
+        }
+
+        var outcome = await _playbackInspection.InspectAsync(asset, ct).ConfigureAwait(false);
+        if (outcome != PlaybackInspectionOutcome.Failed)
+        {
+            return;
+        }
+
+        if (_inspectionReviews is not null)
+        {
+            await _inspectionReviews.RecordFailureAsync(asset.Id, ingestionRunId, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            await CreateIngestionReviewItemAsync(
+                asset.Id,
+                ReviewTrigger.MediaInspectionFailed,
+                0.0,
+                MediaInspectionReviewRecorder.UnreadableFileDetail,
+                ct,
+                ingestionRunId).ConfigureAwait(false);
+        }
+    }
+
     private async Task ProcessCandidateCoreAsync(IngestionCandidate candidate, CancellationToken ct)
     {
         var context = new IngestionPipelineContext(
@@ -411,10 +445,7 @@ public sealed partial class IngestionEngine
                         if (hashUpdated)
                         {
                             existing.ContentHash = hash.Hex;
-                            if (_playbackInspection is not null)
-                            {
-                                await _playbackInspection.InspectAsync(existing, ct);
-                            }
+                            await InspectPlaybackAsync(existing, ingestionRunId, ct).ConfigureAwait(false);
                             _logger.LogInformation(
                                 "Re-read local metadata and updated content hash for same-path asset {AssetId}: {OldHash} -> {NewHash}",
                                 existing.Id,
@@ -796,10 +827,7 @@ public sealed partial class IngestionEngine
             return;
         }
 
-        if (_playbackInspection is not null)
-        {
-            await _playbackInspection.InspectAsync(asset, ct).ConfigureAwait(false);
-        }
+        await InspectPlaybackAsync(asset, ingestionRunId, ct).ConfigureAwait(false);
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;

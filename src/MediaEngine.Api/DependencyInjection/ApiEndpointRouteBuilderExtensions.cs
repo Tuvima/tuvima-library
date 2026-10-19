@@ -49,6 +49,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapReviewEndpoints();
         app.MapSettingsEndpoints();
         app.MapOcrSettingsEndpoints();
+        app.MapToolRequirementsEndpoints();
         app.MapNetworkEndpoints();
         app.MapServerFolderEndpoints();
         app.MapLibraryReorganizationEndpoints();

@@ -109,7 +109,7 @@ public sealed class SettingsNavTests
             .ToArray();
 
         Assert.Equal([
-            "Models & Runtime",
+            "Runtime",
             "Vocabulary",
             "Automation",
         ], labels);
@@ -134,6 +134,7 @@ public sealed class SettingsNavTests
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.AdminOverview));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Server));
+        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Tools));
     }
 
     [Fact]
@@ -161,6 +162,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Plugins, "/settings/plugins")]
     [InlineData(SettingsSection.Delivery, "/settings/delivery")]
     [InlineData(SettingsSection.Access, "/settings/access/users")]
+    [InlineData(SettingsSection.Tools, "/settings/tools")]
     [InlineData(SettingsSection.Server, "/settings/backup-recovery")]
     [InlineData(SettingsSection.Review, "/settings/review")]
     [InlineData(SettingsSection.ProviderTester, "/settings/provider-tester")]
@@ -299,6 +301,7 @@ public sealed class SettingsNavTests
             "Network & Remote Access",
             "Devices",
             "Playback & Delivery",
+            "Tools and requirements",
             "Users & Access",
             "Backup & Recovery",
         ], adminLabels);
