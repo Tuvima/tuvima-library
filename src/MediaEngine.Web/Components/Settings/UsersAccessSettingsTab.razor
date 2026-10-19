@@ -1,14 +1,11 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Services.Integration
-@using MediaEngine.Web.Components.Cinematic
 @using MediaEngine.Web.Models.ViewDTOs
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
-@inject NavigationManager Nav
 
 <div class="tl-page users-access-settings">
-    <SurfaceNavigationBar Items="@Sections" ActiveKey="@ActiveSection" ActiveKeyChanged="Navigate" AriaLabel="Access sections" />
     <section class="users-access-settings__section"
              data-access-section="@ActiveSection"
              aria-label="@ActiveSectionLabel">
@@ -43,22 +40,9 @@
 
     private string ActiveSectionLabel => ActiveSection switch
     {
-        "users" => "Households",
-        "applications" => "Applications",
-        "authentication" => "Authentication",
-        _ => "Households",
+        "users" => "Users",
+        "applications" => "Integrations",
+        "authentication" => "Sign-in Methods",
+        _ => "Users",
     };
-
-    private static readonly IReadOnlyList<SurfaceTabItem> Sections =
-    [
-        new("users", "Households", AppMaterialIcons.Outlined.Group),
-        new("applications", "Applications", AppMaterialIcons.Outlined.Apps),
-        new("authentication", "Authentication", AppMaterialIcons.Outlined.Security),
-    ];
-
-    private Task Navigate(string section)
-    {
-        Nav.NavigateTo($"/settings/access/{section}");
-        return Task.CompletedTask;
-    }
 }

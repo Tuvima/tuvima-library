@@ -1,0 +1,6 @@
+.device-type-icon {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    color: var(--tl-text-muted);
+}

@@ -11,11 +11,6 @@
 <NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
 
 <MetadataAdminShell ActiveSubsection="@ActiveSurface">
-    <SettingsSubsectionNav Section="SettingsSection.Providers"
-                           ActiveSubsection="@ActiveSurface"
-                           Mobile="@DeviceContext.IsMobile"
-                           AriaLabel="Metadata settings sections" />
-
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading metadata settings" Class="tl-sp-py-8" />

@@ -220,12 +220,6 @@
     color: var(--app-text-muted);
 }
 
-.access-form-section__hint {
-    margin: 0;
-    color: var(--app-text-muted);
-    font-size: 0.8125em;
-}
-
 .access-grant {
     padding: 1rem;
     border: 1px solid var(--app-border);
@@ -237,20 +231,6 @@
     display: flex;
     align-items: center;
     gap: .75rem;
-}
-
-.access-grant__rename {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: .6rem;
-}
-
-.access-protection {
-    display: grid;
-    gap: .6rem;
-    padding: .75rem;
-    border-left: 2px solid var(--app-accent, #8852FC);
 }
 
 .access-native-input {
@@ -284,10 +264,6 @@
     user-select: all;
 }
 
-.access-users__row--household {
-    grid-template-columns: 1.5fr 1.5fr auto;
-}
-
 @media (max-width: 960px) {
     .access-users__header {
         display: none;
@@ -307,10 +283,6 @@
         grid-row: 1;
         grid-column: 2;
     }
-
-    .access-users__row--household {
-        grid-template-columns: 1fr;
-    }
 }
 
 @media (max-width: 640px) {
@@ -328,8 +300,7 @@
         padding-inline: 1rem;
     }
 
-    .access-permission-list,
-    .access-grant__rename {
+    .access-permission-list {
         grid-template-columns: minmax(0, 1fr);
     }
 }

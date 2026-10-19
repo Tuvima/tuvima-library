@@ -7,11 +7,11 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("GetAiStatusAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAiProfileAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetEnrichmentProgressAsync", source, StringComparison.Ordinal);
-        Assert.Contains("_status?.IsReady != true", source, StringComparison.Ordinal);
+        // Whether Local AI can run is told by the permanent page notice from the shared attention state, not by an alert here.
+        Assert.DoesNotContain("_status?.IsReady", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         Assert.Contains("MaxConcurrentInferences", source, StringComparison.Ordinal);
         Assert.Contains("MinimumFreeDiskMB", source, StringComparison.Ordinal);
@@ -115,24 +115,21 @@ public sealed class Phase7LocalAiTests
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
         Assert.Contains("Enabled features", source, StringComparison.Ordinal);
         Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);
         Assert.Contains("/settings/tools", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ai/vocabulary", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ai/automation", source, StringComparison.Ordinal);
+        // Runtime, Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page.
+        Assert.DoesNotContain("/settings/ai/", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void PluginOverview_UsesInstalledTableAndLinksAdvancedOperations()
+    public void PluginOverview_UsesInstalledTable_AndItsSubPagesAreMenuRowsNotLinkCards()
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("@InstalledPluginsPanel()", source, StringComparison.Ordinal);
-        Assert.Contains("@AdvancedPluginLinks()", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/plugins/jobs-health", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/plugins/catalog", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/plugins/capabilities", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/plugins/danger", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("@AdvancedPluginLinks()", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/plugins/", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SettingsAdvancedLinkRow", source, StringComparison.Ordinal);
         Assert.DoesNotContain("@PluginManager()", source, StringComparison.Ordinal);
     }
 

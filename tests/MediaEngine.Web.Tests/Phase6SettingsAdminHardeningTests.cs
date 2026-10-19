@@ -46,7 +46,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     {
         var overview = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
         var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css");
-        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
         Assert.Contains("admin-overview-card--attention admin-attention-strip", overview, StringComparison.Ordinal);
@@ -246,7 +246,11 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("<ManagedAccessUsers />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Scope=", source, StringComparison.Ordinal);
         Assert.DoesNotContain("My household", source, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
+        Assert.Contains("Profile access", users, StringComparison.Ordinal);
+        // People, households, renaming and PINs are looked after under Profiles, not in the accounts list.
+        Assert.DoesNotContain("Households", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateManagedProfileResultAsync", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("SetGrantProtectionResultAsync", users, StringComparison.Ordinal);
         Assert.Contains("Invite user", users, StringComparison.Ordinal);
         Assert.DoesNotContain("external-logins", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Owner Administrator\", \"library:read, ingest:write", source, StringComparison.Ordinal);
@@ -272,7 +276,8 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Plugin manifest JSON", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_settingsJson", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_manifestJson", plugins, StringComparison.Ordinal);
-        Assert.Contains("_status?.IsReady != true", localAi, StringComparison.Ordinal);
+        // The "limited availability" alert moved to the permanent Local AI page notice, which reads the shared attention state.
+        Assert.DoesNotContain("_status?.IsReady", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", localAi, StringComparison.Ordinal);
     }
 

@@ -14,7 +14,8 @@ public sealed class SettingsServerAdministrationTests
         Assert.Contains("case \"scheduling\"", source, StringComparison.Ordinal);
         Assert.Contains("case \"active-jobs\"", source, StringComparison.Ordinal);
         Assert.Contains("Section=\"diagnostics\"", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/delivery/storage", source, StringComparison.Ordinal);
+        // Scheduling, Optimized Copies, Active Jobs and Diagnostics are rows of the Settings menu tree, not link cards.
+        Assert.DoesNotContain("/settings/delivery/", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Active streams", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Bandwidth", source, StringComparison.OrdinalIgnoreCase);
@@ -63,7 +64,8 @@ public sealed class SettingsServerAdministrationTests
         var applications = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
         Assert.Contains("Last active", users, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
+        Assert.Contains("Profile access", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("Manage profiles", users, StringComparison.Ordinal);
         Assert.DoesNotContain("pending invite", users, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Copy this credential now", applications, StringComparison.Ordinal);
         Assert.DoesNotContain("ToggleReveal", applications, StringComparison.Ordinal);

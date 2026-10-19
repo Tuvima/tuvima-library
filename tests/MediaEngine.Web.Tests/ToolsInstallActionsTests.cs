@@ -13,8 +13,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Install for me, Download again, Cancel and Run installer on the Tools page, and the administrator-only banner
-/// that offers the same install when a Required tool is missing.
+/// Install for me, Download again, Cancel and Run installer on the Tools page. The administrator banner that offers the
+/// same install is covered by <see cref="SettingsAttentionBannerTests"/>.
 /// </summary>
 public sealed class ToolsInstallActionsTests : AsyncBunitContext
 {
@@ -23,11 +23,9 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
     private readonly List<string> _installs = [];
     private readonly List<string> _cancels = [];
     private readonly List<string> _runs = [];
-    private readonly List<string> _declines = [];
     private int _getCalls;
     private Func<ToolRequirementsDto?> _onGet = () => null;
     private Func<string, ToolActionResult> _onInstall = _ => new(false, ErrorMessage: "No.");
-    private Func<string, ToolActionResult> _onDecline = _ => new(false, ErrorMessage: "No.");
     private readonly DashboardSessionAccessor _session = new();
 
     public ToolsInstallActionsTests()
@@ -57,11 +55,6 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
                 _runs.Add((string)args![0]!);
                 return Task.FromResult(new ToolActionResult(true, _onGet()));
             });
-            stub.SetHandler(nameof(IEngineApiClient.DeclineToolInstallAsync), args =>
-            {
-                _declines.Add((string)args![0]!);
-                return Task.FromResult(_onDecline((string)args[0]!));
-            });
         });
         Services.AddSingleton(api);
         Services.AddSingleton(_session);
@@ -72,172 +65,6 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton(new DeviceContextService(api));
-    }
-
-    // ── The banner ───────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Banner_ForAnAdministrator_ShowsAMissingRequiredTool_WithInstallSeeToolsAndNotNow()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        var banner = cut.Find("[data-testid=tools-banner]");
-        Assert.Contains("FFmpeg is missing. " + FfmpegEffect, banner.TextContent, StringComparison.Ordinal);
-        Assert.Contains(banner.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Install for me");
-        Assert.Contains(banner.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Not now");
-        Assert.Contains(banner.QuerySelectorAll("a"), link => link.GetAttribute("href") == "/settings/tools");
-        Assert.DoesNotContain("tools-banner--cinematic", banner.ClassName ?? string.Empty, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Banner_OnAFullBleedPage_StepsDownBelowTheTopBar()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-
-        var cut = Render<ToolsAttentionBanner>(parameters => parameters.Add(p => p.Cinematic, true));
-
-        Assert.Contains("tools-banner--cinematic", cut.Find("[data-testid=tools-banner]").ClassName ?? string.Empty, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Banner_OffersNoInstall_WhenTheEngineDoesNotOfferOne()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: false));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Install for me");
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Not now");
-    }
-
-    [Fact]
-    public void Banner_ForABrokenTool_OffersDownloadAgain()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Problem, canDownloadAgain: true));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.Contains("FFmpeg isn't working.", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Download again");
-    }
-
-    [Fact]
-    public void Banner_NotNow_RecordsTheDecline_AndTheBannerStopsAsking()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-        _onDecline = _ => new(true, Tools(Tool("ffmpeg", "FFmpeg", canInstall: true, declined: true)));
-        var cut = Render<ToolsAttentionBanner>();
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Not now").Click();
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid=tools-banner]")));
-        Assert.Equal(["ffmpeg"], _declines);
-    }
-
-    [Fact]
-    public void Banner_ForAToolTheAdministratorAlreadyDeclined_IsNotShown()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true, declined: true));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.Empty(cut.FindAll("[data-testid=tools-banner]"));
-    }
-
-    [Fact]
-    public void Banner_ForSomeoneWhoIsNotAnAdministrator_IsNeverShown_AndTheEngineIsNotAsked()
-    {
-        SignIn(administrator: false);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.Empty(cut.FindAll("[data-testid=tools-banner]"));
-        Assert.Equal(0, Volatile.Read(ref _getCalls));
-    }
-
-    [Fact]
-    public void Banner_IsNotShownForAnOptionalToolOrAReadyOne()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(
-            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, canInstall: true),
-            Tool("image_engine", "Image engine", state: ToolRequirementStates.Ready));
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.Empty(cut.FindAll("[data-testid=tools-banner]"));
-    }
-
-    [Fact]
-    public void Banner_IsNotShownOnTheToolsPageItself()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-        Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().NavigateTo("/settings/tools");
-
-        var cut = Render<ToolsAttentionBanner>();
-
-        Assert.Empty(cut.FindAll("[data-testid=tools-banner]"));
-    }
-
-    [Fact]
-    public void Banner_InstallForMe_CallsTheEngine_AndShowsProgress()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-        _onInstall = _ => new(true, Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Downloading, percent: 30)));
-        var cut = Render<ToolsAttentionBanner>(parameters => parameters.Add(p => p.ProgressInterval, TimeSpan.FromHours(1)));
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Install for me").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Downloading FFmpeg.", cut.Markup, StringComparison.Ordinal));
-        Assert.Equal(["ffmpeg"], _installs);
-        Assert.Contains("30%", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Install for me");
-    }
-
-    [Fact]
-    public void Banner_AFailedInstallRequest_ShowsThePlainReason()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-        _onInstall = _ => new(false, ErrorMessage: "That is already being downloaded.");
-        var cut = Render<ToolsAttentionBanner>();
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Install for me").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("That is already being downloaded.", cut.Markup, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task Banner_DoesNotAskTheEngineAgainRightAway_WhenNothingIsDownloading()
-    {
-        SignIn(administrator: true);
-        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
-
-        Render<ToolsAttentionBanner>(parameters => parameters
-            .Add(p => p.ProgressInterval, TimeSpan.FromMilliseconds(20))
-            .Add(p => p.RefreshInterval, TimeSpan.FromHours(1)));
-        await Task.Delay(300);
-
-        Assert.Equal(1, Volatile.Read(ref _getCalls));
-    }
-
-    [Fact]
-    public void MainLayout_ShowsTheBannerInTheAppShell_BelowTheTopBarOnFullBleedPages()
-    {
-        var layout = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
-
-        Assert.Contains("<ToolsAttentionBanner Cinematic=\"@IsCinematicShell\" />", layout, StringComparison.Ordinal);
     }
 
     // ── The Tools page ───────────────────────────────────────────────────────
@@ -304,13 +131,6 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private void SignIn(bool administrator)
-    {
-        var profile = Guid.NewGuid();
-        _session.Set("token", Guid.NewGuid(), profile, Guid.NewGuid(),
-            new DashboardAuthorityResponse(profile, profile, true, true, 1, 1, administrator, administrator, null, 1, [], [], []));
-    }
-
     private static ToolRequirementsDto Tools(params ToolRequirementDto[] rows) => new(
         ToolInstallKinds.Source,
         DateTimeOffset.UnixEpoch,
@@ -324,12 +144,11 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
         string state = ToolRequirementStates.Missing,
         bool canInstall = false,
         bool canDownloadAgain = false,
-        bool declined = false,
         int? percent = null,
         string fix = "Run winget install Gyan.FFmpeg, then press Check again.") =>
         new(id, name, "tool", requirement, state, FfmpegEffect, null,
             state == ToolRequirementStates.Ready ? string.Empty : fix,
-            null, 0, false, canInstall, canDownloadAgain, percent, declined);
+            null, 0, false, canInstall, canDownloadAgain, percent);
 
     private static string RepoFile(params string[] parts)
     {

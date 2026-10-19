@@ -19,6 +19,12 @@ public partial interface IEngineApiClient
     /// <summary>Asks the Engine to look for its tools again and returns the fresh result.</summary>
     Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default);
 
+    /// <summary>The Settings attention lines the active profile dismissed, or <c>null</c> when the Engine could not be asked.</summary>
+    Task<ProfileNoticesResponse?> GetSettingsNoticesAsync(CancellationToken ct = default);
+
+    /// <summary>Remembers that the active profile dismissed a Settings attention line, with what was true at the time. False when the Engine did not save it.</summary>
+    Task<bool> DismissSettingsNoticeAsync(string noticeKey, string fingerprint, CancellationToken ct = default);
+
     /// <summary>Saves the folder a person chose as a tool's home and returns the fresh tools check, or the Engine's plain reason it was refused.</summary>
     Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default);
 
@@ -30,9 +36,6 @@ public partial interface IEngineApiClient
 
     /// <summary>Starts Tesseract's downloaded setup program on the machine running the Engine and returns the tools list.</summary>
     Task<ToolActionResult> RunToolInstallerAsync(string toolId, CancellationToken ct = default);
-
-    /// <summary>Records "Not now" for the tools banner and returns the fresh tools list.</summary>
-    Task<ToolActionResult> DeclineToolInstallAsync(string toolId, CancellationToken ct = default);
 
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 

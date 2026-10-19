@@ -2,8 +2,24 @@
     display: flex;
     width: 100%;
     min-width: 0;
-    max-width: 900px;
-    margin: 0 auto;
     flex-direction: column;
     gap: var(--tl-space-4, 16px);
+}
+
+.devices-tab__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-4, 16px);
+}
+
+.devices-tab__filter {
+    display: grid;
+    min-width: 180px;
+    gap: var(--tl-space-1, 4px);
+}
+
+.devices-tab__filter-label {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
 }

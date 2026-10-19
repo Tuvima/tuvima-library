@@ -1,0 +1,123 @@
+/* The frame owns the one left edge, the content width and the vertical rhythm for every Settings page.
+   Pages never set their own outer width, margin or padding; they read these properties if they need the measure. */
+.settings-frame {
+    --settings-frame-max-width: 1180px;
+    --settings-frame-gap: var(--tl-space-5, 20px);
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: var(--settings-frame-max-width);
+    margin: 0;
+    flex-direction: column;
+    gap: var(--settings-frame-gap);
+}
+
+.settings-frame__notices,
+.settings-frame__page-notice,
+.settings-frame__tabs,
+.settings-frame__content {
+    min-width: 0;
+}
+
+.settings-frame__notices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2, 8px);
+}
+
+.settings-frame__notices:empty,
+.settings-frame__page-notice:empty,
+.settings-frame__tabs:empty {
+    display: none;
+}
+
+.settings-frame__header {
+    min-width: 0;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    margin-bottom: var(--tl-space-2, 8px);
+    color: var(--tl-text-muted);
+    font-size: .76rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs a,
+.settings-frame__header ::deep .settings-breadcrumbs span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs a {
+    color: var(--tl-text-secondary);
+    text-decoration: none;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs a:hover,
+.settings-frame__header ::deep .settings-breadcrumbs a:focus-visible {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs span[aria-current="page"] {
+    color: var(--tl-text-primary);
+    font-weight: 600;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.settings-frame__header ::deep .settings-breadcrumbs .tl-icon-root {
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    color: var(--tl-text-faint);
+    font-size: 15px;
+}
+
+.settings-frame__header ::deep .sidebar-page-header {
+    flex-direction: row;
+    align-items: flex-end;
+    margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+    .settings-frame__header ::deep .sidebar-page-header { flex-direction: column; align-items: stretch; }
+}
+
+.settings-frame__header ::deep .sidebar-page-header .app-page-header__eyebrow {
+    margin-bottom: 4px;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: 700;
+    letter-spacing: .11em;
+}
+
+.settings-frame__header ::deep .sidebar-page-header h1 {
+    font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
+    font-size: clamp(1.875rem, 2vw, 2rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -.015em;
+}
+
+.settings-frame__header ::deep .sidebar-page-header p {
+    max-width: 76ch;
+    margin-top: 5px;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    line-height: var(--tl-line-height-body);
+}
+
+.settings-frame__header ::deep .sidebar-page-header .app-page-header__actions {
+    align-items: center;
+    padding-bottom: 2px;
+}

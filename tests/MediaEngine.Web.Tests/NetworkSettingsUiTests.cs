@@ -63,34 +63,23 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
-    public void AppsAndDevicesPanelShowsTheHomeAddressWithNoSwitchAndTheDevicesPageListsPairedDevices()
+    public void TheDevicesPageListsPairedDevicesAndNoNetworkPageCarriesTheConnectAnAppCard()
     {
-        var panel = Read(@"src/MediaEngine.Web/Components/Settings/AppsAndDevicesPanel.razor");
         var devices = Read(@"src/MediaEngine.Web/Components/Settings/PairedDevicesSection.razor");
         var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
         var account = Read(@"src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor");
         var page = Read(@"src/MediaEngine.Web/Components/Settings/DevicesTab.razor");
 
-        Assert.DoesNotContain("AppSwitchRow", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("Allow apps", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("NativeAppAccess", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("secure_account_first", panel, StringComparison.Ordinal);
-        Assert.Contains("Address to type in the app", panel, StringComparison.Ordinal);
-        Assert.Contains("GetNetworkRuntimeStatusAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("Status?.PreferredLocalAddress", panel, StringComparison.Ordinal);
-        Assert.Contains("Apps use this away from home", panel, StringComparison.Ordinal);
-        Assert.Contains("Status?.ExternalAddress", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("<PairedDevicesSection", panel, StringComparison.Ordinal);
         Assert.Contains("<AppTable", devices, StringComparison.Ordinal);
         Assert.Contains("RevokeManagedDeviceAsync", devices, StringComparison.Ordinal);
-        Assert.Contains("Revoke this device?", devices, StringComparison.Ordinal);
+        Assert.Contains("Sign this device out?", devices, StringComparison.Ordinal);
         Assert.DoesNotContain("<PairedDevicesSection", account, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppsAndDevicesPanel", host, StringComparison.Ordinal);
-        Assert.Contains("<AppsAndDevicesPanel", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("AppsAndDevicesPanel", page, StringComparison.Ordinal);
         Assert.Contains("<PairedDevicesSection", page, StringComparison.Ordinal);
         Assert.Contains("<SignedInSessionsSection", page, StringComparison.Ordinal);
-        Assert.Contains("/settings/devices", account, StringComparison.Ordinal);
-        Assert.DoesNotContain("/settings/network/apps", account, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "MediaEngine.Web", "Components", "Settings", "AppsAndDevicesPanel.razor"))));
     }
 
     [Fact]
@@ -165,7 +154,7 @@ public sealed class NetworkSettingsUiTests
     {
         foreach (var file in new[]
         {
-            "NetworkOverviewPanel.razor", "RemoteAccessSettingsPanel.razor", "AppsAndDevicesPanel.razor", "AdvancedNetworkSettingsPanel.razor",
+            "NetworkOverviewPanel.razor", "RemoteAccessSettingsPanel.razor", "AdvancedNetworkSettingsPanel.razor",
         })
         {
             var source = Read($@"src/MediaEngine.Web/Components/Settings/{file}");

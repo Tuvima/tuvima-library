@@ -1,0 +1,56 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* One notice in the Settings frame: a full-width rounded bubble in a tinted theme colour with an icon, one sentence, an
+   optional action and, for banner lines only, an X. The banner above the breadcrumb and the permanent page notice under
+   the title both draw their lines with this, so they always look alike. *@
+<div class="@RootClass" role="status" data-settings-notice="@NoticeKey">
+    <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" Class="settings-notice__icon" aria-hidden="true" />
+    <div class="settings-notice__body">
+        <span class="settings-notice__text">@Message</span>
+        @if (!string.IsNullOrWhiteSpace(Detail))
+        {
+            <small class="settings-notice__detail">@Detail</small>
+        }
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="settings-notice__actions">@Actions</div>
+    }
+    @if (OnDismiss.HasDelegate)
+    {
+        <AppNativeButton Type="button" Class="settings-notice__dismiss" AriaLabel="Dismiss" OnClick="@(() => OnDismiss.InvokeAsync())">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" aria-hidden="true" />
+        </AppNativeButton>
+    }
+</div>
+
+@code {
+    /// <summary>A stable name for the notice, used by tests and to tell notices apart.</summary>
+    [Parameter, EditorRequired] public string NoticeKey { get; set; } = string.Empty;
+
+    /// <summary>Warning (amber), Error (red) or Info (blue).</summary>
+    [Parameter] public AppUiTone Tone { get; set; } = AppUiTone.Warning;
+
+    [Parameter, EditorRequired] public string Icon { get; set; } = AppMaterialIcons.Outlined.WarningAmber;
+
+    /// <summary>The one sentence.</summary>
+    [Parameter, EditorRequired] public string Message { get; set; } = string.Empty;
+
+    /// <summary>A quieter second line, for example why the last request was refused.</summary>
+    [Parameter] public string? Detail { get; set; }
+
+    /// <summary>The button or link on the right. Nothing is drawn when null.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>Draws the X when set. Page notices that cannot be dismissed leave it unset.</summary>
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    private string RootClass => $"settings-notice settings-notice--{ToneName}";
+
+    private string ToneName => Tone switch
+    {
+        AppUiTone.Error => "danger",
+        AppUiTone.Info => "info",
+        _ => "warning",
+    };
+}
