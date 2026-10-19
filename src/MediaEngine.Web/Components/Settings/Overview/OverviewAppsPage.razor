@@ -12,7 +12,7 @@
    never a key or a sign-in, so the person still signs in as usual. *@
 <div class="overview-apps" data-settings-overview-apps>
     <SettingsSectionPanel Title="Get the app"
-                          Icon="@AppMaterialIcons.Outlined.Devices"
+                          Icon="@AppMaterialIcons.Outlined.Smartphone"
                           Description="Install Tuvima on your phone or TV.">
         @if (Stores.Count > 0)
         {
@@ -33,6 +33,7 @@
         {
             <p class="overview-apps__note" data-apps-stores-empty>The Tuvima apps will be linked here once they are published.</p>
         }
+        <MediaEngine.Web.Components.Navigation.PwaInstallAction />
     </SettingsSectionPanel>
 
     <SettingsSectionPanel Title="Server address"

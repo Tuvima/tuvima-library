@@ -1,0 +1,1160 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Components.Browse
+@inject IEngineApiClient Api
+@inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
+@inject DeviceContextService DeviceContext
+@inject IAppToastService Toasts
+@inject ILogger<ActivityPage> Logger
+@implements IDisposable
+
+@* Personal > Overview > Activity (D15, D16, D27, D31, D32, D33). Everything the person watched, listened to, read and added to
+   My list, newest first, with search, filters, grouping by day, week, month or title, a date rail and a CSV export. A member sees
+   their own; an administrator also gets a Scope (a server administrator: Me, a household, a profile or Everyone; a household
+   administrator: Me, a profile in the household or the household). The Engine decides what any scope may show: this page only
+   asks, and offers what the Engine would allow. Only a server administrator can delete history. *@
+<div class="@RootClass" data-activity-page data-activity-standalone="@(Standalone ? "true" : null)">
+    <div class="activity-page__main">
+        <div class="activity-toolbar">
+            @if (CanChooseScope)
+            {
+                <label class="activity-field activity-toolbar__scope">
+                    <span class="activity-field__label">Scope</span>
+                    <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="Scope" data-activity-scope="true">
+                        @foreach (var option in _scopeOptions)
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    </AppNativeSelect>
+                </label>
+            }
+            <div class="activity-toolbar__actions">
+                @if (CanExport)
+                {
+                    <AppButton Label="Export"
+                               StartIcon="@AppMaterialIcons.Outlined.Download"
+                               Href="@ExportHref"
+                               FullWidth="@DeviceContext.IsPhone"
+                               UserAttributes="@ExportAttributes"
+                               data-activity-export="true" />
+                }
+                @if (CanDelete)
+                {
+                    <AppOverflowMenu AriaLabel="Activity actions" Class="activity-toolbar__more">
+                        <AppMenuItem Label="Delete history…"
+                                     Icon="@AppMaterialIcons.Outlined.Delete"
+                                     Tone="AppUiTone.Error"
+                                     OnClick="OpenDeleteAsync" />
+                    </AppOverflowMenu>
+                }
+            </div>
+        </div>
+
+        <AppFilterBar Class="activity-filter-bar"
+                      Search="@_search"
+                      SearchChanged="OnSearchChanged"
+                      OnSearchDebounced="OnSearchDebounced"
+                      Placeholder="@SearchPlaceholder"
+                      Loading="@_loading"
+                      OnRefresh="ReloadAsync">
+            <BrowseFilterSheet ActiveCount="@Chips.Count" OnClear="ClearFiltersAsync">
+                <ChildContent Context="inSheet">
+                    <div class="@("activity-filters" + (inSheet ? " activity-filters--sheet" : string.Empty))" data-activity-filters>
+                        <fieldset class="activity-filters__types">
+                            <legend class="activity-field__label">Type</legend>
+                            @foreach (var (key, label) in ActivityListPresentation.KindOptions)
+                            {
+                                var kind = key;
+                                <AppCheckbox Label="@label" Value="@_kinds.Contains(kind)" ValueChanged="@(on => OnKindChanged(kind, on))" data-activity-kind-filter="@kind" />
+                            }
+                        </fieldset>
+
+                        <AppTextField Label="From" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
+                        <AppTextField Label="To" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
+
+                        <label class="activity-field">
+                            <span class="activity-field__label">Outcome</span>
+                            <AppNativeSelect Value="@_outcome" OnChange="OnOutcomeChanged" aria-label="Outcome" data-activity-outcome-filter="true">
+                                <option value="">Any</option>
+                                <option value="finished">Finished</option>
+                                <option value="not_finished">Not finished</option>
+                            </AppNativeSelect>
+                        </label>
+
+                        <AppTextField Label="Device" Value="@_device" ValueChanged="OnDeviceChanged" DebounceInterval="350" Placeholder="Any device" data-activity-device-filter="true" />
+
+                        <AppTimelineGroupingControl Options="GroupingOptions"
+                                                    SelectedKey="@GroupingKey"
+                                                    SelectedKeyChanged="OnGroupingChanged"
+                                                    AriaLabel="Group the list" />
+
+                        <AppSwitchRow Label="Show every session"
+                                      Description="List each session on its own instead of one entry per title."
+                                      Value="@_showEverySession"
+                                      ValueChanged="OnShowEverySessionChanged"
+                                      Disabled="@(_grouping != ActivityGrouping.Title)"
+                                      Class="activity-filters__switch" />
+                    </div>
+                </ChildContent>
+            </BrowseFilterSheet>
+        </AppFilterBar>
+
+        <AppActiveFilterSummary Items="@Chips" Remove="RemoveChipAsync" ClearAll="ClearFiltersAsync" />
+
+        <div class="activity-list" data-activity-list>
+            @if (_loading && _items.Count == 0)
+            {
+                <div class="activity-state" data-activity-state="loading">
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" Class="app-page-state--compact" />
+                </div>
+            }
+            else if (_status == PersonalActivityOutcomeStatus.UnlockRequired)
+            {
+                <div class="activity-state" data-activity-state="locked">
+                    <AppPageState Kind="AppPageStateKind.Unavailable"
+                                  Icon="@AppMaterialIcons.Outlined.Lock"
+                                  Title="Enter your administrator PIN"
+                                  Message="Your administrator PIN is needed before other people's activity can be shown."
+                                  Class="app-page-state--compact">
+                        <Actions>
+                            <AppButton Label="Enter PIN" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="@(() => RequestUnlock(ReloadAsync))" />
+                        </Actions>
+                    </AppPageState>
+                </div>
+            }
+            else if (_status is PersonalActivityOutcomeStatus.Forbidden)
+            {
+                <div class="activity-state" data-activity-state="forbidden">
+                    <AppPageState Kind="AppPageStateKind.Unavailable"
+                                  Icon="@AppMaterialIcons.Outlined.Lock"
+                                  Title="That activity isn't available to you"
+                                  Message="@(_statusMessage ?? "You can only see activity you are allowed to.")"
+                                  Class="app-page-state--compact">
+                        <Actions>
+                            @if (_scope != PersonalActivityRequest.MeScope)
+                            {
+                                <AppButton Label="Back to my activity" OnClick="BackToMeAsync" />
+                            }
+                        </Actions>
+                    </AppPageState>
+                </div>
+            }
+            else if (_status == PersonalActivityOutcomeStatus.NotFound)
+            {
+                <div class="activity-state" data-activity-state="not-found">
+                    <AppPageState Kind="AppPageStateKind.Empty"
+                                  Title="That person or household wasn't found"
+                                  Message="@(_statusMessage ?? "They may have been removed.")"
+                                  Class="app-page-state--compact">
+                        <Actions>
+                            <AppButton Label="Back to my activity" OnClick="BackToMeAsync" />
+                        </Actions>
+                    </AppPageState>
+                </div>
+            }
+            else if (_status == PersonalActivityOutcomeStatus.Invalid)
+            {
+                <div class="activity-state" data-activity-state="invalid">
+                    <AppPageState Kind="AppPageStateKind.Error"
+                                  Title="Those filters don't fit together"
+                                  Message="@(_statusMessage ?? "Change the dates or filters and try again.")"
+                                  Class="app-page-state--compact" />
+                </div>
+            }
+            else if (_status == PersonalActivityOutcomeStatus.Unavailable)
+            {
+                <div class="activity-state" data-activity-state="error">
+                    <AppPageState Kind="AppPageStateKind.Error"
+                                  Title="Activity couldn't be loaded"
+                                  Message="Check that the server is online, then try again."
+                                  Class="app-page-state--compact">
+                        <Actions>
+                            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
+                        </Actions>
+                    </AppPageState>
+                </div>
+            }
+            else if (_items.Count == 0)
+            {
+                <div class="activity-state" data-activity-state="empty">
+                    @if (Chips.Count > 0)
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty"
+                                      Icon="@AppMaterialIcons.Outlined.Search"
+                                      Title="Nothing matches these filters"
+                                      Message="Try a wider date range or remove a filter."
+                                      Class="app-page-state--compact" />
+                    }
+                    else
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty"
+                                      Icon="@AppMaterialIcons.Outlined.History"
+                                      Title="Nothing here yet"
+                                      Message="@(_scope == PersonalActivityRequest.MeScope ? "What you watch, listen to and read shows up here." : "Nothing has been watched, listened to or read here yet.")"
+                                      Class="app-page-state--compact" />
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="@("activity-list__head" + (ShowPerson ? " activity-list__head--person" : string.Empty))" aria-hidden="true">
+                    <span>Time</span>
+                    <span></span>
+                    <span>Title</span>
+                    <span>What</span>
+                    <span>How long</span>
+                    <span>How far</span>
+                    <span>Outcome</span>
+                    <span>Device</span>
+                    @if (ShowPerson)
+                    {
+                        <span>Person</span>
+                    }
+                    <span></span>
+                </div>
+
+                @foreach (var section in Sections)
+                {
+                    <section class="activity-section" @key="section.Key" data-activity-section="@section.Key">
+                        @if (!string.IsNullOrEmpty(section.Label))
+                        {
+                            <h3 class="activity-section__heading">@section.Label</h3>
+                        }
+                        <ul class="activity-section__rows" role="list">
+                            @foreach (var item in section.Items)
+                            {
+                                var current = item;
+                                <ActivityRow @key="current.Id"
+                                             Item="current"
+                                             ShowPerson="ShowPerson"
+                                             UnderDateHeading="@(_grouping != ActivityGrouping.Title || _showEverySession)"
+                                             Expanded="@_expanded.Contains(current.Id)"
+                                             LoadingSongs="@_songsLoading.Contains(current.Id)"
+                                             Songs="@SongsOf(current)"
+                                             OnToggle="@(() => ToggleAsync(current))" />
+                            }
+                        </ul>
+                    </section>
+                }
+
+                @if (_nextCursor is not null)
+                {
+                    <div class="activity-list__more">
+                        <AppButton Label="Load more"
+                                   Loading="@_loadingMore"
+                                   FullWidth="@DeviceContext.IsPhone"
+                                   OnClick="LoadMoreAsync"
+                                   data-activity-load-more="true" />
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @if (_periodList.Count > 0)
+    {
+        <aside class="activity-page__rail" aria-label="Jump to a date" data-activity-rail>
+            <AppTimelineNavigator Periods="@_periodList"
+                                  ActiveKey="@_activeYear"
+                                  ActiveChildKey="@_activeMonth"
+                                  ChildLabel="Months"
+                                  OnJump="JumpAsync" />
+        </aside>
+    }
+</div>
+
+<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+
+@if (_deleteOpen)
+{
+    <AppDialog Visible="true"
+               VisibleChanged="@(_ => CloseDelete())"
+               OnClose="CloseDeleteAsync"
+               Title="Delete history"
+               Subtitle="Removes activity from before a date. This can't be undone, and it is recorded in the log."
+               Icon="@AppMaterialIcons.Outlined.Delete"
+               Size="Medium">
+        <ChildContent>
+            <div class="activity-delete" data-activity-delete-dialog>
+                <label class="activity-field">
+                    <span class="activity-field__label">Whose history</span>
+                    <AppNativeSelect Value="@_deleteScope" OnChange="OnDeleteScopeChanged" aria-label="Whose history to delete" data-activity-delete-scope="true">
+                        @foreach (var option in _scopeOptions)
+                        {
+                            <option value="@option.Value">@option.Label</option>
+                        }
+                    </AppNativeSelect>
+                </label>
+                <AppTextField Label="Delete everything before"
+                              InputType="AppInputType.Date"
+                              Value="@_deleteBefore"
+                              ValueChanged="OnDeleteBeforeChanged"
+                              data-activity-delete-before="true" />
+
+                <p class="activity-delete__preview" role="status" data-activity-delete-preview>
+                    @if (_deletePreviewLoading)
+                    {
+                        <span>Counting…</span>
+                    }
+                    else if (_deletePreview is { } count)
+                    {
+                        <span>@PreviewText(count)</span>
+                    }
+                    else
+                    {
+                        <span>Choose a date to see how many entries would go.</span>
+                    }
+                </p>
+                @if (_deleteError is not null)
+                {
+                    <p class="activity-delete__error" role="alert" data-activity-delete-error>@_deleteError</p>
+                }
+
+                <AppTextField Label="@($"Type {ConfirmWord} to confirm")"
+                              Value="@_deleteConfirm"
+                              ValueChanged="OnDeleteConfirmChanged"
+                              Placeholder="@ConfirmWord"
+                              data-activity-delete-confirm="true" />
+            </div>
+        </ChildContent>
+        <FooterContent>
+            <div class="activity-delete__actions">
+                <AppButton Label="Cancel" OnClick="CloseDeleteAsync" />
+                <AppButton Label="Delete history"
+                           ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Error"
+                           Loading="@_deleting"
+                           Disabled="@(!CanConfirmDelete)"
+                           OnClick="ConfirmDeleteAsync"
+                           data-activity-delete-confirm-button="true" />
+            </div>
+        </FooterContent>
+    </AppDialog>
+}
+
+@code {
+    private const int PageSize = 50;
+    private const string ConfirmWord = "DELETE";
+
+    private static readonly IReadOnlyList<TimelineGroupingOption> GroupingOptions =
+    [
+        new("day", "By day"),
+        new("week", "By week"),
+        new("month", "By month"),
+        new("title", "By title"),
+    ];
+
+    private sealed record ScopeOption(string Value, string Label);
+
+    /// <summary>True on the page outside Settings (a Kids profile's own page): the signed-in person's own activity, no Scope and no delete.</summary>
+    [Parameter] public bool Standalone { get; set; }
+
+    /// <summary>Opens the page already narrowed to one person, household or everyone, such as from a person's page. Ignored unless the viewer may use it.</summary>
+    [Parameter] public string? Scope { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly List<PersonalActivityItemDto> _items = [];
+    private readonly HashSet<string> _kinds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _songsLoading = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<PersonalActivityItemDto>> _songs = new(StringComparer.Ordinal);
+    private List<ScopeOption> _scopeOptions = [new(PersonalActivityRequest.MeScope, "Me")];
+    private IReadOnlyList<TimelinePeriod> _periodList = [];
+
+    private string _scope = PersonalActivityRequest.MeScope;
+    private string? _appliedScopeParameter;
+    private string? _search;
+    private string? _fromDate;
+    private string? _toDate;
+    private string _outcome = string.Empty;
+    private string? _device;
+    private ActivityGrouping _grouping = ActivityGrouping.Day;
+    private bool _showEverySession;
+    private (int Year, int? Month)? _jump;
+    private int? _activeYear;
+    private int? _activeMonth;
+
+    private string? _nextCursor;
+    private bool _includesOthers;
+    private bool _loading = true;
+    private bool _loadingMore;
+    private int _loadVersion;
+    private PersonalActivityOutcomeStatus _status = PersonalActivityOutcomeStatus.Ok;
+    private string? _statusMessage;
+
+    private bool _needsUnlock;
+    private bool _unlocking;
+    private bool _justUnlocked;
+    private string? _unlockError;
+    private Func<Task>? _afterUnlock;
+
+    private bool _deleteOpen;
+    private string _deleteScope = PersonalActivityRequest.MeScope;
+    private string? _deleteBefore;
+    private int? _deletePreview;
+    private bool _deletePreviewLoading;
+    private string _deleteConfirm = string.Empty;
+    private bool _deleting;
+    private string? _deleteError;
+    private int _previewVersion;
+
+    private bool IsServerAdministrator => !Standalone && (Session.Authority?.EffectiveAdministrator == true || Session.HasNavigation("settings.administration"));
+
+    private bool IsHouseholdAdministrator => !Standalone && !IsServerAdministrator && Session.HasAction("household.manage");
+
+    private bool CanChooseScope => IsServerAdministrator || IsHouseholdAdministrator;
+
+    // Only a server administrator may delete history (D32), and a server administrator may export anyone's; everyone may export their own.
+    private bool CanDelete => IsServerAdministrator;
+
+    private bool CanExport => _scope == PersonalActivityRequest.MeScope || IsServerAdministrator;
+
+    private bool ShowPerson => _includesOthers || _scope != PersonalActivityRequest.MeScope;
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "activity-page",
+        DeviceContext.IsPhone ? "activity-page--phone" : null,
+        Standalone ? "activity-page--standalone" : null,
+    }.Where(value => value is not null));
+
+    private string SearchPlaceholder => ShowPerson ? "Search titles, people and devices" : "Search titles and devices";
+
+    private string GroupingKey => _grouping.ToString().ToLowerInvariant();
+
+    private Dictionary<string, object> ExportAttributes { get; } = new() { ["download"] = "tuvima-activity.csv" };
+
+    private string ExportHref => FilterRequest.ExportHref();
+
+    private string PreviewText(int count) => count == 0
+        ? "No entries are older than that date."
+        : $"{count.ToString("N0", CultureInfo.CurrentCulture)} {(count == 1 ? "entry" : "entries")} will be deleted.";
+
+    private bool CanConfirmDelete =>
+        !_deleting && !_deletePreviewLoading && _deletePreview is > 0
+        && string.Equals(_deleteConfirm, ConfirmWord, StringComparison.Ordinal);
+
+    // The filters the list, the date rail and the export are all asked with. A jump only positions the list, so it is not one.
+    private PersonalActivityRequest FilterRequest => new()
+    {
+        Scope = _scope,
+        Search = Clean(_search),
+        Kinds = [.. ActivityListPresentation.KindOptions.Select(option => option.Key).Where(_kinds.Contains)],
+        From = ActivityListPresentation.StartOfLocalDay(_fromDate),
+        To = ActivityListPresentation.EndOfLocalDay(_toDate),
+        Outcome = string.IsNullOrEmpty(_outcome) ? null : _outcome,
+        Device = Clean(_device),
+    };
+
+    private PersonalActivityRequest ListRequest(string? cursor)
+    {
+        var filters = FilterRequest;
+        var to = filters.To;
+        if (_jump is { } jump)
+        {
+            var before = ActivityListPresentation.JumpBefore(jump.Year, jump.Month);
+            to = to is { } existing && existing < before ? existing : before;
+        }
+
+        return filters with
+        {
+            To = to,
+            GroupByTitle = _grouping == ActivityGrouping.Title && !_showEverySession,
+            Cursor = cursor,
+            Limit = PageSize,
+        };
+    }
+
+    private IReadOnlyList<ActiveFilterChip> Chips
+    {
+        get
+        {
+            var chips = new List<ActiveFilterChip>();
+            if (Clean(_search) is { } search)
+            {
+                chips.Add(new("q", $"Search: {search}"));
+            }
+
+            foreach (var (key, label) in ActivityListPresentation.KindOptions.Where(option => _kinds.Contains(option.Key)))
+            {
+                chips.Add(new($"kind:{key}", label));
+            }
+
+            if (!string.IsNullOrEmpty(_fromDate))
+            {
+                chips.Add(new("from", $"From {_fromDate}"));
+            }
+
+            if (!string.IsNullOrEmpty(_toDate))
+            {
+                chips.Add(new("to", $"Until {_toDate}"));
+            }
+
+            if (!string.IsNullOrEmpty(_outcome))
+            {
+                chips.Add(new("outcome", _outcome == "finished" ? "Finished" : "Not finished"));
+            }
+
+            if (Clean(_device) is { } device)
+            {
+                chips.Add(new("device", $"Device: {device}"));
+            }
+
+            if (_jump is { } jump)
+            {
+                chips.Add(new("jump", $"From {ActivityListPresentation.JumpLabel(jump.Year, jump.Month)} back"));
+            }
+
+            return chips;
+        }
+    }
+
+    private sealed record ActivitySection(string Key, string Label, List<PersonalActivityItemDto> Items);
+
+    // Rows are grouped under date headings in the order they arrive. A title list has no headings.
+    private IReadOnlyList<ActivitySection> Sections
+    {
+        get
+        {
+            var now = DateTimeOffset.UtcNow;
+            var sections = new List<ActivitySection>();
+            foreach (var item in _items)
+            {
+                var (key, label) = _grouping == ActivityGrouping.Title
+                    ? (string.Empty, string.Empty)
+                    : ActivityListPresentation.Section(item, _grouping, now);
+                if (sections.Count == 0 || sections[^1].Key != key)
+                {
+                    sections.Add(new ActivitySection(key, label, []));
+                }
+
+                sections[^1].Items.Add(item);
+            }
+
+            return sections;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _appliedScopeParameter = Scope;
+        if (CanChooseScope)
+        {
+            await LoadScopeOptionsAsync();
+            ApplyScopeParameter();
+        }
+
+        await ReloadAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // A link to the page that is already open (View activity on a person's page) changes the scope without a new page.
+        if (_appliedScopeParameter == Scope)
+        {
+            return;
+        }
+
+        _appliedScopeParameter = Scope;
+        if (ApplyScopeParameter())
+        {
+            await ReloadAsync();
+        }
+    }
+
+    // ---- scope ---------------------------------------------------------------------------------------------------------------
+
+    private async Task LoadScopeOptionsAsync()
+    {
+        var options = new List<ScopeOption> { new(PersonalActivityRequest.MeScope, "Me") };
+        try
+        {
+            var own = Session.ActiveProfileId;
+            var households = await Identity.GetManagedHouseholdsAsync(_lifetime.Token);
+            var profiles = await Identity.GetManagedProfilesAsync(_lifetime.Token);
+            if (IsServerAdministrator)
+            {
+                options.Add(new(PersonalActivityRequest.EveryoneScope, "Everyone"));
+            }
+
+            options.AddRange(households.OrderBy(household => household.Name, StringComparer.CurrentCultureIgnoreCase)
+                .Select(household => new ScopeOption($"household:{household.Id:D}", $"Household: {household.Name}")));
+            var showHousehold = IsServerAdministrator && households.Count > 1;
+            options.AddRange(profiles.Where(profile => profile.Id != own)
+                .OrderBy(profile => profile.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .Select(profile => new ScopeOption($"profile:{profile.Id:D}", ProfileLabel(profile, households, showHousehold))));
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the people and households for the Activity scope.");
+            if (IsServerAdministrator && options.All(option => option.Value != PersonalActivityRequest.EveryoneScope))
+            {
+                options.Add(new(PersonalActivityRequest.EveryoneScope, "Everyone"));
+            }
+        }
+
+        _scopeOptions = options;
+    }
+
+    private static string ProfileLabel(ManagedProfileResponse profile, IReadOnlyList<HouseholdResponse> households, bool showHousehold)
+    {
+        if (!showHousehold || profile.HouseholdId is not { } householdId)
+        {
+            return profile.DisplayName;
+        }
+
+        var household = households.FirstOrDefault(candidate => candidate.Id == householdId);
+        return household is null ? profile.DisplayName : $"{profile.DisplayName} ({household.Name})";
+    }
+
+    // Returns whether the scope changed. A scope the viewer could not choose themselves is ignored, so a typed address cannot widen it.
+    private bool ApplyScopeParameter()
+    {
+        var requested = Scope?.Trim();
+        if (string.IsNullOrEmpty(requested) || !CanChooseScope)
+        {
+            return false;
+        }
+
+        var match = _scopeOptions.FirstOrDefault(option => string.Equals(option.Value, requested, StringComparison.OrdinalIgnoreCase));
+        if (match is null && IsServerAdministrator && IsPersonOrHousehold(requested))
+        {
+            // The people list may not have loaded, or the person may be new; the Engine still decides whether it exists.
+            match = new ScopeOption(requested.ToLowerInvariant(), requested.StartsWith("household:", StringComparison.OrdinalIgnoreCase) ? "This household" : "This person");
+            _scopeOptions.Add(match);
+        }
+
+        if (match is null || match.Value == _scope)
+        {
+            return false;
+        }
+
+        _scope = match.Value;
+        ResetPaging();
+        return true;
+    }
+
+    private static bool IsPersonOrHousehold(string value)
+    {
+        var separator = value.IndexOf(':', StringComparison.Ordinal);
+        return separator > 0
+            && value[..separator].ToLowerInvariant() is "profile" or "household"
+            && Guid.TryParse(value[(separator + 1)..], out _);
+    }
+
+    private async Task OnScopeChanged(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        if (string.IsNullOrEmpty(value) || value == _scope || _scopeOptions.All(option => option.Value != value))
+        {
+            return;
+        }
+
+        _scope = value;
+        ResetPaging();
+        await ReloadAsync();
+    }
+
+    private Task BackToMeAsync()
+    {
+        _scope = PersonalActivityRequest.MeScope;
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    // ---- filters -------------------------------------------------------------------------------------------------------------
+
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    // Anything that changes what the list holds starts it again from the newest entry and forgets what was opened.
+    private void ResetPaging()
+    {
+        _jump = null;
+        _expanded.Clear();
+        _songs.Clear();
+    }
+
+    private Task OnSearchChanged(string? value)
+    {
+        _search = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSearchDebounced(string value)
+    {
+        _search = value;
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnKindChanged(string kind, bool on)
+    {
+        if (on)
+        {
+            _kinds.Add(kind);
+        }
+        else
+        {
+            _kinds.Remove(kind);
+        }
+
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnFromChanged(string? value)
+    {
+        _fromDate = Clean(value);
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnToChanged(string? value)
+    {
+        _toDate = Clean(value);
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnOutcomeChanged(ChangeEventArgs args)
+    {
+        _outcome = args.Value?.ToString() ?? string.Empty;
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnDeviceChanged(string? value)
+    {
+        _device = value;
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task OnGroupingChanged(string key)
+    {
+        _grouping = key switch
+        {
+            "week" => ActivityGrouping.Week,
+            "month" => ActivityGrouping.Month,
+            "title" => ActivityGrouping.Title,
+            _ => ActivityGrouping.Day,
+        };
+        ResetPaging();
+        // Grouping by title asks the Engine for groups; the others only change the headings, but start again so the list is whole.
+        return ReloadListAsync();
+    }
+
+    private Task OnShowEverySessionChanged(bool value)
+    {
+        _showEverySession = value;
+        ResetPaging();
+        return ReloadListAsync();
+    }
+
+    private Task RemoveChipAsync(string key)
+    {
+        if (key == "q")
+        {
+            _search = null;
+        }
+        else if (key.StartsWith("kind:", StringComparison.Ordinal))
+        {
+            _kinds.Remove(key["kind:".Length..]);
+        }
+        else if (key == "from")
+        {
+            _fromDate = null;
+        }
+        else if (key == "to")
+        {
+            _toDate = null;
+        }
+        else if (key == "outcome")
+        {
+            _outcome = string.Empty;
+        }
+        else if (key == "device")
+        {
+            _device = null;
+        }
+        else if (key == "jump")
+        {
+            _jump = null;
+            return ReloadListAsync();
+        }
+
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _search = null;
+        _kinds.Clear();
+        _fromDate = null;
+        _toDate = null;
+        _outcome = string.Empty;
+        _device = null;
+        ResetPaging();
+        return ReloadAsync();
+    }
+
+    // ---- loading -------------------------------------------------------------------------------------------------------------
+
+    /// <summary>Loads the list and the date rail again under the current scope and filters.</summary>
+    private Task ReloadAsync() => LoadAsync(reloadPeriods: true);
+
+    /// <summary>Loads the list again from the current position; the date rail keeps its counts.</summary>
+    private Task ReloadListAsync() => LoadAsync(reloadPeriods: false);
+
+    private async Task LoadAsync(bool reloadPeriods)
+    {
+        var version = ++_loadVersion;
+        _loading = true;
+        _nextCursor = null;
+        _items.Clear();
+        _status = PersonalActivityOutcomeStatus.Ok;
+        _statusMessage = null;
+        var token = _lifetime.Token;
+
+        var list = Api.GetPersonalActivityAsync(ListRequest(null), token);
+        var periods = reloadPeriods ? Api.GetPersonalActivityPeriodsAsync(FilterRequest, token) : null;
+        var page = await list;
+        var periodsOutcome = periods is null ? null : await periods;
+        if (version != _loadVersion || token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _loading = false;
+        if (page.IsOk)
+        {
+            ApplyPage(page.Value!, append: false);
+        }
+        else
+        {
+            _status = page.Status;
+            _statusMessage = page.Message;
+            _includesOthers = false;
+            if (page.Status == PersonalActivityOutcomeStatus.UnlockRequired && !_justUnlocked)
+            {
+                RequestUnlock(ReloadAsync);
+            }
+        }
+
+        if (periodsOutcome is not null)
+        {
+            // A failed rail is not worth an error of its own: the list says what went wrong.
+            _periodList = periodsOutcome.IsOk ? ActivityListPresentation.Periods(periodsOutcome.Value) : [];
+            if (_jump is null)
+            {
+                _activeYear = _periodList.FirstOrDefault()?.Key;
+                _activeMonth = _periodList.FirstOrDefault()?.Children?.FirstOrDefault()?.Key;
+            }
+        }
+
+        _justUnlocked = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_nextCursor is null || _loadingMore)
+        {
+            return;
+        }
+
+        var version = _loadVersion;
+        _loadingMore = true;
+        try
+        {
+            var page = await Api.GetPersonalActivityAsync(ListRequest(_nextCursor), _lifetime.Token);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+
+            if (page.IsOk)
+            {
+                ApplyPage(page.Value!, append: true);
+            }
+            else
+            {
+                Toasts.Add("More activity couldn't be loaded. Try again.", AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private void ApplyPage(PersonalActivityPageDto page, bool append)
+    {
+        if (!append)
+        {
+            _items.Clear();
+        }
+
+        var known = _items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        _items.AddRange(page.Items.Where(item => known.Add(item.Id)));
+        _nextCursor = page.NextCursor;
+        _includesOthers = page.IncludesOthers;
+    }
+
+    // ---- date rail -----------------------------------------------------------------------------------------------------------
+
+    // The list starts again at the end of the chosen year or month, so the entries below it are that period and everything older.
+    private Task JumpAsync(TimelinePeriod period)
+    {
+        if (period.Key > 12)
+        {
+            _jump = (period.Key, null);
+            _activeYear = period.Key;
+            _activeMonth = period.Children?.FirstOrDefault()?.Key;
+        }
+        else if (_activeYear is { } year)
+        {
+            _jump = (year, period.Key);
+            _activeMonth = period.Key;
+        }
+        else
+        {
+            return Task.CompletedTask;
+        }
+
+        _expanded.Clear();
+        return ReloadListAsync();
+    }
+
+    // ---- title groups and music sessions ---------------------------------------------------------------------------------------
+
+    private IReadOnlyList<PersonalActivityItemDto>? SongsOf(PersonalActivityItemDto item) =>
+        _songs.TryGetValue(item.Id, out var songs) ? songs : null;
+
+    private async Task ToggleAsync(PersonalActivityItemDto item)
+    {
+        if (!_expanded.Add(item.Id))
+        {
+            _expanded.Remove(item.Id);
+            return;
+        }
+
+        if (ActivityListPresentation.IsMusicSession(item) && !_songs.ContainsKey(item.Id))
+        {
+            await LoadSongsAsync(item);
+        }
+    }
+
+    // A session's songs are only fetched when asked for. The session is found again by asking for the one item that ends it, with
+    // the songs included.
+    private async Task LoadSongsAsync(PersonalActivityItemDto session)
+    {
+        _songsLoading.Add(session.Id);
+        try
+        {
+            var upper = (ActivityListPresentation.StartedAt(session) ?? DateTimeOffset.UtcNow).ToUniversalTime();
+            var ended = DateTimeOffset.TryParse(session.EndedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var end)
+                ? end.ToUniversalTime()
+                : upper;
+            var request = FilterRequest with
+            {
+                To = (ended > upper ? ended : upper).AddSeconds(1),
+                ExpandSongs = true,
+                Limit = 1,
+            };
+            var outcome = await Api.GetPersonalActivityAsync(request, _lifetime.Token);
+            var found = outcome.IsOk
+                ? outcome.Value!.Items.FirstOrDefault(item => item.Id == session.Id)
+                    ?? outcome.Value.Items.FirstOrDefault(ActivityListPresentation.IsMusicSession)
+                : null;
+            if (found?.Songs is { } songs)
+            {
+                _songs[session.Id] = songs;
+            }
+            else
+            {
+                _expanded.Remove(session.Id);
+                Toasts.Add("The songs couldn't be loaded. Try again.", AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _songsLoading.Remove(session.Id);
+        }
+    }
+
+    // ---- deleting history ----------------------------------------------------------------------------------------------------
+
+    private Task OpenDeleteAsync()
+    {
+        _deleteOpen = true;
+        _deleteScope = _scope;
+        _deleteBefore = null;
+        _deletePreview = null;
+        _deleteConfirm = string.Empty;
+        _deleteError = null;
+        return Task.CompletedTask;
+    }
+
+    private void CloseDelete() => _deleteOpen = false;
+
+    private Task CloseDeleteAsync()
+    {
+        CloseDelete();
+        return Task.CompletedTask;
+    }
+
+    private Task OnDeleteScopeChanged(ChangeEventArgs args)
+    {
+        _deleteScope = args.Value?.ToString() ?? PersonalActivityRequest.MeScope;
+        return RefreshPreviewAsync();
+    }
+
+    private Task OnDeleteBeforeChanged(string? value)
+    {
+        _deleteBefore = Clean(value);
+        return RefreshPreviewAsync();
+    }
+
+    private Task OnDeleteConfirmChanged(string? value)
+    {
+        _deleteConfirm = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task RefreshPreviewAsync()
+    {
+        _deletePreview = null;
+        _deleteError = null;
+        _deleteConfirm = string.Empty;
+        if (ActivityListPresentation.StartOfLocalDay(_deleteBefore) is not { } before)
+        {
+            return;
+        }
+
+        var version = ++_previewVersion;
+        _deletePreviewLoading = true;
+        var outcome = await Api.PreviewPersonalActivityDeletionAsync(_deleteScope, before, _lifetime.Token);
+        if (version != _previewVersion)
+        {
+            return;
+        }
+
+        _deletePreviewLoading = false;
+        switch (outcome.Status)
+        {
+            case PersonalActivityOutcomeStatus.Ok:
+                _deletePreview = outcome.Value!.Count;
+                break;
+            case PersonalActivityOutcomeStatus.UnlockRequired:
+                RequestUnlock(RefreshPreviewAsync);
+                break;
+            default:
+                _deleteError = outcome.Message ?? "How many entries would go couldn't be worked out. Try again.";
+                break;
+        }
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (!CanConfirmDelete || ActivityListPresentation.StartOfLocalDay(_deleteBefore) is not { } before)
+        {
+            return;
+        }
+
+        _deleting = true;
+        _deleteError = null;
+        try
+        {
+            var outcome = await Api.DeletePersonalActivityAsync(_deleteScope, before, _lifetime.Token);
+            switch (outcome.Status)
+            {
+                case PersonalActivityOutcomeStatus.Ok:
+                    var deleted = outcome.Value!.Deleted;
+                    _deleteOpen = false;
+                    Toasts.Add($"{deleted.ToString("N0", CultureInfo.CurrentCulture)} {(deleted == 1 ? "entry was" : "entries were")} deleted.", AppSeverity.Success);
+                    ResetPaging();
+                    await ReloadAsync();
+                    break;
+                case PersonalActivityOutcomeStatus.UnlockRequired:
+                    RequestUnlock(ConfirmDeleteAsync);
+                    break;
+                default:
+                    _deleteError = outcome.Message ?? "Nothing was deleted. Try again.";
+                    break;
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    // ---- administrator PIN ---------------------------------------------------------------------------------------------------
+
+    private void RequestUnlock(Func<Task> retry)
+    {
+        _unlockError = null;
+        _afterUnlock = retry;
+        _needsUnlock = true;
+    }
+
+    private async Task UnlockAsync(string pin)
+    {
+        if (_unlocking)
+        {
+            return;
+        }
+
+        _unlocking = true;
+        _unlockError = null;
+        try
+        {
+            var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin), _lifetime.Token);
+            if (unlocked?.Unlocked != true)
+            {
+                _unlockError = "That PIN did not work. Try again.";
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not unlock administrator access from the Activity page.");
+            _unlockError = "The Engine is unavailable. Try again.";
+            return;
+        }
+        finally
+        {
+            _unlocking = false;
+        }
+
+        var retry = _afterUnlock;
+        _needsUnlock = false;
+        _afterUnlock = null;
+        // One automatic retry only: a refusal that is not about the PIN must not loop back to the prompt.
+        _justUnlocked = true;
+        await Identity.RevalidateAuthorityAsync(Session);
+        if (retry is not null)
+        {
+            await retry();
+        }
+
+        _justUnlocked = false;
+    }
+
+    private void CancelUnlock()
+    {
+        _needsUnlock = false;
+        _afterUnlock = null;
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

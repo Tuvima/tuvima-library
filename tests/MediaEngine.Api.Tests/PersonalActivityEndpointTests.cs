@@ -68,6 +68,44 @@ public sealed class PersonalActivityEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ARefusalThatTheAdministratorPinLifts_CarriesAMachineReadableCode_AndAnyOtherRefusalDoesNot()
+    {
+        var before = Uri.EscapeDataString(Day.ToString("O"));
+        var refusals = new[]
+        {
+            await SendAsync("GET", "/", "lockedServerAdmin", query: "scope=everyone"),
+            await SendAsync("GET", "/periods", "lockedServerAdmin", query: "scope=everyone"),
+            await SendAsync("GET", "/export.csv", "lockedServerAdmin", query: "scope=everyone"),
+            await SendAsync("GET", "/delete-preview", "lockedServerAdmin", query: $"before={before}&scope=everyone"),
+            await SendAsync("DELETE", "/", "lockedServerAdmin", query: $"before={before}&scope=everyone"),
+        };
+
+        // The Dashboard asks for the PIN on this code, never by reading the sentence.
+        Assert.All(refusals, refusal =>
+        {
+            Assert.Equal(StatusCodes.Status403Forbidden, refusal.Status);
+            using var json = JsonDocument.Parse(refusal.Body);
+            Assert.True(json.RootElement.TryGetProperty("code", out var code), refusal.Body);
+            Assert.Equal("admin_unlock_required", code.GetString());
+        });
+
+        // Anyone who is not a server administrator is simply refused: no PIN would help them.
+        var others = new[]
+        {
+            await SendAsync("GET", "/", "member", query: "scope=everyone"),
+            await SendAsync("GET", "/", "householdAdmin", query: "scope=everyone"),
+            await SendAsync("GET", "/delete-preview", "householdAdmin", query: $"before={before}&scope=everyone"),
+            await SendAsync("GET", "/export.csv", "member", query: "scope=everyone"),
+        };
+        Assert.All(others, refusal =>
+        {
+            Assert.Equal(StatusCodes.Status403Forbidden, refusal.Status);
+            using var json = JsonDocument.Parse(refusal.Body);
+            Assert.False(json.RootElement.TryGetProperty("code", out _), refusal.Body);
+        });
+    }
+
+    [Fact]
     public async Task AnInvalidFilter_IsABadRequest()
     {
         Assert.Equal(StatusCodes.Status400BadRequest, (await SendAsync("GET", "/", "member", query: "kind=dance")).Status);

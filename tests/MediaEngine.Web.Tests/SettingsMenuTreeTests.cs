@@ -52,7 +52,11 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         // The only Overview is the person's own, first in Personal; the retired System Overview is gone.
         var overview = Assert.Single(Flatten(groups), row => row.Label == "Overview");
         Assert.Equal("/settings/overview", overview.Route);
-        Assert.Equal(["Taste"], (overview.Children ?? []).Select(child => child.Label));
+        // Activity and Taste are the Overview's children; Apps opens from the Overview itself.
+        Assert.Equal(["Activity", "Taste"], (overview.Children ?? []).Select(child => child.Label));
+        var activity = overview.Children![0];
+        Assert.Equal("Activity", activity.Label);
+        Assert.Equal("/settings/overview/activity", activity.Route);
         Assert.DoesNotContain(overview.Children!, child => child.Route == overview.Route);
         Assert.Equal("Overview", groups[0].Items[0].Label);
     }

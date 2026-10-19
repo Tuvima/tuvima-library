@@ -258,32 +258,4 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildItemsAsync(
             Enumerable.Range(0, DisplayItemsRequest.MaxIds + 1).Select(_ => Guid.NewGuid()).ToList(), ProfileForLookups));
     }
-
-    [Fact]
-    public async Task FinishedLookup_ListsOnlyFinishedItemsNewestFirstWithinTheProfilesAccess()
-    {
-        var (context, library) = await SignInForLookupsAsync(AccountFeatureId.Watch, AccountFeatureId.Read);
-        var older = await InsertOwnedWorkWithIdAsync(library, "Older film", "Movie");
-        var newer = await InsertOwnedWorkWithIdAsync(library, "Newer book", "Book");
-        var started = await InsertOwnedWorkWithIdAsync(library, "Half film", "Movie");
-        var hidden = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("""
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@hiddenWork, 'content_rating', 'R', CURRENT_TIMESTAMP);
-                INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed) VALUES
-                    (@profile, @older, 100, '2026-01-01 10:00:00'),
-                    (@profile, @newer, 100, '2026-02-01 10:00:00'),
-                    (@profile, @started, 40, '2026-03-01 10:00:00'),
-                    (@profile, @hiddenAsset, 100, '2026-04-01 10:00:00');
-                """, new { profile = ProfileForLookups, hiddenWork = hidden.WorkId, hiddenAsset = hidden.AssetId, older = older.AssetId, newer = newer.AssetId, started = started.AssetId });
-        }
-        SetContentLimit("PG", allowUnrated: true);
-
-        var page = await CreateItemsComposer(context).BuildFinishedAsync(null, 24, true, default, null, ProfileForLookups);
-
-        Assert.Equal(["Newer book", "Older film"], Titles(page));
-        Assert.All(page.Catalog, card => Assert.Equal(DisplayContinuationState.Completed, card.ContinuationState));
-        Assert.All(page.Catalog, card => Assert.NotNull(card.Progress?.LastAccessed));
-    }
 }

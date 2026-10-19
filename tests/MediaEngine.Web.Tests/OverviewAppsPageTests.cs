@@ -59,6 +59,14 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void GetTheApp_OffersInstallingTheLibraryOnThisDevice()
+    {
+        var cut = RenderPage();
+
+        Assert.Contains("Install on this device", cut.Find("[data-settings-overview-apps]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WhenAnOutsideAddressIsSet_BothAddressesShow_EachWithCopy()
     {
         _addresses = new() { AtHome = Home, AwayFromHome = Away };

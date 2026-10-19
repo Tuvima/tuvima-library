@@ -158,8 +158,17 @@ public static class SettingsNav
     /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
     public const string TasteSubsection = "taste";
 
-    /// <summary>The Activity sub-page of Overview (built with the Activity page).</summary>
+    /// <summary>The Activity page's address under Settings: everything watched, listened to, read and added to My list, with search, filters and a date rail.</summary>
     public const string ActivityRoute = "/settings/overview/activity";
+
+    /// <summary>
+    /// The Activity sub-page of Overview, named by the last part of its address so the address is written once. (This is the
+    /// person's own Activity page, not the retired Activity and Audit section of the old settings.)
+    /// </summary>
+    public static readonly string ActivitySubsection = ActivityRoute[(ActivityRoute.LastIndexOf('/') + 1)..];
+
+    /// <summary>The Activity page outside Settings, for a Kids profile (which has no Settings) and for quick access. It shows the signed-in person's own activity only.</summary>
+    public const string MyActivityRoute = "/my-activity";
 
     /// <summary>The Taste sub-page of Overview (built with the Taste page).</summary>
     public const string TasteRoute = "/settings/overview/taste";
@@ -248,6 +257,7 @@ public static class SettingsNav
         [
             Node("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview, children:
             [
+                Node("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Node("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
             ]),
             Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, children:
@@ -332,7 +342,8 @@ public static class SettingsNav
         {
             [SettingsSection.Overview] =
             [
-                new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Devices),
+                new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Smartphone),
+                new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
             ],
             [SettingsSection.Profiles] =

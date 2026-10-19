@@ -108,11 +108,21 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void Overview_HasTasteAsItsOnlyMenuChildForNow_AndItsAppsPageIsOffMenuUnderIt()
+    public void Overview_HasActivityThenTasteAsMenuChildren_AndItsAppsPageIsOffMenuUnderIt()
     {
         var overview = SettingsNav.MenuGroups[0].Nodes[0];
         Assert.Equal("Overview", overview.Label);
-        Assert.Equal(["Taste"], overview.Children.Select(child => child.Label));
+        Assert.Equal(["Activity", "Taste"], overview.Children.Select(child => child.Label));
+        var activity = overview.Children[0];
+        Assert.Equal("Activity", activity.Label);
+        Assert.Equal(SettingsSection.Overview, activity.Section);
+        Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
+        Assert.Equal("/settings/overview/activity", activity.Route);
+        Assert.Equal(["Overview", "Activity"], SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.ActivitySubsection)!.Trail.Select(node => node.Label));
+        // Overview still opens on its own page, and every kind of person can open Activity (it is a consumption page that works on a phone).
+        Assert.Equal("/settings/overview", overview.Route);
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.ActivitySubsection));
+        Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
 
         // Apps opens from an icon on the Overview, so it is not a menu row but keeps its place in the breadcrumb.
         Assert.DoesNotContain(SettingsNav.Flatten(SettingsNav.MenuGroups.SelectMany(group => group.Nodes)), node => node.Label == "Apps");
@@ -128,6 +138,8 @@ public sealed class SettingsNavTests
     public void Overview_RoutesForActivityAndTaste_AreTheStringsTheLinksUse()
     {
         Assert.Equal("/settings/overview/activity", SettingsNav.ActivityRoute);
+        Assert.Equal(SettingsNav.ActivityRoute, SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.ActivitySubsection));
+        Assert.Equal("/my-activity", SettingsNav.MyActivityRoute);
         Assert.Equal("/settings/overview/taste", SettingsNav.TasteRoute);
     }
 
@@ -695,7 +707,7 @@ public sealed class SettingsNavTests
 
         Assert.Equal(
             [
-                SettingsSection.Overview, SettingsSection.Overview,
+                SettingsSection.Overview, SettingsSection.Overview, SettingsSection.Overview,
                 SettingsSection.Preferences, SettingsSection.Playback,
                 SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security,
                 SettingsSection.Security,
@@ -711,8 +723,9 @@ public sealed class SettingsNavTests
         var rows = SettingsNav.Flatten(personal.Nodes).Select(node => node.Route).ToArray();
 
         Assert.Equal("/settings/overview", rows[0]);
-        Assert.Equal("/settings/overview/taste", rows[1]);
-        Assert.Equal("/settings/profiles", rows[2]);
+        Assert.Equal("/settings/overview/activity", rows[1]);
+        Assert.Equal("/settings/overview/taste", rows[2]);
+        Assert.Equal("/settings/profiles", rows[3]);
         Assert.DoesNotContain("/settings/profiles/households", rows);
     }
 
