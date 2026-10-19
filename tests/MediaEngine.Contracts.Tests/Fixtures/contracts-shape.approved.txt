@@ -241,6 +241,16 @@ MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityRe
 
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityShapeValues
 
+MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivitySummaryDto
+  WatchSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  ReadSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  ListenSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  MusicSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  AudiobookSeconds: System.Int64 | nullability=not-null | accessors=get,init
+  FinishedCount: System.Int32 | nullability=not-null | accessors=get,init
+  InProgressCount: System.Int32 | nullability=not-null | accessors=get,init
+  FirstActivityAt: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Activity.MediaEngine.Contracts.Activity.PersonalActivityYearCountDto
   Year: System.Int32 | nullability=not-null | accessors=get,init
   Count: System.Int32 | nullability=not-null | accessors=get,init

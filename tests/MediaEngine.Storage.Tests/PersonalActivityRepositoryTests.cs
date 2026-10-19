@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Activity;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.TestSupport;
 
@@ -424,7 +425,7 @@ public sealed class PersonalActivityRepositoryTests : IDisposable
         Assert.Equal(2, await _repository.CountBeforeAsync(cutoff, null));
         Assert.Equal(0, await _repository.CountBeforeAsync(cutoff, new HashSet<Guid>()));
 
-        Assert.Equal(1, await _repository.DeleteBeforeAsync(cutoff, Ids(alex)));
+        Assert.Equal(1, await _repository.DeleteBeforeAsync(cutoff, Ids(alex), Audit));
 
         Assert.Equal(["New Alex"], await Titles(new PersonalActivityFilter(), alex));
         Assert.Equal(["Old Bea"], await Titles(new PersonalActivityFilter(), bea));
@@ -446,11 +447,168 @@ public sealed class PersonalActivityRepositoryTests : IDisposable
         await AddWatchAsync(alex, Guid.NewGuid(), "Older", _start.AddDays(1), artwork: onlyOld);
         await AddWatchAsync(bea, Guid.NewGuid(), "New", _start.AddDays(30), artwork: shared);
 
-        await _repository.DeleteBeforeAsync(_start.AddDays(10), null);
+        await _repository.DeleteBeforeAsync(_start.AddDays(10), null, Audit);
 
         Assert.True(await _repository.HasArtworkAsync(shared));
         Assert.False(await _repository.HasArtworkAsync(onlyOld));
     }
+
+    [Fact]
+    public async Task Delete_WritesItsAuditEntryInTheSameTransaction_WithTheNumberRemoved()
+    {
+        var alex = SeedProfile("Alex");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old", _start);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Older", _start.AddDays(1));
+
+        var removed = await _repository.DeleteBeforeAsync(_start.AddDays(10), Ids(alex), Audit);
+
+        Assert.Equal(2, removed);
+        using var connection = _database.CreateConnection();
+        var changes = connection.ExecuteScalar<string>(
+            "SELECT changes_json FROM authorization_audit_events WHERE event_type = 'activity.history_deleted';");
+        Assert.Contains("\"count\":\"2\"", changes, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Delete_WhoseAuditEntryCannotBeWritten_DeletesNothing()
+    {
+        var alex = SeedProfile("Alex");
+        var key = new string('7', 64);
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork(key, [9], "image/jpeg", 10, 10));
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old", _start, artwork: key);
+
+        // An actor account that does not exist breaks the audit table's reference, as a real write failure would.
+        await Assert.ThrowsAnyAsync<Exception>(() => _repository.DeleteBeforeAsync(
+            _start.AddDays(10), Ids(alex),
+            count => new AuthorizationAuditEvent("activity.history_deleted", _start, Guid.NewGuid(), null, null, "everyone", "everyone",
+                new Dictionary<string, string?> { ["count"] = count.ToString() })));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _repository.DeleteBeforeAsync(
+            _start.AddDays(10), Ids(alex), _ => throw new InvalidOperationException("The audit log is unavailable.")));
+
+        Assert.Single((await Items(alex)).Items);
+        Assert.True(await _repository.HasArtworkAsync(key));
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM authorization_audit_events;"));
+    }
+
+    [Fact]
+    public async Task Delete_NeverRemovesAPictureSavedForAnEntryThatIsNotWrittenYet()
+    {
+        var alex = SeedProfile("Alex");
+        var pending = new string('8', 64);
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork(pending, [9], "image/jpeg", 10, 10));
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old", _start);
+
+        await _repository.DeleteBeforeAsync(_start.AddDays(10), null, Audit);
+        await AddWatchAsync(alex, Guid.NewGuid(), "New", _start.AddDays(20), artwork: pending);
+
+        Assert.True(await _repository.HasArtworkAsync(pending));
+        Assert.Equal(pending, Assert.Single(Assert.Single((await Items(alex)).Items).Entries).ArtworkKey);
+    }
+
+    [Fact]
+    public async Task AnEntryWhosePictureIsGone_IsKeptWithoutAPictureNotWithADanglingKey()
+    {
+        var alex = SeedProfile("Alex");
+
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start, artwork: new string('9', 64));
+        await _repository.AddMyListAsync(alex, _start.AddDays(1),
+            new PersonalActivitySnapshot("Movies", "Dune", null, null, 2021, Guid.NewGuid(), null, new string('9', 64)));
+
+        Assert.All((await Items(alex)).Items, item => Assert.Null(item.Entries[0].ArtworkKey));
+    }
+
+    [Fact]
+    public async Task FindingAPersonsPage_UsesTheProfileIndexNotAScan()
+    {
+        var alex = SeedProfile("Alex");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start);
+        var filter = new PersonalActivityFilter { ProfileIds = Ids(alex, SeedProfile("Bea")), Kinds = [PersonalActivityKinds.Watch] };
+        var (where, parameters) = PersonalActivityRepository.Where(filter);
+        parameters.Add("cursorAt", null);
+        parameters.Add("cursorKey", null);
+        parameters.Add("limit", 51);
+
+        using var connection = _database.CreateConnection();
+        var plan = (await connection.QueryAsync(
+                "EXPLAIN QUERY PLAN " + PersonalActivityRepository.ItemKeysSql(where, PersonalActivityRepository.ItemKey(PersonalActivityGrouping.None)),
+                parameters))
+            .Select(row => (string)((IDictionary<string, object>)row)["detail"])
+            .ToList();
+
+        Assert.Contains(plan, line => line.Contains("idx_personal_activity_profile_", StringComparison.Ordinal));
+        Assert.DoesNotContain(plan, line => line.StartsWith("SCAN a", StringComparison.Ordinal) || line.StartsWith("SCAN personal_activity", StringComparison.Ordinal));
+    }
+
+    // ----- Summary -----
+
+    [Fact]
+    public async Task TheSummary_TotalsTimePlayedByKind_AndSplitsListeningIntoMusicAndAudiobooks()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start, played: 5000);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Dune", _start.AddDays(1), played: 100);
+        await _repository.AddPlaybackAsync(alex, PersonalActivityKinds.Read, false, Guid.NewGuid(), _start.AddDays(2),
+            new PersonalActivityDevice("Phone", "mobile"),
+            new PersonalActivitySnapshot("Books", "Hyperion", null, null, 1989, Guid.NewGuid(), Guid.NewGuid(), null),
+            new PersonalActivityProgress(_start.AddDays(2), 3600, 50, false));
+        await _repository.AddPlaybackAsync(alex, PersonalActivityKinds.Listen, false, Guid.NewGuid(), _start.AddDays(3),
+            new PersonalActivityDevice("Phone", "mobile"),
+            new PersonalActivitySnapshot("Audiobooks", "Dune (audio)", null, null, 1965, Guid.NewGuid(), Guid.NewGuid(), null),
+            new PersonalActivityProgress(_start.AddDays(3), 7200, 20, false));
+        await AddSongAsync(alex, "One", "Album", _start.AddDays(4), playedSeconds: 200);
+        await AddSongAsync(alex, "Two", "Album", _start.AddDays(4).AddMinutes(5), playedSeconds: 300);
+        await AddWatchAsync(bea, Guid.NewGuid(), "Someone else", _start, played: 99999);
+
+        var summary = await _repository.GetSummaryAsync(alex);
+
+        Assert.Equal(5100, summary.WatchSeconds);
+        Assert.Equal(3600, summary.ReadSeconds);
+        Assert.Equal(500, summary.MusicSeconds);
+        Assert.Equal(7200, summary.AudiobookSeconds);
+        Assert.Equal(_start, summary.FirstActivityAt);
+    }
+
+    [Fact]
+    public async Task TheSummary_CountsTitlesFinishedAndInProgress_NotSongsOrMyListAdds()
+    {
+        var alex = SeedProfile("Alex");
+        var tremors = Guid.NewGuid();
+        var dune = Guid.NewGuid();
+        var arrival = Guid.NewGuid();
+        // Finished once, then started again and stopped: finished over a lifetime, in progress now.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start, work: tremors, finished: true, percent: 100);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start.AddDays(5), work: tremors, finished: false, percent: 30);
+        // Stopped, then finished: finished, not in progress.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Dune", _start.AddDays(1), work: dune, finished: false, percent: 40);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Dune", _start.AddDays(2), work: dune, finished: true, percent: 100);
+        // Only ever stopped.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Arrival", _start.AddDays(3), work: arrival, finished: false, percent: 10);
+        // A title whose item was deleted is counted by its title.
+        await AddWatchAsync(alex, Guid.NewGuid(), "Gone", _start.AddDays(4), finished: false, withoutWork: true);
+        await AddWatchAsync(alex, Guid.NewGuid(), "gone", _start.AddDays(6), finished: true, withoutWork: true);
+        await AddSongAsync(alex, "One", "Album", _start.AddDays(7));
+        await _repository.AddMyListAsync(alex, _start.AddDays(8),
+            new PersonalActivitySnapshot("Movies", "Saved", null, null, null, Guid.NewGuid(), null, null));
+
+        var summary = await _repository.GetSummaryAsync(alex);
+
+        Assert.Equal(3, summary.FinishedCount);
+        Assert.Equal(2, summary.InProgressCount);
+    }
+
+    [Fact]
+    public async Task TheSummaryOfSomeoneWithNoActivity_IsAllZero()
+    {
+        var summary = await _repository.GetSummaryAsync(SeedProfile("Alex"));
+
+        Assert.Equal(new PersonalActivitySummary(0, 0, 0, 0, 0, 0, null), summary);
+    }
+
+    private static AuthorizationAuditEvent Audit(int removed) => new(
+        "activity.history_deleted", DateTimeOffset.UtcNow, null, null, null, "everyone", "everyone",
+        new Dictionary<string, string?> { ["count"] = removed.ToString() });
 
     [Fact]
     public async Task ArtworkIsOnlyUsedByThePeopleWhoseEntriesCarryIt()

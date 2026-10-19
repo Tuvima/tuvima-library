@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Dapper;
 using MediaEngine.Domain.Activity;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
@@ -90,7 +91,7 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
                 subtitle = snapshot.Subtitle,
                 parentTitle = snapshot.ParentTitle,
                 year = snapshot.Year,
-                artworkKey = snapshot.ArtworkKey,
+                artworkKey = KeptArtworkKey(connection, transaction, snapshot.ArtworkKey),
             }, transaction);
             return inserted > 0;
         }, ct);
@@ -150,7 +151,7 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
                 subtitle = snapshot.Subtitle,
                 parentTitle = snapshot.ParentTitle,
                 year = snapshot.Year,
-                artworkKey = snapshot.ArtworkKey,
+                artworkKey = KeptArtworkKey(connection, transaction, snapshot.ArtworkKey),
             }, transaction);
         }, ct);
     }
@@ -178,18 +179,7 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
         parameters.Add("limit", limit + 1);
 
         using var connection = database.CreateConnection();
-        var keys = connection.Query<ItemKeyRow>($"""
-            SELECT item_key AS ItemKey, MAX(started_at) AS ItemAt FROM (
-                SELECT {key} AS item_key, a.started_at AS started_at
-                FROM personal_activity a JOIN profiles p ON p.id = a.profile_id
-                WHERE {where}
-            )
-            GROUP BY item_key
-            HAVING @cursorAt IS NULL OR MAX(started_at) < @cursorAt
-                OR (MAX(started_at) = @cursorAt AND item_key < @cursorKey)
-            ORDER BY ItemAt DESC, item_key DESC
-            LIMIT @limit;
-            """, parameters).ToList();
+        var keys = connection.Query<ItemKeyRow>(ItemKeysSql(where, key), parameters).ToList();
 
         var hasMore = keys.Count > limit;
         if (hasMore)
@@ -378,28 +368,90 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
             $"SELECT COUNT(*) FROM personal_activity a WHERE a.started_at < @before AND {people};", parameters));
     }
 
-    public Task<int> DeleteBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, CancellationToken ct = default)
+    public Task<int> DeleteBeforeAsync(
+        DateTimeOffset before,
+        IReadOnlySet<Guid>? profileIds,
+        Func<int, AuthorizationAuditEvent> audit,
+        CancellationToken ct = default)
     {
-        if (profileIds is { Count: 0 })
-        {
-            return Task.FromResult(0);
-        }
-
+        ArgumentNullException.ThrowIfNull(audit);
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             var parameters = new DynamicParameters();
             parameters.Add("before", Iso(before));
-            var people = ProfileClause(profileIds, parameters, "a");
+            var people = profileIds is { Count: 0 } ? "1 = 0" : ProfileClause(profileIds, parameters, "a");
+
+            // Only pictures the removed entries used can become unused, and they are checked again after the delete
+            // in this same transaction. A picture saved for an entry that is not written yet is never a candidate.
+            var candidates = connection.Query<string>(
+                $"SELECT DISTINCT a.artwork_key FROM personal_activity a WHERE a.started_at < @before AND a.artwork_key IS NOT NULL AND {people};",
+                parameters, transaction).ToArray();
             var removed = connection.Execute(
                 $"DELETE FROM personal_activity AS a WHERE a.started_at < @before AND {people};", parameters, transaction);
-            connection.Execute("""
-                DELETE FROM personal_activity_artwork
-                WHERE key NOT IN (SELECT artwork_key FROM personal_activity WHERE artwork_key IS NOT NULL);
-                """, transaction: transaction);
+            if (candidates.Length > 0)
+            {
+                connection.Execute("""
+                    DELETE FROM personal_activity_artwork
+                    WHERE key IN @candidates
+                      AND key NOT IN (SELECT artwork_key FROM personal_activity WHERE artwork_key IS NOT NULL);
+                    """, new { candidates }, transaction);
+            }
+
+            // The record of the deletion commits or rolls back with the deletion: never one without the other.
+            AccountRepository.InsertAuthorizationAudit(connection, transaction, audit(removed));
             return removed;
         }, ct);
     }
+
+    public Task<PersonalActivitySummary> GetSummaryAsync(Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var totals = connection.QuerySingle<SummaryRow>("""
+            SELECT COALESCE(SUM(CASE WHEN kind = 'watch' THEN played_seconds END), 0) AS WatchSeconds,
+                   COALESCE(SUM(CASE WHEN kind = 'read' THEN played_seconds END), 0) AS ReadSeconds,
+                   COALESCE(SUM(CASE WHEN kind = 'listen' AND media_type = 'Music' THEN played_seconds END), 0) AS MusicSeconds,
+                   COALESCE(SUM(CASE WHEN kind = 'listen' AND media_type <> 'Music' THEN played_seconds END), 0) AS AudiobookSeconds,
+                   MIN(started_at) AS FirstActivityAt
+            FROM personal_activity WHERE profile_id = @profileId;
+            """, new { profileId });
+
+        // Titles, not songs or My list adds: a title is finished when any attempt finished, and in progress when its
+        // latest attempt did not.
+        var titles = connection.QuerySingle<TitleCounts>("""
+            SELECT COALESCE(SUM(CASE WHEN any_finished = 1 THEN 1 ELSE 0 END), 0) AS Finished,
+                   COALESCE(SUM(CASE WHEN latest_finished = 0 THEN 1 ELSE 0 END), 0) AS InProgress
+            FROM (
+                SELECT MAX(finished) AS any_finished,
+                       (SELECT b.finished FROM personal_activity b
+                        WHERE b.profile_id = @profileId AND b.kind IN ('watch', 'read', 'listen') AND b.media_type <> 'Music'
+                          AND COALESCE(HEX(b.work_id), 'T' || LOWER(b.title)) = title_key
+                        ORDER BY b.started_at DESC, b.id DESC LIMIT 1) AS latest_finished
+                FROM (
+                    SELECT finished, COALESCE(HEX(work_id), 'T' || LOWER(title)) AS title_key
+                    FROM personal_activity
+                    WHERE profile_id = @profileId AND kind IN ('watch', 'read', 'listen') AND media_type <> 'Music'
+                )
+                GROUP BY title_key
+            );
+            """, new { profileId });
+        return Task.FromResult(new PersonalActivitySummary(
+            totals.WatchSeconds, totals.ReadSeconds, totals.MusicSeconds, totals.AudiobookSeconds,
+            titles.Finished, titles.InProgress,
+            totals.FirstActivityAt is null ? null : Parse(totals.FirstActivityAt)));
+    }
+
+    /// <summary>
+    /// The picture key to store on a new entry: the given key when that picture still exists, checked in the writing
+    /// transaction, otherwise none. A delete of history that ran in between can remove a picture no entry used yet;
+    /// the entry is then kept without a picture and never points at a missing one.
+    /// </summary>
+    private static string? KeptArtworkKey(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, string? key) =>
+        key is not null && connection.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM personal_activity_artwork WHERE key = @key;", new { key }, transaction) > 0
+            ? key
+            : null;
 
     /// <summary>The open music session of this person, when their latest activity is a song that ended less than 30 minutes before this one starts.</summary>
     private static Guid? ReadOpenMusicSession(
@@ -424,7 +476,21 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
         return startedAt - lastSeen < IPersonalActivityRepository.MusicSessionGap ? session : null;
     }
 
-    private static (string Sql, DynamicParameters Parameters) Where(PersonalActivityFilter filter)
+    /// <summary>The query that finds the keys of one page of items, newest first.</summary>
+    internal static string ItemKeysSql(string where, string key) => $"""
+        SELECT item_key AS ItemKey, MAX(started_at) AS ItemAt FROM (
+            SELECT {key} AS item_key, a.started_at AS started_at
+            FROM personal_activity a JOIN profiles p ON p.id = a.profile_id
+            WHERE {where}
+        )
+        GROUP BY item_key
+        HAVING @cursorAt IS NULL OR MAX(started_at) < @cursorAt
+            OR (MAX(started_at) = @cursorAt AND item_key < @cursorKey)
+        ORDER BY ItemAt DESC, item_key DESC
+        LIMIT @limit;
+        """;
+
+    internal static (string Sql, DynamicParameters Parameters) Where(PersonalActivityFilter filter)
     {
         var parameters = new DynamicParameters();
         var clauses = new List<string> { ProfileClause(filter.ProfileIds, parameters, "a") };
@@ -481,11 +547,19 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
             return "1 = 1";
         }
 
-        parameters.Add("profileHex", profileIds.Select(id => Convert.ToHexString(GuidSql.ToBlob(id))).ToArray());
-        return $"HEX({alias}.profile_id) IN @profileHex";
+        // The ids are bound as they are stored (BLOB), so the profile index can be used.
+        var names = new List<string>(profileIds.Count);
+        foreach (var id in profileIds)
+        {
+            var name = "profile" + names.Count.ToString(CultureInfo.InvariantCulture);
+            parameters.Add(name, GuidSql.ToBlob(id), System.Data.DbType.Binary);
+            names.Add("@" + name);
+        }
+
+        return $"{alias}.profile_id IN ({string.Join(',', names)})";
     }
 
-    private static string ItemKey(PersonalActivityGrouping grouping) => grouping == PersonalActivityGrouping.Title
+    internal static string ItemKey(PersonalActivityGrouping grouping) => grouping == PersonalActivityGrouping.Title
         ? $"""
             CASE WHEN a.music_session_id IS NOT NULL THEN {MusicSessionKey}
                  WHEN a.work_id IS NOT NULL THEN 'W' || HEX(a.profile_id) || HEX(a.work_id)
@@ -559,6 +633,21 @@ public sealed class PersonalActivityRepository(IDatabaseConnection database) : I
     };
 
     private sealed record ItemCursor(string At, string Key);
+
+    private sealed class SummaryRow
+    {
+        public long WatchSeconds { get; set; }
+        public long ReadSeconds { get; set; }
+        public long MusicSeconds { get; set; }
+        public long AudiobookSeconds { get; set; }
+        public string? FirstActivityAt { get; set; }
+    }
+
+    private sealed class TitleCounts
+    {
+        public int Finished { get; set; }
+        public int InProgress { get; set; }
+    }
 
     private sealed class ItemKeyRow
     {

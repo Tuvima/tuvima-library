@@ -164,6 +164,20 @@ public sealed record PersonalActivityRecentTileDto(
 public sealed record PersonalActivityRecentDto(
     [property: JsonPropertyName("tiles")] IReadOnlyList<PersonalActivityRecentTileDto> Tiles);
 
+/// <summary>
+/// One person's lifetime totals. Titles are counted once whatever the number of attempts; songs and My list adds are
+/// not titles.
+/// </summary>
+public sealed record PersonalActivitySummaryDto(
+    [property: JsonPropertyName("watch_seconds")] long WatchSeconds,
+    [property: JsonPropertyName("read_seconds")] long ReadSeconds,
+    [property: JsonPropertyName("listen_seconds")] long ListenSeconds,
+    [property: JsonPropertyName("music_seconds")] long MusicSeconds,
+    [property: JsonPropertyName("audiobook_seconds")] long AudiobookSeconds,
+    [property: JsonPropertyName("finished_count")] int FinishedCount,
+    [property: JsonPropertyName("in_progress_count")] int InProgressCount,
+    [property: JsonPropertyName("first_activity_at")] string? FirstActivityAt);
+
 /// <summary>What deleting history would remove.</summary>
 public sealed record PersonalActivityDeletePreviewDto(
     [property: JsonPropertyName("count")] int Count);

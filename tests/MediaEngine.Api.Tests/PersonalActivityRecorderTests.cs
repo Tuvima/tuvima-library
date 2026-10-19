@@ -426,7 +426,10 @@ public sealed class PersonalActivityRecorderTests
         public Task<int> CountBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public Task<int> DeleteBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, CancellationToken ct = default) =>
+        public Task<int> DeleteBeforeAsync(DateTimeOffset before, IReadOnlySet<Guid>? profileIds, Func<int, AuthorizationAuditEvent> audit, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<PersonalActivitySummary> GetSummaryAsync(Guid profileId, CancellationToken ct = default) =>
             throw new NotSupportedException();
     }
 }

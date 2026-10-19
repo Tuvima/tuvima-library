@@ -112,3 +112,16 @@ public sealed record PersonalActivityPeriodCount(int Year, int Month, int Count)
 
 /// <summary>The small stored copy of a cover.</summary>
 public sealed record PersonalActivityArtwork(string Key, byte[] Image, string ContentType, int? Width, int? Height);
+
+/// <summary>
+/// One person's lifetime totals. Time played is split by what was played; titles are counted once whatever the number
+/// of attempts, songs are not counted as titles, and adding to My list is not an attempt.
+/// </summary>
+public sealed record PersonalActivitySummary(
+    long WatchSeconds,
+    long ReadSeconds,
+    long MusicSeconds,
+    long AudiobookSeconds,
+    int FinishedCount,
+    int InProgressCount,
+    DateTimeOffset? FirstActivityAt);
