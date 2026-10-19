@@ -35,6 +35,9 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<FolderOrganiseJobWorker>();
         services.AddHostedService<MediaFileWriteIntentDispatcher>();
         services.AddHostedService<IngestionBatchProgressHostedService>();
+        services.AddSingleton<IngestionQueueProgressService>();
+        services.AddSingleton<IIngestionQueueProgressService>(sp => sp.GetRequiredService<IngestionQueueProgressService>());
+        services.AddHostedService(sp => sp.GetRequiredService<IngestionQueueProgressService>());
         services.AddHostedService<TextTrackRefreshOperationWorker>();
         services.AddSingleton<DocumentTextReadService>();
         services.AddHostedService<DocumentTextReadOperationWorker>();

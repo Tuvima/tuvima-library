@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0003 work_ready_state).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0004 ingestion_queue_progress).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2852,6 +2852,10 @@ ON media_operations(queue_name, status, priority, position_key);
 
 CREATE INDEX idx_media_operations_source_path
 ON media_operations(operation_type, source_path, status);
+
+CREATE INDEX idx_media_operations_type_created ON media_operations (operation_type, created_at);
+
+CREATE INDEX idx_media_operations_type_status ON media_operations (operation_type, status);
 
 CREATE INDEX idx_metadata_claims_claimed_at
     ON metadata_claims (claimed_at);

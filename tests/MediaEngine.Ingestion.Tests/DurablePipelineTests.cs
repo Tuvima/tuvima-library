@@ -162,6 +162,50 @@ public sealed class DurablePipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestionEngine_RegisteredFile_LinksItsIntakeOperationToTheNewAsset()
+    {
+        var filePath = CreateWatchFile("Foundation.epub");
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Foundation", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        var hash = await _hasher.ComputeAsync(FindFileAnywhere("Foundation.epub")!);
+        var asset = await _assetRepo.FindByHashAsync(hash.Hex);
+        Assert.NotNull(asset);
+        var operations = await _operationRepo.GetByEntityAsync(asset!.Id);
+        var intake = Assert.Single(operations, operation => operation.OperationType == MediaOperationType.IngestionFile);
+        Assert.Equal("MediaAsset", intake.EntityKind);
+    }
+
+    [Fact]
+    public async Task IngestionEngine_ExactDuplicate_LinksItsIntakeOperationToTheExistingAssetAndRecordsDuplicate()
+    {
+        var firstPath = CreateWatchFile("Dune.epub", "same bytes");
+        CreateWatchFile("Dune Copy.epub", "same bytes");
+        _processors.QueueResult(new ProcessorResult
+        {
+            FilePath = firstPath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        using var conn = _dbFactory.Connection.CreateConnection();
+        var keptAssetId = conn.ExecuteScalar<Guid>("SELECT id FROM media_assets LIMIT 1;");
+        var intakes = (await _operationRepo.GetByEntityAsync(keptAssetId))
+            .Where(operation => operation.OperationType == MediaOperationType.IngestionFile)
+            .ToList();
+        Assert.Equal(2, intakes.Count);
+        Assert.Single(intakes, operation => operation.ResultSummary == "duplicate");
+    }
+
+    [Fact]
     public async Task IngestionEngine_PersonalLocalOnlyLibrary_IsNotConsumedByCataloguePipeline()
     {
         var filePath = CreateWatchFile("Family Reunion.mp4");

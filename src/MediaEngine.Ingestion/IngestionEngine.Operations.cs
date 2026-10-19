@@ -180,6 +180,30 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// Links the file's durable operation to its media asset the moment the asset is known (newly registered, or the
+    /// existing asset a duplicate or same-path re-detection resolves to), so the live ingestion numbers can follow the
+    /// file from intake into identity.
+    /// </summary>
+    private async Task AttachOperationAssetAsync(MediaOperation? operation, Guid assetId, CancellationToken ct)
+    {
+        if (_operationRepository is null || operation is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _operationRepository
+                .AttachEntityAsync(operation.Id, assetId, EntityType.MediaAsset.ToString(), ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Durable operation asset link failed for {OperationId}", operation.Id);
+        }
+    }
+
     private async Task CompleteOperationAsync(MediaOperation? operation, string? summary, CancellationToken ct)
     {
         if (_operationTracker is null || operation is null)

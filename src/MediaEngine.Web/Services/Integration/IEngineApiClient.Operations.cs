@@ -109,6 +109,9 @@ public partial interface IEngineApiClient
 
     Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default);
 
+    /// <summary>GET /ingestion/queue-progress — the Engine's live ingestion numbers (files found, tally, bar, state).</summary>
+    Task<IngestionQueueProgressDto?> GetIngestionQueueProgressAsync(CancellationToken ct = default);
+
     Task<PagedResponse<IngestionMediaGroupDto>?> GetCurrentIngestionMediaAsync(
         int offset = 0, int limit = 50, CancellationToken ct = default);
 

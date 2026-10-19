@@ -398,6 +398,7 @@ public sealed partial class IngestionEngine
                             "Could not delete duplicate file {Path}", candidate.Path);
                     }
 
+                    await AttachOperationAssetAsync(durableOperation, existing.Id, ct).ConfigureAwait(false);
                     await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
                     if (retryImportCopyLater)
                     {
@@ -492,6 +493,7 @@ public sealed partial class IngestionEngine
                 {
                     _logger.LogDebug(ex, "Ingestion same-path log update failed - continuing");
                 }
+                await AttachOperationAssetAsync(durableOperation, existing.Id, ct).ConfigureAwait(false);
                 await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
                 await CompleteOperationAsync(durableOperation, "same_path_redetected", ct).ConfigureAwait(false);
                 context.Complete();
@@ -853,6 +855,7 @@ public sealed partial class IngestionEngine
                 resolvedMediaType.ToString()).ConfigureAwait(false);
         }
         catch (Exception ex) { _logger.LogDebug(ex, "Ingestion log update failed — continuing"); }
+        await AttachOperationAssetAsync(durableOperation, assetId, ct).ConfigureAwait(false);
         await UpdateOperationStageAsync(durableOperation, MediaOperationStage.Registered, 70, "Asset registered.", ct, new { asset_id = assetId, media_type = resolvedMediaType.ToString() }).ConfigureAwait(false);
         if (_scoreStageDependencies.CapabilityPlanner is not null)
         {

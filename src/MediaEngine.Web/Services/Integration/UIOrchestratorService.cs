@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Maintenance;
 using MediaEngine.Contracts.Paging;
@@ -1178,6 +1179,16 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 "Intercom ? BatchProgress: {Done}/{Total} ({Pct}%) ~{Eta}s remaining",
                 ev.FilesProcessed, ev.FilesTotal, ev.ProgressPercent, ev.EstimatedSecondsRemaining);
             _state.PushBatchProgress(ev);
+        });
+
+        // -- "IngestionQueueProgress" ----------------------------------------
+        // The Engine's one set of live ingestion numbers (files found, tally, bar, state).
+        _hubConnection.On<IngestionQueueProgressDto>(SignalREvents.IngestionQueueProgress, ev =>
+        {
+            _logger.LogDebug(
+                "Intercom ? IngestionQueueProgress: {State} {Done}/{Found}",
+                ev.State, ev.FilesDone, ev.FilesFound);
+            _state.PushIngestionQueueProgress(ev);
         });
 
         _hubConnection.On<ProviderActivityEvent>(SignalREvents.ProviderActivity, ev =>

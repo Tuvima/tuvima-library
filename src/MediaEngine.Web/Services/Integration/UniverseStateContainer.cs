@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Models.ViewDTOs;
 
@@ -153,6 +154,9 @@ public sealed class UniverseStateContainer : IDisposable
     public event Action? OnStateChanged;
     public event Action<MediaAddedEvent>? MediaAddedReceived;
 
+    /// <summary>Raised with each live ingestion snapshot the Engine publishes (the Engine's counting, shown as-is).</summary>
+    public event Action<IngestionQueueProgressDto>? IngestionQueueProgressReceived;
+
     // ── Collection-list mutations ────────────────────────────────────────────────────
 
     /// <summary>
@@ -226,6 +230,10 @@ public sealed class UniverseStateContainer : IDisposable
         PruneIngestionItemProgress();
         NotifyStateChanged(requiresSnapshotRefresh: false, throttle: true);
     }
+
+    /// <summary>Called when an <c>"IngestionQueueProgress"</c> event arrives; hands the Engine's snapshot on unchanged.</summary>
+    public void PushIngestionQueueProgress(IngestionQueueProgressDto snapshot)
+        => IngestionQueueProgressReceived?.Invoke(snapshot);
 
     /// <summary>
     /// Called when a <c>"BatchProgress"</c> event arrives on the Intercom collection.
