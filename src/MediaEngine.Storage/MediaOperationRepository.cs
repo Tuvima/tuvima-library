@@ -518,21 +518,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         return Task.FromResult(reclaimed);
     }
 
-    public Task<IReadOnlyList<(Guid Id, string SourcePath)>> ListWaitingIngestionFilesAsync(CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<WaitingIngestionFileRow>("""
-            SELECT id AS Id, source_path AS SourcePath
-            FROM media_operations
-            WHERE operation_type = 'ingestion.file'
-              AND status IN ('pending', 'queued')
-              AND source_path IS NOT NULL;
-            """);
-        IReadOnlyList<(Guid Id, string SourcePath)> result = rows.Select(row => (row.Id, row.SourcePath)).ToList();
-        return Task.FromResult(result);
-    }
-
     public Task<IReadOnlyDictionary<string, int>> GetSummaryAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -682,12 +667,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         """;
 
     private const string SelectSql = $"SELECT {ReturningColumns} FROM media_operations";
-
-    private sealed class WaitingIngestionFileRow
-    {
-        public Guid Id { get; set; }
-        public string SourcePath { get; set; } = "";
-    }
 
     private sealed class MediaOperationRow
     {

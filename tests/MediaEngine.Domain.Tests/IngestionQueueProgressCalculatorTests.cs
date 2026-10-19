@@ -239,6 +239,33 @@ public sealed class IngestionQueueProgressCalculatorTests
     }
 
     [Fact]
+    public void AFileReplacedInPlaceOrWhoseIdentityWasRecovered_CountsAsFoundUnlikeAnUnchangedKnownFile()
+    {
+        var open = Op("open", MediaOperationStage.Hashing, MediaOperationStatus.Running, Base);
+        var unchanged = Op("same", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Base) with
+        {
+            ResultSummary = "same_path_redetected",
+        };
+        var replaced = Op("replaced", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Base) with
+        {
+            ResultSummary = "content_changed",
+            IdentityState = "Hydrating",
+        };
+        var recovered = Op("recovered", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Base) with
+        {
+            ResultSummary = "identity_recovered",
+            IdentityState = "Ready",
+        };
+
+        var snapshot = IngestionQueueProgressCalculator.Calculate(
+            [open, unchanged, replaced, recovered], null, Base.AddSeconds(1)).Snapshot;
+
+        Assert.Equal(3, snapshot.FilesFound);
+        Assert.Equal(1, snapshot.FilesDone);
+        Assert.Equal(1, snapshot.Outcomes.Added);
+    }
+
+    [Fact]
     public void AFileThatAppearsAfterTheQueueWentIdle_StartsANewPeriodThatResetsTheBarAndTheStartTime()
     {
         var sim = QueueSim.Mixed(20, Base);

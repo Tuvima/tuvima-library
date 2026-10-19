@@ -20,21 +20,29 @@ public static class IngestionFileStepMapper
     /// <summary>How long after a retry was due it is still treated as coming. After this a retry row counts as failed.</summary>
     public static readonly TimeSpan RetryGrace = TimeSpan.FromMinutes(5);
 
-    /// <summary>What an intake operation records in its result summary when the file was not new (see the pipeline).</summary>
-    private static readonly string[] NotNewSummaries = ["duplicate", "same_path_redetected", "duplicate_race"];
-
-    /// <summary>What an intake operation records when the Library saw one of its own, unchanged files again.</summary>
-    private const string SamePathRedetectedSummary = "same_path_redetected";
+    /// <summary>
+    /// What an intake operation records in its result summary when the file added nothing (see the pipeline). A file
+    /// replaced in place with new content (<see cref="IngestionResultSummaries.ContentChanged"/>) or whose identity job
+    /// was recovered (<see cref="IngestionResultSummaries.IdentityRecovered"/>) is deliberately not here: it is mapped like
+    /// any other file, and its identity job decides how it ended.
+    /// </summary>
+    private static readonly string[] NotNewSummaries =
+    [
+        IngestionResultSummaries.Duplicate,
+        IngestionResultSummaries.SamePathRedetected,
+        IngestionResultSummaries.DuplicateRace,
+    ];
 
     /// <summary>
-    /// True for a file the Library already had, noticed again where it already was (for example after the organiser
-    /// moved it into place). It is not a file someone added, so it is left out of the live numbers entirely.
+    /// True for a file the Library already had, noticed again where it already was and unchanged (for example after the
+    /// organiser moved it into place). It is not a file someone added, so it is left out of the live numbers entirely.
+    /// A file replaced in place with new content, or whose identity job was recovered, is not this: it counts as found.
     /// </summary>
     public static bool IsAlreadyKnownFile(IngestionQueueFileRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
         return string.Equals(row.Status, MediaOperationStatus.Succeeded, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(row.ResultSummary, SamePathRedetectedSummary, StringComparison.OrdinalIgnoreCase);
+            && string.Equals(row.ResultSummary, IngestionResultSummaries.SamePathRedetected, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

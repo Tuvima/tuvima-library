@@ -821,9 +821,9 @@ public sealed partial class IngestionEngine
 
         foreach (var evt in newEvents.Concat(resumedEvents))
         {
-            TrackBackgroundTask(
-                EnsureIngestionOperationAsync(evt, MediaOperationStage.Discovered, LifetimeToken),
-                "durable ingestion-operation discovery");
+            // The job is opened before the file goes to the debounce queue, so a file that vanishes while it settles
+            // always finds its job there to close.
+            await EnsureIngestionOperationAsync(evt, MediaOperationStage.Discovered, LifetimeToken).ConfigureAwait(false);
             _debounce.Enqueue(evt);
         }
     }

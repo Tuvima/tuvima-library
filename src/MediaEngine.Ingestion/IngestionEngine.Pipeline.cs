@@ -7,6 +7,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Ingestion;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
@@ -136,8 +137,9 @@ public sealed partial class IngestionEngine
         var durableOperation = context.DurableOperation = await EnsureIngestionOperationAsync(candidate, ingestionRunId, MediaOperationStage.Queued, ct).ConfigureAwait(false);
         await UpdateOperationStageAsync(durableOperation, MediaOperationStage.Queued, 0, "Queued for ingestion.", ct).ConfigureAwait(false);
 
-        // Step 2: skip failed probe candidates.
-        if (candidate.IsFailed)
+        // Step 2: skip failed probe candidates. A file that is gone is not a lock problem to retry; the missing-file step
+        // below closes it.
+        if (candidate.IsFailed && File.Exists(candidate.Path))
         {
             var reason = candidate.FailureReason ?? "Lock probe exhausted";
             var attempt = durableOperation?.AttemptCount ?? 0;
@@ -189,7 +191,7 @@ public sealed partial class IngestionEngine
 
         if (!File.Exists(candidate.Path))
         {
-            var reason = "The file was detected but is no longer available. It may have been moved, deleted, or locked before ingestion could read it.";
+            var reason = VanishedFileReason;
             _logger.LogWarning("Ingestion skipped - file missing: \"{FileName}\"", Path.GetFileName(candidate.Path));
             await _ingestionLogScribe.RecordTerminalAsync(
                 candidate,
@@ -204,6 +206,10 @@ public sealed partial class IngestionEngine
                 await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
             }
             await NoResultOperationAsync(durableOperation, reason, ct).ConfigureAwait(false);
+
+            // The job opened when the file was first noticed has a different key (it includes the file's size and time,
+            // which are gone now), so it would otherwise stay waiting for ever.
+            await CloseWaitingFileOperationAsync(candidate.Path, ct).ConfigureAwait(false);
             context.Complete();
             return;
         }
@@ -495,7 +501,14 @@ public sealed partial class IngestionEngine
                 }
                 await AttachOperationAssetAsync(durableOperation, existing.Id, ct).ConfigureAwait(false);
                 await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
-                await CompleteOperationAsync(durableOperation, "same_path_redetected", ct).ConfigureAwait(false);
+                // Only a file the Library already had, unchanged, is "seen again". A file replaced in place with new
+                // content, or one whose identity job was put back, did real work and counts as found.
+                var summary = missingIdentityJob
+                    ? IngestionResultSummaries.IdentityRecovered
+                    : contentChanged
+                        ? IngestionResultSummaries.ContentChanged
+                        : IngestionResultSummaries.SamePathRedetected;
+                await CompleteOperationAsync(durableOperation, summary, ct).ConfigureAwait(false);
                 context.Complete();
                 return;
             }

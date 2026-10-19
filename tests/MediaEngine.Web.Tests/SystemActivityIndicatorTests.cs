@@ -136,6 +136,43 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ActivityState_WithLiveUpdatesOffAndAnIdleSnapshot_ReadsTheQueueOnTheTimerAndShowsWorkingOnceTheEngineReportsIt()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ =>
+                Task.FromResult<IngestionQueueProgressDto?>(Queue("working", found: 36, done: 15, progress: 0.6))));
+        using var activity = new ShellActivityState(
+            _state,
+            new PlaybackSessionController(null!, api),
+            api,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ShellActivityState>.Instance);
+        _state.PushIngestionQueueProgress(Queue("idle", found: 0, done: 0, progress: 1));
+        _state.SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+        Assert.False(activity.Current.IsWorking);
+
+        activity.OnTimerTick();
+
+        Assert.True(await WaitUntilAsync(() => activity.Current.IsWorking));
+        Assert.Equal("working", _state.IngestionQueueProgress!.State);
+    }
+
+    private static async Task<bool> WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+            {
+                return true;
+            }
+
+            await Task.Delay(20);
+        }
+
+        return condition();
+    }
+
+    [Fact]
     public void IdleQueue_ShowsTheIdleStateAndTheUpToDateLine()
     {
         _state.PushIngestionQueueProgress(Queue("idle", found: 0, done: 0, progress: 1));

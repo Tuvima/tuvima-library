@@ -222,6 +222,40 @@ public sealed class IngestionFileStepMapperTests
         Assert.False(progress.IsWaiting);
     }
 
+    [Theory]
+    [InlineData("content_changed")]
+    [InlineData("identity_recovered")]
+    public void FileReplacedInPlaceOrWhoseIdentityWasRecovered_IsMappedLikeANormalFileAndItsIdentityJobDecides(string summary)
+    {
+        var identifying = IngestionFileStepMapper.Map(Row(
+            stage: MediaOperationStage.Completed,
+            status: MediaOperationStatus.Succeeded,
+            summary: summary,
+            identity: IdentityJobState.Hydrating), Now);
+        var ready = IngestionFileStepMapper.Map(Row(
+            stage: MediaOperationStage.Completed,
+            status: MediaOperationStatus.Succeeded,
+            summary: summary,
+            identity: IdentityJobState.Ready), Now);
+
+        Assert.False(identifying.IsDone);
+        Assert.Equal(IngestionFileStep.Hydrating, identifying.Step);
+        Assert.True(ready.IsDone);
+        Assert.Equal(IngestionFileOutcome.Added, ready.Outcome);
+    }
+
+    [Theory]
+    [InlineData("same_path_redetected", true)]
+    [InlineData("content_changed", false)]
+    [InlineData("identity_recovered", false)]
+    [InlineData("duplicate", false)]
+    public void OnlyAnUnchangedKnownFileSeenAgain_IsAlreadyKnown(string summary, bool expected)
+    {
+        var row = Row(stage: MediaOperationStage.Completed, status: MediaOperationStatus.Succeeded, summary: summary);
+
+        Assert.Equal(expected, IngestionFileStepMapper.IsAlreadyKnownFile(row));
+    }
+
     [Fact]
     public void FileHeldForAMissingTool_IsNeverDoneAndIsCappedAtEnriching()
     {

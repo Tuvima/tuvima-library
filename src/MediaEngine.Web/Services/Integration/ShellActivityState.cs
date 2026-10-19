@@ -129,10 +129,7 @@ public sealed class ShellActivityState : IDisposable
             // The Engine only pushes when its numbers change, so the snapshot is read again here while the last one says
             // "working" (a long quiet stretch must not look stale, and a missed finish is picked up), and whenever live
             // updates are off or no snapshot has arrived yet (nothing would be pushed at all).
-            var mustRead = _universeState.IngestionQueueProgress is null
-                || IsQueueWorking(_universeState.IngestionQueueProgress)
-                || _universeState.EngineConnectionState != EngineConnectionState.Online;
-            if (mustRead
+            if (MustReadIngestionQueue()
                 && await _api.GetIngestionQueueProgressAsync(ct) is { } queue
                 && !_disposed)
             {
@@ -322,7 +319,7 @@ public sealed class ShellActivityState : IDisposable
         }
     }
 
-    private void OnTimerTick()
+    internal void OnTimerTick()
     {
         if (_disposed)
         {
@@ -330,11 +327,20 @@ public sealed class ShellActivityState : IDisposable
         }
 
         PublishIfChanged();
-        if (_universeState.MediaOperationActivity.Count > 0 || IsQueueWorking(_universeState.IngestionQueueProgress))
+        if (_universeState.MediaOperationActivity.Count > 0 || MustReadIngestionQueue())
         {
             _ = RefreshSystemActivityAsync();
         }
     }
+
+    /// <summary>
+    /// Whether the queue snapshot has to be read rather than waited for: none has arrived yet, the last one says
+    /// "working", or the Engine connection is not online (so nothing would be pushed).
+    /// </summary>
+    private bool MustReadIngestionQueue() =>
+        _universeState.IngestionQueueProgress is null
+        || IsQueueWorking(_universeState.IngestionQueueProgress)
+        || _universeState.EngineConnectionState != EngineConnectionState.Online;
 
     private void PublishIfChanged()
     {

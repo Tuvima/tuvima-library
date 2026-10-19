@@ -28,7 +28,9 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     private bool _signalsDisposed;
     private bool _disposed;
     private bool _initialized;
-    private bool _queueFetchFailed;
+    // Written by both the snapshot handler and the poll's load, on different threads.
+    private volatile bool _queueFetchFailed;
+    private volatile string? _error;
 
     public IngestionLiveDashboardState(
         IEngineApiClient api,
@@ -49,20 +51,18 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
 
     public bool IsLoading { get; private set; }
     public bool IsScanStarting { get; private set; }
-    public string? Error { get; private set; }
+    public string? Error => _error;
 
     public EngineConnectionState ConnectionState => _orchestrator.EngineConnectionState;
 
     /// <summary>
-    /// True when the Engine is not answering: a load failed, the latest queue fetch came back empty after a request, or
-    /// the connection is down or reconnecting. It clears by itself when a fresh snapshot arrives or the connection is back.
-    /// </summary>
-    /// <summary>
-    /// True only when the Engine itself cannot be reached. Live updates being off (reconnecting, or the live connection
-    /// refused) is not "not responding": the page keeps re-reading the numbers on its poll instead.
+    /// True only when the Engine itself cannot be reached: a load failed, the latest queue fetch came back empty after a
+    /// request, or the connection is fully offline. Live updates being off (reconnecting, or the live connection refused)
+    /// is not "not responding": the page keeps re-reading the numbers on its poll instead. It clears by itself when a
+    /// fresh snapshot arrives or a later load succeeds.
     /// </summary>
     public bool IsEngineUnreachable =>
-        Error is not null || _queueFetchFailed || ConnectionState == EngineConnectionState.Offline;
+        _error is not null || _queueFetchFailed || ConnectionState == EngineConnectionState.Offline;
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
@@ -105,7 +105,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     private async Task LoadSnapshotAsync(CancellationToken ct)
     {
         IsLoading = Presentation is null;
-        Error = null;
+        _error = null;
         var shouldNotify = IsLoading;
         if (IsLoading)
         {
@@ -146,7 +146,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Error = $"Ingestion status could not load: {ex.Message}";
+            _error = $"Ingestion status could not load: {ex.Message}";
             shouldNotify = true;
         }
         finally
@@ -296,7 +296,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     {
         // A snapshot only arrives when the Engine is answering, so any earlier failure is over.
         _queueFetchFailed = false;
-        Error = null;
+        _error = null;
     }
 
     private void OnConnectionStateChanged(EngineConnectionState state)

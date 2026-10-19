@@ -95,26 +95,6 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ListWaitingIngestionFilesAsync_ReturnsOnlyFileIntakeJobsThatHaveNotStarted()
-    {
-        var repo = new MediaOperationRepository(_db);
-        var waiting = await repo.EnsureAsync(NewOperation(
-            $"ingestion:file:{Guid.NewGuid():N}",
-            sourcePath: "C:/watch/waiting.epub",
-            status: MediaOperationStatus.Pending));
-        await repo.EnsureAsync(NewOperation(
-            $"ingestion:file:{Guid.NewGuid():N}",
-            sourcePath: "C:/watch/done.epub",
-            status: MediaOperationStatus.Succeeded));
-
-        var listed = await repo.ListWaitingIngestionFilesAsync();
-
-        var only = Assert.Single(listed);
-        Assert.Equal(waiting.Id, only.Id);
-        Assert.Equal("C:/watch/waiting.epub", only.SourcePath);
-    }
-
-    [Fact]
     public async Task GetLatestBySourcePathAsync_ReturnsTerminalOperationForTrackedPath()
     {
         var repo = new MediaOperationRepository(_db);

@@ -471,6 +471,99 @@ public sealed class DurablePipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestionEngine_FileDeletedWhileSettling_ClosesItsIntakeOperationAsMissingInsteadOfLeavingItPending()
+    {
+        var path = CreateWatchFile("Short Lived.epub");
+        using var debounce = new DebounceQueue(new DebounceOptions
+        {
+            SettleDelay = TimeSpan.FromMilliseconds(400),
+            ProbeInterval = TimeSpan.FromMilliseconds(1),
+            MaxProbeAttempts = 1,
+            MaxProbeDelay = TimeSpan.FromMilliseconds(10),
+        });
+        using var engine = CreateEngine(debounce, CreateDeletionOptions());
+
+        await ((IIngestionEngine)engine).ScanDirectories(
+            [new IngestionScanTarget(_watchDir, IncludeSubdirectories: false)],
+            CancellationToken.None);
+        var waiting = await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path));
+        Assert.NotNull(waiting);
+        Assert.Equal(MediaOperationStatus.Pending, waiting!.Status);
+
+        File.Delete(path);
+
+        var closed = await WaitForOperationAsync(
+            waiting.Id, operation => operation.Status == MediaOperationStatus.MissingConfirmed);
+        Assert.NotNull(closed);
+        Assert.False(string.IsNullOrWhiteSpace(closed!.MissingReason));
+        Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
+
+        var history = await new MediaOperationEventRepository(_dbFactory.Connection).GetByOperationAsync(waiting.Id);
+        Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
+        Assert.Contains(
+            _publisher.Published.ToArray(),
+            item => item.EventName == SignalREvents.MediaOperationChanged
+                && item.Payload is MediaOperationChangedEvent { Status: MediaOperationStatus.MissingConfirmed });
+    }
+
+    [Fact]
+    public async Task IngestionEngine_FileGoneWhenThePipelineReachesIt_AlsoClosesTheOperationOpenedWhenItWasNoticed()
+    {
+        var path = CreateWatchFile("Gone Before Reading.epub");
+        var noticed = await _operationTracker.EnsureQueuedAsync(new MediaOperation
+        {
+            OperationType = MediaOperationType.IngestionFile,
+            OperationKind = MediaOperationKind.Ingestion,
+            SourcePath = Path.GetFullPath(path),
+            Status = MediaOperationStatus.Pending,
+            Stage = MediaOperationStage.Discovered,
+            QueueName = "ingestion",
+            IdempotencyKey = $"ingestion:file:{Path.GetFullPath(path).Replace('\\', '/').ToLowerInvariant()}:{new FileInfo(path).Length}:{new FileInfo(path).LastWriteTimeUtc.Ticks}",
+        });
+        File.Delete(path);
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        using var engine = CreateEngine(debounce, CreateDeletionOptions());
+        var process = typeof(IngestionEngine).GetMethod(
+            "ProcessCandidateAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(process);
+        await Assert.IsAssignableFrom<Task>(process.Invoke(
+            engine,
+            [
+                new IngestionCandidate
+                {
+                    Path = path,
+                    EventType = FileEventType.Created,
+                    DetectedAt = DateTimeOffset.UtcNow,
+                    ReadyAt = DateTimeOffset.UtcNow,
+                },
+                CancellationToken.None,
+            ]));
+
+        var after = await _operationRepo.GetByIdAsync(noticed.Id);
+        Assert.Equal(MediaOperationStatus.MissingConfirmed, after!.Status);
+        Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
+    }
+
+    private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            var operation = await _operationRepo.GetByIdAsync(id);
+            if (operation is not null && isReady(operation))
+            {
+                return operation;
+            }
+
+            await Task.Delay(25);
+        }
+
+        return await _operationRepo.GetByIdAsync(id);
+    }
+
+    [Fact]
     public async Task IngestionEngine_StopCancelsAndDrainsOwnedDelayedWork()
     {
         var path = CreateWatchFile("Delayed Retry.epub");
