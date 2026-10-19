@@ -1318,11 +1318,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ChildExpected = null,
             ChildUnit = ChildUnit(mediaType, rows),
             DetailRoute = DetailRoute(mediaType, groupId),
-            People = Facet("People", "people", scopedOps, rows.Any(row => row.PeopleCount > 0), applies: true),
-            Artwork = Facet("Artwork", "artwork", scopedOps, cover.HasValue, applies: true),
-            Metadata = Facet("Metadata", "metadata", scopedOps, intakeComplete, applies: true),
-            Relationships = Facet("Relationships", "relationship", scopedOps, false, applies: true),
-            TextTracks = Facet(mediaType == "Music" ? "Lyrics" : "Subtitles", "text", scopedOps, rows.Any(row => row.TextTrackCount > 0), applies: mediaType is "Music" or "Movies" or "TV"),
+            People = Facet("People", "people", scopedOps, rows.Any(row => row.PeopleCount > 0), applies: true, settled: availability == "ready"),
+            Artwork = Facet("Artwork", "artwork", scopedOps, cover.HasValue, applies: true, settled: availability == "ready"),
+            Metadata = Facet("Metadata", "metadata", scopedOps, intakeComplete, applies: true, settled: availability == "ready"),
+            Relationships = Facet("Relationships", "relationship", scopedOps, false, applies: true, settled: availability == "ready"),
+            TextTracks = Facet(mediaType == "Music" ? "Lyrics" : "Subtitles", "text", scopedOps, rows.Any(row => row.TextTrackCount > 0), applies: mediaType is "Music" or "Movies" or "TV", settled: availability == "ready"),
             AddedAt = rows.Min(row => row.PresentedAt ?? row.AddedAt),
             UpdatedAt = scopedOps.Select(operation => operation.UpdatedAt).Append(rows.Max(row => row.UpdatedAt)).Max(),
         };
@@ -1531,7 +1531,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         string facet,
         IReadOnlyList<PresentationOperationRow> operations,
         bool hasResult,
-        bool applies)
+        bool applies,
+        bool settled = false)
     {
         if (!applies)
         {
@@ -1541,8 +1542,14 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var matching = operations.Where(operation => OperationFacet(operation) == facet).ToList();
         if (matching.Count == 0)
         {
-            return hasResult
-                ? new IngestionFacetStateDto { State = "complete", Label = $"{label} complete" }
+            if (hasResult)
+            {
+                return new IngestionFacetStateDto { State = "complete", Label = $"{label} complete" };
+            }
+
+            // A Ready row has nothing more queued for this symbol: it is settled with nothing found, not "queued".
+            return settled
+                ? new IngestionFacetStateDto { State = "complete", Label = $"No {label.ToLowerInvariant()} found" }
                 : new IngestionFacetStateDto { State = "pending", Label = $"{label} {FacetStateLabel("pending")}" };
         }
         var state = matching.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")

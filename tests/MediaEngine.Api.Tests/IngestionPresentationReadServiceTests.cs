@@ -119,7 +119,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal(17, one.FileCount);
         Assert.Null(one.ChildExpected);
         Assert.Equal("tracks", one.ChildUnit);
-        Assert.Equal("pending", one.Relationships.State); // applies to albums, just not started
+        // A Ready album with no relationship work left is settled with nothing found, not "queued".
+        Assert.Equal("complete", one.Relationships.State);
+        Assert.Equal("No relationships found", one.Relationships.Label);
 
         var partial = Assert.Single(page.Items, item => item.GroupId == partialAlbum);
         Assert.Equal(14, partial.ChildCompleted);
@@ -890,6 +892,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var batch = AddBatch("running", 2, 2);
         var book = AddStandalone(batch, "Books", "A Book");
         var movie = AddStandalone(batch, "Movies", "A Movie");
+        MarkNotReady(movie);
 
         var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
 
@@ -897,6 +900,22 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var movieItem = Assert.Single(page.Items, item => item.GroupId == movie);
         Assert.Equal("pending", movieItem.TextTracks.State);
         Assert.Equal("Subtitles queued", movieItem.TextTracks.Label);
+    }
+
+    [Fact]
+    public async Task Facets_ThatApplyButHaveNothingToDo_OnAReadyRow_AreSettledWithNothingFound_NotQueued()
+    {
+        var batch = AddBatch("running", 1, 1);
+        var movie = AddStandalone(batch, "Movies", "A Ready Movie");
+        MarkReady(movie);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        var item = Assert.Single(page.Items, row => row.GroupId == movie);
+        Assert.Equal("ready", item.Availability);
+        Assert.Equal("complete", item.TextTracks.State);
+        Assert.Equal("No subtitles found", item.TextTracks.Label);
+        Assert.Equal("No relationships found", item.Relationships.Label);
     }
 
     [Fact]
