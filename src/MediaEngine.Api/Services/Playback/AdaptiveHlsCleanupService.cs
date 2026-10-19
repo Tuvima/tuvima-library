@@ -12,28 +12,61 @@ public sealed class AdaptiveHlsCleanupService(
     IConfigurationLoader configuration,
     ILogger<AdaptiveHlsCleanupService> logger) : BackgroundService
 {
+    /// <summary>Minutes between passes when the transcoding settings cannot be read.</summary>
+    private const int FallbackIntervalMinutes = 60;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await CleanupAsync(stoppingToken).ConfigureAwait(false);
         while (!stoppingToken.IsCancellationRequested)
         {
-            var minutes = Math.Clamp(
-                configuration.LoadTranscoding().AdaptiveHls.CleanupIntervalMinutes,
-                1,
-                1440);
+            if (!await RunCleanupPassAsync(stoppingToken).ConfigureAwait(false))
+            {
+                break;
+            }
+
             try
             {
-                await Task.Delay(TimeSpan.FromMinutes(minutes), stoppingToken).ConfigureAwait(false);
-                await CleanupAsync(stoppingToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromMinutes(ReadIntervalMinutes()), stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Adaptive HLS cleanup failed");
-            }
+        }
+    }
+
+    /// <summary>
+    /// Runs one cleanup pass. A failure is logged as a warning and the next pass tries again; it never stops the
+    /// Engine. Returns <see langword="false"/> only when the Engine is shutting down.
+    /// </summary>
+    internal async Task<bool> RunCleanupPassAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await CleanupAsync(stoppingToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Adaptive HLS cleanup failed; the next pass will try again");
+            return true;
+        }
+    }
+
+    private int ReadIntervalMinutes()
+    {
+        try
+        {
+            return Math.Clamp(configuration.LoadTranscoding().AdaptiveHls.CleanupIntervalMinutes, 1, 1440);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not read the adaptive HLS cleanup interval; using {Minutes} minutes", FallbackIntervalMinutes);
+            return FallbackIntervalMinutes;
         }
     }
 
@@ -105,8 +138,14 @@ public sealed class AdaptiveHlsCleanupService(
     /// the name is a job id, no offline variant keeps a file inside it, no waiting or running job owns it, and it has not been
     /// written to for <see cref="OrphanJobFolderAge"/>. Any other folder is left alone.
     /// </summary>
-    private async Task SweepOrphanJobFoldersAsync(string root, CancellationToken ct)
+    internal async Task SweepOrphanJobFoldersAsync(string root, CancellationToken ct)
     {
+        if (!Directory.Exists(root))
+        {
+            // Nothing has been encoded yet (or the cache was removed by hand); there is nothing to sweep.
+            return;
+        }
+
         var activeJobs = await playbackState.ListActiveEncodeJobIdsAsync(ct).ConfigureAwait(false);
         var variantFolders = (await playbackState.ListOfflineVariantOutputPathsAsync(ct).ConfigureAwait(false))
             .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))

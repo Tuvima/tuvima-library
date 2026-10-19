@@ -6,6 +6,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Playback;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -58,7 +59,73 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
         Assert.Null(await packages.FindByIdAsync(package.Id));
     }
 
-    private AdaptiveHlsCleanupService CreateCleanup(AdaptiveHlsPackageRepository packages)
+    [Fact]
+    public async Task CleanupAsync_OnAFreshStoreWithNoVariantsFolder_CreatesTheCacheWithoutFailing()
+    {
+        _configuration.SaveTranscoding(new TranscodingSettings
+        {
+            VariantCachePath = string.Empty,
+            VariantRetentionDays = 1,
+            ShadowStorageLimitGb = 1,
+            CleanupLruEnabled = true,
+        });
+        Assert.False(Directory.Exists(Path.Combine(_root, ".data", "variants")));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.True(Directory.Exists(Path.Combine(_root, ".data", "variants", "hls")));
+    }
+
+    [Fact]
+    public async Task SweepOrphanJobFolders_WhenTheCacheFolderIsMissing_DoesNothing()
+    {
+        var missing = Path.Combine(_root, ".data", "variants");
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).SweepOrphanJobFoldersAsync(missing, CancellationToken.None);
+
+        Assert.False(Directory.Exists(missing));
+    }
+
+    [Fact]
+    public async Task RunCleanupPass_WhenThePassFails_LogsAWarningAndKeepsTheEngineRunning()
+    {
+        // A file where the cache folder should be makes the pass fail as soon as it tries to create the HLS folder.
+        await File.WriteAllTextAsync(Path.Combine(_root, "variants"), "not a folder");
+        var logger = new RecordingLogger();
+
+        var keepRunning = await CreateCleanup(new AdaptiveHlsPackageRepository(_database), logger)
+            .RunCleanupPassAsync(CancellationToken.None);
+
+        Assert.True(keepRunning);
+        Assert.Contains(logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is IOException);
+    }
+
+    [Fact]
+    public async Task RunCleanupPass_WhenTheEngineIsStopping_ReportsThatTheLoopShouldEnd()
+    {
+        using var stopping = new CancellationTokenSource();
+        await stopping.CancelAsync();
+
+        var keepRunning = await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).RunCleanupPassAsync(stopping.Token);
+
+        Assert.False(keepRunning);
+    }
+
+    private sealed class RecordingLogger : ILogger<AdaptiveHlsCleanupService>
+    {
+        public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception));
+    }
+
+    private AdaptiveHlsCleanupService CreateCleanup(
+        AdaptiveHlsPackageRepository packages,
+        ILogger<AdaptiveHlsCleanupService>? logger = null)
     {
         var hls = new AdaptiveHlsService(
             packages,
@@ -73,7 +140,7 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
             new PlaybackStateRepository(_database),
             hls,
             _configuration,
-            NullLogger<AdaptiveHlsCleanupService>.Instance);
+            logger ?? NullLogger<AdaptiveHlsCleanupService>.Instance);
     }
 
     [Fact]
