@@ -143,30 +143,36 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var deleted = conn.Execute("""
-                DELETE FROM households
-                WHERE id = @householdId
-                  AND NOT EXISTS (SELECT 1 FROM accounts WHERE household_id = @householdId)
-                  AND NOT EXISTS (SELECT 1 FROM profiles WHERE household_id = @householdId)
-                  AND NOT EXISTS (SELECT 1 FROM view_shared_library WHERE household_id = @householdId);
-                """, new { householdId }, tx);
-            if (deleted > 0)
-            {
-                return HouseholdDeleteOutcome.Deleted;
-            }
-
-            // Nothing was removed: say why, so the caller can tell the person in plain words.
             if (conn.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id = @householdId;", new { householdId }, tx) == 0)
             {
                 return HouseholdDeleteOutcome.NotFound;
             }
 
-            return conn.ExecuteScalar<int>("""
+            if (conn.ExecuteScalar<int>("""
                 SELECT (SELECT COUNT(*) FROM accounts WHERE household_id = @householdId)
                      + (SELECT COUNT(*) FROM profiles WHERE household_id = @householdId);
-                """, new { householdId }, tx) > 0
-                ? HouseholdDeleteOutcome.NotEmpty
-                : HouseholdDeleteOutcome.HoldsSharedLibrary;
+                """, new { householdId }, tx) > 0)
+            {
+                return HouseholdDeleteOutcome.NotEmpty;
+            }
+
+            // The household's Shared Library in View keeps the household while it holds shared photos. The data store
+            // does not yet allow removing even an empty Shared Library row (trg_view_shared_library_delete), so an empty
+            // one still keeps the household until a data-store step relaxes that trigger.
+            var sharedLibraryId = conn.ExecuteScalar<Guid?>(
+                "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
+            if (sharedLibraryId is { } libraryId)
+            {
+                return conn.ExecuteScalar<int>(
+                        "SELECT EXISTS (SELECT 1 FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);",
+                        new { libraryId }, tx) == 1
+                    ? HouseholdDeleteOutcome.HoldsSharedItems
+                    : HouseholdDeleteOutcome.HoldsSharedLibrary;
+            }
+
+            return conn.Execute("DELETE FROM households WHERE id = @householdId;", new { householdId }, tx) > 0
+                ? HouseholdDeleteOutcome.Deleted
+                : HouseholdDeleteOutcome.NotFound;
         }, ct);
 
     private const string SummarySelect = """

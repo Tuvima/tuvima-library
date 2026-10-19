@@ -22,6 +22,7 @@ public sealed class HouseholdManagementService(
 
     public const string NotEmptyMessage = "This household still has people or sign-ins, so it can't be removed. Nothing was changed.";
     public const string HoldsSharedLibraryMessage = "This household holds the Shared Library, so it can't be removed. Nothing was changed.";
+    public const string HoldsSharedItemsMessage = "This household still has shared photos in View. Remove them first.";
 
     public async Task<IReadOnlyList<HouseholdSummary>> ListAsync(RequestAuthority actor, CancellationToken ct = default)
     {
@@ -79,6 +80,8 @@ public sealed class HouseholdManagementService(
                 throw new KeyNotFoundException("Household not found.");
             case HouseholdDeleteOutcome.NotEmpty:
                 throw new InvalidOperationException(NotEmptyMessage);
+            case HouseholdDeleteOutcome.HoldsSharedItems:
+                throw new InvalidOperationException(HoldsSharedItemsMessage);
             default:
                 throw new InvalidOperationException(HoldsSharedLibraryMessage);
         }

@@ -59,12 +59,33 @@ public sealed class HouseholdRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task TheHouseholdHoldingTheSharedLibrary_CannotBeRemoved()
+    public async Task AHouseholdWithAnEmptySharedLibraryRow_IsKeptUntilTheDataStoreLetsTheRowGo()
     {
         var shared = await new ViewSharedLibraryRepository(_database).GetAsync();
 
         Assert.Equal(HouseholdDeleteOutcome.HoldsSharedLibrary, await _households.DeleteWhenEmptyAsync(shared.HouseholdId));
+
         Assert.NotNull(await _households.GetByIdAsync(shared.HouseholdId));
+    }
+
+    [Fact]
+    public async Task AHouseholdWhoseSharedLibraryStillHoldsPhotos_IsKeptWithEverythingInIt()
+    {
+        var shared = await new ViewSharedLibraryRepository(_database).GetAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
+                """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = _now.ToString("O") });
+        }
+
+        Assert.Equal(HouseholdDeleteOutcome.HoldsSharedItems, await _households.DeleteWhenEmptyAsync(shared.HouseholdId));
+
+        Assert.NotNull(await _households.GetByIdAsync(shared.HouseholdId));
+        using var check = _database.CreateConnection();
+        Assert.Equal(1, check.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM view_shared_library WHERE household_id = @id;", new { id = shared.HouseholdId }));
     }
 
     [Fact]
