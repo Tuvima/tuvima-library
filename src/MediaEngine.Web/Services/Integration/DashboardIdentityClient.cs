@@ -457,11 +457,20 @@ public sealed class DashboardIdentityClient(
     public async Task<List<HouseholdResponse>> GetManagedHouseholdsAsync(CancellationToken ct = default) =>
         await GetAsync<List<HouseholdResponse>>("/access/households", ct).ConfigureAwait(false) ?? [];
 
+    /// <summary>Adds an empty household (server administrator only). A refusal keeps the Engine's plain reason in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdResponse>> CreateManagedHouseholdResultAsync(string name, CancellationToken ct = default) =>
+        SendMutationAsync<CreateHouseholdRequest, HouseholdResponse>(HttpMethod.Post, "/access/households", new CreateHouseholdRequest(name), ct, includeMessage: true);
+
+    /// <summary>Renames a household (server administrator only). A refusal keeps the Engine's plain reason in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdResponse>> RenameManagedHouseholdResultAsync(Guid householdId, string name, CancellationToken ct = default) =>
+        SendMutationAsync<RenameHouseholdRequest, HouseholdResponse>(HttpMethod.Put, $"/access/households/{householdId:D}", new RenameHouseholdRequest(name), ct, includeMessage: true);
+
+    /// <summary>Removes an empty household (server administrator only). The Engine refuses with 409 while people, sign-ins or shared photos remain; its sentence is kept in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult> DeleteManagedHouseholdResultAsync(Guid householdId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/households/{householdId:D}", ct, includeMessage: true);
+
     public async Task<List<AccessLibraryOptionDto>> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         await GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct).ConfigureAwait(false) ?? [];
-
-    public Task<DashboardAccessMutationResult<ManagedProfileResponse>> CreateManagedProfileResultAsync(CreateManagedProfileRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<CreateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Post, "/access/profiles", request, ct);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
@@ -898,7 +907,8 @@ public sealed class DashboardIdentityClient(
         HttpMethod method,
         string path,
         TRequest body,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -906,7 +916,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                return await ReadMutationFailureAsync<TResponse>(response, ct).ConfigureAwait(false);
+                return await ReadMutationFailureAsync<TResponse>(response, ct, includeMessage).ConfigureAwait(false);
             }
 
             try
@@ -1002,7 +1012,8 @@ public sealed class DashboardIdentityClient(
     private async Task<DashboardAccessMutationResult> SendMutationAsync(
         HttpMethod method,
         string path,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -1010,7 +1021,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode
                 ? DashboardAccessMutationResult.Success()
-                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+                : await ReadMutationFailureAsync(response, ct, includeMessage).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {
@@ -1022,22 +1033,57 @@ public sealed class DashboardIdentityClient(
         }
     }
 
-    private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields);
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
     }
 
-    private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields);
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields, message);
+    }
+
+    // The Engine's own sentence for a rule refusal (a bad name, a household that still holds people). Only calls that opt in
+    // read it, and only for those two classes of refusal, so submitted values are never replayed.
+    private static async Task<string?> ReadPlainMessageAsync(HttpResponseMessage response, DashboardAccessMutationFailure failure, CancellationToken ct)
+    {
+        if (failure is not (DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation))
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("detail", out var detail)
+                && detail.ValueKind == JsonValueKind.String
+                    ? detail.GetString()
+                    : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
     }
 
     // A 403 can mean "not allowed" or "confirm it's you first"; only the second one has a way forward in the UI.

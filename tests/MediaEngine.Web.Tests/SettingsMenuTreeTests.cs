@@ -61,6 +61,25 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Profiles_IsInTheMenuOnlyForAdministrators_AndHouseholdsOnlyForTheServerAdministrator()
+    {
+        var member = Flatten(SettingsMenuBuilder.Build(Context(administrator: false))).Select(row => row.Label).ToArray();
+        Assert.DoesNotContain("Profiles", member);
+        Assert.DoesNotContain("Households", member);
+
+        var household = Flatten(SettingsMenuBuilder.Build(Context(administrator: false) with { HouseholdAdministrator = true })).Select(row => row.Label).ToArray();
+        Assert.Contains("Profiles", household);
+        Assert.DoesNotContain("Households", household);
+
+        var server = Flatten(SettingsMenuBuilder.Build(Context(administrator: true))).ToArray();
+        var profiles = server.Single(row => row.Label == "Profiles");
+        Assert.Equal("/settings/profiles", profiles.Route);
+        var households = Assert.Single(profiles.Children!);
+        Assert.Equal("Households", households.Label);
+        Assert.Equal("/settings/profiles/households", households.Route);
+    }
+
+    [Fact]
     public void NeedsReviewCount_MakesRecentlyAddedWaiting_AndItsParentInheritsIt()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 3 });
@@ -165,9 +184,9 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
             Assert.NotNull(row.QuerySelector(".media-section-shell__tree-badge"));
         }
 
-        var profiles = rows.Single(row => row.QuerySelector(".media-section-shell__tree-label")!.TextContent == "Profiles");
+        var integrations = rows.Single(row => row.QuerySelector(".media-section-shell__tree-label")!.TextContent == "Integrations");
         // A page with no children keeps the slot but leaves it blank.
-        Assert.Null(profiles.QuerySelector(".media-section-shell__tree-chevron-slot button"));
+        Assert.Null(integrations.QuerySelector(".media-section-shell__tree-chevron-slot button"));
         var preferences = rows.Single(row => row.QuerySelector(".media-section-shell__tree-label")!.TextContent == "Preferences");
         Assert.NotNull(preferences.QuerySelector(".media-section-shell__tree-chevron-slot button"));
     }
@@ -185,7 +204,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.NotEmpty(cut.FindAll("a[href='/settings/playback']"));
-            Assert.Equal("true", cut.Find(".media-section-shell__tree-chevron-slot button[aria-controls$='children']").GetAttribute("aria-expanded"));
+            var preferencesRow = cut.Find("a[href='/settings/preferences']").ParentElement!;
+            Assert.Equal("true", preferencesRow.QuerySelector(".media-section-shell__tree-chevron-slot button[aria-controls$='children']")!.GetAttribute("aria-expanded"));
         });
     }
 

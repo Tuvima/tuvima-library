@@ -883,7 +883,7 @@ Email password-reset links, used only when email recovery is set up. `id`, `acco
 
 ### account_invitations
 
-Invitation codes made by an administrator (**Users & Access > Households**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
+Invitation codes made by an administrator (**Users and Sign-in > Users**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
 
 ### account_profile_grants
 

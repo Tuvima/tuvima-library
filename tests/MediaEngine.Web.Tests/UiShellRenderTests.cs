@@ -740,7 +740,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("profiles-tab__card", cut.Markup);
+            // The bare /settings address opens Profiles for an administrator: the people list, not a card of the open profile's stats.
+            Assert.NotEmpty(cut.FindAll(".profiles-tab"));
+            Assert.Empty(cut.FindAll(".profiles-tab__card"));
+            Assert.Empty(cut.FindAll(".profiles-tab__stats"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
             Assert.DoesNotContain("At a Glance", cut.Markup);
             Assert.DoesNotContain("Your Statistics", cut.Markup);

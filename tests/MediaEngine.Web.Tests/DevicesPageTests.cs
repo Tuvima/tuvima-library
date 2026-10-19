@@ -339,6 +339,50 @@ public sealed class DevicesPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ProfileQueryValue_PreselectsTheProfileFilter_ForAnAdministrator()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>()
+            .NavigateTo($"/settings/security/devices?profile={_handler.AnnaProfile}");
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(_handler.AnnaProfile.ToString(), cut.Find("select[data-devices-filter='profile']").GetAttribute("value"));
+            var device = Assert.Single(cut.FindAll("[data-device-row]"));
+            Assert.Contains("Anna's phone", device.TextContent, StringComparison.Ordinal);
+            var person = Assert.Single(cut.FindAll("[data-session-person]"));
+            Assert.Equal(_handler.AnnaAccount.ToString(), person.GetAttribute("data-session-person"));
+        });
+    }
+
+    [Fact]
+    public void ProfileQueryValue_ThatIsNotAPersonTheAdministratorCanSee_LeavesTheFilterOnAll()
+    {
+        SignIn(DevicesScope.HouseholdAdministrator);
+        Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>()
+            .NavigateTo($"/settings/security/devices?profile={_handler.MaryProfile}");
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-devices-filter='profile']");
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-device-row]").Count));
+        Assert.Equal(string.Empty, cut.Find("select[data-devices-filter='profile']").GetAttribute("value") ?? string.Empty);
+    }
+
+    [Fact]
+    public void ProfileQueryValue_IsIgnoredForAMember()
+    {
+        SignIn(DevicesScope.Member);
+        Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>()
+            .NavigateTo($"/settings/security/devices?profile={_handler.AnnaProfile}");
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-session-row]");
+        Assert.Empty(cut.FindAll("[data-devices-filters]"));
+        Assert.Single(cut.FindAll("[data-device-row]"));
+    }
+
+    [Fact]
     public void ChoosingAHouseholdThatLacksTheChosenProfile_ResetsTheProfileToAll()
     {
         SignIn(DevicesScope.ServerAdministrator);

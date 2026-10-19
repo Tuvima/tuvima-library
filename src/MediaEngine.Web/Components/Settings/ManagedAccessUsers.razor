@@ -9,7 +9,7 @@
 @inject DeviceContextService DeviceContext
 @implements IDisposable
 
-<SettingsSectionPanel Title="Households and users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@AppMaterialIcons.Outlined.Group">
+<SettingsSectionPanel Title="Users" Description="Accounts, roles and invitations. An account's profile access decides which profiles it can open; the people themselves are looked after under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
     @if (!CanManage)
     {
         <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage users.</AppAlert>
@@ -31,28 +31,6 @@
                 <AppButton Label="Invite someone outside your household" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
             }
         </div>
-        @if (!_loading && Households.Count > 0)
-        {
-            <section class="access-form-section" aria-label="Households">
-                <AppText Typo="AppTypo.subtitle1">Households</AppText>
-                <p class="access-form-section__hint">Each household has its own people, library access and Shared Library. Look after its people, PINs and sign-ins from <a href="/settings/profiles">Profiles</a>.</p>
-                <div class="access-users" role="table" aria-label="Households">
-                    @foreach (var household in Households)
-                    {
-                        <div class="access-users__row access-users__row--household" role="row" @key="household.Id">
-                            <div class="access-users__identity" role="cell">
-                                <strong>@household.Label</strong>
-                                <small>@household.PeopleCount of 8 people</small>
-                            </div>
-                            <div class="access-users__identity" role="cell">
-                                <small>Main sign-in</small>
-                                <strong>@(household.PrimarySignIn ?? "None")</strong>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
         @if (_loading)
         {
             <AppProgressBar Indeterminate="true" aria-label="Loading users" />
@@ -132,7 +110,7 @@
                                     {
                                         <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
                                     }
-                                    <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
+                                    <AppButton Label="Profile access" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
                                     <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
                                     <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
                                     @if (account.HasTwoStep)
@@ -158,7 +136,7 @@
     <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><AppText Typo="AppTypo.overline">Access · Users</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <div><AppText Typo="AppTypo.overline">Users and Sign-in · Users</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
             <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close user drawer" OnClick="Close" />
         </header>
         <div class="access-drawer__body">
@@ -218,37 +196,15 @@
             else if (_mode == UserDrawerMode.Profiles && _editing is not null)
             {
                 <section class="access-form-section">
-                    <div><AppText Typo="AppTypo.subtitle1">Profile grants</AppText><small>@_editing.ProfileGrants.Count of 8 profiles granted</small></div>
+                    <div><AppText Typo="AppTypo.subtitle1">Profile access</AppText><small>@_editing.ProfileGrants.Count of 8 profiles granted</small></div>
                     @foreach (var grant in _editing.ProfileGrants)
                     {
                         <section class="access-grant" @key="grant.ProfileId">
                             <div class="access-grant__heading"><span class="access-profile-chip__avatar">@Initials(grant.DisplayName)</span><div><strong>@grant.DisplayName</strong><small>@(grant.IsDefault ? "Default profile" : "Granted profile")</small></div></div>
-                            <div class="access-grant__rename">
-                                <AppTextField Value="@ProfileName(grant)" ValueChanged="@((string value) => _profileNames[grant.ProfileId] = value)" Label="Profile name" FullWidth="true" />
-                                <AppButton Label="Rename" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrWhiteSpace(ProfileName(grant)) || ProfileName(grant) == grant.DisplayName)" OnClick="@(() => RenameProfile(grant))" />
-                            </div>
                             <AppSwitchRow Value="@grant.IsDefault" ValueChanged="@((bool value) => SaveGrant(grant, value, grant.AdminEnabled))" Disabled="@grant.IsDefault" Label="Default profile" />
                             @if (_editing.IsAdministrator && !grant.IsRestricted)
                             {
-                                <AppSwitchRow Value="@grant.AdminEnabled" ValueChanged="@((bool value) => SaveGrant(grant, grant.IsDefault, value))" Disabled="@_saving" Label="Allow admin dashboard" Description="This setting applies only to this account's use of the profile." />
-                                @if (grant.AdminEnabled)
-                                {
-                                    <div class="access-protection">
-                                        <div><strong>@(grant.AdminProtection.Enabled ? "Admin settings are protected" : "Protect admin settings")</strong><small>Require a PIN before opening administrator settings from this profile.</small></div>
-                                        <AppTextField InputType="AppInputType.Password" Value="@Pin(grant.ProfileId)" ValueChanged="@(value => _pins[grant.ProfileId] = value ?? string.Empty)" Disabled="@_saving" aria-label="@($"New administrator PIN for {grant.DisplayName}")" />
-                                        <AppNativeSelect Value="@ProtectionOption(grant.ProfileId)" OnChange="@(value => _protectionOptions[grant.ProfileId] = value.Value?.ToString() ?? "FixedDuration:30")" Disabled="@_saving" aria-label="@($"PIN unlock duration for {grant.DisplayName}")">
-                                            <option value="FixedDuration:15">For 15 minutes</option>
-                                            <option value="FixedDuration:30">For 30 minutes</option>
-                                            <option value="FixedDuration:60">For 1 hour</option>
-                                            <option value="UntilProfileSwitch">Until profile switch</option>
-                                            <option value="LockOnLeave">Lock when leaving settings</option>
-                                        </AppNativeSelect>
-                                        <div class="access-protection__actions">
-                                            <AppButton Label="@(grant.AdminProtection.Enabled ? "Update protection" : "Enable protection")" Size="AppControlSize.Compact" Disabled="@(_saving || string.IsNullOrWhiteSpace(Pin(grant.ProfileId)))" OnClick="@(() => SaveProtection(grant, true))" />
-                                            @if (grant.AdminProtection.Enabled) { <AppButton Label="Remove protection" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_saving" OnClick="@(() => SaveProtection(grant, false))" /> }
-                                        </div>
-                                    </div>
-                                }
+                                <AppSwitchRow Value="@grant.AdminEnabled" ValueChanged="@((bool value) => SaveGrant(grant, grant.IsDefault, value))" Disabled="@_saving" Label="Allow admin dashboard" Description="This setting applies only to this account's use of the profile. The PIN that protects it is set on the person's page under Profiles." />
                             }
                             <AppButton Label="Revoke profile" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_saving || _editing.ProfileGrants.Count == 1)" OnClick="@(() => Revoke(grant))" />
                         </section>
@@ -256,13 +212,6 @@
                 </section>
                 @if (_editing.ProfileGrants.Count < 8)
                 {
-                    <section class="access-form-section">
-                        <AppText Typo="AppTypo.subtitle1">Create a profile</AppText>
-                        <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
-                        <AppTextField @bind-Value="_profileColor" Label="Avatar color" FullWidth="true" />
-                        <AppSwitchRow @bind-Value="_newProfileDefault" Label="Make this the default profile" />
-                        <AppButton Label="Create profile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || string.IsNullOrWhiteSpace(_profileName))" OnClick="CreateProfile" />
-                    </section>
                     @if (GrantableProfiles.Count > 0)
                     {
                         <section class="access-form-section">
@@ -338,9 +287,6 @@
     private readonly HashSet<string> _featureIds = new(StringComparer.Ordinal);
     private readonly HashSet<Guid> _libraryIds = [];
     private readonly HashSet<Guid> _invitationProfiles = [];
-    private readonly Dictionary<Guid, string> _profileNames = [];
-    private readonly Dictionary<Guid, string> _pins = [];
-    private readonly Dictionary<Guid, string> _protectionOptions = [];
     private List<AccountAccessResponse> _accounts = [];
     private List<ManagedProfileResponse> _profiles = [];
     private List<AccessLibraryOptionDto> _libraries = [];
@@ -355,7 +301,6 @@
     private bool _saving;
     private bool _administrator;
     private bool _enabled = true;
-    private bool _newProfileDefault;
     private string _email = string.Empty;
     private string _profileName = string.Empty;
     private string _profileColor = "#7C4DFF";
@@ -380,18 +325,6 @@
 
     private bool CanManage => Session.HasAction("access.manage");
     private bool ShowingCreatedResult => _editing is null && (_invitation is not null || !string.IsNullOrEmpty(_issuedTemporaryPassword));
-    private IReadOnlyList<HouseholdView> Households => _profiles
-        .Where(profile => profile.HouseholdId is not null)
-        .GroupBy(profile => profile.HouseholdId!.Value)
-        .Select(group =>
-        {
-            var members = _accounts.Where(account => account.HouseholdId == group.Key).ToList();
-            var main = members.Where(account => account.GrantsInheritFromAccountId is null).OrderBy(account => account.CreatedAt).FirstOrDefault();
-            return new HouseholdView(group.Key, main?.Email is { } email ? $"{email}'s household" : "Household", main?.Email, group.Count());
-        })
-        .OrderBy(household => household.Label, StringComparer.CurrentCultureIgnoreCase)
-        .ToList();
-    private sealed record HouseholdView(Guid Id, string Label, string? PrimarySignIn, int PeopleCount);
     private bool ShowingResult => ShowingCreatedResult
         || (_mode == UserDrawerMode.Invitation && _invitation is not null)
         || (_mode == UserDrawerMode.TemporaryPassword && !string.IsNullOrEmpty(_issuedTemporaryPassword));
@@ -402,7 +335,7 @@
     private string DrawerTitle => _mode switch
     {
         UserDrawerMode.Permissions => $"Permissions · {EditingLabel}",
-        UserDrawerMode.Profiles => $"Profiles · {EditingLabel}",
+        UserDrawerMode.Profiles => $"Profile access · {EditingLabel}",
         UserDrawerMode.Invitation => "Invite user",
         UserDrawerMode.TemporaryPassword => $"Temporary password · {EditingLabel}",
         UserDrawerMode.Delete => $"Delete · {EditingLabel}",
@@ -458,13 +391,6 @@
     {
         ResetDrawer(UserDrawerMode.Profiles);
         LoadAccount(account);
-        foreach (var grant in account.ProfileGrants)
-        {
-            _profileNames[grant.ProfileId] = grant.DisplayName;
-            _protectionOptions[grant.ProfileId] = grant.AdminProtection.UnlockMode == "FixedDuration"
-                ? $"FixedDuration:{grant.AdminProtection.UnlockMinutes ?? 30}"
-                : grant.AdminProtection.UnlockMode;
-        }
         _open = true;
     }
     private void OpenTemporaryPassword(AccountAccessResponse account)
@@ -517,12 +443,9 @@
         _invitationDefault = null;
         _featureIds.Clear();
         _libraryIds.Clear();
-        _profileNames.Clear();
-        _pins.Clear();
-        _protectionOptions.Clear();
         _email = _profileName = _grantProfile = _error = _drawerMessage = string.Empty;
         _profileColor = "#7C4DFF";
-        _administrator = _newProfileDefault = false;
+        _administrator = false;
         _enabled = true;
     }
 
@@ -704,64 +627,6 @@
         }
     }
 
-    private async Task CreateProfile()
-    {
-        if (_editing is null)
-            return;
-        if (!TryBeginMutation(out var generation))
-            return;
-        try
-        {
-            ClearMessages();
-            var result = await Identity.CreateManagedProfileResultAsync(
-                new(_editing.Id, _profileName.Trim(), _profileColor, _newProfileDefault));
-            if (!IsCurrentMutation(generation))
-                return;
-            if (result.Succeeded && result.Value is not null)
-            {
-                _profileName = string.Empty;
-                _newProfileDefault = false;
-                _drawerMessage = $"{result.Value.DisplayName} was created and granted.";
-                await ReloadKeepingEditing(generation);
-            }
-            else
-            {
-                _error = Message(result.Failure);
-            }
-        }
-        finally
-        {
-            EndMutation(generation);
-        }
-    }
-
-    private async Task RenameProfile(AccountProfileGrantDto grant)
-    {
-        if (!TryBeginMutation(out var generation))
-            return;
-        try
-        {
-            ClearMessages();
-            var result = await Identity.UpdateManagedProfileResultAsync(grant.ProfileId,
-                new(ProfileName(grant).Trim(), ProfileAvatarColor(grant.ProfileId)));
-            if (!IsCurrentMutation(generation))
-                return;
-            if (result.Succeeded && result.Value is not null)
-            {
-                _drawerMessage = $"Profile renamed to {result.Value.DisplayName}.";
-                await ReloadKeepingEditing(generation);
-            }
-            else
-            {
-                _error = Message(result.Failure);
-            }
-        }
-        finally
-        {
-            EndMutation(generation);
-        }
-    }
-
     private async Task SaveGrant(AccountProfileGrantDto grant, bool isDefault, bool adminEnabled)
     {
         if (_editing is null)
@@ -780,44 +645,6 @@
                 _drawerMessage = isDefault
                     ? $"{grant.DisplayName} is now the default profile."
                     : $"{grant.DisplayName} access was updated.";
-                await ReloadKeepingEditing(generation);
-            }
-            else
-            {
-                _error = Message(result.Failure);
-            }
-        }
-        finally
-        {
-            EndMutation(generation);
-        }
-    }
-
-    private async Task SaveProtection(AccountProfileGrantDto grant, bool enabled, string? mode = null)
-    {
-        if (_editing is null)
-            return;
-        if (!TryBeginMutation(out var generation))
-            return;
-        try
-        {
-            ClearMessages();
-            var option = mode ?? ProtectionOption(grant.ProfileId);
-            var parts = option.Split(':', 2);
-            var unlockMode = parts[0];
-            var unlockMinutes = unlockMode == "FixedDuration" && parts.Length == 2 && int.TryParse(parts[1], out var minutes)
-                ? minutes
-                : grant.AdminProtection.UnlockMinutes;
-            var result = await Identity.SetGrantProtectionResultAsync(_editing.Id, grant.ProfileId,
-                new(enabled, enabled ? Pin(grant.ProfileId) : null, unlockMode, unlockMinutes));
-            if (!IsCurrentMutation(generation))
-                return;
-            _pins.Remove(grant.ProfileId);
-            if (result.Succeeded)
-            {
-                _drawerMessage = enabled
-                    ? $"Admin protection for {grant.DisplayName} was updated."
-                    : $"Admin protection for {grant.DisplayName} was removed.";
                 await ReloadKeepingEditing(generation);
             }
             else
@@ -1049,15 +876,6 @@
         if (generation is { } expected && !IsCurrentMutation(expected))
             return;
         _editing = id is null ? null : _accounts.FirstOrDefault(account => account.Id == id);
-        _profileNames.Clear();
-        if (_editing is not null)
-            foreach (var grant in _editing.ProfileGrants)
-            {
-                _profileNames[grant.ProfileId] = grant.DisplayName;
-                _protectionOptions[grant.ProfileId] = grant.AdminProtection.UnlockMode == "FixedDuration"
-                    ? $"FixedDuration:{grant.AdminProtection.UnlockMinutes ?? 30}"
-                    : grant.AdminProtection.UnlockMode;
-            }
     }
 
     private void ReplaceAccount(AccountAccessResponse account)
@@ -1107,10 +925,6 @@
     }
 
     private void ToggleActions(Guid id) => _actionAccountId = _actionAccountId == id ? null : id;
-    private string ProfileName(AccountProfileGrantDto grant) => _profileNames.GetValueOrDefault(grant.ProfileId, grant.DisplayName);
-    private string ProfileAvatarColor(Guid id) => _profiles.FirstOrDefault(profile => profile.Id == id)?.AvatarColor ?? "#7C4DFF";
-    private string Pin(Guid id) => _pins.GetValueOrDefault(id, "");
-    private string ProtectionOption(Guid id) => _protectionOptions.GetValueOrDefault(id, "FixedDuration:30");
     private static string AccountLabel(AccountAccessResponse account) => string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
     private static string Initials(string value) => string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     private void ClearMessages() => _error = _drawerMessage = string.Empty;
@@ -1154,8 +968,6 @@
         _actionAccountId = null;
         _invitation = null;
         _temporaryPassword = _issuedTemporaryPassword = string.Empty;
-        _pins.Clear();
-        _protectionOptions.Clear();
         _restoreFocus = true;
     }
 

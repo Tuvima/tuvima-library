@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Integration
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
+@inject NavigationManager Nav
 @inject ILogger<DevicesTab> Logger
 
 @* Settings > Personal > Security > Devices. A member sees their own paired phones and TVs and signed-in browsers; a
@@ -69,7 +70,18 @@
     private IEnumerable<ManagedProfileResponse> PeopleInView =>
         _people.Where(person => _filter.HouseholdId is null || person.HouseholdId == _filter.HouseholdId);
 
-    protected override Task OnInitializedAsync() => LoadFilterChoicesAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilterChoicesAsync();
+
+        // A person's page links here with ?profile=<id>: open with that Profile filter already chosen, when the
+        // administrator may see that person.
+        var requested = System.Web.HttpUtility.ParseQueryString(Nav.ToAbsoluteUri(Nav.Uri).Query)["profile"];
+        if (ManagesOthers && Guid.TryParse(requested, out var profileId) && _people.Any(person => person.Id == profileId))
+        {
+            _filter = _filter with { ProfileId = profileId };
+        }
+    }
 
     // The people and households the Engine lets this administrator see; a refusal (an administrator PIN not yet entered) leaves the choices empty.
     private async Task LoadFilterChoicesAsync()

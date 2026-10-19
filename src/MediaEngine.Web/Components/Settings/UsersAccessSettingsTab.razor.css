@@ -15,19 +15,6 @@
 }
 
 @media (max-width: 700px) {
-    ::deep .surface-navigation-bar {
-        padding-inline: 0;
-    }
-
-    ::deep .surface-navigation-bar__tab {
-        padding-inline: 0.5rem;
-        font-size: 0.875rem;
-    }
-
-    ::deep .surface-navigation-bar__tab .tl-icon-root {
-        display: none;
-    }
-
     .users-access-settings__section {
         gap: var(--tl-space-4);
     }

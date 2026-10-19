@@ -145,6 +145,9 @@ public static class SettingsNav
 {
     private static bool _productionMode;
 
+    /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
+    public const string HouseholdsSubsection = "households";
+
     private static readonly IReadOnlyDictionary<SettingsSection, LaunchFeatureEvidence> LaunchContracts =
         new Dictionary<SettingsSection, LaunchFeatureEvidence>
         {
@@ -185,7 +188,9 @@ public static class SettingsNav
 
     public static readonly SettingsItemDef[] AllItems =
     [
-        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household", "overview"], "sqlite", Status: SettingsStatusKind.Live),
+        // Profiles is an editing page for administrators (D29): a server administrator, or a household administrator for their own
+        // household. It is not an administrator-PIN page, so AdminOnly stays false; HouseholdAdminAccess plus IsVisible decide who sees it.
+        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household", "overview"], "sqlite", Status: SettingsStatusKind.Live, HouseholdAdminAccess: true),
         new(SettingsSection.Preferences, "personal", "preferences", AppMaterialIcons.Outlined.Tune, "Preferences", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
@@ -221,7 +226,10 @@ public static class SettingsNav
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person,
         [
-            Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
+            Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, children:
+            [
+                Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Profiles, HouseholdsSubsection),
+            ]),
             Node("Preferences", AppMaterialIcons.Outlined.Tune, SettingsSection.Preferences, children:
             [
                 Node("Playback", AppMaterialIcons.Outlined.PlayCircleOutline, SettingsSection.Playback),
@@ -306,7 +314,10 @@ public static class SettingsNav
     public static readonly IReadOnlyDictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>> Subsections =
         new Dictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>>
         {
-            [SettingsSection.Profiles] = [],
+            [SettingsSection.Profiles] =
+            [
+                new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
+            ],
             [SettingsSection.Preferences] = [],
             [SettingsSection.Playback] = [],
             [SettingsSection.Listening] = [],
@@ -440,6 +451,7 @@ public static class SettingsNav
         foreach (var node in nodes)
         {
             if (!IsVisible(node.Section, administrationAllowed, householdAdministrator)
+                || !IsNodeVisible(node, administrationAllowed)
                 || extraFilter is not null && !extraFilter(node))
             {
                 continue;
@@ -450,6 +462,13 @@ public static class SettingsNav
 
         return kept;
     }
+
+    /// <summary>
+    /// A sub-page row can be narrower than its section: Households (under Profiles) is for server administrators only,
+    /// while the Profiles list itself also serves a household administrator.
+    /// </summary>
+    public static bool IsNodeVisible(SettingsMenuNode node, bool administrationAllowed) =>
+        !(node is { Section: SettingsSection.Profiles, Subsection: HouseholdsSubsection }) || administrationAllowed;
 
     /// <summary>Every row of the menu, parents before their children.</summary>
     public static IEnumerable<SettingsMenuNode> Flatten(IEnumerable<SettingsMenuNode> nodes)
@@ -546,7 +565,7 @@ public static class SettingsNav
         return section switch
         {
             SettingsSection.Libraries => string.IsNullOrWhiteSpace(normalized) || normalized == "view",
-            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
+            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || normalized == HouseholdsSubsection || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
             SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication",
@@ -572,9 +591,10 @@ public static class SettingsNav
             return false;
         }
 
-        return administrationAllowed || section is SettingsSection.Profiles
-            or SettingsSection.Preferences or SettingsSection.Playback or SettingsSection.Listening
-            or SettingsSection.Reading or SettingsSection.Security
+        // Profiles is for administrators only: a member (and a Kids profile) never sees it. A household administrator reaches it
+        // through HouseholdAdminAccess; the Engine still limits what they can do there to their own household.
+        return administrationAllowed || section is SettingsSection.Preferences or SettingsSection.Playback
+            or SettingsSection.Listening or SettingsSection.Reading or SettingsSection.Security
             || householdAdministrator && item.HouseholdAdminAccess;
     }
 
@@ -643,9 +663,11 @@ public static class SettingsNav
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
+            // The bare /settings address opens the first page this person may see (Profiles for an administrator).
+            var landing = FirstVisibleSection(administrationAllowed, householdAdministrator);
             return new SettingsRouteResolution(
-                SettingsSection.Profiles,
-                RouteFor(SettingsSection.Profiles),
+                landing,
+                RouteFor(landing),
                 IsCanonicalRoute: false,
                 IsKnownRoute: true,
                 RequestedSectionAllowed: true);
