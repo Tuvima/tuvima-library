@@ -9,12 +9,23 @@ namespace MediaEngine.Api.Services.EngineLogs;
 /// <summary>
 /// The log export (settings revamp D23). It reads the same Engine log files the Logs page shows, optionally adds the
 /// system activity events for the range, runs every line through <see cref="LogRedactor"/>, and writes one UTF-8 text
-/// file with a short header that lists the filters and says what was hidden.
+/// file with a short header that lists the filters, says what was hidden and says exactly what was capped.
+///
+/// Filters (time, level, area, text) always run first; only then do the line and size limits drop the oldest lines. The
+/// preview counts lines and bytes in a pass that never holds the finished file, and the export writes the same lines one
+/// at a time, so neither builds the file in memory.
 /// </summary>
 public sealed class LogExportService : ILogExportService
 {
     /// <summary>Most entries one export holds; a wider range keeps the newest and the header says so.</summary>
     public const int MaxLines = 200_000;
+
+    /// <summary>Largest export, in bytes; a wider range keeps the newest and the header says so.</summary>
+    public const long MaxBytes = 50L * 1024 * 1024;
+
+    // Room kept for the header, whose size depends on what was chosen.
+    private const int HeaderAllowance = 4096;
+    private const int ItemOrRunDisplayLength = 100;
 
     private readonly ITechnicalLogService _technicalLog;
     private readonly ISystemActivityRangeReader _events;
@@ -49,7 +60,7 @@ public sealed class LogExportService : ILogExportService
             return "Level must be one of: errors, warnings_and_above, everything.";
         }
 
-        var unknown = request.Areas.FirstOrDefault(area => LogAreas.Normalize(area) is null);
+        var unknown = (request.Areas ?? []).FirstOrDefault(area => LogAreas.Normalize(area) is null);
         if (unknown is not null)
         {
             return $"Area must be one of: {string.Join(", ", LogAreas.All)}.";
@@ -59,7 +70,7 @@ public sealed class LogExportService : ILogExportService
     }
 
     /// <inheritdoc/>
-    public async Task<LogExportResult> BuildAsync(LogExportRequest request, CancellationToken ct = default)
+    public async Task<LogExportPlan> PlanAsync(LogExportRequest request, CancellationToken ct = default)
     {
         var problem = Validate(request);
         if (problem is not null)
@@ -69,79 +80,122 @@ public sealed class LogExportService : ILogExportService
 
         var from = request.From!.Value;
         var to = request.To!.Value;
-        var areas = request.Areas.Select(area => LogAreas.Normalize(area)!).ToHashSet(StringComparer.Ordinal);
+        var areas = (request.Areas ?? []).Select(area => LogAreas.Normalize(area)!).ToHashSet(StringComparer.Ordinal);
         var itemOrRun = string.IsNullOrWhiteSpace(request.ItemOrRun) ? null : request.ItemOrRun.Trim();
+        var eventsIncluded = request.IncludeEvents && request.Level == LogExportLevels.Everything;
 
-        var entries = new List<(DateTimeOffset Time, string Text)>();
-
-        // Log files. The reader already applies the time range, the level, and the text match for an id.
+        // Log files. The reader applies time, level, area and text first, then its own line and size limits.
         var range = await _technicalLog.ReadRangeAsync(
             new TechnicalLogQuery(from, to, ReaderLevel(request.Level), Area: null, itemOrRun, Cursor: null, Limit: 0),
+            areas,
             MaxLines,
+            MaxBytes,
             ct).ConfigureAwait(false);
-        var truncated = range.Truncated;
+        var linesCapped = range.LinesCapped;
+        var bytesCapped = range.BytesCapped;
+
+        var candidates = new List<Candidate>(range.Lines.Count);
         foreach (var line in range.Lines)
         {
-            if (areas.Count > 0 && !areas.Contains(line.Area))
-            {
-                continue;
-            }
-
-            entries.Add((line.Time, Format(line.Time, LevelCode(line.Level), line.Area, line.Message, request.ShowFileNames)));
+            candidates.Add(new Candidate(line.Time, LevelCode(line.Level), line.Area, line.Message));
         }
 
         // System activity events have no level, so they count as information: only an "everything" export holds them.
-        if (request.IncludeEvents && request.Level == LogExportLevels.Everything)
+        if (eventsIncluded)
         {
-            Guid? matchId = Guid.TryParse(itemOrRun, out var parsed) ? parsed : null;
-            var events = await _events.GetRangeAsync(from, to, matchId, MaxLines + 1, ct).ConfigureAwait(false);
-            if (events.Count > MaxLines)
+            var (events, eventsCapped) = await ReadEventsAsync(from, to, areas, itemOrRun, ct).ConfigureAwait(false);
+            linesCapped |= eventsCapped;
+            foreach (var entry in events)
             {
-                truncated = true;
-            }
-
-            foreach (var entry in events.Take(MaxLines))
-            {
-                var area = LogAreas.Classify(entry.ActionType);
-                if (areas.Count > 0 && !areas.Contains(area))
-                {
-                    continue;
-                }
-
-                // An id that is not a Guid matches by the words of the event instead.
-                if (itemOrRun is not null && matchId is null
-                    && !(entry.Detail?.Contains(itemOrRun, StringComparison.OrdinalIgnoreCase) ?? false))
-                {
-                    continue;
-                }
-
-                entries.Add((entry.OccurredAt, Format(entry.OccurredAt, "EVT", area, EventText(entry), request.ShowFileNames)));
+                candidates.Add(new Candidate(entry.OccurredAt, "EVT", LogAreas.Classify(entry.ActionType), EventText(entry)));
             }
         }
 
         // Oldest first; equal times keep the order they were added in (log lines before events).
-        var ordered = entries.OrderBy(entry => entry.Time).ToList();
-        if (ordered.Count > MaxLines)
+        candidates = [.. candidates.OrderBy(candidate => candidate.Time)];
+
+        // Count from the newest entry back, redacting each, until a limit is reached. This is the only pass that decides what
+        // the file holds; nothing is kept from it except how many entries and bytes.
+        var bodyBudget = MaxBytes - HeaderAllowance;
+        long bodyBytes = 0;
+        var included = 0;
+        for (var index = candidates.Count - 1; index >= 0; index--)
         {
-            ordered = ordered.GetRange(ordered.Count - MaxLines, MaxLines);
-            truncated = true;
+            ct.ThrowIfCancellationRequested();
+            var size = Encoding.UTF8.GetByteCount(FormatLine(candidates[index], request.ShowFileNames)) + 1;
+            if (included >= MaxLines)
+            {
+                linesCapped = true;
+                break;
+            }
+
+            if (bodyBytes + size > bodyBudget)
+            {
+                bytesCapped = true;
+                break;
+            }
+
+            bodyBytes += size;
+            included++;
         }
 
+        var first = candidates.Count - included;
         var fileName = FileNameFor(from, to);
-        var text = new StringBuilder();
-        AppendHeader(text, request, from, to, areas, itemOrRun, ordered.Count, truncated);
-        foreach (var entry in ordered)
+        var header = BuildHeader(request, from, to, areas, itemOrRun, eventsIncluded, included, linesCapped, bytesCapped);
+        return new Plan(
+            fileName, included, Encoding.UTF8.GetByteCount(header) + bodyBytes, linesCapped || bytesCapped,
+            header, candidates, first, request.ShowFileNames);
+    }
+
+    /// <inheritdoc/>
+    public async Task WriteAsync(LogExportPlan plan, Stream output, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(output);
+        if (plan is not Plan ready)
         {
-            text.Append(entry.Text).Append('\n');
+            throw new ArgumentException("The plan did not come from this service.", nameof(plan));
         }
 
-        return new LogExportResult(fileName, new UTF8Encoding(false).GetBytes(text.ToString()), ordered.Count, truncated);
+        var utf8 = new UTF8Encoding(false);
+        await output.WriteAsync(utf8.GetBytes(ready.Header), ct).ConfigureAwait(false);
+        for (var index = ready.First; index < ready.Candidates.Count; index++)
+        {
+            ct.ThrowIfCancellationRequested();
+            await output.WriteAsync(utf8.GetBytes(FormatLine(ready.Candidates[index], ready.ShowFileNames) + "\n"), ct)
+                .ConfigureAwait(false);
+        }
+
+        await output.FlushAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>The name the downloaded file gets, from the start and end of the range (UTC).</summary>
     public static string FileNameFor(DateTimeOffset from, DateTimeOffset to) =>
         string.Create(CultureInfo.InvariantCulture,
             $"tuvima-logs-{from.ToUniversalTime():yyyyMMdd-HHmm}-{to.ToUniversalTime():yyyyMMdd-HHmm}.txt");
+
+    // The events of the range that pass the area and text filters (both worked out in the query), newest MaxLines of them.
+    private async Task<(IReadOnlyList<SystemActivityEntry> Events, bool Capped)> ReadEventsAsync(
+        DateTimeOffset from, DateTimeOffset to, HashSet<string> areas, string? itemOrRun, CancellationToken ct)
+    {
+        IReadOnlyCollection<string>? types = null;
+        if (areas.Count > 0)
+        {
+            var all = await _events.GetActionTypesAsync(from, to, ct).ConfigureAwait(false);
+            types = [.. all.Where(type => areas.Contains(LogAreas.Classify(type)))];
+            if (types.Count == 0)
+            {
+                return ([], false);
+            }
+        }
+
+        // A Guid matches the run or the item; any other text matches the words of the event.
+        Guid? matchId = Guid.TryParse(itemOrRun, out var parsed) ? parsed : null;
+        var detail = matchId is null ? itemOrRun : null;
+
+        var found = await _events.GetRangeAsync(from, to, matchId, types, detail, MaxLines + 1, ct).ConfigureAwait(false);
+        return found.Count > MaxLines ? ([.. found.Skip(found.Count - MaxLines)], true) : (found, false);
+    }
 
     private static string ReaderLevel(string level) => level switch
     {
@@ -167,25 +221,27 @@ public sealed class LogExportService : ILogExportService
     }
 
     // "2026-10-19 09:00:00.000Z [ERR] [Ingestion] message", with an error's detail lines indented under it.
-    private static string Format(DateTimeOffset time, string level, string area, string message, bool showFileNames)
+    private static string FormatLine(Candidate candidate, bool showFileNames)
     {
-        var redacted = LogRedactor.Redact(message, showFileNames).Replace("\r", string.Empty).Replace("\n", "\n    ");
+        var redacted = LogRedactor.Redact(candidate.Message, showFileNames).Replace("\r", string.Empty).Replace("\n", "\n    ");
         return string.Create(CultureInfo.InvariantCulture,
-            $"{time.ToUniversalTime():yyyy-MM-dd HH:mm:ss.fff}Z [{level}] [{area}] {redacted}");
+            $"{candidate.Time.ToUniversalTime():yyyy-MM-dd HH:mm:ss.fff}Z [{candidate.Level}] [{candidate.Area}] {redacted}");
     }
 
-    private void AppendHeader(
-        StringBuilder text,
+    private string BuildHeader(
         LogExportRequest request,
         DateTimeOffset from,
         DateTimeOffset to,
         HashSet<string> areas,
         string? itemOrRun,
+        bool eventsIncluded,
         int lineCount,
-        bool truncated)
+        bool linesCapped,
+        bool bytesCapped)
     {
-        string Utc(DateTimeOffset value) => value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "Z";
+        static string Utc(DateTimeOffset value) => value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "Z";
 
+        var text = new StringBuilder();
         text.Append("Tuvima Library log export\n");
         text.Append("Created: ").Append(Utc(_clock.GetUtcNow())).Append('\n');
         text.Append("Range: ").Append(Utc(from)).Append(" to ").Append(Utc(to)).Append('\n');
@@ -196,18 +252,52 @@ public sealed class LogExportService : ILogExportService
             _ => "everything",
         }).Append('\n');
         text.Append("Areas: ").Append(areas.Count == 0 ? "all" : string.Join(", ", LogAreas.All.Where(areas.Contains))).Append('\n');
-        text.Append("Item or run: ").Append(itemOrRun is null ? "any" : LogRedactor.Redact(itemOrRun, request.ShowFileNames)).Append('\n');
-        text.Append("Events included: ")
-            .Append(request.IncludeEvents && request.Level == LogExportLevels.Everything ? "yes" : "no").Append('\n');
-        text.Append("Private details hidden: yes (keys, tokens, sign-in details, file and folder paths");
-        text.Append(request.ShowFileNames ? "; the last part of each file name is shown, never the folders" : "; file names are hidden").Append(")\n");
-        text.Append("Lines: ").Append(lineCount.ToString(CultureInfo.InvariantCulture));
-        if (truncated)
+        var shownItem = itemOrRun is null ? "any" : LogRedactor.Redact(itemOrRun, request.ShowFileNames);
+        if (shownItem.Length > ItemOrRunDisplayLength)
         {
-            text.Append(" (limited to the newest ").Append(MaxLines.ToString("N0", CultureInfo.InvariantCulture)).Append("; older ones were left out)");
+            shownItem = shownItem[..ItemOrRunDisplayLength] + "…";
         }
 
-        text.Append("\nTimes are UTC.\n");
+        text.Append("Item or run: ").Append(shownItem).Append('\n');
+        text.Append("Events included: ").Append(eventsIncluded ? "yes" : "no").Append('\n');
+        text.Append("Private details hidden: yes (keys, tokens, sign-in details, file and folder paths");
+        text.Append(request.ShowFileNames ? "; the last part of each file name is shown, never the folders" : "; file names are hidden").Append(")\n");
+        text.Append("Lines: ").Append(lineCount.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        if (linesCapped)
+        {
+            text.Append("Capped: the export holds at most ").Append(MaxLines.ToString("N0", CultureInfo.InvariantCulture))
+                .Append(" lines, so older lines that matched were left out; the newest are here.\n");
+        }
+
+        if (bytesCapped)
+        {
+            text.Append("Capped: the export holds at most ").Append((MaxBytes / (1024 * 1024)).ToString(CultureInfo.InvariantCulture))
+                .Append(" MB, so older lines that matched were left out; the newest are here.\n");
+        }
+
+        if (!linesCapped && !bytesCapped)
+        {
+            text.Append("Capped: no\n");
+        }
+
+        text.Append("Times are UTC.\n");
         text.Append("----------------------------------------\n");
+        return text.ToString();
+    }
+
+    private sealed record Candidate(DateTimeOffset Time, string Level, string Area, string Message);
+
+    private sealed class Plan(
+        string fileName, int lineCount, long sizeBytes, bool truncated,
+        string header, List<Candidate> candidates, int first, bool showFileNames) : LogExportPlan
+    {
+        public override string FileName { get; } = fileName;
+        public override int LineCount { get; } = lineCount;
+        public override long SizeBytes { get; } = sizeBytes;
+        public override bool Truncated { get; } = truncated;
+        public string Header { get; } = header;
+        public List<Candidate> Candidates { get; } = candidates;
+        public int First { get; } = first;
+        public bool ShowFileNames { get; } = showFileNames;
     }
 }

@@ -194,6 +194,73 @@ public sealed class LogRedactorTests
         Assert.DoesNotContain(@"C:\", result, StringComparison.Ordinal);
     }
 
+    // ── Network paths, folders with spaces, Authorization headers ───────────
+
+    [Theory]
+    [InlineData(@"Could not read \\NAS\Shy\Movies\Dune (2021)\Dune.mkv today")]
+    [InlineData(@"Could not read \\NAS\Shy\Movies\Dune Part Two (2024)\Dune Part Two.mkv today")]
+    [InlineData("Could not read //NAS/Shy/Movies/Dune (2021)/Dune.mkv today")]
+    public void NetworkPaths_AreHidden_IncludingSpacesAndParentheses(string line)
+    {
+        var result = LogRedactor.Redact(line);
+
+        Assert.Equal("Could not read [path] today", result);
+        Assert.DoesNotContain("NAS", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Shy", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dune", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NetworkPaths_WithFileNamesOn_KeepOnlyTheLastSegment()
+    {
+        var result = LogRedactor.Redact(@"Could not read \\NAS\Shy\Movies\Dune (2021)\Dune.mkv today", showFileNames: true);
+
+        Assert.Equal("Could not read [path]/Dune.mkv today", result);
+    }
+
+    [Fact]
+    public void ANetworkShareWithNoFile_IsHiddenToo()
+    {
+        Assert.Equal("Mount of [path] failed", LogRedactor.Redact(@"Mount of \\NAS\Shy failed"));
+    }
+
+    [Theory]
+    [InlineData(@"Library folder D:\Media\My Folder", "Library folder [path]")]
+    [InlineData(@"Library folder D:\Media\My Folder is missing", "Library folder [path] is missing")]
+    [InlineData(@"Library folder D:\Media\My Folder, skipping", "Library folder [path], skipping")]
+    [InlineData("Library folder /mnt/media/My Folder is missing", "Library folder [path] is missing")]
+    public void AWindowsOrPosixFolderWithSpacesAndNoTrailingSlash_IsFullyHidden(string line, string expected)
+    {
+        var result = LogRedactor.Redact(line);
+
+        Assert.Equal(expected, result);
+        Assert.DoesNotContain("Folder", result.Replace("Library folder", string.Empty), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Authorization: Basic dXNlcjpwYXNz", "Authorization: [hidden]")]
+    [InlineData("Authorization: Bearer abc.def.ghi", "Authorization: [hidden]")]
+    [InlineData("authorization: Digest username=\"shy\", realm=\"tuvima\", response=\"abc\"", "authorization: [hidden]")]
+    [InlineData("Authorization: Negotiate YIIGhgYGKwYBBQUCoIIGejCCBnagMDAu", "Authorization: [hidden]")]
+    [InlineData("Authorization=Custom some secret words", "Authorization=[hidden]")]
+    [InlineData("Proxy-Authorization: Basic dXNlcjpwYXNz", "Proxy-Authorization: [hidden]")]
+    public void AuthorizationHeaders_AreHiddenWholeAfterTheName_WhateverTheScheme(string line, string expected)
+    {
+        var result = LogRedactor.Redact(line);
+
+        Assert.Equal(expected, result);
+        Assert.DoesNotContain("Basic", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("dXNlcjpwYXNz", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnAuthorizationJsonField_IsHiddenUpToItsClosingQuote_NotTheRestOfTheLine()
+    {
+        var result = LogRedactor.Redact("{\"authorization\":\"Basic dXNlcjpwYXNz\",\"status\":401}");
+
+        Assert.Equal("{\"authorization\":[hidden],\"status\":401}", result);
+    }
+
     [Fact]
     public void LineWithNothingPrivate_IsReturnedUnchanged()
     {

@@ -123,61 +123,68 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
         DateTimeOffset from,
         DateTimeOffset to,
         Guid? matchId,
+        IReadOnlyCollection<string>? actionTypes,
+        string? detailContains,
         int limit,
         CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
 
-        // Entries are stored as round-trip UTC text, which sorts in time order.
+        // Entries are stored as round-trip UTC text, which sorts in time order. Each filter that is not asked for is switched
+        // off by a flag, so there is one fixed query.
         var parameters = new DynamicParameters();
         parameters.Add("from", from.ToUniversalTime().ToString("O"));
         parameters.Add("to", to.ToUniversalTime().ToString("O"));
         parameters.Add("limit", limit);
-
-        if (matchId is { } id)
-        {
-            parameters.Add("matchId", id);
-        }
+        parameters.Add("useMatch", matchId is null ? 0 : 1);
+        parameters.Add("matchId", matchId ?? Guid.Empty);
+        parameters.Add("useTypes", actionTypes is null ? 0 : 1);
+        parameters.Add("types", actionTypes is { Count: > 0 } ? actionTypes.ToArray() : [string.Empty]);
+        parameters.Add("detail", string.IsNullOrEmpty(detailContains) ? null : "%" + EscapeLike(detailContains) + "%");
 
         using var conn = _db.CreateConnection();
-        var results = conn.Query<SystemActivityEntry>(matchId is null ? RangeSql : RangeForMatchSql, parameters).AsList();
+        var results = conn.Query<SystemActivityEntry>(RangeSql, parameters).AsList();
 
         return Task.FromResult<IReadOnlyList<SystemActivityEntry>>(results);
     }
 
-    private const string RangeSql = """
-            SELECT id             AS Id,
-                   occurred_at    AS OccurredAt,
-                   action_type    AS ActionType,
-                   collection_name       AS CollectionName,
-                   entity_id      AS EntityId,
-                   entity_type    AS EntityType,
-                   profile_id     AS ProfileId,
-                   changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
-            FROM   system_activity
-            WHERE  occurred_at >= @from AND occurred_at <= @to
-            ORDER BY id ASC
-            LIMIT  @limit;
-            """;
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<string>> GetActionTypesAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    {
+        using var conn = _db.CreateConnection();
+        var types = conn.Query<string>(
+            "SELECT DISTINCT action_type FROM system_activity WHERE occurred_at >= @from AND occurred_at <= @to;",
+            new { from = from.ToUniversalTime().ToString("O"), to = to.ToUniversalTime().ToString("O") })
+            .AsList();
 
-    private const string RangeForMatchSql = """
-            SELECT id             AS Id,
-                   occurred_at    AS OccurredAt,
-                   action_type    AS ActionType,
-                   collection_name       AS CollectionName,
-                   entity_id      AS EntityId,
-                   entity_type    AS EntityType,
-                   profile_id     AS ProfileId,
-                   changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
-            FROM   system_activity
-            WHERE  occurred_at >= @from AND occurred_at <= @to
-              AND  (ingestion_run_id = @matchId OR entity_id = @matchId)
-            ORDER BY id ASC
-            LIMIT  @limit;
+        return Task.FromResult<IReadOnlyList<string>>(types);
+    }
+
+    private static string EscapeLike(string text) =>
+        text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
+
+    // The newest `limit` matches, then put back in time order.
+    private const string RangeSql = """
+            SELECT * FROM (
+                SELECT id             AS Id,
+                       occurred_at    AS OccurredAt,
+                       action_type    AS ActionType,
+                       collection_name       AS CollectionName,
+                       entity_id      AS EntityId,
+                       entity_type    AS EntityType,
+                       profile_id     AS ProfileId,
+                       changes_json   AS ChangesJson,
+                       detail         AS Detail,
+                       ingestion_run_id AS IngestionRunId
+                FROM   system_activity
+                WHERE  occurred_at >= @from AND occurred_at <= @to
+                  AND  (@useMatch = 0 OR ingestion_run_id = @matchId OR entity_id = @matchId)
+                  AND  (@useTypes = 0 OR action_type IN @types)
+                  AND  (@detail IS NULL OR detail LIKE @detail ESCAPE '\')
+                ORDER BY id DESC
+                LIMIT  @limit
+            )
+            ORDER BY Id ASC;
             """;
 
     /// <inheritdoc/>

@@ -80,13 +80,14 @@ public static class LogEndpoints
                 return ApiErrors.BadRequest(problem);
             }
 
-            var result = await export.BuildAsync(request, ct);
+            // Counts only: the preview never builds the file.
+            var plan = await export.PlanAsync(request, ct);
             return Results.Ok(new LogExportPreviewDto
             {
-                LineCount = result.LineCount,
-                SizeBytes = result.Content.LongLength,
-                Truncated = result.Truncated,
-                FileName = result.FileName,
+                LineCount = plan.LineCount,
+                SizeBytes = plan.SizeBytes,
+                Truncated = plan.Truncated,
+                FileName = plan.FileName,
             });
         })
         .WithName("PreviewLogExport")
@@ -108,9 +109,10 @@ public static class LogEndpoints
                 return ApiErrors.BadRequest(problem);
             }
 
-            var result = await export.BuildAsync(request, ct);
+            var plan = await export.PlanAsync(request, ct);
             http.Response.Headers.CacheControl = "no-store";
-            return Results.File(result.Content, "text/plain; charset=utf-8", result.FileName);
+            http.Response.ContentLength = plan.SizeBytes;
+            return Results.Stream(stream => export.WriteAsync(plan, stream, ct), "text/plain; charset=utf-8", plan.FileName);
         })
         .WithName("ExportLogs")
         .WithSummary("Downloads one plain-text log file for the chosen range, level and areas, with private details hidden.")
