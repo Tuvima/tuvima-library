@@ -47,7 +47,6 @@ public sealed class ToolInstallerTests : IDisposable
     private readonly FakeSource _source = new();
     private readonly RecordingActivity _activity = new();
     private readonly FakeLauncher _launcher = new();
-    private readonly FakePrompts _prompts = new();
     private readonly FolderFfmpeg _ffmpeg;
     private readonly FolderOcr _ocr;
     private readonly ConfigurationDirectoryLoader _configuration;
@@ -591,7 +590,7 @@ public sealed class ToolInstallerTests : IDisposable
             Assert.Equal(AuthPolicies.Administrator, policy.Policy);
         }
 
-        foreach (var route in new[] { "/settings/tools/{id}/install", "/settings/tools/{id}/run-installer", "/settings/tools/{id}/decline" })
+        foreach (var route in new[] { "/settings/tools/{id}/install", "/settings/tools/{id}/run-installer" })
         {
             Assert.Contains(endpoints, endpoint => endpoint.RoutePattern.RawText == route);
         }
@@ -651,7 +650,6 @@ public sealed class ToolInstallerTests : IDisposable
         Assert.Equal(StatusCodes.Status404NotFound, (await SendAsync(app, "POST", "nonsense", "install")).Status);
         Assert.Equal(StatusCodes.Status404NotFound, (await SendAsync(app, "DELETE", "nonsense", "install")).Status);
         Assert.Equal(StatusCodes.Status404NotFound, (await SendAsync(app, "POST", "nonsense", "run-installer")).Status);
-        Assert.Equal(StatusCodes.Status404NotFound, (await SendAsync(app, "POST", "nonsense", "decline")).Status);
     }
 
     [Fact]
@@ -670,27 +668,6 @@ public sealed class ToolInstallerTests : IDisposable
         Assert.Contains(SystemActionType.ToolDownloadCancelled, _activity.ActionTypes);
     }
 
-    [Fact]
-    public async Task PostDecline_IsRemembered_AndShowsOnTheRow_UntilTheToolWorksAgain()
-    {
-        await using var app = BuildApplication();
-
-        var (status, body) = await SendAsync(app, "POST", "ffmpeg", "decline");
-
-        Assert.Equal(StatusCodes.Status200OK, status);
-        var ffmpeg = JsonDocument.Parse(body).RootElement.GetProperty("tools").EnumerateArray()
-            .Single(tool => tool.GetProperty("id").GetString() == "ffmpeg");
-        Assert.True(ffmpeg.GetProperty("install_declined").GetBoolean());
-        Assert.Contains("ffmpeg", await _prompts.GetDeclinedAsync());
-
-        // Once the tool works, the decline is forgotten so a later problem is asked about afresh.
-        UseFfmpeg(FfmpegArchive());
-        await _installer.StartAsync(ToolRequirementIds.Ffmpeg, CancellationToken.None);
-        await WaitUntilIdleAsync(ToolRequirementIds.Ffmpeg);
-        await _tools.GetAsync(CancellationToken.None);
-        Assert.DoesNotContain("ffmpeg", await _prompts.GetDeclinedAsync());
-    }
-
     // ── Wiring ───────────────────────────────────────────────────────────────
 
     private void Build(ToolInstallPlatform? platform = null, string installKind = ToolInstallKinds.Source)
@@ -707,7 +684,7 @@ public sealed class ToolInstallerTests : IDisposable
         _tools = new ToolRequirementsService(
             _ffmpeg, _ocr, new NoModels(), new WorkingProbe(), new NoToolWaitingWorkCounter(),
             [], new RunningLifetime(), new NotAContainer(), NullLogger<ToolRequirementsService>.Instance,
-            name => name == "TUVIMA_INSTALL_KIND" ? installKind : null, null, _installer, _prompts);
+            name => name == "TUVIMA_INSTALL_KIND" ? installKind : null, null, _installer);
     }
 
     private async Task<ToolRequirementDto> Row(string id) =>
@@ -812,7 +789,6 @@ public sealed class ToolInstallerTests : IDisposable
         builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
         builder.Services.AddSingleton<IToolRequirementsService>(_tools);
         builder.Services.AddSingleton<IToolInstallerService>(_installer);
-        builder.Services.AddSingleton<IToolPromptPreferenceRepository>(_prompts);
         builder.Services.AddSingleton(new ToolLocationService(
             new ServerFolderBrowserService(_configuration, NullLogger<ServerFolderBrowserService>.Instance),
             _configuration, _ocr, _tools, NullLogger<ToolLocationService>.Instance));
@@ -983,39 +959,6 @@ public sealed class ToolInstallerTests : IDisposable
             {
                 return true;
             }
-        }
-    }
-
-    private sealed class FakePrompts : IToolPromptPreferenceRepository
-    {
-        private readonly HashSet<string> _declined = [];
-
-        public Task<IReadOnlySet<string>> GetDeclinedAsync(CancellationToken ct = default)
-        {
-            lock (_declined)
-            {
-                return Task.FromResult<IReadOnlySet<string>>(_declined.ToHashSet());
-            }
-        }
-
-        public Task DeclineAsync(string toolId, CancellationToken ct = default)
-        {
-            lock (_declined)
-            {
-                _declined.Add(toolId);
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public Task ClearDeclinedAsync(string toolId, CancellationToken ct = default)
-        {
-            lock (_declined)
-            {
-                _declined.Remove(toolId);
-            }
-
-            return Task.CompletedTask;
         }
     }
 

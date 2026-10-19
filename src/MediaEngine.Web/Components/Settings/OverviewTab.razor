@@ -274,6 +274,9 @@
         }
     }
 
+    // The Needs Review count arrives from the shared attention state a moment after the page opens and keeps moving.
+    protected override void OnParametersSet() => Recompute();
+
     protected override async Task OnInitializedAsync()
     {
         StateContainer.OnStateChanged += OnRealtimeStateChanged;

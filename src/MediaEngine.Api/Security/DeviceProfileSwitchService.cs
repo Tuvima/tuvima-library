@@ -45,7 +45,7 @@ public sealed record DeviceProfileListResult(
 /// <summary>
 /// Lets a paired phone or television switch person without re-pairing. It adds no rule of its own: the people offered
 /// and allowed are the profiles the device's account is granted (the Dashboard's profile switch uses the same grant
-/// check), and the PIN goes through <see cref="IProfilePinVerifier"/>, the same check and lockout as the Dashboard's
+/// check) that sit in the account's own household (a server administrator's account keeps the grant-only rule), and the PIN goes through <see cref="IProfilePinVerifier"/>, the same check and lockout as the Dashboard's
 /// switch. One device has one active profile, so a switch revokes every earlier token of the device and issues a new pair.
 /// </summary>
 public sealed class DeviceProfileSwitchService(
@@ -75,13 +75,14 @@ public sealed class DeviceProfileSwitchService(
             return new(null, DeviceProfileSwitchOutcome.RateLimited, retryAfter);
         }
 
+        var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
         var grantedIds = await accounts.GetProfileIdsAsync(device.AccountId, ct).ConfigureAwait(false);
         var withPin = await identity.GetProfileIdsWithPinAsync(grantedIds, ct).ConfigureAwait(false);
         var list = new List<DeviceProfileDto>(grantedIds.Count);
         foreach (var profileId in grantedIds)
         {
             var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
-            if (profile is null)
+            if (profile is null || account is null || !account.MaySwitchInto(profile.HouseholdId))
             {
                 continue;
             }
@@ -125,6 +126,15 @@ public sealed class DeviceProfileSwitchService(
         // It comes before anything that looks the profile up, so a profile that does not exist and one this account
         // cannot use are indistinguishable.
         if (!await accounts.HasProfileAccessAsync(device.AccountId, targetProfileId, ct).ConfigureAwait(false))
+        {
+            return new(DeviceProfileSwitchOutcome.ProfileNotAllowed, Description: "This account cannot use that profile.");
+        }
+
+        // Beyond the grant, anyone but a server administrator switches only inside their own household. A person
+        // outside it answers exactly like one the account cannot use.
+        var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
+        var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false);
+        if (account is null || target is null || !account.MaySwitchInto(target.HouseholdId))
         {
             return new(DeviceProfileSwitchOutcome.ProfileNotAllowed, Description: "This account cannot use that profile.");
         }

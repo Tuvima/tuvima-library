@@ -1,0 +1,157 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject SettingsAttentionState Attention
+@inject DeviceContextService DeviceContext
+@inject NavigationManager Navigation
+
+@* The administrator attention banner, drawn into the Settings frame above the breadcrumb: one separate bubble per line
+   (a missing Required tool, items in Needs Review), at most three, most urgent first. It draws nothing at all, not even
+   a gap, for anyone who is not a server administrator, on a phone, before the first read has finished, or when no line
+   is pending. Every line reads the one shared attention state, so it cannot disagree with the menu shading. *@
+@foreach (var line in Lines)
+{
+    <SettingsNoticeBubble @key="line.Key"
+                          NoticeKey="@line.Key"
+                          Tone="@line.Tone"
+                          Icon="@line.Icon"
+                          Message="@line.Text"
+                          Detail="@line.Detail"
+                          OnDismiss="@line.OnDismiss">
+        <Actions>
+            @if (line.ButtonLabel is not null)
+            {
+                @if (line.ButtonHref is not null)
+                {
+                    <AppButton Label="@line.ButtonLabel" Href="@line.ButtonHref" Size="AppControlSize.Compact"
+                               Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" />
+                }
+                else
+                {
+                    <AppButton Label="@line.ButtonLabel" Size="AppControlSize.Compact" Tone="AppUiTone.Primary"
+                               ButtonStyle="AppButtonStyle.Filled" Disabled="@Attention.IsWorking" OnClick="@line.OnButton" />
+                }
+            }
+        </Actions>
+    </SettingsNoticeBubble>
+}
+
+@code {
+    /// <summary>No more than this many bubbles are ever drawn.</summary>
+    internal const int MaxLines = 3;
+
+    private sealed record Line(
+        string Key,
+        AppUiTone Tone,
+        string Icon,
+        string Text,
+        string? Detail,
+        string? ButtonLabel,
+        string? ButtonHref,
+        EventCallback OnButton,
+        EventCallback OnDismiss);
+
+    private bool Offered => Attention.IsServerAdministrator && !DeviceContext.IsMobile && Attention.IsLoaded;
+
+    private bool OnToolsPage =>
+        new Uri(Navigation.Uri).AbsolutePath.StartsWith("/settings/tools", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<Line> Lines => Offered ? BuildLines().Take(MaxLines).ToList() : [];
+
+    protected override void OnInitialized()
+    {
+        Attention.Changed += OnAttentionChanged;
+        DeviceContext.OnChanged += OnAttentionChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    // Most urgent first: a tool that holds files back (red), then any other missing tool, then Needs Review.
+    private IEnumerable<Line> BuildLines()
+    {
+        if (!OnToolsPage && Attention.ToolsLineVisible)
+        {
+            yield return ToolsLine();
+        }
+
+        if (Attention.ReviewLineVisible)
+        {
+            yield return ReviewLine();
+        }
+    }
+
+    private Line ReviewLine()
+    {
+        var count = Attention.ReviewCount;
+        return new Line(
+            ProfileNoticeKeys.NeedsReview,
+            AppUiTone.Warning,
+            AppMaterialIcons.Outlined.RateReview,
+            count == 1 ? "1 item needs review" : $"{count} items need review",
+            null,
+            "Review",
+            $"{SettingsNav.RouteFor(SettingsSection.RecentlyAdded)}?review=expanded",
+            default,
+            EventCallback.Factory.Create(this, () => Attention.DismissReviewAsync()));
+    }
+
+    private Line ToolsLine()
+    {
+        var downloading = Attention.DownloadingTools;
+        if (downloading.Count > 0)
+        {
+            // A running download is shown with its progress and cannot be dismissed.
+            var percent = (int)Math.Round(downloading.Average(tool => tool.DownloadPercent ?? 0));
+            var text = downloading.Count == 1
+                ? $"Downloading {downloading[0].Name} {percent}%"
+                : $"Downloading {downloading.Count} tools {percent}%";
+            return new Line(ProfileNoticeKeys.MissingTools, AppUiTone.Warning, AppMaterialIcons.Outlined.Download, text,
+                Attention.ActionError, null, null, default, default);
+        }
+
+        var missing = Attention.MissingTools;
+        var blocksFiles = missing.Any(tool => tool.WaitingFiles > 0);
+        var (label, href) = Attention.MissingToolsButton switch
+        {
+            MissingToolsAction.Install => ("Install for me", (string?)null),
+            MissingToolsAction.DownloadAgain => ("Download again", null),
+            _ => ("See tools", SettingsNav.RouteFor(SettingsSection.Tools)),
+        };
+
+        return new Line(
+            ProfileNoticeKeys.MissingTools,
+            blocksFiles ? AppUiTone.Error : AppUiTone.Warning,
+            blocksFiles ? AppMaterialIcons.Outlined.ErrorOutline : AppMaterialIcons.Outlined.Build,
+            MissingText(missing),
+            Attention.ActionError,
+            label,
+            href,
+            EventCallback.Factory.Create(this, () => Attention.InstallMissingToolsAsync()),
+            EventCallback.Factory.Create(this, () => Attention.DismissToolsAsync()));
+    }
+
+    private static string MissingText(IReadOnlyList<MediaEngine.Contracts.Settings.ToolRequirementDto> missing)
+    {
+        if (missing.Count == 1)
+        {
+            var tool = missing[0];
+            return tool.State == MediaEngine.Contracts.Settings.ToolRequirementStates.Problem
+                ? $"{tool.Name} isn't working. {tool.Effect}"
+                : $"{tool.Name} is missing. {tool.Effect}";
+        }
+
+        return $"{missing.Count} tools are missing. Files that need them wait until they are available.";
+    }
+
+    private void OnAttentionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Attention.Changed -= OnAttentionChanged;
+        DeviceContext.OnChanged -= OnAttentionChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

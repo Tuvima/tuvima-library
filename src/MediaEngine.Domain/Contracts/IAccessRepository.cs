@@ -14,6 +14,18 @@ public interface IAccessRepository
     Task<GrantAdminProtection?> GetAdminProtectionAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task<GrantAdminUnlock?> GetAdminUnlockAsync(Guid sessionId, Guid accountId, Guid profileId, DateTimeOffset now, CancellationToken ct = default);
     Task WriteAuthorizationAuditAsync(AuthorizationAuditEvent auditEvent, CancellationToken ct = default);
+
+    /// <summary>
+    /// Whether the same event (type, acting person, subject) was already recorded at or after <paramref name="since"/>.
+    /// Used to record "looked at other people's data" once per viewing session instead of once per request.
+    /// </summary>
+    Task<bool> HasAuthorizationAuditSinceAsync(
+        string eventType,
+        Guid? actorProfileId,
+        string subjectType,
+        string subjectId,
+        DateTimeOffset since,
+        CancellationToken ct = default);
 }
 
 public interface IAccountAccessMutationRepository

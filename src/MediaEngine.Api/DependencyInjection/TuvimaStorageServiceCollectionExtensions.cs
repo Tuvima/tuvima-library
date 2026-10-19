@@ -165,6 +165,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IIngestionBatchArtifactRepository, IngestionBatchArtifactRepository>();
         services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         services.TryAddSingleton<IMediaInspectionHoldRepository, MediaInspectionHoldRepository>();
+        services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
+        services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
@@ -198,7 +200,6 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IReaderStatisticsRepository, ReaderStatisticsRepository>();
         services.AddSingleton<IAlignmentJobRepository, AlignmentJobRepository>();
         services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
-        services.AddSingleton<IToolPromptPreferenceRepository, ToolPromptPreferenceRepository>();
         services.AddSingleton<IIngestionLogRepository, IngestionLogRepository>();
         services.AddSingleton<IResolverCacheRepository, ResolverCacheRepository>();
         services.AddSingleton<UserStateRepository>();

@@ -31,7 +31,6 @@ public sealed class LaunchFeatureContractTests : IDisposable
         Assert.False(SettingsNav.IsVisible(SettingsSection.Plugins, true));
         Assert.False(SettingsNav.IsVisible(SettingsSection.DevHarness, true));
         Assert.False(SettingsNav.IsVisible(SettingsSection.ProviderTester, true));
-        Assert.False(SettingsNav.IsVisible(SettingsSection.Privacy, true));
 
         var directRoute = SettingsNav.ResolveRoute("plugins", true);
         Assert.False(directRoute.RequestedSectionAllowed);

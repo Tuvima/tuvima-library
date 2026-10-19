@@ -29,6 +29,33 @@ public sealed partial class EngineApiClient
     public Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default) =>
         PostAsync<object?, ToolRequirementsDto>("POST /settings/tools/check", "/settings/tools/check", null, ct: ct);
 
+    // -- /settings/notices -------------------------------------------------------
+
+    public Task<ProfileNoticesResponse?> GetSettingsNoticesAsync(CancellationToken ct = default) =>
+        GetAsync<ProfileNoticesResponse>("GET /settings/notices", "/settings/notices", ct: ct);
+
+    public async Task<bool> DismissSettingsNoticeAsync(string noticeKey, string fingerprint, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(noticeKey);
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                $"/settings/notices/{Uri.EscapeDataString(noticeKey)}/dismiss",
+                new DismissProfileNoticeRequest(fingerprint), ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /settings/notices/{NoticeKey}/dismiss failed", noticeKey);
+            return false;
+        }
+    }
+
     public async Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolId);
@@ -69,10 +96,6 @@ public sealed partial class EngineApiClient
     public Task<ToolActionResult> RunToolInstallerAsync(string toolId, CancellationToken ct = default) =>
         SendToolActionAsync(HttpMethod.Post, toolId, "run-installer",
             "The Library could not start the installer. Check that the server is online and try again.", ct);
-
-    public Task<ToolActionResult> DeclineToolInstallAsync(string toolId, CancellationToken ct = default) =>
-        SendToolActionAsync(HttpMethod.Post, toolId, "decline",
-            "The Library could not save that. Check that the server is online and try again.", ct);
 
     // The Engine's refusal is a short plain sentence meant for the person, so it is passed on as it is.
     private async Task<ToolActionResult> SendToolActionAsync(

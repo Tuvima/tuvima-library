@@ -2,6 +2,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
@@ -32,7 +33,7 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
         _authorization = new ClientAuthorizationService(
             new ClientAuthorizationRepository(_database), accounts, applications, new PermissionRegistry(), TimeProvider.System);
         _service = new ManagedClientDeviceService(
-            new ClientAuthorizationRepository(_database), accounts, new ProfileRepository(_database), _notifier, TimeProvider.System);
+            new ClientAuthorizationRepository(_database), accounts, new ProfileRepository(_database), _notifier, new DefaultDecisions(), TimeProvider.System);
     }
 
     [Fact]
@@ -155,6 +156,17 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
             AuthorizationVersion = 1,
             GrantedAt = DateTimeOffset.UtcNow,
         }).GetAwaiter().GetResult();
+    }
+
+    /// <summary>The default rule: an effective household administrator counts as unlocked.</summary>
+    private sealed class DefaultDecisions : IAccountAccessDecisionService
+    {
+        public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+        public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+        public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock,
+            CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
     }
 
     private sealed class SpyNotifier : IDeviceRevocationNotifier

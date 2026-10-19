@@ -44,7 +44,7 @@ else
                         @PluginSettingsPanel(ConfiguredPlugin)
                     </AppCard>
                 }
-                @AdvancedPluginLinks()
+                @MarketplaceNote()
             }
         }
         else if (NormalizedSubsection == "catalog")
@@ -171,15 +171,9 @@ else
         }
     </AppCard>;
 
-    private RenderFragment AdvancedPluginLinks() => @<AppCard Title="Advanced plugin management" Description="Operational and destructive controls stay out of the everyday plugin list.">
-        <SettingsAdvancedLinkRow Title="Health & Jobs" Description="Run plugin health checks and inspect recent background jobs." Href="/settings/plugins/jobs-health" ActionLabel="Open" />
-        <SettingsAdvancedLinkRow Title="Approved Catalog" Description="View extensions approved by the configured catalog." Href="/settings/plugins/catalog" ActionLabel="Open" />
-        <SettingsAdvancedLinkRow Title="Capabilities & AI permissions" Description="Review declared capabilities, tools, and AI access." Href="/settings/plugins/capabilities" ActionLabel="Review" />
-        <SettingsAdvancedLinkRow Title="Danger Zone" Description="Delete removable plugins; built-in plugins cannot be deleted." Href="/settings/plugins/danger" ActionLabel="Open" />
-        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
-            Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
-        </AppAlert>
-    </AppCard>;
+    private RenderFragment MarketplaceNote() => @<AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
+        Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
+    </AppAlert>;
 
     private RenderFragment AdvancedPluginPanel() => @<text>
         <AppCard Title="@AdvancedTitle" Description="@AdvancedDescription">

@@ -80,7 +80,6 @@
         _ => "overview",
     };
 
-    private AiHealthStatusDto? _status;
     private HardwareProfileDto? _profile;
     private ResourceSnapshotDto? _resources;
     private EnrichmentProgressDto? _progress;
@@ -108,7 +107,6 @@
 
         if (NormalizedSubsection == "overview")
         {
-            _status = await Orchestrator.GetAiStatusAsync();
             _config = await Orchestrator.GetAiConfigAsync();
             _models = (await Orchestrator.GetAiModelStatusesAsync()).ToList();
             _progress = await Orchestrator.GetEnrichmentProgressAsync();
@@ -130,14 +128,6 @@
         }
         else
         {
-            @if (_status?.IsReady != true)
-            {
-                <AppAlert Tone="AppUiTone.Warning" Class="local-ai-settings__health-banner">
-                    <strong>@OverviewStatusTitle</strong>
-                    <span>@OverviewStatusDescription</span>
-                </AppAlert>
-            }
-
             <div class="local-ai-settings__summary-grid">
                 <AppCard Title="Active model" Class="local-ai-settings__summary-card">
                     <strong>@ActiveModelName()</strong>
@@ -181,25 +171,8 @@
                 }
             </AppCard>
             }
-
-            @if (!DeviceContext.IsMobile)
-            {
-            <AppCard Title="Advanced AI" Description="Technical controls stay available when you need them.">
-                <SettingsAdvancedLinkRow Title="Runtime" Description="Choose the resource profile, run the benchmark, and set runtime limits." Href="/settings/ai/models" ActionLabel="Manage" />
-                <SettingsAdvancedLinkRow Title="Vocabulary" Description="Edit the controlled vocabulary used by local tagging." Href="/settings/ai/vocabulary" ActionLabel="Manage" />
-                <SettingsAdvancedLinkRow Title="Automation" Description="Review enrichment progress and edit saved schedules." Href="/settings/ai/automation" ActionLabel="Manage" />
-            </AppCard>
-            }
         }
     </text>;
-
-    private string OverviewStatusTitle => _status?.IsReady == true
-        ? string.Empty
-        : _status is null ? "Local AI status is unavailable" : "Local AI is available with limitations";
-
-    private string OverviewStatusDescription => _status?.IsReady == true
-        ? string.Empty
-        : _status is null ? "Library browsing continues without Local AI status." : "Review models and runtime details before relying on every feature.";
 
     private string ActiveModelName()
     {

@@ -264,8 +264,9 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Equal("Profile", cut.Find(".profile-detail__role").TextContent);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
         // A member's own page has no Profile details row: the editor saves through administrator-only Engine actions.
-        Assert.Equal("sign-in,playback,listening,reading,subtitles",
+        Assert.Equal("sign-in,devices,playback,listening,reading,subtitles",
             string.Join(",", cut.FindAll("[data-nav-row]").Select(row => row.GetAttribute("data-nav-row"))));
+        Assert.Equal("/settings/security/devices", Row(cut, "devices").GetAttribute("href"));
         Assert.Equal("/settings/playback", Row(cut, "playback").GetAttribute("href"));
         Assert.Equal("/settings/listening", Row(cut, "listening").GetAttribute("href"));
         Assert.Equal("/settings/reading", Row(cut, "reading").GetAttribute("href"));
@@ -651,6 +652,87 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__delete")));
         Assert.Empty(cut.FindAll(".profile-editor__confirm"));
     }
+
+    [Fact]
+    public void DevicesRow_ForAnotherPerson_OpensTheDevicesPageNarrowedToThem()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='devices']")));
+        var devices = Row(cut, "devices");
+        Assert.Equal($"/settings/security/devices?profile={SamId:D}", devices.GetAttribute("href"));
+        Assert.Equal("a", devices.TagName.ToLowerInvariant());
+        // View activity is a later packet; the page offers Devices only.
+        Assert.DoesNotContain("View activity", cut.Markup);
+    }
+
+    [Fact]
+    public void PinProtection_ForAnAdministrator_StagesPinAndChosenDurationBeforeEnabling()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: false));
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-profile-section='pin-protection']")));
+
+        cut.Find("[data-profile-section='pin-protection'] input[type='password']").Input("2468");
+        cut.Find("select[aria-label='PIN unlock duration for Sam']").Change("FixedDuration:60");
+        cut.FindAll("[data-profile-section='pin-protection'] button").Single(button => button.TextContent.Trim() == "Enable protection").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("PIN protection for Sam was updated.", cut.Markup));
+        var request = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        Assert.Equal(HttpMethod.Put, request.Method);
+        Assert.Equal($"/access/accounts/{SamAccountId:D}/grants/{SamId:D}/admin-protection", request.Path);
+        var payload = System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(request.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        Assert.True(payload.Enabled);
+        Assert.Equal("2468", payload.Pin);
+        Assert.Equal("FixedDuration", payload.UnlockMode);
+        Assert.Equal(60, payload.UnlockMinutes);
+    }
+
+    [Fact]
+    public void PinProtection_CanBeRemoved_AndIsNotOfferedWhenNoAccountLetsThePersonOpenAdminSettings()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: true));
+
+        var protectedPage = RenderFor(SamId);
+        protectedPage.WaitForAssertion(() => Assert.Contains("Admin settings are protected", protectedPage.Markup));
+        protectedPage.FindAll("[data-profile-section='pin-protection'] button").Single(button => button.TextContent.Trim() == "Remove protection").Click();
+        protectedPage.WaitForAssertion(() => Assert.Contains("PIN protection for Sam was removed.", protectedPage.Markup));
+        var removal = Assert.Single(_requests, request => request.Path.EndsWith("/admin-protection", StringComparison.Ordinal));
+        Assert.False(System.Text.Json.JsonSerializer.Deserialize<SetGrantAdminProtectionRequest>(removal.Body, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!.Enabled);
+
+        _accounts.Clear();
+        _accounts.Add(AccountWithAdminGrantFor(SamId, "Sam", protectionEnabled: false, adminEnabled: false));
+        var without = RenderFor(SamId);
+        without.WaitForAssertion(() => Assert.NotEmpty(without.FindAll("[data-nav-row='playback']")));
+        Assert.Empty(without.FindAll("[data-profile-section='pin-protection']"));
+    }
+
+    [Fact]
+    public void PinProtection_IsNotOfferedToAMemberOnTheirOwnPage()
+    {
+        Setup(actions: [], navigation: []);
+        _accounts.Add(AccountWithAdminGrantFor(OwnId, "Test User", protectionEnabled: false));
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        Assert.Empty(cut.FindAll("[data-profile-section='pin-protection']"));
+        Assert.DoesNotContain(_requests, request => request.Path == "/access/accounts");
+    }
+
+    private static AccountAccessResponse AccountWithAdminGrantFor(Guid profileId, string name, bool protectionEnabled, bool adminEnabled = true) =>
+        new(SamAccountId, "admin@home.test", true, true, 1, [], [],
+            [new AccountProfileGrantDto(SamAccountId, profileId, name, null, true, true, adminEnabled,
+                new GrantAdminProtectionDto(protectionEnabled, "FixedDuration", 30, 1, false, null), 1, DateTimeOffset.UtcNow)],
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId);
 
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
         Render<ProfileDetailPage>(parameters => parameters.Add(page => page.ProfileId, profileId));

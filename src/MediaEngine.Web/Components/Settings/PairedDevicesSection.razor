@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
 @inject IAppToastService Snackbar
 
 <SettingsSectionPanel Title="Paired devices" Icon="@AppMaterialIcons.Outlined.Devices"
-                      Description="Phones and TVs signed in to Tuvima. Revoke one to sign it out at once.">
+                      Description="Phones and TVs paired with Tuvima. Sign one out to end its access at once.">
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
@@ -19,6 +20,11 @@
         <AppEmptyState Class="app-page-state--compact" Title="No phones or TVs paired"
                        Message="Open a Tuvima app and choose this server to pair it." />
     }
+    else if (VisibleDevices.Count == 0)
+    {
+        <AppEmptyState Class="app-page-state--compact" Title="No paired devices match"
+                       Message="Change the household or profile above to see more." />
+    }
     else
     {
         <div>
@@ -27,7 +33,10 @@
                     <tr>
                         <th>Device</th>
                         <th>Type</th>
-                        <th>Belongs to</th>
+                        @if (ManagesOthers)
+                        {
+                            <th>Belongs to</th>
+                        }
                         <th>Backs up to</th>
                         <th>Paired</th>
                         <th>Last seen</th>
@@ -35,20 +44,28 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var device in _devices)
+                    @foreach (var device in VisibleDevices)
                     {
-                        <tr @key="device.Id">
-                            <td>@device.DeviceName<small>@device.ClientName</small></td>
-                            <td>@PlatformLabel(device.Platform)</td>
-                            <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
+                        <tr @key="device.Id" data-device-row="@device.Id">
                             <td>
-                                @if (device.Platform == "mobile" && _profiles.Count > 0)
+                                <span class="paired-device__name">
+                                    <DeviceTypeIcon Kind="@DeviceTypeClassifier.Classify(device.Platform, device.ClientName)" />
+                                    <span class="paired-device__text">@device.DeviceName<small>@device.ClientName</small></span>
+                                </span>
+                            </td>
+                            <td>@PlatformLabel(device.Platform)</td>
+                            @if (ManagesOthers)
+                            {
+                                <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
+                            }
+                            <td>
+                                @if (device.Platform == "mobile" && People.Count > 0)
                                 {
                                     <AppNativeSelect Value="@(device.BackupProfileId?.ToString() ?? string.Empty)"
                                                      ValueChanged="@(value => SetBackupAsync(device, value))"
                                                      aria-label="@($"Whose photos {device.DeviceName} backs up")">
                                         <option value="">Not chosen</option>
-                                        @foreach (var person in _profiles.Where(profile => profile.HouseholdId == device.HouseholdId))
+                                        @foreach (var person in People.Where(profile => profile.HouseholdId == device.HouseholdId))
                                         {
                                             <option value="@person.Id">@person.DisplayName</option>
                                         }
@@ -62,8 +79,8 @@
                             <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
                             <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
                             <td>
-                                <AppButton Label="Revoke" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
-                                           Size="AppControlSize.Compact" OnClick="@(() => AskRevoke(device))" />
+                                <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                           Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(device))" />
                             </td>
                         </tr>
                     }
@@ -73,10 +90,10 @@
     }
 </SettingsSectionPanel>
 
-<AppDialog Visible="@(_pendingRevoke is not null)"
-           VisibleChanged="@(_ => CancelRevoke())"
-           Title="Revoke this device?"
-           Subtitle="@(_pendingRevoke is null ? null : $"{_pendingRevoke.DeviceName} will be signed out and has to be paired again.")"
+<AppDialog Visible="@(_pendingSignOut is not null)"
+           VisibleChanged="@(_ => CancelSignOut())"
+           Title="Sign this device out?"
+           Subtitle="@(_pendingSignOut is null ? null : $"{_pendingSignOut.DeviceName} will be signed out and has to be paired again.")"
            Icon="@AppMaterialIcons.Outlined.Devices"
            Size="Small">
     <ChildContent>
@@ -84,21 +101,30 @@
     </ChildContent>
     <FooterContent>
         <div class="network-test-dialog__actions">
-            <AppButton Label="Cancel" OnClick="CancelRevoke" />
-            <AppButton Label="Revoke" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
-                       Disabled="@_revoking" OnClick="ConfirmRevokeAsync" />
+            <AppButton Label="Cancel" OnClick="CancelSignOut" />
+            <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+                       Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
         </div>
     </FooterContent>
 </AppDialog>
 
 @code {
+    /// <summary>What an administrator narrowed the page to; the Engine has already limited the list to what they may see.</summary>
+    [Parameter] public DevicesFilter Filter { get; set; } = DevicesFilter.All;
+
+    /// <summary>The people in scope, for the "Backs up to" choice. Empty for a member, whose list is read-only.</summary>
+    [Parameter] public IReadOnlyList<ManagedProfileResponse> People { get; set; } = [];
+
+    /// <summary>An administrator, who also sees whose device each one is.</summary>
+    [Parameter] public bool ManagesOthers { get; set; }
+
     private List<ManagedClientDeviceDto> _devices = [];
-    // Only administrators can read the people list, so only they get the editable "Backs up to" choice.
-    private List<ManagedProfileResponse> _profiles = [];
-    private ManagedClientDeviceDto? _pendingRevoke;
+    private ManagedClientDeviceDto? _pendingSignOut;
     private bool _loading = true;
     private bool _loadFailed;
-    private bool _revoking;
+    private bool _signingOut;
+
+    private List<ManagedClientDeviceDto> VisibleDevices => _devices.Where(Filter.Matches).ToList();
 
     protected override async Task OnInitializedAsync() => await LoadDevicesAsync();
 
@@ -109,15 +135,6 @@
         try
         {
             _devices = await Identity.GetManagedDevicesAsync();
-            try
-            {
-                _profiles = await Identity.GetManagedProfilesAsync();
-            }
-            catch (Exception)
-            {
-                // Not an administrator (or the list is unavailable): "Backs up to" stays read-only.
-                _profiles = [];
-            }
         }
         catch (Exception)
         {
@@ -139,32 +156,32 @@
         await LoadDevicesAsync();
     }
 
-    private void AskRevoke(ManagedClientDeviceDto device) => _pendingRevoke = device;
+    private void AskSignOut(ManagedClientDeviceDto device) => _pendingSignOut = device;
 
-    private void CancelRevoke() => _pendingRevoke = null;
+    private void CancelSignOut() => _pendingSignOut = null;
 
-    private async Task ConfirmRevokeAsync()
+    private async Task ConfirmSignOutAsync()
     {
-        if (_pendingRevoke is not { } device)
+        if (_pendingSignOut is not { } device)
             return;
 
-        _revoking = true;
+        _signingOut = true;
         try
         {
             var result = await Identity.RevokeManagedDeviceAsync(device.Id);
             if (result.Succeeded)
             {
-                Snackbar.Add($"{device.DeviceName} was revoked.", AppSeverity.Success);
+                Snackbar.Add($"{device.DeviceName} was signed out.", AppSeverity.Success);
             }
             else
             {
-                Snackbar.Add("That device could not be revoked.", AppSeverity.Error);
+                Snackbar.Add("That device could not be signed out.", AppSeverity.Error);
             }
         }
         finally
         {
-            _revoking = false;
-            _pendingRevoke = null;
+            _signingOut = false;
+            _pendingSignOut = null;
         }
 
         await LoadDevicesAsync();
