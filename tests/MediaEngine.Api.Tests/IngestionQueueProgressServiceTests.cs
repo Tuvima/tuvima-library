@@ -157,6 +157,7 @@ public sealed class IngestionQueueProgressServiceTests
         null,
         null,
         null,
+        null,
         "Movies",
         null,
         false);
@@ -198,7 +199,11 @@ public sealed class IngestionQueueProgressServiceTests
 
         public List<DateTimeOffset?> Reads { get; } = [];
 
-        public Task<IReadOnlyList<IngestionQueueFileRow>> ReadAsync(DateTimeOffset? since, CancellationToken ct = default)
+        public Task<IReadOnlyList<IngestionQueueFileRow>> ReadAsync(
+            DateTimeOffset? since,
+            DateTimeOffset now,
+            IReadOnlyCollection<Guid> joinedOperationIds,
+            CancellationToken ct = default)
         {
             Reads.Add(since);
             return Task.FromResult(Rows);

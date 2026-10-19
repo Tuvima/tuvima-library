@@ -21,7 +21,7 @@ public sealed class IngestionFileStepMapperTests
     [InlineData(MediaOperationStage.Completed, IngestionFileStep.Registered)]
     public void OperationStage_MapsToTheStepTheFileHasReached(string stage, IngestionFileStep expected)
     {
-        var progress = IngestionFileStepMapper.Map(Row(stage: stage, status: MediaOperationStatus.Running));
+        var progress = IngestionFileStepMapper.Map(Row(stage: stage, status: MediaOperationStatus.Running), Now);
 
         Assert.Equal(expected, progress.Step);
         Assert.False(progress.IsDone);
@@ -40,7 +40,7 @@ public sealed class IngestionFileStepMapperTests
     public void LiveIdentityJob_MapsToTheStepOfItsState(IdentityJobState state, IngestionFileStep expected)
     {
         var progress = IngestionFileStepMapper.Map(Row(
-            stage: MediaOperationStage.Completed, status: MediaOperationStatus.Succeeded, identity: state));
+            stage: MediaOperationStage.Completed, status: MediaOperationStatus.Succeeded, identity: state), Now);
 
         Assert.Equal(expected, progress.Step);
         Assert.False(progress.IsDone);
@@ -62,7 +62,7 @@ public sealed class IngestionFileStepMapperTests
             stage: MediaOperationStage.Completed,
             status: MediaOperationStatus.Succeeded,
             identity: state,
-            pendingReview: pendingReview));
+            pendingReview: pendingReview), Now);
 
         Assert.True(progress.IsDone);
         Assert.Equal(IngestionFileStep.Done, progress.Step);
@@ -79,33 +79,116 @@ public sealed class IngestionFileStepMapperTests
     [InlineData(MediaOperationStatus.Cancelled, IngestionFileOutcome.Skipped)]
     public void TerminalOperationWithNoIdentityJob_CountsAsDone(string status, IngestionFileOutcome expected)
     {
-        var progress = IngestionFileStepMapper.Map(Row(stage: MediaOperationStage.Failed, status: status));
+        var progress = IngestionFileStepMapper.Map(Row(stage: MediaOperationStage.Failed, status: status), Now);
 
         Assert.True(progress.IsDone);
         Assert.Equal(expected, progress.Outcome);
     }
 
     [Theory]
-    [InlineData(MediaOperationStatus.RetryWaiting)]
-    [InlineData(MediaOperationStatus.FailedRetryable)]
-    [InlineData(MediaOperationStatus.Interrupted)]
+    [InlineData(MediaOperationStatus.Pending)]
+    [InlineData(MediaOperationStatus.Queued)]
+    [InlineData(MediaOperationStatus.Leased)]
+    [InlineData(MediaOperationStatus.Running)]
     [InlineData(MediaOperationStatus.Paused)]
-    [InlineData(MediaOperationStatus.Blocked)]
-    public void OperationStillInTheQueue_KeepsItsStageStepAndIsNotDone(string status)
+    public void OperationInTheQueue_KeepsItsStageStepAndIsNotDone(string status)
     {
-        var progress = IngestionFileStepMapper.Map(Row(stage: MediaOperationStage.Scoring, status: status));
+        var progress = IngestionFileStepMapper.Map(Row(stage: MediaOperationStage.Scoring, status: status), Now);
 
         Assert.Equal(IngestionFileStep.Read, progress.Step);
         Assert.False(progress.IsDone);
+    }
+
+    [Theory]
+    [InlineData(MediaOperationStatus.RetryWaiting)]
+    [InlineData(MediaOperationStatus.FailedRetryable)]
+    public void RetryDueInTheFutureOrJustPast_StaysOpenAtItsStageStep(string status)
+    {
+        var future = IngestionFileStepMapper.Map(
+            Row(stage: MediaOperationStage.Scoring, status: status, nextRetryAt: Now.AddSeconds(30)), Now);
+        var justPast = IngestionFileStepMapper.Map(
+            Row(stage: MediaOperationStage.Scoring, status: status, nextRetryAt: Now.AddMinutes(-3)), Now);
+
+        Assert.False(future.IsDone);
+        Assert.Equal(IngestionFileStep.Read, future.Step);
+        Assert.False(justPast.IsDone);
+    }
+
+    [Theory]
+    [InlineData(MediaOperationStatus.RetryWaiting)]
+    [InlineData(MediaOperationStatus.FailedRetryable)]
+    public void RetryTenMinutesStaleOrWithNoDueTime_IsDoneAndFailed(string status)
+    {
+        var stale = IngestionFileStepMapper.Map(
+            Row(stage: MediaOperationStage.Failed, status: status, nextRetryAt: Now.AddMinutes(-10)), Now);
+        var undated = IngestionFileStepMapper.Map(
+            Row(stage: MediaOperationStage.Failed, status: status), Now);
+
+        Assert.True(stale.IsDone);
+        Assert.Equal(IngestionFileOutcome.Failed, stale.Outcome);
+        Assert.True(undated.IsDone);
+        Assert.Equal(IngestionFileOutcome.Failed, undated.Outcome);
+    }
+
+    [Theory]
+    [InlineData(MediaOperationStatus.Interrupted)]
+    [InlineData(MediaOperationStatus.Blocked)]
+    public void InterruptedOrBlockedOperation_IsDoneAndFailedSoItNeverHoldsThePeriodOpen(string status)
+    {
+        var progress = IngestionFileStepMapper.Map(Row(stage: MediaOperationStage.WaitingForLock, status: status), Now);
+
+        Assert.True(progress.IsDone);
+        Assert.Equal(IngestionFileOutcome.Failed, progress.Outcome);
+    }
+
+    [Fact]
+    public void InterruptedOperationWhoseAssetIsStillBeingIdentified_FollowsTheIdentityJob()
+    {
+        var progress = IngestionFileStepMapper.Map(Row(
+            stage: MediaOperationStage.QueuedIdentity,
+            status: MediaOperationStatus.Interrupted,
+            identity: IdentityJobState.Hydrating), Now);
+
+        Assert.False(progress.IsDone);
+        Assert.Equal(IngestionFileStep.Hydrating, progress.Step);
+    }
+
+    [Fact]
+    public void OperationStillOpen_IsDecidedByItsOwnStage_NotByTheLinkedAssetsIdentityJob()
+    {
+        var progress = IngestionFileStepMapper.Map(Row(
+            stage: MediaOperationStage.Scoring,
+            status: MediaOperationStatus.Running,
+            identity: IdentityJobState.Ready,
+            asset: Guid.NewGuid()), Now);
+
+        Assert.False(progress.IsDone);
+        Assert.Equal(IngestionFileStep.Read, progress.Step);
+        Assert.Equal(IngestionFileOutcome.None, progress.Outcome);
+    }
+
+    [Fact]
+    public void KeepBothDuplicate_IsSkippedEvenThoughItsLinkedAssetIsStillBeingIdentified()
+    {
+        // Keep both: the second copy is recorded as a duplicate of the kept asset, which is mid-identity.
+        var progress = IngestionFileStepMapper.Map(Row(
+            stage: MediaOperationStage.Completed,
+            status: MediaOperationStatus.Succeeded,
+            summary: "duplicate",
+            identity: IdentityJobState.UniverseEnriching,
+            asset: Guid.NewGuid()), Now);
+
+        Assert.True(progress.IsDone);
+        Assert.Equal(IngestionFileOutcome.Skipped, progress.Outcome);
     }
 
     [Fact]
     public void RetryStageOfAFileWithNoAsset_IsTreatedAsSettledAndWithAnAssetAsRegistered()
     {
         var unregistered = IngestionFileStepMapper.Map(
-            Row(stage: MediaOperationStage.Failed, status: MediaOperationStatus.RetryWaiting));
+            Row(stage: MediaOperationStage.Failed, status: MediaOperationStatus.RetryWaiting, nextRetryAt: Now.AddMinutes(1)), Now);
         var registered = IngestionFileStepMapper.Map(
-            Row(stage: MediaOperationStage.Failed, status: MediaOperationStatus.RetryWaiting, asset: Guid.NewGuid()));
+            Row(stage: MediaOperationStage.Failed, status: MediaOperationStatus.RetryWaiting, nextRetryAt: Now.AddMinutes(1), asset: Guid.NewGuid()), Now);
 
         Assert.Equal(IngestionFileStep.Settled, unregistered.Step);
         Assert.Equal(IngestionFileStep.Registered, registered.Step);
@@ -115,7 +198,7 @@ public sealed class IngestionFileStepMapperTests
     public void SucceededOperationWithNoIdentityJob_IsDoneAndAdded()
     {
         var progress = IngestionFileStepMapper.Map(Row(
-            stage: MediaOperationStage.Completed, status: MediaOperationStatus.Succeeded, summary: "ingestion completed"));
+            stage: MediaOperationStage.Completed, status: MediaOperationStatus.Succeeded, summary: "ingestion completed"), Now);
 
         Assert.True(progress.IsDone);
         Assert.Equal(IngestionFileOutcome.Added, progress.Outcome);
@@ -132,7 +215,7 @@ public sealed class IngestionFileStepMapperTests
             status: MediaOperationStatus.Succeeded,
             summary: summary,
             identity: IdentityJobState.Hydrating,
-            hold: "ffmpeg"));
+            hold: "ffmpeg"), Now);
 
         Assert.True(progress.IsDone);
         Assert.Equal(IngestionFileOutcome.Skipped, progress.Outcome);
@@ -146,7 +229,7 @@ public sealed class IngestionFileStepMapperTests
             stage: MediaOperationStage.Completed,
             status: MediaOperationStatus.Succeeded,
             identity: IdentityJobState.Ready,
-            hold: "ffmpeg"));
+            hold: "ffmpeg"), Now);
 
         Assert.False(progress.IsDone);
         Assert.Equal(IngestionFileStep.Enriching, progress.Step);
@@ -159,7 +242,7 @@ public sealed class IngestionFileStepMapperTests
     public void FileHeldEarlyInTheQueue_KeepsItsEarlierStep()
     {
         var progress = IngestionFileStepMapper.Map(Row(
-            stage: MediaOperationStage.Scoring, status: MediaOperationStatus.Running, hold: "ffmpeg"));
+            stage: MediaOperationStage.Scoring, status: MediaOperationStatus.Running, hold: "ffmpeg"), Now);
 
         Assert.Equal(IngestionFileStep.Read, progress.Step);
         Assert.True(progress.IsWaiting);
@@ -172,12 +255,14 @@ public sealed class IngestionFileStepMapperTests
         IdentityJobState? identity = null,
         string? hold = null,
         bool pendingReview = false,
-        Guid? asset = null) => new(
+        Guid? asset = null,
+        DateTimeOffset? nextRetryAt = null) => new(
             Guid.NewGuid(),
             Now,
             Now,
             stage,
             status,
+            nextRetryAt,
             summary,
             asset ?? (identity is null ? null : Guid.NewGuid()),
             identity?.ToString(),

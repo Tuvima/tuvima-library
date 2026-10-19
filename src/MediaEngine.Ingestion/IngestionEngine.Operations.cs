@@ -200,7 +200,7 @@ public sealed partial class IngestionEngine
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogDebug(ex, "Durable operation asset link failed for {OperationId}", operation.Id);
+            _logger.LogWarning(ex, "Durable operation asset link failed for {OperationId}", operation.Id);
         }
     }
 

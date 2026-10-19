@@ -22,9 +22,9 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
         + $"'{nameof(IdentityJobState.BridgeSearching)}', '{nameof(IdentityJobState.QidResolved)}', "
         + $"'{nameof(IdentityJobState.Hydrating)}', '{nameof(IdentityJobState.UniverseEnriching)}'";
 
-    // The intake statuses that are still in the queue.
-    private const string OpenOperationStatuses =
-        "'pending', 'queued', 'leased', 'running', 'retry_waiting', 'failed_retryable', 'interrupted', 'paused', 'blocked'";
+    // The intake statuses that are still in the queue (the same rule as IngestionFileStepMapper.IsOperationOpen). A row
+    // waiting to retry is still in the queue only while its retry is due in the future or was due within the grace period.
+    private const string OpenOperationStatuses = "'pending', 'queued', 'leased', 'running', 'paused'";
 
     internal const string Sql = $"""
         WITH candidates AS (
@@ -39,16 +39,26 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
             WHERE operation_type = 'ingestion.file'
               AND status IN ({OpenOperationStatuses})
             UNION
+            SELECT id
+            FROM media_operations
+            WHERE operation_type = 'ingestion.file'
+              AND status IN ('retry_waiting', 'failed_retryable')
+              AND next_retry_at >= @retryCutoff
+            UNION
+            SELECT id
+            FROM media_operations
+            WHERE id IN @joinedOperationIds
+            UNION
             SELECT mo.id
             FROM identity_jobs ij
-            CROSS JOIN media_operations mo INDEXED BY idx_media_operations_entity ON mo.entity_id = ij.entity_id
+            CROSS JOIN media_operations mo ON mo.entity_id = ij.entity_id
             WHERE ij.state IN ({LiveIdentityStates})
-              AND mo.operation_type = 'ingestion.file'
+              AND +mo.operation_type = 'ingestion.file'
             UNION
             SELECT mo.id
             FROM media_inspection_holds h
-            CROSS JOIN media_operations mo INDEXED BY idx_media_operations_entity ON mo.entity_id = h.asset_id
-            WHERE mo.operation_type = 'ingestion.file'
+            CROSS JOIN media_operations mo ON mo.entity_id = h.asset_id
+            WHERE +mo.operation_type = 'ingestion.file'
         ),
         latest_job AS (
             SELECT entity_id, state, media_type, updated_at
@@ -71,6 +81,7 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
                mo.updated_at       AS UpdatedAt,
                mo.stage            AS Stage,
                mo.status           AS Status,
+               mo.next_retry_at    AS NextRetryAt,
                mo.result_summary   AS ResultSummary,
                mo.entity_id        AS AssetId,
                lj.state            AS IdentityState,
@@ -111,12 +122,21 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<IngestionQueueFileRow>> ReadAsync(DateTimeOffset? since, CancellationToken ct = default)
+    public Task<IReadOnlyList<IngestionQueueFileRow>> ReadAsync(
+        DateTimeOffset? since,
+        DateTimeOffset now,
+        IReadOnlyCollection<Guid> joinedOperationIds,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
-        var rows = conn.Query<Row>(Sql, new { since = since?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) });
+        var rows = conn.Query<Row>(Sql, new
+        {
+            since = since?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            retryCutoff = (now - IngestionFileStepMapper.RetryGrace).ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            joinedOperationIds = joinedOperationIds.Select(GuidSql.ToBlob).ToArray(),
+        });
         IReadOnlyList<IngestionQueueFileRow> mapped = rows.Select(ToFileRow).ToList();
         return Task.FromResult(mapped);
     }
@@ -127,6 +147,7 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
         ParseTime(row.UpdatedAt),
         row.Stage,
         row.Status,
+        row.NextRetryAt is null ? null : ParseTime(row.NextRetryAt),
         row.ResultSummary,
         row.AssetId,
         row.IdentityState,
@@ -147,6 +168,7 @@ public sealed class IngestionQueueProgressRepository : IIngestionQueueProgressRe
         public string UpdatedAt { get; set; } = "";
         public string? Stage { get; set; }
         public string Status { get; set; } = "";
+        public string? NextRetryAt { get; set; }
         public string? ResultSummary { get; set; }
         public Guid? AssetId { get; set; }
         public string? IdentityState { get; set; }

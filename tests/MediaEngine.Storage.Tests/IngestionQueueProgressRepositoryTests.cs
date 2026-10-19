@@ -40,7 +40,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         await _operations.AttachEntityAsync(operation.Id, assetId, "MediaAsset");
         await AddJobAsync(assetId, "Hydrating", "Movies");
 
-        var row = Assert.Single(await _repository.ReadAsync(Now.AddHours(-1)));
+        var row = Assert.Single(await ReadRowsAsync(Now.AddHours(-1)));
 
         Assert.Equal(operation.Id, row.OperationId);
         Assert.Equal(assetId, row.AssetId);
@@ -59,7 +59,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
     {
         await AddOperationAsync("/watch/b.mkv", MediaOperationStage.Queued, MediaOperationStatus.Queued, Now.AddSeconds(-5));
 
-        var row = Assert.Single(await _repository.ReadAsync(Now.AddHours(-1)));
+        var row = Assert.Single(await ReadRowsAsync(Now.AddHours(-1)));
 
         Assert.Null(row.AssetId);
         Assert.Null(row.IdentityState);
@@ -75,7 +75,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         await _operations.AttachEntityAsync(operation.Id, assetId, "MediaAsset");
         await InsertLogAsync("/watch/c.epub", assetId, "Books");
 
-        var row = Assert.Single(await _repository.ReadAsync(Now.AddHours(-1)));
+        var row = Assert.Single(await ReadRowsAsync(Now.AddHours(-1)));
 
         Assert.Equal("Books", row.MediaType);
     }
@@ -89,7 +89,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         await AddJobAsync(assetId, "Ready", "Movies");
         await new MediaInspectionHoldRepository(_db).UpsertAsync(assetId, "ffmpeg", Now.AddMinutes(-1));
 
-        var row = Assert.Single(await _repository.ReadAsync(Now.AddHours(-1)));
+        var row = Assert.Single(await ReadRowsAsync(Now.AddHours(-1)));
 
         Assert.Equal("ffmpeg", row.HeldToolId);
     }
@@ -117,7 +117,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         await _operations.AttachEntityAsync(opD.Id, assetD, "MediaAsset");
         await AddReviewAsync(assetD, "LowConfidence", "Resolved");
 
-        var rows = (await _repository.ReadAsync(Now.AddHours(-1))).ToDictionary(row => row.OperationId);
+        var rows = (await ReadRowsAsync(Now.AddHours(-1))).ToDictionary(row => row.OperationId);
 
         Assert.True(rows[opA.Id].HasPendingReview);
         Assert.True(rows[opB.Id].HasPendingReview);
@@ -138,10 +138,11 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
         await _operations.AttachEntityAsync(busy.Id, busyAsset, "MediaAsset");
         await AddJobAsync(busyAsset, "UniverseEnriching", "Movies");
 
-        var retrying = await AddOperationAsync("/watch/old-retry.mkv", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Now.AddDays(-2));
+        var retrying = await AddOperationAsync(
+            "/watch/old-retry.mkv", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Now.AddDays(-2), nextRetryAt: Now.AddMinutes(1));
 
-        var recent = (await _repository.ReadAsync(Now.AddHours(-1))).Select(row => row.OperationId).ToList();
-        var all = (await _repository.ReadAsync(Now.AddDays(-3))).Select(row => row.OperationId).ToList();
+        var recent = (await ReadRowsAsync(Now.AddHours(-1))).Select(row => row.OperationId).ToList();
+        var all = (await ReadRowsAsync(Now.AddDays(-3))).Select(row => row.OperationId).ToList();
 
         Assert.Equal(new[] { busy.Id, retrying.Id }.Order(), recent.Order());
         Assert.Contains(finished.Id, all);
@@ -164,7 +165,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
 
         var queued = await AddOperationAsync("/watch/queued.mkv", MediaOperationStage.Discovered, MediaOperationStatus.Pending, Now.AddSeconds(-5));
 
-        var rows = await _repository.ReadAsync(null);
+        var rows = await ReadRowsAsync(null);
 
         Assert.Equal(new[] { held.Id, queued.Id }.Order(), rows.Select(row => row.OperationId).Order());
     }
@@ -183,7 +184,7 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
             UpdatedAt = Now.AddSeconds(-5),
         });
 
-        Assert.Empty(await _repository.ReadAsync(Now.AddHours(-1)));
+        Assert.Empty(await ReadRowsAsync(Now.AddHours(-1)));
     }
 
     [Fact]
@@ -203,25 +204,73 @@ public sealed class IngestionQueueProgressRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task RowsThatStoppedWithoutFinishing_AreOnlyReturnedWhileTheirPeriodCoversThem()
+    {
+        var future = await AddOperationAsync("/watch/r1.mkv", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Now.AddDays(-2), Now.AddMinutes(1));
+        var justPast = await AddOperationAsync("/watch/r2.mkv", MediaOperationStage.Failed, MediaOperationStatus.FailedRetryable, Now.AddDays(-2), Now.AddMinutes(-3));
+        var stale = await AddOperationAsync("/watch/r3.mkv", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Now.AddDays(-2), Now.AddMinutes(-10));
+        var undated = await AddOperationAsync("/watch/r4.mkv", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Now.AddDays(-2));
+        var interrupted = await AddOperationAsync("/watch/r5.mkv", MediaOperationStage.WaitingForLock, MediaOperationStatus.Interrupted, Now.AddDays(-2));
+        var blocked = await AddOperationAsync("/watch/r6.mkv", MediaOperationStage.Blocked, MediaOperationStatus.Blocked, Now.AddDays(-2));
+        var paused = await AddOperationAsync("/watch/r7.mkv", MediaOperationStage.Paused, MediaOperationStatus.Paused, Now.AddDays(-2));
+
+        var open = (await ReadRowsAsync(null)).Select(row => row.OperationId).Order().ToList();
+        var inPeriod = (await ReadRowsAsync(Now.AddDays(-3))).Select(row => row.OperationId).ToHashSet();
+
+        Assert.Equal(new[] { future.Id, justPast.Id, paused.Id }.Order(), open);
+        Assert.Equal(7, inPeriod.Count);
+        Assert.Contains(stale.Id, inPeriod);
+        Assert.Contains(undated.Id, inPeriod);
+        Assert.Contains(interrupted.Id, inPeriod);
+        Assert.Contains(blocked.Id, inPeriod);
+    }
+
+    [Fact]
+    public async Task FilesThatJoinedThePeriodLate_AreReturnedByIdEvenOnceTheyAreFinished()
+    {
+        var (_, assetId) = BuildAsset("Movies");
+        var old = await AddOperationAsync("/watch/old.mkv", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Now.AddDays(-2));
+        await _operations.AttachEntityAsync(old.Id, assetId, "MediaAsset");
+        await AddJobAsync(assetId, "Ready", "Movies");
+
+        Assert.Empty(await ReadRowsAsync(Now.AddHours(-1)));
+        var joined = Assert.Single(await ReadRowsAsync(Now.AddHours(-1), old.Id));
+
+        Assert.Equal(old.Id, joined.OperationId);
+    }
+
+    [Fact]
     public async Task TheQueryUsesIndexesInsteadOfScanningMediaOperations()
     {
         using var conn = _db.CreateConnection();
         var plan = (await conn.QueryAsync(
                 "EXPLAIN QUERY PLAN " + IngestionQueueProgressRepository.Sql,
-                new { since = Now.AddHours(-1).ToString("O") }))
+                new
+                {
+                    since = Now.AddHours(-1).ToString("O"),
+                    retryCutoff = Now.AddMinutes(-5).ToString("O"),
+                    joinedOperationIds = new[] { GuidSql.ToBlob(Guid.NewGuid()) },
+                }))
             .Select(row => (string)((IDictionary<string, object>)row)["detail"])
             .ToList();
 
+        Assert.DoesNotContain("INDEXED BY", IngestionQueueProgressRepository.Sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(plan, line => line.StartsWith("SCAN mo", StringComparison.Ordinal)
             || line.StartsWith("SCAN media_operations", StringComparison.Ordinal));
         Assert.Contains(plan, line => line.Contains("idx_media_operations_type_created", StringComparison.Ordinal));
         Assert.Contains(plan, line => line.Contains("idx_media_operations_type_status", StringComparison.Ordinal));
+        Assert.Contains(plan, line => line.Contains("SEARCH mo USING INDEX idx_media_operations_entity", StringComparison.Ordinal));
         Assert.DoesNotContain(plan, line => line.EndsWith("(operation_type=?)", StringComparison.Ordinal));
     }
 
-    private async Task<MediaOperation> AddOperationAsync(string path, string stage, string status, DateTimeOffset createdAt) =>
+    private Task<IReadOnlyList<IngestionQueueFileRow>> ReadRowsAsync(DateTimeOffset? since, params Guid[] joined) =>
+        _repository.ReadAsync(since, Now, joined);
+
+    private async Task<MediaOperation> AddOperationAsync(
+        string path, string stage, string status, DateTimeOffset createdAt, DateTimeOffset? nextRetryAt = null) =>
         await _operations.EnsureAsync(new MediaOperation
         {
+            NextRetryAt = nextRetryAt,
             OperationType = MediaOperationType.IngestionFile,
             OperationKind = MediaOperationKind.Ingestion,
             SourcePath = path,

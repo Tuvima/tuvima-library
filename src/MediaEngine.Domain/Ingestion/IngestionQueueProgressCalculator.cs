@@ -16,6 +16,13 @@ public sealed record IngestionQueueProgressResult(
 /// <para>
 /// The bar is the sum of every file's step number divided by the steps possible (nine per file), so it never changes
 /// units. Within an active period the displayed value never decreases, and it is 1 only when the queue is idle.
+/// Restarting the Engine resets the bar's floor: the first snapshot after a restart can be lower than the last one before it.
+/// </para>
+/// <para>
+/// A period runs from idle to idle, but files that are only waiting for a missing tool do not keep it open: when every
+/// unfinished file is waiting, the period closes (state Waiting, bar held where it was, no estimate). Files already
+/// waiting before a period starts are left out of its set; they are still reported as waiting, and rejoin when their
+/// hold clears and they have work to do.
 /// </para>
 /// </summary>
 public static class IngestionQueueProgressCalculator
@@ -35,16 +42,20 @@ public static class IngestionQueueProgressCalculator
     {
         ArgumentNullException.ThrowIfNull(rows);
         var prev = previous ?? IngestionQueueProgressState.Empty;
-        var mapped = rows.Select(row => (Row: row, Progress: IngestionFileStepMapper.Map(row))).ToList();
+        var mapped = rows.Select(row => (Row: row, Progress: IngestionFileStepMapper.Map(row, now))).ToList();
+
+        // Files held back by a missing tool, wherever they are in the queue and however old they are.
+        var held = mapped.Where(file => file.Progress.IsWaiting).ToList();
+        var waitingFor = held.Select(file => file.Progress.WaitingForToolId!).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
 
         var state = prev;
         var startedNewPeriod = false;
         if (prev.PeriodStart is null || prev.PeriodEnded)
         {
-            var open = mapped.Where(file => !file.Progress.IsDone).ToList();
+            var open = mapped.Where(file => !file.Progress.IsDone && !file.Progress.IsWaiting).ToList();
             if (open.Count > 0)
             {
-                // A period starts with the earliest unfinished file that arrived after the last period ended
+                // A period starts with the earliest unfinished file that arrived after the last period closed
                 // (at the Engine's start, the earliest unfinished file of all). Older unfinished files are
                 // part of the set but do not move the start.
                 var arrivals = prev.PeriodEnded
@@ -56,20 +67,39 @@ public static class IngestionQueueProgressCalculator
             }
             else if (prev.PeriodStart is null)
             {
-                return new IngestionQueueProgressResult(IngestionQueueProgressSnapshot.Empty(now), prev, false);
+                return new IngestionQueueProgressResult(
+                    IngestionQueueProgressSnapshot.Empty(now) with
+                    {
+                        State = held.Count > 0 ? IngestionQueueRunState.Waiting : IngestionQueueRunState.Idle,
+                        FilesWaiting = held.Count,
+                        WaitingFor = waitingFor,
+                    },
+                    prev,
+                    false);
             }
         }
 
         var periodStart = state.PeriodStart!.Value;
+
+        // Older files that are unfinished and not waiting join the period and stay counted after they finish.
+        var joined = new HashSet<Guid>(state.JoinedOperationIds);
+        foreach (var (row, progress) in mapped)
+        {
+            if (row.CreatedAt < periodStart && !progress.IsDone && !progress.IsWaiting)
+            {
+                joined.Add(row.OperationId);
+            }
+        }
+
         var set = mapped
-            .Where(file => file.Row.CreatedAt >= periodStart || !file.Progress.IsDone)
+            .Where(file => file.Row.CreatedAt >= periodStart || joined.Contains(file.Row.OperationId))
             .ToList();
 
         var steps = new Dictionary<Guid, IngestionFileStep>(set.Count);
         long stepsCompleted = 0;
         var filesDone = 0;
-        var filesWaiting = 0;
-        var waitingFor = new SortedSet<string>(StringComparer.Ordinal);
+        var filesRegistered = 0;
+        var openActive = 0;
         int added = 0, needsReview = 0, failed = 0, skipped = 0;
         var unsorted = 0;
         var typeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -88,6 +118,10 @@ public static class IngestionQueueProgressCalculator
 
             steps[row.OperationId] = step;
             stepsCompleted += (int)step;
+            if (step >= IngestionFileStep.Registered)
+            {
+                filesRegistered++;
+            }
 
             if (progress.IsDone)
             {
@@ -100,11 +134,9 @@ public static class IngestionQueueProgressCalculator
                     default: skipped++; break;
                 }
             }
-
-            if (progress.IsWaiting)
+            else if (!progress.IsWaiting)
             {
-                filesWaiting++;
-                waitingFor.Add(progress.WaitingForToolId!);
+                openActive++;
             }
 
             if (IsKnownType(row.MediaType))
@@ -124,10 +156,9 @@ public static class IngestionQueueProgressCalculator
         }
 
         var filesFound = set.Count;
-        var openFiles = filesFound - filesDone;
-        var runState = openFiles == 0
-            ? IngestionQueueRunState.Idle
-            : filesWaiting == openFiles ? IngestionQueueRunState.Waiting : IngestionQueueRunState.Working;
+        var runState = openActive > 0
+            ? IngestionQueueRunState.Working
+            : held.Count > 0 ? IngestionQueueRunState.Waiting : IngestionQueueRunState.Idle;
 
         var stepsTotal = (long)filesFound * StepsPerFile;
         var fraction = stepsTotal > 0 ? (double)stepsCompleted / stepsTotal : 0d;
@@ -135,30 +166,29 @@ public static class IngestionQueueProgressCalculator
             ? 1d
             : Math.Min(Math.Max(state.LastProgress, fraction), Math.BitDecrement(1d));
 
+        // The period closes as soon as nothing in it is still being worked on (finished, or only waiting for a tool).
         var ended = state.PeriodEnded;
         var endedAt = state.EndedAt;
-        if (runState == IngestionQueueRunState.Idle && !ended)
+        if (runState != IngestionQueueRunState.Working && !ended)
         {
             ended = true;
             endedAt = now;
         }
 
-        // The whole-queue step rate over a sliding window, and the steadiness test that decides whether to show it.
-        var rateSamples = runState == IngestionQueueRunState.Idle
-            ? Array.Empty<IngestionQueueRateSample>()
-            : TrimSamples(state.RateSamples, new IngestionQueueRateSample(now, stepsCompleted), now);
+        var rateSamples = Array.Empty<IngestionQueueRateSample>() as IReadOnlyList<IngestionQueueRateSample>;
         var estimateSamples = state.EstimateSamples;
         var lastEstimateSampleAt = state.LastEstimateSampleAt;
         int? estimateSeconds = null;
         if (runState == IngestionQueueRunState.Working)
         {
-            var remaining = RemainingSeconds(rateSamples, stepsTotal, stepsCompleted, now, out var steady);
+            rateSamples = TrimSamples(state.RateSamples, new IngestionQueueRateSample(now, filesRegistered, filesDone), now);
+            var remaining = RemainingSeconds(rateSamples, filesFound, filesRegistered, filesDone, now, out var steady);
             if (remaining is { } seconds)
             {
                 if (lastEstimateSampleAt is null || now - lastEstimateSampleAt >= IngestionQueueEstimatePolicy.SampleInterval)
                 {
-                    // A sample is the whole run length this estimate predicts (time already spent plus time left), so a
-                    // steady pace gives the same sample every time even though the time left keeps shrinking.
+                    // A sample is the finish time this estimate predicts, so a steady pace gives the same sample every
+                    // time even though the time left keeps shrinking.
                     estimateSamples = estimateSamples
                         .Append((now - periodStart).TotalSeconds + seconds)
                         .TakeLast(IngestionQueueEstimatePolicy.SamplesRequired)
@@ -168,7 +198,7 @@ public static class IngestionQueueProgressCalculator
 
                 if (steady
                     && fraction >= IngestionQueueEstimatePolicy.MinFractionDone
-                    && SamplesAgree(estimateSamples))
+                    && SamplesAgree(estimateSamples, seconds))
                 {
                     estimateSeconds = (int)Math.Ceiling(seconds);
                 }
@@ -185,8 +215,8 @@ public static class IngestionQueueProgressCalculator
             State = runState,
             FilesFound = filesFound,
             FilesDone = filesDone,
-            FilesWaiting = filesWaiting,
-            WaitingFor = waitingFor.ToList(),
+            FilesWaiting = held.Count,
+            WaitingFor = waitingFor,
             FilesMoreFound = Math.Max(0, filesFound - (startedNewPeriod ? filesFound : state.FirstSnapshotFiles)),
             Outcomes = new IngestionQueueOutcomes(added, needsReview, failed, skipped),
             Tally = OrderTally(typeCounts),
@@ -206,6 +236,7 @@ public static class IngestionQueueProgressCalculator
             EndedAt = endedAt,
             FirstSnapshotFiles = startedNewPeriod ? filesFound : state.FirstSnapshotFiles,
             LastProgress = progressValue,
+            JoinedOperationIds = joined,
             FileSteps = steps,
             RateSamples = rateSamples,
             EstimateSamples = estimateSamples,
@@ -244,49 +275,79 @@ public static class IngestionQueueProgressCalculator
         return kept;
     }
 
-    /// <summary>Seconds left at the window's step rate, or <see langword="null"/> when the rate is not above zero.</summary>
+    /// <summary>
+    /// Seconds left: the longer of the time for the files not yet registered to be registered (at the intake rate) and the
+    /// time for the files not yet done to finish (at the finish rate). <see langword="null"/> when a rate that is needed is
+    /// not above zero.
+    /// </summary>
     private static double? RemainingSeconds(
         IReadOnlyList<IngestionQueueRateSample> samples,
-        long stepsTotal,
-        long stepsCompleted,
+        int filesFound,
+        int filesRegistered,
+        int filesDone,
         DateTimeOffset now,
         out bool steady)
     {
         steady = false;
-        var rate = RateSince(samples, samples[0].At, stepsCompleted, now);
-        if (rate <= 0)
+        var notDone = filesFound - filesDone;
+        if (notDone <= 0)
         {
             return null;
         }
 
-        // A pace that is still changing (a burst just ended, a stall just cleared) is not a pace to count down on.
+        var first = samples[0];
+        var span = (now - first.At).TotalSeconds;
+        if (span <= 0)
+        {
+            return null;
+        }
+
+        var finishRate = Math.Max(0, filesDone - first.Done) / span;
+        if (finishRate <= 0)
+        {
+            return null;
+        }
+
+        var remaining = notDone / finishRate;
+        var notRegistered = filesFound - filesRegistered;
+        if (notRegistered > 0)
+        {
+            var intakeRate = Math.Max(0, filesRegistered - first.Registered) / span;
+            if (intakeRate <= 0)
+            {
+                return null;
+            }
+
+            remaining = Math.Max(remaining, notRegistered / intakeRate);
+        }
+
+        // A finish pace that is still changing (a burst just ended, a stall just cleared) is not a pace to count down on.
         var recentFrom = now - IngestionQueueEstimatePolicy.RecentWindow;
-        var recentStart = samples.FirstOrDefault(sample => sample.At >= recentFrom);
-        var recentRate = RateSince(samples, recentStart.At, stepsCompleted, now);
-        steady = Math.Abs(recentRate - rate) <= IngestionQueueEstimatePolicy.MaxRateDrift * rate;
+        var recent = samples.First(sample => sample.At >= recentFrom);
+        var recentSpan = (now - recent.At).TotalSeconds;
+        var recentRate = recentSpan > 0 ? Math.Max(0, filesDone - recent.Done) / recentSpan : 0d;
+        var tolerance = IngestionQueueEstimatePolicy.MaxRateDrift * finishRate;
 
-        return (stepsTotal - stepsCompleted) / rate;
+        // The recent pace must match the window's, and also the pace just before it, so the moment a stall ends (when the
+        // recent pace briefly crosses the window's) is not mistaken for a steady pace.
+        var earlierFrom = now - IngestionQueueEstimatePolicy.RecentWindow - IngestionQueueEstimatePolicy.RecentWindow;
+        var earlier = samples.FirstOrDefault(sample => sample.At >= earlierFrom);
+        var earlierSpan = (recent.At - earlier.At).TotalSeconds;
+        var earlierRate = earlierSpan > 0 ? Math.Max(0, recent.Done - earlier.Done) / earlierSpan : -1d;
+        steady = Math.Abs(recentRate - finishRate) <= tolerance
+            && earlierRate >= 0
+            && Math.Abs(recentRate - earlierRate) <= tolerance;
+
+        return remaining;
     }
 
-    private static double RateSince(
-        IReadOnlyList<IngestionQueueRateSample> samples,
-        DateTimeOffset from,
-        long stepsCompleted,
-        DateTimeOffset now)
-    {
-        var start = samples.FirstOrDefault(sample => sample.At >= from);
-        var seconds = (now - start.At).TotalSeconds;
-        return seconds > 0 ? (stepsCompleted - start.StepsCompleted) / seconds : 0d;
-    }
-
-    private static bool SamplesAgree(IReadOnlyList<double> samples)
+    private static bool SamplesAgree(IReadOnlyList<double> samples, double remainingNow)
     {
         if (samples.Count < IngestionQueueEstimatePolicy.SamplesRequired)
         {
             return false;
         }
 
-        var smallest = samples.Min();
-        return smallest > 0 && samples.Max() <= smallest * IngestionQueueEstimatePolicy.MaxSampleSpread;
+        return samples.Max() - samples.Min() <= IngestionQueueEstimatePolicy.MaxSampleSpread * remainingNow;
     }
 }

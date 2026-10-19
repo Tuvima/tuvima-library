@@ -77,14 +77,14 @@ public sealed class IngestionQueueProgressService : BackgroundService, IIngestio
     internal async Task<TimeSpan> RefreshAsync(CancellationToken ct)
     {
         var now = _time.GetUtcNow();
-        var rows = await _repository.ReadAsync(_state.PeriodStart, ct).ConfigureAwait(false);
+        var rows = await _repository.ReadAsync(_state.PeriodStart, now, _state.JoinedOperationIds, ct).ConfigureAwait(false);
         var result = IngestionQueueProgressCalculator.Calculate(rows, _state, now);
 
         if (result.StartedNewPeriod && _state.PeriodStart is null)
         {
             // The first read only found the files still being worked on. Now the period's start is known,
             // read everything since then so the first snapshot already counts the files finished meanwhile.
-            rows = await _repository.ReadAsync(result.State.PeriodStart, ct).ConfigureAwait(false);
+            rows = await _repository.ReadAsync(result.State.PeriodStart, now, result.State.JoinedOperationIds, ct).ConfigureAwait(false);
             result = IngestionQueueProgressCalculator.Calculate(rows, _state, now);
         }
 

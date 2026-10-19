@@ -94,10 +94,11 @@ public sealed class IngestionQueueProgressCalculatorTests
     public void HeldFilesWithEverythingElseDone_ReportWaitingNotIdleAndNoEstimate()
     {
         var sim = QueueSim.Mixed(10, Base);
+        var working = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base);
         sim.FinishAll();
         sim.Hold(3, "ffmpeg");
 
-        var result = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base.AddMinutes(5));
+        var result = IngestionQueueProgressCalculator.Calculate(sim.Rows(), working.State, Base.AddMinutes(5));
         var snapshot = result.Snapshot;
 
         Assert.Equal(IngestionQueueRunState.Waiting, snapshot.State);
@@ -107,10 +108,11 @@ public sealed class IngestionQueueProgressCalculatorTests
         Assert.Equal(7, snapshot.FilesDone);
         Assert.True(snapshot.Progress < 1d);
         Assert.Null(snapshot.EstimatedSecondsRemaining);
+        Assert.Equal(Base, snapshot.StartedAt);
     }
 
     [Fact]
-    public void HeldFilesPlusOneFileStillWorking_ReportWorking()
+    public void HeldFilesPlusOneFileStillWorking_ReportWorking_AndTheHeldFilesAreNotPartOfThePeriod()
     {
         var sim = QueueSim.Mixed(10, Base);
         sim.FinishAll();
@@ -121,10 +123,12 @@ public sealed class IngestionQueueProgressCalculatorTests
 
         Assert.Equal(IngestionQueueRunState.Working, snapshot.State);
         Assert.Equal(3, snapshot.FilesWaiting);
+        Assert.Equal(1, snapshot.FilesFound);
+        Assert.Equal(Base.AddMinutes(1), snapshot.StartedAt);
     }
 
     [Fact]
-    public void HeldFilesAcrossTwoTools_ListEachToolOnce()
+    public void HeldFilesAcrossTwoTools_ListEachToolOnce_EvenWithNoPeriodAtAll()
     {
         var sim = QueueSim.Mixed(6, Base);
         sim.FinishAll();
@@ -133,8 +137,11 @@ public sealed class IngestionQueueProgressCalculatorTests
 
         var snapshot = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base.AddMinutes(5)).Snapshot;
 
+        Assert.Equal(IngestionQueueRunState.Waiting, snapshot.State);
         Assert.Equal(["ffmpeg", "ffprobe"], snapshot.WaitingFor);
         Assert.Equal(4, snapshot.FilesWaiting);
+        Assert.Equal(0, snapshot.FilesFound);
+        Assert.Null(snapshot.StartedAt);
     }
 
     [Fact]
@@ -282,28 +289,198 @@ public sealed class IngestionQueueProgressCalculatorTests
     }
 
     [Fact]
-    public void ReplayOfAFiveHundredFileRun_EstimateIsNullUntilFifteenPercentIsDone_AndStaysWithinTwentyFivePercent()
+    public void LockRetryCapInterruptedFile_EndsThePeriodAsFailedInsteadOfHoldingItOpen()
     {
-        var run = ReplayRun();
+        var running = Op("a", MediaOperationStage.WaitingForLock, MediaOperationStatus.Running, Base);
+        var first = IngestionQueueProgressCalculator.Calculate([running], null, Base);
 
-        // Not vacuous: the replay does produce estimates, and some of them come before the run is nearly over.
-        var estimates = run.Where(sample => sample.Snapshot.EstimatedSecondsRemaining is not null).ToList();
-        Assert.True(estimates.Count >= 20, $"Only {estimates.Count} estimates were shown.");
+        var second = IngestionQueueProgressCalculator.Calculate(
+            [running with { Status = MediaOperationStatus.Interrupted }], first.State, Base.AddSeconds(30));
 
-        foreach (var (snapshot, actualRemaining) in run)
+        Assert.Equal(IngestionQueueRunState.Working, first.Snapshot.State);
+        Assert.Equal(IngestionQueueRunState.Idle, second.Snapshot.State);
+        Assert.Equal(1, second.Snapshot.Outcomes.Failed);
+        Assert.Equal(1, second.Snapshot.FilesDone);
+        Assert.Equal(1d, second.Snapshot.Progress);
+    }
+
+    [Fact]
+    public void CrashInterruptedRunningRow_IsDoneAndFailed()
+    {
+        var running = Op("a", MediaOperationStage.Hashing, MediaOperationStatus.Running, Base);
+        var first = IngestionQueueProgressCalculator.Calculate([running], null, Base);
+
+        // After a restart the Engine reclaims rows that were running when it stopped and marks them interrupted.
+        var second = IngestionQueueProgressCalculator.Calculate(
+            [running with { Status = MediaOperationStatus.Interrupted }], first.State, Base.AddMinutes(2));
+
+        Assert.Equal(IngestionQueueRunState.Idle, second.Snapshot.State);
+        Assert.Equal(1, second.Snapshot.Outcomes.Failed);
+    }
+
+    [Fact]
+    public void RetryWaitingWithAFutureDueTime_StaysOpen_AndOneTenMinutesStaleIsDoneAndFailed()
+    {
+        var retrying = Op("a", MediaOperationStage.Failed, MediaOperationStatus.RetryWaiting, Base, nextRetryAt: Base.AddMinutes(1));
+        var first = IngestionQueueProgressCalculator.Calculate([retrying], null, Base);
+        var stillWaiting = IngestionQueueProgressCalculator.Calculate([retrying], first.State, Base.AddSeconds(30));
+        var stale = IngestionQueueProgressCalculator.Calculate([retrying], stillWaiting.State, Base.AddMinutes(11));
+
+        Assert.Equal(IngestionQueueRunState.Working, stillWaiting.Snapshot.State);
+        Assert.Equal(IngestionQueueRunState.Idle, stale.Snapshot.State);
+        Assert.Equal(1, stale.Snapshot.Outcomes.Failed);
+    }
+
+    [Fact]
+    public void OldItemsPutBackInTheQueueWhileIdle_StayCountedAsTheyFinish()
+    {
+        var sim = QueueSim.Empty(Base);
+        sim.Add(10, "Movies", QueueSim.Variant.Normal, Base.AddDays(-1));
+        sim.AddOpen(Base);
+        var earlier = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base);
+        sim.FinishAll();
+        var ended = IngestionQueueProgressCalculator.Calculate(sim.Rows(), earlier.State, Base.AddSeconds(10));
+        Assert.Equal(IngestionQueueRunState.Idle, ended.Snapshot.State);
+
+        // A rematch puts ten finished items back in the identity queue while the Library is idle.
+        sim.SetPhaseCreatedBefore(Base, 6);
+        var later = Base.AddHours(1);
+        var result = IngestionQueueProgressCalculator.Calculate(sim.Rows(), ended.State, later);
+        Assert.True(result.StartedNewPeriod);
+        Assert.Equal(10, result.Snapshot.FilesFound);
+        Assert.Equal(0, result.Snapshot.FilesDone);
+
+        var state = result.State;
+        IngestionQueueProgressSnapshot snapshot = result.Snapshot;
+        for (var tick = 1; tick < 200 && snapshot.State != IngestionQueueRunState.Idle; tick++)
         {
-            if (snapshot.EstimatedSecondsRemaining is not { } estimate)
-            {
-                continue;
-            }
+            sim.Step(tick, identityPerTick: 2);
+            var next = IngestionQueueProgressCalculator.Calculate(sim.Rows(), state, later.AddSeconds(tick));
+            state = next.State;
+            snapshot = next.Snapshot;
+            Assert.Equal(10, snapshot.FilesFound);
+        }
 
-            var fraction = (double)snapshot.StepsCompleted / snapshot.StepsTotal;
-            Assert.True(fraction >= 0.15, $"An estimate was shown at {fraction:P0} done.");
-            Assert.True(
-                Math.Abs(estimate - actualRemaining) <= 0.25 * actualRemaining + 1,
-                $"At {(snapshot.UpdatedAt - Base).TotalSeconds:F0}s the estimate was {estimate}s but {actualRemaining:F0}s remained.");
+        Assert.Equal(IngestionQueueRunState.Idle, snapshot.State);
+        Assert.Equal(10, snapshot.FilesDone);
+        Assert.Equal(later, snapshot.StartedAt);
+    }
+
+    [Fact]
+    public void WhenEveryUnfinishedFileIsWaiting_ThePeriodClosesAndTheNextOneLeavesTheHeldFilesOut()
+    {
+        var sim = QueueSim.Mixed(10, Base);
+        var working = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, Base);
+        sim.FinishAll();
+        sim.Hold(3, "ffmpeg");
+        var closed = IngestionQueueProgressCalculator.Calculate(sim.Rows(), working.State, Base.AddMinutes(5));
+
+        Assert.Equal(IngestionQueueRunState.Waiting, closed.Snapshot.State);
+        Assert.Equal(3, closed.Snapshot.FilesWaiting);
+        Assert.Equal(10, closed.Snapshot.FilesFound);
+        Assert.InRange(closed.Snapshot.Progress, working.Snapshot.Progress, 0.9999);
+        Assert.Null(closed.Snapshot.EstimatedSecondsRemaining);
+
+        // New work arrives: a new period starts that does not count the files already held.
+        var arrival = Base.AddMinutes(10);
+        sim.AddOpen(arrival);
+        var next = IngestionQueueProgressCalculator.Calculate(sim.Rows(), closed.State, arrival);
+
+        Assert.True(next.StartedNewPeriod);
+        Assert.Equal(IngestionQueueRunState.Working, next.Snapshot.State);
+        Assert.Equal(arrival, next.Snapshot.StartedAt);
+        Assert.Equal(1, next.Snapshot.FilesFound);
+        Assert.Equal(0, next.Snapshot.FilesMoreFound);
+        Assert.Equal(3, next.Snapshot.FilesWaiting);
+        Assert.Equal(["ffmpeg"], next.Snapshot.WaitingFor);
+
+        // When the new work is done the held files make the state Waiting again, not Idle.
+        sim.FinishAll();
+        sim.Hold(3, "ffmpeg");
+        var after = IngestionQueueProgressCalculator.Calculate(sim.Rows(), next.State, arrival.AddSeconds(20));
+        Assert.Equal(IngestionQueueRunState.Waiting, after.Snapshot.State);
+        Assert.Equal(1, after.Snapshot.FilesFound);
+        Assert.Equal(1, after.Snapshot.FilesDone);
+        Assert.Equal(3, after.Snapshot.FilesWaiting);
+    }
+
+    [Fact]
+    public void WhenAHoldClears_TheFileRejoinsTheRunningPeriodAsOpenWorkAndCountsAsMoreFound()
+    {
+        var sim = QueueSim.Mixed(5, Base);
+        sim.FinishAll();
+        sim.Hold(3, "ffmpeg");
+        var arrival = Base.AddMinutes(10);
+        sim.AddOpen(arrival);
+        var started = IngestionQueueProgressCalculator.Calculate(sim.Rows(), null, arrival);
+        Assert.Equal(1, started.Snapshot.FilesFound);
+        Assert.Equal(3, started.Snapshot.FilesWaiting);
+
+        // The tool turns up: one held file goes back to being identified.
+        sim.Release(1, phase: 9);
+        var later = IngestionQueueProgressCalculator.Calculate(sim.Rows(), started.State, arrival.AddSeconds(5));
+
+        Assert.Equal(IngestionQueueRunState.Working, later.Snapshot.State);
+        Assert.Equal(2, later.Snapshot.FilesFound);
+        Assert.Equal(1, later.Snapshot.FilesMoreFound);
+        Assert.Equal(2, later.Snapshot.FilesWaiting);
+    }
+
+    [Fact]
+    public void FileWhoseHoldClearsWhileItsOperationIsStillOpen_IsNotCountedDoneBeforeItIsRegistered()
+    {
+        var held = Op("a", MediaOperationStage.Scoring, MediaOperationStatus.Running, Base, hold: "ffmpeg");
+        var other = Op("b", MediaOperationStage.Hashing, MediaOperationStatus.Running, Base);
+        var first = IngestionQueueProgressCalculator.Calculate([held, other], null, Base);
+
+        var released = IngestionQueueProgressCalculator.Calculate(
+            [held with { HeldToolId = null }, other], first.State, Base.AddSeconds(1));
+
+        Assert.Equal(2, released.Snapshot.FilesFound);
+        Assert.Equal(0, released.Snapshot.FilesDone);
+        Assert.Equal(0, released.Snapshot.FilesWaiting);
+    }
+
+    [Fact]
+    public void ReplayOfAStalledRun_EstimateStaysWithinTwentyFivePercent_AndIsNotShownBeforeFifteenPercent()
+    {
+        // 500 files read at once (fast intake), identity then at two files a second, and a 30 second stall in the middle.
+        var run = Replay(500, tick => tick is >= 100 and < 130 ? (0, 0) : (500, 2));
+
+        AssertEstimatesAreSteadyAndAccurate(run, minimumShown: 20);
+    }
+
+    [Fact]
+    public void ReplayOfOverlappingIntakeAndIdentity_EstimateFollowsTheSlowerOfTheTwoBottlenecks()
+    {
+        // Intake at three files a second while identity finishes two a second: the old whole-queue step rate showed 96 s
+        // at the 100 second mark when about 150 s remained.
+        var run = Replay(500, _ => (3, 2));
+
+        AssertEstimatesAreSteadyAndAccurate(run, minimumShown: 20);
+        var atOneHundred = run.Single(sample => (sample.Snapshot.UpdatedAt - Base).TotalSeconds == 100);
+        if (atOneHundred.Snapshot.EstimatedSecondsRemaining is { } estimate)
+        {
+            Assert.InRange(estimate, 0.75 * atOneHundred.ActualRemainingSeconds, 1.25 * atOneHundred.ActualRemainingSeconds);
         }
     }
+
+    [Fact]
+    public void ReplayOfIntakeSlowerThanIdentity_EstimateFollowsTheIntakeBottleneck()
+    {
+        var run = Replay(500, _ => (1, 4));
+
+        AssertEstimatesAreSteadyAndAccurate(run, minimumShown: 20);
+    }
+
+    [Fact]
+    public void ReplayOfFastIntakeThenSlowIdentity_EstimateStaysWithinTwentyFivePercent()
+    {
+        var run = Replay(500, _ => (50, 2));
+
+        AssertEstimatesAreSteadyAndAccurate(run, minimumShown: 20);
+    }
+
 
     [Fact]
     public void SteadyRun_ShowsNoEstimateUntilFifteenPercentIsDone_ThenShowsOne()
@@ -326,23 +503,12 @@ public sealed class IngestionQueueProgressCalculatorTests
                 looksBeforeIt++;
             }
 
-            sim.Step(tick, intakePerTick: 5, identityPerTick: 5);
+            sim.Step(tick, startPerTick: 5, identityPerTick: 5);
         }
 
         Assert.NotNull(firstEstimateFraction);
         Assert.True(firstEstimateFraction >= 0.15, $"The first estimate came at {firstEstimateFraction:P0} done.");
         Assert.True(looksBeforeIt > 30, "The estimate should have waited for the work to be well under way.");
-    }
-
-    [Fact]
-    public void ReplayOfAFiveHundredFileRun_ShowsNoEstimateWhileIntakeIsStillBursting()
-    {
-        var run = ReplayRun();
-
-        var burst = run.Where(sample => (sample.Snapshot.UpdatedAt - Base).TotalSeconds < 30).ToList();
-
-        Assert.NotEmpty(burst);
-        Assert.All(burst, sample => Assert.Null(sample.Snapshot.EstimatedSecondsRemaining));
     }
 
     [Fact]
@@ -367,18 +533,40 @@ public sealed class IngestionQueueProgressCalculatorTests
         Assert.Null(waiting.EstimatedSecondsRemaining);
     }
 
+    private static IngestionQueueFileRow Op(
+        string key,
+        string stage,
+        string status,
+        DateTimeOffset created,
+        DateTimeOffset? nextRetryAt = null,
+        string? hold = null) => new(
+            new Guid(System.Text.Encoding.UTF8.GetBytes(key.PadRight(16, '_'))),
+            created,
+            created,
+            stage,
+            status,
+            nextRetryAt,
+            null,
+            null,
+            null,
+            null,
+            "Movies",
+            hold,
+            false);
+
     /// <summary>
-    /// A recorded-run stand-in: 500 files noticed together and read at once (fast intake), identity work then proceeding
-    /// at two files a second per stage, with a 30 second stall in the middle. Returns each look at the queue with how
-    /// many seconds really remained.
+    /// A recorded-run stand-in: <paramref name="files"/> files noticed together, started through intake and identity at the
+    /// pace <paramref name="pace"/> gives for each second. Returns each look at the queue with how many seconds really remained.
     /// </summary>
-    private static List<(IngestionQueueProgressSnapshot Snapshot, double ActualRemainingSeconds)> ReplayRun()
+    private static List<(IngestionQueueProgressSnapshot Snapshot, double ActualRemainingSeconds)> Replay(
+        int files,
+        Func<int, (int StartPerTick, int IdentityPerTick)> pace)
     {
-        var sim = QueueSim.Mixed(500, Base, withVariants: false);
+        var sim = QueueSim.Mixed(files, Base, withVariants: false);
         IngestionQueueProgressState? state = null;
         var looks = new List<IngestionQueueProgressSnapshot>();
         var finishedAt = 0;
-        for (var tick = 0; tick < 3000; tick++)
+        for (var tick = 0; tick < 5000; tick++)
         {
             var result = IngestionQueueProgressCalculator.Calculate(sim.Rows(), state, Base.AddSeconds(tick));
             state = result.State;
@@ -389,8 +577,8 @@ public sealed class IngestionQueueProgressCalculatorTests
                 break;
             }
 
-            var stalled = tick is >= 100 and < 130;
-            sim.Step(tick, intakePerTick: stalled ? 0 : 500, identityPerTick: stalled ? 0 : 2);
+            var (start, identity) = pace(tick);
+            sim.Step(tick, startPerTick: start, identityPerTick: identity);
         }
 
         Assert.True(finishedAt > 0, "The replayed run never finished.");
@@ -398,6 +586,29 @@ public sealed class IngestionQueueProgressCalculatorTests
             .Select((look, tick) => (look, (double)(finishedAt - tick)))
             .Where(pair => pair.Item2 > 0)
             .ToList();
+    }
+
+    private static double AssertEstimatesAreSteadyAndAccurate(
+        List<(IngestionQueueProgressSnapshot Snapshot, double ActualRemainingSeconds)> run,
+        int minimumShown)
+    {
+        var shown = run.Where(sample => sample.Snapshot.EstimatedSecondsRemaining is not null).ToList();
+        Assert.True(shown.Count >= minimumShown, $"Only {shown.Count} estimates were shown.");
+
+        var worst = 0d;
+        foreach (var (snapshot, actualRemaining) in shown)
+        {
+            var estimate = snapshot.EstimatedSecondsRemaining!.Value;
+            var fraction = (double)snapshot.StepsCompleted / snapshot.StepsTotal;
+            Assert.True(fraction >= 0.15, $"An estimate was shown at {fraction:P0} done.");
+            var error = Math.Abs(estimate - actualRemaining) / actualRemaining;
+            worst = Math.Max(worst, error);
+            Assert.True(
+                Math.Abs(estimate - actualRemaining) <= 0.25 * actualRemaining + 1,
+                $"At {(snapshot.UpdatedAt - Base).TotalSeconds:F0}s the estimate was {estimate}s but {actualRemaining:F0}s remained.");
+        }
+
+        return worst;
     }
 
     /// <summary>A deterministic stand-in for the pipeline: files move through the phases the data store shows.</summary>
@@ -491,15 +702,18 @@ public sealed class IngestionQueueProgressCalculatorTests
             }
         }
 
-        /// <summary>One second of pipeline work: fast intake, then limited identity work per stage.</summary>
-        public void Step(int tick, int intakePerTick = 500, int identityPerTick = 4)
+        /// <summary>
+        /// One second of pipeline work: up to <paramref name="startPerTick"/> discovered files start intake (each then
+        /// takes five seconds to register), and each identity stage moves at most <paramref name="identityPerTick"/> files.
+        /// </summary>
+        public void Step(int tick, int startPerTick = 500, int identityPerTick = 4)
         {
-            var intake = 0;
+            var started = 0;
             foreach (var file in _files.Where(file => file.Phase < 5).OrderBy(file => file.Created))
             {
-                if (intake++ >= intakePerTick)
+                if (file.Phase == 0 && started++ >= startPerTick)
                 {
-                    break;
+                    continue;
                 }
 
                 Advance(file);
@@ -522,6 +736,24 @@ public sealed class IngestionQueueProgressCalculatorTests
 
                     Advance(file);
                 }
+            }
+        }
+
+        public void SetPhaseCreatedBefore(DateTimeOffset before, int phase)
+        {
+            foreach (var file in _files.Where(file => file.Created < before))
+            {
+                file.Phase = phase;
+            }
+        }
+
+        /// <summary>Clears the hold of the first <paramref name="count"/> held files and puts them back at <paramref name="phase"/>.</summary>
+        public void Release(int count, int phase)
+        {
+            foreach (var file in _files.Where(file => file.HoldTool is not null).Take(count))
+            {
+                file.HoldTool = null;
+                file.Phase = phase;
             }
         }
 
@@ -582,6 +814,7 @@ public sealed class IngestionQueueProgressCalculatorTests
                 file.Created,
                 stage,
                 status,
+                null,
                 null,
                 asset,
                 identity,

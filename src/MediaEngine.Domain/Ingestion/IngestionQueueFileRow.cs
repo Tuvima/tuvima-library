@@ -9,6 +9,7 @@ namespace MediaEngine.Domain.Ingestion;
 /// <param name="UpdatedAt">When the intake operation last changed.</param>
 /// <param name="Stage">The intake operation's stage (see <c>MediaOperationStage</c>).</param>
 /// <param name="Status">The intake operation's status (see <c>MediaOperationStatus</c>).</param>
+/// <param name="NextRetryAt">When the operation's next retry is due, if it is waiting to retry.</param>
 /// <param name="ResultSummary">What the intake operation recorded when it finished, for example <c>duplicate</c>.</param>
 /// <param name="AssetId">The media asset the file became, once it is registered (or the existing one it duplicates).</param>
 /// <param name="IdentityState">The newest identity job's state (an <c>IdentityJobState</c> name), if the asset has a job.</param>
@@ -22,6 +23,7 @@ public sealed record IngestionQueueFileRow(
     DateTimeOffset UpdatedAt,
     string? Stage,
     string Status,
+    DateTimeOffset? NextRetryAt,
     string? ResultSummary,
     Guid? AssetId,
     string? IdentityState,
