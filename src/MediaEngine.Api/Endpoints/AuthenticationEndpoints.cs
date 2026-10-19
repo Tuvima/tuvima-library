@@ -869,7 +869,7 @@ public static class AuthenticationEndpoints
             var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);
             var created = tokens.Create(sessionId, accountId);
             return Results.Ok(new IntercomTokenResponse(created.Token, created.ExpiresAt));
-        }).Produces<IntercomTokenResponse>().RequireRateLimiting("intercom").RequireAuthorization(AuthPolicies.HumanSelfService);
+        }).Produces<IntercomTokenResponse>().RequireRateLimiting(LiveUpdatesRateLimitPolicies.TokenMint).RequireAuthorization(AuthPolicies.HumanSelfService);
 
         return app;
     }

@@ -11,6 +11,9 @@ namespace MediaEngine.Web.Services.Integration;
 /// <param name="TwoStepToken">Set (with no session) when the password was right but the account also needs a code from its authenticator app.</param>
 public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail, string? TwoStepToken = null);
 
+/// <summary>The result of asking the Engine for a live-updates token: the token, or the status and how long the Engine asked us to wait.</summary>
+public sealed record IntercomTokenAttempt(IntercomTokenResponse? Token, HttpStatusCode Status, TimeSpan? RetryAfter);
+
 public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
@@ -1266,12 +1269,20 @@ public sealed class DashboardIdentityClient(
             : null;
     }
 
-    public async Task<IntercomTokenResponse?> GetIntercomTokenAsync(CancellationToken ct = default)
+    /// <summary>Mints a short-lived live-updates token; a refusal carries the Engine's status and any Retry-After wait.</summary>
+    public async Task<IntercomTokenAttempt> GetIntercomTokenAsync(CancellationToken ct = default)
     {
         using var response = await Client.PostAsync("/auth/intercom-token", null, ct).ConfigureAwait(false);
-        return response.IsSuccessStatusCode
-            ? await response.Content.ReadFromJsonAsync<IntercomTokenResponse>(cancellationToken: ct).ConfigureAwait(false)
-            : null;
+        if (!response.IsSuccessStatusCode)
+        {
+            var retryAfter = response.Headers.RetryAfter is { } header
+                ? header.Delta ?? (header.Date - DateTimeOffset.UtcNow)
+                : null;
+            return new IntercomTokenAttempt(null, response.StatusCode, retryAfter);
+        }
+
+        var token = await response.Content.ReadFromJsonAsync<IntercomTokenResponse>(cancellationToken: ct).ConfigureAwait(false);
+        return new IntercomTokenAttempt(token, response.StatusCode, null);
     }
 
     private async Task<TResponse?> GetAsync<TResponse>(string path, CancellationToken ct)

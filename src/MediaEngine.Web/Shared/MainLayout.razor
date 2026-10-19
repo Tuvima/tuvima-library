@@ -690,7 +690,7 @@
     private async Task RetryLiveUpdatesAsync(MouseEventArgs _)
     {
         if (_disposed) return;
-        await Orchestrator.StartSignalRAsync();
+        await Orchestrator.RetryLiveUpdatesNowAsync();
     }
 
     private async Task RestoreSearchFocusAsync()

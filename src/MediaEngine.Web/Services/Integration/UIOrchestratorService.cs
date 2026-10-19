@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Maintenance;
@@ -62,7 +63,16 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     private readonly DashboardSessionAccessor? _dashboardSession;
     private readonly ILogger<UIOrchestratorService> _logger;
 
+    private static readonly TimeSpan IntercomTokenRenewalMargin = TimeSpan.FromMinutes(1);
+
+    private readonly SemaphoreSlim _connectGate = new(1, 1);
+    private readonly object _restartGate = new();
     private HubConnection? _hubConnection;
+    private IntercomTokenResponse? _intercomToken;
+    private TimeSpan? _engineRetryAfter;
+    private CancellationTokenSource? _scheduledRestart;
+    private int _restartAttempt;
+    private volatile bool _disposed;
     private EngineConnectionState _engineConnectionState = EngineConnectionState.Unknown;
 
     public UIOrchestratorService(
@@ -1061,61 +1071,184 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// <para>Idempotent  -  calling this multiple times is safe; the connection
     /// is only created and started once per circuit lifetime.</para>
     ///
-    /// <para>Connection failure is non-fatal: the warning is logged and the
-    /// UI continues in HTTP-only mode.</para>
+    /// <para>Connection failure is non-fatal: the warning is logged, the
+    /// UI continues in HTTP-only mode, and a restart is scheduled with
+    /// backoff and jitter. While one is scheduled, further calls wait for it
+    /// rather than asking the Engine again; <see cref="RetryLiveUpdatesNowAsync"/>
+    /// skips the wait.</para>
     /// </summary>
     public async Task StartSignalRAsync(CancellationToken ct = default)
     {
-        if (_hubConnection is not null)
+        if (IsLiveUpdatesRestartScheduled)
         {
-            if (_hubConnection.State is HubConnectionState.Connected
-                or HubConnectionState.Connecting
-                or HubConnectionState.Reconnecting)
-            {
-                return;
-            }
-
-            if (_hubConnection.State != HubConnectionState.Disconnected)
-            {
-                return;
-            }
-
-            await TryStartSignalRConnectionAsync(_hubConnection, null, ct);
             return;
         }
 
-        var baseUrl = Environment.GetEnvironmentVariable("TUVIMA_ENGINE_URL")
-            ?? _config["Engine:BaseUrl"]
-            ?? "http://localhost:61495";
-        var collectionUrl = $"{baseUrl.TrimEnd('/')}{SignalREvents.IntercomPath}";
+        await ConnectLiveUpdatesAsync(ct);
+    }
+
+    /// <summary>The person asked to retry: cancel any scheduled restart and try straight away.</summary>
+    public async Task RetryLiveUpdatesNowAsync(CancellationToken ct = default)
+    {
+        CancelScheduledRestart();
+        await ConnectLiveUpdatesAsync(ct);
+    }
+
+    /// <summary>True while a failed or dropped live-updates connection is waiting out its backoff before the next attempt.</summary>
+    public bool IsLiveUpdatesRestartScheduled
+    {
+        get
+        {
+            lock (_restartGate)
+            {
+                return _scheduledRestart is not null;
+            }
+        }
+    }
+
+    /// <summary>Replaced in tests so scheduled restarts run without real waiting.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> RestartDelay { get; set; } = Task.Delay;
+
+    internal LiveUpdatesRetryPolicy RetryPolicy { get; set; } = new();
+
+    private async Task ConnectLiveUpdatesAsync(CancellationToken ct)
+    {
         if (_identityClient is null)
         {
             _logger.LogDebug("Intercom is unavailable because the first-party identity client is not registered.");
             return;
         }
 
-        var intercomToken = await _identityClient.GetIntercomTokenAsync(ct).ConfigureAwait(false);
-        if (intercomToken is null)
+        // Layout, pages and the Retry button can all ask at once; one attempt runs and the rest see its outcome.
+        await _connectGate.WaitAsync(ct);
+        try
         {
-            _logger.LogWarning("Could not mint a short-lived Intercom token; real-time updates remain disabled.");
-            SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+            // Calls that queued behind a failed attempt find its restart scheduled and leave the wait to it.
+            if (_disposed || IsLiveUpdatesRestartScheduled)
+            {
+                return;
+            }
+
+            _hubConnection ??= BuildHubConnection();
+            if (_hubConnection.State != HubConnectionState.Disconnected)
+            {
+                return;
+            }
+
+            if (await TryStartSignalRConnectionAsync(_hubConnection, ct))
+            {
+                _restartAttempt = 0;
+            }
+            else
+            {
+                ScheduleRestart();
+            }
+        }
+        finally
+        {
+            _connectGate.Release();
+        }
+    }
+
+    // A token lasts ten minutes; each (re)connect reuses it until it is within a minute of expiring.
+    private async Task<string?> GetIntercomAccessTokenAsync()
+    {
+        var current = _intercomToken;
+        if (current is not null && current.ExpiresAt - DateTimeOffset.UtcNow > IntercomTokenRenewalMargin)
+        {
+            return current.Token;
+        }
+
+        var attempt = await _identityClient!.GetIntercomTokenAsync(CancellationToken.None).ConfigureAwait(false);
+        if (attempt.Token is null)
+        {
+            _engineRetryAfter = attempt.RetryAfter;
+            throw new IntercomTokenUnavailableException(attempt.Status, attempt.RetryAfter);
+        }
+
+        _engineRetryAfter = null;
+        _intercomToken = attempt.Token;
+        return attempt.Token.Token;
+    }
+
+    private void ScheduleRestart()
+    {
+        CancellationTokenSource scheduled;
+        TimeSpan delay;
+        lock (_restartGate)
+        {
+            if (_disposed || _scheduledRestart is not null)
+            {
+                return;
+            }
+
+            delay = RetryPolicy.NextRestartDelay(_restartAttempt++, _engineRetryAfter);
+            scheduled = new CancellationTokenSource();
+            _scheduledRestart = scheduled;
+        }
+
+        _logger.LogInformation("Live updates will try to reconnect in {Delay:0.#} seconds.", delay.TotalSeconds);
+        _ = RunScheduledRestartAsync(scheduled, delay);
+    }
+
+    private async Task RunScheduledRestartAsync(CancellationTokenSource scheduled, TimeSpan delay)
+    {
+        try
+        {
+            await RestartDelay(delay, scheduled.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled because the person pressed Retry or the circuit closed; that path owns what happens next.
             return;
         }
+        finally
+        {
+            lock (_restartGate)
+            {
+                if (ReferenceEquals(_scheduledRestart, scheduled))
+                {
+                    _scheduledRestart = null;
+                }
+            }
+
+            scheduled.Dispose();
+        }
+
+        try
+        {
+            await ConnectLiveUpdatesAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "A scheduled live-updates restart stopped because the circuit closed.");
+        }
+    }
+
+    private void CancelScheduledRestart()
+    {
+        lock (_restartGate)
+        {
+            _scheduledRestart?.Cancel();
+            _scheduledRestart = null;
+        }
+    }
+
+    private HubConnection BuildHubConnection()
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("TUVIMA_ENGINE_URL")
+            ?? _config["Engine:BaseUrl"]
+            ?? "http://localhost:61495";
+        var collectionUrl = $"{baseUrl.TrimEnd('/')}{SignalREvents.IntercomPath}";
 
         _hubConnection = new HubConnectionBuilder()
             .WithUrl(collectionUrl, options =>
             {
                 // The standard bearer-token hook is applied consistently to the
                 // negotiate request and every selected SignalR transport.
-                options.AccessTokenProvider = () => Task.FromResult<string?>(intercomToken.Token);
+                options.AccessTokenProvider = GetIntercomAccessTokenAsync;
             })
-            .WithAutomaticReconnect(new[]
-            {
-                TimeSpan.Zero,
-                TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(10),
-                TimeSpan.FromSeconds(30),
-            })
+            .WithAutomaticReconnect(RetryPolicy)
             .Build();
 
         // -- "MediaAdded" ------------------------------------------------------
@@ -1364,10 +1497,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         {
             _logger.LogWarning("Intercom closed: {Message}", ex?.Message);
             SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+            // Quick reconnects ran out (for example a long Engine restart); keep trying with backoff.
+            ScheduleRestart();
             return Task.CompletedTask;
         };
 
-        await TryStartSignalRConnectionAsync(_hubConnection, collectionUrl, ct);
+        return _hubConnection;
     }
 
     // Live events only carry changes, so the latest ingestion numbers are read once on every (re)connect.
@@ -1380,45 +1515,53 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         }
     }
 
-    private async Task TryStartSignalRConnectionAsync(HubConnection connection, string? collectionUrl, CancellationToken ct)
+    private async Task<bool> TryStartSignalRConnectionAsync(HubConnection connection, CancellationToken ct)
     {
         try
         {
             await connection.StartAsync(ct);
-            _logger.LogInformation("Intercom connected ? {Url}", collectionUrl ?? connection.ConnectionId);
-            SetEngineConnectionState(EngineConnectionState.Online);
-            _state.PushServerStarted();
-            await RefreshIngestionQueueProgressAsync(ct);
         }
         catch (Exception ex)
         {
-            // Non-fatal: degrade gracefully to HTTP-only mode. A later call can retry.
-            if (IsConnectionRefused(ex))
+            // Non-fatal: degrade gracefully to HTTP-only mode; the caller schedules a restart.
+            if (FindInner<IntercomTokenUnavailableException>(ex) is { } refused)
             {
                 _logger.LogWarning(
-                    "Could not connect to Intercom collection at {Url}; real-time updates are disabled until the Engine is reachable.",
-                    collectionUrl ?? "configured Engine URL");
-                _logger.LogDebug(ex, "Intercom connection refused.");
+                    "Could not mint a short-lived Intercom token (Engine answered {Status}); live updates will retry.",
+                    (int)refused.Status);
+            }
+            else if (FindInner<SocketException>(ex) is { SocketErrorCode: SocketError.ConnectionRefused } socket)
+            {
+                _logger.LogWarning("Could not connect to Intercom; live updates will retry once the Engine is reachable.");
+                _logger.LogDebug(socket, "Intercom connection refused.");
             }
             else
             {
-                _logger.LogWarning(ex, "Could not connect to Intercom collection; real-time updates disabled.");
+                _logger.LogWarning(ex, "Could not connect to Intercom; live updates will retry.");
             }
+
             SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+            return false;
         }
+
+        _logger.LogInformation("Intercom connected ({ConnectionId}).", connection.ConnectionId);
+        SetEngineConnectionState(EngineConnectionState.Online);
+        _state.PushServerStarted();
+        await RefreshIngestionQueueProgressAsync(ct);
+        return true;
     }
 
-    private static bool IsConnectionRefused(Exception ex)
+    private static TException? FindInner<TException>(Exception ex) where TException : Exception
     {
-        for (var current = ex; current is not null; current = current.InnerException!)
+        for (Exception? current = ex; current is not null; current = current.InnerException)
         {
-            if (current is SocketException { SocketErrorCode: SocketError.ConnectionRefused })
+            if (current is TException match)
             {
-                return true;
+                return match;
             }
         }
 
-        return false;
+        return null;
     }
 
     /// <summary>
@@ -1449,6 +1592,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        lock (_restartGate)
+        {
+            _disposed = true;
+        }
+
+        CancelScheduledRestart();
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
