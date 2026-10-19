@@ -232,6 +232,47 @@ separate snapshot, while final audits still compare the immutable original
 baseline and retain the failed preservation result. This is for recovery after
 fixing a defect, not a general way to accept changing test sources.
 
+### Repeatable ingestion baseline
+
+Use `tools/Run-IngestionBaseline.ps1` to ingest a whole sample library in complete
+isolation and keep a "before" record of what the Library identified, so a later
+build can be compared with it. Each run gets its own folder,
+`.tmp/ingestion-baseline/<run-id>/`, holding a copy of `config/` (provider keys are
+copied in for the run and deleted at the end), its own data store, logs and
+samples. The Engine is started from that copy on its own port, and the run stops
+only the process it started. Your `config/`, your data store and any sample folder
+you point it at are never written (a before/after listing of the sample folder
+proves it).
+
+```powershell
+# Generated samples: deterministic EPUB, two PDFs (one text, one "scanned"),
+# audiobooks, movies, TV, music, comics, 12 synthetic photos and 2 personal videos.
+pwsh -File tools/Run-IngestionBaseline.ps1 -Generate -Label before-1
+
+# Any other sample folder (for example real media later); it is only read.
+pwsh -File tools/Run-IngestionBaseline.ps1 -SampleRoot D:\samples -Label real-1
+```
+
+The script builds the Engine (skip with `-NoBuild`) and calls the Debug-only
+offline command `--run-baseline`; the other steps are commands of their own:
+`--generate-baseline-samples <sample-root>`, `--prepare-baseline <config-dir>
+<sample-root>`, `--wait-baseline <config-dir>` (reads the data store read-only; settled
+after 3 identical snapshots with no running identity work, budget 3 hours, 15 s
+polls), `--export-baseline <config-dir> <out.json>` and
+`--compare-baseline <before.json> <after.json> <report.md> [--margin 0.2]`.
+A sample root holds `books`, `audiobooks`, `movies`, `tv`, `music` and optionally
+`comics`, `personal_photos` and `personal_videos`; each existing folder becomes a
+read-only library.
+
+The record lists, per file, its media type, work and edition grouping, Series and
+Universe, identified title, every provider and Wikidata id, every canonical value
+(with the provider that won), the chosen artwork, people, Needs Review entries and
+text tracks, plus the View items. Row ids, run folders and clock times are kept out
+of everything that is compared; only the `metadata` and `timings` sections carry
+them. The comparison lists each added, removed or changed value, exits `0` when
+there is none and `1` otherwise, and lists timings that moved beyond the margin
+(default 20 percent) separately without counting them as differences.
+
 The following endpoints are **only registered when `ASPNETCORE_ENVIRONMENT == "Development"`**.
 They are absent in any other environment.
 
