@@ -82,7 +82,7 @@ public sealed class MappedEndpointInventoryTests
             [ApplicationPermissionIds.IngestionRun] = ["TriggerScan", "TriggerLibraryScan", "TriggerRescan", "TriggerReconciliation", "UploadMedia"],
             [ApplicationPermissionIds.IngestionRetry] = ["RereadAssetMetadata", "RetryMediaOperation"],
             [ApplicationPermissionIds.IngestionCancel] = ["CancelMediaOperation"],
-            [ApplicationPermissionIds.SystemActivityRead] = ["GetActivityPeopleAudit", "GetRecentActivity", "GetActivityStats", "GetActivityByTypes"],
+            [ApplicationPermissionIds.SystemActivityRead] = ["GetActivityPeopleAudit", "GetRecentActivity", "GetActivityStats", "GetActivityByTypes", "GetActivityLog"],
         };
         string[] administratorOnly = ["PruneActivity"];
         var operations = inventory.Endpoints.Where(endpoint =>

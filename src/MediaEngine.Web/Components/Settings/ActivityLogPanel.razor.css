@@ -1,0 +1,180 @@
+.activity-log__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3);
+    margin-bottom: var(--tl-space-3);
+}
+
+.activity-log__search {
+    flex: 1 1 16rem;
+    min-width: 0;
+    max-width: 24rem;
+}
+
+.activity-log__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.activity-log__row {
+    display: grid;
+    grid-template-columns: 7.5rem 1.5rem minmax(0, 1fr);
+    gap: var(--tl-space-3);
+    align-items: start;
+    padding: var(--tl-space-3) 0;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.activity-log__time {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5rem;
+}
+
+.activity-log__symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.5rem;
+    color: var(--tl-text-muted);
+}
+
+.activity-log__row--added .activity-log__symbol {
+    color: var(--tl-status-success);
+}
+
+.activity-log__row--review .activity-log__symbol {
+    color: var(--tl-status-warning);
+}
+
+.activity-log__row--failed .activity-log__symbol {
+    color: var(--tl-status-danger);
+}
+
+.activity-log__row--system .activity-log__symbol {
+    color: var(--tl-status-info);
+}
+
+.activity-log__body {
+    min-width: 0;
+}
+
+.activity-log__headline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--tl-space-2);
+    line-height: 1.5rem;
+}
+
+.activity-log__title {
+    min-width: 0;
+    color: var(--tl-text-primary);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.activity-log__title--link {
+    text-decoration: none;
+}
+
+.activity-log__title--link:hover,
+.activity-log__title--link:focus-visible {
+    text-decoration: underline;
+}
+
+.activity-log__media-type {
+    padding: 0 var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-caption);
+    line-height: 1.25rem;
+}
+
+.activity-log__detail {
+    margin: 2px 0 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    overflow-wrap: anywhere;
+}
+
+.activity-log__skeleton {
+    display: grid;
+}
+
+.activity-log__skeleton-row {
+    display: grid;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-3) 0;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.activity-log__pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    padding-top: var(--tl-space-3);
+}
+
+.activity-log__pager-summary {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.activity-log__pager-actions {
+    display: flex;
+    gap: var(--tl-space-2);
+}
+
+/* The shared 44px tap-target contract, for the log's own title links. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    .activity-log__title--link {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min);
+    }
+}
+
+@media (max-width: 600px) {
+    .activity-log__toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .activity-log__filters {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .activity-log__search {
+        max-width: none;
+    }
+
+    .activity-log__row {
+        grid-template-columns: 1.5rem minmax(0, 1fr);
+        grid-template-areas:
+            "symbol time"
+            "body body";
+        gap: var(--tl-space-1) var(--tl-space-2);
+    }
+
+    .activity-log__time {
+        grid-area: time;
+    }
+
+    .activity-log__symbol {
+        grid-area: symbol;
+    }
+
+    .activity-log__body {
+        grid-area: body;
+    }
+}

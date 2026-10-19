@@ -61,4 +61,16 @@ public interface ISystemActivityRepository
         Guid profileId,
         int limit = 50,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns one page of entries whose action type is in <paramref name="actionTypes"/>, newest first, with the total
+    /// number of matching entries. A non-blank <paramref name="search"/> keeps only entries whose name or detail (the words the
+    /// Activity log shows) contains it (case-insensitive, matched literally). Used by the Activity log.
+    /// </summary>
+    Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(
+        IReadOnlyList<string> actionTypes,
+        string? search,
+        int offset,
+        int limit,
+        CancellationToken ct = default);
 }
