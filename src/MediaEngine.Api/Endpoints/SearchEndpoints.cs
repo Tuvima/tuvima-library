@@ -202,7 +202,7 @@ public static class SearchEndpoints
         return app;
     }
 
-    private static SearchUniverseResponseDto MapUniverseResponse(SearchUniverseResult result)
+    internal static SearchUniverseResponseDto MapUniverseResponse(SearchUniverseResult result)
     {
         return new SearchUniverseResponseDto
         {

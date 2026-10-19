@@ -123,12 +123,7 @@ public static class UniverseGraphEndpoints
             CancellationToken ct) =>
         {
             var results = await loreDeltaService.CheckForUpdatesAsync(qid, ct);
-            return Results.Ok(results.Select(r => new UniverseLoreDeltaResponse(
-                entity_qid: r.EntityQid,
-                label: r.Label,
-                cached_revision: r.CachedRevision,
-                current_revision: r.CurrentRevision,
-                has_changed: r.HasChanged)).ToList());
+            return Results.Ok(results.Select(MapLoreDelta).ToList());
         })
         .Produces<IReadOnlyList<UniverseLoreDeltaResponse>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRead)
@@ -750,4 +745,11 @@ public static class UniverseGraphEndpoints
         "inspired_by" => "inspired by",
         _ => relType.Replace('_', ' '),
     };
+
+    internal static UniverseLoreDeltaResponse MapLoreDelta(LoreDeltaResult result) => new(
+        entity_qid: result.EntityQid,
+        label: result.Label,
+        cached_revision: result.CachedRevision,
+        current_revision: result.CurrentRevision,
+        has_changed: result.HasChanged);
 }

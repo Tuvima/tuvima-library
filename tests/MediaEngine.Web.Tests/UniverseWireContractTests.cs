@@ -73,7 +73,35 @@ public sealed class UniverseWireContractTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task PathFinderPanel_ShowsTheRelationshipBetweenNeighbouringHopsWhenTheGraphHasThatEdge()
+    public async Task PathFinderPanel_PointsTheRelationshipForwardWhenTheEdgeRunsInPathOrder()
+    {
+        Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.FindPathsAsync), _ =>
+                Task.FromResult<UniversePathsResponse?>(new UniversePathsResponse(
+                    "Q1",
+                    "Q10",
+                    "Q11",
+                    new IReadOnlyList<string>[] { ["Q10", "Q11"] })))));
+
+        var cut = Render<PathFinderPanel>(parameters => parameters
+            .Add(component => component.UniverseQid, "Q1")
+            .Add(component => component.Graph, DuneGraph()));
+        await cut.InvokeAsync(() =>
+        {
+            cut.Instance.SetNode("Q10", "Paul Atreides");
+            cut.Instance.SetNode("Q11", "Arrakis");
+        });
+
+        cut.FindAll("button").First(button => button.TextContent.Contains("Find Path")).Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("-> (resides in) ->", cut.Find(".hop-chain").TextContent);
+        });
+    }
+
+    [Fact]
+    public async Task PathFinderPanel_PointsTheRelationshipBackWhenOnlyTheReverseEdgeExists()
     {
         Services.AddSingleton<IEngineApiClient>(EngineApiClientStub.Create(stub =>
             stub.SetHandler(nameof(IEngineApiClient.FindPathsAsync), _ =>
@@ -96,7 +124,7 @@ public sealed class UniverseWireContractTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("(resides in)", cut.Find(".hop-chain").TextContent);
+            Assert.Contains("<- (resides in) <-", cut.Find(".hop-chain").TextContent);
         });
     }
 

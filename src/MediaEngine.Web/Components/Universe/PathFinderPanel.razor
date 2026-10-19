@@ -101,8 +101,10 @@
                         {
                             var rel = RelationshipBetween(hop, path[hi + 1]);
                             <span class="hop-arrow">
-                                @if (!string.IsNullOrWhiteSpace(rel))
-                                { <span class="tl-u-color-hex-888">-> (@rel) -></span> }
+                                @if (rel is { Reversed: false })
+                                { <span class="tl-u-color-hex-888">-> (@rel.Value.Label) -></span> }
+                                else if (rel is { Reversed: true })
+                                { <span class="tl-u-color-hex-888">&lt;- (@rel.Value.Label) &lt;-</span> }
                                 else
                                 { <span class="tl-u-color-hex-555">-></span> }
                             </span>
@@ -133,12 +135,20 @@
     private string LabelFor(string qid) =>
         Graph?.nodes.FirstOrDefault(node => node.id == qid)?.label is { Length: > 0 } label ? label : qid;
 
-    private string? RelationshipBetween(string fromQid, string toQid)
+    // Prefer an edge stored in path order; a reverse-only edge is marked Reversed so the
+    // label is drawn pointing back and never states the opposite fact.
+    private (string Label, bool Reversed)? RelationshipBetween(string fromQid, string toQid)
     {
-        var edge = Graph?.edges.FirstOrDefault(candidate =>
-            (candidate.source == fromQid && candidate.target == toQid)
-            || (candidate.source == toQid && candidate.target == fromQid));
-        return string.IsNullOrWhiteSpace(edge?.label) ? null : edge.label;
+        var forward = Graph?.edges.FirstOrDefault(candidate =>
+            candidate.source == fromQid && candidate.target == toQid && !string.IsNullOrWhiteSpace(candidate.label));
+        if (forward is not null)
+        {
+            return (forward.label, false);
+        }
+
+        var reverse = Graph?.edges.FirstOrDefault(candidate =>
+            candidate.source == toQid && candidate.target == fromQid && !string.IsNullOrWhiteSpace(candidate.label));
+        return reverse is null ? null : (reverse.label, true);
     }
 
     public void SetNode(string qid, string label)

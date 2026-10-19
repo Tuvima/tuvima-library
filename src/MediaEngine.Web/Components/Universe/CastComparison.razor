@@ -132,7 +132,7 @@
     // when one of them carries it, otherwise no work is named.
     private string? PerformerTitle(UniverseCastPerformerDto performer)
     {
-        if (string.IsNullOrWhiteSpace(performer.work_qid))
+        if (string.IsNullOrWhiteSpace(performer.work_qid) || string.IsNullOrWhiteSpace(performer.name))
             return null;
 
         var workTitle = Graph?.nodes
