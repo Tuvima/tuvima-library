@@ -21,6 +21,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<IByteStreamer, ByteStreamer>();
         services.AddApiReadServices();
         services.AddSingleton<ILibraryItemCurationRepository, LibraryItemCurationRepository>();
+        services.AddSingleton<ILibraryItemDeletionRepository, LibraryItemDeletionRepository>();
         services.AddSingleton<IMetadataEditorRepository, MetadataEditorRepository>();
         services.AddSingleton<IItemCanonicalRepository, ItemCanonicalRepository>();
         services.AddSingleton<AlbumTrackManifestService>();
