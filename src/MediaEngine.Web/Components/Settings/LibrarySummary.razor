@@ -9,7 +9,7 @@
 
 @* The top of the Library and Ingestion page: what the library holds (counts by type) and how healthy it is (items
    waiting in Needs Review, storage problems), read from the Engine's library overview. It reloads when RefreshToken
-   changes, which the live page bumps each time an ingestion run finishes; it never polls on its own. *@
+   changes, which the live page bumps each time the Library finishes adding media; it never polls on its own. *@
 <section class="library-summary" data-testid="library-summary" aria-label="Library summary">
     @if (_overview is null && _error is null)
     {
@@ -101,7 +101,7 @@
 </section>
 
 @code {
-    /// <summary>Changes when the live page sees an ingestion run finish; each change reloads the summary once.</summary>
+    /// <summary>Changes when the live page sees the Library finish adding media; each change reloads the summary once.</summary>
     [Parameter] public int RefreshToken { get; set; }
 
     private LibraryOverviewDto? _overview;

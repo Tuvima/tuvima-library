@@ -6,7 +6,7 @@ namespace MediaEngine.Application.Services;
 public interface IIngestionPresentationReadService
 {
     Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
-        int currentLimit = 8,
+        int currentLimit = 12,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
         CancellationToken ct = default);

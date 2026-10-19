@@ -211,7 +211,8 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
                 FacetSignature(item.Relationships),
                 FacetSignature(item.TextTracks),
                 item.UpdatedAt.ToString("O")))),
-            string.Join(',', value.RecentDays.Select(day => $"{day.Date:O}:{day.TotalCount}")));
+            string.Join(',', value.RecentDays.Select(day => $"{day.Date:O}:{day.TotalCount}:{string.Join('/', day.TypeCounts.Select(type => $"{type.MediaType}={type.Count}"))}")),
+            $"{value.PersonalMediaInProgress.Photos}/{value.PersonalMediaInProgress.Videos}");
     }
 
     private static string FacetSignature(IngestionFacetStateDto value) => $"{value.State}/{value.Label}";
