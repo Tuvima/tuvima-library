@@ -26,7 +26,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
 | [Spec: First run and prerequisites](specs/first-run-prerequisites.md) | Locked (v1, 2026-10-18) |
-| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | Locked (v3, 2026-10-19) |
+| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v3, 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
 | [Spec: Editing Mode on the item page (as built)](specs/editing-mode.md) | Built (v1, 2026-10-18; not yet archived) |
 | [Archive](specs/archive/README.md) | Built specs |
