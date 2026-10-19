@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace MediaEngine.Contracts.Authentication;
 
 /// <summary>
-/// A paired phone, tablet or TV as people see it on the Apps &amp; devices panel. The device-facing
+/// A paired phone, tablet or TV as people see it on the Devices page. The device-facing
 /// <see cref="ClientDeviceDto"/> is for the app itself; this one adds who it belongs to.
 /// </summary>
 public sealed class ManagedClientDeviceDto

@@ -351,7 +351,7 @@
       try {
         await request('DELETE', '/api/v1/devices/' + enc(deviceId));
       } catch (e) {
-        // Best effort: the tokens are dropped locally either way; an offline TV can be removed from Settings > Devices.
+        // Best effort: the tokens are dropped locally either way; an offline TV can be removed from Settings > Security > Devices.
       }
     }
     saveTokens(null);

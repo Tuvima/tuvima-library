@@ -43,7 +43,7 @@ Every sign-in that works away from home needs an email address. The administrato
 
 A person is looked after from their own page under **Settings → Profiles**. What you see depends on who you are:
 
-- A **household administrator** sees the people in their own household (up to 8), and under Administration only **Devices**, which lists the paired devices and signed-in sessions in their household. Nothing else from Users & Access is shown, and they cannot reach another household.
+- A **household administrator** sees the people in their own household (up to 8), and, on **Security → Devices**, the paired devices and signed-in browsers of their household (every signed-in person sees that page, but a member sees only their own). Nothing else from Users & Access is shown, and they cannot reach another household.
 - A **server administrator** sees every household under **Settings → Profiles**, and a **Households** tab under **Settings → Users & Access** that lists each household (name, how many people, main sign-in). Older links that pointed at a household tab under Users & Access open the **Households** tab.
 - Anyone else sees only their own profile. Their **Sign-in** row opens **Settings → Security**.
 

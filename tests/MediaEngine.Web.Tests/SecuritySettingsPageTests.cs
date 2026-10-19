@@ -265,10 +265,9 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         var dialogs = Render<AppDialogHost>();
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "devices", "photo-views"], RowKeys(cut)));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "photo-views"], RowKeys(cut)));
         cut.WaitForAssertion(() => Assert.Contains("1 other session", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
-        Assert.Equal("/settings/devices", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
-        // Paired phones and TVs moved to the Devices page; Security no longer lists or loads them.
+        // Paired phones and TVs live on the Devices page (a child of Security in the menu); this page no longer lists or loads them.
         Assert.DoesNotContain("Paired devices", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain(_handler.Paths, path => path.StartsWith("/access/devices", StringComparison.Ordinal));
 
@@ -282,14 +281,14 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HouseholdAdministrator_GetsSignOutEverywhereElseAndTheDevicesLink()
+    public void HouseholdAdministrator_GetsTheSameRowsAsAnyoneSignedIn()
     {
         _handler.HasPassword = true;
         _session.Set("session", _handler.Account, _handler.Profile, _handler.CurrentSession, _handler.HouseholdAdminAuthority());
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "devices", "photo-views"], RowKeys(cut)));
-        Assert.Equal("/settings/devices", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "photo-views"], RowKeys(cut)));
+        Assert.Empty(cut.FindAll("[data-nav-row='devices']"));
     }
 
     [Fact]

@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
-using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -13,82 +12,210 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Settings &gt; Administration &gt; Devices: who can open it, where the old address goes, and what it shows.</summary>
+/// <summary>Settings &gt; Personal &gt; Security &gt; Devices: where it sits in the menu, who can open it, and that the old Server entry is gone.</summary>
 public sealed class DevicesNavTests
 {
     [Fact]
-    public void Devices_IsAnAdministrationPageAfterNetwork_WithTheAppsAlias()
+    public void Devices_IsTheOnlyChildOfSecurity_AtTheSecurityDevicesAddress()
     {
-        var item = SettingsNav.GetItem(SettingsSection.Devices);
+        var personal = SettingsNav.MenuGroups.Single(group => group.Key == "personal");
+        var security = personal.Nodes.Single(node => node.Section == SettingsSection.Security);
+
+        var devices = Assert.Single(security.Children);
+        Assert.Equal("Devices", devices.Label);
+        Assert.Equal(SettingsSection.Security, devices.Section);
+        Assert.Equal("devices", devices.Subsection);
+        Assert.Equal("/settings/security/devices", devices.Route);
+        // Security still opens on the sign-in page; its child is a different page.
+        Assert.Equal("/settings/security", security.Route);
+        Assert.Equal("/settings/security", SettingsNav.RouteFor(SettingsSection.Security));
+        Assert.Equal("/settings/security/devices", SettingsNav.RouteFor(SettingsSection.Security, "devices"));
+        Assert.NotNull(SettingsNav.ResolveSubsection(SettingsSection.Security, "devices"));
+    }
+
+    [Fact]
+    public void ServerHasNoDevicesEntry_AndTheOldAddressesNoLongerExist()
+    {
         var server = SettingsNav.MenuGroups.Single(group => group.Key == "server");
 
-        Assert.Equal("devices", item.Slug);
-        Assert.Equal("Devices", item.Label);
-        Assert.True(item.AdminOnly);
-        Assert.True(item.HouseholdAdminAccess);
-        Assert.Equal(SettingsMobileAvailability.Full, item.MobileAvailability);
-        Assert.True(SettingsNav.MeetsLaunchContract(SettingsSection.Devices));
-        Assert.Contains("apps", item.Aliases);
-        // Devices stays in Server for now (it moves to Security in WP6), after the other Server pages.
-        Assert.Equal(SettingsSection.Devices, server.Nodes[^1].Section);
-        Assert.Equal("/settings/devices", SettingsNav.RouteFor(SettingsSection.Devices));
-        Assert.DoesNotContain("apps", SettingsNav.GetSubsections(SettingsSection.Network).Select(subsection => subsection.Slug));
-    }
+        Assert.DoesNotContain(SettingsNav.Flatten(server.Nodes), node => node.Label == "Devices");
+        Assert.DoesNotContain(SettingsNav.AllItems, item => item.Slug == "devices" || item.Aliases.Contains("apps"));
+        Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Network), subsection => subsection.Slug == "apps");
 
-    [Theory]
-    [InlineData(true, false, true)]
-    [InlineData(false, true, true)]
-    [InlineData(true, true, true)]
-    [InlineData(false, false, false)]
-    public void Devices_IsVisibleToBothKindsOfAdministratorAndNobodyElse(bool server, bool household, bool expected)
-    {
-        Assert.Equal(expected, SettingsNav.IsVisible(SettingsSection.Devices, server, household));
-        var resolution = SettingsNav.ResolveRoute("devices", server, household);
-        Assert.Equal(expected, resolution.RequestedSectionAllowed);
-        if (!expected)
+        foreach (var segment in new[] { "devices", "apps" })
         {
-            Assert.True(resolution.ShouldRedirect);
+            var resolution = SettingsNav.ResolveRoute(segment, administrationAllowed: true, householdAdministrator: true);
+            Assert.False(resolution.IsKnownRoute);
+            Assert.Equal("/not-found", resolution.CanonicalRoute);
         }
-    }
 
-    [Fact]
-    public void HouseholdAdministrator_SeesOnlyDevicesInAdministration()
-    {
-        var groups = SettingsNav.FilteredMenuGroups(false, true);
-
-        Assert.Equal(["personal", "server"], groups.Select(group => group.Key));
-        var server = groups.Single(group => group.Key == "server");
-        Assert.Equal(["Devices"], SettingsNav.Flatten(server.Nodes).Select(node => node.Label));
-        Assert.False(SettingsNav.IsVisible(SettingsSection.Network, false, true));
-        Assert.False(SettingsNav.IsVisible(SettingsSection.Access, false, true));
-        Assert.False(SettingsNav.ResolveRoute("access", false, true).RequestedSectionAllowed);
-    }
-
-    [Fact]
-    public void MemberWithoutAdministration_NeverSeesTheAdministrationGroup()
-    {
-        Assert.Equal(["personal"], SettingsNav.FilteredMenuGroups(false).Select(group => group.Key));
+        // /settings/network/apps is no longer a Network page either, and nothing redirects it.
+        Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Network, "apps"));
     }
 
     [Theory]
-    [InlineData("apps")]
-    [InlineData("Apps")]
-    public void TheOldAppsAddress_ResolvesToDevices_AndRedirects(string alias)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Devices_IsInTheMenuAndReachableForEveryKindOfSignedInPerson(bool server, bool household)
     {
-        var resolution = SettingsNav.ResolveRoute(alias, true);
+        Assert.True(SettingsNav.IsVisible(SettingsSection.Security, server, household));
+        var resolution = SettingsNav.ResolveRoute("security", server, household);
+        Assert.True(resolution.RequestedSectionAllowed);
 
-        Assert.Equal(SettingsSection.Devices, resolution.Section);
-        Assert.Equal("/settings/devices", resolution.CanonicalRoute);
-        Assert.True(resolution.ShouldRedirect);
+        var groups = SettingsNav.FilteredMenuGroups(server, household);
+        var security = SettingsNav.Flatten(groups.Single(group => group.Key == "personal").Nodes)
+            .Single(node => node.Section == SettingsSection.Security && node.Subsection is null);
+        Assert.Equal(["Devices"], security.Children.Select(child => child.Label));
+
+        var location = SettingsNav.FindMenuLocation(SettingsSection.Security, "devices");
+        Assert.NotNull(location);
+        Assert.Equal(["Security", "Devices"], location.Trail.Select(node => node.Label));
+        Assert.Equal("personal", location.Group.Key);
     }
 
     [Fact]
-    public void TheOldNetworkAppsPage_RedirectsToDevices()
+    public void Devices_ShowsInThePhonePageSelectorUnderSecurity()
     {
-        Assert.Equal("/settings/devices", SettingsNav.LegacyRedirect("network", "apps"));
-        Assert.Equal("/settings/devices", SettingsNav.LegacyRedirect("Network", "Apps"));
-        Assert.Null(SettingsNav.LegacyRedirect("network", "remote"));
-        Assert.Null(SettingsNav.LegacyRedirect("devices", null));
+        var context = new MediaEngine.Web.Services.Navigation.SettingsMenuContext(
+            AdministrationAllowed: false, HouseholdAdministrator: false, IsMobile: true, ReviewCount: 0, SecurityNeedsAttention: false);
+
+        var selector = MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.BuildPhoneSelector(
+            MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(context));
+
+        var lines = selector.Single().Options;
+        var security = lines.Single(line => line.Label == "Security");
+        var devices = lines.Single(line => line.Label == "Devices");
+        Assert.Equal("/settings/security/devices", devices.Route);
+        Assert.Equal(security.Depth + 1, devices.Depth);
+    }
+
+    [Fact]
+    public void ARestrictedKidsProfileNeverReachesTheSettingsPageThatHostsDevices()
+    {
+        var root = RepositoryRoot();
+        var settings = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+
+        // Settings turns a Kids profile away before it draws any page, Security's Devices child included.
+        Assert.Contains("_kidsBlocked = _activeProfile?.IsRestricted == true;", settings, StringComparison.Ordinal);
+        Assert.True(settings.IndexOf("@if (_kidsBlocked)", StringComparison.Ordinal) < settings.IndexOf("<DevicesTab />", StringComparison.Ordinal));
+        Assert.Contains("if (_kidsBlocked)", settings[settings.IndexOf("private void ResolveSectionAndNormalize()", StringComparison.Ordinal)..], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NoCodeOrDocumentationStillPointsAtTheOldServerDevicesPage()
+    {
+        var root = RepositoryRoot();
+        var webSource = Directory.EnumerateFiles(Path.Combine(root, "src", "MediaEngine.Web"), "*", SearchOption.AllDirectories)
+            .Where(path => Path.GetExtension(path) is ".cs" or ".razor" or ".css" or ".js")
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj" or "vendor"))
+            .ToList();
+
+        foreach (var file in webSource)
+        {
+            var text = File.ReadAllText(file);
+            Assert.DoesNotContain("SettingsSection.Devices", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("/settings/devices", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("AppsAndDevicesPanel", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("LegacyRedirect", text, StringComparison.Ordinal);
+        }
+
+        var presentationRules = File.ReadAllText(Path.Combine(root, "docs", "product", "presentation-rules.md"));
+        Assert.DoesNotContain("Administration > Devices", presentationRules, StringComparison.Ordinal);
+        Assert.Contains("/settings/security/devices", presentationRules, StringComparison.Ordinal);
+    }
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root not found.");
+    }
+}
+
+public sealed class DevicesFilterTests
+{
+    private static readonly Guid HomeHousehold = Guid.NewGuid();
+    private static readonly Guid CabinHousehold = Guid.NewGuid();
+    private static readonly Guid Anna = Guid.NewGuid();
+    private static readonly Guid Mary = Guid.NewGuid();
+
+    [Fact]
+    public void AllMatchesEverything_AndIsNotActive()
+    {
+        Assert.False(DevicesFilter.All.IsActive);
+        Assert.True(DevicesFilter.All.Matches(Device(HomeHousehold, Anna)));
+        Assert.True(DevicesFilter.All.Matches(null, Session(Anna)));
+    }
+
+    [Fact]
+    public void ADeviceMatchesOnlyItsHouseholdAndProfile()
+    {
+        var annaAtHome = Device(HomeHousehold, Anna);
+
+        Assert.True(new DevicesFilter(HomeHousehold).Matches(annaAtHome));
+        Assert.False(new DevicesFilter(CabinHousehold).Matches(annaAtHome));
+        Assert.True(new DevicesFilter(null, Anna).Matches(annaAtHome));
+        Assert.False(new DevicesFilter(null, Mary).Matches(annaAtHome));
+        Assert.False(new DevicesFilter(HomeHousehold, Mary).Matches(annaAtHome));
+    }
+
+    [Fact]
+    public void ABrowserMatchesByThePersonsHouseholdAndTheProfileOpenInIt()
+    {
+        var annaSession = Session(Anna);
+
+        Assert.True(new DevicesFilter(HomeHousehold, Anna).Matches(HomeHousehold, annaSession));
+        Assert.False(new DevicesFilter(CabinHousehold).Matches(HomeHousehold, annaSession));
+        Assert.False(new DevicesFilter(null, Mary).Matches(HomeHousehold, annaSession));
+    }
+
+    private static ManagedClientDeviceDto Device(Guid household, Guid profile) =>
+        new() { Id = Guid.NewGuid(), HouseholdId = household, ProfileId = profile };
+
+    private static DeviceSessionResponse Session(Guid profile) =>
+        new() { Id = Guid.NewGuid(), ActiveProfileId = profile };
+}
+
+public sealed class DeviceTypeClassifierTests
+{
+    [Theory]
+    [InlineData("mobile", "Tuvima for Android", DeviceTypeKind.Android)]
+    [InlineData("mobile", "Tuvima for iOS", DeviceTypeKind.Apple)]
+    [InlineData("mobile", "Tuvima for iPadOS", DeviceTypeKind.Apple)]
+    [InlineData("television", "Tuvima for Roku", DeviceTypeKind.Tv)]
+    [InlineData("television", "Tuvima for Android TV", DeviceTypeKind.Tv)]
+    [InlineData("television", "Tuvima TV", DeviceTypeKind.Tv)]
+    [InlineData("television", "Tuvima for Apple TV", DeviceTypeKind.Tv)]
+    [InlineData("web", "Tuvima Dashboard", DeviceTypeKind.Browser)]
+    [InlineData("automotive", "Tuvima Auto", DeviceTypeKind.Generic)]
+    [InlineData("mobile", "Something else", DeviceTypeKind.Generic)]
+    [InlineData("", "", DeviceTypeKind.Generic)]
+    public void TheTypeComesFromThePlatformAndTheAppNameTheDeviceReported(string platform, string clientName, DeviceTypeKind expected)
+    {
+        Assert.Equal(expected, DeviceTypeClassifier.Classify(platform, clientName));
+    }
+
+    [Fact]
+    public void ATvAppNameWinsOverItsPlatformWordsAndNullsAreGeneric()
+    {
+        Assert.Equal(DeviceTypeKind.Tv, DeviceTypeClassifier.Classify("mobile", "Tuvima for Roku"));
+        Assert.Equal(DeviceTypeKind.Android, DeviceTypeClassifier.Classify("automotive", "Tuvima for Android Auto"));
+        Assert.Equal(DeviceTypeKind.Generic, DeviceTypeClassifier.Classify(null, null));
+    }
+
+    [Fact]
+    public void EveryTypeHasAWordForItsAccessibleName()
+    {
+        foreach (var kind in Enum.GetValues<DeviceTypeKind>())
+        {
+            Assert.False(string.IsNullOrWhiteSpace(DeviceTypeClassifier.Label(kind)));
+        }
     }
 }
 
@@ -106,8 +233,6 @@ public sealed class DevicesPageTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new DevicesClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddSingleton(_session);
-        Services.AddSingleton(EngineApiClientStub.Create(stub =>
-            stub.SetHandler("GetNetworkSettingsAsync", _ => Task.FromResult<NetworkSettingsDto?>(new NetworkSettingsDto()))));
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
         Render<AppPopoverHost>();
@@ -115,45 +240,179 @@ public sealed class DevicesPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ServerAdministrator_SeesAppsPairedDevicesAndSessionsGroupedByPerson()
+    public void Member_SeesOnlyTheirOwnDevicesAndBrowsers_WithNoFiltersAndNoAdministratorCalls()
     {
-        SignIn(_handler.ServerAdminAuthority());
+        SignIn(DevicesScope.Member);
         var cut = Render<DevicesTab>();
 
-        cut.WaitForElement("[data-devices-panel='apps']");
-        cut.WaitForElement("[data-session-person]");
-        Assert.Contains("Paired devices", cut.Markup, StringComparison.Ordinal);
+        cut.WaitForElement("[data-session-row]");
         Assert.Contains("Living room TV", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Anna's phone", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Mary's phone", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("[data-device-row]"));
+        Assert.Empty(cut.FindAll("[data-devices-filters]"));
+        Assert.Empty(cut.FindAll(".signed-in-sessions__person-header"));
+        Assert.Equal(2, cut.FindAll("[data-session-row]").Count);
+        Assert.Contains("Signed-in browsers", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Belongs to", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(_handler.Paths, path => path is "/access/sessions" or "/access/profiles" or "/access/households");
+    }
 
-        var people = cut.FindAll("[data-session-person]");
-        Assert.Equal(2, people.Count);
-        var owner = people.Single(person => person.GetAttribute("data-session-person") == _handler.OwnerAccount.ToString());
+    [Fact]
+    public void HouseholdAdministrator_SeesTheirHouseholdWithAProfileFilterButNoHouseholdFilter()
+    {
+        SignIn(DevicesScope.HouseholdAdministrator);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-devices-filter='profile']");
+        cut.WaitForElement("[data-session-person]");
+        Assert.Empty(cut.FindAll("[data-devices-filter='household']"));
+        Assert.Equal(["All", "Owner", "Anna", "Ben"], OptionLabels(cut, "profile"));
+        Assert.Equal(2, cut.FindAll("[data-device-row]").Count);
+        Assert.DoesNotContain("Mary's phone", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(_handler.Paths, path => path == "/access/households");
+        Assert.Equal(2, cut.FindAll("[data-session-person]").Count);
+    }
+
+    [Fact]
+    public void ServerAdministrator_SeesEveryonesDevicesAndBothFilters_AndNoConnectAnAppCard()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForElement("[data-devices-filter='household']");
+        cut.WaitForElement("[data-devices-filter='profile']");
+        cut.WaitForElement("[data-session-person]");
+        Assert.Equal(["All", "Cabin", "Home"], OptionLabels(cut, "household"));
+        Assert.Equal(["All", "Owner", "Anna", "Ben", "Mary"], OptionLabels(cut, "profile"));
+        Assert.Equal(3, cut.FindAll("[data-device-row]").Count);
+        Assert.Equal(3, cut.FindAll("[data-session-person]").Count);
+        Assert.Empty(cut.FindAll("[data-devices-panel='apps']"));
+        Assert.DoesNotContain("Address to type in the app", cut.Markup, StringComparison.Ordinal);
+
+        var owner = cut.Find($"[data-session-person='{_handler.OwnerAccount}']");
         Assert.Contains("owner@example.test", owner.TextContent, StringComparison.Ordinal);
         Assert.Equal(2, owner.QuerySelectorAll("[data-session-row]").Length);
         Assert.Single(owner.QuerySelectorAll("[data-session-tag='this-device']"));
-
-        var mary = people.Single(person => person.GetAttribute("data-session-person") == _handler.MaryAccount.ToString());
-        Assert.Contains("Mary", mary.TextContent, StringComparison.Ordinal);
-        Assert.Contains("No email", mary.TextContent, StringComparison.Ordinal);
+        Assert.Contains("No email", cut.Find($"[data-session-person='{_handler.MaryAccount}']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesNoAppsPanel_ButPairedDevicesAndSessions()
+    public void ChoosingAHousehold_NarrowsDevicesBrowsersAndTheProfileChoices()
     {
-        SignIn(_handler.HouseholdAdminAuthority());
+        SignIn(DevicesScope.ServerAdministrator);
         var cut = Render<DevicesTab>();
-
         cut.WaitForElement("[data-session-person]");
-        Assert.Empty(cut.FindAll("[data-devices-panel='apps']"));
-        Assert.Contains("Paired devices", cut.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain(_handler.Paths, path => path.StartsWith("/settings", StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-device-row]").Count));
+
+        cut.Find("select[data-devices-filter='household']").Change(_handler.CabinHousehold.ToString());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll("[data-device-row]"));
+            Assert.Contains("Mary's phone", cut.Find("[data-device-row]").TextContent, StringComparison.Ordinal);
+            Assert.Single(cut.FindAll("[data-session-person]"));
+            Assert.Equal(["All", "Mary"], OptionLabels(cut, "profile"));
+        });
+
+        cut.Find("select[data-devices-filter='household']").Change(string.Empty);
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-device-row]").Count));
     }
 
     [Fact]
-    public async Task SignOut_AsksFirst_ThenEndsOnlyThatSession_AndThisDeviceHasNoSignOut()
+    public void ChoosingAProfile_NarrowsToThatPersonsDevicesAndBrowsers()
     {
-        SignIn(_handler.ServerAdminAuthority());
-        var dialogs = Render<AppDialogHost>();
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+        cut.WaitForElement("[data-session-person]");
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-device-row]").Count));
+
+        cut.Find("select[data-devices-filter='profile']").Change(_handler.AnnaProfile.ToString());
+
+        cut.WaitForAssertion(() =>
+        {
+            var device = Assert.Single(cut.FindAll("[data-device-row]"));
+            Assert.Contains("Anna's phone", device.TextContent, StringComparison.Ordinal);
+            var person = Assert.Single(cut.FindAll("[data-session-person]"));
+            Assert.Equal(_handler.AnnaAccount.ToString(), person.GetAttribute("data-session-person"));
+        });
+    }
+
+    [Fact]
+    public void ChoosingAHouseholdThatLacksTheChosenProfile_ResetsTheProfileToAll()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+        cut.WaitForElement("[data-session-person]");
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-device-row]").Count));
+        cut.Find("select[data-devices-filter='profile']").Change(_handler.AnnaProfile.ToString());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-device-row]")));
+
+        cut.Find("select[data-devices-filter='household']").Change(_handler.CabinHousehold.ToString());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Mary's phone", cut.Find("[data-device-row]").TextContent, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, cut.Find("select[data-devices-filter='profile']").GetAttribute("value") ?? string.Empty);
+        });
+    }
+
+    [Fact]
+    public void AFilterThatMatchesNothing_SaysSoInsteadOfShowingAnEmptyTable()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+        cut.WaitForElement("[data-session-person]");
+
+        cut.Find("select[data-devices-filter='profile']").Change(_handler.BenProfile.ToString());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("[data-device-row]"));
+            Assert.Empty(cut.FindAll("[data-session-person]"));
+            Assert.Contains("No paired devices match", cut.Markup, StringComparison.Ordinal);
+            Assert.Contains("No sign-ins match", cut.Markup, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void EveryDeviceRowShowsTheIconForWhatItReportedAtPairing()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
+        var cut = Render<DevicesTab>();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-device-row]").Count));
+
+        Assert.Equal("tv", IconKind(cut, _handler.TvDevice));
+        Assert.Equal("apple", IconKind(cut, _handler.AnnaPhone));
+        Assert.Equal("android", IconKind(cut, _handler.MaryPhone));
+        cut.WaitForElement("[data-session-row]");
+        Assert.All(cut.FindAll("[data-session-row] [data-device-type]"), icon => Assert.Equal("browser", icon.GetAttribute("data-device-type")));
+    }
+
+    [Fact]
+    public async Task Member_SignsOutADeviceAndABrowser_ThroughTheirOwnActions()
+    {
+        SignIn(DevicesScope.Member);
+        var cut = Render<DevicesTab>();
+        cut.WaitForElement("[data-session-row]");
+
+        await cut.InvokeAsync(() => cut.Find($"[data-device-row='{_handler.TvDevice}'] button").Click());
+        await ConfirmSignOutAsync(cut, ".network-test-dialog__actions");
+        cut.WaitForAssertion(() => Assert.Equal([$"/access/devices/{_handler.TvDevice}"], _handler.Deleted.ToArray()));
+
+        var other = cut.Find($"[data-session-row='{_handler.OtherSession}']");
+        await cut.InvokeAsync(() => other.QuerySelector("button")!.Click());
+        await ConfirmSignOutAsync(cut, ".signed-in-sessions__dialog-actions");
+
+        cut.WaitForAssertion(() => Assert.Contains($"/auth/sessions/{_handler.OtherSession}", _handler.Deleted.ToArray()));
+        Assert.DoesNotContain(_handler.Deleted, path => path.StartsWith("/access/sessions/", StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll($"[data-session-row='{_handler.OtherSession}']")));
+    }
+
+    [Fact]
+    public async Task Administrator_SignOutAsksFirst_ThenEndsOnlyThatSessionThroughTheManagedAction_AndThisDeviceHasNoSignOut()
+    {
+        SignIn(DevicesScope.ServerAdministrator);
         var cut = Render<DevicesTab>();
         cut.WaitForElement("[data-session-person]");
 
@@ -162,14 +421,10 @@ public sealed class DevicesPageTests : AsyncBunitContext
 
         var tv = cut.Find($"[data-session-row='{_handler.OtherSession}']");
         await cut.InvokeAsync(() => tv.QuerySelector("button")!.Click());
-        Assert.Empty(_handler.Revoked);
-        cut.WaitForAssertion(() => Assert.Contains("Sign this device out?", cut.Markup + dialogs.Markup, StringComparison.Ordinal));
+        Assert.Empty(_handler.Deleted);
+        await ConfirmSignOutAsync(cut, ".signed-in-sessions__dialog-actions");
 
-        var confirm = cut.FindAll("button").Concat(dialogs.FindAll("button"))
-            .Last(button => button.TextContent.Trim() == "Sign out");
-        await cut.InvokeAsync(() => confirm.Click());
-
-        cut.WaitForAssertion(() => Assert.Equal([_handler.OtherSession], _handler.Revoked.ToArray()));
+        cut.WaitForAssertion(() => Assert.Equal([$"/access/sessions/{_handler.OtherSession}"], _handler.Deleted.ToArray()));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll($"[data-session-row='{_handler.OtherSession}']")));
     }
 
@@ -177,7 +432,7 @@ public sealed class DevicesPageTests : AsyncBunitContext
     public void WhenOnlyThisDeviceIsSignedIn_ShowsTheEmptyState()
     {
         _handler.People = [_handler.OwnerOnlyThisDevice()];
-        SignIn(_handler.ServerAdminAuthority());
+        SignIn(DevicesScope.ServerAdministrator);
         var cut = Render<DevicesTab>();
 
         cut.WaitForAssertion(() => Assert.Contains("Nobody else is signed in", cut.Markup, StringComparison.Ordinal));
@@ -185,95 +440,216 @@ public sealed class DevicesPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhenAMemberIsSignedInOnlyHere_ShowsTheEmptyStateForThemselves()
+    {
+        _handler.OwnSessions = [_handler.ThisComputer()];
+        SignIn(DevicesScope.Member);
+        var cut = Render<DevicesTab>();
+
+        cut.WaitForAssertion(() => Assert.Contains("You are not signed in anywhere else", cut.Markup, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WhenTheEngineRefusesBecauseOfTheAdministratorPin_AsksForIt()
     {
         _handler.SessionsStatus = HttpStatusCode.Forbidden;
-        SignIn(_handler.HouseholdAdminAuthority());
+        SignIn(DevicesScope.HouseholdAdministrator);
         var cut = Render<DevicesTab>();
 
         cut.WaitForAssertion(() => Assert.Contains("Enter your administrator PIN", cut.Markup, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-session-person]"));
     }
 
-    private void SignIn(DashboardAuthorityResponse authority) =>
-        _session.Set("session", _handler.OwnerAccount, _handler.Profile, _handler.CurrentSession, authority);
+    // The confirmation is the "Sign out" button in the dialog's own footer, not the one on a row.
+    private static async Task ConfirmSignOutAsync(IRenderedComponent<DevicesTab> cut, string dialogActions)
+    {
+        cut.WaitForAssertion(() => Assert.Contains("Sign this device out?", cut.Markup, StringComparison.Ordinal));
+        var confirm = cut.FindAll($"{dialogActions} button").Single(button => button.TextContent.Trim() == "Sign out");
+        await cut.InvokeAsync(() => confirm.Click());
+    }
+
+    private static string[] OptionLabels(IRenderedComponent<DevicesTab> cut, string filter) =>
+        cut.Find($"select[data-devices-filter='{filter}']").QuerySelectorAll("option").Select(option => option.TextContent.Trim()).ToArray();
+
+    private static string? IconKind(IRenderedComponent<DevicesTab> cut, Guid device) =>
+        cut.Find($"[data-device-row='{device}'] [data-device-type]").GetAttribute("data-device-type");
+
+    private void SignIn(DevicesScope scope)
+    {
+        _handler.Scope = scope;
+        _session.Set("session", _handler.OwnerAccount, _handler.OwnerProfile, _handler.CurrentSession, _handler.Authority(scope));
+    }
 
     private sealed class DevicesClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, false) { BaseAddress = new Uri("https://engine.example.test") };
     }
 
+    private enum DevicesScope
+    {
+        Member,
+        HouseholdAdministrator,
+        ServerAdministrator,
+    }
+
+    /// <summary>Plays the Engine: it decides what each kind of person gets back, so the page only chooses what to show.</summary>
     private sealed class DevicesHandler : HttpMessageHandler
     {
+        public Guid HomeHousehold { get; } = Guid.NewGuid();
+        public Guid CabinHousehold { get; } = Guid.NewGuid();
         public Guid OwnerAccount { get; } = Guid.NewGuid();
+        public Guid AnnaAccount { get; } = Guid.NewGuid();
         public Guid MaryAccount { get; } = Guid.NewGuid();
-        public Guid Profile { get; } = Guid.NewGuid();
+        public Guid OwnerProfile { get; } = Guid.NewGuid();
+        public Guid AnnaProfile { get; } = Guid.NewGuid();
+        public Guid MaryProfile { get; } = Guid.NewGuid();
+        public Guid BenProfile { get; } = Guid.NewGuid();
         public Guid CurrentSession { get; } = Guid.NewGuid();
         public Guid OtherSession { get; } = Guid.NewGuid();
+        public Guid AnnaSession { get; } = Guid.NewGuid();
         public Guid MarySession { get; } = Guid.NewGuid();
+        public Guid TvDevice { get; } = Guid.NewGuid();
+        public Guid AnnaPhone { get; } = Guid.NewGuid();
+        public Guid MaryPhone { get; } = Guid.NewGuid();
+        public DevicesScope Scope { get; set; }
         public HttpStatusCode SessionsStatus { get; set; } = HttpStatusCode.OK;
-        public ConcurrentQueue<Guid> Revoked { get; } = new();
+        public ConcurrentQueue<string> Deleted { get; } = new();
         public ConcurrentQueue<string> Paths { get; } = new();
         public List<ManagedAccountSessionsResponse>? People { get; set; }
+        public List<DeviceSessionResponse>? OwnSessions { get; set; }
 
-        public DashboardAuthorityResponse ServerAdminAuthority() => new(
-            OwnerAccount, Profile, true, true, 1, 1, true, true, null, 1, [],
-            ["settings.administration"], ["access.manage"]);
+        public DashboardAuthorityResponse Authority(DevicesScope scope) => scope switch
+        {
+            DevicesScope.ServerAdministrator => new(
+                OwnerAccount, OwnerProfile, true, true, 1, 1, true, true, null, 1, [],
+                ["settings.administration"], ["access.manage"]),
+            DevicesScope.HouseholdAdministrator => new(
+                OwnerAccount, OwnerProfile, true, true, 1, 1, false, false, null, 1, [],
+                [], ["household.manage"]),
+            _ => new(OwnerAccount, OwnerProfile, true, true, 1, 1, false, false, null, 1, [], [], []),
+        };
 
-        public DashboardAuthorityResponse HouseholdAdminAuthority() => new(
-            OwnerAccount, Profile, true, true, 1, 1, false, false, null, 1, [],
-            [], ["household.manage"]);
+        public DeviceSessionResponse ThisComputer() =>
+            new() { Id = CurrentSession, AccountId = OwnerAccount, ActiveProfileId = OwnerProfile, DeviceName = "This computer", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow };
 
-        public ManagedAccountSessionsResponse OwnerOnlyThisDevice() => new(
-            OwnerAccount, "owner@example.test", "owner@example.test", null, null,
-            [new DeviceSessionResponse { Id = CurrentSession, AccountId = OwnerAccount, DeviceName = "This computer", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow }]);
+        public ManagedAccountSessionsResponse OwnerOnlyThisDevice() =>
+            new(OwnerAccount, "owner@example.test", "owner@example.test", HomeHousehold, null, [ThisComputer()]);
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var path = request.RequestUri!.AbsolutePath;
-            Paths.Enqueue(path);
-            if (request.Method == HttpMethod.Delete && path.StartsWith("/access/sessions/", StringComparison.Ordinal))
+            if (request.Method == HttpMethod.Delete)
             {
-                var id = Guid.Parse(path["/access/sessions/".Length..]);
-                Revoked.Enqueue(id);
-                People = Current().Select(person => person with
-                {
-                    Sessions = person.Sessions.Where(session => session.Id != id).ToList(),
-                }).Where(person => person.Sessions.Count > 0).ToList();
+                Deleted.Enqueue(path);
+                RemoveEnded(path);
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
             }
 
+            Paths.Enqueue(path);
             var response = path switch
             {
                 "/access/sessions" when SessionsStatus != HttpStatusCode.OK => new HttpResponseMessage(SessionsStatus),
-                "/access/sessions" => Json(Current()),
-                "/access/devices" => Json(new[]
+                "/access/sessions" => Json(ManagedSessions()),
+                "/auth/sessions" => Json(MemberSessions()),
+                "/access/devices" => Json(Devices()),
+                "/access/profiles" => Json(Profiles()),
+                "/access/households" => Json(new[]
                 {
-                    new ManagedClientDeviceDto
-                    {
-                        Id = Guid.NewGuid(), DeviceName = "Living room TV", Platform = "television", ClientName = "Tuvima TV",
-                        AccountId = OwnerAccount, AccountDisplayName = "owner@example.test", ProfileId = Profile, ProfileName = "Owner",
-                        PairedAt = DateTimeOffset.UtcNow.AddDays(-3), LastSeenAt = DateTimeOffset.UtcNow,
-                    },
+                    new HouseholdResponse(HomeHousehold, "Home", 2, 2, DateTimeOffset.UtcNow),
+                    new HouseholdResponse(CabinHousehold, "Cabin", 1, 1, DateTimeOffset.UtcNow),
                 }),
-                "/access/profiles" => Json(Array.Empty<ManagedProfileResponse>()),
                 _ => new HttpResponseMessage(HttpStatusCode.NotFound),
             };
             return Task.FromResult(response);
         }
 
-        private List<ManagedAccountSessionsResponse> Current() => People ??=
+        private void RemoveEnded(string path)
+        {
+            var idText = path[(path.LastIndexOf('/') + 1)..];
+            if (!Guid.TryParse(idText, out var id))
+            {
+                return;
+            }
+
+            if (path.StartsWith("/access/sessions/", StringComparison.Ordinal))
+            {
+                People = ManagedSessions().Select(person => person with
+                {
+                    Sessions = person.Sessions.Where(session => session.Id != id).ToList(),
+                }).Where(person => person.Sessions.Count > 0).ToList();
+            }
+            else if (path.StartsWith("/auth/sessions/", StringComparison.Ordinal))
+            {
+                OwnSessions = MemberSessions().Where(session => session.Id != id).ToList();
+            }
+        }
+
+        private List<DeviceSessionResponse> MemberSessions() => OwnSessions ??=
         [
-            new(OwnerAccount, "owner@example.test", "owner@example.test", null, null,
-            [
-                new DeviceSessionResponse { Id = CurrentSession, AccountId = OwnerAccount, DeviceName = "This computer", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow },
-                new DeviceSessionResponse { Id = OtherSession, AccountId = OwnerAccount, DeviceName = "Living room TV", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow.AddHours(-2) },
-            ]),
-            new(MaryAccount, "Mary", null, null, "Mary",
-            [
-                new DeviceSessionResponse { Id = MarySession, AccountId = MaryAccount, DeviceName = "Mary's phone", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow.AddMinutes(-5) },
-            ]),
+            ThisComputer(),
+            new() { Id = OtherSession, AccountId = OwnerAccount, ActiveProfileId = OwnerProfile, DeviceName = "Living room TV", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow.AddHours(-2) },
         ];
+
+        private List<ManagedAccountSessionsResponse> ManagedSessions()
+        {
+            if (People is not null)
+            {
+                return People;
+            }
+
+            var owner = new ManagedAccountSessionsResponse(OwnerAccount, "owner@example.test", "owner@example.test", HomeHousehold, null, MemberSessions());
+            var anna = new ManagedAccountSessionsResponse(AnnaAccount, "anna@example.test", "anna@example.test", HomeHousehold, null,
+            [
+                new DeviceSessionResponse { Id = AnnaSession, AccountId = AnnaAccount, ActiveProfileId = AnnaProfile, DeviceName = "Anna's laptop", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow.AddMinutes(-9) },
+            ]);
+            var mary = new ManagedAccountSessionsResponse(MaryAccount, "Mary", null, CabinHousehold, "Mary",
+            [
+                new DeviceSessionResponse { Id = MarySession, AccountId = MaryAccount, ActiveProfileId = MaryProfile, DeviceName = "Mary's phone", Client = "Test", LastSeenAt = DateTimeOffset.UtcNow.AddMinutes(-5) },
+            ]);
+            return Scope switch
+            {
+                DevicesScope.ServerAdministrator => [owner, anna, mary],
+                _ => [owner, anna],
+            };
+        }
+
+        private List<ManagedClientDeviceDto> Devices()
+        {
+            var tv = Device(TvDevice, "Living room TV", "television", "Tuvima for Roku", OwnerAccount, OwnerProfile, "Owner", HomeHousehold);
+            var anna = Device(AnnaPhone, "Anna's phone", "mobile", "Tuvima for iOS", AnnaAccount, AnnaProfile, "Anna", HomeHousehold);
+            var mary = Device(MaryPhone, "Mary's phone", "mobile", "Tuvima for Android", MaryAccount, MaryProfile, "Mary", CabinHousehold);
+            return Scope switch
+            {
+                DevicesScope.Member => [tv],
+                DevicesScope.HouseholdAdministrator => [tv, anna],
+                _ => [tv, anna, mary],
+            };
+        }
+
+        private List<ManagedProfileResponse> Profiles()
+        {
+            var owner = new ManagedProfileResponse(OwnerProfile, "Owner", "#fff", null, DateTimeOffset.UtcNow, HomeHousehold);
+            var anna = new ManagedProfileResponse(AnnaProfile, "Anna", "#fff", null, DateTimeOffset.UtcNow, HomeHousehold);
+            var ben = new ManagedProfileResponse(BenProfile, "Ben", "#fff", null, DateTimeOffset.UtcNow, HomeHousehold);
+            var mary = new ManagedProfileResponse(MaryProfile, "Mary", "#fff", null, DateTimeOffset.UtcNow, CabinHousehold);
+            return Scope == DevicesScope.ServerAdministrator ? [owner, anna, ben, mary] : [owner, anna, ben];
+        }
+
+        private static ManagedClientDeviceDto Device(Guid id, string name, string platform, string client, Guid account, Guid profile, string profileName, Guid household) =>
+            new()
+            {
+                Id = id,
+                DeviceName = name,
+                Platform = platform,
+                ClientName = client,
+                AccountId = account,
+                AccountDisplayName = $"{profileName.ToLowerInvariant()}@example.test",
+                ProfileId = profile,
+                ProfileName = profileName,
+                HouseholdId = household,
+                PairedAt = DateTimeOffset.UtcNow.AddDays(-3),
+                LastSeenAt = DateTimeOffset.UtcNow,
+            };
 
         private static HttpResponseMessage Json<T>(T value) => new(HttpStatusCode.OK) { Content = JsonContent.Create(value) };
     }

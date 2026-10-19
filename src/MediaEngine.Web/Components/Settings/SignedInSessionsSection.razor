@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
@@ -9,9 +10,10 @@
 @inject ILogger<SignedInSessionsSection> Logger
 @implements IDisposable
 
-@* Everyone an administrator looks after who is signed in somewhere: grouped by person, with Sign out for each device. *@
-<SettingsSectionPanel Title="Signed-in sessions" Icon="@AppMaterialIcons.Outlined.Logout"
-                      Description="Where people are signed in right now. Sign one out to end that sign-in at once.">
+@* A member sees their own signed-in browsers. An administrator sees everyone the Engine lets them look after, grouped by
+   person. Either way each browser has its own Sign out. *@
+<SettingsSectionPanel Title="Signed-in browsers" Icon="@AppMaterialIcons.Outlined.Logout"
+                      Description="@(ManagesOthers ? "Where people are signed in right now. Sign one out to end that sign-in at once." : "Where you are signed in right now. Sign one out to end that sign-in at once.")">
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
@@ -34,40 +36,52 @@
     {
         @if (!HasOtherSessions)
         {
-            <AppEmptyState Class="app-page-state--compact" Title="Nobody else is signed in"
-                           Message="When someone signs in on another device, it shows up here." />
+            <AppEmptyState Class="app-page-state--compact"
+                           Title="@(ManagesOthers ? "Nobody else is signed in" : "You are not signed in anywhere else")"
+                           Message="@(ManagesOthers ? "When someone signs in on another device, it shows up here." : "When you sign in on another device, it shows up here.")" />
+        }
+        else if (VisiblePeople.Count == 0)
+        {
+            <AppEmptyState Class="app-page-state--compact" Title="No sign-ins match"
+                           Message="Change the household or profile above to see more." />
         }
 
-        @foreach (var person in _people)
+        @foreach (var person in VisiblePeople)
         {
             <section class="signed-in-sessions__person" data-session-person="@person.AccountId" aria-label="@PersonName(person)">
-                <header class="signed-in-sessions__person-header">
-                    <span class="signed-in-sessions__avatar" aria-hidden="true">
-                        <ProfileAvatar DisplayName="@PersonName(person)" />
-                    </span>
-                    <span class="signed-in-sessions__who">
-                        <span class="signed-in-sessions__name">@PersonName(person)</span>
-                        @if (PersonDetail(person) is { } detail)
-                        {
-                            <span class="signed-in-sessions__detail">@detail</span>
-                        }
-                    </span>
-                </header>
+                @if (ManagesOthers)
+                {
+                    <header class="signed-in-sessions__person-header">
+                        <span class="signed-in-sessions__avatar" aria-hidden="true">
+                            <ProfileAvatar DisplayName="@PersonName(person)" />
+                        </span>
+                        <span class="signed-in-sessions__who">
+                            <span class="signed-in-sessions__name">@PersonName(person)</span>
+                            @if (PersonDetail(person) is { } detail)
+                            {
+                                <span class="signed-in-sessions__detail">@detail</span>
+                            }
+                        </span>
+                    </header>
+                }
                 <ul class="signed-in-sessions__list" role="list">
-                    @foreach (var session in person.Sessions)
+                    @foreach (var session in person.Sessions.Where(session => Filter.Matches(person.HouseholdId, session)))
                     {
                         var display = SecuritySessionDisplayFormatter.Format(session);
-                        <li class="signed-in-sessions__row" data-session-row="@session.Id" @key="session.Id">
-                            <span class="signed-in-sessions__device">
-                                <span class="signed-in-sessions__device-name">
-                                    @display.DeviceName
-                                    @if (IsCurrent(session))
-                                    {
-                                        <span class="signed-in-sessions__tag" data-session-tag="this-device">This device</span>
-                                    }
+                        <li class="@(ManagesOthers ? "signed-in-sessions__row" : "signed-in-sessions__row signed-in-sessions__row--own")" data-session-row="@session.Id" @key="session.Id">
+                            <span class="signed-in-sessions__device-line">
+                                <DeviceTypeIcon Kind="DeviceTypeKind.Browser" />
+                                <span class="signed-in-sessions__device">
+                                    <span class="signed-in-sessions__device-name">
+                                        @display.DeviceName
+                                        @if (IsCurrent(session))
+                                        {
+                                            <span class="signed-in-sessions__tag" data-session-tag="this-device">This device</span>
+                                        }
+                                    </span>
+                                    <span class="signed-in-sessions__client">@display.ClientDescription</span>
+                                    <span class="signed-in-sessions__seen">Last seen @session.LastSeenAt.LocalDateTime.ToString("g")</span>
                                 </span>
-                                <span class="signed-in-sessions__client">@display.ClientDescription</span>
-                                <span class="signed-in-sessions__seen">Last seen @session.LastSeenAt.LocalDateTime.ToString("g")</span>
                             </span>
                             @if (!IsCurrent(session))
                             {
@@ -105,6 +119,15 @@
 @code {
     private const string NoEmail = "No email";
 
+    /// <summary>What an administrator narrowed the page to; the Engine has already limited the list to what they may see.</summary>
+    [Parameter] public DevicesFilter Filter { get; set; } = DevicesFilter.All;
+
+    /// <summary>An administrator, whose list comes from the managed sessions; a member sees only their own browsers.</summary>
+    [Parameter] public bool ManagesOthers { get; set; }
+
+    /// <summary>Raised once an administrator PIN was accepted here, so the rest of the page can load what it was refused.</summary>
+    [Parameter] public EventCallback OnUnlocked { get; set; }
+
     private readonly CancellationTokenSource _lifetime = new();
     private List<ManagedAccountSessionsResponse> _people = [];
     private (ManagedAccountSessionsResponse Person, DeviceSessionResponse Session)? _pending;
@@ -119,6 +142,11 @@
     private Func<Task>? _afterUnlock;
 
     private bool HasOtherSessions => _people.Any(person => person.Sessions.Any(session => !IsCurrent(session)));
+
+    // People left after the household and profile filters, each with at least one browser to show.
+    private List<ManagedAccountSessionsResponse> VisiblePeople => _people
+        .Where(person => person.Sessions.Any(session => Filter.Matches(person.HouseholdId, session)))
+        .ToList();
     private string PendingDeviceName => _pending is { } pending ? SecuritySessionDisplayFormatter.Format(pending.Session).DeviceName : string.Empty;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -146,6 +174,13 @@
         _locked = false;
         try
         {
+            if (!ManagesOthers)
+            {
+                var own = await Identity.GetSessionsAsync(_lifetime.Token);
+                _people = [new ManagedAccountSessionsResponse(Session.AccountId ?? Guid.Empty, "You", null, null, null, own)];
+                return;
+            }
+
             var result = await Identity.GetManagedSessionsAsync(_lifetime.Token);
             if (result.Succeeded && result.Value is { } people)
             {
@@ -190,7 +225,9 @@
         _signingOut = true;
         try
         {
-            var result = await Confirmed.RunAsync(() => Identity.RevokeManagedSessionAsync(pending.Session.Id, _lifetime.Token), _lifetime.Token);
+            var result = await Confirmed.RunAsync(() => ManagesOthers
+                ? Identity.RevokeManagedSessionAsync(pending.Session.Id, _lifetime.Token)
+                : Identity.RevokeSessionResultAsync(pending.Session.Id, _lifetime.Token), _lifetime.Token);
             _pending = null;
             if (result.Succeeded)
             {
@@ -280,6 +317,8 @@
         {
             await retry();
         }
+
+        await OnUnlocked.InvokeAsync();
     }
 
     private void CancelUnlock()

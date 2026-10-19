@@ -1,6 +1,10 @@
 # Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Appendix A: plugin platform review](#appendix-a-plugin-platform-review) · [Settings revamp](settings-revamp.md) (D35, D43 to D48) · [First-run prerequisites](archive/first-run-prerequisites.md) · [Ingestion and readiness](ingestion-and-readiness.md)
+> **Status:** Locked · **Version:** 2 (replaces v1; widens scope to the whole plugin platform, notifications and backup destinations; locked by Shy 2026-10-19) · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Appendix A: plugin platform review](#appendix-a-plugin-platform-review) · [Settings revamp](settings-revamp.md) (D35, D43 to D48) · [First-run prerequisites](archive/first-run-prerequisites.md) · [Ingestion and readiness](ingestion-and-readiness.md)
+
+## 0. What version 2 changes
+
+Version 1 settled the family model and left the plugin platform build to a follow-up spec. Shy asked for all of it as one large planned implementation, so version 2 brings the platform build into this spec (WP13 to WP26), organises the work into waves with checkpoints (section 6), and keeps everything else in version 1 unchanged.
 
 ## 1. Goal
 
@@ -9,6 +13,7 @@ The four pages in Settings > Developer all extend or connect the Library, but to
 ## 2. Scope
 
 **In scope**
+- The whole plugin platform (version 2): the plugin description format with version and platform checks, a secrets store, host services (own data, scheduler, events, long-running work), plugin pages and menu items from the Library's page types, the JSON-only plugin runtime, the separate-program plugin host, one-button install, update and removal with signature checks, the full provider move under Plugins, the WebAssembly tier, and a Live TV readiness record (WP13 to WP22), a general notification service with channel plugins (WP23, WP24), and backup destinations as plugins with scheduling, retention and encryption (WP25, WP26).
 - Making every shipped metadata provider fully JSON-defined: TVDB (coded today) becomes a JSON provider, and the TMDB and ComicVine code hooks that are keyed to their names are replaced by general JSON features (WP9).
 - One shared "state card" every item in the four areas uses: name, kind, on/off, health, what it is allowed to do (plain words), last activity, last problem.
 - One approval rule: nothing new switches on until an administrator has seen, in plain words, what it can do and what it sends out of the machine.
@@ -18,7 +23,8 @@ The four pages in Settings > Developer all extend or connect the Library, but to
 
 **Out of scope**
 - Redesigning the Plugins page content beyond the shared state card (settings revamp D44 stays: one page).
-- Building the new plugin platform itself (tiers, host services, contributions, signing, sandbox): this spec records the direction (D-G); the build is a follow-up spec. Live TV is its own spec (D-I).
+- Building Live TV itself (only keeping it possible, D-I).
+- Backing up the media files themselves: backups cover the data store and settings only, as today; media stays where the user keeps it.
 - OpenID Connect / SSO (belongs to Users and Sign-in).
 - The phone and TV apps (they are not Integrations).
 
@@ -38,6 +44,17 @@ All decisions below were agreed by Shy on 2026-10-19. Already locked in the Sett
 - **D-K (agreed).** **Existing plugins are not rewritten, and API keys survive a wiped data store.** The existing plugin contract stays supported for Official plugins, so they keep working without edits. The three plugins that ship today (commercial skip, Fandom lore, media segments) are Tuvima-built, so they may keep running inside the server as Official plugins; they only need a manifest touch-up (trust level, supported Library versions, capability list). Provider API keys today live in files under the config folder (`config/secrets/`), not in the data store, so wiping the database leaves them in place. That stays true: the plugin secrets store must keep keys in the config folder (or an equivalent that survives a database reset), never only in the database. Backups can include or exclude secrets as they do now. Reason: Reliability and Maintenance.
 - **D-L (agreed, Shy 2026-10-19).** **TVDB and the name-keyed provider hooks become JSON-defined as part of this work**, so every shipped metadata provider is a declarative plugin and a provider can be swapped by file alone. Risk: TVDB signs in to get a token before each session, so the JSON format must learn that flow; results must not change (WP9).
 - **D-M (agreed, Shy 2026-10-19).** **Every kind of plugin can use the Library's Local AI services.** Today only in-server plugins can (they ask for an AI role such as text or structured output, declared in their manifest). Under the three kinds (D-G), JSON-only plugins can name an AI step in their description (for example "summarise this text"), and separate-program plugins call the same service through a plugin-scoped key. Rules: the plugin must declare which AI roles it uses and the administrator sees this at approval (D-C); the AI always runs on the user's machine and a plugin never gets the model files or a way to send data out through it; if Local AI is off or its tools are missing the plugin is told "AI unavailable" and shows Needs attention instead of failing silently; plugin AI requests wait behind the Library's own work (ingestion) and have time and size limits so a plugin cannot starve the machine. The same idea applies later to other local services (OCR, FFmpeg tools). Reason: Privacy and Performance.
+- **D-N (agreed, Shy 2026-10-19).** **The plugin platform is built in this spec, as one large planned implementation**, in waves with a checkpoint (build, tests, ingestion comparison, independent review) after each wave, so the app is never left half-converted. Reason: Reliability; a big change lands as steps that each leave a working app.
+- **D-O (agreed, Shy 2026-10-19).** **One notification service.** Today the only message the Library sends is the password-reset email, and webhooks tell outside software about events. Version 2 adds one place that decides *who is told what, and how*. Events (examples: Needs Review items waiting, a backup failed or finished, a plugin switched off or broken, a new plugin available, disk space low, ingestion finished, someone invited) are sent through **channels**: in the Dashboard, email, and channel plugins (a webhook-style channel, an Apprise-style gateway, push services, chat apps). Server administrators choose per event which channel and how quiet (grouped, one per minute at most, off at night, a channel that keeps failing switches itself off and shows Needs attention). Rules: administrator-only events go only to administrators; messages carry as little as possible by default (no titles of what you watch or own leave the machine unless you choose to include them); channel logins live in the secrets store. The password-reset email moves onto this service. Webhooks stay in Integrations for outside software that pulls data in; a webhook can also be chosen as a channel.
+- **D-P (agreed, Shy 2026-10-19).** **Backup destinations are plugins.** A backup is still first made on the server (a local folder, as today). A **destination** is an extra place a finished backup is copied to, so one broken disk or a wiped machine does not lose it. Rules:
+  1. *What is backed up:* the data store and the non-secret settings, as today; media files are not included. Secrets are excluded unless the person includes them.
+  2. *Always encrypted before leaving the machine:* the archive is encrypted with a passphrase the person sets; the Library never stores the passphrase and a destination plugin only ever sees an encrypted file. Losing the passphrase means that copy cannot be restored, and the screen says so plainly.
+  3. *What a destination can do:* test the connection, send a backup, list backups held there, fetch one for restore, delete old ones (for retention), report free space. Nothing else.
+  4. *Schedule and retention:* a backup schedule (daily or weekly by default) and "keep the last N" are set once for all destinations, and appear in Scheduled tasks. A failed backup or failed copy shows Needs attention and sends a notification.
+  5. *Restore:* choose a backup from the local folder or any destination; it is fetched, decrypted, validated and staged using the existing safe restore (applied at the next start, with the current data kept as a pre-restore copy).
+  6. *Verification:* after a copy, the Library checks the file arrived intact (size and checksum) and records it; once a month it offers a test restore check of the newest backup (validate only).
+  7. *First destinations:* Official built-ins for another folder or a network share; Official plugins for S3-compatible storage and WebDAV (Nextcloud and similar); others by the community through the plugin kinds in D-G.
+  Reason: Reliability and Privacy.
 - **D-E (agreed).** **Recurring work is recorded durably and listed once.** Local AI automation, plugin jobs, webhook retries and the segment-detection schedule each write a run record (started, finished, result). System > Tools and requirements > Scheduled tasks lists them all with last and next run (settings revamp D22, D42); each setting stays on its own page.
 
 ## 4. UI behaviour
@@ -60,6 +77,7 @@ Administrator only; none of this appears on phones or for non-administrators.
 - A small shared "run record" and "approval record" in the data store (who switched what on, when, what they were shown). Pre-release data may be reset.
 - Plugin job state moves from memory to the data store so it survives a restart.
 - No change to the credential or webhook secret storage.
+- New stored information in version 2: notification routes and channel health; backup destinations, schedule, retention and copy records; plugin records (WP14, WP15, WP19). The backup passphrase is never stored by the Library.
 
 ## 6. Work packets
 
@@ -140,24 +158,133 @@ Administrator only; none of this appears on phones or for non-administrators.
 - **Size:** Complex
 - **Done when:** a JSON-only test plugin using a text role gets a result with Local AI on and a clear "AI unavailable" status with it off; a plugin without the permission is refused; a flood of plugin requests does not slow an ingestion run in a timed test.
 
+### WP13 — Plugin description format v2 and compatibility checks
+- **What it does:** Extends the plugin description (manifest) with the plugin kind (JSON, separate program, sandboxed, Official built-in), the Library versions it supports, supported operating systems, a capability sheet (which data and abilities it supplies), and declared permissions; the Library actually checks version and platform before a plugin can be switched on. The existing contract stays supported for Official plugins.
+- **Files likely touched:** `src/MediaEngine.Plugins/PluginManifest.cs`, `PluginCatalog.cs`, plugin tests, Contracts types and fixtures (to be confirmed by Claude Code)
+- **Depends on:** none
+- **Size:** Standard
+- **Done when:** a plugin outside its supported version range or on an unsupported operating system cannot be switched on and says why; the three shipped plugins load unchanged.
+
+### WP14 — Plugin secrets store
+- **What it does:** A secure store plugins can use for keys and logins, kept in the config folder (survives a data store wipe), scoped so one plugin cannot read another's, never logged, included or excluded in backups as today (D-K). Provider keys move to it without the user re-entering them.
+- **Files likely touched:** provider credential service, plugin settings service, backup service (to be confirmed by Claude Code)
+- **Depends on:** WP13
+- **Size:** Complex
+- **Done when:** with the data store deleted, keys still work; a test plugin cannot read another plugin's key; no key appears in logs or API responses.
+
+### WP15 — Plugin host services: own data, scheduler, events, long-running work
+- **What it does:** Gives plugins a place to store their own records, register recurring work with run records (WP3), subscribe to Library events (for example item added, ingestion finished), and run always-on background work with start, stop and health. Each behind a declared permission and bounded by limits.
+- **Files likely touched:** `src/MediaEngine.Plugins/PluginContracts.cs`, plugin execution context, scheduler services, event publishing, storage schema (to be confirmed by Claude Code)
+- **Depends on:** WP3, WP13
+- **Size:** Complex
+- **Done when:** a test plugin stores and reads its own records across a restart, receives an item-added event, and runs a recurring job whose runs are listed in Scheduled tasks; a plugin exceeding its limits is stopped with a clear status.
+
+### WP16 — Plugin pages and menu items
+- **What it does:** A plugin declares pages and menu entries by choosing from the Library's own page types (list, grid, guide timeline, form, detail) and supplying data; the Dashboard renders them in the Library's look, only for users and devices the plugin's permissions allow, and never on phones unless the page type supports it. No plugin ships its own screens.
+- **Files likely touched:** Dashboard plugin-page host component, `SettingsNav.cs` or main navigation, Contracts page-description types (to be confirmed by Claude Code)
+- **Depends on:** WP15
+- **Size:** Complex
+- **Done when:** a test plugin adds a menu entry and a list page and a guide-timeline page that look like built-in pages at desktop and TV sizes; a profile without permission does not see them.
+
+### WP17 — JSON-only plugin runtime
+- **What it does:** Runs plugins that are only JSON: metadata sources (the WP9 format), channel and guide sources (M3U and XMLTV definitions), notification routes, and AI steps (D-M), with no code. Adds the missing abilities to the format (sign-in-then-token flows, scheduled refresh, field transforms).
+- **Files likely touched:** `src/MediaEngine.Providers/Adapters/`, new declarative plugin loader, Contracts, docs schema (to be confirmed by Claude Code)
+- **Depends on:** WP9, WP10, WP13
+- **Size:** Complex
+- **Done when:** a new metadata source and a channel-list source are added as JSON files alone and work; a malformed file is refused with a plain message.
+
+### WP18 — Separate-program plugin host
+- **What it does:** Starts and supervises plugins that are separate programs (or connects to one at an address), talking over a published contract (an OpenAPI description) with a key limited to that plugin: health checks, restart on crash, time and memory limits where the operating system allows, and per-operating-system builds or a container option. Permissions are enforced at the Library's side of the door.
+- **Files likely touched:** new plugin host service, published contract document, process supervision, Dashboard state card (to be confirmed by Claude Code)
+- **Depends on:** WP13, WP14, WP15
+- **Size:** Complex
+- **Done when:** a sample plugin written in another language (Python or Go) installs, shows healthy, serves a metadata lookup, is restarted after being killed, and cannot call anything beyond its permissions.
+
+### WP19 — Install, update and remove with signature checks
+- **What it does:** One-button install from the directory (WP6) with checksum and signature verification (Sigstore-style) for Verified and Official plugins and a clear warning for Community; updates re-ask for approval if permissions grow; removal shows what depends on the plugin ("TV artwork would have no source") and keeps saved metadata.
+- **Files likely touched:** plugin catalog and install services, directory client, Dashboard install and remove flows (to be confirmed by Claude Code)
+- **Depends on:** WP2, WP6, WP7, WP13
+- **Size:** Complex
+- **Done when:** a tampered package is refused; an update that adds a permission asks again; removing a plugin that is the only source for a data type warns first.
+
+### WP20 — Providers fully under Plugins (D-J)
+- **What it does:** Lists all metadata providers on the Plugins page as plugins (Official built-ins), with setup asked by capability in first run, removal warnings from capability sheets, Library-set weights (a plugin only suggests), and opt-in re-matching when a source is swapped. The Settings > Metadata Providers page remains the place for ordering and keys and shows the same items.
+- **Files likely touched:** `PluginSettingsTab.razor`, provider settings panels, first-run provider step, scoring weights loader (to be confirmed by Claude Code)
+- **Depends on:** WP9, WP14, WP19
+- **Size:** Complex
+- **Done when:** swapping Apple for another book source on a test library shows the capability comparison first, keeps existing identifications, and re-matches only when asked; first run asks for "a source for movies and TV artwork" rather than a named service.
+
+### WP21 — WebAssembly plugin tier
+- **What it does:** Runs sandboxed code plugins with hard limits on time, memory and access, using an open-source WebAssembly runtime. **Needs a licence check (AGPLv3-compatible) before any tool is added; if the licence does not pass, stop and ask Shy.**
+- **Files likely touched:** new sandbox host, `Directory.Packages.props`, licence notices, plugin tests (to be confirmed by Claude Code)
+- **Depends on:** WP15, WP18
+- **Size:** Complex
+- **Done when:** a sample sandboxed plugin runs on Windows, Linux and Docker, is stopped when it exceeds limits, and cannot reach the file system or network except through granted host services.
+
+### WP22 — Live TV readiness record
+- **What it does:** Writes the decision record for how Live TV can be added later (a channel library type, a live-stream path into the player, tuner and guide plugins on open formats) and adds a contract test proving the platform has room for it (a plugin can declare a "source" capability and register channels without any tuner or UI). Does not build Live TV.
+- **Files likely touched:** `engineering/architecture/decisions/` (new), plugin contract tests (to be confirmed by Claude Code)
+- **Depends on:** WP13, WP15, WP16
+- **Size:** Standard
+- **Done when:** the record exists and the contract test passes; nothing in the Live TV direction needs a platform change.
+
 ### WP11 — Full ingestion regression of every media type
 - **What it does:** Repeats the WP0 ingestion on the finished build and compares it with the baseline: every media type must identify the same titles, with the same metadata values, artwork, grouping and Needs Review outcomes, and no slower beyond an agreed margin. Differences are listed and each is explained or fixed. Also checks a wiped data store: keys in the config folder still work, and a provider swapped for a JSON equivalent behaves the same.
 - **Files likely touched:** the same harness as WP0
-- **Depends on:** WP9, WP10 and every packet that touches ingestion or providers
+- **Depends on:** WP9, WP10, WP17, WP20 and every packet that touches ingestion or providers; also run at the end of each wave
 - **Size:** Standard
 - **Done when:** a report shows zero unexplained differences across all media types; any intended difference is listed and approved by Shy before merge.
 
 ### WP12 — Docs
 - **What it does:** Updates every document the changes touch so nothing describes the old behaviour: a new "Developer tools" guide (the family, trust levels, approval rule, verification levels, directory); the plugin guides (three plugin kinds, no longer "in-server for everyone"); the provider docs (all providers JSON-defined, how to add one by file, keys in the config folder, capability sheet); security (plugin trust, secrets, blocklist, webhook history); configuration and settings docs (Developer menu, Plugins directory address, new state card); the Local AI docs (plugins can use Local AI); the developer code tour; a new decision record for the plugin kinds and Live TV staying possible; the engineering README index and product overview where they mention plugins or providers; the public docs site build.
 - **Files likely touched:** `docs/guides/using-plugins.md`, `docs/guides/building-a-plugin.md`, `docs/architecture/security.md`, `docs/architecture/hydration-and-providers.md`, `docs/architecture/provider-onboarding.md`, `docs/architecture/provider-enrichment-strategy.md`, `docs/architecture/configuration.md`, `docs/architecture/settings.md`, `docs/architecture/ai-integration.md`, `AGENTS.md`, `engineering/architecture/decisions/` (new), `engineering/README.md`, `engineering/product/overview.md`, new guide (to be confirmed by Claude Code)
-- **Depends on:** WP1 to WP11
+- **Depends on:** WP1 to WP11 and WP13 to WP26
 - **Size:** Standard
 - **Done when:** the docs site builds, a search of the docs finds no page that still says plugins all run inside the server, providers are code, or TVDB is coded, and the guides match the screens.
 
+### WP23 — Notification service core
+- **What it does:** One service with an event catalogue, per-event routing, grouping and rate limits, quiet hours, channel health (D-O). Built-in channels: in the Dashboard and email (SMTP, settings as today). Moves the password-reset email onto it. Settings page for routes and a Send test button per channel.
+- **Files likely touched:** `PasswordResetEmailSender.cs`, new notification service and endpoints, Dashboard notifications page, event catalogue, Contracts and fixtures (to be confirmed by Claude Code)
+- **Depends on:** WP1, WP14, WP15
+- **Size:** Complex
+- **Done when:** a failed backup, a missing tool and a broken plugin each reach an administrator through the chosen channel and not a non-administrator; a channel that fails repeatedly switches itself off and shows Needs attention; password reset still works.
+
+### WP24 — Notification channel plugins
+- **What it does:** Lets channel plugins (JSON-only for webhook-style and Apprise-style gateways; separate programs for anything needing code) register as channels with the same routing and limits; a sample JSON channel ships as Official.
+- **Files likely touched:** WP17 declarative loader (notification routes), notification service, plugin docs (to be confirmed by Claude Code)
+- **Depends on:** WP17, WP23
+- **Size:** Standard
+- **Done when:** a channel added as a JSON file alone delivers a test message; its login is in the secrets store; it appears in the routing page.
+
+### WP25 — Backup destination contract, schedule, retention, encryption
+- **What it does:** Adds the destination plugin contract (test, send, list, fetch, delete, free space), the backup schedule and "keep the last N", passphrase encryption of archives before they leave the machine, intact-copy verification, the monthly restore check, restore from a destination, and a Backup destinations section inside Backup and recovery (D-P). The local folder becomes the first built-in destination.
+- **Files likely touched:** `DatabaseBackupService.cs`, `SqliteBackupTarget.cs` (becomes a real interface), `SystemEndpoints.cs`, backup Contracts, Dashboard Backup and recovery page (to be confirmed by Claude Code)
+- **Depends on:** WP3, WP13, WP14, WP23
+- **Size:** Complex
+- **Done when:** a scheduled backup runs, is encrypted, copied to a test destination and verified; the oldest are removed beyond the limit; restore from the destination restores a test library after a data store wipe; a wrong passphrase fails with a clear message; the file the destination holds cannot be opened without the passphrase.
+
+### WP26 — First backup destinations
+- **What it does:** Official built-ins for another folder and a network share; Official plugins for S3-compatible storage and WebDAV. Each shows its state card, permissions (the address it contacts) and keeps logins in the secrets store.
+- **Files likely touched:** new Official plugin projects, plugin registration, licence notices for any library used (AGPLv3 check) (to be confirmed by Claude Code)
+- **Depends on:** WP25
+- **Size:** Complex
+- **Done when:** a backup copied to a network share and to a test S3-compatible store restores correctly; each destination's address and permissions show at approval.
+
+### Waves (checkpoint after each: build, tests, ingestion comparison against the WP0 baseline, independent review)
+1. **Foundation:** WP0, WP13 (two at once), then WP1, WP3.
+2. **Trust and safety:** WP14, WP2, then WP5, WP9.
+3. **Platform services:** WP15, WP10, then WP4, WP6.
+4. **Plugin kinds:** WP17, WP18, then WP7, WP16.
+5. **Lifecycle and providers:** WP19, WP20, then WP21.
+6. **Notifications and backups:** WP23, WP25, then WP24, WP26.
+7. **Close-out:** WP8, WP22, WP11 (final regression), WP12 (docs).
+Each wave runs at most two packets at once; the Settings revamp frame (WP2 to WP4 there) must be built before wave 1's WP1.
+
 ## 7. Risks and open questions
 
-- **Risks:** Plugins load in-process and unsandboxed, so the approval note is honesty, not protection; a bad plugin can still do harm once approved. Mitigation: only approved sources, clear wording, audit record. More red shading could alarm people if a webhook fails once; D-D requires repeated failure.
-- **Questions:** all answered by Shy on 2026-10-19; none open. Summary of answers: Q1 keep Integrations separate with the shared model (D-A); Q2 approval rule for all four areas (D-C); Q3 red for repeatedly failing items (D-D); Q4 hide the Enrichment Tester, it is temporary and goes at beta (WP5); Q5 and Q6 the live directory, official plugins in the main repository and community plugins in a separate repository later (D-F); Q7 and Q10 community listed, with the four trust levels (D-H); Q8 three plugin kinds (D-G); Q9 Live TV only has to remain possible (D-I); Q11 this spec sets direction and the platform build is a follow-up spec; Q12 full provider move as the direction, with conditions (D-J); Q13 existing plugins unchanged and keys stay in the config folder (D-K).
+- **Risks:** This is a very large change (eight Complex packets). Mitigation: waves with checkpoints (D-N); the ingestion comparison after every wave. The WebAssembly tier depends on a licence check that may fail (WP21); then it stops for Shy's decision and the rest is unaffected. Plugins load in-process and unsandboxed, so the approval note is honesty, not protection; a bad plugin can still do harm once approved. Mitigation: only approved sources, clear wording, audit record. More red shading could alarm people if a webhook fails once; D-D requires repeated failure.
+- **Q14 (answered: a).** Notifications is a new sub-page under Manage > System, and Backup destinations sit inside the existing Backup and recovery page. This adds one page to the locked Settings menu (settings revamp D35); it takes the Manage > System tree's usual icon rules and the no-duplicate-child rule (D45).
+- **Questions:** all answered by Shy on 2026-10-19; none open. Summary of answers: Q1 keep Integrations separate with the shared model (D-A); Q2 approval rule for all four areas (D-C); Q3 red for repeatedly failing items (D-D); Q4 hide the Enrichment Tester, it is temporary and goes at beta (WP5); Q5 and Q6 the live directory, official plugins in the main repository and community plugins in a separate repository later (D-F); Q7 and Q10 community listed, with the four trust levels (D-H); Q8 three plugin kinds (D-G); Q9 Live TV only has to remain possible (D-I); Q11 this spec sets direction and the platform build is a follow-up spec; Q12 full provider move as the direction, with conditions (D-J); Q13 existing plugins unchanged and keys stay in the config folder (D-K); version 2: whole platform in one planned implementation (D-N), notification service (D-O), backup destinations (D-P), Q14 placement as above.
 
 ## 8. Gaps and drift
 
@@ -291,6 +418,9 @@ Jellyfin plugins, plugin repositories and Live TV docs (jellyfin.org); Plex cust
 - **Every metadata source becomes a JSON file**, including TVDB, so swapping one source for another is a file change. A full ingestion of every media type before and after proves nothing changed. API keys stay in the config folder, so wiping the database keeps them.
 - **Plugins can use Local AI** safely on your machine, with limits so they cannot slow down scanning.
 - **Smaller fixes.** Webhooks show delivery history and a Send test button; plugin job history survives restarts; the temporary Enrichment Tester is hidden when it cannot run.
+- **A notification service** decides who is told what and how (Dashboard, email, channel plugins), with quiet hours and limits, keeping titles off the wire by default.
+- **Backups can go off the machine.** A schedule, keep-the-last-N, encryption with your passphrase before anything leaves, copies to another folder, a network share, S3-compatible storage or WebDAV, and restore from any of them.
+- **The whole plugin platform is built here**, in seven waves with a checkpoint after each (build, tests, before/after ingestion comparison, independent review).
 - **Live TV** is not being built, and nothing here blocks it.
 - **Documentation** is updated everywhere it described the old behaviour.
 

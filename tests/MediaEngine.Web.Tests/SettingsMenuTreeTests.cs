@@ -51,14 +51,13 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Member_GetsOnlyPersonal_AndHouseholdAdministratorAlsoGetsDevices()
+    public void MemberAndHouseholdAdministrator_GetOnlyPersonal()
     {
         var member = SettingsMenuBuilder.Build(Context(administrator: false));
         Assert.Equal(["Personal"], member.Select(group => group.Label));
 
         var household = SettingsMenuBuilder.Build(Context(administrator: false) with { HouseholdAdministrator = true });
-        Assert.Equal(["Personal", "Server"], household.Select(group => group.Label));
-        Assert.Equal(["Devices"], household[1].Items.Select(row => row.Label));
+        Assert.Equal(["Personal"], household.Select(group => group.Label));
     }
 
     [Fact]
