@@ -1590,7 +1590,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         _ => null,
     };
 
-    private static string? DetailRoute(string mediaType, Guid groupId) => mediaType switch
+    internal static string? DetailRoute(string mediaType, Guid groupId) => mediaType switch
     {
         "TV" => $"/details/tvshow/{groupId:D}?context=watch",
         "Music" => $"/details/musicalbum/{groupId:D}?context=listen",

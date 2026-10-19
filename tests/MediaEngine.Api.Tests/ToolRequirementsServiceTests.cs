@@ -2,6 +2,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -19,6 +20,7 @@ public sealed class ToolRequirementsServiceTests
     private readonly FakeModels _models = new();
     private readonly FakeProbe _probe = new();
     private readonly FakeCounter _counter = new();
+    private readonly RecordingActivityLog _activity = new();
     private readonly FakeContainer _container = new();
     private readonly List<IMediaToolStatusListener> _listeners = [];
     private readonly Dictionary<string, string?> _environment = [];
@@ -108,6 +110,86 @@ public sealed class ToolRequirementsServiceTests
         _ffmpeg.AvailableAfterRedetect = true;
 
         Assert.Equal(ToolRequirementStates.Ready, Row(await service.CheckAsync(CancellationToken.None), ToolRequirementIds.Ffmpeg).State);
+    }
+
+    [Fact]
+    public async Task FfmpegMissingOnTheFirstCheck_WritesOneToolMissingRowNamedForFfmpeg()
+    {
+        _ffmpeg.Available = false;
+
+        await Service().CheckAsync(CancellationToken.None);
+
+        var row = Assert.Single(_activity.Entries);
+        Assert.Equal(SystemActionType.ToolMissing, row.ActionType);
+        Assert.Equal("FFmpeg", row.CollectionName);
+        Assert.Equal("Tool", row.EntityType);
+        Assert.Equal("Videos, music and audiobooks wait until FFmpeg is available.", row.Detail);
+        Assert.Contains("\"tool_id\":\"ffmpeg\"", row.ChangesJson, StringComparison.Ordinal);
+        Assert.Contains("\"state\":\"missing\"", row.ChangesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASecondIdenticalCheck_WritesNoNewRow()
+    {
+        _ffmpeg.Available = false;
+        var service = Service();
+
+        await service.CheckAsync(CancellationToken.None);
+        await service.CheckAsync(CancellationToken.None);
+        await service.CheckAsync(CancellationToken.None);
+
+        Assert.Single(_activity.Entries);
+    }
+
+    [Fact]
+    public async Task FfmpegBecomingReady_WritesToolFound_WithItsVersion()
+    {
+        _ffmpeg.Available = false;
+        var service = Service();
+        await service.CheckAsync(CancellationToken.None);
+
+        _ffmpeg.AvailableAfterRedetect = true;
+        await service.CheckAsync(CancellationToken.None);
+
+        var ffmpegRows = _activity.Entries.Where(entry => entry.CollectionName == "FFmpeg").ToList();
+        Assert.Equal([SystemActionType.ToolMissing, SystemActionType.ToolFound], ffmpegRows.Select(entry => entry.ActionType));
+        Assert.Equal("Version 7.1 is ready.", ffmpegRows[1].Detail);
+    }
+
+    [Fact]
+    public async Task AToolThatStopsWorkingAfterBeingReady_WritesToolMissing_AsAProblem()
+    {
+        var service = Service();
+        await service.CheckAsync(CancellationToken.None);
+        Assert.Empty(_activity.Entries);
+
+        _ffmpeg.VersionExitCode = 1;
+        await service.CheckAsync(CancellationToken.None);
+
+        var row = Assert.Single(_activity.Entries, entry => entry.CollectionName == "FFmpeg");
+        Assert.Equal(SystemActionType.ToolMissing, row.ActionType);
+        Assert.Contains("\"state\":\"problem\"", row.ChangesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnOptionalToolThatIsMissingOnTheFirstCheck_WritesNothing()
+    {
+        _ocr.Capability = OcrCapability.Unavailable("Text recognition is not installed.");
+
+        await Service().CheckAsync(CancellationToken.None);
+
+        Assert.Empty(_activity.Entries);
+    }
+
+    [Fact]
+    public async Task WhenTheActivityLogCannotBeWritten_TheCheckStillSucceeds()
+    {
+        _ffmpeg.Available = false;
+        _activity.Fail = true;
+
+        var result = await Service().CheckAsync(CancellationToken.None);
+
+        Assert.Equal(ToolRequirementStates.Missing, Row(result, ToolRequirementIds.Ffmpeg).State);
     }
 
     [Fact]
@@ -531,7 +613,8 @@ public sealed class ToolRequirementsServiceTests
         _container,
         NullLogger<ToolRequirementsService>.Instance,
         name => _environment.GetValueOrDefault(name),
-        _time);
+        _time,
+        activity: _activity);
 
     private sealed class FakeFfmpeg : IFFmpegService
     {
