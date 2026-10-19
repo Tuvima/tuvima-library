@@ -249,15 +249,15 @@ misleading. Provider display names, accents, and fallback icons are owned by
 `ProviderCatalogueService`; tile artwork selection delegates to
 `MediaTileArtworkResolver` or `MediaTileComposerService`.
 
-The live ingestion dashboard separates three responsibilities. The primary
-`IngestionLiveDashboardState` partial owns polling, subscriptions, cancellation,
-and awaited shutdown; its `Projection` partial owns snapshot-to-view-model
-calculation; and `IngestionDashboardSelectionState` preserves the selected batch
-and stage when a live snapshot replaces the current rows. The Razor component
-keeps markup separate from its code-behind. Its scoped styles live with
-`IngestionTasksTab` because the parent owns the dashboard surface and reaches the
-child through `::deep`; retired selectors should be deleted when markup is
-removed.
+The live Ingestion page shows the Engine's queue snapshot and works out no numbers of its own.
+`IngestionLiveDashboardState` owns polling, subscriptions, cancellation and awaited shutdown, and
+exposes the latest `IngestionQueueProgressDto` (`QueueProgress`) beside the presentation snapshot
+that feeds the cards below it. `IngestionQueueProgressText` is the one set of words for that
+snapshot (headline, tally, status line, estimate or elapsed time) and is shared by the page and the
+Overview. The page's only arithmetic is turning the Engine's 0 to 1 `progress` into the bar's
+percent; `IngestionQueueProgressGuardrailTests` enforces that. Scoped styles live with
+`IngestionTasksTab` because the parent owns the dashboard surface and reaches the child through
+`::deep`; retired selectors should be deleted when markup is removed.
 
 Provider-priority presentation follows the same boundary: the tab coordinates
 provider data in code-behind while `ProviderStageSelector` owns the accessible

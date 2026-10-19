@@ -74,6 +74,50 @@
     font-size: .76rem;
 }
 
+.ingestion-status__tally {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: .9rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.ingestion-status__more {
+    margin: 0;
+    color: var(--tl-accent-secondary);
+    font-size: .76rem;
+}
+
+.ingestion-status__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.ingestion-status__dot {
+    display: inline-block;
+    width: .5rem;
+    height: .5rem;
+    margin-right: .5rem;
+    vertical-align: middle;
+    background: var(--tl-status-success);
+    border-radius: 50%;
+}
+
+/* Last-known numbers stay readable but recede while the Engine is unreachable. */
+.ingestion-status__stale {
+    display: grid;
+    gap: .4rem;
+    color: var(--tl-text-muted);
+    opacity: .6;
+}
+
+.ingestion-status ::deep .ingestion-status__skeleton-heading,
+.ingestion-status ::deep .ingestion-status__skeleton-tally,
+.ingestion-status ::deep .ingestion-status__skeleton-bar {
+    max-width: 100%;
+}
+
 .ingestion-status ::deep .ingestion-status__bar {
     width: 100%;
 }
@@ -240,6 +284,10 @@
 @media (max-width: 600px) {
     .ingestion-status {
         padding: .7rem .8rem !important;
+    }
+
+    .ingestion-status__header {
+        flex-wrap: wrap;
     }
 
     .ingestion-section header p {
