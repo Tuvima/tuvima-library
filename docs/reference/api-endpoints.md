@@ -577,6 +577,9 @@ The System > Logs page (`/settings/system/logs`) reads these. Logs can name file
 | PUT | `/plugins/{pluginId}/manifest` | Save dynamic plugin manifest JSON without changing plugin id | Administrator or application with `plugins.manage` |
 | DELETE | `/plugins/{pluginId}` | Delete a dynamic plugin folder and saved plugin configuration | Administrator or application with `plugins.manage` |
 | POST | `/plugins/{pluginId}/health` | Run plugin health checks | Administrator or application with `plugins.read` |
+| GET | `/plugins/{pluginId}/secrets` | List the secrets the plugin declares with a configured yes/no each. Never returns a value. | Administrator |
+| PUT | `/plugins/{pluginId}/secrets/{name}` | Save one declared secret (`{ "value": "..." }`). `204` on success, `400` for an undeclared name or empty value, `404` for an unknown plugin. | Administrator |
+| DELETE | `/plugins/{pluginId}/secrets/{name}` | Remove one secret. `204`; `404` for an unknown plugin. | Administrator |
 | GET | `/plugins/{pluginId}/jobs` | List recent durable plugin operation rows for one plugin. | Administrator or application with `plugins.jobs.read` |
 | POST | `/plugins/jobs/segment-detection/run` | Run scheduled playback segment detector plugins immediately | Administrator or application with `plugins.jobs.run` |
 

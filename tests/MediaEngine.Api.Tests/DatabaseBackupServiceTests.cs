@@ -58,6 +58,43 @@ public sealed class DatabaseBackupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAsync_LeavesPluginSecretsOutOfTheArchive_AndRestoreRefusesThem()
+    {
+        var config = Path.Combine(_root, "plugin-secrets-config");
+        var dbPath = Path.Combine(_root, "plugin-secrets.db");
+        Directory.CreateDirectory(Path.Combine(config, "secrets", "plugins"));
+        File.WriteAllText(Path.Combine(config, "core.json"), "{\"server_name\":\"Before\"}");
+        File.WriteAllText(Path.Combine(config, "secrets", "plugins", "x.json"), "{\"api_token\":\"plugin-secret-value\"}");
+        using var database = CreateDatabase(dbPath);
+        var service = new DatabaseBackupService(database, config);
+
+        var archivePath = await service.CreateAsync(CancellationToken.None);
+
+        using (var archive = ZipFile.OpenRead(archivePath))
+        {
+            Assert.NotNull(archive.GetEntry("config/core.json"));
+            Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains("x.json", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains("secrets", StringComparison.OrdinalIgnoreCase));
+            foreach (var entry in archive.Entries.Where(entry => entry.FullName.StartsWith("config/", StringComparison.Ordinal)))
+            {
+                using var reader = new StreamReader(entry.Open());
+                Assert.DoesNotContain("plugin-secret-value", reader.ReadToEnd(), StringComparison.Ordinal);
+            }
+        }
+
+        var unsafePath = Path.Combine(_root, "unsafe-plugin-secrets.zip");
+        using (var archive = ZipFile.Open(unsafePath, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("config/secrets/plugins/x.json");
+        }
+        var onboarding = new OnboardingRepository(database);
+        await using var unsafeStream = File.OpenRead(unsafePath);
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => service.UploadAndInspectAsync(
+            unsafeStream, "unsafe.zip", onboarding, CancellationToken.None));
+        Assert.Contains("secret", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SetupUpload_InspectsARealBackupAndRejectsSecretMaterial()
     {
         var config = Path.Combine(_root, "setup-upload-config");

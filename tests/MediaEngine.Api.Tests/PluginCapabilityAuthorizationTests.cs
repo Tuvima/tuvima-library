@@ -326,7 +326,7 @@ public sealed class PluginCapabilityAuthorizationTests
         var storageRoot = Path.Combine(fixture.Root, "working");
         var storage = new BoundPluginStorage(TestPlugin.Id, storageRoot, new PluginPermissionGate(fixture.Catalog));
         storage.CreateDirectory("nested");
-        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!);
+        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!);
 
         await context.DisposeAsync();
 

@@ -24,6 +24,7 @@ using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Schema.Upgrades;
+using MediaEngine.Storage.Secrets;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -253,10 +254,14 @@ builder.Services.AddSingleton<IDatabaseConnection>(_ =>
     return database;
 });
 
+// One secrets store for provider and plugin keys, kept in the config folder so it survives a data store wipe.
+var configSecrets = new ConfigFolderSecretsStore(configDirectory);
+builder.Services.AddSingleton<IConfigSecretsStore>(configSecrets);
+
 ConfigurationDirectoryLoader configLoader;
 try
 {
-    configLoader = new ConfigurationDirectoryLoader(configDirectory);
+    configLoader = new ConfigurationDirectoryLoader(configDirectory, configSecrets);
 #if DEBUG
     if (realMediaRun is null)
     {

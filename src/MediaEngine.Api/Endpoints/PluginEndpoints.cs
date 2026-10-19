@@ -8,6 +8,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Events;
 using MediaEngine.Plugins;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -18,8 +19,20 @@ internal static class PluginEndpoints
         var group = routes.MapGroup("/plugins")
             .WithTags("Plugins");
 
-        group.MapGet("", (PluginCatalog catalog) =>
-            Results.Ok(catalog.List().Select(ToDto)))
+        group.MapGet("", async (
+            PluginCatalog catalog,
+            [FromServices] IConfigSecretsStore secrets,
+            ILoggerFactory loggers,
+            CancellationToken ct) =>
+        {
+            var summaries = new List<PluginSummaryResponse>();
+            foreach (var registration in catalog.List())
+            {
+                summaries.Add(ToDto(registration, await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false)));
+            }
+
+            return Results.Ok(summaries);
+        })
             .WithName("ListPlugins")
             .Produces<IEnumerable<PluginSummaryResponse>>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
@@ -30,10 +43,17 @@ internal static class PluginEndpoints
             .Produces<ApprovedPluginCatalogDto>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
-        group.MapGet("/{pluginId}", (string pluginId, PluginCatalog catalog) =>
+        group.MapGet("/{pluginId}", async (
+            string pluginId,
+            PluginCatalog catalog,
+            [FromServices] IConfigSecretsStore secrets,
+            ILoggerFactory loggers,
+            CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
-            return plugin is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(ToDto(plugin));
+            return plugin is null
+                ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.")
+                : Results.Ok(ToDto(plugin, await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false)));
         })
         .WithName("GetPlugin")
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
@@ -104,21 +124,29 @@ internal static class PluginEndpoints
         .Produces<PluginSavedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
-        group.MapDelete("/{pluginId}", (string pluginId, PluginCatalog catalog) =>
-        {
-            try
-            {
-                catalog.DeletePlugin(pluginId);
-                return Results.Ok(new PluginDeletedResponse { plugin_id = pluginId, deleted = true });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return ApiErrors.BadRequest(ex.Message);
-            }
-        })
+        group.MapDelete("/{pluginId}", DeletePluginAsync)
         .WithName("DeletePlugin")
         .Produces<PluginDeletedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapGet("/{pluginId}/secrets", ListPluginSecretsAsync)
+        .WithName("ListPluginSecrets")
+        .Produces<IReadOnlyList<PluginSecretStatusResponse>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
+        group.MapPut("/{pluginId}/secrets/{name}", SetPluginSecretAsync)
+        .WithName("SetPluginSecret")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
+        group.MapDelete("/{pluginId}/secrets/{name}", RemovePluginSecretAsync)
+        .WithName("RemovePluginSecret")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
 
         group.MapPost("/{pluginId}/health", async (
             string pluginId,
@@ -194,6 +222,158 @@ internal static class PluginEndpoints
         return group;
     }
 
+    private const int MaximumSecretValueLength = 8192;
+
+    /// <summary>Uninstalls a plugin; its saved settings and its keys and logins go with it.</summary>
+    internal static async Task<IResult> DeletePluginAsync(
+        string pluginId,
+        PluginCatalog catalog,
+        [FromServices] IConfigSecretsStore secrets,
+        CancellationToken ct)
+    {
+        try
+        {
+            catalog.DeletePlugin(pluginId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return ApiErrors.BadRequest(ex.Message);
+        }
+
+        await RemoveAllPluginSecretsAsync(pluginId, secrets, ct).ConfigureAwait(false);
+        return Results.Ok(new PluginDeletedResponse { plugin_id = pluginId, deleted = true });
+    }
+
+    /// <summary>Which declared secrets are set. Names, labels and a yes/no only; never a value.</summary>
+    internal static async Task<IResult> ListPluginSecretsAsync(
+        string pluginId,
+        PluginCatalog catalog,
+        [FromServices] IConfigSecretsStore secrets,
+        CancellationToken ct)
+    {
+        var plugin = catalog.Get(pluginId);
+        if (plugin is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        var configured = plugin.Manifest.Secrets.Count == 0
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : (await secrets.ListNamesAsync(SecretOwner.Plugin(plugin.Manifest.Id), ct).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return Results.Ok(plugin.Manifest.Secrets.Select(secret => new PluginSecretStatusResponse
+        {
+            Name = secret.Name,
+            Label = secret.Label,
+            Description = secret.Description,
+            Configured = configured.Contains(secret.Name),
+        }).ToList());
+    }
+
+    internal static async Task<IResult> SetPluginSecretAsync(
+        string pluginId,
+        string name,
+        PluginSecretWriteRequest request,
+        PluginCatalog catalog,
+        [FromServices] IConfigSecretsStore secrets,
+        ILoggerFactory loggers,
+        CancellationToken ct)
+    {
+        var plugin = catalog.Get(pluginId);
+        if (plugin is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        var declared = plugin.Manifest.Secrets.FirstOrDefault(secret =>
+            string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (declared is null)
+        {
+            return ApiErrors.BadRequest($"Plugin '{plugin.Manifest.Id}' does not declare a secret named '{name}'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request?.Value))
+        {
+            return ApiErrors.BadRequest("Enter a value to save.");
+        }
+
+        if (request.Value.Length > MaximumSecretValueLength)
+        {
+            return ApiErrors.BadRequest($"The value can be at most {MaximumSecretValueLength:N0} characters.");
+        }
+
+        await secrets.SetAsync(
+            SecretOwner.Plugin(plugin.Manifest.Id),
+            new Dictionary<string, string> { [declared.Name] = request.Value },
+            ct).ConfigureAwait(false);
+        // Owner and secret name only; the value is never logged.
+        loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogInformation(
+            "Plugin secret {SecretName} was set for plugin {PluginId}", declared.Name, plugin.Manifest.Id);
+        return Results.NoContent();
+    }
+
+    internal static async Task<IResult> RemovePluginSecretAsync(
+        string pluginId,
+        string name,
+        PluginCatalog catalog,
+        [FromServices] IConfigSecretsStore secrets,
+        ILoggerFactory loggers,
+        CancellationToken ct)
+    {
+        var plugin = catalog.Get(pluginId);
+        if (plugin is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        await secrets.RemoveAsync(SecretOwner.Plugin(plugin.Manifest.Id), name, ct).ConfigureAwait(false);
+        loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogInformation(
+            "Plugin secret {SecretName} was removed for plugin {PluginId}", name, plugin.Manifest.Id);
+        return Results.NoContent();
+    }
+
+    private static async Task RemoveAllPluginSecretsAsync(string pluginId, IConfigSecretsStore secrets, CancellationToken ct)
+    {
+        SecretOwner owner;
+        try
+        {
+            owner = SecretOwner.Plugin(pluginId);
+        }
+        catch (ArgumentException)
+        {
+            // An id that cannot name a secrets file never had one.
+            return;
+        }
+
+        await secrets.RemoveAllAsync(owner, ct).ConfigureAwait(false);
+    }
+
+    internal static async Task<int> CountConfiguredSecretsAsync(
+        PluginRegistration registration,
+        IConfigSecretsStore secrets,
+        ILoggerFactory loggers,
+        CancellationToken ct)
+    {
+        if (registration.Manifest.Secrets.Count == 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            var configured = (await secrets.ListNamesAsync(SecretOwner.Plugin(registration.Manifest.Id), ct).ConfigureAwait(false))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return registration.Manifest.Secrets.Count(secret => configured.Contains(secret.Name));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException)
+        {
+            loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogWarning(
+                "Secrets for plugin {PluginId} could not be read ({ErrorType}); showing none as configured",
+                registration.Manifest.Id, ex.GetType().Name);
+            return 0;
+        }
+    }
+
     internal static IResult EnablePlugin(string pluginId, PluginCatalog catalog)
     {
         try
@@ -226,7 +406,7 @@ internal static class PluginEndpoints
         _ => throw new ArgumentOutOfRangeException(nameof(trust), trust, "Unknown plugin trust level."),
     };
 
-    internal static PluginSummaryResponse ToDto(PluginRegistration registration) => new()
+    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0) => new()
     {
         Id = registration.Manifest.Id,
         Name = registration.Manifest.Name,
@@ -271,6 +451,8 @@ internal static class PluginEndpoints
             Schedule = permission.Schedule,
             ResourceClass = permission.ResourceClass,
         }).ToList(),
+        DeclaredSecrets = registration.Manifest.Secrets.Count,
+        ConfiguredSecrets = configuredSecrets,
         Settings = registration.Settings.ToDictionary(
             setting => setting.Key,
             setting => setting.Value,

@@ -54,7 +54,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/universe/{qid}/lore/enrich", "POST", ApplicationPermissionIds.PluginsJobsRun),
         };
 
-        Assert.Equal(expected.Length + 1, endpoints.Length);
+        // +1 for the legacy lore discovery route and +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests).
+        Assert.Equal(expected.Length + 1 + 3, endpoints.Length);
         foreach (var route in expected)
         {
             AssertPolicy(endpoints, route.Route, route.Method, route.Permission);
