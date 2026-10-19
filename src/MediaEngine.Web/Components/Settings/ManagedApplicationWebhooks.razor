@@ -1,8 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Settings
 @implements IAsyncDisposable
 @inject DashboardIdentityClient Identity
+@inject ApprovalFlow Approvals
 
 <section class="access-form-section application-webhooks">
     <div class="application-webhooks__heading">
@@ -180,11 +182,20 @@
                 _allowLocalNetwork,
                 _enabled,
                 _expectedVersion);
-            var result = _editingId is { } webhookId
-                ? await Identity.UpdateApplicationWebhookResultAsync(applicationId, webhookId, request, _lifetime.Token)
-                : await Identity.CreateApplicationWebhookResultAsync(applicationId, request, _lifetime.Token);
+            var webhookId = _editingId;
+            var result = await SendAsync(applicationId, webhookId, request);
             if (!IsCurrent(generation, applicationId))
                 return;
+            if (result.Failure == DashboardAccessMutationFailure.ApprovalRequired && result.Approval is { } approval)
+            {
+                // Events will go to this receiver, so the person sees where first. Cancel saves nothing and keeps the form open.
+                var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+                if (!IsCurrent(generation, applicationId) || hashes is null)
+                    return;
+                result = await SendAsync(applicationId, webhookId, request with { ApprovalHash = hashes.Values.First() });
+                if (!IsCurrent(generation, applicationId))
+                    return;
+            }
             if (!result.Succeeded || result.Value is null)
             {
                 _error = FailureMessage(result.Failure);
@@ -209,6 +220,11 @@
                 _busy = false;
         }
     }
+
+    private Task<DashboardAccessMutationResult<ApplicationWebhookSecretResponse>> SendAsync(Guid applicationId, Guid? webhookId, SaveApplicationWebhookRequest request) =>
+        webhookId is { } id
+            ? Identity.UpdateApplicationWebhookResultAsync(applicationId, id, request, _lifetime.Token)
+            : Identity.CreateApplicationWebhookResultAsync(applicationId, request, _lifetime.Token);
 
     private async Task RotateSecret(ApplicationWebhookResponse webhook)
     {

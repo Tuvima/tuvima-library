@@ -1,4 +1,5 @@
 using System.Net;
+using MediaEngine.Contracts.Approvals;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -15,7 +16,8 @@ public sealed record DashboardAccessMutationResult(
     DashboardAccessMutationFailure Failure = DashboardAccessMutationFailure.None,
     HttpStatusCode? StatusCode = null,
     IReadOnlyList<string>? ValidationFields = null,
-    string? Message = null)
+    string? Message = null,
+    ApprovalRequiredResponse? Approval = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
 
@@ -25,8 +27,9 @@ public sealed record DashboardAccessMutationResult(
         DashboardAccessMutationFailure failure,
         HttpStatusCode? statusCode = null,
         IReadOnlyList<string>? validationFields = null,
-        string? message = null) =>
-        new(failure, statusCode, validationFields ?? [], message);
+        string? message = null,
+        ApprovalRequiredResponse? approval = null) =>
+        new(failure, statusCode, validationFields ?? [], message, approval);
 }
 
 public sealed record DashboardAccessMutationResult<T>(
@@ -34,7 +37,8 @@ public sealed record DashboardAccessMutationResult<T>(
     DashboardAccessMutationFailure Failure = DashboardAccessMutationFailure.None,
     HttpStatusCode? StatusCode = null,
     IReadOnlyList<string>? ValidationFields = null,
-    string? Message = null)
+    string? Message = null,
+    ApprovalRequiredResponse? Approval = null)
 {
     public bool Succeeded => Failure == DashboardAccessMutationFailure.None;
 
@@ -44,8 +48,9 @@ public sealed record DashboardAccessMutationResult<T>(
         DashboardAccessMutationFailure failure,
         HttpStatusCode? statusCode = null,
         IReadOnlyList<string>? validationFields = null,
-        string? message = null) =>
-        new(default, failure, statusCode, validationFields ?? [], message);
+        string? message = null,
+        ApprovalRequiredResponse? approval = null) =>
+        new(default, failure, statusCode, validationFields ?? [], message, approval);
 }
 
 public enum DashboardAccessMutationFailure
@@ -57,6 +62,8 @@ public enum DashboardAccessMutationFailure
     /// <summary>The Engine wants the person to prove it is them first (403 <c>confirm_its_you</c>).</summary>
     ConfirmItsYou,
     Conflict,
+    /// <summary>The Engine wants the person to see what this will do first (409 <c>approval_required</c>); see <c>Approval</c>.</summary>
+    ApprovalRequired,
     NotFound,
     Transient,
     InvalidResponse,

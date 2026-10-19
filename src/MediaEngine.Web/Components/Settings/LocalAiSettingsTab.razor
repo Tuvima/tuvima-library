@@ -5,6 +5,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
+@inject ApprovalFlow Approvals
 
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
@@ -168,9 +169,9 @@
                               SwitchDisabledReason="@(feature.Connected ? null : "Planned: this is not connected to the Library yet.")"
                               Health="@health.Word"
                               LastProblem="@health.LastProblem"
-                              AllowedTo="@StateCardHealth.AiFeatureAllowedTo(feature.Key)"
-                              SendsDataOut="false"
-                              SendsDataTo="@StateCardHealth.RunsOnThisMachine">
+                              AllowedTo="@FeatureAllowedTo(feature.Key)"
+                              SendsDataOut="@(FeatureSendsDataTo(feature.Key) is not null)"
+                              SendsDataTo="@(FeatureSendsDataTo(feature.Key) ?? StateCardHealth.RunsOnThisMachine)">
             <Badges><AppStatusBadge Text="Uses Local AI" Tone="AppUiTone.Info" /></Badges>
         </AppStateCard>;
     }
@@ -187,6 +188,13 @@
 
     private string AutomationDescription() => _progress is null ? "Progress could not be loaded" : $"{_progress.CompletedCount} of {_progress.Total} completed";
 
+    // The Engine's own words for what a feature may do; the same ones the approval dialog shows.
+    private IReadOnlyList<string> FeatureAllowedTo(string key) =>
+        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.AllowedTo : [];
+
+    private string? FeatureSendsDataTo(string key) =>
+        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.SendsDataTo : null;
+
     private bool IsFeatureEnabled(string key) => _config?.Features.TryGetValue(key, out var enabled) == true && enabled;
 
     private void SetFeatureEnabled(string key, bool enabled)
@@ -201,9 +209,14 @@
             return;
 
         _savingFeatures = true;
-        var saved = await Orchestrator.SaveAiConfigAsync(_config);
+        var outcome = await Approvals.SaveAiConfigAsync(Orchestrator, _config);
         _savingFeatures = false;
-        _featureMessage = saved ? "Local AI features saved." : "Local AI features could not be saved.";
+        _featureMessage = outcome switch
+        {
+            AiSaveOutcome.Saved => "Local AI features saved.",
+            AiSaveOutcome.Cancelled => "Nothing was turned on. The features are back to how they were saved.",
+            _ => "Local AI features could not be saved.",
+        };
     }
 
     private sealed record FeatureDefinition(string Key, string Name, string Description, bool Connected = true);

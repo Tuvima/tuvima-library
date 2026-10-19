@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Events;
 using MediaEngine.Api.Services.Webhooks;
 using MediaEngine.Contracts.Authentication;
@@ -21,6 +22,7 @@ public sealed class ApplicationWebhookDeliveryTests : IDisposable
     private readonly StubAuthorization _authorization = new();
     private readonly StubTransport _transport = new();
     private readonly Clock _clock = new();
+    private readonly ApprovalService _approvals;
     private readonly ApplicationWebhookService _management;
     private readonly ApplicationWebhookDispatcher _dispatcher;
     private readonly Guid _applicationId = Guid.NewGuid();
@@ -32,8 +34,9 @@ public sealed class ApplicationWebhookDeliveryTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         _webhooks = new(_database); _events = new(_database); _applications = new(_database);
+        _approvals = new(new ApprovalRecordRepository(_database), new ProfileRepository(_database), _applications, new PermissionRegistry(), _clock);
         _management = new(_webhooks, _applications, _events, _authorization, new ApplicationEventRegistry(new PermissionRegistry()),
-            new WebhookDestinationPolicy(new DnsStub()), new EphemeralDataProtectionProvider(), _clock);
+            new WebhookDestinationPolicy(new DnsStub()), new EphemeralDataProtectionProvider(), _clock, _approvals);
         _dispatcher = new(_webhooks, _events, _authorization, _management, _transport, _clock);
     }
 
@@ -47,9 +50,12 @@ public sealed class ApplicationWebhookDeliveryTests : IDisposable
             CreatedAt = _clock.GetUtcNow(),
             UpdatedAt = _clock.GetUtcNow(),
         }, new HashSet<ApplicationPermissionId>());
+        var approvalHash = _approvals.PreviewWebhook(new Uri("https://receiver.example.invalid/events"), ["ingestion.completed"], false, "").StatementHash;
         return await _management.SaveAsync(_applicationId, null,
-            new("https://receiver.example.invalid/events", ["ingestion.completed"], false, true, null), default);
+            new("https://receiver.example.invalid/events", ["ingestion.completed"], false, true, null, approvalHash), Administrator, default);
     }
+
+    private static readonly RequestAuthority Administrator = new(PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid());
 
     private Task<StoredApplicationEvent> EventAsync() => _events.AppendAsync(new(0, Guid.NewGuid(), "ingestion.completed", 1,
         _clock.GetUtcNow(), "synthetic-server", new("ingestion-batch", Guid.NewGuid().ToString("D")), "{\"completed\":3}"));

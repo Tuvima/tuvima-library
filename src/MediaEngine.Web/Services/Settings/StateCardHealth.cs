@@ -46,34 +46,10 @@ public static class StateCardHealth
     /// <summary>The model role every Local AI feature reads from today.</summary>
     public const string FeatureModelRole = "text_quality";
 
-    /// <summary>Where a plugin's data goes when it sends data out.</summary>
-    public const string TheInternet = "the internet";
-
     /// <summary>Where Local AI work happens; Local AI never sends data out.</summary>
     public const string RunsOnThisMachine = "Runs on this machine";
 
     private const string RunFailed = "failed";
-
-    private static readonly IReadOnlyDictionary<string, string> PermissionWords = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["media.read"] = "Reads your media files",
-        ["network.http"] = "Connects to the internet",
-        ["process.execute"] = "Runs helper programs",
-        ["tool.download"] = "Downloads helper tools",
-        ["ai.infer"] = "Uses Local AI",
-        ["storage.plugin"] = "Keeps its own data",
-        ["secrets.plugin"] = "Keeps its own keys and logins",
-    };
-
-    private static readonly IReadOnlyDictionary<string, string[]> FeatureWords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["smart_labeling"] = ["Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added"],
-        ["type_logic"] = ["Reads file names and basic file facts", "Decides the media type when it is unclear"],
-        ["series_alignment"] = ["Reads series and title details", "Suggests the order within a series"],
-        ["vibe_tags"] = ["Reads descriptions and genres", "Adds mood tags"],
-        ["tldr"] = ["Shows the short summary made by Description insights"],
-        ["description_intelligence"] = ["Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people"],
-    };
 
     /// <summary>What the Local AI engine card says it is allowed to do.</summary>
     public static IReadOnlyList<string> EngineAllowedTo { get; } = ["Runs AI models on this machine"];
@@ -241,27 +217,6 @@ public static class StateCardHealth
         StateCardKind.LocalAiEngine => "Local AI engine",
         _ => "Plugin",
     };
-
-    /// <summary>The plain words for one plugin permission id; an id the Library does not know is shown as it is.</summary>
-    public static string PermissionText(string permissionId) =>
-        PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
-
-    public static IReadOnlyList<string> PluginAllowedTo(PluginSummaryResponse plugin)
-    {
-        ArgumentNullException.ThrowIfNull(plugin);
-        return plugin.Permissions.Select(PermissionText).ToList();
-    }
-
-    /// <summary>True when the plugin can reach the internet, so data can leave this machine.</summary>
-    public static bool PluginSendsDataOut(PluginSummaryResponse plugin)
-    {
-        ArgumentNullException.ThrowIfNull(plugin);
-        return plugin.Permissions.Any(permission => string.Equals(permission, "network.http", StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>What a Local AI feature is allowed to do, in plain words; empty for a feature the Library has no words for.</summary>
-    public static IReadOnlyList<string> AiFeatureAllowedTo(string featureKey) =>
-        FeatureWords.TryGetValue(featureKey, out var words) ? words : [];
 
     private static bool Is(string? value, string expected) => string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
 

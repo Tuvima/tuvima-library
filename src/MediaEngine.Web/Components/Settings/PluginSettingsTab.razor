@@ -2,7 +2,9 @@
 @using System.Globalization
 @using System.Text.Json
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Contracts.Approvals
 @using MediaEngine.Contracts.System
+@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Settings
@@ -12,6 +14,7 @@
 @inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
+@inject ApprovalFlow Approvals
 
 @if (_loading)
 {
@@ -66,6 +69,7 @@ else
     private bool _approvedCatalogLoading;
     private bool _loading = true;
     private string? _error;
+    private readonly Dictionary<string, ApprovalRecordResponse> _latestApproval = new(StringComparer.OrdinalIgnoreCase);
     private string? _selectedPluginId;
     private string? _configurePluginId;
     private string? _deletePluginId;
@@ -121,7 +125,8 @@ else
         _health.TryGetValue(plugin.Id, out var health);
         var run = StateCardHealth.LatestRun(_tasks, plugin.Id);
         var state = StateCardHealth.ForPlugin(plugin, health, run);
-        var sendsOut = StateCardHealth.PluginSendsDataOut(plugin);
+        // What the plugin may do and where its data goes are the Engine's own words, the same ones the approval dialog shows.
+        var sendsOut = !string.IsNullOrWhiteSpace(plugin.SendsDataTo);
         // Phones read the cards; switching and configuring plugins stays on desktop and tablet.
         var canChange = !DeviceContext.IsMobile;
         return @<AppStateCard Name="@plugin.Name"
@@ -132,9 +137,9 @@ else
                               SwitchDisabledReason="@SwitchDisabledReason(plugin)"
                               Health="@state.Word"
                               LastProblem="@state.LastProblem"
-                              AllowedTo="@StateCardHealth.PluginAllowedTo(plugin)"
+                              AllowedTo="@plugin.AllowedTo"
                               SendsDataOut="@sendsOut"
-                              SendsDataTo="@(sendsOut ? StateCardHealth.TheInternet : null)"
+                              SendsDataTo="@plugin.SendsDataTo"
                               LastActivity="@StateCardHealth.ActivityTime(run)"
                               Loading="@_healthLoading.Contains(plugin.Id)"
                               Action="@PluginAction(plugin, state.Word, canChange)">
@@ -191,6 +196,10 @@ else
                         <div class="settings-plugin-detail-header__copy">
                             <strong class="settings-plugin-detail-header__title">@plugin.Name</strong>
                             <span class="settings-plugin-detail-header__description">@plugin.Description</span>
+                            @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
+                            {
+                                <span class="settings-plugin-detail-header__description" data-testid="plugin-approval">Turned on by @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</span>
+                            }
                         </div>
                         <AppStatusBadge Text="@(plugin.Enabled ? "Enabled" : "Disabled")" Tone="@(plugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
                     </div>
@@ -385,7 +394,10 @@ else
         {
             _plugins = (await Orchestrator.GetPluginsAsync()).OrderBy(p => p.Name).ToList();
             if (_plugins.Count > 0 && SelectedPlugin is null)
+            {
                 _selectedPluginId = _plugins[0].Id;
+                _ = LoadLatestApprovalAsync(_selectedPluginId);
+            }
 
             Attention.ReportPlugins(_plugins);
             if (!_tasksLoaded)
@@ -448,6 +460,25 @@ else
     {
         _selectedPluginId = pluginId;
         _deletePluginId = null;
+        _ = LoadLatestApprovalAsync(pluginId);
+    }
+
+    // The newest approval for a plugin: who turned it on and when, from the Engine's approval record.
+    private async Task LoadLatestApprovalAsync(string pluginId)
+    {
+        try
+        {
+            var records = await Orchestrator.GetApprovalsAsync("plugin", pluginId, _disposed.Token);
+            if (records is { Count: > 0 })
+                _latestApproval[pluginId] = records[0];
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (!_disposed.IsCancellationRequested)
+            await InvokeAsync(StateHasChanged);
     }
 
     private void SelectPluginValue(string? pluginId)
@@ -466,6 +497,19 @@ else
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
         var result = await Orchestrator.SetPluginEnabledAsync(plugin.Id, enabled);
+        if (enabled && result.Approval is { } approval)
+        {
+            // The Engine wants the person to see what the plugin can do first. Cancel leaves it off and asks nothing more.
+            var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+            if (hashes is null || !hashes.TryGetValue(plugin.Id, out var hash))
+            {
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            result = await Orchestrator.SetPluginEnabledAsync(plugin.Id, true, hash);
+        }
+
         if (!result.Succeeded)
         {
             // The Engine's plain-English reason (for example a Library version the plugin does not support) beats the generic text.
@@ -476,7 +520,10 @@ else
         plugin.Enabled = enabled;
         Attention.ReportPlugins(_plugins);
         if (enabled)
+        {
             StartHealthChecks([plugin]);
+            await LoadLatestApprovalAsync(plugin.Id);
+        }
         Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", AppSeverity.Success);
     }
 

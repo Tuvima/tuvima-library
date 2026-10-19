@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -57,7 +58,14 @@ public partial interface IEngineApiClient
 
     Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default);
 
-    Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default);
+    /// <summary>
+    /// POST /plugins/{id}/enable|disable. Switching on can answer with <see cref="PluginActionResult.Approval"/> (the Engine
+    /// wants the person to see what the plugin can do first); repeat the call with that preview's hash.
+    /// </summary>
+    Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default);
+
+    /// <summary>GET /approvals — the recorded approvals for one item (kind and item id), newest first.</summary>
+    Task<IReadOnlyList<ApprovalRecordResponse>> GetApprovalsAsync(string kind, string itemId, CancellationToken ct = default);
 
     Task<bool> SavePluginSettingsAsync(string pluginId, Dictionary<string, JsonElement> settings, CancellationToken ct = default);
 
@@ -383,6 +391,12 @@ public partial interface IEngineApiClient
 
     /// <summary>PUT /ai/config — saves persisted AI configuration.</summary>
     Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default);
+
+    /// <summary>
+    /// PUT /ai/config, keeping the Engine's approval-required answer: when a feature was switched on that the person has not
+    /// seen yet nothing is saved and <see cref="AiConfigSaveResult.Approval"/> lists what to show.
+    /// </summary>
+    Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default);
 
     // ── AI Hardware Profile (/ai/profile, /ai/benchmark) ────────────────────
 

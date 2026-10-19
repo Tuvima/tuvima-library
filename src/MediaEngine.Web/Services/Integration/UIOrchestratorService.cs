@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Maintenance;
@@ -330,8 +331,11 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default) =>
         _api.GetApprovedPluginCatalogAsync(ct);
 
-    public Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default) =>
-        _api.SetPluginEnabledAsync(pluginId, enabled, ct);
+    public Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default) =>
+        _api.SetPluginEnabledAsync(pluginId, enabled, approvalHash, ct);
+
+    public Task<IReadOnlyList<ApprovalRecordResponse>> GetApprovalsAsync(string kind, string itemId, CancellationToken ct = default) =>
+        _api.GetApprovalsAsync(kind, itemId, ct);
 
     public Task<bool> SavePluginSettingsAsync(string pluginId, Dictionary<string, JsonElement> settings, CancellationToken ct = default) =>
         _api.SavePluginSettingsAsync(pluginId, settings, ct);
@@ -1778,6 +1782,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     public Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
         => _api.SaveAiConfigAsync(config, ct);
+
+    public Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default)
+        => _api.SaveAiConfigWithApprovalAsync(config, ct);
 
     public Task<HardwareProfileDto?> GetAiProfileAsync(CancellationToken ct = default)
         => _api.GetAiProfileAsync(ct);

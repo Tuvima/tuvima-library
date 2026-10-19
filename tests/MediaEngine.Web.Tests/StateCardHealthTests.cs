@@ -235,59 +235,12 @@ public sealed class StateCardHealthTests
         Assert.Equal(label, StateCardHealth.KindLabel(kind));
     }
 
-    [Theory]
-    [InlineData("media.read", "Reads your media files")]
-    [InlineData("network.http", "Connects to the internet")]
-    [InlineData("process.execute", "Runs helper programs")]
-    [InlineData("tool.download", "Downloads helper tools")]
-    [InlineData("ai.infer", "Uses Local AI")]
-    [InlineData("storage.plugin", "Keeps its own data")]
-    [InlineData("secrets.plugin", "Keeps its own keys and logins")]
-    public void PermissionIds_AreShownInPlainWords(string id, string words)
-    {
-        Assert.Equal(words, StateCardHealth.PermissionText(id));
-    }
-
     [Fact]
-    public void AnUnknownPermissionId_IsShownAsItIs()
+    public void TheEngineCard_HasItsPlainWords()
     {
-        Assert.Equal("future.thing", StateCardHealth.PermissionText("future.thing"));
-    }
-
-    [Fact]
-    public void PluginAllowedTo_ListsEachPermissionInPlainWords()
-    {
-        var plugin = Plugin(enabled: true, permissions: ["media.read", "ai.infer", "odd.id"]);
-
-        Assert.Equal(["Reads your media files", "Uses Local AI", "odd.id"], StateCardHealth.PluginAllowedTo(plugin));
-    }
-
-    [Fact]
-    public void ThePluginSendsDataOut_OnlyWhenItCanConnectToTheInternet()
-    {
-        Assert.True(StateCardHealth.PluginSendsDataOut(Plugin(enabled: true, permissions: ["media.read", "network.http"])));
-        Assert.False(StateCardHealth.PluginSendsDataOut(Plugin(enabled: true, permissions: ["media.read"])));
-        Assert.Equal("the internet", StateCardHealth.TheInternet);
-    }
-
-    [Theory]
-    [InlineData("smart_labeling", "Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added")]
-    [InlineData("type_logic", "Reads file names and basic file facts", "Decides the media type when it is unclear")]
-    [InlineData("series_alignment", "Reads series and title details", "Suggests the order within a series")]
-    [InlineData("vibe_tags", "Reads descriptions and genres", "Adds mood tags")]
-    [InlineData("description_intelligence", "Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people")]
-    public void EachAiFeature_HasItsPlainWords(string key, string first, string second)
-    {
-        Assert.Equal([first, second], StateCardHealth.AiFeatureAllowedTo(key));
-    }
-
-    [Fact]
-    public void TheShortSummaryFeature_AndTheEngine_HaveTheirPlainWords()
-    {
-        Assert.Equal(["Shows the short summary made by Description insights"], StateCardHealth.AiFeatureAllowedTo("tldr"));
+        // The words for plugins and Local AI features come from the Engine (they are also what the approval dialog shows).
         Assert.Equal(["Runs AI models on this machine"], StateCardHealth.EngineAllowedTo);
         Assert.Equal("Runs on this machine", StateCardHealth.RunsOnThisMachine);
-        Assert.Empty(StateCardHealth.AiFeatureAllowedTo("not_a_feature"));
     }
 
     [Theory]

@@ -78,7 +78,8 @@ public sealed record SetApplicationClientBindingsRequest(
 
 public sealed record CreateApplicationCredentialRequest(
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("expires_at")] DateTimeOffset? ExpiresAt);
+    [property: JsonPropertyName("expires_at")] DateTimeOffset? ExpiresAt,
+    [property: JsonPropertyName("approval_hash")] string? ApprovalHash = null);
 
 public sealed record ApplicationCredentialIssuedResponse(
     [property: JsonPropertyName("credential")] ApplicationCredentialResponse Credential,

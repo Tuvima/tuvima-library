@@ -1,3 +1,5 @@
+using MediaEngine.Contracts.Approvals;
+
 namespace MediaEngine.Api.Http;
 
 /// <summary>
@@ -53,6 +55,16 @@ public static class ApiErrors
             statusCode: StatusCodes.Status409Conflict,
             title: "Conflict.",
             extensions: new Dictionary<string, object?> { ["code"] = code });
+
+    /// <summary>
+    /// 409 Conflict for an action that needs an approval it does not have (or has only for an older statement). The body is
+    /// <see cref="ApprovalRequiredResponse"/> (<c>error: "approval_required"</c> plus one preview per item), not a problem
+    /// body, so a caller can show each preview and repeat the action with the hashes. It is distinct from the other 409s.
+    /// </summary>
+    public static IResult ApprovalRequired(IEnumerable<ApprovalPreviewResponse> approvals) =>
+        Results.Json(
+            new ApprovalRequiredResponse { Approvals = approvals.ToList() },
+            statusCode: StatusCodes.Status409Conflict);
 
     /// <summary>422 Unprocessable Entity as an RFC 7807 problem body.</summary>
     public static IResult Unprocessable(string detail) =>

@@ -282,6 +282,8 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
   AudioPackEnabled: System.Boolean | nullability=not-null | accessors=get,set
   Features: System.Collections.Generic.Dictionary<System.String, System.Boolean> | nullability=not-null | accessors=get,set
+  FeatureInfo: System.Collections.Generic.Dictionary<System.String, MediaEngine.Contracts.Ai.AiFeatureInfoDto> | nullability=not-null | accessors=get,set
+  Approvals: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,set
   VibeVocabulary: System.Collections.Generic.Dictionary<System.String, System.Collections.Generic.List<System.String>> | nullability=not-null | accessors=get,set
   Scheduling: System.Collections.Generic.Dictionary<System.String, System.Object> | nullability=not-null | accessors=get,set
   EnrichmentBatchSize: System.Int32 | nullability=not-null | accessors=get,set
@@ -289,6 +291,10 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiDownloadCancelledResponse
   cancelled: System.Boolean | nullability=not-null | accessors=get,init
   role: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiFeatureInfoDto
+  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  SendsDataTo: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiHealthStatusDto
   Models: System.Collections.Generic.List<MediaEngine.Contracts.Ai.AiModelStatusDto> | nullability=not-null | accessors=get,set
@@ -378,6 +384,49 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.ResourceSnapshotDto
   EngineRamMb: System.Int64 | nullability=not-null | accessors=get,set
   CpuPressure: System.Double | nullability=not-null | accessors=get,set
   TranscodingActive: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalCredentialInput
+  ApplicationId: System.Guid | nullability=not-null | accessors=get,init
+  ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalErrorCodes
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalKinds
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalPreviewRequest
+  Kind: System.String | nullability=not-null | accessors=get,init
+  ItemId: System.String | nullability=nullable | accessors=get,init
+  Webhook: MediaEngine.Contracts.Approvals.ApprovalWebhookInput | nullability=nullable | accessors=get,init
+  Credential: MediaEngine.Contracts.Approvals.ApprovalCredentialInput | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalPreviewResponse
+  Kind: System.String | nullability=not-null | accessors=get,init
+  ItemId: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  KindLabel: System.String | nullability=not-null | accessors=get,init
+  CanDo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  SendsDataOut: System.Boolean | nullability=not-null | accessors=get,init
+  SendsDataTo: System.String | nullability=nullable | accessors=get,init
+  Notes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  StatementHash: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalRecordResponse
+  ApprovedByName: System.String | nullability=not-null | accessors=get,init
+  ApprovedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Statement: MediaEngine.Contracts.Approvals.ApprovalPreviewResponse | nullability=not-null | accessors=get,init
+  StatementHash: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalRequiredResponse
+  Error: System.String | nullability=not-null | accessors=get,init
+  Approvals: System.Collections.Generic.List<MediaEngine.Contracts.Approvals.ApprovalPreviewResponse> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.ApprovalWebhookInput
+  Url: System.String | nullability=not-null | accessors=get,init
+  EventTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  AllowLocalNetwork: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Approvals.MediaEngine.Contracts.Approvals.PluginEnableRequest
+  ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkAssetContextDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -989,6 +1038,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Create
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateApplicationCredentialRequest
   Name: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateApplicationRequest
   Name: System.String | nullability=not-null | accessors=get,init
@@ -1287,6 +1337,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SaveAp
   AllowLocalNetwork: System.Boolean | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExpectedVersion: System.Int64? | nullability=nullable | accessors=get,init
+  ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SecureAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
@@ -6532,6 +6583,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   AiPermissions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginAiPermissionDto> | nullability=not-null | accessors=get,set
   DeclaredSecrets: System.Int32 | nullability=not-null | accessors=get,set
   ConfiguredSecrets: System.Int32 | nullability=not-null | accessors=get,set
+  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  SendsDataTo: System.String | nullability=nullable | accessors=get,set
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set

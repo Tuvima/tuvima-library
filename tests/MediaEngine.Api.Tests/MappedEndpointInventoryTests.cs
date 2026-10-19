@@ -334,6 +334,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();
         builder.Services.AddApplicationWebhooks();
+        builder.Services.AddTuvimaApprovals();
         builder.Services.AddSingleton<AppleRetailClient>();
         builder.Services.AddSingleton<MusicBrainzReleaseClient>();
         builder.Services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
