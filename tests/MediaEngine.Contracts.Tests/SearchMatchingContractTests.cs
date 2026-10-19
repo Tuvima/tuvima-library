@@ -71,7 +71,7 @@ public sealed class SearchMatchingContractTests
     }
 
     [Fact]
-    public void DashboardSearchModels_KeepOnlyUniverseAndPresentationOwnedTypes()
+    public void DashboardSearchModels_KeepNoSearchWireTypes_AndContractsOwnTheUniverseSearchShapes()
     {
         var root = FindRepoRoot();
         var searchModels = File.ReadAllText(Path.Combine(
@@ -82,8 +82,20 @@ public sealed class SearchMatchingContractTests
             "ViewDTOs",
             "SearchDtos.cs"));
 
-        Assert.Contains("class SearchUniverseRequestDto", searchModels, StringComparison.Ordinal);
-        Assert.Contains("class UniverseCandidateDto", searchModels, StringComparison.Ordinal);
+        var universeContracts = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "MediaEngine.Contracts",
+            "Search",
+            "UniverseSearchContracts.cs"));
+
+        Assert.Contains("class SearchUniverseRequestDto", universeContracts, StringComparison.Ordinal);
+        Assert.Contains("class UniverseCandidateDto", universeContracts, StringComparison.Ordinal);
+        Assert.Contains("class SearchUniverseResponseDto", universeContracts, StringComparison.Ordinal);
+        Assert.DoesNotContain("class SearchUniverseRequestDto", searchModels, StringComparison.Ordinal);
+        Assert.DoesNotContain("class UniverseCandidateDto", searchModels, StringComparison.Ordinal);
+        Assert.DoesNotContain("class SearchUniverseResponseDto", searchModels, StringComparison.Ordinal);
+        Assert.DoesNotContain("class UniverseFieldMatchScoresDto", searchModels, StringComparison.Ordinal);
         Assert.DoesNotContain("class SearchRetailRequestDto", searchModels, StringComparison.Ordinal);
         Assert.DoesNotContain("class ItemCanonicalSearchResponseDto", searchModels, StringComparison.Ordinal);
         Assert.DoesNotContain("class FieldMatchScoresDto", searchModels, StringComparison.Ordinal);

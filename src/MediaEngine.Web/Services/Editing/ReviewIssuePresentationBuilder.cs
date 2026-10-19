@@ -51,6 +51,7 @@ public static class ReviewIssuePresentationBuilder
         "AmbiguousMediaType" or "RootWatchFolder" => "Library could not confidently decide which part of the library this file belongs in.",
         "WritebackFailed" => "Library identified this item, but could not save the updated metadata to its physical file.",
         "MediaInspectionFailed" => $"This {media} couldn't be read. It may be damaged or incomplete.",
+        "AmbiguousSeriesMembership" => $"Wikidata lists this {media} in the main sequence of more than one Series and nothing separates them, so Tuvima Library did not guess. It is not on any Series for now.",
         _ => fallback,
     };
 
@@ -69,6 +70,7 @@ public static class ReviewIssuePresentationBuilder
         "AmbiguousMediaType" or "RootWatchFolder" => "The correct media type could not be determined",
         "WritebackFailed" => "Updated metadata could not be written to the file",
         "MediaInspectionFailed" => "The file couldn't be read",
+        "AmbiguousSeriesMembership" => "More than one Series claims this",
         _ => ReviewIssueClassifier.Classify(item.Trigger).Explanation,
     };
 
@@ -90,6 +92,7 @@ public static class ReviewIssuePresentationBuilder
             "WritebackFailed" => new[] { "The metadata write operation failed after the configured retry attempts." },
             "MediaInspectionFailed" => new[] { "The media tool is working, but it could not read this file's details." },
             "LanguageMismatch" => new[] { "The embedded language conflicts with the configured library language." },
+            "AmbiguousSeriesMembership" => new[] { "Two Series of the same kind of media both list it in their main sequence, and neither is more specific." },
             _ => new[] { $"The ingestion pipeline could not safely complete the decision for this {media}." },
         };
 
@@ -134,6 +137,7 @@ public static class ReviewIssuePresentationBuilder
         "AmbiguousMediaType" or "RootWatchFolder" => "Choose the correct media type so Library can continue with the appropriate matching workflow.",
         "WritebackFailed" => "Check that the file is available and writable, then retry saving its metadata.",
         "MediaInspectionFailed" => "Check that the file plays on your computer. If it is damaged, replace it with a good copy.",
+        "AmbiguousSeriesMembership" => $"Open this {media} and use Matching to choose the Series it belongs to. Until then it is not on either Series.",
         _ => "Open the focused review to inspect the available evidence and make the missing decision.",
     };
 

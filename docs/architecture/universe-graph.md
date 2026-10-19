@@ -161,7 +161,7 @@ Relationships carry `StartTime` and `EndTime` (nullable ISO 8601 strings) source
 
 ### Lore Delta Detection
 
-`ILoreDeltaService` batch-fetches current Wikidata revision IDs via `wbgetentities?props=info` and compares them against the stored `WikidataRevisionId` on each `FictionalEntity`. Changed entities are reported as `LoreDeltaResult` records. The check runs when the Chronicle Explorer page loads (`GET /universe/{qid}/lore-delta`); when it reports changes, the Explorer shows a banner. The Engine does not push a live notification for lore changes.
+`ILoreDeltaService` batch-fetches current Wikidata revision IDs via `wbgetentities?props=info` and compares them against the stored `WikidataRevisionId` on each `FictionalEntity`. Each entity is reported as a `LoreDeltaResult` record and sent over the wire as the Contracts `UniverseLoreDeltaResponse` (`entity_qid`, `label`, `cached_revision`, `current_revision`, `has_changed`); the Dashboard counts the items with `has_changed`. The check runs when the Chronicle Explorer page loads (`GET /universe/{qid}/lore-delta`); when it reports changes, the Explorer shows a banner. The Engine does not push a live notification for lore changes.
 
 ### Era-Correct Actor Resolution
 

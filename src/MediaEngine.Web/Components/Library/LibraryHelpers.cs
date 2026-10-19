@@ -292,6 +292,7 @@ public static class LibraryHelpers
         "UserFixMatch" => "You requested to fix the match for this item.",
         "WritebackFailed" => "Re-tagging this file failed. It may be locked, corrupt, or unwritable.",
         "MediaInspectionFailed" => "This file couldn't be read. It may be damaged or incomplete.",
+        "AmbiguousSeriesMembership" => "Wikidata puts this in the main sequence of more than one Series. It is not on any Series until you choose.",
         _ => "This item needs your attention.",
     };
 
@@ -300,6 +301,7 @@ public static class LibraryHelpers
     {
         "MovieMatchedAsTv" => "Found as a TV title",
         "NameCollision" => "Two different files wanted the same name",
+        "AmbiguousSeriesMembership" => "More than one Series claims this",
         "FromMerge" => "From merge",
         "StagedUnidentifiable" => "This file could not be identified automatically",
         "PlaceholderTitle" => "The title looks like a placeholder or temporary name",

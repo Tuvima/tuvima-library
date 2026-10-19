@@ -28,4 +28,7 @@ public sealed class ProviderSequenceManifestItem
     [JsonPropertyName("release_date")] public string? ReleaseDate { get; init; }
     [JsonPropertyName("description")] public string? Description { get; init; }
     [JsonPropertyName("duration")] public string? Duration { get; init; }
+
+    /// <summary>The membership scope the provider gives the item (a <c>SeriesMembershipScopeNames</c> value); null means main sequence.</summary>
+    [JsonPropertyName("membership_scope")] public string? MembershipScope { get; init; }
 }

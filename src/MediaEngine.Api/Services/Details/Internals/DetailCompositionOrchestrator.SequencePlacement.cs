@@ -342,9 +342,19 @@ internal sealed partial class DetailCompositionOrchestrator
         }
 
         items = SortSequenceItems(items);
-        var hasPositionEvidence = items.Any(HasSequencePositionEvidence);
+
+        // Only main-sequence members are the numbered Series run. Supplementary, collected-content and broader-context
+        // members of the same Series are listed apart as "Also in this world" and are never numbered or counted with it.
+        var allItems = items;
+        var alsoInThisWorld = new List<SequenceItemViewModel>();
+        if (UsesSeriesRunSplit(entityType))
+        {
+            (items, alsoInThisWorld) = SplitSeriesRun(allItems);
+        }
+
+        var hasPositionEvidence = allItems.Any(HasSequencePositionEvidence);
         if (IsUnpositionedSelfNamedSequence(
-                items,
+                allItems,
                 containerTitle,
                 detail.Title,
                 containerId,
@@ -353,7 +363,7 @@ internal sealed partial class DetailCompositionOrchestrator
             return null;
         }
 
-        if (items.Count <= 1 && !hasExplicitSequenceEvidence)
+        if (allItems.Count <= 1 && !hasExplicitSequenceEvidence)
         {
             return null;
         }
@@ -372,16 +382,22 @@ internal sealed partial class DetailCompositionOrchestrator
                 or DetailEntityType.MovieSeries or DetailEntityType.TvShow
                     ? detail.Description
                     : null);
-        var currentIndex = Math.Max(0, items.FindIndex(i => i.IsCurrent));
-        var current = items[currentIndex];
-        var mainSequenceItemCount = items.Count(item =>
+        if (ResolveSequenceNavigation(items, alsoInThisWorld) is not var (navigation, currentIndex, currentIsAlsoInThisWorld))
+        {
+            return null;
+        }
+
+        var current = navigation[currentIndex];
+        var mainSequenceItemCount = allItems.Count(item =>
             string.IsNullOrWhiteSpace(item.MembershipScope)
             || string.Equals(item.MembershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase));
         var expectedTotal = expectedTotalCandidate is > 0 && mainSequenceItemCount >= expectedTotalCandidate
             ? expectedTotalCandidate
             : null;
         var groups = BuildSequenceGroups(items, labels.ItemPluralLabel, expectedTotal);
-        var currentGroup = groups.FirstOrDefault(group => string.Equals(group.Key, current.GroupKey ?? "all", StringComparison.OrdinalIgnoreCase));
+        var currentGroup = currentIsAlsoInThisWorld
+            ? null
+            : groups.FirstOrDefault(group => string.Equals(group.Key, current.GroupKey ?? "all", StringComparison.OrdinalIgnoreCase));
         var totalKnownItems = currentGroup?.TotalKnownItems ?? Math.Max(items.Count, expectedTotal ?? 0);
         var distinctContainers = DeduplicateSequenceContainerOptions(availableContainers);
         return new SequencePlacementViewModel
@@ -414,24 +430,28 @@ internal sealed partial class DetailCompositionOrchestrator
             ItemLabel = labels.ItemLabel,
             ItemPluralLabel = labels.ItemPluralLabel,
             GroupLabel = groups.Count > 1 ? "Series scope" : labels.GroupLabel,
-            CurrentGroupKey = current.GroupKey ?? groups.FirstOrDefault()?.Key,
-            PositionNumber = current.PositionNumber,
-            PositionSort = current.PositionSort,
+            CurrentGroupKey = currentIsAlsoInThisWorld ? groups.FirstOrDefault()?.Key : current.GroupKey ?? groups.FirstOrDefault()?.Key,
+            // A member of "Also in this world" has no number in the Series and is not "x of y".
+            PositionNumber = currentIsAlsoInThisWorld ? null : current.PositionNumber,
+            PositionSort = currentIsAlsoInThisWorld ? null : current.PositionSort,
             TotalKnownItems = totalKnownItems,
             HasAuthoritativeTotal = expectedTotal.HasValue,
-            PositionLabel = current.PositionLabel,
-            PositionText = current.PositionText,
-            PositionSummary = BuildSequencePositionSummary(entityType, current, containerTitle, labels),
+            PositionLabel = currentIsAlsoInThisWorld ? null : current.PositionLabel,
+            PositionText = currentIsAlsoInThisWorld ? null : current.PositionText,
+            PositionSummary = currentIsAlsoInThisWorld
+                ? $"Also in this world · {containerTitle}"
+                : BuildSequencePositionSummary(entityType, current, containerTitle, labels),
             OrderingType = entityType switch
             {
                 DetailEntityType.TvEpisode => SequenceOrderingType.EpisodeNumber,
                 DetailEntityType.ComicIssue => SequenceOrderingType.IssueNumber,
                 _ => SequenceOrderingType.LibraryOrder,
             },
-            PreviousItem = currentIndex > 0 ? items[currentIndex - 1] : null,
+            PreviousItem = currentIndex > 0 ? navigation[currentIndex - 1] : null,
             CurrentItem = current,
-            NextItem = currentIndex < items.Count - 1 ? items[currentIndex + 1] : null,
+            NextItem = currentIndex < navigation.Count - 1 ? navigation[currentIndex + 1] : null,
             OrderedItems = items,
+            AlsoInThisWorld = alsoInThisWorld,
             Groups = groups,
         };
     }

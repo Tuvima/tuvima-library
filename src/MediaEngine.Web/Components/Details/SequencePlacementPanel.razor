@@ -222,8 +222,8 @@
                        aria-current="@(item.IsCurrent ? "page" : null)"
                        aria-label="Open @SequenceItemTitle(item)">
                         <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
-                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
                                               MissingIcon="@MissingIcon" />
@@ -235,8 +235,8 @@
                              aria-current="@(item.IsCurrent ? "page" : null)"
                              aria-label="@SequenceItemAccessibilityLabel(item)">
                         <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
-                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
                                               MissingIcon="@MissingIcon" />
@@ -251,6 +251,33 @@
                        Disabled="@(!CanPageRight)"
                        OnClick="PageRight" />
     </div>
+    }
+
+    @if (AlsoItems.Count > 0)
+    {
+    <div class="tl-series-detail__heading">
+        <div class="tl-series-detail__identity">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Layers" Size="AppSize.Small" />
+            <div>
+                <span>Also in this world</span>
+                <small>@AlsoSummary</small>
+            </div>
+        </div>
+    </div>
+    @foreach (var row in AlsoRows)
+    {
+    <div class="tl-series-detail__carousel">
+        <AppCssElement Tag="div"
+                       Class="tl-series-detail__strip"
+                       Css="@AlsoGridStyle(row)"
+                       aria-label="Also in this world">
+            @foreach (var item in row)
+            {
+                @AlsoItemFragment(item)
+            }
+        </AppCssElement>
+    </div>
+    }
     }
 
     @if (IsWindowedGroup || _loadingWindow || _windowFailed)
@@ -561,8 +588,8 @@ else
                        aria-current="@(item.IsCurrent ? "page" : null)"
                        aria-label="Open @SequenceItemTitle(item)">
                         <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
-                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
                                               MissingIcon="@MissingIcon" />
@@ -574,8 +601,8 @@ else
                              aria-current="@(item.IsCurrent ? "page" : null)"
                              aria-label="@SequenceItemAccessibilityLabel(item)">
                         <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
-                                              ShowConnector="@(previousItem is not null && AreCanonicallyAdjacent(previousItem, item))"
-                                              PositionLabel="@SequenceNumber(item)" Title="@SequenceItemTitle(item)"
+                                              ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
+                                              PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
                                               DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
                                               AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
                                               MissingIcon="@MissingIcon" />
@@ -590,6 +617,28 @@ else
                        Disabled="@(!CanPageRight)"
                        OnClick="PageRight" />
         </div>
+
+        @if (AlsoItems.Count > 0)
+        {
+            <div class="tl-series-eyebrow">
+                <span>Also in this world</span>
+                <small>@AlsoSummary</small>
+            </div>
+            @foreach (var row in AlsoRows)
+            {
+                <div class="tl-series-carousel">
+                    <AppCssElement Tag="div"
+                                   Class="tl-series-strip"
+                                   Css="@AlsoGridStyle(row)"
+                                   aria-label="Also in this world">
+                        @foreach (var item in row)
+                        {
+                            @AlsoItemFragment(item)
+                        }
+                    </AppCssElement>
+                </div>
+            }
+        }
 
         @if (HasMoreConfiguredMissingItems)
         {
@@ -1014,7 +1063,7 @@ else
         // episode watched or adding one changes a count and refreshes the loaded windows.
         var groupStats = string.Join(',', Placement.Groups.Select(group =>
             $"{group.Key}/{group.ItemCount}/{group.ItemOffset}/{group.OwnedCount}/{group.CompletedCount}/{group.Items.Count}"));
-        var key = $"{Placement.ContainerId}:{Placement.SelectedContainerId}:{Placement.CurrentItem.Id}:{Placement.OrderedItems.Count}:{Placement.Groups.Count}:{groupStats}:{Placement.ContainerDescription}:{_activeProfileId}";
+        var key = $"{Placement.ContainerId}:{Placement.SelectedContainerId}:{Placement.CurrentItem.Id}:{Placement.OrderedItems.Count}:{Placement.AlsoInThisWorld.Count}:{Placement.Groups.Count}:{groupStats}:{Placement.ContainerDescription}:{_activeProfileId}";
         if (!ReferenceEquals(Placement, _placementReference))
         {
             // A new placement from the Engine (a reload) makes every window the panel fetched earlier stale.
@@ -1499,31 +1548,70 @@ else
         return $"/details/work/{id:D}?context={ContextKey(item.EntityType)}";
     }
 
-    private static bool AreCanonicallyAdjacent(SequenceItemViewModel left, SequenceItemViewModel right)
+    // The connector between two neighbours means "next in the Series order". The Engine's order is the only source:
+    // two positioned members are joined when they sit next to each other in the group's full list (missing members
+    // included), so a hidden missing member breaks the line and a decimal position never has to be parsed from a label.
+    private bool AreAdjacentInEngineOrder(SequenceItemViewModel left, SequenceItemViewModel right)
     {
-        var leftPosition = CanonicalSequencePosition(left);
-        var rightPosition = CanonicalSequencePosition(right);
-        if (!leftPosition.HasValue || !rightPosition.HasValue)
+        if (!HasEnginePosition(left) || !HasEnginePosition(right))
             return false;
 
-        return Math.Abs((rightPosition.Value - leftPosition.Value) - 1d) < 0.0001d;
+        var ordered = GroupItems;
+        for (var index = 0; index + 1 < ordered.Count; index++)
+        {
+            if (string.Equals(ordered[index].Id, left.Id, StringComparison.OrdinalIgnoreCase))
+                return string.Equals(ordered[index + 1].Id, right.Id, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
-    private static double? CanonicalSequencePosition(SequenceItemViewModel item)
-    {
-        if (item.PositionSort.HasValue)
-            return item.PositionSort.Value;
+    private static bool HasEnginePosition(SequenceItemViewModel item) => item.PositionSort.HasValue || item.PositionNumber.HasValue;
 
-        var label = SequenceNumberOrNull(item);
-        if (string.IsNullOrWhiteSpace(label))
-            return null;
+    // Only main-sequence members with a position carry a number; the rest of the run is unnumbered.
+    private static string SequenceNodeLabel(SequenceItemViewModel item) => SequenceNumberOrNull(item) ?? "\u2022";
 
-        var match = System.Text.RegularExpressions.Regex.Match(label, @"-?\d+(?:\.\d+)?");
-        return match.Success
-            && double.TryParse(match.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : null;
-    }
+    private const int AlsoRowSize = PortraitWindowSize;
+
+    // "Also in this world": supplementary, collected-content and broader-context members of this Series, listed apart
+    // from the numbered run. The same missing-items preference as the run applies; the members are never numbered.
+    private IReadOnlyList<SequenceItemViewModel> AlsoItems => ApplyMissingItemPolicy(Placement.AlsoInThisWorld);
+    private IEnumerable<SequenceItemViewModel[]> AlsoRows => AlsoItems.Chunk(AlsoRowSize);
+    private static string AlsoGridStyle(IReadOnlyCollection<SequenceItemViewModel> row) => $"--series-count:{Math.Max(1, row.Count)};";
+    private string AlsoSummary => $"{AlsoItems.Count} {(AlsoItems.Count == 1 ? ItemNoun : Placement.ItemPluralLabel).ToLowerInvariant()} · not part of the numbered {LowerContainerLabel}";
+
+    private RenderFragment AlsoItemFragment(SequenceItemViewModel item) => @<text>
+        @{
+            var alsoRoute = SequenceItemRoute(item);
+        }
+        @if (alsoRoute is not null)
+        {
+            <a class="@SequenceItemClass(item)"
+               href="@alsoRoute"
+               aria-current="@(item.IsCurrent ? "page" : null)"
+               aria-label="Open @SequenceItemTitle(item)">
+                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                      MissingIcon="@MissingIcon" />
+            </a>
+        }
+        else
+        {
+            <article class="@SequenceItemClass(item)"
+                     aria-current="@(item.IsCurrent ? "page" : null)"
+                     aria-label="@SequenceItemAccessibilityLabel(item)">
+                <SequenceEntryContent Item="item" IsSeasonContainer="false" ShowConnector="false"
+                                      PositionLabel="@SequenceNodeLabelForAlso" Title="@SequenceItemTitle(item)"
+                                      DisplayTitle="@SequenceItemDisplayTitle(item)" TitleClass="@SequenceItemTitleClass(item)"
+                                      AirDate="@SequenceItemAirDate(item)" ItemDate="@SequenceItemDate(item)"
+                                      MissingIcon="@MissingIcon" />
+            </article>
+        }
+    </text>;
+
+    private const string SequenceNodeLabelForAlso = "\u2022";
 
     private string SequenceItemDisplayTitle(SequenceItemViewModel item)
         => IsSeasonContainer
