@@ -4,24 +4,20 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase6SettingsAdminHardeningTests
 {
     [Fact]
-    public void SystemOverview_RemainsConciseAndRoutesProcessingToIngestion()
+    public void LibrarySummary_RemainsConciseAndRoutesReviewAndLibrariesOnward()
     {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
 
-        Assert.Contains("System exceptions", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("System Status", source, StringComparison.Ordinal);
-        Assert.Contains("Recent Activity", source, StringComparison.Ordinal);
+        Assert.Contains("Library summary", source, StringComparison.Ordinal);
         Assert.Contains("CompositionAccessibleLabel", source, StringComparison.Ordinal);
         Assert.Contains("item.Percent.ToString", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Math.Max(item.Percent", source, StringComparison.Ordinal);
         Assert.Contains("<AppIconTile", source, StringComparison.Ordinal);
-        Assert.Contains("AppActivityPresentation.For", source, StringComparison.Ordinal);
-        Assert.Contains("<span>Type</span>", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<BackupRecoveryPanel", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ingestion", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Operational Snapshot", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Recent Ingestion Runs", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Run ID", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/recently-added?review=expanded", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Local AI", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("optional setup", source, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -42,27 +38,24 @@ public sealed class Phase6SettingsAdminHardeningTests
     }
 
     [Fact]
-    public void SystemOverview_UsesTheCompactReferenceSizingRhythm()
+    public void LibrarySummary_UsesTheCompactReferenceSizingRhythm()
     {
-        var overview = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
-        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css");
-        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var summary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
+        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css");
+        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
-        Assert.Contains("admin-overview-card--attention admin-attention-strip", overview, StringComparison.Ordinal);
-        Assert.Contains("padding: 18px", styles, StringComparison.Ordinal);
+        Assert.Contains("library-summary__attention", summary, StringComparison.Ordinal);
         Assert.Contains("height: 6px", styles, StringComparison.Ordinal);
         Assert.Contains("min-height: 46px", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-overview-page ::deep .admin-library-summary", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-library-breakdown ::deep .admin-library-media", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-library-media::after", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-composition-bar ::deep .admin-composition-bar__segment", styles, StringComparison.Ordinal);
-        Assert.DoesNotContain("admin-composition-legend", overview, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__breakdown ::deep .library-summary__media", styles, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__media::after", styles, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__composition ::deep .library-summary__segment", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("legend", summary, StringComparison.Ordinal);
         Assert.Contains("var(--tl-font-size-secondary)", styles, StringComparison.Ordinal);
         Assert.Contains("font-size: clamp(1.875rem, 2vw, 2rem)", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("font-weight: 600", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Large => \"1.75rem\"", iconTile, StringComparison.Ordinal);
-        Assert.DoesNotContain("admin-overview-primary-grid", overview, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,7 +239,11 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("<ManagedAccessUsers />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Scope=", source, StringComparison.Ordinal);
         Assert.DoesNotContain("My household", source, StringComparison.Ordinal);
-        Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
+        Assert.Contains("Profile access", users, StringComparison.Ordinal);
+        // People, households, renaming and PINs are looked after under Profiles, not in the accounts list.
+        Assert.DoesNotContain("Households", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateManagedProfileResultAsync", users, StringComparison.Ordinal);
+        Assert.DoesNotContain("SetGrantProtectionResultAsync", users, StringComparison.Ordinal);
         Assert.Contains("Invite user", users, StringComparison.Ordinal);
         Assert.DoesNotContain("external-logins", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Owner Administrator\", \"library:read, ingest:write", source, StringComparison.Ordinal);
@@ -258,10 +255,13 @@ public sealed class Phase6SettingsAdminHardeningTests
     public void DeliveryPluginsAndLocalAi_AreTruthLabeled()
     {
         var delivery = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor");
+        var encode = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor");
         var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
         var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("Variant Storage", delivery, StringComparison.Ordinal);
+        // The user-facing name is "optimized copies" (the code still calls them variants).
+        Assert.Contains("Optimized copy storage", encode, StringComparison.Ordinal);
+        Assert.DoesNotContain("Variant storage", encode, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
         Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
         Assert.Contains("plugin-provided settings", plugins, StringComparison.Ordinal);
@@ -272,7 +272,8 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Plugin manifest JSON", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_settingsJson", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_manifestJson", plugins, StringComparison.Ordinal);
-        Assert.Contains("_status?.IsReady != true", localAi, StringComparison.Ordinal);
+        // The "limited availability" alert moved to the permanent Local AI page notice, which reads the shared attention state.
+        Assert.DoesNotContain("_status?.IsReady", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", localAi, StringComparison.Ordinal);
     }
 

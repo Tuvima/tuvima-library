@@ -4,24 +4,28 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject DeviceContextService DeviceContext
 
-<div class="network-panel">
-    <header class="network-panel__heading"><div><h3>Remote Streaming</h3><p>Protect your upload connection while Tuvima Library chooses an appropriate playback quality.</p></div></header>
+<div class="streaming-limits">
+    <header class="streaming-limits__heading"><div><h3>Limits and Quality</h3><p>Protect your upload connection while Tuvima Library chooses an appropriate playback quality.</p></div></header>
 
-    <SettingsSectionPanel Title="Remote Streaming Quality" Icon="@AppMaterialIcons.Outlined.HighQuality">
-        <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
-                   Label="Quality" Options="@QualityOptions" />
-        <AppSwitchRow Label="Automatic Upload Protection"
-                      Description="Keep bandwidth available for the rest of your home."
-                      Value="@Settings.Streaming.UploadProtectionEnabled"
-                      ValueChanged="ChangeUploadProtectionAsync" />
-        <AppNumericField @bind-Value="Settings.Streaming.ReservedUploadMbps"
-                         Label="Bandwidth reserved for other traffic (Mbps)" Min="0" Max="10000" />
-        <div class="network-card-actions"><AppButton Label="Save streaming settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" /></div>
-    </SettingsSectionPanel>
+    @if (!DeviceContext.IsMobile)
+    {
+        <SettingsSectionPanel Title="Remote Streaming Quality" Icon="@AppMaterialIcons.Outlined.HighQuality">
+            <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
+                       Label="Quality" Options="@QualityOptions" />
+            <AppSwitchRow Label="Automatic Upload Protection"
+                          Description="Keep bandwidth available for the rest of your home."
+                          Value="@Settings.Streaming.UploadProtectionEnabled"
+                          ValueChanged="ChangeUploadProtectionAsync" />
+            <AppNumericField @bind-Value="Settings.Streaming.ReservedUploadMbps"
+                             Label="Bandwidth reserved for other traffic (Mbps)" Min="0" Max="10000" />
+            <div class="streaming-limits__actions"><AppButton Label="Save streaming settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" /></div>
+        </SettingsSectionPanel>
+    }
 
     <SettingsSectionPanel Title="Upload Capacity" Icon="@AppMaterialIcons.Outlined.Speed">
-        <dl class="network-bandwidth-grid">
+        <dl class="streaming-limits__bandwidth-grid">
             @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
             @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")
             @Fact("Available to Tuvima Library", FormatBandwidth(Status?.Bandwidth.AvailableMbps))
@@ -30,17 +34,13 @@
         {
             <AppAlert Tone="AppUiTone.Info">A trusted external measurement target is not configured. No sample bandwidth result has been substituted.</AppAlert>
         }
-        <div class="network-card-actions"><AppButton Label="Test Bandwidth" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
+        <div class="streaming-limits__actions"><AppButton Label="Test Bandwidth" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
     </SettingsSectionPanel>
 
     <SettingsSectionPanel Title="Concurrent Remote Streaming" Icon="@AppMaterialIcons.Outlined.Groups">
         <AppSelect T="string" Value="automatic" Label="Remote stream allocation"
                    Options="@ConcurrencyOptions" Disabled="true" />
-        <p class="network-supporting-copy">Tuvima Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
-    </SettingsSectionPanel>
-
-    <SettingsSectionPanel Title="Hardware Acceleration" Icon="@AppMaterialIcons.Outlined.Memory">
-        <div class="network-hardware-row"><div><strong>@DisplayHardware(Status?.HardwareAcceleration)</strong><span>Current Playback & Delivery preference</span></div><AppButton Label="Open Playback & Delivery" Href="/settings/delivery" /></div>
+        <p class="streaming-limits__supporting-copy">Tuvima Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
     </SettingsSectionPanel>
 </div>
 
@@ -77,6 +77,5 @@
     }
 
     private static string FormatBandwidth(double? value) => value.HasValue ? $"{value.Value:0.#} Mbps" : "Not tested";
-    private static string DisplayHardware(string? value) => string.IsNullOrWhiteSpace(value) ? "Unavailable" : value == "auto" ? "Automatic" : value;
     private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

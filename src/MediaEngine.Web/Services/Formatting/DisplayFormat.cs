@@ -19,8 +19,7 @@ public static class DisplayFormat
     /// <summary>
     /// "Xh Ym" when the duration is at least an hour, otherwise "Xm Ys".
     /// Normalizes the sign via <see cref="TimeSpan.Duration()"/> first.
-    /// Originally duplicated (identical formatting logic) in
-    /// Components/Settings/OverviewTab.razor and, via
+    /// Originally duplicated (identical formatting logic) in a retired overview page and, via
     /// <see cref="FormatDurationHoursMinutesOrNull"/>, Components/Settings/IngestionBatchHistory.razor.
     /// </summary>
     public static string FormatDurationHoursMinutes(TimeSpan duration)

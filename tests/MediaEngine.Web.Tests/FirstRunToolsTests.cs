@@ -348,20 +348,33 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     // ── Local AI keeps only AI settings ──────────────────────────────────────
 
     [Fact]
-    public void LocalAiRuntimePage_NoLongerShowsModelFiles_AndPointsToTheToolsPage()
+    public void LocalAiOverview_KeepsOnlyAiSettings_AndPointsToTheToolsPageForTheRuntime()
     {
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "models"));
+        var cut = Render<LocalAiSettingsTab>();
 
-        cut.WaitForAssertion(() => Assert.Contains("Runtime settings", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains("Model files and downloads are on Tools and requirements.", cut.Markup, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Contains("Enabled features", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Model files, downloads and the Local AI runtime are on Tools and requirements.", cut.Markup, StringComparison.Ordinal);
         Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/tools");
-        // The per-model cards (and their Download, Cancel, Load and Unload buttons) moved to the tools page.
+        // The runtime and the per-model cards (and their Download, Cancel, Load and Unload buttons) are on the tools page.
+        Assert.DoesNotContain("Runtime settings", cut.Markup, StringComparison.Ordinal);
         foreach (var label in new[] { "Download", "Cancel", "Load", "Unload" })
         {
             Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == label);
         }
 
         Assert.DoesNotContain("fast.gguf", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToolsPage_AlsoHoldsThePlaybackToolsStatus_AndTheLocalAiRuntime()
+    {
+        _onGet = _ => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready));
+
+        var cut = Render<ToolsRequirementsTab>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Playback tools and services", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Local AI runtime", cut.Find("[data-testid=local-ai-runtime]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Runtime settings", cut.Find("[data-testid=local-ai-runtime]").TextContent, StringComparison.Ordinal);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

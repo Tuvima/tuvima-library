@@ -3036,7 +3036,6 @@ input.app-control.tl-input-slot,
     display: flex;
     flex-direction: column;
     gap: 24px;
-    max-width: 920px;
 }
 
 .dev-harness-header h2,

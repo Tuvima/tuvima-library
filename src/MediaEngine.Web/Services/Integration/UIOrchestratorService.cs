@@ -572,6 +572,14 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return _reviewCount;
     }
 
+    /// <summary>
+    /// Like <see cref="RefreshReviewCountAsync"/>, but says whether the Engine really answered: null when the caller may
+    /// not see the count or the read failed. A failed read is never a count of zero, so callers deciding that the queue
+    /// is empty (and forgetting a remembered dismissal) must use this one.
+    /// </summary>
+    public Task<int?> TryRefreshReviewCountAsync(CancellationToken ct = default)
+        => RefreshReviewCountSnapshotAsync(ct);
+
     /// <summary>Returns pending review queue items.</summary>
     public Task<List<ReviewItemViewModel>> GetPendingReviewsAsync(
         int limit = 50, CancellationToken ct = default)
@@ -654,8 +662,11 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return ok;
     }
 
-    private async Task RefreshReviewCountSnapshotAsync(CancellationToken ct = default)
+    // Returns the count the Engine reported, or null when the caller may not see it or the read failed. The cached
+    // badge count keeps its last value when a read fails, and is zero for a caller who may not see the queue.
+    private async Task<int?> RefreshReviewCountSnapshotAsync(CancellationToken ct = default)
     {
+        int? read = null;
         try
         {
             var activeProfile = _activeProfileSession.CurrentProfile
@@ -664,10 +675,14 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             {
                 _reviewCount = 0;
                 OnReviewCountChanged?.Invoke();
-                return;
+                return null;
             }
 
-            _reviewCount = await _api.GetReviewCountAsync(ct);
+            read = await _api.GetReviewCountAsync(ct);
+            if (read is { } count)
+            {
+                _reviewCount = count;
+            }
         }
         catch (Exception ex)
         {
@@ -675,6 +690,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         }
 
         OnReviewCountChanged?.Invoke();
+        return read;
     }
 
     /// <summary>Fires when the review count changes (from SignalR events or explicit actions).</summary>

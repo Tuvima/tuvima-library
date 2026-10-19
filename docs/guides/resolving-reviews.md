@@ -15,7 +15,7 @@ Only server administrators can see and resolve Needs Review. Household administr
 
 ## Open an item
 
-1. Open the account menu and choose **Needs Review**, or open **Settings**, then **Recently Added**. The **Needs Review** list is pinned at the top, oldest first.
+1. Open the account menu and choose **Needs Review**, or open **Settings**, then **Library and Ingestion**, then **View all** under Recently added. The **Needs Review** list is pinned at the top, oldest first.
 2. Select an item and read why it needs help.
 3. Choose **Review** to open the shared editor with that reason.
 4. Check the file facts and offered matches before acting.

@@ -1,6 +1,6 @@
 # Spec: Settings revamp (one look, one Devices page, one attention banner)
 
-> **Status:** Locked · **Version:** 1.1 · **Last updated:** 2026-10-19 (locked by Shy; drafted as versions 2 to 31 in the planning thread; v1.1 change note below) · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [First run and prerequisites](archive/first-run-prerequisites.md) · [Profiles setup redesign](profiles-setup-redesign.md)
+> **Status:** In progress · **Version:** 1.1 · **Last updated:** 2026-10-19 (locked by Shy; drafted as versions 2 to 31 in the planning thread; v1.1 change note below) · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [First run and prerequisites](archive/first-run-prerequisites.md) · [Profiles setup redesign](profiles-setup-redesign.md)
 
 > Group 5 of the 2026-10-18 bug list (bugs 24, 7, 10, 9, 29 and planning item D, with bug 14 folded in as an optional last packet). Checked against the code on main. Where something is inferred, it says so. Nothing is built. The mockup that shows the new look is kept in the planning project's shared files (plans/settings-revamp/mockup.html). Bug 9 (Shy: wasted space, misaligned buttons, off-brand) is answered by the mockup.
 

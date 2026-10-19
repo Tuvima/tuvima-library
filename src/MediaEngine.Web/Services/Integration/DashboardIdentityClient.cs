@@ -453,11 +453,24 @@ public sealed class DashboardIdentityClient(
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 
+    /// <summary>The households the Engine lets this administrator see: every household for a server administrator, their own otherwise.</summary>
+    public async Task<List<HouseholdResponse>> GetManagedHouseholdsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<HouseholdResponse>>("/access/households", ct).ConfigureAwait(false) ?? [];
+
+    /// <summary>Adds an empty household (server administrator only). A refusal keeps the Engine's plain reason in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdResponse>> CreateManagedHouseholdResultAsync(string name, CancellationToken ct = default) =>
+        SendMutationAsync<CreateHouseholdRequest, HouseholdResponse>(HttpMethod.Post, "/access/households", new CreateHouseholdRequest(name), ct, includeMessage: true);
+
+    /// <summary>Renames a household (server administrator only). A refusal keeps the Engine's plain reason in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult<HouseholdResponse>> RenameManagedHouseholdResultAsync(Guid householdId, string name, CancellationToken ct = default) =>
+        SendMutationAsync<RenameHouseholdRequest, HouseholdResponse>(HttpMethod.Put, $"/access/households/{householdId:D}", new RenameHouseholdRequest(name), ct, includeMessage: true);
+
+    /// <summary>Removes an empty household (server administrator only). The Engine refuses with 409 while people, sign-ins or shared photos remain; its sentence is kept in <c>Message</c>.</summary>
+    public Task<DashboardAccessMutationResult> DeleteManagedHouseholdResultAsync(Guid householdId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/households/{householdId:D}", ct, includeMessage: true);
+
     public async Task<List<AccessLibraryOptionDto>> GetAccessLibrariesAsync(CancellationToken ct = default) =>
         await GetAsync<List<AccessLibraryOptionDto>>("/access/libraries", ct).ConfigureAwait(false) ?? [];
-
-    public Task<DashboardAccessMutationResult<ManagedProfileResponse>> CreateManagedProfileResultAsync(CreateManagedProfileRequest request, CancellationToken ct = default) =>
-        SendMutationAsync<CreateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Post, "/access/profiles", request, ct);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
@@ -465,7 +478,7 @@ public sealed class DashboardIdentityClient(
     /// <summary>Removes a person. Their habits always go; <paramref name="keepPhotos"/> moves their personal photos to the Shared Library (true) or deletes them (false).</summary>
     public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, bool keepPhotos = true, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.ProfileId == profileId);
@@ -540,7 +553,7 @@ public sealed class DashboardIdentityClient(
 
     public async Task<DashboardAccessMutationResult<AccountAccessResponse>> UpdateManagedAccountResultAsync(Guid accountId, UpdateManagedAccountRequest request, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct).ConfigureAwait(false);
+        var result = await SendMutationAsync<UpdateManagedAccountRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}", request, ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded && !request.IsEnabled)
         {
             // A disabled account's open screens go to sign-in at once instead of at the next check.
@@ -555,7 +568,7 @@ public sealed class DashboardIdentityClient(
 
     public async Task<DashboardAccessMutationResult> DeleteManagedAccountResultAsync(Guid accountId, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.AccountId == accountId);
@@ -565,20 +578,20 @@ public sealed class DashboardIdentityClient(
     }
 
     public Task<DashboardAccessMutationResult> ReplaceManagedAccountAccessResultAsync(Guid accountId, ReplaceAccountAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/access", request, ct, includeMessage: true);
 
     public Task<DashboardAccessMutationResult> SetManagedProfileGrantResultAsync(Guid accountId, Guid profileId, SetAccountProfileGrantAccessRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}", request, ct, includeMessage: true);
 
     public Task<DashboardAccessMutationResult> SetGrantProtectionResultAsync(Guid accountId, Guid profileId, SetGrantAdminProtectionRequest request, CancellationToken ct = default) =>
-        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct);
+        SendMutationAsync(HttpMethod.Put, $"/access/accounts/{accountId:D}/grants/{profileId:D}/admin-protection", request, ct, includeMessage: true);
 
     public async Task<bool> RevokeManagedProfileGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default) =>
         (await RevokeManagedProfileGrantResultAsync(accountId, profileId, ct).ConfigureAwait(false)).Succeeded;
 
     public async Task<DashboardAccessMutationResult> RevokeManagedProfileGrantResultAsync(Guid accountId, Guid profileId, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/grants/{profileId:D}", ct, includeMessage: true).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.AccountId == accountId && screen.ProfileId == profileId);
@@ -762,7 +775,7 @@ public sealed class DashboardIdentityClient(
 
     /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
-        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct);
+        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct, includeMessage: true);
 
     private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
     {
@@ -820,6 +833,13 @@ public sealed class DashboardIdentityClient(
 
     public async Task<List<AccountExternalLoginDto>> GetExternalLoginsAsync(CancellationToken ct = default) =>
         await GetAsync<List<AccountExternalLoginDto>>("/access/self-service/external-logins", ct).ConfigureAwait(false) ?? [];
+
+    /// <summary>The reminders the signed-in account chose "Not now" for. Null means the Engine could not answer.</summary>
+    public Task<AccountNoticesResponse?> GetAccountNoticesAsync(CancellationToken ct = default) =>
+        GetAsync<AccountNoticesResponse>("/access/self-service/notices", ct);
+
+    public Task<DashboardAccessMutationResult> DismissAccountNoticeAsync(string noticeKey, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Post, $"/access/self-service/notices/{Uri.EscapeDataString(noticeKey)}/dismiss", ct);
 
     public async Task<bool> UnlinkExternalLoginAsync(Guid id, CancellationToken ct = default) =>
         (await UnlinkExternalLoginResultAsync(id, ct).ConfigureAwait(false)).Succeeded;
@@ -887,7 +907,8 @@ public sealed class DashboardIdentityClient(
         HttpMethod method,
         string path,
         TRequest body,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -895,7 +916,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                return await ReadMutationFailureAsync<TResponse>(response, ct).ConfigureAwait(false);
+                return await ReadMutationFailureAsync<TResponse>(response, ct, includeMessage).ConfigureAwait(false);
             }
 
             try
@@ -968,7 +989,8 @@ public sealed class DashboardIdentityClient(
         HttpMethod method,
         string path,
         object body,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -976,7 +998,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode
                 ? DashboardAccessMutationResult.Success()
-                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+                : await ReadMutationFailureAsync(response, ct, includeMessage).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {
@@ -991,7 +1013,8 @@ public sealed class DashboardIdentityClient(
     private async Task<DashboardAccessMutationResult> SendMutationAsync(
         HttpMethod method,
         string path,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeMessage = false)
     {
         try
         {
@@ -999,7 +1022,7 @@ public sealed class DashboardIdentityClient(
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode
                 ? DashboardAccessMutationResult.Success()
-                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+                : await ReadMutationFailureAsync(response, ct, includeMessage).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {
@@ -1011,22 +1034,57 @@ public sealed class DashboardIdentityClient(
         }
     }
 
-    private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields);
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
     }
 
-    private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
             : [];
-        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields);
+        var message = includeMessage ? await ReadPlainMessageAsync(response, failure, ct).ConfigureAwait(false) : null;
+        return DashboardAccessMutationResult.FailureResult(failure, response.StatusCode, fields, message);
+    }
+
+    // The Engine's own sentence for a rule refusal (a bad name, a household that still holds people). Only calls that opt in
+    // read it, and only for those two classes of refusal, so submitted values are never replayed.
+    private static async Task<string?> ReadPlainMessageAsync(HttpResponseMessage response, DashboardAccessMutationFailure failure, CancellationToken ct)
+    {
+        if (failure is not (DashboardAccessMutationFailure.Conflict or DashboardAccessMutationFailure.Validation))
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("detail", out var detail)
+                && detail.ValueKind == JsonValueKind.String
+                    ? detail.GetString()
+                    : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
     }
 
     // A 403 can mean "not allowed" or "confirm it's you first"; only the second one has a way forward in the UI.

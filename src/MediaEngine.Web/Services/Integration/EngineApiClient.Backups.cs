@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.System;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -23,6 +24,9 @@ public sealed partial class EngineApiClient
     // and logged by GetAsync. A brand-new install answers step 0, which is a real answer and not null.
     public Task<DataStoreVersionDto?> GetDataStoreVersionAsync(CancellationToken ct = default) =>
         GetAsync<DataStoreVersionDto>("GET /system/data-store-version", "/system/data-store-version", ct: ct);
+
+    public Task<SystemResourcesDto?> GetSystemResourcesAsync(CancellationToken ct = default) =>
+        GetAsync<SystemResourcesDto>("GET /system/resources", "/system/resources", ct: ct);
 
     public Task<BackupArchiveDto?> CreateBackupAsync(CancellationToken ct = default) =>
         PostAsync<CreateBackupRequest, BackupArchiveDto>(

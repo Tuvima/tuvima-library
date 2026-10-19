@@ -132,7 +132,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AccountMenu_OffersSecureAccountOnlyWhileTheAccountIsThisComputerOnly()
+    public void AccountMenu_ShowsTheSecureYourAccountCardAboveTheNameOnlyWhileTheAccountIsThisComputerOnly()
     {
         Services.AddLocalization();
         var offered = Render<TopNavAccountMenu>(parameters => parameters
@@ -140,15 +140,133 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
             .Add(menu => menu.ShowSecureAccount, true));
         offered.Find(".top-nav-account-menu__trigger").Click();
 
-        Assert.Single(offered.FindAll(".top-nav-account-menu__trigger .top-nav-account-menu__attention-dot"));
-        Assert.Contains(offered.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
+        // The card is the very first thing in the menu, above the name header.
+        var panel = offered.Find(".top-nav-account-menu__panel");
+        Assert.Contains("top-nav-account-menu__secure-card", panel.Children[0].ClassName, StringComparison.Ordinal);
+        Assert.Contains("top-nav-account-menu__header", panel.Children[1].ClassName, StringComparison.Ordinal);
+        Assert.Equal("Secure your account", offered.Find(".top-nav-account-menu__secure-title").TextContent);
+        Assert.Equal("Add a password to use the Library away from home. Phones and TVs at home keep working without one.",
+            offered.Find(".top-nav-account-menu__secure-body").TextContent);
+        Assert.DoesNotContain("Tuvima", offered.Find(".top-nav-account-menu__secure-card").TextContent, StringComparison.Ordinal);
+
+        var secure = offered.Find(".top-nav-account-menu__secure-card a");
+        Assert.Equal(SecureAccountPrompt.SecureAccountHref, secure.GetAttribute("href"));
+        Assert.Equal("Secure account", secure.TextContent.Trim());
+        Assert.Equal("Not now", offered.Find(".top-nav-account-menu__secure-card button").TextContent.Trim());
+
+        // The old avatar dot and the "Secure account" menu item are gone.
+        Assert.Empty(offered.FindAll(".top-nav-account-menu__attention-dot"));
+        Assert.DoesNotContain(offered.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
 
         var secured = Render<TopNavAccountMenu>(parameters => parameters
             .Add(menu => menu.DisplayName, "Owner"));
         secured.Find(".top-nav-account-menu__trigger").Click();
 
+        Assert.Empty(secured.FindAll(".top-nav-account-menu__secure-card"));
         Assert.Empty(secured.FindAll(".top-nav-account-menu__attention-dot"));
-        Assert.DoesNotContain(secured.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
+        Assert.DoesNotContain(secured.FindAll("a"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
+    }
+
+    [Fact]
+    public void AccountMenu_NotNowReportsTheChoiceAndTheCardDisappearsImmediately()
+    {
+        Services.AddLocalization();
+        var notNowCount = 0;
+        var menu = Render<TopNavAccountMenu>(parameters => parameters
+            .Add(component => component.DisplayName, "Owner")
+            .Add(component => component.ShowSecureAccount, true)
+            .Add(component => component.OnSecureAccountNotNow, new Microsoft.AspNetCore.Components.EventCallbackFactory()
+                .Create(this, () => notNowCount++)));
+        menu.Find(".top-nav-account-menu__trigger").Click();
+
+        menu.Find(".top-nav-account-menu__secure-card button").Click();
+
+        Assert.Equal(1, notNowCount);
+        Assert.Empty(menu.FindAll(".top-nav-account-menu__secure-card"));
+        // The menu itself stays open and clean.
+        Assert.NotEmpty(menu.FindAll(".top-nav-account-menu__panel"));
+        Assert.Empty(menu.FindAll(".top-nav-account-menu__attention-dot"));
+    }
+
+    [Fact]
+    public void AccountMenu_NeverShowsTheSecureCardOnAKidsProfile()
+    {
+        Services.AddLocalization();
+        var menu = Render<TopNavAccountMenu>(parameters => parameters
+            .Add(component => component.DisplayName, "Kid")
+            .Add(component => component.IsKids, true)
+            .Add(component => component.ShowSecureAccount, true));
+        menu.Find(".top-nav-account-menu__trigger").Click();
+
+        Assert.Empty(menu.FindAll(".top-nav-account-menu__secure-card"));
+    }
+
+    [Fact]
+    public async Task AccountNoticeState_RemembersNotNowWithTheEngineAndHidesTheReminderAtOnce()
+    {
+        var handler = new NoticeHandler();
+        var state = new AccountNoticeState(new DashboardIdentityClient(new NoticeClientFactory(handler)));
+        var changes = 0;
+        state.Changed += () => changes++;
+
+        await state.EnsureLoadedAsync();
+        Assert.False(state.IsDismissed(AccountNoticeKeys.SecureAccount));
+
+        await state.DismissAsync(AccountNoticeKeys.SecureAccount);
+
+        Assert.True(state.IsDismissed(AccountNoticeKeys.SecureAccount));
+        Assert.Equal(["/access/self-service/notices", "/access/self-service/notices/secure-account/dismiss"], handler.Requests.Select(r => r.Path));
+        Assert.Equal([HttpMethod.Get, HttpMethod.Post], handler.Requests.Select(r => r.Method));
+        Assert.True(changes >= 2);
+    }
+
+    [Fact]
+    public async Task AccountNoticeState_ReadsWhatTheEngineAlreadyRemembersForTheAccount()
+    {
+        var handler = new NoticeHandler { Dismissed = [AccountNoticeKeys.SecureAccount] };
+        var state = new AccountNoticeState(new DashboardIdentityClient(new NoticeClientFactory(handler)));
+
+        await state.EnsureLoadedAsync();
+
+        Assert.True(state.IsDismissed(AccountNoticeKeys.SecureAccount));
+    }
+
+    [Fact]
+    public async Task AccountNoticeState_WhenTheEngineCannotSaveStillHidesTheReminderForNow()
+    {
+        var handler = new NoticeHandler { FailDismiss = true };
+        var state = new AccountNoticeState(new DashboardIdentityClient(new NoticeClientFactory(handler)));
+
+        await state.DismissAsync(AccountNoticeKeys.SecureAccount);
+
+        Assert.True(state.IsDismissed(AccountNoticeKeys.SecureAccount));
+    }
+
+    private sealed class NoticeClientFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, false) { BaseAddress = new Uri("http://engine.test") };
+    }
+
+    private sealed class NoticeHandler : HttpMessageHandler
+    {
+        public string[] Dismissed { get; set; } = [];
+        public bool FailDismiss { get; set; }
+        public List<(HttpMethod Method, string Path)> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add((request.Method, request.RequestUri!.AbsolutePath));
+            if (request.Method == HttpMethod.Post)
+            {
+                return Task.FromResult(new HttpResponseMessage(FailDismiss ? HttpStatusCode.InternalServerError : HttpStatusCode.NoContent));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(new AccountNoticesResponse(Dismissed)), Encoding.UTF8, "application/json"),
+            });
+        }
     }
 
     [Fact]
@@ -184,7 +302,8 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         Assert.DoesNotContain("tl-this-computer-banner", layout + css, StringComparison.Ordinal);
         Assert.DoesNotContain("with-banner", layout + css, StringComparison.Ordinal);
         Assert.Contains("_thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(", layout, StringComparison.Ordinal);
-        Assert.Contains("ShowSecureAccount=\"@_thisComputerOnly\"", layout, StringComparison.Ordinal);
+        Assert.Contains("ShowSecureAccount=\"@ShowSecureAccountCard\"", layout, StringComparison.Ordinal);
+        Assert.Contains("OnSecureAccountNotNow=\"@DismissSecureAccountAsync\"", layout, StringComparison.Ordinal);
         Assert.Contains("OnSecureAccountRequired", layout, StringComparison.Ordinal);
     }
 

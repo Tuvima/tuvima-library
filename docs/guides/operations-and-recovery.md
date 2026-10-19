@@ -35,7 +35,7 @@ They can turn two-step codes back on from Account > Security. The reset is recor
 
 ## Follow active work
 
-Open Operations at `/settings/ingestion`, shown as **Live Ingestion** in the Settings sidebar. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.
+Open Operations at `/settings/ingestion`, shown as **Library and Ingestion** in the Settings sidebar, which opens on the library summary, then live ingestion, then recently added. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.
 
 Operations refreshes automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) starts an extra scan of watched folders. The green navbar activity indicator opens the same page.
 
@@ -123,7 +123,7 @@ Contributors adding a data store change: see [Changing the data store](../develo
    ```
 
 5. Wait for `healthy`.
-6. Check **Settings → System Overview**, a representative library page, playback, and Operations.
+6. Check **Settings → Library and Ingestion** (the library summary and live ingestion), **Settings → System**, a representative library page, playback, and Operations.
 
 A digest identifies the exact image. Tags such as `latest` are moving update channels. The image workflow is configured to generate an SBOM and provenance and sign the image digest; verify the particular image you use.
 

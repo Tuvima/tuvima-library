@@ -169,6 +169,17 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/access/accounts/{accountId:guid}/grants/{profileId:guid}/admin-protection", HttpMethods.Put)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
 
+        // Households: anyone eligible may ask for the list (the service limits a household administrator to their own);
+        // adding, renaming and removing are for server administrators and trusted applications only.
+        inventory.Require("/access/households", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead, allowHouseholdAdministrator: true);
+        inventory.Require("/access/households", HttpMethods.Post)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: false);
+        inventory.Require("/access/households/{householdId:guid}", HttpMethods.Put)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: false);
+        inventory.Require("/access/households/{householdId:guid}", HttpMethods.Delete)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: false);
+
         // Server administrators and household administrators (who may turn on their own PIN) use the unlock routes.
         inventory.Require("/access/admin-unlock", HttpMethods.Get)
             .RequiresEffectiveAdministratorOrHousehold(surfaceUnlock: false);
@@ -196,6 +207,9 @@ public sealed class MappedEndpointInventoryTests
 
         inventory.Require("/system/activity-status", HttpMethods.Get)
             .RequiresHumanOrApplicationPermission(ApplicationPermissionIds.SystemActivityRead);
+
+        inventory.Require("/system/resources", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
 
         inventory.Require("/system/data-store-version", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
@@ -301,6 +315,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<HardwareBenchmarkService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not benchmark hardware."));
         builder.Services.AddSingleton<ResourceMonitorService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not sample machine resources."));
+        builder.Services.AddSingleton<SystemResourcesService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not sample machine resources."));
         builder.Services.AddSingleton<ModelInventory>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not initialize the AI model inventory."));
@@ -413,6 +429,14 @@ public sealed class MappedEndpointInventoryTests
             var policy = Assert.Single(Policies);
             var requirement = Assert.Single(policy.Requirements.OfType<AdministratorOrApplicationRequirement>());
             Assert.Equal(permission, requirement.Permission);
+            return this;
+        }
+
+        public EndpointRecord RequiresAdministratorOrApplication(ApplicationPermissionId permission, bool allowHouseholdAdministrator)
+        {
+            RequiresAdministratorOrApplication(permission);
+            var requirement = Assert.Single(Policies[0].Requirements.OfType<AdministratorOrApplicationRequirement>());
+            Assert.Equal(allowHouseholdAdministrator, requirement.AllowHouseholdAdministrator);
             return this;
         }
 
