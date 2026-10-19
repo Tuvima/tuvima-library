@@ -4,24 +4,20 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase6SettingsAdminHardeningTests
 {
     [Fact]
-    public void SystemOverview_RemainsConciseAndRoutesProcessingToIngestion()
+    public void LibrarySummary_RemainsConciseAndRoutesReviewAndLibrariesOnward()
     {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
 
-        Assert.Contains("System exceptions", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("System Status", source, StringComparison.Ordinal);
-        Assert.Contains("Recent Activity", source, StringComparison.Ordinal);
+        Assert.Contains("Library summary", source, StringComparison.Ordinal);
         Assert.Contains("CompositionAccessibleLabel", source, StringComparison.Ordinal);
         Assert.Contains("item.Percent.ToString", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Math.Max(item.Percent", source, StringComparison.Ordinal);
         Assert.Contains("<AppIconTile", source, StringComparison.Ordinal);
-        Assert.Contains("AppActivityPresentation.For", source, StringComparison.Ordinal);
-        Assert.Contains("<span>Type</span>", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<BackupRecoveryPanel", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ingestion", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Operational Snapshot", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Recent Ingestion Runs", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Run ID", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/recently-added?review=expanded", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Local AI", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("optional setup", source, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -42,27 +38,24 @@ public sealed class Phase6SettingsAdminHardeningTests
     }
 
     [Fact]
-    public void SystemOverview_UsesTheCompactReferenceSizingRhythm()
+    public void LibrarySummary_UsesTheCompactReferenceSizingRhythm()
     {
-        var overview = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
-        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css");
+        var summary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
+        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css");
         var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
         var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
-        Assert.Contains("admin-overview-card--attention admin-attention-strip", overview, StringComparison.Ordinal);
-        Assert.Contains("padding: 18px", styles, StringComparison.Ordinal);
+        Assert.Contains("library-summary__attention", summary, StringComparison.Ordinal);
         Assert.Contains("height: 6px", styles, StringComparison.Ordinal);
         Assert.Contains("min-height: 46px", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-overview-page ::deep .admin-library-summary", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-library-breakdown ::deep .admin-library-media", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-library-media::after", styles, StringComparison.Ordinal);
-        Assert.Contains(".admin-composition-bar ::deep .admin-composition-bar__segment", styles, StringComparison.Ordinal);
-        Assert.DoesNotContain("admin-composition-legend", overview, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__breakdown ::deep .library-summary__media", styles, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__media::after", styles, StringComparison.Ordinal);
+        Assert.Contains(".library-summary__composition ::deep .library-summary__segment", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("legend", summary, StringComparison.Ordinal);
         Assert.Contains("var(--tl-font-size-secondary)", styles, StringComparison.Ordinal);
         Assert.Contains("font-size: clamp(1.875rem, 2vw, 2rem)", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("font-weight: 600", settingsStyles, StringComparison.Ordinal);
         Assert.Contains("AppControlSize.Large => \"1.75rem\"", iconTile, StringComparison.Ordinal);
-        Assert.DoesNotContain("admin-overview-primary-grid", overview, StringComparison.Ordinal);
     }
 
     [Fact]

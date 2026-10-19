@@ -15,7 +15,7 @@ public sealed class SettingsBreadcrumbGuardrailTests
         Assert.Contains("aria-current=\"page\"", frame, StringComparison.Ordinal);
         Assert.Contains("[SupplyParameterFromQuery(Name = \"runId\")]", settings, StringComparison.Ordinal);
         Assert.Contains("IngestionBatchDisplay.Title(batch)", settings, StringComparison.Ordinal);
-        Assert.Contains("SettingsSection.Ingestion => \"Configure how Tuvima Library discovers", settings, StringComparison.Ordinal);
+        Assert.Contains("SettingsSection.Ingestion => \"What your library holds", settings, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
         Assert.Contains("focus-visible", frameCss, StringComparison.Ordinal);

@@ -72,10 +72,11 @@ public static class SettingsMenuBuilder
 
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
-        // Needs Review is reached from Recently Added today, so that row carries the count and the amber "waiting" shading;
+        // Needs Review is reached from the Library and Ingestion page (Recently Added is no longer a menu row), so that
+        // row carries the count and the amber "waiting" shading;
         // Local AI shows red with "Off" while it cannot work; a parent shows its most urgent child's level. Phones show
         // plain rows, and Tools and requirements is never shaded.
-        var showReview = node is { Section: SettingsSection.RecentlyAdded, Subsection: null } && context.ReviewCount > 0;
+        var showReview = node is { Section: SettingsSection.Ingestion, Subsection: null } && context.ReviewCount > 0;
         var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
         var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && !context.IsMobile;
 

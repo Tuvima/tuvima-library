@@ -175,7 +175,7 @@ display URLs.
 
 ### Needs Review
 
-The one place for items the Engine is not sure about: blocked, uncertain, low-confidence, or unresolved items that need a person to confirm them. It is pinned at the top of Settings → Recently Added and opens from the account menu. Only server administrators, and apps a server administrator has given review permission, can see and resolve it.
+The one place for items the Engine is not sure about: blocked, uncertain, low-confidence, or unresolved items that need a person to confirm them. It is pinned at the top of Settings → Library and Ingestion → Recently Added (opened from that page's "View all"; it is not a menu row) and opens from the account menu. Only server administrators, and apps a server administrator has given review permission, can see and resolve it.
 
 ## O
 

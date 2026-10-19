@@ -219,8 +219,9 @@ public static class SettingsNav
 
     /// <summary>
     /// The one Settings menu. Every parent opens its own main page and its children never repeat it (a sub-page of the
-    /// same section is a child only when it is a different page). Needs Review stays out of the menu: it is reached
-    /// from Recently Added. The desktop tree, the phone page selector and the breadcrumb all read this.
+    /// same section is a child only when it is a different page). Recently Added and Needs Review stay out of the menu:
+    /// they open from the "View all" link on the Library and Ingestion page (see <see cref="OffMenuParents"/>). The
+    /// desktop tree, the phone page selector and the breadcrumb all read this.
     /// </summary>
     public static readonly SettingsMenuGroup[] MenuGroups =
     [
@@ -245,7 +246,6 @@ public static class SettingsNav
         [
             Node("Library and Ingestion", AppMaterialIcons.Outlined.VideoLibrary, SettingsSection.Ingestion, children:
             [
-                Node("Recently Added", AppMaterialIcons.Outlined.History, SettingsSection.RecentlyAdded),
                 Node("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
                 Node("Metadata Providers", AppMaterialIcons.Outlined.Hub, SettingsSection.Providers, children:
                 [
@@ -467,8 +467,10 @@ public static class SettingsNav
 
     /// <summary>
     /// Finds where a page sits in the menu. A sub-page the menu does not list (a landing view, a profile or provider
-    /// detail) resolves to its section's main row. Returns <see langword="null"/> for pages the menu leaves out, such as
-    /// Needs Review.
+    /// detail) resolves to its section's main row. A page the menu leaves out but that has a parent in
+    /// <see cref="OffMenuParents"/> (Recently Added) resolves to that parent's trail plus itself, so its breadcrumb
+    /// reads Server, Library and Ingestion, Recently Added. Returns <see langword="null"/> for other pages the menu
+    /// leaves out, such as Needs Review.
     /// </summary>
     public static SettingsMenuLocation? FindMenuLocation(SettingsSection section, string? subsection = null)
     {
@@ -495,8 +497,25 @@ public static class SettingsNav
             }
         }
 
+        if (fallback is null && OffMenuParents.TryGetValue(section, out var parentSection)
+            && FindMenuLocation(parentSection) is { } parent)
+        {
+            var item = GetItem(section);
+            return new SettingsMenuLocation(parent.Group, [.. parent.Trail, new SettingsMenuNode(item.Label, item.Icon, section)]);
+        }
+
         return fallback;
     }
+
+    /// <summary>
+    /// Pages that have their own route but no row in the menu, and the menu page they open from. They keep their
+    /// place in the breadcrumb; the menu does not list them.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<SettingsSection, SettingsSection> OffMenuParents =
+        new Dictionary<SettingsSection, SettingsSection>
+        {
+            [SettingsSection.RecentlyAdded] = SettingsSection.Ingestion,
+        };
 
     private static IEnumerable<IReadOnlyList<SettingsMenuNode>> Trails(
         IReadOnlyList<SettingsMenuNode> nodes, IReadOnlyList<SettingsMenuNode> ancestors)

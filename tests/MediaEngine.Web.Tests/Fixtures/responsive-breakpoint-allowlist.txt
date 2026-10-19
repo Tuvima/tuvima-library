@@ -103,7 +103,6 @@ src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1499px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1500px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:700px
 src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css:1050px
-src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css:560px
 src/MediaEngine.Web/Components/Settings/PlaybackSettingsPage.razor.css:720px
 src/MediaEngine.Web/Components/Settings/ProfileDetailPage.razor.css:1600px
 src/MediaEngine.Web/Components/Settings/ProfileDetailPage.razor.css:641px
