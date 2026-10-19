@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
+@inject ILogger<RecoveryCodesDisplay> Logger
 
 <div class="recovery-codes-display" aria-live="polite">
     <AppAlert Tone="AppUiTone.Warning">
@@ -37,7 +38,14 @@
 
     private async Task CopyAsync()
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", CodesText);
-        Snackbar.Add("Recovery codes copied.", AppSeverity.Success);
+        switch (await JS.TryCopyAsync(CodesText, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Snackbar.Add("Recovery codes copied.", AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Snackbar.Add(ClipboardInterop.FailedMessage("the codes"), AppSeverity.Warning);
+                break;
+        }
     }
 }
