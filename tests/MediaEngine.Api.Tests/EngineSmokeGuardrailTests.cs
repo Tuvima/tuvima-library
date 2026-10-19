@@ -23,6 +23,7 @@ public sealed class EngineSmokeGuardrailTests
         Assert.Contains("AddTuvimaAi(configLoader)", program);
         Assert.Contains("AddTuvimaPlayback()", program);
         Assert.Contains("AddTuvimaPlugins()", program);
+        Assert.Contains("AddTuvimaScheduledTasks()", program);
         Assert.Contains("AddTuvimaDisplay()", program);
         Assert.Contains("AddTuvimaHostedServices()", program);
     }

@@ -101,6 +101,17 @@ public sealed class ApplicationWebhookRepository(IDatabaseConnection database)
             """, new { now }, cancellationToken: ct)).ToList());
     }
 
+    /// <summary>The most recent delivery attempt across all webhooks, or null when none has been attempted (or all were pruned).</summary>
+    public Task<ApplicationWebhookLastAttempt?> LastAttemptAsync(CancellationToken ct = default)
+    {
+        using var connection = database.CreateConnection();
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(connection.QuerySingleOrDefault<ApplicationWebhookLastAttempt>(new CommandDefinition("""
+            SELECT updated_at At,status Status
+            FROM application_webhook_deliveries WHERE attempt_count>0 ORDER BY updated_at DESC LIMIT 1;
+            """, cancellationToken: ct)));
+    }
+
     public Task FinishAttemptAsync(ApplicationWebhookDelivery delivery, string description, bool delivered, DateTimeOffset now, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {

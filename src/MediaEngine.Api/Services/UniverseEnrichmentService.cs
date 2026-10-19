@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -26,6 +27,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
     private const int InlineBatchMaxWorks = 50;
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<UniverseEnrichmentService> _logger;
     private readonly ManualResetEventSlim _manualTrigger = new(initialState: false);
     private readonly Dictionary<string, InlineUniverseBatch> _inlineBatches = new(StringComparer.OrdinalIgnoreCase);
@@ -36,12 +38,15 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
     public UniverseEnrichmentService(
         IServiceScopeFactory scopeFactory,
+        ScheduledTaskRunner runner,
         ILogger<UniverseEnrichmentService> logger)
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(logger);
 
         _scopeFactory = scopeFactory;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -91,7 +96,8 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
                 if (ShouldRunMaintenanceSweep())
                 {
-                    await ProcessMaintenanceSweepAsync(stoppingToken).ConfigureAwait(false);
+                    await _runner.RunAsync(ScheduledTaskKeys.UniverseEnrichment, ProcessMaintenanceSweepAsync, stoppingToken)
+                        .ConfigureAwait(false);
                     _manualTrigger.Reset();
                     ReloadMaintenanceSchedule();
                 }
@@ -181,7 +187,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         }
     }
 
-    private async Task ProcessMaintenanceSweepAsync(CancellationToken ct)
+    private async Task<TaskRunResult> ProcessMaintenanceSweepAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
         var services = ResolveServices(scope.ServiceProvider);
@@ -190,7 +196,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         if (!config.Stage3Enabled)
         {
             _logger.LogDebug("[UNIVERSE-ENRICH] Stage 3 disabled; skipping maintenance sweep");
-            return;
+            return TaskRunResult.Skipped("Universe enrichment is off");
         }
 
         var maxItems = config.Stage3MaxItemsPerSweep > 0 ? config.Stage3MaxItemsPerSweep : 50;
@@ -258,7 +264,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         if (requests.Count == 0)
         {
             _logger.LogDebug("[UNIVERSE-ENRICH] No stale or missing entities found for maintenance sweep");
-            return;
+            return TaskRunResult.Succeeded(0, "Nothing needed refreshing.");
         }
 
         _logger.LogInformation(
@@ -276,6 +282,8 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                 services,
                 ct).ConfigureAwait(false);
         }
+
+        return TaskRunResult.Succeeded(requests.Count);
     }
 
     private async Task ProcessResolvedEntityAsync(

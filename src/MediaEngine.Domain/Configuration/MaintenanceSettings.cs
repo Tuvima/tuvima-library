@@ -55,13 +55,9 @@ public sealed class MaintenanceSettings
         ["rejected_file_cleanup"] = "0 4 * * *",
         ["universe_enrichment"] = "0 3 * * *",
         ["pass2_nightly_sweep"] = "0 2 * * *",
-        ["vibe_batch"] = "0 4 * * *",
-        ["series_check"] = "0 3 * * *",
-        ["whisper_bake"] = "0 2 * * *",
-        ["taste_profile_update"] = "0 5 * * 0",
-        ["description_intelligence"] = "*/15 * * * *",
         ["retag_sweep"] = "0 3 * * *",
         ["storage_maintenance"] = "0 2 * * *",
+        ["plugin_segment_detection"] = "0 2 * * *",
     };
 }
 

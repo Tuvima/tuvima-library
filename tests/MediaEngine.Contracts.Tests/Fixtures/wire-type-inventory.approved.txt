@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=998; api=0; web-client=77
+# scopes: contracts=1001; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9772,6 +9772,33 @@
   Scheduled: System.Boolean | json=scheduled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Owner: System.String | json=owner | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PluginId: System.String | json=plugin_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Schedule: System.String | json=schedule | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsContinuous: System.Boolean | json=is_continuous | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SettingsPlace: System.String | json=settings_place | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NextRunAt: System.DateTimeOffset? | json=next_run_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRun: MediaEngine.Contracts.System.ScheduledTaskLastRunDto | json=last_run | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","name":"sample","owner":"sample","plugin_id":"sample","schedule":"sample","is_continuous":true,"settings_place":"sample","next_run_at":"2025-01-02T03:04:05+00:00","last_run":null}
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskLastRunDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  StartedAt: System.DateTimeOffset | json=started_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FinishedAt: System.DateTimeOffset? | json=finished_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsProcessed: System.Int32? | json=items_processed | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"started_at":"2025-01-02T03:04:05+00:00","finished_at":"2025-01-02T03:04:05+00:00","outcome":"sample","items_processed":7,"message":"sample"}
+
+[contracts] MediaEngine.Contracts.System.ScheduledTaskListResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Tasks: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskDto> | json=tasks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"tasks":[]}
 
 [contracts] MediaEngine.Contracts.System.StartupReadinessCheckResponse
   kind=class | converter=default | number-handling=default | unmapped=default

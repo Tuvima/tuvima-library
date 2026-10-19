@@ -32,3 +32,10 @@ public sealed class ApplicationWebhookDelivery
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
+
+/// <summary>The newest webhook delivery attempt: when it happened and the delivery status after it.</summary>
+public sealed class ApplicationWebhookLastAttempt
+{
+    public DateTimeOffset At { get; set; }
+    public string Status { get; set; } = "";
+}

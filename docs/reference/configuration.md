@@ -349,7 +349,17 @@ Scheduled maintenance task configuration.
 | `storage_maintenance.search_cache_max_age_days` | int | `30` | Age threshold for provider, resolver, and search cache purges. |
 | `storage_maintenance.image_cache_retention_days` | int | `30` | Age threshold for unused image cache rows/files. User-preserved images are not removed. |
 | `storage_maintenance.claim_compaction_batch_size` | int | `5000` | Maximum duplicate non-user-locked metadata claims compacted in one pass. |
+| `schedules.activity_pruning` | cron | `0 3 * * *` | Activity log and timeline cleanup. |
+| `schedules.library_reconciliation` | cron | `0 5 * * *` | Check that known files still exist on disk. |
+| `schedules.missing_universe_sweep` | cron | `0 4 * * 0` | Retry Universe matches for works that have none. |
+| `schedules.rejected_file_cleanup` | cron | `0 4 * * *` | Delete rejected files past `rejected_retention_days`. |
+| `schedules.universe_enrichment` | cron | `0 3 * * *` | Universe enrichment maintenance sweep. |
+| `schedules.pass2_nightly_sweep` | cron | `0 2 * * *` | Nightly catch-up for deferred (pass 2) enrichment. Only the minute and hour are used. |
+| `schedules.retag_sweep` | cron | `0 3 * * *` | Re-apply file tags after the tag settings change. |
 | `schedules.storage_maintenance` | cron | `0 2 * * *` | Nightly storage maintenance schedule. |
+| `schedules.plugin_segment_detection` | cron | `0 2 * * *` | Scheduled playback segment detection run by enabled segment plugins. |
+
+Every recurring task with its schedule, next run and last run is listed by `GET /system/scheduled-tasks`. The Local AI schedules (`vibe_batch_cron`, `series_check_cron`, `description_intelligence_cron`) stay in `config/ai.json` under `scheduling`. The keys `vibe_batch`, `series_check`, `description_intelligence`, `whisper_bake` and `taste_profile_update` were removed from the `schedules` defaults because no code read them.
 
 Administrators can run the same maintenance manually with `POST /maintenance/storage/run?dryRun=true`.
 

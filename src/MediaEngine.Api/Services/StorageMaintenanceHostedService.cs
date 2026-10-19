@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
 
@@ -10,15 +11,18 @@ public sealed class StorageMaintenanceHostedService : BackgroundService
 
     private readonly IStorageMaintenanceService _maintenanceService;
     private readonly IConfigurationLoader _configLoader;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<StorageMaintenanceHostedService> _logger;
 
     public StorageMaintenanceHostedService(
         IStorageMaintenanceService maintenanceService,
         IConfigurationLoader configLoader,
+        ScheduledTaskRunner runner,
         ILogger<StorageMaintenanceHostedService> logger)
     {
         _maintenanceService = maintenanceService;
         _configLoader = configLoader;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -32,12 +36,18 @@ public sealed class StorageMaintenanceHostedService : BackgroundService
         {
             try
             {
-                var maintenance = _configLoader.LoadMaintenance();
-                if (maintenance.StorageMaintenance.Enabled)
+                await _runner.RunAsync(ScheduledTaskKeys.StorageMaintenance, async ct =>
                 {
-                    await _maintenanceService.RunAsync(new StorageMaintenanceRequest(), stoppingToken)
+                    var maintenance = _configLoader.LoadMaintenance();
+                    if (!maintenance.StorageMaintenance.Enabled)
+                    {
+                        return TaskRunResult.Skipped("Storage maintenance is off");
+                    }
+
+                    var result = await _maintenanceService.RunAsync(new StorageMaintenanceRequest(), ct)
                         .ConfigureAwait(false);
-                }
+                    return TaskRunResult.Succeeded(result.TotalAffectedRows);
+                }, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

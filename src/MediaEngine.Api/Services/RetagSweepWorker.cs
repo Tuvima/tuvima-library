@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
@@ -37,6 +38,7 @@ public sealed class RetagSweepWorker : BackgroundService
     private readonly IConfigurationLoader _configLoader;
     private readonly IEventPublisher _eventPublisher;
     private readonly WritebackConfigState _hashState;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<RetagSweepWorker> _logger;
 
     /// <summary>Cron expression fallback when <c>maintenance.json</c> is missing or unparseable.</summary>
@@ -52,8 +54,10 @@ public sealed class RetagSweepWorker : BackgroundService
         IConfigurationLoader configLoader,
         IEventPublisher eventPublisher,
         WritebackConfigState hashState,
+        ScheduledTaskRunner runner,
         ILogger<RetagSweepWorker> logger)
     {
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(assetRepo);
         ArgumentNullException.ThrowIfNull(writeBackService);
         ArgumentNullException.ThrowIfNull(reviewRepo);
@@ -62,6 +66,7 @@ public sealed class RetagSweepWorker : BackgroundService
         ArgumentNullException.ThrowIfNull(hashState);
         ArgumentNullException.ThrowIfNull(logger);
 
+        _runner = runner;
         _assetRepo = assetRepo;
         _writeBackService = writeBackService;
         _reviewRepo = reviewRepo;
@@ -88,7 +93,7 @@ public sealed class RetagSweepWorker : BackgroundService
         {
             try
             {
-                await RunSweepAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.RetagSweep, RunSweepAsync, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -116,14 +121,14 @@ public sealed class RetagSweepWorker : BackgroundService
 
     // ── Internals ──────────────────────────────────────────────────────────
 
-    private async Task RunSweepAsync(CancellationToken ct)
+    private async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
     {
         var settings = LoadSettings();
 
         if (!settings.Enabled)
         {
             _logger.LogDebug("RetagSweepWorker: sweep disabled in settings — skipping");
-            return;
+            return TaskRunResult.Skipped("File tag refresh is off");
         }
 
         // While a pending diff is awaiting Apply, the current hashes still
@@ -131,14 +136,14 @@ public sealed class RetagSweepWorker : BackgroundService
         if (_hashState.HasPendingDiff)
         {
             _logger.LogDebug("RetagSweepWorker: pending diff is unapproved — waiting for Apply");
-            return;
+            return TaskRunResult.Skipped("Waiting for you to apply the staged tag changes");
         }
 
         var expected = _hashState.CurrentHashes;
         if (expected.Count == 0)
         {
             _logger.LogDebug("RetagSweepWorker: no current writeback hashes — skipping");
-            return;
+            return TaskRunResult.Skipped("No tag settings are in force yet");
         }
 
         int totalProcessed = 0, totalVerified = 0, totalCompletedUnverified = 0, totalTransient = 0, totalTerminal = 0;
@@ -257,6 +262,12 @@ public sealed class RetagSweepWorker : BackgroundService
         {
             _logger.LogDebug(ex, "RetagSweepWorker: completed event publish failed");
         }
+
+        return TaskRunResult.Succeeded(
+            totalProcessed,
+            totalProcessed == 0
+                ? "No files needed re-tagging."
+                : $"Re-tagged {totalCompletedUnverified} of {totalProcessed} files; {totalTransient} to retry, {totalTerminal} could not be written.");
     }
 
     private async Task EmitProgressAsync(int processed, int succeeded, int transient, int terminal, bool isFinal, CancellationToken ct)

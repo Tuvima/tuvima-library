@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -60,6 +61,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
     private readonly ISystemActivityRepository _activityRepo;
     private readonly ICollectionRepository _collections;
     private readonly IConfigurationLoader _configLoader;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<RejectedFileCleanupService> _logger;
 
     /// <summary>Cron expression for the cleanup schedule. Default: 4 AM daily.</summary>
@@ -70,18 +72,21 @@ public sealed class RejectedFileCleanupService : BackgroundService
         ISystemActivityRepository activityRepo,
         ICollectionRepository collections,
         IConfigurationLoader configLoader,
+        ScheduledTaskRunner runner,
         ILogger<RejectedFileCleanupService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(activityRepo);
         ArgumentNullException.ThrowIfNull(collections);
         ArgumentNullException.ThrowIfNull(configLoader);
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(logger);
 
         _db = db;
         _activityRepo = activityRepo;
         _collections = collections;
         _configLoader = configLoader;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -96,7 +101,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
         {
             try
             {
-                await RunCleanupPassAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.RejectedFileCleanup, RunCleanupPassAsync, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -129,7 +134,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    private async Task RunCleanupPassAsync(CancellationToken ct)
+    private async Task<TaskRunResult> RunCleanupPassAsync(CancellationToken ct)
     {
         var maintenance = _configLoader.LoadMaintenance();
         int retentionDays = maintenance.RejectedRetentionDays;
@@ -137,7 +142,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
         if (retentionDays <= 0)
         {
             _logger.LogDebug("RejectedFileCleanupService: cleanup disabled (rejected_retention_days=0)");
-            return;
+            return TaskRunResult.Skipped("Rejected file cleanup is off");
         }
 
         // Determine the library root so we can build the rejected folder path.
@@ -150,20 +155,20 @@ public sealed class RejectedFileCleanupService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "RejectedFileCleanupService: could not load LibraryRoot — skipping cleanup pass");
-            return;
+            return TaskRunResult.Failed("The library folder setting could not be read.");
         }
 
         if (string.IsNullOrWhiteSpace(libraryRoot))
         {
             _logger.LogDebug("RejectedFileCleanupService: LibraryRoot not configured — skipping cleanup pass");
-            return;
+            return TaskRunResult.Skipped("No library folder is set up yet");
         }
 
         var rejectedDir = Path.Combine(libraryRoot, ".data", "staging", "rejected");
         if (!Directory.Exists(rejectedDir))
         {
             _logger.LogDebug("RejectedFileCleanupService: rejected folder does not exist — nothing to clean");
-            return;
+            return TaskRunResult.Succeeded(0, "There is no rejected folder to clean.");
         }
 
         // Find all works with curator_state = 'rejected' whose rejected_at timestamp
@@ -210,7 +215,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
             _logger.LogDebug(
                 "RejectedFileCleanupService: no rejected files exceed {Days}d retention — nothing to clean",
                 retentionDays);
-            return;
+            return TaskRunResult.Succeeded(0, "No rejected files were due for deletion.");
         }
 
         _logger.LogInformation(
@@ -359,5 +364,6 @@ public sealed class RejectedFileCleanupService : BackgroundService
         _logger.LogInformation(
             "RejectedFileCleanupService: cleaned {Cleaned} of {Total} expired rejected file(s)",
             cleaned, expiredAssets.Count);
+        return TaskRunResult.Succeeded(cleaned, $"Cleaned {cleaned} of {expiredAssets.Count} expired rejected file(s).");
     }
 }
