@@ -214,7 +214,7 @@ public sealed partial class ConfigDrivenAdapter
                 {
                     var url = ExpandUrlTemplate(enrichment.Url, baseUrl, values);
                     var response = enrichment.Cache?.Store == FollowUpCacheStores.Memory
-                        ? await FetchRememberedAsync(
+                        ? await FetchRememberedJsonAsync(
                             ClaimRuleEngine.ExpandVariables(enrichment.Cache.Key ?? url, values),
                             () => FetchJsonAsync(url, useResponseCache: false, notFoundIsError: true, ct)).ConfigureAwait(false)
                         : await FetchJsonAsync(url, useResponseCache: false, notFoundIsError: true, ct).ConfigureAwait(false);

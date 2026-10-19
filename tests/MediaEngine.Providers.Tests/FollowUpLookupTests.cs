@@ -196,6 +196,67 @@ public sealed class FollowUpLookupTests
         Assert.Contains("GET https://api.sample.test/v1/makers/5", good.Lines);
     }
 
+    [Fact]
+    public async Task FollowUp_UsesTheProvidersOwnApiAddressInsteadOfTheRequestBaseUrl()
+    {
+        var handler = Handler(_ => RecordingHandler.Json("""{ "name": "Widget", "info": { "maker": "Acme" } }"""));
+        var request = new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.MediaAsset,
+            MediaType = MediaType.Movies,
+            Title = "Widget",
+            Language = "en",
+            Country = "US",
+            BaseUrl = "https://other.test/v9",
+        };
+
+        await Adapter(Provider(Detail), handler).FetchAsync(request);
+
+        Assert.Equal(["GET https://other.test/v9/search?q=Widget", "GET https://api.sample.test/v1/items/7"], handler.Lines);
+    }
+
+    [Fact]
+    public async Task MemoryCache_KeepsLookupsAndPagedReadsWithTheSameKeyApart()
+    {
+        // The lookup's memory key and the paged read's container key are both "paged:7".
+        const string followUps = """
+            [{ "name": "detail", "inputs": { "id": ["claim:sample_id"] },
+               "url": "{base_url}/items/{id}?api_key={api_key}",
+               "cache": { "store": "memory", "key": "paged:{id}" },
+               "rules": [
+                 { "claim_key": "maker", "json_path": "info.maker", "confidence": 0.7 },
+                 { "kind": "paged_sequence", "container": "{id}", "items_path": "results", "total_path": "total",
+                   "expected_total_path": "info.count", "dedupe_by_id": true, "date_as": "text",
+                   "cache": { "store": "memory" },
+                   "item": { "id_path": "id", "ordinal_path": "number", "title_paths": ["name"],
+                             "title_fallbacks": ["Part #{ordinal}"], "date_path": "date" },
+                   "order_by": ["ordinal_number", "ordinal_text"],
+                   "manifest": { "claim_key": "sequence_manifest_json", "confidence": 1.0, "confidence_when_not_authoritative": 0.7, "container_id": "sample:{id}",
+                             "container_label": "Widget", "external_id_key": "sample_id", "authoritative_when_complete": true } }
+               ] }]
+            """;
+        var config = Provider(followUps);
+        config.SequenceManifest = new ProviderSequenceManifestRequestConfiguration
+        {
+            Enabled = true,
+            UrlTemplate = "{base_url}/pages?c={container_id}&o={offset}&api_key={api_key}",
+            Fields = ["id"],
+            PageSize = 10,
+            MaxPages = 2,
+            ContainerKind = "ComicVolume",
+            ExpectedTotalKind = "issues",
+        };
+        var handler = Handler(request => RecordingHandler.Json(request.Url.Contains("/pages?", StringComparison.Ordinal)
+            ? """{ "total": 1, "results": [ { "id": 1, "number": "1", "name": "First", "date": "2020-01-01" } ] }"""
+            : """{ "name": "Widget", "info": { "maker": "Acme", "count": 1 } }"""));
+
+        var claims = await Adapter(config, handler).FetchAsync(Request());
+
+        Assert.Contains(claims, claim => claim.Key == "maker");
+        Assert.Contains(claims, claim => claim.Key == "sequence_manifest_json");
+    }
+
     private sealed class MemoryResponseCache : IProviderResponseCacheRepository
     {
         private readonly Dictionary<string, string> _entries = [];

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -163,7 +164,8 @@ public sealed partial class ConfigDrivenAdapter
         Dictionary<string, string> variables,
         ProviderLookupRequest request)
     {
-        var baseUrl = ResolveBaseUrl(request);
+        // The provider's own API address wins over the one the caller passed in.
+        var baseUrl = _config.Endpoints.GetValueOrDefault("api") ?? ResolveBaseUrl(request);
         if (string.IsNullOrWhiteSpace(baseUrl)
             || (lookup.Url.Contains("{api_key}", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(EffectiveApiKey)))
         {
@@ -203,28 +205,31 @@ public sealed partial class ConfigDrivenAdapter
         var key = lookup.Cache.Key is null
             ? url
             : ClaimRuleEngine.ExpandVariables(lookup.Cache.Key, variables);
-        return FetchRememberedAsync(key, () => FetchJsonAsync(url, useResponseCache: false, notFoundIsError: true, ct));
+        return FetchRememberedJsonAsync(key, () => FetchJsonAsync(url, useResponseCache: false, notFoundIsError: true, ct));
     }
 
     /// <summary>One fetch per key for the life of the provider; a failed fetch is forgotten so it can be retried.</summary>
-    private async Task<T?> FetchRememberedAsync<T>(string key, Func<Task<T?>> fetch)
+    private static async Task<T?> FetchRememberedAsync<T>(
+        ConcurrentDictionary<string, Lazy<Task<T?>>> cache, string key, Func<Task<T?>> fetch)
         where T : class
     {
-        var lazy = _memoryLookups.GetOrAdd(
+        var lazy = cache.GetOrAdd(
             key,
-            _ => new Lazy<Task<object?>>(
-                async () => await fetch().ConfigureAwait(false),
-                LazyThreadSafetyMode.ExecutionAndPublication));
+            _ => new Lazy<Task<T?>>(fetch, LazyThreadSafetyMode.ExecutionAndPublication));
         try
         {
-            return (T?)await lazy.Value.ConfigureAwait(false);
+            return await lazy.Value.ConfigureAwait(false);
         }
         catch
         {
-            _memoryLookups.TryRemove(key, out _);
+            cache.TryRemove(key, out _);
             throw;
         }
     }
+
+    /// <summary>A remembered JSON answer; every caller gets its own copy, so one cannot change what another reads.</summary>
+    private async Task<JsonNode?> FetchRememberedJsonAsync(string key, Func<Task<JsonNode?>> fetch) =>
+        (await FetchRememberedAsync(_jsonLookups, key, fetch).ConfigureAwait(false))?.DeepClone();
 
     private async Task<JsonNode?> FetchJsonAsync(
         string url, bool useResponseCache, bool notFoundIsError, CancellationToken ct)

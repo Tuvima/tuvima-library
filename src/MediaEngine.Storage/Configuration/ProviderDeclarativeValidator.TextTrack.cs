@@ -41,6 +41,11 @@ internal static partial class ProviderDeclarativeValidator
             errors.Add($"{path}.api.allowed_hosts must not contain blank hosts.");
         }
 
+        if (provider.RequiresApiKey)
+        {
+            ValidateKeyedTextTrackAddress(provider, text, path, errors);
+        }
+
         if (text.Http.MaxResponseBufferBytes < 0)
         {
             errors.Add($"{path}.http.max_response_buffer_bytes must not be negative.");
@@ -57,6 +62,29 @@ internal static partial class ProviderDeclarativeValidator
         foreach (var key in text.Messages.Keys.Where(key => !TextTrackMessages.All.Contains(key)))
         {
             errors.Add($"{path}.messages['{key}'] is not a message the adapter reads.");
+        }
+    }
+
+    /// <summary>A file that sends an API key may only reach its own HTTPS host on the default port, with no credentials in the address.</summary>
+    private static void ValidateKeyedTextTrackAddress(ProviderConfiguration provider, TextTrackConfiguration text, string path, List<string> errors)
+    {
+        if (text.Api.AllowedHosts.Count == 0)
+        {
+            errors.Add($"{path}.api.allowed_hosts must list at least one host when requires_api_key is true, so the key only reaches known hosts.");
+            return;
+        }
+
+        var api = provider.Endpoints.GetValueOrDefault("api")?.TrimEnd('/');
+        if (!Uri.TryCreate(api, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || !uri.IsDefaultPort
+            || !string.IsNullOrEmpty(uri.UserInfo)
+            || uri.AbsolutePath != "/"
+            || !string.IsNullOrEmpty(uri.Query)
+            || !string.IsNullOrEmpty(uri.Fragment)
+            || !text.Api.AllowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add($"endpoints['api'] must be an HTTPS address on the default port, with no credentials, on one of {path}.api.allowed_hosts when requires_api_key is true.");
         }
     }
 

@@ -70,6 +70,28 @@ public sealed class ProviderApiValidationTests
         Assert.Contains("auth.retry_on_unauthorized must be 0 or 1.", errors);
     }
 
+    [Theory]
+    [InlineData("key-{api_key}")]
+    [InlineData("{api_key}{pin}")]
+    [InlineData("{api_key")]
+    public void LoginValueThatMixesTextWithACredential_IsRejected(string template)
+    {
+        var errors = Errors(config => config.Auth!.Login.Body["apikey"] = template);
+
+        Assert.Contains(errors, error => error.Contains("auth.login.body['apikey'] must be exactly one credential", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("{api_key}")]
+    [InlineData("{pin?}")]
+    [InlineData("plain text")]
+    public void LoginValueThatIsOneCredentialOrPlainText_IsAccepted(string template)
+    {
+        var errors = Errors(config => config.Auth!.Login.Body["apikey"] = template);
+
+        Assert.DoesNotContain(errors, error => error.Contains("must be exactly one credential", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void SignInWithoutAllowedHosts_IsRejected()
     {

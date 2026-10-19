@@ -43,7 +43,7 @@ public sealed partial class ConfigDrivenAdapter
 
         Task<CollectedMembers?> Collect() => CollectPagesAsync(sequenceRequest, rule, context, baseUrl, apiKey, container, expectedFromParent, ct);
         var collected = rule.Cache?.Store == FollowUpCacheStores.Memory
-            ? await FetchRememberedAsync($"paged:{container}", Collect).ConfigureAwait(false)
+            ? await FetchRememberedAsync(_pagedLookups, $"paged:{container}", Collect).ConfigureAwait(false)
             : await Collect().ConfigureAwait(false);
         if (collected is null)
         {

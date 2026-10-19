@@ -179,7 +179,7 @@
         {
           "stop_if_all": [
             {
-              "present": "@hint.identity_provider"
+              "not_null": "@hint.identity_provider"
             },
             {
               "not": {
@@ -194,11 +194,13 @@
         },
         {
           "set": "show_name",
-          "from": [
-            "@request.show_name",
-            "@request.series",
-            "@request.title"
-          ]
+          "from": {
+            "first_non_null": [
+              "@request.show_name",
+              "@request.series",
+              "@request.title"
+            ]
+          }
         },
         {
           "if": [
@@ -555,11 +557,13 @@
       "steps": [
         {
           "set": "show_name",
-          "from": [
-            "@request.show_name",
-            "@request.series",
-            "@request.title"
-          ]
+          "from": {
+            "first_non_null": [
+              "@request.show_name",
+              "@request.series",
+              "@request.title"
+            ]
+          }
         },
         {
           "stop_if": [

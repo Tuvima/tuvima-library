@@ -64,6 +64,11 @@ internal static partial class ProviderDeclarativeValidator
 
         foreach (var (key, template) in login.Body)
         {
+            if (!Regex.IsMatch(template, @"^\{[a-z_]+\??\}$") && (template.Contains('{') || template.Contains('}')))
+            {
+                errors.Add($"auth.login.body['{key}'] must be exactly one credential such as {{api_key}} or {{pin?}}, or text with no braces.");
+            }
+
             foreach (Match match in Regex.Matches(template, @"\{([a-z_]+)\??\}"))
             {
                 if (!CredentialNames.Contains(match.Groups[1].Value))

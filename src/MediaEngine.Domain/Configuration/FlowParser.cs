@@ -13,7 +13,7 @@ namespace MediaEngine.Domain.Configuration;
 /// An expression is text (<c>$variable.path</c>, <c>@request.field</c>, <c>@hint.key</c>,
 /// <c>@name</c>, <c>@limit</c>, or plain text), a list (the first that has a value), a number, or
 /// an object with one operation key: <c>first_chars</c>, <c>format</c>, <c>url_on_hosts</c>,
-/// <c>digits_of</c>, <c>clamp</c>, <c>int</c>, <c>object</c> or <c>literal</c>.
+/// <c>digits_of</c>, <c>first_non_null</c>, <c>clamp</c>, <c>int</c>, <c>object</c> or <c>literal</c>.
 /// </para>
 /// </summary>
 public static class FlowParser
@@ -479,7 +479,7 @@ public static class FlowParser
             var keys = element.EnumerateObject().Select(property => property.Name).Where(name => name != "ignore_case").ToList();
             if (keys.Count != 1)
             {
-                errors.Add($"{path} needs exactly one of blank, present, equals, number_equals, any, all, not.");
+                errors.Add($"{path} needs exactly one of blank, present, not_null, equals, number_equals, any, all, not.");
                 return null;
             }
 
@@ -494,6 +494,8 @@ public static class FlowParser
                     return new BlankCondition(Expression(element, "blank", path));
                 case "present":
                     return new PresentCondition(Expression(element, "present", path));
+                case "not_null":
+                    return new NotNullCondition(Expression(element, "not_null", path));
                 case "equals":
                 case "number_equals":
                     var pair = element.GetProperty(keys[0]);
@@ -591,10 +593,10 @@ public static class FlowParser
         private FlowExpression ParseOperation(JsonElement element, string path)
         {
             var keys = element.EnumerateObject().Select(property => property.Name).ToList();
-            var operation = keys.FirstOrDefault(key => key is "first_chars" or "format" or "url_on_hosts" or "digits_of" or "clamp" or "int" or "object" or "literal");
+            var operation = keys.FirstOrDefault(key => key is "first_chars" or "format" or "url_on_hosts" or "digits_of" or "first_non_null" or "clamp" or "int" or "object" or "literal");
             if (operation is null)
             {
-                errors.Add($"{path} is not an expression; use one of first_chars, format, url_on_hosts, digits_of, clamp, int, object, literal.");
+                errors.Add($"{path} is not an expression; use one of first_chars, format, url_on_hosts, digits_of, first_non_null, clamp, int, object, literal.");
                 return new LiteralExpression(string.Empty);
             }
 
@@ -629,6 +631,8 @@ public static class FlowParser
                         .ToDictionary(property => property.Name, property => ParseExpression(property.Value, $"{path}.object.{property.Name}"), StringComparer.Ordinal));
                 case "digits_of":
                     return new DigitsOfExpression(List(value, $"{path}.digits_of"));
+                case "first_non_null":
+                    return new FirstNonNullExpression(List(value, $"{path}.first_non_null"));
                 case "url_on_hosts":
                     var hosts = element.TryGetProperty("hosts", out var hostsElement) && hostsElement.ValueKind == JsonValueKind.Array
                         ? hostsElement.EnumerateArray().Where(host => host.ValueKind == JsonValueKind.String).Select(host => host.GetString()!).ToList()

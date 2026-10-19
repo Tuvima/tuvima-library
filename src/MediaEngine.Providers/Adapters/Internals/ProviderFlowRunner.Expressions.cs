@@ -29,6 +29,8 @@ internal sealed partial class ProviderFlowRunner
                 return builtIn.Name == "name" ? JsonValue.Create(_providerName) : Number(_limit);
             case CoalesceExpression coalesce:
                 return coalesce.Items.Select(Evaluate).FirstOrDefault(HasValue);
+            case FirstNonNullExpression nonNull:
+                return nonNull.Items.Select(Evaluate).FirstOrDefault(node => node is not null);
             case FirstCharsExpression first:
                 return Evaluate(first.Source) is { } source && TextOf(source) is { } text && text.Length >= first.Count
                     ? JsonValue.Create(text[..first.Count])
@@ -104,6 +106,8 @@ internal sealed partial class ProviderFlowRunner
                 return !HasValue(Evaluate(blank.Value));
             case PresentCondition present:
                 return HasValue(Evaluate(present.Value));
+            case NotNullCondition notNull:
+                return Evaluate(notNull.Value) is not null;
             case EqualsCondition equal:
                 return string.Equals(
                     TextOf(Evaluate(equal.Left)),

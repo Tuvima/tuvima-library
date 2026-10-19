@@ -49,7 +49,7 @@ Retail providers are a **rich data source for matching** - descriptions, narrato
 |---|---|---|---|---|---|
 | Apple API | Books, Audiobooks, Music | None | 500ms throttle | Localized (user language) | Active |
 | TMDB | Movies, TV | API key query parameter | 500ms throttle, max 1 concurrent | Localized (user language) | Active (requires key) |
-| TheTVDB | TV | Project or administrator key | Configured provider throttle | Localized (user language) | First TV identity source when connected |
+| TheTVDB | TV | Project or administrator key (an administrator-set key override is used in place of the project key) | Configured provider throttle | Localized (user language) | First TV identity source when connected |
 | MusicBrainz | Music | None | 1 request/sec, max 1 concurrent | Source (English only) | Active music identity |
 | Comic Vine | Comics | API key | 500ms, max 1 concurrent | Source (English only) | Active (requires key) |
 | LRCLIB | Music | None | Configured provider throttle | Source | Text-track provider |
@@ -291,7 +291,7 @@ how the shipped providers work; none of them is tied to a provider name in code.
 | `search_strategies[].claim_rules`, `.role`, `.extra_field_aliases` | Drop, derive and language-guard claims; what a strategy returns | `comicvine.json` |
 | `sequence_manifest` | The paged request a `paged_sequence` rule reads | `comicvine.json` |
 | `text_track` (with `adapter_type: "text_track"`) | Subtitle and lyrics search, download, archive limits, error mapping | `subdl.json`, `lrclib.json` |
-| `registration_order` | Registers after the built-in reconciliation provider when positive | `tvdb.json` |
+| `registration_order` | A positive number registers the provider after the ordinary file-based providers and the built-in reconciliation provider, lowest number first; registration order decides which provider answers first. Default 0 registers with the ordinary providers. | `tvdb.json` |
 
 All blocks are validated when the file loads (unknown properties and bad shapes name their path) and are
 documented in `config/schemas/providers/provider.schema.json`. See
