@@ -106,7 +106,7 @@ public sealed class TailscaleRemoteConnectivityProvider : IRemoteConnectivityPro
                 address,
                 serveHttps
                     ? "Tailscale is connected and Serve HTTPS is active."
-                    : "Tailscale is connected, but Serve HTTPS is not active for Tuvima.",
+                    : "Tailscale is connected, but Serve HTTPS is not active for Library.",
                 SecureHttps: serveHttps && address is not null);
         }
         catch (FileNotFoundException)

@@ -68,7 +68,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "provider",
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
-                Description = "Tuvima will retry automatically",
+                Description = "Library will retry automatically",
                 Route = batchFacts.BatchId is { } batchId ? $"/settings/ingestion?runId={batchId:D}&view=all" : "/settings/ingestion",
             });
         }

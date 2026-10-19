@@ -215,7 +215,7 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
 
     fun connect(address: String) {
         history.clear()
-        state = TvState.Loading("Connecting to Tuvima Library…")
+        state = TvState.Loading("Connecting to Library…")
         scope.launch {
             runCatching {
                 application.connect(address).also { client ->
@@ -699,7 +699,7 @@ private fun parseDetail(json: JSONObject): TvDetail {
         .distinct()
         .joinToString(" · ")
     return TvDetail(
-        title = json.optString("title", "Tuvima Library"),
+        title = json.optString("title", "Library"),
         subtitle = json.optString("subtitle").takeIf(String::isNotBlank),
         description = json.optString("description").takeIf(String::isNotBlank),
         facts = factText,
@@ -756,7 +756,7 @@ private fun ErrorScreen(message: String, onBack: (() -> Unit)?, reset: () -> Uni
     Modifier.fillMaxSize().padding(96.dp),
     verticalArrangement = Arrangement.Center,
 ) {
-    Text("Tuvima needs attention", style = MaterialTheme.typography.headlineLarge)
+    Text("Library needs attention", style = MaterialTheme.typography.headlineLarge)
     Spacer(Modifier.height(12.dp))
     Text(message)
     Spacer(Modifier.height(24.dp))

@@ -13,7 +13,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject PlaybackSessionController Playback
 
-<PageTitle>@((_detail?.Title ?? "Player")) - Tuvima Library</PageTitle>
+<PageTitle>@((_detail?.Title ?? "Player")) - Library</PageTitle>
 
 @if (_loading)
 {
@@ -25,7 +25,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 {
     <div class="watch-player-state">
         <AppErrorState Title="Playable video not found"
-                       Message="Tuvima Library could not prepare this title for playback."
+                       Message="Library could not prepare this title for playback."
                        Details="@_loadError"
                        Retry="LoadPlayerAsync"
                        Icon="@AppMaterialIcons.Outlined.Movie" />

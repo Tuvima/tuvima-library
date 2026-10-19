@@ -29,7 +29,7 @@
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
                       Title="Account security is unavailable"
-                      Message="Tuvima Library could not load your account identity. Your security settings have not been changed." />
+                      Message="Library could not load your account identity. Your security settings have not been changed." />
     }
     else
     {
@@ -43,7 +43,7 @@
                     @if (_thisComputerOnly && !Capabilities.HasPassword)
                     {
                         <li class="security-settings__item">
-                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Anyone who can reach Tuvima can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Anyone who can reach Library can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                         </li>
                     }
                     <li class="security-settings__item">
@@ -182,7 +182,7 @@
         <p><strong>@EmailStatus</strong></p>
         @if (NeedsEmail)
         {
-            <p class="security-sheet__hint">An email is only needed to use Tuvima away from home. You'll add one when you add a password.</p>
+            <p class="security-sheet__hint">An email is only needed to use Library away from home. You'll add one when you add a password.</p>
         }
         else
         {
@@ -293,7 +293,7 @@
         {
             <section class="security-sheet__section">
                 <h3 class="security-sheet__section-title">Linked sign-ins</h3>
-                <p class="security-sheet__hint">Use another account to sign in to Tuvima Library.</p>
+                <p class="security-sheet__hint">Use another account to sign in to Library.</p>
                 @if (_loginsLoading)
                 {
                     <AppSkeleton Height="88px" aria-label="Loading linked accounts" />
@@ -386,7 +386,7 @@
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
-        : _thisComputerOnly ? "Not set · anyone who can reach Tuvima can use this account" : "Not set";
+        : _thisComputerOnly ? "Not set · anyone who can reach Library can use this account" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
     private string ExtraProtectionStatus
     {
@@ -601,7 +601,7 @@
 
     private async Task UnlinkExternalLoginAsync(AccountExternalLoginDto login)
     {
-        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Tuvima Library.", "Disconnect")) return;
+        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect")) return;
         _busy = true;
         try
         {

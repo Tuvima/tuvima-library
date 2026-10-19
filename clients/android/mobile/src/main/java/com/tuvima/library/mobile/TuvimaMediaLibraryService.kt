@@ -259,7 +259,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT, "Tuvima Library"), params))
+            Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT, "Library"), params))
 
         override fun onGetChildren(
             session: MediaLibrarySession,
@@ -343,7 +343,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 activeAssetId = mediaItems.firstOrNull()?.mediaId
                 completer.set(resolved)
             }
-            "Resolve Tuvima playback manifests"
+            "Resolve Library playback manifests"
         }
     }
 
@@ -644,7 +644,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                         .setMediaId(assetId)
                         .setMediaMetadata(
                             MediaMetadata.Builder()
-                                .setTitle(item.optString("title", "Tuvima Library"))
+                                .setTitle(item.optString("title", "Library"))
                                 .setSubtitle(item.optString("subtitle").takeIf(String::isNotBlank))
                                 .setIsBrowsable(false)
                                 .setIsPlayable(true)

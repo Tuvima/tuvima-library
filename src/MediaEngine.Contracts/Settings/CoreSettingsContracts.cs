@@ -116,7 +116,7 @@ public sealed class UpdateExternalAuthProviderRequest
 }
 
 public sealed record ServerGeneralSettingsDto(
-    [property: JsonPropertyName("server_name")] string ServerName = "Tuvima Library",
+    [property: JsonPropertyName("server_name")] string ServerName = "Library",
     [property: JsonPropertyName("language")] string Language = "en",
     [property: JsonPropertyName("display_language")] string DisplayLanguage = "en",
     [property: JsonPropertyName("metadata_language")] string MetadataLanguage = "en",

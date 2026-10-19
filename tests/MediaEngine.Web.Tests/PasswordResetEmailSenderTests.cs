@@ -26,7 +26,7 @@ public sealed class PasswordResetEmailSenderTests
             SmtpHost = "127.0.0.1",
             SmtpPort = port,
             FromAddress = "library@example.test",
-            FromName = "Tuvima Library",
+            FromName = "Library",
             UseStartTls = false,
         }, Reader(configDirectory, "https://library.example.test"), NullLogger<PasswordResetEmailSender>.Instance);
 
@@ -37,7 +37,7 @@ public sealed class PasswordResetEmailSenderTests
 
         Assert.True(sent);
         Assert.Contains("RCPT TO:<owner@example.test>", transcript, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Subject: Tuvima Library email test", transcript, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Subject: Library email test", transcript, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("No action is required", transcript, StringComparison.Ordinal);
     }
 

@@ -44,7 +44,7 @@ public static class SharedModelArtifact
         using var stream = File.OpenRead(artifact);
         if (!File.Exists(path) || !File.ReadAllText(path).Trim().Equals(Hashing.Sha256Hex(stream), StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("This model was installed outside Tuvima or has changed. Preserve it and manage its removal explicitly outside the app.");
+            throw new InvalidOperationException("This model was installed outside Library or has changed. Preserve it and manage its removal explicitly outside the app.");
         }
     }
 

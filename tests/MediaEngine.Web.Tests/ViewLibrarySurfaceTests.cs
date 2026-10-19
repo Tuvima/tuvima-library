@@ -19,7 +19,7 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("@page \"/view\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("@page \"/view/{LibraryId:guid}\"", source, StringComparison.Ordinal);
         Assert.Contains("<ViewSectionShell", source, StringComparison.Ordinal);
-        Assert.Contains("<PageTitle>Photos - Tuvima Library</PageTitle>", source, StringComparison.Ordinal);
+        Assert.Contains("<PageTitle>Photos - Library</PageTitle>", source, StringComparison.Ordinal);
         Assert.Contains("Search photos, dates, devices, locations, and tags", source, StringComparison.Ordinal);
         Assert.Contains("<AppDiscoveryFilterBar", source, StringComparison.Ordinal);
         Assert.Contains("role=\"tablist\"", Read("src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor"), StringComparison.Ordinal);

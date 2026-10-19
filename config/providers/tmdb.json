@@ -319,7 +319,7 @@
       {
         "id": "credential",
         "title": "Get credential",
-        "description": "Provide your own TMDB API Key (v3 auth) for this installation. Tuvima does not ship a key or use a proxy.",
+        "description": "Provide your own TMDB API Key (v3 auth) for this installation. Library does not ship a key or use a proxy.",
         "instructions": ["Open your TMDB API settings and copy API Key (v3 auth).", "If a key is already configured, review or replace it here; its value is never displayed."],
         "action": { "kind": "credential_entry", "label": "Enter API key" },
         "credential_keys": ["api_key"]
@@ -327,7 +327,7 @@
       {
         "id": "connect",
         "title": "Connect",
-        "description": "Tuvima will perform a read-only connection check.",
+        "description": "Library will perform a read-only connection check.",
         "action": { "kind": "credential_probe", "label": "Verify & connect" },
         "credential_keys": ["api_key"]
       }
@@ -336,7 +336,7 @@
       { "status": "invalid_credential", "title": "TMDB did not accept this key", "message": "Confirm that you copied API Key (v3 auth), not the API Read Access Token.", "instructions": ["Return to TMDB API settings.", "Copy API Key (v3 auth) again and retry."], "help_url": "https://developer.themoviedb.org/docs/authentication-application" },
       { "status": "rate_limited", "title": "TMDB is receiving too many requests", "message": "Wait briefly, then try the connection again.", "instructions": [] },
       { "status": "provider_outage", "title": "TMDB is temporarily unavailable", "message": "Your key may be valid. Try again when TMDB is available.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach TMDB", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach TMDB", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       {

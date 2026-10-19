@@ -25,7 +25,7 @@ public actor TuvimaAPIClient {
     public init(
         serverAddress: String,
         clientID: String = "tuvima-ios",
-        clientName: String = "Tuvima for iOS",
+        clientName: String = "Library for iOS",
         clientVersion: String,
         deviceName: String,
         store: any TokenStoring = KeychainTokenStore(),

@@ -645,7 +645,7 @@ public sealed class ViewSharedContributionService(
                  WHERE id = @id;
                 UPDATE view_shared_contributions SET updated_at = @now WHERE id = @contributionId;
                 """, new { id, contributionId, state, error, now }, transaction, cancellationToken: token));
-            InsertEvent(connection, transaction, contributionId, null, "Tuvima Library",
+            InsertEvent(connection, transaction, contributionId, null, "Library",
                 $"transfer_{state}", error, now, token);
             return true;
         }, ct);

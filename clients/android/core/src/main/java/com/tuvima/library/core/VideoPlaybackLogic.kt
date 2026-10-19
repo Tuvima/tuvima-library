@@ -17,11 +17,11 @@ enum class VideoFailure { Unavailable, Network, Other }
 
 object VideoMessages {
     const val UNAVAILABLE = "This title is not available for this profile."
-    const val NETWORK = "Can't reach your Tuvima server"
+    const val NETWORK = "Can't reach your Library server"
     const val OTHER = "This title could not be played."
     const val NOT_READY = "This title could not be prepared for playback."
     const val TIMED_OUT = "Preparing this title is taking too long. Try again in a moment."
-    const val DOWNLOAD_EXPIRED = "This download has expired. Connect to your Tuvima server to keep watching."
+    const val DOWNLOAD_EXPIRED = "This download has expired. Connect to your Library server to keep watching."
 
     fun forFailure(failure: VideoFailure, detail: String? = null): String = when (failure) {
         VideoFailure.Unavailable -> UNAVAILABLE

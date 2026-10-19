@@ -18,7 +18,7 @@ public sealed class DashboardReliabilityGuardrailTests
         var markup = Read(@"src/MediaEngine.Web/Components/Layout/ReconnectModal.razor");
         var script = Read(@"src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.js");
 
-        Assert.Contains("Tuvima Library will keep retrying", markup, StringComparison.Ordinal);
+        Assert.Contains("Library will keep retrying", markup, StringComparison.Ordinal);
         Assert.Contains("scheduleAutoRetry()", script, StringComparison.Ordinal);
         Assert.Contains("autoRetryMaximumDelayMs = 10_000", script, StringComparison.Ordinal);
         Assert.Contains("window.setTimeout", script, StringComparison.Ordinal);

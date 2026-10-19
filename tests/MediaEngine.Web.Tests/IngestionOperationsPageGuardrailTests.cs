@@ -47,7 +47,7 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.DoesNotContain("OverallProgressPercent", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Overall run progress", source, StringComparison.Ordinal);
         Assert.Single(Regex.Matches(scanAction, "Check folders for changes"));
-        Assert.Contains("Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives.", scanAction, StringComparison.Ordinal);
+        Assert.Contains("Folders are watched automatically. Use this after changing files while Library was off, or for network drives.", scanAction, StringComparison.Ordinal);
         Assert.DoesNotContain("Scan now", scanAction, StringComparison.Ordinal);
         Assert.Contains("<AppOverflowMenu", scanAction, StringComparison.Ordinal);
         Assert.DoesNotContain("Label=\"Refresh\"", source, StringComparison.Ordinal);

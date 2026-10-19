@@ -24,7 +24,7 @@ public sealed class DetailRouteRequestTests
         Assert.Null(request.ContainerId);
         Assert.Equal("Detail page not found", request.NotFoundTitle);
         Assert.Equal("Details", request.PageTitleFallback);
-        Assert.Equal("Tuvima Library", request.ProductTitle);
+        Assert.Equal("Library", request.ProductTitle);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class DetailRouteRequestTests
         Assert.Null(request.ContainerId);
         Assert.Equal("Detail page not found", request.NotFoundTitle);
         Assert.Equal("Details", request.PageTitleFallback);
-        Assert.Equal("Tuvima Library", request.ProductTitle);
+        Assert.Equal("Library", request.ProductTitle);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class DetailRouteRequestTests
         Assert.Equal(expectedBackLabel, request.OriginNavigation?.Label);
         Assert.Equal(expectedFallbackRoute, request.OriginNavigation?.FallbackRoute);
         Assert.Equal("Details", request.PageTitleFallback);
-        Assert.Equal("Tuvima Library", request.ProductTitle);
+        Assert.Equal("Library", request.ProductTitle);
     }
 
     [Theory]

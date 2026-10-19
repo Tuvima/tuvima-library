@@ -5,7 +5,7 @@
   <content src="index.html"/>
   <feature name="http://tizen.org/feature/screen.size.all"/>
   <icon src="icon.png"/>
-  <name>Tuvima</name>
+  <name>Library</name>
   <description>Your own library, presented on the TV.</description>
   <tizen:profile name="tv"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>

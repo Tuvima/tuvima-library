@@ -25,7 +25,7 @@
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" Filled="@(action.Key == "my-list" && action.IsSelected)" /></AppNativeButton></AppTooltip>
             }
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
@@ -69,7 +69,7 @@
     private Task SelectReaction(DetailAction action) => Select(action);
     private static PlaybackUtilityGlyphKind UtilityGlyphFor(DetailAction action) => action.Key switch
     {
-        "my-list" => action.IsSelected ? PlaybackUtilityGlyphKind.Check : PlaybackUtilityGlyphKind.Add,
+        "my-list" => PlaybackUtilityGlyphKind.Favorite,
         "shuffle" => PlaybackUtilityGlyphKind.Shuffle,
         "favorite" or "favorite-song" => PlaybackUtilityGlyphKind.Favorite,
         _ => action.Icon switch

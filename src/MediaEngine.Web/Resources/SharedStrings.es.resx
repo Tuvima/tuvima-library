@@ -168,16 +168,16 @@
     <value>Secciones</value>
   </data>
   <data name="Downloads_NativeAppTitle" xml:space="preserve">
-    <value>Las descargas están en la app de Tuvima</value>
+    <value>Las descargas están en la app de Library</value>
   </data>
   <data name="Downloads_NativeAppMessage" xml:space="preserve">
-    <value>Descarga películas, series, libros y música en la app de Tuvima para disfrutarlos sin conexión.</value>
+    <value>Descarga películas, series, libros y música en la app de Library para disfrutarlos sin conexión.</value>
   </data>
   <data name="TopBar_SignedInAs" xml:space="preserve">
     <value>Sesión iniciada como</value>
   </data>
   <data name="TopBar_ServiceUnavailable" xml:space="preserve">
-    <value>Tuvima no está disponible temporalmente.</value>
+    <value>Library no está disponible temporalmente.</value>
   </data>
   <data name="TopBar_LiveUpdatesConnected" xml:space="preserve">
     <value>Actualizaciones en vivo conectadas</value>
@@ -785,7 +785,7 @@
     <value>Usuarios y perfiles</value>
   </data>
   <data name="Users_PageDescription" xml:space="preserve">
-    <value>Gestione los perfiles con acceso a esta instancia de Tuvima Library. El perfil inicial (Propietario) no se puede eliminar.</value>
+    <value>Gestione los perfiles con acceso a esta instancia de Library. El perfil inicial (Propietario) no se puede eliminar.</value>
   </data>
   <data name="Users_NewProfile" xml:space="preserve">
     <value>Nuevo perfil</value>
@@ -1359,7 +1359,7 @@
     <value>Skip to main content</value>
   </data>
   <data name="TopBar_ServiceDegradedBanner" xml:space="preserve">
-    <value>Algunos servicios de Tuvima no están disponibles temporalmente.</value>
+    <value>Algunos servicios de Library no están disponibles temporalmente.</value>
   </data>
   <data name="Listen_MiniPlayerTitle" xml:space="preserve">
     <value>Mini Player</value>

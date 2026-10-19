@@ -216,7 +216,7 @@ public sealed class FolderJobService
             {
                 throw new FolderJobException(
                     writable.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message
-                    ?? "Tuvima cannot write to the folder you are merging into.");
+                    ?? "Library cannot write to the folder you are merging into.");
             }
 
             var count = _mergePreviewer.Count(sourceId, request.TargetSourceId, request.Mode, out check, ct) ?? throw MergeProblem(check);
@@ -315,7 +315,7 @@ public sealed class FolderJobService
             {
                 throw new FolderJobException(
                     check.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message
-                    ?? "Tuvima cannot write to this folder, so it cannot manage it.");
+                    ?? "Library cannot write to this folder, so it cannot manage it.");
             }
 
             var count = await _previewer.CountAsync(sourceId, ct).ConfigureAwait(false);
@@ -463,7 +463,7 @@ public sealed class FolderJobService
 
             _logger.LogInformation("Stopping folder job {OperationId}: its folder is no longer managed", operation.Id);
             await _operations.MarkCancelledAsync(
-                operation.Id, "The folder was switched to As-is, so Tuvima stopped organising it. Nothing was undone.", ct)
+                operation.Id, "The folder was switched to As-is, so Library stopped organising it. Nothing was undone.", ct)
                 .ConfigureAwait(false);
             await PublishAsync(operation.Id, ct).ConfigureAwait(false);
         }
@@ -641,7 +641,7 @@ public sealed class FolderJobService
         await KeepUnfinishedMergeCopiesAsync(operation.Id, ct).ConfigureAwait(false);
         await _operations.MarkCancelledAsync(
             operation.Id,
-            "A folder was removed, or the folder being merged into is no longer managed, so Tuvima stopped. What was already copied stays where it is.",
+            "A folder was removed, or the folder being merged into is no longer managed, so Library stopped. What was already copied stays where it is.",
             ct).ConfigureAwait(false);
         if (operation.Status is not (MediaOperationStatus.Leased or MediaOperationStatus.Running)
             && source is { MergeState: LibrarySourceMergeStates.Merging })
