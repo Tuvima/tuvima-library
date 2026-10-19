@@ -2,6 +2,8 @@
 
 > **Status:** In progress · **Version:** 3 (replaces v2; adds the Local AI behaviour review and the Integrations and Developer Tools review; locked by Shy 2026-10-19) · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Appendix A: plugin platform review](#appendix-a-plugin-platform-review) · [Appendix B: Local AI review](#appendix-b-local-ai-review) · [Appendix C: Integrations and Developer Tools review](#appendix-c-integrations-and-developer-tools-review) · [Settings revamp](archive/settings-revamp.md) (D35, D43 to D48) · [First-run prerequisites](archive/first-run-prerequisites.md) · [Ingestion and readiness](ingestion-and-readiness.md)
 
+> **Change note (wave 2 build, 2026-10-19, decided by Shy):** (1) WP5: the development data page (reset, seed, rescan) becomes a second development-only sub-page, **Development data**, under Developer Tools beside the Enrichment Tester. (2) WP9 converts only what it names (TVDB, the TMDB and ComicVine hooks, SubDL, LRCLIB); every other place that treats a provider specially by name moves to WP20. (3) WP2: approval also covers widening an integration's permissions, switching it back on while it holds keys, and making it an administrator.
+
 ## 0. What versions 2 and 3 change
 
 Version 1 settled the family model and left the plugin platform build to a follow-up spec. Shy asked for all of it as one large planned implementation, so version 2 brings the platform build into this spec (WP13 to WP26), organises the work into waves with checkpoints (section 6), and keeps everything else in version 1 unchanged.
