@@ -112,18 +112,28 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void LegacySettingsReviewRoute_StillRedirectsToRecentlyAddedWithReviewExpanded()
+    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPage()
     {
         UseLandingApi();
         var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/recently-added?review=expanded");
         var visited = new List<string>();
         navigation.LocationChanged += (_, args) => visited.Add(args.Location);
 
-        var cut = RenderSettings("review");
+        var host = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
+            builder.OpenComponent<Settings>(3);
+            builder.AddAttribute(4, nameof(Settings.Section), "recently-added");
+            builder.CloseComponent();
+        });
+        var cut = host.FindComponent<Settings>();
 
         // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
         cut.WaitForAssertion(
-            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/recently-added?review=expanded", StringComparison.Ordinal)));
+            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/review", StringComparison.Ordinal)));
     }
 
     [Fact]

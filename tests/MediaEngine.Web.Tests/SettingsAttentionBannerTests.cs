@@ -105,7 +105,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         Assert.Contains("3 items need review", notices[1].TextContent, StringComparison.Ordinal);
         Assert.Contains(notices[0].QuerySelectorAll("button"), button => button.TextContent.Trim() == "Install for me");
         Assert.Contains(notices[1].QuerySelectorAll("a"), link => link.TextContent.Trim() == "Review"
-            && link.GetAttribute("href") == "/settings/recently-added?review=expanded");
+            && link.GetAttribute("href") == "/settings/review");
         Assert.All(notices, notice => Assert.Single(notice.QuerySelectorAll("button[aria-label='Dismiss']")));
         Assert.True(notices.Count <= SettingsAttentionBanner.MaxLines);
     }

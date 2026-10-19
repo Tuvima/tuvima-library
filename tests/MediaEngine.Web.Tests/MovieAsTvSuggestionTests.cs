@@ -2,7 +2,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Library;
-using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -116,7 +116,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         other.EntityTitle = "Plain Film";
         RegisterReviewServices([Item(), other], moved, dismissed);
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
         Assert.Equal(
@@ -146,7 +146,7 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         var dismissed = new List<Guid>();
         RegisterReviewServices([Item()], null, dismissed);
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
 
         await cut.ClickAsync(".movie-as-tv-card__actions button", 2);
