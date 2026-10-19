@@ -10,6 +10,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Builder;
@@ -412,7 +413,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try
         {
             File.Delete(_databasePath);

@@ -86,6 +86,25 @@ public sealed class DatabaseConnectionGuardrailTests
         Assert.Empty(offenders);
     }
 
+    [Fact]
+    public void SourceAndTestFiles_NeverClearEverySqlitePoolInTheProcess()
+    {
+        // Microsoft.Data.Sqlite treats a connection another thread is part-way through opening as
+        // leaked, so a process-wide pool clear disposes its handle (ObjectDisposedException on the
+        // next command). Clear one database's pool instead: DatabaseConnection.ReleasePooledConnections
+        // in the Engine, TestTemp.ReleaseSqlitePool / ReleaseSqlitePoolsIn in tests.
+        const string processWideClear = "ClearAll" + "Pools(";
+        var repoRoot = FindRepoRoot();
+        var offenders = new[] { "src", "tests" }
+            .SelectMany(folder => Directory.EnumerateFiles(Path.Combine(repoRoot, folder), "*.cs", SearchOption.AllDirectories))
+            .Where(path => IsActiveSourcePath(repoRoot, path))
+            .Where(path => File.ReadAllText(path).Contains(processWideClear, StringComparison.Ordinal))
+            .Select(path => ToRelativePath(repoRoot, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
     private static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

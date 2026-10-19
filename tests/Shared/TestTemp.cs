@@ -47,7 +47,7 @@ internal static class TestTemp
     /// <summary>Deletes a SQLite database with its -wal/-shm/-journal files and legacy backups.</summary>
     internal static void DeleteDatabase(string path)
     {
-        ReleaseSqlitePools();
+        ReleaseSqlitePool(path);
         var directory = Path.GetDirectoryName(path);
         var targets = new List<string> { path, path + "-wal", path + "-shm", path + "-journal" };
         if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
@@ -64,7 +64,7 @@ internal static class TestTemp
     /// <summary>Deletes a directory tree, releasing SQLite file handles first.</summary>
     internal static void DeleteDirectory(string path)
     {
-        ReleaseSqlitePools();
+        ReleaseSqlitePoolsIn(path);
         DeleteWithRetry(() =>
         {
             if (Directory.Exists(path))
@@ -164,13 +164,43 @@ internal static class TestTemp
         }
     }
 
-    // Test projects do not all reference Microsoft.Data.Sqlite, so reach it by reflection when it is loaded.
-    private static void ReleaseSqlitePools()
+    private static readonly string[] SqliteFileExtensions = [".db", ".db3", ".sqlite", ".sqlite3"];
+
+    /// <summary>
+    /// Closes the idle pooled connections to one SQLite file (opened as <c>Data Source=&lt;path&gt;</c>, the form the
+    /// Engine and the tests use) so it can be moved or deleted. Never clear every pool in the process instead:
+    /// Microsoft.Data.Sqlite treats a connection that another thread is part-way through opening as leaked and
+    /// disposes it, so a process-wide clear in one test's cleanup breaks an unrelated test running in parallel.
+    /// </summary>
+    internal static void ReleaseSqlitePool(string databasePath)
     {
+        // Test projects do not all reference Microsoft.Data.Sqlite, so reach it by reflection when it is loaded.
         var type = AppDomain.CurrentDomain.GetAssemblies()
             .Select(assembly => assembly.GetType("Microsoft.Data.Sqlite.SqliteConnection", throwOnError: false))
             .FirstOrDefault(candidate => candidate is not null);
-        type?.GetMethod("ClearAllPools", BindingFlags.Public | BindingFlags.Static, Type.EmptyTypes)?.Invoke(null, null);
+        if (type is null)
+        {
+            return;
+        }
+
+        // Pool lookup is keyed by connection string; this instance is never opened.
+        using var key = (IDisposable)Activator.CreateInstance(type, $"Data Source={databasePath}")!;
+        type.GetMethod("ClearPool", BindingFlags.Public | BindingFlags.Static, [type])!.Invoke(null, [key]);
+    }
+
+    /// <summary>Releases the pooled connections to every SQLite file (<c>.db</c>, <c>.sqlite</c>…) under a folder.</summary>
+    internal static void ReleaseSqlitePoolsIn(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        foreach (var database in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                     .Where(file => SqliteFileExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)))
+        {
+            ReleaseSqlitePool(database);
+        }
     }
 
     private static void DeleteWithRetry(Action delete, string path)

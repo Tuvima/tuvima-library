@@ -8,6 +8,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
@@ -431,7 +432,7 @@ public sealed class AuthenticationPolicyTests
         }
         finally
         {
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(databasePath);
             foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
             {
                 if (File.Exists(path))
@@ -483,7 +484,7 @@ public sealed class AuthenticationPolicyTests
         }
         finally
         {
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(databasePath);
             foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
             {
                 if (File.Exists(path))

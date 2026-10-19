@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -142,7 +143,7 @@ public sealed class EditorContextIdentityFactsTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try
         {
             if (File.Exists(_databasePath))

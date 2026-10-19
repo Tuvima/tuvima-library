@@ -1,3 +1,4 @@
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -199,7 +200,7 @@ public sealed class DatabaseConnectionDisposeTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(path);
             if (File.Exists(path))
             {
                 File.Delete(path);

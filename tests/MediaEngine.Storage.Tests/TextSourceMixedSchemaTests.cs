@@ -1,3 +1,4 @@
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -18,7 +19,7 @@ public sealed class TextSourceMixedSchemaTests : IDisposable
             database.InitializeSchema();
         }
 
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(path);
         InsertMetadata(path, "mixed");
         Assert.Equal("mixed", Scalar(path, "SELECT text_source FROM local_item_metadata;"));
     }
@@ -32,7 +33,7 @@ public sealed class TextSourceMixedSchemaTests : IDisposable
 
     private static void InsertMetadata(string path, string textSource)
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(path);
         using var raw = new SqliteConnection($"Data Source={path};Pooling=False");
         raw.Open();
         var item = Guid.NewGuid().ToByteArray();
@@ -67,7 +68,7 @@ public sealed class TextSourceMixedSchemaTests : IDisposable
 
     private static string Scalar(string path, string sql)
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(path);
         using var raw = new SqliteConnection($"Data Source={path};Pooling=False");
         raw.Open();
         return Convert.ToString(Execute(raw, sql, scalar: true), System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
@@ -82,9 +83,9 @@ public sealed class TextSourceMixedSchemaTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         foreach (var path in _paths)
         {
+            TestTemp.ReleaseSqlitePool(path);
             foreach (var suffix in new[] { "", "-wal", "-shm" })
             {
                 if (File.Exists(path + suffix))

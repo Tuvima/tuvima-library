@@ -6,6 +6,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Identity;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Identity;
 
 namespace MediaEngine.Api.Tests;
@@ -489,7 +490,7 @@ public sealed class HouseholdAdministratorTests
         {
             _configuration.Dispose();
             _database.Dispose();
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(_databasePath);
             foreach (var path in new[] { _databasePath, $"{_databasePath}-wal", $"{_databasePath}-shm" })
             {
                 if (File.Exists(path))

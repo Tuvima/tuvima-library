@@ -8,6 +8,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Events;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -242,7 +243,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         if (File.Exists(_databasePath))
         {
             File.Delete(_databasePath);

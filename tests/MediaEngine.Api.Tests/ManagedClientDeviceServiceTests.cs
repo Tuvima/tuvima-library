@@ -4,6 +4,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
@@ -89,7 +90,7 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
         {
             if (File.Exists(path))

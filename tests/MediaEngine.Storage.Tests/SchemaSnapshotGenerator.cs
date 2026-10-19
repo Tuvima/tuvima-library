@@ -31,7 +31,6 @@ internal static class SchemaSnapshotGenerator
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
             TestTemp.DeleteDatabase(path);
         }
     }
