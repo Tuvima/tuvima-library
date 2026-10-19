@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1042; api=0; web-client=55
+# scopes: contracts=1047; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4162,6 +4162,51 @@
   IsUserLocked: System.Boolean | json=is_user_locked | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ClaimedAt: System.DateTimeOffset | json=claimed_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","claim_key":"sample","claim_value":"sample","provider_id":"11111111-2222-3333-4444-555555555555","confidence":7,"is_user_locked":true,"claimed_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collection_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsInRequest: System.Int32 | json=items_in_request | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WillBeDeleted: System.Boolean | json=will_be_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collection_id":"11111111-2222-3333-4444-555555555555","name":"sample","items_in_request":7,"will_be_deleted":true}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionFileDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetId: System.Guid? | json=asset_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryName: System.String | json=library_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FolderLabel: System.String | json=folder_label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SizeBytes: System.Int64? | json=size_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsSidecar: System.Boolean | json=is_sidecar | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_id":"11111111-2222-3333-4444-555555555555","asset_id":"11111111-2222-3333-4444-555555555555","library_name":"sample","folder_label":"sample","file_name":"sample","size_bytes":7,"outcome":"sample","reason":"sample","is_sidecar":true}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileCount: System.Int32 | json=file_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_id":"11111111-2222-3333-4444-555555555555","title":"sample","media_type":"sample","file_count":7}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionPreview
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Files: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFileDto> | json=files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CuratedCollections: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto> | json=curated_collections | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfilesWithProgress: System.Int32 | json=profiles_with_progress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProcessingRunning: System.Boolean | json=processing_running | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"items":[],"files":[],"curated_collections":[],"profiles_with_progress":7,"processing_running":true,"bytes_freed":7,"fingerprint":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_ids":[]}
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemDetailDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -3465,6 +3465,43 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemClaimRecordDt
   IsUserLocked: System.Boolean | nullability=not-null | accessors=get,init
   ClaimedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ItemsInRequest: System.Int32 | nullability=not-null | accessors=get,init
+  WillBeDeleted: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid? | nullability=nullable | accessors=get,init
+  LibraryName: System.String | nullability=not-null | accessors=get,init
+  FolderLabel: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  IsSidecar: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionItemDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionOutcomes
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreview
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionItemDto> | nullability=not-null | accessors=get,init
+  Files: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFileDto> | nullability=not-null | accessors=get,init
+  CuratedCollections: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto> | nullability=not-null | accessors=get,init
+  ProfilesWithProgress: System.Int32 | nullability=not-null | accessors=get,init
+  ProcessingRunning: System.Boolean | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init

@@ -377,6 +377,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Server administrator or Application with `review.read`, plus catalogue access |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
+| POST | `/library/items/deletion-preview` | Preview deleting 1 to 200 titles (Works) from the library without changing anything: every media file and sidecar with its folder label, size and outcome (`delete`, `keep_as_is`, `keep_protected`, `keep_missing`) as decided by the source-file safety gate, the hand-picked collections affected (and which would be deleted because they would be empty), how many profiles have progress, whether processing is running, the space freed, and a fingerprint of the plan. Refuses groups (`400`), catalog-only entries (`400`), and unknown ids or View personal items (`404`). Full disk paths are never returned | Effective administrator signed in at the Dashboard (administrator PIN unlocked where set); no paired app, native client or service application, even one acting for an administrator |
 
 ---
 
