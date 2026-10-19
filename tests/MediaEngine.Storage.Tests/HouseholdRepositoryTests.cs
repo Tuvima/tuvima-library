@@ -139,7 +139,6 @@ public sealed class HouseholdRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         foreach (var path in new[] { _databasePath, _databasePath + "-wal", _databasePath + "-shm" })
         {
             if (File.Exists(path))
