@@ -71,6 +71,13 @@ public sealed class Account
     /// <summary>Takes household administration away from this sign-in.</summary>
     public void RemoveHouseholdAdmin() => HouseholdAdmin = false;
 
+    /// <summary>
+    /// Whether this sign-in may switch to <paramref name="profileHouseholdId"/>'s person. A server administrator keeps the
+    /// grant-based rule (the caller still checks the grant); anyone else switches only inside their own household.
+    /// </summary>
+    public bool MaySwitchInto(Guid? profileHouseholdId) =>
+        IsAdministrator || (HouseholdId is { } own && profileHouseholdId == own);
+
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;
 

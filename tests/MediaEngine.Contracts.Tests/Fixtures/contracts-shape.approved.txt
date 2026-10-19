@@ -592,6 +592,11 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   DisplayName: System.String | nullability=not-null | accessors=get,init
   Allowed: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountNoticeKeys
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountNoticesResponse
+  Dismissed: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountProfileGrantDto
   AccountId: System.Guid | nullability=not-null | accessors=get,init
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -906,6 +911,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Create
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
   PermissionIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateHouseholdRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateManagedAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
@@ -1036,6 +1044,13 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GrantA
   ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   ProtectionVersion: System.Int64 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.HouseholdResponse
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ProfileCount: System.Int32 | nullability=not-null | accessors=get,init
+  AccountCount: System.Int32 | nullability=not-null | accessors=get,init
+  CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.IntercomTokenResponse
   Token: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
@@ -1159,6 +1174,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Recove
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.RecoveryCodesResponse
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.RenameHouseholdRequest
+  Name: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ReplaceAccountAccessRequest
   FeatureIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
