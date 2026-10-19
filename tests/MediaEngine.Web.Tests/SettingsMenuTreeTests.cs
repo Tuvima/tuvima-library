@@ -80,18 +80,15 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
-    public void NeedsReviewCount_MakesRecentlyAddedWaiting_AndItsParentInheritsIt()
+    public void NeedsReviewCount_MakesLibraryAndIngestionWaiting_AndRecentlyAddedIsNotInTheMenu()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { ReviewCount = 3 });
 
-        var recentlyAdded = Flatten(groups).Single(row => row.Label == "Recently Added");
-        Assert.Equal(MediaSectionAttentionLevel.Waiting, recentlyAdded.Attention);
-        Assert.Equal("3", recentlyAdded.Meta);
-        Assert.True(recentlyAdded.MetaIsNotification);
-
         var ingestion = Flatten(groups).Single(row => row.Label == "Library and Ingestion");
-        Assert.Equal(MediaSectionAttentionLevel.None, ingestion.Attention);
-        Assert.Equal(MediaSectionAttentionLevel.Waiting, ingestion.EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.Waiting, ingestion.Attention);
+        Assert.Equal("3", ingestion.Meta);
+        Assert.True(ingestion.MetaIsNotification);
+        Assert.DoesNotContain(Flatten(groups), row => row.Label == "Recently Added");
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
     }
 
@@ -105,7 +102,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.Equal("Off", localAi.AttentionLabel);
         Assert.Equal(MediaSectionAttentionLevel.Blocked, groups.Single(group => group.Label == "Developer").Items.Max(row => row.EffectiveAttention));
         Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
-        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Recently Added").EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Library and Ingestion").EffectiveAttention);
     }
 
     [Fact]
@@ -134,7 +131,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         Assert.DoesNotContain("Developer Tools", labels);
         Assert.DoesNotContain("Provider Tester", labels);
         Assert.DoesNotContain("Local Network", labels);
-        Assert.Contains("Recently Added", labels);
+        Assert.DoesNotContain("Recently Added", labels);
+        Assert.Contains("Library and Ingestion", labels);
         Assert.Contains("Playback", labels);
     }
 

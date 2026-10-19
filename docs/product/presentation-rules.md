@@ -37,7 +37,7 @@ Every library surface (Home, the hero, the shelves and lanes, Watch, Read, Liste
 
 Ready is decided once by the Engine and is the only gate; no screen has its own rule. It is sticky: once an item is Ready, matching it again (a rematch, a refresh) does not make it disappear. It leaves only on a negative outcome: it lands in Needs Review, finds no match or fails, is rejected, loses its file, or loses its place in its show or album. When it is Ready again it returns without being announced a second time.
 
-An item that is not Ready appears only on the live ingestion page (Settings, Ingestion), which says what each one is still waiting for. Each item appears on its own as soon as it is Ready; nothing waits for the rest of a batch. "Added" means Ready: the "added" notice and the Recently Added entry happen at that moment, once per item.
+An item that is not Ready appears only on the live ingestion page (Settings, Library and Ingestion), which says what each one is still waiting for. Each item appears on its own as soon as it is Ready; nothing waits for the rest of a batch. "Added" means Ready: the "added" notice and the Recently Added entry happen at that moment, once per item.
 
 ## Collections presentation
 
@@ -206,7 +206,7 @@ Live Ingestion shows one compact status card: a progress bar averages every pipe
 
 View uses a common library-detail header and Folders, Organization, File Handling, Sharing & Access, and Advanced Settings sections. The configurable View library root contains Shared and Profiles; Shared Library is an authorization scope distinct from the physical base. Logical personal-space/source registration never creates directories. Uploads and accepted transfers create destination folders only at actual write time. Merely visiting View or adding a profile must leave unused storage empty.
 
-The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. System Overview offers an independent manual installation action.
+The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it.
 
 ### View household section (October 2026)
 

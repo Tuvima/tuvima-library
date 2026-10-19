@@ -300,7 +300,7 @@ public sealed class SettingsNavTests
 
         Assert.Equal(["Households"], ChildLabels(groups, "Profiles"));
         Assert.Equal(["Playback", "Listening", "Reading"], ChildLabels(groups, "Preferences"));
-        Assert.Equal(["Recently Added", "Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
+        Assert.Equal(["Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
         Assert.Equal(["Ingestion Flow"], ChildLabels(groups, "Metadata Providers"));
         Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));

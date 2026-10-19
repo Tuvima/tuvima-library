@@ -573,9 +573,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            var recentlyAdded = cut.FindAll(".media-section-shell__tree-link")
-                .Single(item => item.TextContent.Contains("Recently Added", StringComparison.Ordinal));
-            var reviewNotification = recentlyAdded.QuerySelector(".media-section-shell__rail-meta--notification");
+            // Recently Added is no longer a menu row: the Needs Review count shows on Library and Ingestion itself.
+            var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
+                .First(item => item.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
+            var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.NotNull(reviewNotification);
             Assert.Equal("3", reviewNotification!.TextContent.Trim());
             Assert.Equal("3 items need review", reviewNotification.GetAttribute("aria-label"));
@@ -796,7 +797,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SystemOverview_CompositionSegmentsReflectEachCategoryShareOfTheWhole()
+    public void LibrarySummary_CompositionSegmentsReflectEachCategoryShareOfTheWhole()
     {
         var apiClient = EngineApiClientStub.Create(stub =>
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryOverviewAsync), _ =>
@@ -820,19 +821,19 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
-            builder.OpenComponent<OverviewTab>(3);
+            builder.OpenComponent<LibrarySummary>(3);
             builder.CloseComponent();
         });
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(6, cut.FindAll(".admin-library-media").Count);
-            var segments = cut.FindAll(".admin-composition-bar__segment");
+            Assert.Equal(6, cut.FindAll(".library-summary__media").Count);
+            var segments = cut.FindAll(".library-summary__segment");
             Assert.Equal(3, segments.Count);
             Assert.Contains("width:50%", segments[0].GetAttribute("style"), StringComparison.Ordinal);
             Assert.Contains("width:25%", segments[1].GetAttribute("style"), StringComparison.Ordinal);
             Assert.Contains("width:25%", segments[2].GetAttribute("style"), StringComparison.Ordinal);
-            Assert.Contains("Books 2, 50%", cut.Find(".admin-composition-bar").GetAttribute("aria-label"), StringComparison.Ordinal);
+            Assert.Contains("Books 2, 50%", cut.Find(".library-summary__composition").GetAttribute("aria-label"), StringComparison.Ordinal);
         });
     }
 

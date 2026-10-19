@@ -619,9 +619,9 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
       "important": 0,
-      "deep": 13
+      "deep": 6
     },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
@@ -1613,9 +1613,9 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
       "important": 0,
-      "deep": 13
+      "deep": 6
     },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
