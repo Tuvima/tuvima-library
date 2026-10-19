@@ -41,8 +41,8 @@ component behavior, but it must use an explicit mapper and must not duplicate
 the JSON contract. Types under `MediaEngine.Web/Models/ViewDTOs` are
 presentation types, not a second wire-contract owner.
 
-The only frozen exception is the exact Universe/Chronicle SignalR pair
-`LoreDeltaDiscoveredEvent` and `UniverseEnrichmentProgressEvent`, currently
+The only frozen exception is the exact Universe/Chronicle SignalR payload
+`UniverseEnrichmentProgressEvent`, currently
 defined in `MediaEngine.Web/Services/Integration/IntercomEvents.cs`. This
 exception does not cover Universe HTTP payloads, does not authorize additional
 fields or types, and must not grow. All other Universe and Chronicle HTTP and

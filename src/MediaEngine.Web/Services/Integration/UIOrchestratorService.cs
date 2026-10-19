@@ -103,19 +103,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return collections;
     }
 
-    /// <summary>
-    /// Returns the flattened <see cref="UniverseViewModel"/>, loading collection data
-    /// from the API if not already cached.
-    /// </summary>
-    public async Task<UniverseViewModel> GetUniverseAsync(
-        bool forceRefresh = false,
-        CancellationToken ct = default)
-    {
-        // GetCollectionsAsync populates _state.Universe via UniverseMapper inside SetCollections.
-        await GetCollectionsAsync(forceRefresh, ct);
-        return _state.Universe ?? UniverseMapper.MapFromCollections([]);
-    }
-
     // -- Library works --------------------------------------------------------
 
     public Task<List<WorkViewModel>> GetLibraryWorksAsync(CancellationToken ct = default)
@@ -542,14 +529,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// Components should call <c>InvokeAsync(StateHasChanged)</c> in their handler.
     /// </summary>
     public event Action<string, bool>? OnFolderHealthChanged;
-
-    /// <summary>
-    /// Fires when the Engine reports that fictional entities in a universe have
-    /// Wikidata revisions newer than the library's cached data.
-    /// Parameters: (universeQid, changedCount).
-    /// Components should call <c>InvokeAsync(StateHasChanged)</c> in their handler.
-    /// </summary>
-    public event Action<string, int>? OnLoreDeltaDiscovered;
 
     // -- Watch Folder ---------------------------------------------------------
 
@@ -1354,18 +1333,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             // Determine folder type by comparing with current known paths.
             var healthy = ev.IsAccessible && ev.HasRead && ev.HasWrite;
             OnFolderHealthChanged?.Invoke(ev.Path, healthy);
-        });
-
-        // -- "LoreDeltaDiscovered" ---------------------------------------------
-        // Stage 3 Lore Delta sweep found entities with updated Wikidata revisions.
-        // Dashboard surfaces subscribe to OnLoreDeltaDiscovered to show an amber banner.
-        _hubConnection.On<LoreDeltaDiscoveredEvent>(SignalREvents.LoreDeltaDiscovered, ev =>
-        {
-            _logger.LogDebug(
-                "Intercom ? LoreDeltaDiscovered: Universe={Qid} Changed={Count}",
-                ev.UniverseQid, ev.ChangedCount);
-
-            OnLoreDeltaDiscovered?.Invoke(ev.UniverseQid, ev.ChangedCount);
         });
 
         // -- Connection lifecycle logging --------------------------------------

@@ -1307,14 +1307,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.EntityAssetSummaryDto
-  id: System.Guid | nullability=not-null | accessors=get,init
-  entity_id: System.String | nullability=not-null | accessors=get,init
-  asset_type: System.String | nullability=not-null | accessors=get,init
-  image_url: System.String | nullability=nullable | accessors=get,init
-  is_preferred: System.Boolean | nullability=not-null | accessors=get,init
-  source_provider: System.String | nullability=nullable | accessors=get,init
-
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.UniverseEnrichmentTriggerResponse
   triggered: System.Boolean | nullability=not-null | accessors=get,init
   message: System.String | nullability=not-null | accessors=get,init
@@ -3189,7 +3181,6 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.LibraryScanRespo
   CollectionsUpserted: System.Int32 | nullability=not-null | accessors=get,init
   EditionsUpserted: System.Int32 | nullability=not-null | accessors=get,init
   PeopleRecovered: System.Int32 | nullability=not-null | accessors=get,init
-  UniversesUpserted: System.Int32 | nullability=not-null | accessors=get,init
   EntitiesUpserted: System.Int32 | nullability=not-null | accessors=get,init
   RelationshipsUpserted: System.Int32 | nullability=not-null | accessors=get,init
   Errors: System.Int32 | nullability=not-null | accessors=get,init
@@ -3482,22 +3473,8 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryOverviewDto
   QidNoMatch: System.Int32 | nullability=not-null | accessors=get,init
   CompletedWithArt: System.Int32 | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UniverseCandidateAcceptResponse
-  assigned: System.Boolean | nullability=not-null | accessors=get,init
-  collection_id: System.Guid | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UniverseCandidateRejectResponse
-  rejected: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UniverseManualAssignResponse
   assigned: System.Boolean | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.UnlinkedWorkDto
-  WorkId: System.Guid | nullability=not-null | accessors=get,init
-  EntityId: System.Guid | nullability=not-null | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  MediaType: System.String | nullability=not-null | accessors=get,init
-  WikidataQid: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.AddViewGalleryItemsResponseDto
   Added: System.Int32 | nullability=not-null | accessors=get,init
@@ -7387,11 +7364,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.HydrationSettingsD
   MaxQidCandidates: System.Int32 | nullability=not-null | accessors=get,set
   SkipWikipediaWithoutQid: System.Boolean | nullability=not-null | accessors=get,set
   WikipediaDescriptionMaxChars: System.Int32 | nullability=not-null | accessors=get,set
-  UniverseTitleSearchAutoAccept: System.Double | nullability=not-null | accessors=get,set
-  UniverseXmlWriteDebounceSeconds: System.Int32 | nullability=not-null | accessors=get,set
   FictionalEntityEnrichmentDepth: System.Int32 | nullability=not-null | accessors=get,set
   PostHydrationOrganizeThreshold: System.Double | nullability=not-null | accessors=get,set
-  MinimumUniverseWorkCount: System.Int32 | nullability=not-null | accessors=get,set
   CollectionRollupRelationshipTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   TwoPassEnabled: System.Boolean | nullability=not-null | accessors=get,set
   Pass1CorePropertiesOnly: System.Boolean | nullability=not-null | accessors=get,set
@@ -7414,9 +7388,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.HydrationSettingsD
   FetchTemporalQualifiers: System.Boolean | nullability=not-null | accessors=get,set
   BatchSparqlSize: System.Int32 | nullability=not-null | accessors=get,set
   LineageDepth: System.Int32 | nullability=not-null | accessors=get,set
-  LoreDeltaCheckOnExplorerOpen: System.Boolean | nullability=not-null | accessors=get,set
-  CanonDiscrepancyDetection: System.Boolean | nullability=not-null | accessors=get,set
-  EraActorResolution: System.Boolean | nullability=not-null | accessors=get,set
   Stage3Enabled: System.Boolean | nullability=not-null | accessors=get,set
   Stage3RateLimitMs: System.Int32 | nullability=not-null | accessors=get,set
   Stage3MaxItemsPerSweep: System.Int32 | nullability=not-null | accessors=get,set
@@ -8571,16 +8542,6 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientDeta
   ItemCount: System.Int32 | nullability=not-null | accessors=get,init
   Shelves: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseMemberShelfDto> | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCrossMediaResponse
-  universe_qid: System.String | nullability=not-null | accessors=get,init
-  cross_media_entities: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseDeepEnrichResponse
-  entity_qid: System.String | nullability=not-null | accessors=get,init
-  neighbors_found: System.Int32 | nullability=not-null | accessors=get,init
-  enrichment_enqueued: System.Int32 | nullability=not-null | accessors=get,init
-  message: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseDetailRef
   qid: System.String | nullability=not-null | accessors=get,init
   label: System.String | nullability=not-null | accessors=get,init
@@ -8663,15 +8624,6 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseGraphWorkL
   supplemental: System.Boolean? | nullability=nullable | accessors=get,init
   confidence: System.Double? | nullability=nullable | accessors=get,init
   appearance_key: System.String | nullability=nullable | accessors=get,init
-
-MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseHealthResponse
-  qid: System.String | nullability=not-null | accessors=get,init
-  label: System.String | nullability=not-null | accessors=get,init
-  entities_total: System.Int32 | nullability=not-null | accessors=get,init
-  entities_enriched: System.Int32 | nullability=not-null | accessors=get,init
-  entities_with_images: System.Int32 | nullability=not-null | accessors=get,init
-  relationships_total: System.Int32 | nullability=not-null | accessors=get,init
-  health_percent: System.Double | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseListItemDto
   qid: System.String | nullability=not-null | accessors=get,init

@@ -29,14 +29,6 @@ public interface IUniverseGraphQueryService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Find entities that appear in multiple works (cross-media characters).
-    /// Returns QIDs of entities linked to 2+ distinct works.
-    /// </summary>
-    Task<IReadOnlyList<string>> FindCrossMediaEntitiesAsync(
-        string universeQid,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Invalidate the cached in-memory graph for a universe, forcing
     /// a reload from SQLite on next query.
     /// </summary>

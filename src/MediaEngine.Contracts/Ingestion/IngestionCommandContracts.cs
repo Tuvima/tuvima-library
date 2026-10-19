@@ -52,9 +52,6 @@ public sealed class LibraryScanResponse
     [JsonPropertyName("people_recovered")]
     public int PeopleRecovered { get; init; }
 
-    [JsonPropertyName("universes_upserted")]
-    public int UniversesUpserted { get; init; }
-
     [JsonPropertyName("entities_upserted")]
     public int EntitiesUpserted { get; init; }
 

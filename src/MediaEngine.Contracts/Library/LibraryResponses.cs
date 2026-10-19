@@ -7,8 +7,4 @@ namespace MediaEngine.Contracts.Library;
 /// no <c>[JsonPropertyName]</c> overrides, so the JSON payload these records produce is
 /// byte-identical to what the replaced anonymous types produced.
 /// </summary>
-public sealed record UniverseCandidateAcceptResponse(bool assigned, Guid collection_id);
-
-public sealed record UniverseCandidateRejectResponse(bool rejected);
-
 public sealed record UniverseManualAssignResponse(bool assigned);
