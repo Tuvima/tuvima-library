@@ -93,6 +93,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG TARGETARCH
 WORKDIR /app
 ENV TUVIMA_AI_RUNTIME_DIR=bundled
+# Tells the tools list which fix text to show: this image already includes FFmpeg and Tesseract.
+ENV TUVIMA_INSTALL_KIND=docker
 
 # FFmpeg/FFprobe provide probing, thumbnails and transcodes. libfontconfig and
 # libgomp are required by the bundled SkiaSharp and LLamaSharp CPU runtimes.

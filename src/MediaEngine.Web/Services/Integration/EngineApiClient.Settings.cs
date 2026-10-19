@@ -21,6 +21,14 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
+    // -- /settings/tools ---------------------------------------------------------
+
+    public Task<ToolRequirementsDto?> GetToolRequirementsAsync(CancellationToken ct = default) =>
+        GetAsync<ToolRequirementsDto>("GET /settings/tools", "/settings/tools", ct: ct);
+
+    public Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default) =>
+        PostAsync<object?, ToolRequirementsDto>("POST /settings/tools/check", "/settings/tools/check", null, ct: ct);
+
     // -- /profiles ---------------------------------------------------------------
 
     public async Task<List<ProfileViewModel>> GetProfilesAsync(CancellationToken ct = default)

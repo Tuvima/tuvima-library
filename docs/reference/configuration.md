@@ -423,13 +423,21 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 
 ---
 
+## Tools and requirements (environment)
+
+| Variable | Values | Description |
+|---|---|---|
+| `TUVIMA_INSTALL_KIND` | `windows_installer`, `docker`, `source` | Tells the tools list how this install was set up, so the fix for a missing tool reads right (reinstall with the Windows installer, update the Docker image, or a package-manager command). The Windows installer sets `windows_installer` on the Engine service and the Docker image sets `docker`. When unset, a container is `docker` and anything else is `source`. |
+
+The Engine keeps one catalogue of tools (FFmpeg, smooth streaming, Tesseract, the image engine, the local AI engine and each AI model). FFmpeg is **required** when any library holds Movies, TV, Music or Audiobooks, and optional otherwise. The catalogue drives the setup server check, `GET /settings/tools`, one summary line in the Engine log at start-up, and the `media_runtime` and `ai_models` health checks. A missing tool is reported and never blocks setup.
+
 ## config/transcoding.json
 
 Controls FFmpeg discovery, adaptive playback packages, offline variants, concurrency, and cache retention.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `ffmpeg_binary_path` / `ffprobe_binary_path` | string | `""` | Explicit executable paths. Empty uses the packaged `tools/ffmpeg` binaries and then `PATH`. An explicit missing path fails capability detection instead of silently falling back. |
+| `ffmpeg_binary_path` / `ffprobe_binary_path` | string | `""` | Explicit executable paths. Empty searches, in order: `tools/ffmpeg/` in the Tuvima data folder, `tools/ffmpeg/` next to the Engine, `PATH`, then the operating system's standard install folders (Windows: `Program Filesfmpegin`, `C:fmpegin`, WinGet, Chocolatey and Scoop shims; macOS: `/opt/homebrew/bin`, `/usr/local/bin`). An explicit missing path fails capability detection instead of silently falling back. **Check again** in Settings (`POST /settings/tools/check`) searches again without a restart; work already running keeps the copy it started with. |
 | `hardware_acceleration` | string | `"auto"` | `auto`, `nvenc`, `quicksync`, `vaapi`, `cpu`, or `none`. Auto probes usable hardware encoders; CPU/none select `libx264`. |
 | `max_concurrent_transcodes` | int | `1` | Shared upper bound for adaptive package preparation. Clamped to 1-8. |
 | `shadow_storage_limit_gb` | int | `500` | Maximum prepared-variant storage. Cleanup evicts least-recently-used ready packages when this bound is exceeded. |
@@ -470,7 +478,7 @@ Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesse
 
 English and orientation data are installed with the helper. Other languages are an explicit download from **Settings > Libraries > View > Documents** and are stored in `{DataRoot}/ocr/tessdata`, never in build output. Page images are written to `{DataRoot}/ocr/tmp` and removed as each file finishes.
 
-The helper is found in this order: `tesseract_binary_path` when set, then `tools/tesseract/` next to the Engine, then `PATH`. Windows installers bundle it, and the container image installs the `tesseract-ocr` and `tesseract-ocr-eng` packages. From a source checkout on Windows run `pwsh -File tools/Download-Tesseract.ps1` (needs 7-Zip); on Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, **Settings > Libraries > View > Documents** says **Text recognition is not installed** and reading text-layer documents carries on.
+The helper is found in this order: `tesseract_binary_path` when set, then `tools/tesseract/` in the Tuvima data folder, then `tools/tesseract/` next to the Engine, then `PATH`, then the standard install folders (Windows: `Program Files\Tesseract-OCR`, `Program Files (x86)\Tesseract-OCR`, `%LOCALAPPDATA%\Programs\Tesseract-OCR`; macOS: `/opt/homebrew/bin`, `/usr/local/bin`). Windows installers bundle it, and the container image installs the `tesseract-ocr` and `tesseract-ocr-eng` packages. From a source checkout on Windows run `pwsh -File tools/Download-Tesseract.ps1` (needs 7-Zip); on Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, **Settings > Libraries > View > Documents** says **Text recognition is not installed** and reading text-layer documents carries on.
 
 ---
 

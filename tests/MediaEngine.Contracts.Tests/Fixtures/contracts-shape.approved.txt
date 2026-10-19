@@ -7960,6 +7960,36 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsSavedRespo
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TestPathRequest
   Path: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolInstallKinds
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Requirement: System.String | nullability=not-null | accessors=get,init
+  State: System.String | nullability=not-null | accessors=get,init
+  Effect: System.String | nullability=not-null | accessors=get,init
+  StateReason: System.String | nullability=nullable | accessors=get,init
+  Fix: System.String | nullability=not-null | accessors=get,init
+  Version: System.String | nullability=nullable | accessors=get,init
+  WaitingFiles: System.Int32 | nullability=not-null | accessors=get,init
+  CanLocate: System.Boolean | nullability=not-null | accessors=get,init
+  CanInstall: System.Boolean | nullability=not-null | accessors=get,init
+  CanDownloadAgain: System.Boolean | nullability=not-null | accessors=get,init
+  DownloadPercent: System.Int32? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementIds
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementLevels
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementStates
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementsDto
+  InstallKind: System.String | nullability=not-null | accessors=get,init
+  CheckedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  NeedsAttention: System.Boolean | nullability=not-null | accessors=get,init
+  Tools: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Settings.ToolRequirementDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TranscodingQualityProfile
   Name: System.String | nullability=not-null | accessors=get,set
   Resolution: System.String | nullability=not-null | accessors=get,set
@@ -8196,8 +8226,8 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupPreflightDto
   RuntimeIdentifier: System.String | nullability=not-null | accessors=get,init
   OsArchitecture: System.String | nullability=not-null | accessors=get,init
   ProcessArchitecture: System.String | nullability=not-null | accessors=get,init
-  FfmpegStatus: System.String | nullability=not-null | accessors=get,init
   Checks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Setup.SetupPathCheckDto> | nullability=not-null | accessors=get,init
+  Tools: MediaEngine.Contracts.Settings.ToolRequirementsDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupReadinessDto
   CanComplete: System.Boolean | nullability=not-null | accessors=get,init

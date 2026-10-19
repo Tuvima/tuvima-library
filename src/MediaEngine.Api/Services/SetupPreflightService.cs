@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Dapper;
+using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
@@ -11,7 +12,7 @@ namespace MediaEngine.Api.Services;
 public sealed class SetupPreflightService(
     IConfigurationLoader configuration,
     IDatabaseConnection database,
-    IFFmpegService ffmpeg,
+    IToolRequirementsService toolRequirements,
     ILogger<SetupPreflightService> logger)
 {
     public async Task<SetupPreflightDto> RunAsync(CancellationToken ct)
@@ -52,22 +53,8 @@ public sealed class SetupPreflightService(
             checks[0] = current with { Status = "blocked", Detail = "SQLite quick_check did not pass." };
         }
 
-        var ffmpegStatus = ffmpeg.IsAvailable ? "available" : "unavailable";
-        if (ffmpeg.IsAvailable)
-        {
-            try
-            {
-                var result = await ffmpeg.RunAsync("-version", ct).ConfigureAwait(false);
-                ffmpegStatus = result.ExitCode == 0
-                    ? result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "available"
-                    : "probe-failed";
-            }
-            catch (Exception exception) when (!ct.IsCancellationRequested)
-            {
-                logger.LogWarning(exception, "Setup could not probe FFmpeg.");
-                ffmpegStatus = "probe-failed";
-            }
-        }
+        // A missing tool is reported, never a reason to fail the server check (Passed covers paths and the data store only).
+        var tools = await toolRequirements.CheckAsync(ct).ConfigureAwait(false);
 
         var inContainer = ContainerEnvironment.IsContainer();
         return new SetupPreflightDto(
@@ -79,8 +66,8 @@ public sealed class SetupPreflightService(
             RuntimeInformation.RuntimeIdentifier,
             RuntimeInformation.OSArchitecture.ToString(),
             RuntimeInformation.ProcessArchitecture.ToString(),
-            ffmpegStatus,
-            checks);
+            checks,
+            tools);
     }
 
     private SetupPathCheckDto Probe(string key, string label, string rawPath, string source, bool requireWrite)

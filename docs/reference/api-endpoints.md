@@ -219,6 +219,8 @@ through compatibility routes.
 |---|---|---|---|
 | GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
 | PUT | `/settings/libraries` | Validate and replace the complete schema-7 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
+| GET | `/settings/tools` | The last tools check: each tool and AI model with whether it is required, its state (`ready`, `missing`, `problem`, `downloading`, `installer_ready`), what it affects, how to fix it for this install, and how many files are waiting on it. Runs a first check if none has run | Administrator |
+| POST | `/settings/tools/check` | Look for the tools again, let work that was waiting on them continue, and return the fresh result. Setup's server check (`POST /setup/v1/preflight`) carries the same result as `tools`; a missing tool never makes the check fail | Administrator |
 | GET | `/settings/ocr` | Text recognition settings, whether the helper and language data are installed, the language checklist, and the reading queue (length and current file name only) | Administrator |
 | PUT | `/settings/ocr` | Save text recognition on or off, effort (`normal` or `low`) and the languages to read with | Administrator |
 | POST | `/settings/ocr/languages/{code}` | Download the language data for one listed language; the only network use of text recognition | Administrator |

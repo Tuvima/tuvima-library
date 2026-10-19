@@ -134,6 +134,7 @@ public sealed class EngineCompositionValidationTests
         services.AddApplicationEvents();
         services.AddApplicationWebhooks();
         services.AddTuvimaHostedServices();
+        services.AddTuvimaToolRequirements();
 
         using var provider = services.BuildServiceProvider(
             new ServiceProviderOptions

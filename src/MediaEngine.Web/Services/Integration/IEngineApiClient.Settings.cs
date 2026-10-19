@@ -13,6 +13,12 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    /// <summary>The Engine's last tools check, or <c>null</c> when the Engine could not be asked.</summary>
+    Task<ToolRequirementsDto?> GetToolRequirementsAsync(CancellationToken ct = default);
+
+    /// <summary>Asks the Engine to look for its tools again and returns the fresh result.</summary>
+    Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default);
+
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 
     /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>

@@ -1,8 +1,7 @@
 using System.Reflection;
 using MediaEngine.Api.Services;
-using MediaEngine.Domain.Contracts;
-using MediaEngine.Domain.Models;
-using MediaEngine.Domain.Services;
+using MediaEngine.Api.Services.Tools;
+using MediaEngine.Contracts.Settings;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
@@ -26,7 +25,7 @@ public sealed class SetupPreflightLoggingTests : IDisposable
         var core = configuration.LoadCore();
         core.DataRoot = Path.Combine(_root, "data");
         configuration.SaveCore(core);
-        var service = new SetupPreflightService(configuration, new ThrowingDatabase(), new UnavailableFfmpeg(), logger);
+        var service = new SetupPreflightService(configuration, new ThrowingDatabase(), new NoToolsService(), logger);
 
         var result = await service.RunAsync(CancellationToken.None);
 
@@ -76,14 +75,11 @@ public sealed class SetupPreflightLoggingTests : IDisposable
         public void Dispose() { }
     }
 
-    private sealed class UnavailableFfmpeg : IFFmpegService
+    private sealed class NoToolsService : IToolRequirementsService
     {
-        public string? FfmpegPath => null;
-        public string? FfprobePath => null;
-        public bool IsAvailable => false;
-        public HardwareCapabilities HardwareCapabilities { get; } = new();
-        public Task<MediaProbeResult?> ProbeAsync(string filePath, CancellationToken ct = default) => Task.FromResult<MediaProbeResult?>(null);
-        public Task<(int ExitCode, string Output, string Error)> RunAsync(string arguments, CancellationToken ct = default) => throw new NotSupportedException();
+        private static readonly ToolRequirementsDto Empty = new(ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, []);
+        public Task<ToolRequirementsDto> GetAsync(CancellationToken ct) => Task.FromResult(Empty);
+        public Task<ToolRequirementsDto> CheckAsync(CancellationToken ct) => Task.FromResult(Empty);
     }
 
     private sealed class CapturingLogger : ILogger<SetupPreflightService>

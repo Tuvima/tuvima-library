@@ -83,25 +83,35 @@ public class FFmpegServiceParsingTests
     [Fact]
     public void ResolveBinary_DoesNotHideInvalidExplicitConfigurationWithPathFallback()
     {
-        var resolver = typeof(FFmpegService).GetMethod("ResolveBinary", BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(resolver);
+        var onPath = Directory.CreateTempSubdirectory("tuvima-ffmpeg-path-");
+        try
+        {
+            File.WriteAllBytes(Path.Combine(onPath.FullName, OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg"), [0]);
+            var environment = EmptyEnvironment() with { PathDirectories = [onPath.FullName] };
+            var missing = Path.Combine(Path.GetTempPath(), $"missing-ffmpeg-{Guid.NewGuid():N}");
 
-        var missing = Path.Combine(Path.GetTempPath(), $"missing-ffmpeg-{Guid.NewGuid():N}");
-        var result = resolver!.Invoke(null, ["ffmpeg", missing]);
+            var result = FFmpegService.ResolveBinary("ffmpeg", missing, environment);
 
-        Assert.Null(result);
+            Assert.Null(result.Path);
+            Assert.True(result.ExplicitPathMissing);
+        }
+        finally
+        {
+            onPath.Delete(recursive: true);
+        }
     }
+
+    private static FFmpegEnvironment EmptyEnvironment() =>
+        new(Path.Combine(Path.GetTempPath(), $"tuvima-no-app-{Guid.NewGuid():N}"), null, [], []);
 
     [Fact]
     public void ResolveBinary_ReturnsAbsoluteExplicitPath()
     {
-        var resolver = typeof(FFmpegService).GetMethod("ResolveBinary", BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(resolver);
         var configured = Path.GetTempFileName();
         try
         {
-            var result = Assert.IsType<string>(resolver!.Invoke(null, ["ffmpeg", configured]));
-            Assert.Equal(Path.GetFullPath(configured), result);
+            var result = FFmpegService.ResolveBinary("ffmpeg", configured, EmptyEnvironment());
+            Assert.Equal(Path.GetFullPath(configured), result.Path);
         }
         finally
         {
