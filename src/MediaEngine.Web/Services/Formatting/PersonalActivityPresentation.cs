@@ -188,37 +188,6 @@ public static class PersonalActivityPresentation
         return string.Join(", ", parts);
     }
 
-    /// <summary>Seconds of watching, reading and listening, summed from the profile's totals by media type.</summary>
-    public static (double Watched, double Read, double Listened) ConsumedSeconds(IReadOnlyDictionary<string, double>? byMediaType)
-    {
-        double watched = 0, read = 0, listened = 0;
-        foreach (var (mediaType, seconds) in byMediaType ?? new Dictionary<string, double>())
-        {
-            if (seconds <= 0)
-            {
-                continue;
-            }
-
-            var type = mediaType.Trim().ToLowerInvariant();
-            if (type.Contains("audio", StringComparison.Ordinal) || type.Contains("music", StringComparison.Ordinal))
-            {
-                listened += seconds;
-            }
-            else if (type.Contains("book", StringComparison.Ordinal) || type.Contains("comic", StringComparison.Ordinal)
-                     || type.Contains("epub", StringComparison.Ordinal))
-            {
-                read += seconds;
-            }
-            else if (type.Contains("movie", StringComparison.Ordinal) || type.Contains("tv", StringComparison.Ordinal)
-                     || type.Contains("video", StringComparison.Ordinal))
-            {
-                watched += seconds;
-            }
-        }
-
-        return (watched, read, listened);
-    }
-
     /// <summary>
     /// One line about the person's taste: their top three genres and, when known, their top two moods. Falls back to the genres
     /// they have opened most when no taste profile has been built yet. Null when there is nothing honest to say.

@@ -84,49 +84,6 @@ public sealed partial class DisplayComposerService
             Catalog: cards);
     }
 
-    /// <summary>
-    /// The profile's finished Works, most recently finished first, as the same cards a lane page gives them. Music has no finished
-    /// state. The read is not capped by a lane page, so History does not lose items past the first few hundred.
-    /// </summary>
-    public async Task<DisplayPageDto> BuildFinishedAsync(
-        string? lane,
-        int limit,
-        bool includeCatalog = true,
-        CancellationToken ct = default,
-        string? mediaType = null,
-        Guid? profileId = null)
-    {
-        var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
-        var worksTask = _readService.LoadWorksAsync(ct);
-        var statesTask = _readService.LoadStatesAsync(profileId, normalizedLane, ct);
-        await Task.WhenAll(worksTask, statesTask);
-
-        var byWork = (await worksTask).GroupBy(work => work.WorkId).ToDictionary(group => group.Key, group => group.First());
-        var take = Math.Clamp(limit <= 0 ? 24 : limit, 1, 100);
-        var cards = LatestProgressByWork(await statesTask).Values
-            .Where(state => state.ProgressPct >= TvEpisodeContextResolver.CompletionPercent)
-            .Where(state => DisplayMediaRules.NormalizeDisplayKind(state.MediaType) != "Music")
-            .Where(state => string.IsNullOrWhiteSpace(mediaType)
-                            || string.Equals(
-                                DisplayMediaRules.NormalizeMediaType(state.MediaType),
-                                DisplayMediaRules.NormalizeMediaType(mediaType),
-                                StringComparison.OrdinalIgnoreCase))
-            .Where(state => byWork.ContainsKey(state.WorkId))
-            .OrderByDescending(state => state.LastAccessed)
-            .ThenBy(state => state.WorkId)
-            .Take(take)
-            .Select(state => _cards.FromWork(byWork[state.WorkId], normalizedLane ?? LaneFor(state.MediaType), state))
-            .ToList();
-
-        return new DisplayPageDto(
-            Key: $"finished-{normalizedLane ?? "all"}",
-            Title: "History",
-            Subtitle: null,
-            Hero: null,
-            Shelves: [new DisplayShelfDto("finished", "History", null, cards, null)],
-            Catalog: includeCatalog ? cards : []);
-    }
-
     private static Guid TvGroupId(DisplayWorkRow work) =>
         work.RootWorkId != Guid.Empty ? work.RootWorkId : work.CollectionId ?? work.WorkId;
 

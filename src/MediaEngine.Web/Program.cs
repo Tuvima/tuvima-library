@@ -541,6 +541,22 @@ app.MapGet("/engine-activity-artwork/{key}", async (string key, string? scope, H
     return Results.Empty;
 }).RequireAuthorization();
 
+// The CSV of exactly what the Activity filters show. Only the filters are passed on, never paging, and the Engine decides
+// whose activity the signed-in person may export.
+app.MapGet("/engine-activity-export", async (HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    var filters = ctx.Request.Query
+        .Where(pair => PersonalActivityRequest.FilterKeys.Contains(pair.Key))
+        .SelectMany(pair => pair.Value.Select(value => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(value ?? string.Empty)}"))
+        .ToArray();
+    var path = "/api/v1/activity/export.csv" + (filters.Length == 0 ? string.Empty : "?" + string.Join('&', filters));
+    using var request = new HttpRequestMessage(HttpMethod.Get, path);
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).RequireAuthorization();
+
 app.MapMethods(
         "/engine-hls/{grant}/{packageId:guid}/{**resourcePath}",
         [HttpMethods.Get, HttpMethods.Head],

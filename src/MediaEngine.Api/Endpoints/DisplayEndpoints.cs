@@ -73,18 +73,14 @@ public static class DisplayEndpoints
             string? mediaType,
             int? limit,
             bool? includeCatalog,
-            bool? finished,
             DisplayComposerService display,
             CancellationToken ct) =>
         {
             var paged = PagedRequest.From(null, limit, defaultLimit: 24);
-            // finished=true swaps the in-progress cards for the profile's finished ones, most recently finished first (History).
-            return Results.Ok(finished == true
-                ? await display.BuildFinishedAsync(lane, paged.Limit, includeCatalog ?? true, ct, mediaType, ProfileId(user))
-                : await display.BuildContinueAsync(lane, paged.Limit, includeCatalog ?? true, ct, mediaType, ProfileId(user)));
+            return Results.Ok(await display.BuildContinueAsync(lane, paged.Limit, includeCatalog ?? true, ct, mediaType, ProfileId(user)));
         })
             .WithName("GetDisplayContinue")
-            .WithSummary("Returns cross-platform continue cards with progress, or the finished cards with finished=true.")
+            .WithSummary("Returns cross-platform continue cards with progress.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.ProgressRead);
 

@@ -34,14 +34,12 @@ public partial interface IEngineApiClient
 
     /// <summary>
     /// GET /api/v1/display/continue - compact in-progress cards for one lane and optional media type.
-    /// With <paramref name="finished"/> the Engine returns the finished cards instead (most recently finished first).
     /// </summary>
     Task<DisplayPageDto?> GetDisplayContinueAsync(
         string? lane = null,
         string? mediaType = null,
         int? limit = null,
-        CancellationToken ct = default,
-        bool? finished = null);
+        CancellationToken ct = default);
 
     /// <summary>
     /// POST /api/v1/display/items - the lane-style cards for a list of item ids, in calls of at most

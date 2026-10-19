@@ -23,6 +23,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.Zero), NavigationConfig: "{\"playlist_order\":[\"a\"]}");
 
     private ProfileOverviewViewModel? _overview = new();
+    private PersonalActivitySummaryDto? _summary = new(0, 0, 0, 0, 0, 0, 0, null);
     private PersonalActivityRecentDto? _recent = new([]);
     private readonly List<(Guid Id, string Name, string Color, string? NavigationConfig)> _updates = [];
 
@@ -52,6 +53,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
         stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel> { _profile }));
         stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => Task.FromResult(_overview));
         stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivityRecentAsync), _ => Task.FromResult(_recent));
+        stub.SetHandler(nameof(IEngineApiClient.GetPersonalActivitySummaryAsync), _ => Task.FromResult(_summary));
         stub.SetHandler(nameof(IEngineApiClient.UpdateProfileAsync), args =>
         {
             var id = (Guid)args![0]!;
@@ -108,6 +110,9 @@ public sealed class OverviewPageTests : AsyncBunitContext
         var apps = cut.Find("[aria-label='Apps']");
         Assert.Equal("a", apps.TagName.ToLowerInvariant());
         Assert.Equal("/settings/overview/apps", apps.GetAttribute("href"));
+        // A phone, not the Devices icon: Apps is where to get the app for a phone or TV.
+        Assert.Contains("M17 1.01L7 1c", apps.InnerHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("M4 6h18V4H4", apps.InnerHtml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -125,16 +130,12 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Counts_ShowInProgressFinishedAndTheTimeWatchedReadAndListened()
+    public void Counts_ShowInProgressFinishedAndTheLifetimeTimeWatchedReadAndListened_FromTheActivitySummary()
     {
-        _overview = Overview(inProgress: 3, completed: 12, consumed: new()
-        {
-            ["Movies"] = 7200,
-            ["TV"] = 3600,
-            ["Books"] = 1800,
-            ["Audiobooks"] = 5400,
-            ["Music"] = 3600,
-        });
+        // Totals the person's whole record holds, not a sample of their latest items.
+        _summary = new PersonalActivitySummaryDto(
+            WatchSeconds: 3 * 3600, ReadSeconds: 1800, ListenSeconds: 9000, MusicSeconds: 3600, AudiobookSeconds: 5400,
+            FinishedCount: 12, InProgressCount: 3, FirstActivityAt: null);
 
         var cut = RenderPage();
 
@@ -146,9 +147,22 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Counts_LeaveOutAnyTimeTheEngineCannotSupply_NeverFakingIt()
+    public void Counts_DoNotComeFromTheLatestEightyItemsOfTheProfileOverview()
     {
-        _overview = Overview(inProgress: 0, completed: 0, consumed: new() { ["Movies"] = 3600 });
+        _overview = Overview(inProgress: 80, completed: 80, consumed: new() { ["Movies"] = 999999 });
+        _summary = new PersonalActivitySummaryDto(7200, 0, 0, 0, 0, FinishedCount: 412, InProgressCount: 9, FirstActivityAt: null);
+
+        var cut = RenderPage();
+
+        Assert.Equal("9", CountValue(cut, "in-progress"));
+        Assert.Equal("412", CountValue(cut, "finished"));
+        Assert.Equal("2 h", CountValue(cut, "watched"));
+    }
+
+    [Fact]
+    public void Counts_LeaveOutAnyTimeThatHasNoTotal_NeverFakingIt()
+    {
+        _summary = new PersonalActivitySummaryDto(3600, 0, 0, 0, 0, 0, 0, null);
 
         var cut = RenderPage();
 
@@ -157,9 +171,9 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Counts_AreAbsentWhenTheOverviewCannotBeRead_ButThePageStillOpens()
+    public void Counts_AreAbsentWhenTheSummaryCannotBeRead_ButThePageStillOpens()
     {
-        _overview = null;
+        _summary = null;
 
         var cut = RenderPage();
 

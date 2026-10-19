@@ -46,6 +46,17 @@ public static partial class PersonalActivityArtworkPath
             : [.. tile.CoverUrls.Select(ToBrowserUrl).OfType<string>()],
     };
 
+    /// <summary>The same Activity item (and its attempts and songs) with every picture address turned into a Dashboard address.</summary>
+    public static PersonalActivityItemDto ForBrowser(PersonalActivityItemDto item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        item.ArtworkUrl = ToBrowserUrl(item.ArtworkUrl);
+        item.CoverUrls = item.CoverUrls is null ? null : [.. item.CoverUrls.Select(ToBrowserUrl).OfType<string>()];
+        item.Attempts = item.Attempts is null ? null : [.. item.Attempts.Select(ForBrowser)];
+        item.Songs = item.Songs is null ? null : [.. item.Songs.Select(ForBrowser)];
+        return item;
+    }
+
     [GeneratedRegex("^[0-9a-f]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex KeyPattern();
 }
