@@ -25,7 +25,7 @@ This describes where Tuvima stores data. Your own network shares, backup destina
 
 Enabled metadata providers can request identifiers, descriptions, artwork, lyrics, subtitles, and relationship data. Examples include Apple, MusicBrainz, TMDB, TheTVDB, Comic Vine, LRCLIB, SubDL, Wikidata, and Wikimedia Commons.
 
-Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts; subsequent supported inference runs locally.
+Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts when you ask; subsequent supported inference runs locally. [Everything that can be downloaded on request](#know-what-can-be-downloaded-when-you-ask) is listed below.
 
 Refreshing the approved plugin catalog contacts GitHub. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
 
@@ -36,6 +36,21 @@ Scanned pages and photos of paper are read by Tesseract, a program that runs on 
 Text recognition uses the network in exactly one case: when you choose an extra language under **Settings > Libraries > View > Documents** and press **Download**. That downloads the language file from GitHub. English is included with Tuvima Library and needs no download.
 
 The words of every document, whether read from the file or recognised from a scan, are used only for search on the Documents page. They never appear on Home, in the global search or in recommendations. The PDF viewer is bundled with the Dashboard and loads no outside files. Inbox suggestions and auto-filing rules run on your host without AI and send nothing anywhere, and the CSV export holds names and labels, never the words inside documents or your notes. See [Documents in View](documents-in-view.md).
+
+## Know what can be downloaded when you ask
+
+Tuvima never downloads a helper tool or a model by itself. The only downloads are the ones below, and each starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears when a Required tool is missing). Pressing **Not now** on the banner does not download anything and the banner then stops asking about that tool.
+
+| What | Where from | When |
+|---|---|---|
+| FFmpeg and FFprobe (one pinned Windows build) | `github.com` (the BtbN/FFmpeg-Builds release), which hands the file on from GitHub's own release storage | **Install for me** or **Download again**, for a run from source or a repair; the Windows installer and the container image already include it |
+| Tesseract's Windows setup program, plus English and page-orientation language data | `github.com` (UB-Mannheim/tesseract and tesseract-ocr/tessdata_fast) | **Install for me** on a run from source. You then run the setup program yourself and Windows asks for your approval |
+| Extra text recognition languages | `github.com` (tesseract-ocr/tessdata_fast) | Choosing a language under **Settings > Libraries > View > Documents** |
+| Local AI model files | The model host named for each model on the Local AI pages | **Download** on the Tools and requirements page |
+
+Every address and every checksum for the tools above is written in `config/tool_downloads.json`. The Library only accepts fixed `https` addresses on `github.com`, checks each download (and each FFmpeg program inside its archive) against the recorded SHA-256 value, and throws away anything that does not match. Each attempt, including a refusal or a cancel, is written to the system activity log.
+
+**No library data is sent.** A download is a plain request for one file. The only thing the host can learn from it is that someone fetched that file from that internet address; no titles, file names, folders, profile or account details leave your host. Containers never download tools into themselves.
 
 ## Understand Places map requests
 

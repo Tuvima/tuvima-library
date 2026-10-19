@@ -3,6 +3,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Tools;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Contracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -50,7 +51,7 @@ public static class ToolRequirementsEndpoints
 
         group.MapPost("/{id}/install", async (
             string id,
-            IToolInstallerService installer,
+            [FromServices] IToolInstallerService installer,
             IToolRequirementsService tools,
             CancellationToken ct) =>
         {
@@ -73,7 +74,7 @@ public static class ToolRequirementsEndpoints
 
         group.MapDelete("/{id}/install", async (
             string id,
-            IToolInstallerService installer,
+            [FromServices] IToolInstallerService installer,
             IToolRequirementsService tools,
             CancellationToken ct) =>
         {
@@ -93,7 +94,7 @@ public static class ToolRequirementsEndpoints
 
         group.MapPost("/{id}/run-installer", async (
             string id,
-            IToolInstallerService installer,
+            [FromServices] IToolInstallerService installer,
             IToolRequirementsService tools,
             CancellationToken ct) =>
         {
@@ -121,7 +122,7 @@ public static class ToolRequirementsEndpoints
         group.MapPost("/{id}/decline", async (
             string id,
             IToolRequirementsService tools,
-            IToolPromptPreferenceRepository prompts,
+            [FromServices] IToolPromptPreferenceRepository prompts,
             CancellationToken ct) =>
         {
             if (!await IsKnownAsync(tools, id, ct).ConfigureAwait(false))

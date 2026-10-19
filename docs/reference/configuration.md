@@ -482,6 +482,27 @@ The helper is found in this order: `tesseract_binary_path` when set, then `tools
 
 ---
 
+## config/tool_downloads.json
+
+The exact builds of FFmpeg and Tesseract the Library may fetch when an administrator presses **Install for me** or **Download again** under **Settings > Tools and requirements** (the same builds as `tools/Download-FFmpeg.ps1` and `tools/Download-Tesseract.ps1`). Nothing is ever downloaded by itself. A missing file means the values below. The Local AI models and extra OCR languages keep their own download settings (`config/ai.json`, `language_download_url` in `config/ocr.json`).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `ffmpeg.platform` | string | `"win-x64"` | Only `win-x64` is offered today; Linux and macOS keep the install-it-yourself text. |
+| `ffmpeg.version` | string | `"9.0.1"` | Shown in the activity log. |
+| `ffmpeg.url` | string | pinned BtbN release | The archive. Must be `https://github.com/...`. |
+| `ffmpeg.sha256` | string | pinned | SHA-256 of the whole archive. |
+| `ffmpeg.files[]` | object[] | `ffmpeg.exe`, `ffprobe.exe` | `name` and `sha256` of each program taken out of the archive by file name. Nothing else is unpacked and archive paths are never used to place a file. |
+| `ffmpeg.license_names[]` | string[] | `LICENSE.txt`, `COPYING.GPLv3` | The licence file to keep, saved as `LICENSE.txt` beside the programs. |
+| `tesseract.platform` / `version` | string | `"win-x64"` / `"5.4.0"` | As above. |
+| `tesseract.installer` | object | pinned UB Mannheim setup | `name`, `url` and `sha256` of the setup program. It is downloaded to `{DataRoot}/tools/installers/`, checked again just before it runs, and deleted afterwards. Never unpacked. |
+| `tesseract.executable_sha256` | string | pinned | The program the setup installs; recorded for reference, not checked. |
+| `tesseract.language_files[]` | object[] | `eng`, `osd` from `tessdata_fast` | `name`, `url` and `sha256`; placed in `{DataRoot}/ocr/tessdata`. A file already there with the right checksum is kept. |
+
+Every address must be `https` on `github.com` (no other host, no user name or port) and every checksum must be 64 hexadecimal characters, or that tool's entry is dropped when the file is loaded and the install is not offered. FFmpeg is placed in `{DataRoot}/tools/ffmpeg` by staging the checked files and swapping the folder, so the old copy stays if anything fails; a saved FFmpeg or Tesseract location that no longer works is cleared after a successful install so the new copy is found. The install is offered only on 64-bit Windows, never in a container; a Windows-installer install is offered FFmpeg only (a Tesseract repair is a reinstall of the Library), and a run from source is offered both.
+
+---
+
 ## config/ui/
 
 UI settings are layered: global defaults -> device profile -> user profile -> resolved effective settings.

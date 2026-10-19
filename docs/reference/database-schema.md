@@ -45,6 +45,7 @@ in place. To change the structure, see [Changing the data store](../develop/chan
 Startup safety:
 
 - Current databases record `storage_metadata.storage_epoch = guid-blob-v11-upgrade-steps`.
+- `storage_metadata` also holds server-wide flags as `key`/`value` rows. The tools banner's "Not now" answers are `tool_install_declined:{tool id}` rows (value `1`), removed when the tool works again.
 - Older epochs, including the legacy TEXT-GUID database and every earlier `guid-blob-` epoch, are
   rejected on startup.
 - Setting `TUVIMA_STORAGE_RESET=1` or `TUVIMA_STORAGE_RESET=destructive-reingest` renames the legacy database and starts a clean database for reingestion. The old database is kept as a `.legacy-text-guid.<timestamp>.bak` file.

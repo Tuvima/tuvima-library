@@ -9386,6 +9386,7 @@
   CanInstall: System.Boolean | json=can_install | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanDownloadAgain: System.Boolean | json=can_download_again | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DownloadPercent: System.Int32? | json=download_percent | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  InstallDeclined: System.Boolean | json=install_declined | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Settings.ToolRequirementsDto
   kind=class | converter=default | number-handling=default | unmapped=default

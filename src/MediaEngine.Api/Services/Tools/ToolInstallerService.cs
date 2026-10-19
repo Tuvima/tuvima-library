@@ -515,6 +515,12 @@ public sealed class ToolInstallerService : IToolInstallerService
             ready = await ReadyAfterInstallerAsync(exitCode).ConfigureAwait(false);
         }
 
+        if (ready)
+        {
+            // The setup program has done its job; it goes before the row stops showing it as waiting.
+            DeleteQuietly(path);
+        }
+
         lock (_gate)
         {
             job.InstallerRunning = false;
@@ -528,11 +534,6 @@ public sealed class ToolInstallerService : IToolInstallerService
             {
                 job.Reason = note ?? ToolRequirementsService.Copy.TesseractNotReadyYet;
             }
-        }
-
-        if (ready)
-        {
-            DeleteQuietly(path);
         }
     }
 
