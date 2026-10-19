@@ -100,3 +100,11 @@
 .security-sheet__warning {
     color: var(--tl-palette-warning);
 }
+
+/* Quiet one-line reminder after "Not now": calm, no alert colour. */
+.security-settings__note {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}

@@ -592,6 +592,11 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   DisplayName: System.String | nullability=not-null | accessors=get,init
   Allowed: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountNoticeKeys
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountNoticesResponse
+  Dismissed: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountProfileGrantDto
   AccountId: System.Guid | nullability=not-null | accessors=get,init
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
