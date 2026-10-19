@@ -74,10 +74,10 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_description' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'episode_description' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'episode_description' LIMIT 1),
-                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = w.id AND claim_key IN ('issue_description', 'issue_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC LIMIT 1),
-                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = ma.id AND claim_key IN ('issue_description', 'issue_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC LIMIT 1),
-                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = w.id AND claim_key IN ('episode_description', 'episode_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC LIMIT 1),
-                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = ma.id AND claim_key IN ('episode_description', 'episode_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC LIMIT 1),
+                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = w.id AND claim_key IN ('issue_description', 'issue_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC, rowid LIMIT 1),
+                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = ma.id AND claim_key IN ('issue_description', 'issue_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC, rowid LIMIT 1),
+                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = w.id AND claim_key IN ('episode_description', 'episode_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC, rowid LIMIT 1),
+                       (SELECT NULLIF(CAST(claim_value AS TEXT), '') FROM metadata_claims WHERE entity_id = ma.id AND claim_key IN ('episode_description', 'episode_overview') AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL ORDER BY confidence DESC, claimed_at DESC, rowid LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'description' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'overview' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'description' LIMIT 1),
@@ -120,10 +120,10 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key IN ('poster_url', 'poster') LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('cover_url', 'cover') LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('poster_url', 'poster') LIMIT 1),
-                       (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = w.id AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC LIMIT 1),
+                       (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = w.id AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC, mc.rowid LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('cover_url', 'cover') LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('poster_url', 'poster') LIMIT 1),
-                       (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = COALESCE(gp.id, p.id, w.id) AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC LIMIT 1)) AS TEXT) AS ArtworkUrl,
+                       (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = COALESCE(gp.id, p.id, w.id) AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC, mc.rowid LIMIT 1)) AS TEXT) AS ArtworkUrl,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key IN ('episode_still_url', 'episode_still') LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('episode_still_url', 'episode_still') LIMIT 1),
@@ -473,7 +473,7 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE entity_id = @entityId
               AND claim_key IN ('duration_sec', 'duration_seconds', 'genre')
               AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL
-            ORDER BY confidence DESC, claimed_at DESC, id;
+            ORDER BY confidence DESC, claimed_at DESC, rowid;
             """,
             new { entityId = GuidSql.ToBlob(entityId) },
             cancellationToken: ct));

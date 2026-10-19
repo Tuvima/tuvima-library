@@ -53,7 +53,11 @@ public static class ScoringHelper
         Guid? decisionSourceProviderId = null,
         IReadOnlyCollection<string>? snapshotFieldKeys = null)
     {
-        // Wrap provider claims as domain MetadataClaim rows.
+        // Wrap provider claims as domain MetadataClaim rows. One observation, one timestamp:
+        // claims from the same response tie on claimed_at, so a
+        // multi-valued field (composers, authors) resolves by the provider's own order instead of
+        // by whichever clock ticks happened to separate them.
+        var claimedAt = DateTimeOffset.UtcNow;
         var domainClaims = claims
             .Select(pc => new MetadataClaim
             {
@@ -64,7 +68,7 @@ public static class ScoringHelper
                 ClaimKey = pc.Key,
                 ClaimValue = pc.Value,
                 Confidence = pc.Confidence,
-                ClaimedAt = DateTimeOffset.UtcNow,
+                ClaimedAt = claimedAt,
                 IsUserLocked = false,
             })
             .ToList();

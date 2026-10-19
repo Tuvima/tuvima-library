@@ -145,6 +145,7 @@ public sealed record SettingsRouteResolution(
 public static class SettingsNav
 {
     private static bool _productionMode;
+    private static readonly AsyncLocal<bool?> _scopedProductionMode = new();
 
     /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
@@ -200,6 +201,23 @@ public static class SettingsNav
     private static LaunchFeatureEvidence Complete() => new(true, true, true, true, true);
 
     public static void ConfigureEnvironment(bool productionMode) => _productionMode = productionMode;
+
+    /// <summary>
+    /// Applies <paramref name="productionMode"/> only to the calling execution flow until the returned scope is disposed.
+    /// The process-wide setting from <see cref="ConfigureEnvironment"/> is shared by every caller, so a check that needs the
+    /// other mode uses this instead of flipping it underneath callers that run in parallel.
+    /// </summary>
+    public static IDisposable UseEnvironmentScope(bool productionMode)
+    {
+        var previous = _scopedProductionMode.Value;
+        _scopedProductionMode.Value = productionMode;
+        return new EnvironmentScope(previous);
+    }
+
+    private sealed class EnvironmentScope(bool? previous) : IDisposable
+    {
+        public void Dispose() => _scopedProductionMode.Value = previous;
+    }
 
     public static bool MeetsLaunchContract(SettingsSection section) =>
         LaunchContracts.TryGetValue(section, out var evidence) && evidence.IsComplete;
@@ -650,7 +668,7 @@ public static class SettingsNav
     public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool householdAdministrator = false)
     {
         var item = GetItem(section);
-        if (_productionMode
+        if ((_scopedProductionMode.Value ?? _productionMode)
             && (item.Status != SettingsStatusKind.Live || !MeetsLaunchContract(section)))
         {
             return false;

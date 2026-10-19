@@ -445,18 +445,17 @@ set `Minimum Level: Verbose` in the Serilog config section of `appsettings.Devel
 
 ## 10. Cleaning up after work
 
-After finishing any coding session, stop all `dotnet` processes to release file locks
-on the SQLite database and log files:
+After finishing a coding session, stop the Engine and Dashboard you started (Ctrl+C in
+their terminals, or end those processes by their process id) and release build-server
+locks:
 
 ```bash
-taskkill //F //IM dotnet.exe
+dotnet build-server shutdown
 ```
 
-On Linux/macOS:
-
-```bash
-pkill -f dotnet
-```
+Avoid stopping every `dotnet` process (`taskkill //F //IM dotnet.exe` or `pkill -f dotnet`):
+it also ends test runs, baseline runs and Engines that other work on the same machine
+started.
 
 This is especially important before switching branches or running migrations, as an
 open `dotnet` process holds a write lock on `library.db`.
@@ -520,8 +519,8 @@ Either add `await` to an async operation in the body, or remove `async` and retu
 `Task.CompletedTask` or `ValueTask.CompletedTask`.
 
 **`dotnet test` fails with SQLite locked**
-Another `dotnet` process has the database open. Run `taskkill //F //IM dotnet.exe`
-(Windows) or `pkill -f dotnet` (Linux/macOS) and retry.
+Another `dotnet` process has the database open. Stop the Engine or test run that holds it
+(by its process id, or Ctrl+C in its terminal) and retry.
 
 **`/dev/seed-library` returns 0 seeded files**
 The configured library source path in `config/libraries.json` does not exist or the Engine does

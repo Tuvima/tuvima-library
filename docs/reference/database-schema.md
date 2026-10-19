@@ -65,7 +65,7 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `title` | TEXT | Display title |
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
-| `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0011_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
+| `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
@@ -840,6 +840,7 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). |
 | `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. |
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
+| `first_used_at` | TEXT | When the session was first used after sign-in. NULL means never used. At the session limit (`maximum_active_sessions`), never-used sessions end first, then sessions idle for 10 minutes or more, then the least recently seen. |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 
 ### device_profile_preferences
@@ -1362,7 +1363,7 @@ What a person removed from, or added to, the taste the Library learned about the
 
 ### series_manifest_hydrations
 
-Series-level cache and provenance for Wikidata series manifests. One row is stored per shelf (the collection holding the manifest), so a book Series and an audiobook Series with the same QID each keep their own manifest and later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed. Upgrade step `0011_series_identity_by_media_type` changed the key from the series QID alone to the shelf plus the series QID.
+Series-level cache and provenance for Wikidata series manifests. One row is stored per shelf (the collection holding the manifest), so a book Series and an audiobook Series with the same QID each keep their own manifest and later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed. Upgrade step `0012_series_identity_by_media_type` changed the key from the series QID alone to the shelf plus the series QID.
 
 | Column | Type | Notes |
 |---|---|---|

@@ -480,6 +480,8 @@ public sealed partial class IngestionEngine
         Guid entityId,
         Processors.Models.ProcessorResult result)
     {
+        // One file read, one timestamp, so tied claims keep the file's own order (first author first).
+        var claimedAt = DateTimeOffset.UtcNow;
         return result.Claims
             .Select(c => new MetadataClaim
             {
@@ -489,7 +491,7 @@ public sealed partial class IngestionEngine
                 ClaimKey = c.Key,
                 ClaimValue = TextEncodingRepair.RepairMojibake(c.Value),
                 Confidence = c.Confidence,
-                ClaimedAt = DateTimeOffset.UtcNow,
+                ClaimedAt = claimedAt,
             })
             .ToList();
     }

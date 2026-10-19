@@ -14,6 +14,11 @@ public abstract class AsyncBunitContext : BunitContext, IAsyncLifetime
 {
     protected AsyncBunitContext()
     {
+        // WaitForAssertion and WaitForElement return the moment their condition holds, so this is only the point at which a
+        // hung component is reported as one. bUnit's one-second default instead reports a slow one: the first render of a
+        // large page in a test process takes several seconds (Settings: 7 seconds measured, 0.1 for the next one)
+        // and longer while the rest of the suite runs alongside. Waits that outlast this are genuine hangs.
+        DefaultWaitTimeout = TimeSpan.FromSeconds(30);
         Services.AddNativeUiServices();
         Services.AddSingleton<AuthenticationStateProvider>(new AuthenticatedTestStateProvider());
     }

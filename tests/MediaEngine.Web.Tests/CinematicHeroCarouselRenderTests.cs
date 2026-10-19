@@ -99,19 +99,21 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ExplicitPausePersistsAfterFocusAndHoverLeave()
+    public async Task ExplicitPausePersistsAfterFocusAndHoverLeave()
     {
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [Hero("First"), Hero("Second")]));
         var carousel = cut.Find(".cinematic-hero-carousel");
-        carousel.TriggerEvent("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
+        // The carousel re-renders once more after its first render, when the motion preference comes back. An event aimed
+        // at a handler id read before that render is ignored, so each step finds its element and acts on the renderer thread.
+        await cut.TriggerEventAsync(page => page.Find(".cinematic-hero-carousel"), "onpointerenter", new PointerEventArgs { PointerType = "mouse" });
         Assert.Contains("is-rotation-paused", carousel.ClassName);
-        cut.Find("[aria-label='Pause featured item rotation']").Click();
-        carousel.TriggerEvent("onpointerleave", new PointerEventArgs { PointerType = "mouse" });
-        carousel.TriggerEvent("onfocusout", new FocusEventArgs());
+        await cut.ClickAsync(page => page.Find("[aria-label='Pause featured item rotation']"));
+        await cut.TriggerEventAsync(page => page.Find(".cinematic-hero-carousel"), "onpointerleave", new PointerEventArgs { PointerType = "mouse" });
+        await cut.TriggerEventAsync(page => page.Find(".cinematic-hero-carousel"), "onfocusout", new FocusEventArgs());
         Assert.Contains("is-rotation-paused", carousel.ClassName);
-        cut.Find("[aria-label='Resume featured item rotation']").Click();
+        await cut.ClickAsync(page => page.Find("[aria-label='Resume featured item rotation']"));
         Assert.DoesNotContain("is-rotation-paused", carousel.ClassName);
-        carousel.TriggerEvent("onfocusin", new FocusEventArgs());
+        await cut.TriggerEventAsync(page => page.Find(".cinematic-hero-carousel"), "onfocusin", new FocusEventArgs());
         Assert.Contains("is-rotation-paused", carousel.ClassName);
     }
 

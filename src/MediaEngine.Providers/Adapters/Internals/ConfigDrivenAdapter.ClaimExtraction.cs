@@ -128,30 +128,15 @@ public sealed partial class ConfigDrivenAdapter
             }
         }
 
-        // Sort by configured sort fields.
-        if (config.Sort is { Count: > 0 })
+        // Sort by configured sort fields, then plain editions before noted ones, then provider id,
+        // so releases that tie on every field still come out in the same order however the
+        // provider listed them.
+        if (candidates.Count > 1)
         {
-            candidates.Sort((a, b) =>
-            {
-                foreach (var sort in config.Sort!)
-                {
-                    var aVal = JsonPathEvaluator.GetStringValue(
-                        JsonPathEvaluator.Evaluate(a!, sort.Path)) ?? "";
-                    var bVal = JsonPathEvaluator.GetStringValue(
-                        JsonPathEvaluator.Evaluate(b!, sort.Path)) ?? "";
-                    var cmp = string.Compare(aVal, bVal, StringComparison.OrdinalIgnoreCase);
-                    if (sort.Direction.Equals("desc", StringComparison.OrdinalIgnoreCase))
-                    {
-                        cmp = -cmp;
-                    }
-
-                    if (cmp != 0)
-                    {
-                        return cmp;
-                    }
-                }
-                return 0;
-            });
+            candidates = candidates
+                .Order(Comparer<JsonNode?>.Create((a, b) =>
+                    CompareBySelectionSort(a!, b!, config.Sort, config.DisambiguationPath)))
+                .ToList();
         }
 
         // Soft preferences: among candidates, prefer those matching prefer conditions.
@@ -168,6 +153,51 @@ public sealed partial class ConfigDrivenAdapter
         }
 
         return candidates[0];
+    }
+
+    /// <summary>
+    /// Orders two candidates by the configured sort fields. A candidate missing a sort value
+    /// never outranks one that has it (an undated release does not beat the original). Ties
+    /// prefer a plain edition over one with a disambiguation note ("BMG club edition"), then
+    /// fall back to the provider id.
+    /// </summary>
+    private static int CompareBySelectionSort(
+        JsonNode left, JsonNode right, IReadOnlyList<SelectionSort>? sort, string? disambiguationPath)
+    {
+        foreach (var field in sort ?? [])
+        {
+            var leftValue = JsonPathEvaluator.GetStringValue(JsonPathEvaluator.Evaluate(left, field.Path));
+            var rightValue = JsonPathEvaluator.GetStringValue(JsonPathEvaluator.Evaluate(right, field.Path));
+            var leftMissing = string.IsNullOrWhiteSpace(leftValue);
+            var rightMissing = string.IsNullOrWhiteSpace(rightValue);
+            if (leftMissing != rightMissing)
+            {
+                return leftMissing ? 1 : -1;
+            }
+
+            var cmp = string.Compare(leftValue, rightValue, StringComparison.OrdinalIgnoreCase);
+            if (field.Direction.Equals("desc", StringComparison.OrdinalIgnoreCase))
+            {
+                cmp = -cmp;
+            }
+
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(disambiguationPath))
+        {
+            var leftNoted = !string.IsNullOrWhiteSpace(ExtractFirstString(left, [disambiguationPath]));
+            var rightNoted = !string.IsNullOrWhiteSpace(ExtractFirstString(right, [disambiguationPath]));
+            if (leftNoted != rightNoted)
+            {
+                return leftNoted ? 1 : -1;
+            }
+        }
+
+        return string.CompareOrdinal(ExtractFirstString(left, ["id"]), ExtractFirstString(right, ["id"]));
     }
 
     /// <summary>

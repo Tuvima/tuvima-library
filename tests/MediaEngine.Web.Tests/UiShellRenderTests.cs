@@ -586,11 +586,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);
             Assert.Empty(cut.FindAll(".admin-library-summary"));
-        }, AttentionArrives);
+        });
     }
 
-    // The Needs Review count reaches the menu from the shared attention state a moment after the page first draws.
-    private static readonly TimeSpan AttentionArrives = TimeSpan.FromSeconds(5);
+    // The Needs Review count reaches the menu from the shared attention state a moment after the page first draws, and
+    // the first Settings render in a test process also pays for loading and compiling it: several seconds (measured at 7 with other work
+    // running on the machine), against 0.1 second for the next one. So these waits use the context's ceiling, not a guess of their own.
 
     [Fact]
     public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheBreadcrumb_InTheFramesNoticeSlot()
@@ -616,7 +617,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             var markup = cut.Markup;
             Assert.True(markup.IndexOf("data-settings-frame-slot=\"notices\"", StringComparison.Ordinal)
                 < markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal));
-        }, AttentionArrives);
+        });
     }
 
     [Fact]

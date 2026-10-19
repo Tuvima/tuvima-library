@@ -23,8 +23,6 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped(_ => AdministratorSession());
-        // bUnit's one-second default is shorter than a cold-start render on a busy CI runner.
-        DefaultWaitTimeout = TimeSpan.FromSeconds(10);
     }
 
     [Fact]

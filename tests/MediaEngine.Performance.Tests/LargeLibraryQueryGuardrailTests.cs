@@ -77,32 +77,25 @@ public sealed class LargeLibraryQueryGuardrailTests : IClassFixture<LargeLibrary
     public async Task HistoricalIngestion_DeepPageStaysResponsiveAtTenThousandGroups()
     {
         var batchId = _fixture.SeedIngestionBatch(10_000);
-        var service = new IngestionPresentationReadService(_fixture.Database);
+        var work = new SqliteWorkCounter(_fixture.Database);
+        var service = new IngestionPresentationReadService(work);
 
-        await service.GetBatchMediaAsync(batchId, 0, 50);
+        // Responsive is measured as the work SQLite does, not the seconds it takes: elapsed time moves with whatever else
+        // the machine is running, the work for the same data does not.
+        var page = await service.GetBatchMediaAsync(batchId, 9_950, 50);
 
-        // Best of three: a shared CI runner can stall one run without the query getting slower.
-        var best = TimeSpan.MaxValue;
-        MediaEngine.Contracts.Paging.PagedResponse<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> page = null!;
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            var timer = Stopwatch.StartNew();
-            page = await service.GetBatchMediaAsync(batchId, 9_950, 50);
-            timer.Stop();
-            _output.WriteLine("Historical ingestion deep page: {0:F0} ms", timer.Elapsed.TotalMilliseconds);
-            best = timer.Elapsed < best ? timer.Elapsed : best;
-            if (best < TimeSpan.FromSeconds(2))
-            {
-                break;
-            }
-        }
-
+        _output.WriteLine("Historical ingestion deep page: {0:N0} thousand SQLite instructions", work.KiloInstructions);
         Assert.Equal(10_000, page.TotalCount);
         Assert.Equal(50, page.Items.Count);
         Assert.False(page.HasMore);
-        Assert.True(best < TimeSpan.FromSeconds(2),
-            $"Historical ingestion deep page took {best.TotalMilliseconds:F0} ms.");
+        Assert.True(work.KiloInstructions < DeepPageWorkBudgetKiloInstructions,
+            $"Historical ingestion deep page took {work.KiloInstructions:N0} thousand SQLite instructions; the budget is {DeepPageWorkBudgetKiloInstructions:N0}.");
     }
+
+    // The deep page measured 9,159 thousand instructions, the same on every run, when this budget was set. The budget is two
+    // and a half times that, so it trips when the query starts doing a different order of work (an extra scan, a per-row
+    // lookup) and stays quiet for small changes to the query.
+    private const long DeepPageWorkBudgetKiloInstructions = 23_000;
 
     private sealed class QueryPlanRow
     {

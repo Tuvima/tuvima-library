@@ -250,7 +250,7 @@ public sealed class MetadataClaimRepository : IMetadataClaimRepository
                 WHERE entity_id IN (
                 """ + string.Join(", ", placeholders) + """
                 ) AND is_current = 1
-                ORDER BY entity_id, claimed_at;
+                ORDER BY entity_id, claimed_at, rowid;
                 """, parameters));
         }
 

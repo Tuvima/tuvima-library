@@ -70,7 +70,7 @@ public sealed partial class UiShellRenderTests
             var recent = markup.IndexOf("ingestion-recent-preview", StringComparison.Ordinal);
             Assert.True(summary >= 0 && summary < live && live < recent, "Summary, live ingestion, then recently added.");
             Assert.DoesNotContain("Continue optional setup", markup, StringComparison.Ordinal);
-        }, AttentionArrives);
+        });
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed partial class UiShellRenderTests
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             Assert.Single(links, link => link.TextContent.Contains("Library and Ingestion", StringComparison.Ordinal));
-        }, AttentionArrives);
+        });
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed partial class UiShellRenderTests
             var badge = row.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.NotNull(badge);
             Assert.Equal("3 items need review", badge!.GetAttribute("aria-label"));
-        }, AttentionArrives);
+        });
     }
 
     [Fact]
@@ -123,8 +123,7 @@ public sealed partial class UiShellRenderTests
 
         // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
         cut.WaitForAssertion(
-            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/recently-added?review=expanded", StringComparison.Ordinal)),
-            AttentionArrives);
+            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/recently-added?review=expanded", StringComparison.Ordinal)));
     }
 
     [Fact]

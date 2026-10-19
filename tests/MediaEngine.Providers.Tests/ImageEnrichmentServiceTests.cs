@@ -175,6 +175,150 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EnrichWorkImagesAsync_TvdbSiblingEpisodes_RecordTheSameHeldCountWhicheverRunsFirst()
+    {
+        var (service, show, first, second) = await SeedTvdbShowWithTwoEpisodesAsync();
+
+        var firstResult = await service.EnrichWorkImagesAsync(first.AssetId, null);
+        var secondResult = await service.EnrichWorkImagesAsync(second.AssetId, null);
+
+        // The first episode downloads the shared show poster; the second finds it already stored.
+        Assert.Equal(2, firstResult.DownloadedCount);
+        Assert.Equal(1, secondResult.DownloadedCount);
+        // Both still record what they hold: the show poster plus their own still.
+        Assert.Equal(2, firstResult.HeldCount);
+        Assert.Equal(2, secondResult.HeldCount);
+        Assert.Equal("Completed", secondResult.Status);
+        Assert.Equal("2", await GetCanonicalAsync(first.WorkId, "tvdb_artwork_held_count"));
+        Assert.Equal("2", await GetCanonicalAsync(second.WorkId, "tvdb_artwork_held_count"));
+        Assert.Equal("2", await GetCanonicalAsync(second.AssetId, "tvdb_artwork_held_count"));
+        // The show records only its own artwork, so the last episode to finish cannot change it.
+        Assert.Equal("1", await GetCanonicalAsync(show, "tvdb_artwork_held_count"));
+    }
+
+    [Fact]
+    public async Task EnrichWorkImagesAsync_ConcurrentTvdbSiblingEpisodes_StoreTheShowPosterOnce()
+    {
+        // Hold both passes at the show lookup until each has arrived, and slow the poster download,
+        // so both read the show's stored artwork before either has saved the poster.
+        using var bothArrived = new CountdownEvent(2);
+        var (service, show, first, second) = await SeedTvdbShowWithTwoEpisodesAsync(bothArrived);
+
+        var results = await Task.WhenAll(
+            service.EnrichWorkImagesAsync(first.AssetId, null),
+            service.EnrichWorkImagesAsync(second.AssetId, null));
+
+        Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
+        Assert.All(results, result => Assert.Equal(2, result.HeldCount));
+        Assert.Equal(3, results.Sum(result => result.DownloadedCount));
+    }
+
+    [Fact]
+    public async Task EnrichWorkImagesAsync_RepeatMoviePass_KeepsCompletedStatusAndHeldCount()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Repeat Pass.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "777"));
+        var imagesRequests = 0;
+        var service = CreateService(request =>
+        {
+            var url = request.RequestUri?.ToString() ?? string.Empty;
+            if (url.Contains("/movie/777/images?", StringComparison.OrdinalIgnoreCase))
+            {
+                Interlocked.Increment(ref imagesRequests);
+                return JsonResponse("""
+                    {
+                      "posters": [ { "file_path": "/repeat-poster.jpg", "vote_average": 7, "vote_count": 1, "iso_639_1": null } ],
+                      "logos": [],
+                      "backdrops": [ { "file_path": "/repeat-backdrop.jpg", "vote_average": 7, "vote_count": 1, "iso_639_1": null } ]
+                    }
+                    """);
+            }
+
+            return ImageResponse([1, 2, 3, 4]);
+        });
+
+        var first = await service.EnrichWorkImagesAsync(movie.AssetId, "QREPEAT");
+        var repeat = await service.EnrichWorkImagesAsync(movie.AssetId, "QREPEAT");
+
+        Assert.Equal(1, imagesRequests);
+        Assert.Equal("Completed", first.Status);
+        Assert.Equal(2, first.HeldCount);
+        Assert.Equal("Completed", repeat.Status);
+        Assert.Equal(0, repeat.DownloadedCount);
+        Assert.Equal(2, repeat.HeldCount);
+        Assert.Equal("Completed", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_status"));
+        Assert.Equal("2", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_held_count"));
+    }
+
+    private async Task<(ImageEnrichmentService Service, Guid Show, (Guid WorkId, Guid AssetId) First, (Guid WorkId, Guid AssetId) Second)>
+        SeedTvdbShowWithTwoEpisodesAsync(CountdownEvent? showLookupGate = null)
+    {
+        _configLoader.SaveProvider(new StorageProviderConfiguration
+        {
+            Name = "tvdb",
+            Enabled = true,
+            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
+            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
+            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
+        });
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:shared-show", null, null);
+        await SeedCanonicalsAsync(show,
+            ("media_type", "TV"),
+            (MetadataFieldConstants.IdentityProvider, "tvdb"),
+            (BridgeIdKeys.TvdbId, "99"));
+        var firstWork = await _works.InsertChildAsync(MediaType.TV, show, 1);
+        var secondWork = await _works.InsertChildAsync(MediaType.TV, show, 2);
+        var firstAsset = await SeedAssetForExistingWorkAsync(firstWork, Path.Combine("TV", "Shared Show", "Shared - s01e01.mkv"));
+        var secondAsset = await SeedAssetForExistingWorkAsync(secondWork, Path.Combine("TV", "Shared Show", "Shared - s01e02.mkv"));
+        await SeedCanonicalsAsync(firstWork, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "111"));
+        await SeedCanonicalsAsync(secondWork, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "112"));
+
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+            "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"}]}"""),
+            "/v4/series/99/extended" when showLookupGate is not null => GatedJson(showLookupGate,
+                """{"data":{"id":99,"artworks":[{"type":2,"image":"https://artworks.thetvdb.com/show-poster.png"}]}}"""),
+            "/show-poster.png" when showLookupGate is not null => DelayedImage(image),
+            "/v4/series/99/extended" => JsonResponse("""{"data":{"id":99,"artworks":[{"type":2,"image":"https://artworks.thetvdb.com/show-poster.png"}]}}"""),
+            "/v4/episodes/111/extended" => JsonResponse("""{"data":{"id":111,"seriesId":99,"image":"https://artworks.thetvdb.com/still-1.png"}}"""),
+            "/v4/episodes/112/extended" => JsonResponse("""{"data":{"id":112,"seriesId":99,"image":"https://artworks.thetvdb.com/still-2.png"}}"""),
+            _ => ImageResponse(image),
+        });
+        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, tvdb: client,
+            imageDownloadCoordinator: new ImageDownloadCoordinator());
+        return (service, show, (firstWork, firstAsset.AssetId), (secondWork, secondAsset.AssetId));
+    }
+
+    private static HttpResponseMessage GatedJson(CountdownEvent gate, string payload)
+    {
+        if (!gate.IsSet)
+        {
+            gate.Signal();
+        }
+
+        // A cached lookup on the second pass would never arrive; the timeout keeps the test from hanging.
+        gate.Wait(TimeSpan.FromSeconds(5));
+        return JsonResponse(payload);
+    }
+
+    private static HttpResponseMessage DelayedImage(byte[] image)
+    {
+        Thread.Sleep(200);
+        return ImageResponse(image);
+    }
+
+    private async Task<string?> GetCanonicalAsync(Guid entityId, string key) =>
+        (await _canonicals.GetByEntityAsync(entityId)).FirstOrDefault(value => value.Key == key)?.Value;
+
+    [Fact]
     public async Task DiscoverComicArtwork_UsesIssueIdentityAndReturnsAllImagesWithoutDownloading()
     {
         _configLoader.SaveProvider(new StorageProviderConfiguration
