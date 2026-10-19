@@ -382,6 +382,115 @@
     line-height: 1;
 }
 
+/* Fixed-column tree (FixedColumnTree, used by Settings): every row has a chevron slot, an icon, a label and a badge slot;
+   children indent by one fixed step, so icons and labels at one level share a left edge. */
+.media-section-shell__tree {
+    display: grid;
+    gap: 2px;
+}
+
+.media-section-shell__tree-children {
+    display: grid;
+    gap: 2px;
+    margin-left: 18px;
+}
+
+.media-section-shell__tree-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: center;
+    min-height: 40px;
+    color: rgba(226, 232, 240, 0.74);
+    border: 1px solid transparent;
+    border-radius: var(--tl-radius-md);
+    transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.media-section-shell__tree-chevron-slot {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: rgba(203, 213, 225, 0.64);
+}
+
+.media-section-shell__tree-link {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 38px;
+    padding: 0 12px 0 0;
+    color: inherit;
+    border-radius: var(--tl-radius-sm);
+    text-decoration: none;
+}
+
+.media-section-shell__tree-link:focus-visible {
+    outline: 2px solid var(--tl-focus-ring, var(--tl-accent-primary));
+    outline-offset: -2px;
+}
+
+.media-section-shell__tree-icon {
+    display: grid;
+    place-items: center;
+}
+
+.media-section-shell__tree-label {
+    overflow: hidden;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-section-shell__tree-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.media-section-shell__tree-attention-label {
+    color: var(--tl-status-danger);
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.media-section-shell__tree-row:hover,
+.media-section-shell__tree-row:focus-within {
+    color: rgba(255, 255, 255, 0.98);
+    background: rgba(136, 82, 252, 0.11);
+}
+
+.media-section-shell__tree-row.is-branch-active {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(136, 82, 252, 0.06);
+}
+
+.media-section-shell__tree-row.is-active {
+    color: rgba(255, 255, 255, 0.98);
+    border-color: rgba(167, 139, 250, 0.22);
+    background: rgba(136, 82, 252, 0.16);
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
+}
+
+/* Attention shading: amber when something is waiting for an administrator, red when something cannot work. */
+.media-section-shell__tree-row.is-attention-waiting {
+    border-color: var(--tl-status-warning-border);
+    background: var(--tl-status-warning-soft);
+}
+
+.media-section-shell__tree-row.is-attention-blocked {
+    border-color: var(--tl-status-danger-border);
+    background: var(--tl-status-danger-soft);
+}
+
+.media-section-shell__tree-row.is-attention-waiting .media-section-shell__rail-meta--notification {
+    border-color: var(--tl-status-warning-border);
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+}
+
 .media-section-shell__content {
     min-width: 0;
     min-height: 0;

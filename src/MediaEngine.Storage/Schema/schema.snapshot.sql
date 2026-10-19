@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0004 ingestion_queue_progress).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0007 profile_notice_dismissals).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -53,6 +53,13 @@ CREATE TABLE account_library_grants (
     library_id BLOB NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (account_id, library_id)
+);
+
+CREATE TABLE account_notice_dismissals (
+    account_id   BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    notice_key   TEXT NOT NULL,   -- a known reminder, for example secure-account
+    dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (account_id, notice_key)
 );
 
 CREATE TABLE account_passkeys (
@@ -1864,6 +1871,14 @@ CREATE TABLE profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
+CREATE TABLE profile_notice_dismissals (
+    profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    notice_key   TEXT NOT NULL,   -- a known notice, for example needs-review or missing-tools
+    fingerprint  TEXT NOT NULL,   -- what was true when it was dismissed (the review count, or the sorted missing tool ids)
+    dismissed_at TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, notice_key)
+);
+
 CREATE TABLE profile_person_preferences (
     profile_id       BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     person_id        BLOB NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
@@ -3333,7 +3348,8 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal S
 
 CREATE TRIGGER trg_view_shared_library_delete
 BEFORE DELETE ON view_shared_library
-BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
+WHEN EXISTS (SELECT 1 FROM local_items WHERE scope_kind='shared' AND library_id=OLD.library_id)
+BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted while it holds items'); END;
 
 CREATE TRIGGER trg_view_shared_library_identity_immutable
 BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id

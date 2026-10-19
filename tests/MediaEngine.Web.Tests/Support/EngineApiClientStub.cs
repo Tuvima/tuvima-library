@@ -234,7 +234,7 @@ internal class EngineApiClientStub : DispatchProxy
             });
 
         _handlers[nameof(IEngineApiClient.GetReviewCountAsync)] =
-            _ => Task.FromResult(3);
+            _ => Task.FromResult<int?>(3);
 
         _handlers[nameof(IEngineApiClient.GetPendingReviewsAsync)] =
             _ => Task.FromResult(new List<ReviewItemViewModel>

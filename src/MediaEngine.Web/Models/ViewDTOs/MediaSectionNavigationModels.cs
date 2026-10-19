@@ -12,7 +12,46 @@ public sealed record MediaSectionNavigationItem(
     bool SectionBreakBefore = false,
     bool MetaIsNotification = false,
     string? MetaAriaLabel = null,
-    bool AttentionDot = false);
+    bool AttentionDot = false,
+    MediaSectionAttentionLevel Attention = MediaSectionAttentionLevel.None,
+    string? AttentionLabel = null)
+{
+    /// <summary>
+    /// The row's own level or, for a parent, the most urgent level of any row beneath it, so a collapsed parent still
+    /// shows that something inside needs a look.
+    /// </summary>
+    public MediaSectionAttentionLevel EffectiveAttention
+    {
+        get
+        {
+            var level = Attention;
+            if (Children is not null)
+            {
+                foreach (var child in Children)
+                {
+                    var childLevel = child.EffectiveAttention;
+                    if (childLevel > level)
+                    {
+                        level = childLevel;
+                    }
+                }
+            }
+
+            return level;
+        }
+    }
+}
+
+/// <summary>
+/// How much a menu row needs the person's attention. Ordered by urgency: <see cref="Waiting"/> is something an
+/// administrator can resolve (the amber "waiting" colour); <see cref="Blocked"/> is something that cannot work (red).
+/// </summary>
+public enum MediaSectionAttentionLevel
+{
+    None = 0,
+    Waiting = 1,
+    Blocked = 2,
+}
 
 public sealed record MediaSectionNavigationGroup(
     string Label,

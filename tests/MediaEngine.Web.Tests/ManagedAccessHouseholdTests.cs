@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The Households and users view of Users &amp; Access: who sees what. People, PINs and sign-ins live on the profile page.</summary>
+/// <summary>The Users page of Users and Sign-in: accounts only. Households, people, PINs and sign-ins live under Profiles.</summary>
 public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
 {
     private readonly HouseholdHandler _handler = new();
@@ -25,7 +25,7 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ServerAdministrator_SeesHouseholdsAsASummary_WithPeopleLookedAfterFromProfiles()
+    public void ServerAdministrator_SeesNoHouseholdsList_InUsers_ButStillInvitesOutsideTheHousehold()
     {
         UseSession(_handler.AdminAccountId, ["access.manage"], effectiveAdministrator: true);
 
@@ -34,14 +34,14 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("Invite someone outside your household", cut.Markup);
-            Assert.Contains("admin@home.test's household", cut.Markup);
-            Assert.Contains("3 of 8 people", cut.Markup);
+            Assert.Contains("admin@home.test", cut.Markup);
         });
 
-        // People, PINs and sign-ins moved to each person's profile page, so the Households list no longer carries them.
+        // Households, people, PINs and sign-ins are looked after under Profiles, so Users carries no Households list.
+        Assert.DoesNotContain("Households", cut.Markup);
+        Assert.DoesNotContain("3 of 8 people", cut.Markup);
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() is "View people" or "Add person");
         Assert.DoesNotContain("No sign-in of their own", cut.Markup);
-        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/profiles");
     }
 
     [Theory]
@@ -56,7 +56,8 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
 
         Assert.Equal("users", cut.Find(".users-access-settings__section").GetAttribute("data-access-section"));
         Assert.DoesNotContain("My household", cut.Markup);
-        cut.WaitForAssertion(() => Assert.Contains("admin@home.test's household", cut.Markup));
+        cut.WaitForAssertion(() => Assert.Contains("admin@home.test", cut.Markup));
+        Assert.DoesNotContain("Households", cut.Markup);
     }
 
     [Fact]

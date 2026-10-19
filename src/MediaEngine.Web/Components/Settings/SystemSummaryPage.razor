@@ -1,0 +1,214 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject ILogger<SystemSummaryPage> Logger
+
+@* The System main page: how the server is doing right now. Everything shown is read from this machine through
+   GET /system/resources (and the network status for the two addresses); nothing leaves it. The reading is repeated
+   every few seconds while the page is open. *@
+<div class="system-summary" data-settings-system-summary>
+    @if (_resources is null && !_loaded)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading"
+                      Title="Reading this server"
+                      Message="Checking the processor, memory and storage." />
+    }
+    else if (_resources is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="This server could not be read"
+                      Message="Tuvima could not read the server's processor, memory and storage just now. It will try again in a few seconds." />
+    }
+    else
+    {
+        @if (_refreshFailed)
+        {
+            <div data-testid="system-summary-stale">
+                <AppAlert Tone="AppUiTone.Warning">
+                    The latest reading could not be taken, so the previous one is shown.
+                </AppAlert>
+            </div>
+        }
+
+        <SettingsSectionPanel Title="This server" Icon="@AppMaterialIcons.Outlined.Dns">
+            <dl class="system-summary__facts" data-testid="system-summary-server">
+                @Fact("Version", _resources.EngineVersion)
+                @Fact("Running for", FormatUptime(_resources.UptimeSeconds))
+                @Fact("Address at home", _network?.PreferredLocalAddress ?? "Unavailable")
+                @Fact("Address outside your home", _network?.ExternalAddress ?? "Not set up")
+            </dl>
+        </SettingsSectionPanel>
+
+        <SettingsSectionPanel Title="Processor and memory" Icon="@AppMaterialIcons.Outlined.Memory">
+            <div class="system-summary__meters" data-testid="system-summary-load">
+                <AppProgressBar Value="@_resources.ProcessorPercent"
+                                Label="@ProcessorLabel"
+                                Class="system-summary__meter" />
+                <AppProgressBar Value="@MemoryPercent"
+                                Label="@MemoryLabel"
+                                Class="system-summary__meter" />
+            </div>
+        </SettingsSectionPanel>
+
+        <SettingsSectionPanel Title="Storage" Icon="@AppMaterialIcons.Outlined.Storage">
+            <div class="system-summary__drives" data-testid="system-summary-storage">
+                @if (_resources.Drives.Count == 0)
+                {
+                    <p class="system-summary__note">Disk space for the library and the data store could not be read.</p>
+                }
+                @foreach (var drive in _resources.Drives)
+                {
+                    <div class="system-summary__drive" data-testid="system-summary-drive">
+                        <strong class="system-summary__drive-name">@DriveName(drive)</strong>
+                        <AppProgressBar Value="@UsedPercent(drive)"
+                                        Label="@DriveLabel(drive)"
+                                        Class="system-summary__meter" />
+                        <span class="system-summary__drive-holds">@HoldsText(drive)</span>
+                    </div>
+                }
+                @if (_resources.DataStoreSizeBytes is { } dataStoreBytes)
+                {
+                    <dl class="system-summary__facts" data-testid="system-summary-data-store">
+                        @Fact("Data store size", FormatBytes(dataStoreBytes))
+                    </dl>
+                }
+            </div>
+        </SettingsSectionPanel>
+    }
+</div>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private SystemResourcesDto? _resources;
+    private NetworkRuntimeStatusDto? _network;
+    private bool _loaded;
+    private bool _refreshFailed;
+    private bool _disposed;
+
+    /// <summary>How often the readings are taken again while the page is open.</summary>
+    [Parameter] public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _ = RefreshRepeatedlyAsync();
+    }
+
+    private async Task RefreshRepeatedlyAsync()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(RefreshInterval);
+            while (await timer.WaitForNextTickAsync(_lifetime.Token))
+            {
+                await RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed; there is nothing left to refresh.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The page closed while a reading was being taken.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Refreshing the System summary stopped.");
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        var ct = _lifetime.Token;
+        var resourcesTask = ApiClient.GetSystemResourcesAsync(ct);
+        var networkTask = ApiClient.GetNetworkRuntimeStatusAsync(ct);
+        try
+        {
+            await Task.WhenAll(resourcesTask, networkTask);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_disposed)
+        {
+            return;
+        }
+
+        var resources = await resourcesTask;
+        _refreshFailed = resources is null && _resources is not null;
+        _resources = resources ?? _resources;
+        _network = await networkTask ?? _network;
+        _loaded = true;
+    }
+
+    private string ProcessorLabel => $"The Library uses {_resources!.ProcessorPercent:0.#}% of the processor";
+
+    private string MemoryLabel =>
+        $"{FormatMegabytes(_resources!.MemoryUsedMb)} of {FormatMegabytes(_resources.MemoryTotalMb)} memory";
+
+    private double MemoryPercent => _resources!.MemoryTotalMb <= 0
+        ? 0
+        : 100.0 * _resources.MemoryUsedMb / _resources.MemoryTotalMb;
+
+    private static double UsedPercent(SystemDriveDto drive) => drive.TotalBytes <= 0
+        ? 0
+        : 100.0 * (drive.TotalBytes - drive.FreeBytes) / drive.TotalBytes;
+
+    private static string DriveName(SystemDriveDto drive) => string.IsNullOrWhiteSpace(drive.Label)
+        ? drive.Root
+        : $"{drive.Label} ({drive.Root})";
+
+    private static string DriveLabel(SystemDriveDto drive) =>
+        $"{FormatBytes(Math.Max(0, drive.TotalBytes - drive.FreeBytes))} used, {FormatBytes(drive.FreeBytes)} free of {FormatBytes(drive.TotalBytes)}";
+
+    private static string HoldsText(SystemDriveDto drive) => (drive.HoldsLibrary, drive.HoldsDataStore) switch
+    {
+        (true, true) => "Holds your library and the data store",
+        (true, false) => "Holds your library",
+        (false, true) => "Holds the data store",
+        _ => string.Empty,
+    };
+
+    private static string FormatMegabytes(long megabytes) => FormatBytes(Math.Max(0, megabytes) * 1024 * 1024);
+
+    private static string FormatBytes(long bytes) => DisplayFormat.FormatFileSize(bytes) ?? "0 B";
+
+    /// <summary>"3 days, 4 hours", "5 hours, 12 minutes", "7 minutes" or "less than a minute".</summary>
+    internal static string FormatUptime(long seconds)
+    {
+        var duration = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        if (duration.TotalDays >= 1)
+        {
+            return $"{(int)duration.TotalDays} {Plural((int)duration.TotalDays, "day")}, {duration.Hours} {Plural(duration.Hours, "hour")}";
+        }
+
+        if (duration.TotalHours >= 1)
+        {
+            return $"{(int)duration.TotalHours} {Plural((int)duration.TotalHours, "hour")}, {duration.Minutes} {Plural(duration.Minutes, "minute")}";
+        }
+
+        return duration.TotalMinutes >= 1
+            ? $"{(int)duration.TotalMinutes} {Plural((int)duration.TotalMinutes, "minute")}"
+            : "less than a minute";
+    }
+
+    private static string Plural(int count, string unit) => count == 1 ? unit : unit + "s";
+
+    private static RenderFragment Fact(string label, string value) =>
+        @<div class="system-summary__fact"><dt>@label</dt><dd>@value</dd></div>;
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

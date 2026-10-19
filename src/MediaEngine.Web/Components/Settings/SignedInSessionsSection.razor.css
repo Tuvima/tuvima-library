@@ -74,6 +74,18 @@
     border-top: 1px solid var(--tl-border-subtle);
 }
 
+/* A member has no person header above their browsers, so their rows start at the left edge. */
+.signed-in-sessions__row--own {
+    padding-left: 0;
+}
+
+.signed-in-sessions__device-line {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+    min-width: 0;
+}
+
 .signed-in-sessions__device {
     display: grid;
     min-width: 0;

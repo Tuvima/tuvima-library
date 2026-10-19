@@ -14,6 +14,7 @@
 @inject DashboardAuthUiOptions AuthUi
 @inject DashboardSessionAccessor _session
 @inject DashboardIdentityClient Identity
+@inject AccountNoticeState Notices
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Nav
 @inject IAppToastService Toasts
@@ -30,6 +31,7 @@
 @using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Resources
 @using Microsoft.Extensions.Localization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -150,7 +152,8 @@
                                    DisplayName="@_displayName"
                                    AccountLabel="@_accountLabel"
                                    CanManageProfiles="@CanManageProfiles"
-                                   ShowSecureAccount="@_thisComputerOnly"
+                                   ShowSecureAccount="@ShowSecureAccountCard"
+                                   OnSecureAccountNotNow="@DismissSecureAccountAsync"
                                    ProfileRole="@_profileRole"
                                    AvatarInitial="@_avatarInitial"
                                    AvatarColor="@_avatarColor"
@@ -203,7 +206,6 @@
             <MainContent>
                 <AppMainContent id="main-content" role="main" tabindex="-1" Class="@MainContentClass">
                     <AppContainer MaxWidth="AppMaxWidth.False" Class="@MainContainerClass">
-                        <ToolsAttentionBanner Cinematic="@IsCinematicShell" />
                         @Body
                     </AppContainer>
                 </AppMainContent>
@@ -398,7 +400,9 @@
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
         _session.OnSecureAccountRequired += OnSecureAccountRequired;
+        Notices.Changed += OnNoticesChanged;
         _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationStateProvider.GetAuthenticationStateAsync()).User);
+        if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
         AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
         SyncLocationState();
     }
@@ -881,6 +885,7 @@
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
         _session.OnSecureAccountRequired -= OnSecureAccountRequired;
+        Notices.Changed -= OnNoticesChanged;
         AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         _authorityRefreshCancellation.Cancel();
         try
@@ -915,13 +920,25 @@
         _dotNetRef?.Dispose();
     }
 
-    // True while the account works only on this computer (no password): the account menu offers Secure account.
+    // True while the account works only on this computer (no password).
     private bool _thisComputerOnly;
+
+    // The account menu shows its Secure your account card until the person chooses Not now (remembered with the account).
+    private bool ShowSecureAccountCard => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+
+    private Task DismissSecureAccountAsync() => Notices.DismissAsync(AccountNoticeKeys.SecureAccount);
+
+    private void OnNoticesChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> state) => _ = InvokeAsync(async () =>
     {
         if (_disposed) return;
         _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await state).User);
+        if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
         StateHasChanged();
     });
 

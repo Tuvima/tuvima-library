@@ -55,6 +55,14 @@ public static class SystemEndpoints
         .Produces<StartupReadinessResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
 
+        app.MapGet("/system/resources", (SystemResourcesService resources) =>
+            Results.Ok(resources.Read(AppVersion)))
+        .WithTags("System")
+        .WithName("GetSystemResources")
+        .WithSummary("Reads Engine version, uptime, processor and memory use, and disk space for the library and the data store. Local only.")
+        .Produces<MediaEngine.Contracts.Settings.SystemResourcesDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
+
         app.MapGet("/system/activity-status", async (
             IMediaOperationRepository operations,
             CancellationToken ct) =>

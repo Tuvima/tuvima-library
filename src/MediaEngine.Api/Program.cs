@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api;
 using MediaEngine.Api.DependencyInjection;
 #if DEBUG
@@ -16,6 +17,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.DependencyInjection;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
@@ -28,6 +30,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 #if DEBUG
@@ -445,6 +448,10 @@ builder.Services.AddSingleton(sp => new DatabaseBackupService(
     sp.GetRequiredService<IDatabaseConnection>(),
     configDirectory,
     backupDirectory));
+builder.Services.AddSingleton(sp => new SystemResourcesService(
+    sp.GetRequiredService<ResourceMonitorService>(),
+    sp.GetRequiredService<IOptions<IngestionOptions>>(),
+    dbPath));
 builder.Services.AddTuvimaDisplay();
 builder.Services.AddTuvimaIntelligence();
 builder.Services.AddTuvimaProviders(configLoader);

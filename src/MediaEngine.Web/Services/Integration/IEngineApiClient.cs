@@ -39,8 +39,8 @@ public partial interface IEngineApiClient
     /// <summary>GET /review/{id} — single review item with full detail.</summary>
     Task<ReviewItemViewModel?> GetReviewItemAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>GET /review/count — pending count for sidebar badge.</summary>
-    Task<int> GetReviewCountAsync(CancellationToken ct = default);
+    /// <summary>GET /review/count — pending count for sidebar badge; null when the count could not be read (a failed read is never a count of zero).</summary>
+    Task<int?> GetReviewCountAsync(CancellationToken ct = default);
 
     /// <summary>POST /review/{id}/resolve — resolve a review item.</summary>
     Task<bool> ResolveReviewItemAsync(Guid id, ReviewResolveRequestDto request, CancellationToken ct = default);

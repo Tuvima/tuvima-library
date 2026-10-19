@@ -15,10 +15,10 @@ The launch catalogue contains Qwen3 text models and one optional Whisper audio m
 
 ## Choose a text profile
 
-1. Open **Settings → Local AI → Runtime**.
+1. Open **Settings → Tools and requirements** and find the **Local AI models** card, then open **Settings → Local AI → Runtime** for the resource profile and benchmark.
 2. Choose **Use Essential**, **Use Standard**, or **Use Advanced**.
 3. Check the effective profile shown for this machine.
-4. Download the selected text model if needed, from **Settings → Tools and requirements**, where every model file shows whether it is ready, downloading or missing.
+4. Download the selected text model if needed, from the **Local AI models** card on the same page, where every model file shows whether it is ready, downloading or missing.
 
 | Profile | Shared text model | Download size |
 | --- | --- | --- |

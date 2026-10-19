@@ -12,8 +12,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The live Ingestion page and the Overview show the Engine's queue snapshot as sent: the same headline, tally, status
-/// and time words, no arithmetic of their own.
+/// The live Ingestion page shows the Engine's queue snapshot as sent: the same headline, tally, status and time words,
+/// no arithmetic of their own.
 /// </summary>
 public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
 {
@@ -446,46 +446,6 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
             Assert.Equal("Found 628 files", cut.Find(".ingestion-status h2").TextContent);
             Assert.Equal("120 more found", cut.Find(".ingestion-status__more").TextContent);
         }, TimeSpan.FromSeconds(6));
-    }
-
-    [Fact]
-    public void Overview_ShowsTheSameStatusAndTimeWordsAsTheLivePageForTheSameSnapshot()
-    {
-        var snapshot = Working();
-        snapshot.EstimatedSecondsRemaining = 330;
-        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(snapshot);
-
-        var live = Render<IngestionTasksTab>();
-        live.WaitForAssertion(() => Assert.Equal("Found 508 files", live.Find(".ingestion-status h2").TextContent));
-        var statusLine = live.Find(".ingestion-status__line").TextContent;
-        var timeLine = live.Find(".ingestion-status__meta").TextContent;
-
-        var overview = Render<OverviewTab>();
-
-        overview.WaitForAssertion(() =>
-        {
-            var row = overview.Find(".admin-system-status__row small").TextContent;
-            Assert.Contains(statusLine, row, StringComparison.Ordinal);
-            Assert.Contains(timeLine, row, StringComparison.Ordinal);
-            Assert.DoesNotContain("Calculating", overview.Markup, StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
-    public void Overview_WithoutAnEstimate_ShowsElapsedTimeNeverCalculating()
-    {
-        var snapshot = Working();
-        snapshot.EstimatedSecondsRemaining = null;
-        snapshot.StartedAt = DateTimeOffset.UtcNow.AddMinutes(-3);
-        _state.PushIngestionQueueProgress(snapshot);
-
-        var overview = Render<OverviewTab>();
-
-        overview.WaitForAssertion(() =>
-        {
-            Assert.Contains("Running for 3 min", overview.Find(".admin-system-status__row small").TextContent, StringComparison.Ordinal);
-            Assert.DoesNotContain("Calculating", overview.Markup, StringComparison.Ordinal);
-        });
     }
 
     private IRenderedComponent<IngestionTasksTab> RenderTab(IngestionQueueProgressDto queue)

@@ -6,14 +6,13 @@ using Microsoft.Data.Sqlite;
 namespace MediaEngine.Storage.Tests;
 
 /// <summary>
-/// The pinned FFmpeg and Tesseract downloads (<c>config/tool_downloads.json</c>) and the tools banner's remembered
-/// "Not now" answers.
+/// The pinned FFmpeg and Tesseract downloads (<c>config/tool_downloads.json</c>).
 /// </summary>
-public sealed class ToolDownloadConfigAndPreferenceTests : IDisposable
+public sealed class ToolDownloadConfigTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tuvima-tool-download-config-" + Guid.NewGuid().ToString("N"));
 
-    public ToolDownloadConfigAndPreferenceTests()
+    public ToolDownloadConfigTests()
     {
         DapperConfiguration.Configure();
         Directory.CreateDirectory(_root);
@@ -119,54 +118,6 @@ public sealed class ToolDownloadConfigAndPreferenceTests : IDisposable
         var settings = LoadWith(ffmpegUrl: "https://github.com/BtbN/FFmpeg-Builds/releases/download/another/ffmpeg.zip");
 
         Assert.Equal("https://github.com/BtbN/FFmpeg-Builds/releases/download/another/ffmpeg.zip", settings.Ffmpeg?.Url);
-    }
-
-    // ── "Not now" on the banner ──────────────────────────────────────────────
-
-    [Fact]
-    public async Task ADeclinedTool_IsStillDeclinedForANewRepositoryOnTheSameDataStore()
-    {
-        var path = Path.Combine(_root, "store.db");
-        using (var first = new DatabaseConnection(path))
-        {
-            first.InitializeSchema();
-            first.RunStartupChecks();
-            await new ToolPromptPreferenceRepository(first).DeclineAsync("ffmpeg");
-        }
-
-        using var second = new DatabaseConnection(path);
-        second.InitializeSchema();
-        second.RunStartupChecks();
-        var declined = await new ToolPromptPreferenceRepository(second).GetDeclinedAsync();
-
-        Assert.Equal(["ffmpeg"], declined);
-    }
-
-    [Fact]
-    public async Task ClearingADecline_ForgetsOnlyThatTool_AndDecliningTwiceIsHarmless()
-    {
-        using var db = new DatabaseConnection(Path.Combine(_root, "clear.db"));
-        db.InitializeSchema();
-        db.RunStartupChecks();
-        var repository = new ToolPromptPreferenceRepository(db);
-
-        await repository.DeclineAsync("ffmpeg");
-        await repository.DeclineAsync("ffmpeg");
-        await repository.DeclineAsync("image_engine");
-        await repository.ClearDeclinedAsync("ffmpeg");
-
-        Assert.Equal(["image_engine"], await repository.GetDeclinedAsync());
-    }
-
-    [Fact]
-    public async Task TheRepositoryDoesNotMistakeTheDataStoresOwnMetadataForDeclines()
-    {
-        using var db = new DatabaseConnection(Path.Combine(_root, "other.db"));
-        db.InitializeSchema();
-        db.RunStartupChecks();
-
-        // The data store already keeps its epoch in the same table.
-        Assert.Empty(await new ToolPromptPreferenceRepository(db).GetDeclinedAsync());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

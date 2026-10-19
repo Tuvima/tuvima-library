@@ -4,11 +4,7 @@
 @inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
 
-<AppCard Class="view-rules-card">
-    <div class="view-rules__heading">
-        <h3>Auto-filing rules</h3>
-        <p>New documents land in your Inbox. A rule can tag them, set who sent them and what they are, or file them for you. Rules run top to bottom, and a rule never changes something you set yourself. Rules are yours alone@(_rules?.CanManageShared == true ? ", except Shared Library rules, which cover everyone in your household" : string.Empty).</p>
-    </div>
+<AppCard Title="Auto-filing rules" Description="@RulesDescription">
     @if (ReadOnly)
     {
         <p class="view-rules__note" role="note">Edit on a computer. Your rules still run on every new document.</p>
@@ -78,6 +74,10 @@
 
 @code {
     [Parameter] public bool ReadOnly { get; set; }
+
+    private string RulesDescription =>
+        "New documents land in your Inbox. A rule can tag them, set who sent them and what they are, or file them for you. Rules run top to bottom, and a rule never changes something you set yourself. Rules are yours alone"
+        + (_rules?.CanManageShared == true ? ", except Shared Library rules, which cover everyone in your household" : string.Empty) + ".";
 
     private ViewDocumentRulesDto? _rules;
     private ViewDocumentCatalogueDto? _catalogue;

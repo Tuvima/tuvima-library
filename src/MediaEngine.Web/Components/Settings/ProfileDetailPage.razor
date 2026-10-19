@@ -69,8 +69,8 @@
             <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@_notice</AppAlert>
         }
 
-        <section class="profile-detail__group" aria-labelledby="profile-detail-profile">
-            <h3 id="profile-detail-profile" class="profile-detail__group-title">Profile</h3>
+        <div class="profile-detail__group">
+        <SettingsSectionPanel Title="Profile">
             <ul class="profile-detail__list" role="list">
                 @if (CanEditDetails)
                 {
@@ -90,8 +90,13 @@
                         <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Note="@SignInNote" OnClick="OpenSignIn" />
                     }
                 </li>
+                <li class="profile-detail__item">
+                    @* Opens the Devices page already narrowed to this person. *@
+                    <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Phones, TVs and browsers" Href="@DevicesLink" />
+                </li>
             </ul>
-        </section>
+        </SettingsSectionPanel>
+        </div>
 
         @if (_forbidden)
         {
@@ -99,8 +104,8 @@
         }
         else
         {
-            <section class="profile-detail__group" aria-labelledby="profile-detail-preferences">
-                <h3 id="profile-detail-preferences" class="profile-detail__group-title">Preferences</h3>
+            <div class="profile-detail__group">
+            <SettingsSectionPanel Title="Preferences">
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         <SettingsNavRow Key="playback" Icon="@AppMaterialIcons.Outlined.PlayCircle" Title="Playback" Status="@PlaybackStatus" Href="@PreferenceLink("playback")" />
@@ -115,13 +120,14 @@
                         <SettingsNavRow Key="subtitles" Icon="@AppMaterialIcons.Outlined.Subtitles" Title="Subtitles" Status="@SubtitlesStatus" Href="@PreferenceLink("playback", "#subtitles")" />
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
+            </div>
         }
 
         @if (ShowHouseholdAccess)
         {
-            <section class="profile-detail__group" aria-labelledby="profile-detail-access" data-profile-section="household-access">
-                <h3 id="profile-detail-access" class="profile-detail__group-title">Household access</h3>
+            <div class="profile-detail__group" data-profile-section="household-access">
+            <SettingsSectionPanel Title="Household access">
                 @if (!string.IsNullOrWhiteSpace(_accessMessage))
                 {
                     <p class="who-page__error" role="alert">@_accessMessage</p>
@@ -151,19 +157,69 @@
                         }
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
+            </div>
+        }
+
+        @if (ShowPinProtection)
+        {
+            @* Moved here from Users and Sign-in: the PIN asked for before this person opens administrator settings. *@
+            <div class="profile-detail__group" data-profile-section="pin-protection">
+            <SettingsSectionPanel Title="PIN protection">
+                @if (!string.IsNullOrWhiteSpace(_protectionMessage))
+                {
+                    <AppAlert Severity="AppSeverity.Success" Variant="AppVariant.Outlined" Dense="true">@_protectionMessage</AppAlert>
+                }
+                @if (!string.IsNullOrWhiteSpace(_protectionError))
+                {
+                    <p class="who-page__error" role="alert">@_protectionError</p>
+                }
+                @foreach (var grant in _adminGrants)
+                {
+                    <div class="profile-detail__protection" data-admin-protection="@grant.AccountId" @key="grant.AccountId">
+                        <div>
+                            <strong>@(grant.Grant.AdminProtection.Enabled ? "Admin settings are protected" : "Protect admin settings")</strong>
+                            <small class="profile-detail__protection-account">@grant.AccountLabel</small>
+                            <small>Require a PIN before opening administrator settings from this profile.</small>
+                        </div>
+                        <AppTextField InputType="AppInputType.Password" InputMode="AppInputMode.numeric" Value="@Pin(grant.AccountId)"
+                                      ValueChanged="@(value => _pins[grant.AccountId] = value ?? string.Empty)" Disabled="@_protectionBusy"
+                                      autocomplete="off" aria-label="@($"New administrator PIN for {PersonName}")" />
+                        <AppNativeSelect Value="@ProtectionOption(grant)" OnChange="@(value => _protectionOptions[grant.AccountId] = value.Value?.ToString() ?? "FixedDuration:30")"
+                                         Disabled="@_protectionBusy" aria-label="@($"PIN unlock duration for {PersonName}")">
+                            <option value="FixedDuration:15">For 15 minutes</option>
+                            <option value="FixedDuration:30">For 30 minutes</option>
+                            <option value="FixedDuration:60">For 1 hour</option>
+                            <option value="UntilProfileSwitch">Until profile switch</option>
+                            <option value="LockOnLeave">Lock when leaving settings</option>
+                        </AppNativeSelect>
+                        <div class="profile-detail__protection-actions">
+                            <AppButton Label="@(grant.Grant.AdminProtection.Enabled ? "Update protection" : "Enable protection")" Size="AppControlSize.Compact"
+                                       Disabled="@(_protectionBusy || string.IsNullOrWhiteSpace(Pin(grant.AccountId)))" OnClick="@(() => SaveProtectionAsync(grant, true))" />
+                            @if (grant.Grant.AdminProtection.Enabled)
+                            {
+                                <AppButton Label="Remove protection" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
+                                           Disabled="@_protectionBusy" OnClick="@(() => SaveProtectionAsync(grant, false))" />
+                            }
+                        </div>
+                    </div>
+                }
+            </SettingsSectionPanel>
+            </div>
         }
 
         @if (CanDelete)
         {
-            <section class="profile-detail__group" aria-label="Delete profile">
+            <div class="profile-detail__group">
+                <AppCard>
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
                         <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
                     </li>
                 </ul>
-            </section>
+                </AppCard>
+            </div>
         }
     }
 </div>
@@ -234,6 +290,12 @@
     private bool _accessSaving;
     private string? _accessError;
     private string? _accessMessage;
+    private List<AdminGrantRow> _adminGrants = [];
+    private readonly Dictionary<Guid, string> _pins = [];
+    private readonly Dictionary<Guid, string> _protectionOptions = [];
+    private bool _protectionBusy;
+    private string? _protectionMessage;
+    private string? _protectionError;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -294,6 +356,23 @@
     }
 
     private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
+
+    // The Devices page, already narrowed to this person. Your own page omits ?profile=, like the preference links do.
+    private string DevicesLink => IsSelf ? "/settings/security/devices" : $"/settings/security/devices?profile={ProfileId:D}";
+
+    // PIN protection only has something to protect when an account lets this person open administrator settings.
+    private bool ShowPinProtection => IsAdministrator && _adminGrants.Count > 0;
+
+    private string Pin(Guid accountId) => _pins.GetValueOrDefault(accountId, string.Empty);
+
+    private string ProtectionOption(AdminGrantRow row) =>
+        _protectionOptions.TryGetValue(row.AccountId, out var chosen)
+            ? chosen
+            : row.Grant.AdminProtection.UnlockMode == "FixedDuration"
+                ? $"FixedDuration:{row.Grant.AdminProtection.UnlockMinutes ?? 30}"
+                : row.Grant.AdminProtection.UnlockMode;
+
+    private sealed record AdminGrantRow(Guid AccountId, string AccountLabel, AccountProfileGrantDto Grant);
 
     private bool IsSelf => _active is not null && _active.Id == ProfileId;
 
@@ -470,7 +549,8 @@
     private async Task LoadAccessAsync()
     {
         _access = null;
-        if (!ShowHouseholdAccess || OwnSignIn is not { } signIn)
+        _adminGrants = [];
+        if (!IsAdministrator)
         {
             return;
         }
@@ -478,7 +558,17 @@
         try
         {
             var accounts = await Identity.GetManagedAccountsAsync();
-            _access = accounts.FirstOrDefault(account => account.Id == signIn.AccountId);
+            if (ShowHouseholdAccess && OwnSignIn is { } signIn)
+            {
+                _access = accounts.FirstOrDefault(account => account.Id == signIn.AccountId);
+            }
+
+            // Every account that lets this person open administrator settings, each with its own PIN protection.
+            _adminGrants = accounts
+                .SelectMany(account => account.ProfileGrants
+                    .Where(grant => grant.ProfileId == ProfileId && grant.AdminEnabled && !grant.IsRestricted)
+                    .Select(grant => new AdminGrantRow(account.Id, string.IsNullOrWhiteSpace(account.Email) ? "Account" : account.Email, grant)))
+                .ToList();
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -538,7 +628,7 @@
             var result = await Identity.ReplaceManagedAccountAccessResultAsync(signIn.AccountId, request);
             if (!result.Succeeded)
             {
-                _accessError = AccessFailureMessage(result.Failure);
+                _accessError = AccessFailureMessage(result.Failure, result.Message);
                 return;
             }
 
@@ -549,6 +639,46 @@
         finally
         {
             _accessSaving = false;
+        }
+    }
+
+    private async Task SaveProtectionAsync(AdminGrantRow row, bool enabled)
+    {
+        if (_protectionBusy)
+        {
+            return;
+        }
+
+        _protectionBusy = true;
+        _protectionMessage = null;
+        _protectionError = null;
+        try
+        {
+            var parts = ProtectionOption(row).Split(':', 2);
+            var unlockMode = parts[0];
+            var unlockMinutes = unlockMode == "FixedDuration" && parts.Length == 2 && int.TryParse(parts[1], out var minutes)
+                ? minutes
+                : row.Grant.AdminProtection.UnlockMinutes;
+            var pin = enabled ? Pin(row.AccountId) : null;
+            var result = await Confirmed.RunAsync(() => Identity.SetGrantProtectionResultAsync(row.AccountId, ProfileId,
+                new SetGrantAdminProtectionRequest(enabled, pin, unlockMode, unlockMinutes)));
+            _pins.Remove(row.AccountId);
+            if (!result.Succeeded)
+            {
+                _protectionError = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
+                    ? "Nothing was changed. Confirm it's you to continue."
+                    : AccessFailureMessage(result.Failure, result.Message);
+                return;
+            }
+
+            await LoadAccessAsync();
+            _protectionMessage = enabled
+                ? $"PIN protection for {PersonName} was updated."
+                : $"PIN protection for {PersonName} was removed.";
+        }
+        finally
+        {
+            _protectionBusy = false;
         }
     }
 
@@ -578,14 +708,17 @@
 
         _accessMessage = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
             ? "Nothing was changed. Confirm it's you to continue."
-            : AccessFailureMessage(result.Failure);
+            : AccessFailureMessage(result.Failure, result.Message);
     }
 
-    private static string AccessFailureMessage(DashboardAccessMutationFailure failure) => failure switch
+    // The Engine's own sentence for a conflict is shown as it is; the generic line is for a conflict with no reason given.
+    private static string AccessFailureMessage(DashboardAccessMutationFailure failure, string? engineMessage = null) => failure switch
     {
         DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
             => "That wasn't saved. You can only give what your household has, and only to people in it.",
-        DashboardAccessMutationFailure.Conflict => "This change conflicts with the current account state.",
+        DashboardAccessMutationFailure.Conflict => string.IsNullOrWhiteSpace(engineMessage)
+            ? "This change conflicts with the current account state."
+            : engineMessage,
         DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
         DashboardAccessMutationFailure.NotFound => "This account no longer exists.",
         DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",

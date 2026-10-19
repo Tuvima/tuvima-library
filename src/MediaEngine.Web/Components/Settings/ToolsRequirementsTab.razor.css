@@ -11,6 +11,10 @@
     color: var(--tl-text-muted);
 }
 
+.tools-requirements__stack {
+    margin-bottom: 16px;
+}
+
 .tools-requirements__list {
     display: grid;
     gap: 9px;
