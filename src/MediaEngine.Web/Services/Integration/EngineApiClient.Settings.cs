@@ -795,21 +795,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> UpdateRetentionAsync(int days, CancellationToken ct = default)
-    {
-        try
-        {
-            var resp = await _http.PutAsync($"/activity/retention?days={days}", null, ct);
-            return resp.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "PUT /activity/retention failed");
-            return false;
-        }
-    }
-
     public async Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(
         Guid runId, CancellationToken ct = default)
     {

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
@@ -51,6 +52,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     private readonly ILibraryFolderResolver _libraryFolderResolver;
     private readonly MediaEngine.Ingestion.Contracts.IImportFolderService? _importFolders;
     private readonly MediaEngine.Ingestion.Services.ImportFilingJournal? _importJournal;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<LibraryReconciliationService> _logger;
 
     /// <summary>Tuvima's own working folder under the library root (staging, caches, images, database).</summary>
@@ -72,6 +74,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         AssetPathService assetPaths,
         IDatabaseConnection db,
         ILibraryFolderResolver libraryFolderResolver,
+        IScheduledTaskRegistry registry,
         ILogger<LibraryReconciliationService> logger,
         MediaEngine.Ingestion.Contracts.IImportFolderService? importFolders = null,
         MediaEngine.Ingestion.Services.ImportFilingJournal? importJournal = null)
@@ -93,6 +96,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         _assetPaths = assetPaths;
         _db = db;
         _libraryFolderResolver = libraryFolderResolver;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -117,6 +121,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         // The IngestionEngine already runs reconciliation at startup (Step 2),
         // so this background loop waits the full interval before its first run
         // to avoid a duplicate reconciliation within seconds of boot.
+        var task = _registry.Register(Describe(DefaultSchedule));
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -133,13 +138,17 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
                         schedule = DefaultSchedule;
                     }
 
+                    _registry.Register(Describe(schedule));
                     var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
+                    task.NextRunIn(delay);
                     await Task.Delay(delay, stoppingToken);
                     await ReconcileAsync(stoppingToken);
+                    task.Done();
                 }
                 else
                 {
                     // Disabled — check again in 1 hour in case config changes.
+                    task.NextRunAt(null);
                     await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 }
             }
@@ -150,10 +159,17 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Library reconciliation failed; will retry next cycle");
+                task.Failed(ex);
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string schedule) => new(
+        "library-reconciliation",
+        "Check library files are still there",
+        "Looks for media files that have moved or disappeared from disk and tidies up what no longer has a file.",
+        ScheduleDescriber.FromCron(schedule));
 
     /// <summary>
     /// Scans all Normal-status assets, verifies files exist on disk,

@@ -136,7 +136,7 @@ public sealed class SettingsNavTests
     {
         Assert.Equal(["households"], SettingsNav.GetSubsections(SettingsSection.Profiles).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Playback));
-        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.AdminOverview));
+        Assert.Equal(["logs"], SettingsNav.GetSubsections(SettingsSection.AdminOverview).Select(item => item.Slug));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Server));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Tools));
@@ -306,7 +306,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
         Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
-        Assert.Equal(["Tools and requirements", "Backup and recovery"], ChildLabels(groups, "System"));
+        Assert.Equal(["Tools and requirements", "Logs", "Backup and recovery"], ChildLabels(groups, "System"));
         Assert.Equal(["Runtime", "Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
         Assert.Equal(["Provider Tester", "Enrichment Tester"], ChildLabels(groups, "Developer Tools"));

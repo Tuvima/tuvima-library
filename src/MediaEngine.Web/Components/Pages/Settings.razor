@@ -137,7 +137,14 @@ else
                                 }
                                 break;
                             case SettingsSection.AdminOverview:
-                                <SystemSummaryPage />
+                                @if (_activeSubsection == SettingsNav.LogsSubsection)
+                                {
+                                    <LogsPage Tab="@LogsTab" />
+                                }
+                                else
+                                {
+                                    <SystemSummaryPage />
+                                }
                                 break;
                             case SettingsSection.Preferences:
                                 <PreferencesSummaryPage />
@@ -233,6 +240,7 @@ else
     [SupplyParameterFromQuery(Name = "itemId")] public Guid? IngestionItemId { get; set; }
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
+    [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
     [SupplyParameterFromQuery(Name = "profile")] public Guid? PlaybackProfileId { get; set; }
     private string? _playbackTargetName;
@@ -828,7 +836,9 @@ else
         SettingsSection.Security => _activeSubsection == "devices"
             ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
             : "Password, email and extra protection.",
-        SettingsSection.AdminOverview => "How this server is doing: its version, processor, memory and storage.",
+        SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
+            ? "The Engine's technical log, and how long logs are kept."
+            : "How this server is doing: its version, processor, memory and storage.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",

@@ -1,5 +1,8 @@
 {
-  "activity_retention_days": 60,
+  "activity_retention_days": 90,
+  "activity_max_events": 500000,
+  "log_retention_days": 90,
+  "log_max_total_mb": 1024,
   "vacuum_interval_hours": 168,
   "sync_interval_hours": 24,
   "retag_sweep": {

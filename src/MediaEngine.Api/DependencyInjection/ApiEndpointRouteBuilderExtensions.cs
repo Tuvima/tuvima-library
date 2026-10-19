@@ -64,6 +64,8 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapProgressEndpoints();
         app.MapActivityEndpoints();
         app.MapPersonalActivityEndpoints();
+        app.MapLogEndpoints();
+        app.MapScheduledTaskEndpoints();
         app.MapDisplayEndpoints();
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();

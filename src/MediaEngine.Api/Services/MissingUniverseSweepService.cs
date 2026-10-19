@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -49,6 +50,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
     private readonly IHydrationPipelineService _pipeline;
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IConfigurationLoader _configLoader;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<MissingUniverseSweepService> _logger;
 
     public MissingUniverseSweepService(
@@ -59,6 +61,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         IHydrationPipelineService pipeline,
         ISystemActivityRepository activityRepo,
         IConfigurationLoader configLoader,
+        IScheduledTaskRegistry registry,
         ILogger<MissingUniverseSweepService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
@@ -68,6 +71,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         ArgumentNullException.ThrowIfNull(pipeline);
         ArgumentNullException.ThrowIfNull(activityRepo);
         ArgumentNullException.ThrowIfNull(configLoader);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _db = db;
@@ -77,6 +81,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         _pipeline = pipeline;
         _activityRepo = activityRepo;
         _configLoader = configLoader;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -86,7 +91,10 @@ public sealed class MissingUniverseSweepService : BackgroundService
             "MissingUniverseSweepService started — initial delay {Seconds}s, schedule: {Schedule}",
             InitialDelay.TotalSeconds, DefaultSchedule);
 
+        var task = _registry.Register(Describe(DefaultSchedule));
+
         // Let the rest of the app fully start before the first sweep.
+        task.NextRunIn(InitialDelay);
         await Task.Delay(InitialDelay, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -94,6 +102,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
             try
             {
                 await RunSweepAsync(stoppingToken);
+                task.Done();
             }
             catch (OperationCanceledException)
             {
@@ -102,6 +111,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "MissingUniverseSweepService: sweep failed; will retry next cycle");
+                task.Failed(ex);
             }
 
             string cronSchedule;
@@ -118,10 +128,18 @@ public sealed class MissingUniverseSweepService : BackgroundService
             {
                 cronSchedule = DefaultSchedule;
             }
+            _registry.Register(Describe(cronSchedule));
             var delay = CronScheduler.UntilNext(cronSchedule, TimeSpan.FromDays(7));
+            task.NextRunIn(delay);
             await Task.Delay(delay, stoppingToken);
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string schedule) => new(
+        "missing-universe-sweep",
+        "Retry unmatched universes",
+        "Tries again to connect works the Library could not place in a universe the first time.",
+        ScheduleDescriber.FromCron(schedule));
 
     // ── Sweep logic ───────────────────────────────────────────────────────────
 

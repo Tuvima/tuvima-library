@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -60,6 +61,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
     private readonly ISystemActivityRepository _activityRepo;
     private readonly ICollectionRepository _collections;
     private readonly IConfigurationLoader _configLoader;
+    private readonly IScheduledTaskRegistry _registry;
     private readonly ILogger<RejectedFileCleanupService> _logger;
 
     /// <summary>Cron expression for the cleanup schedule. Default: 4 AM daily.</summary>
@@ -70,18 +72,21 @@ public sealed class RejectedFileCleanupService : BackgroundService
         ISystemActivityRepository activityRepo,
         ICollectionRepository collections,
         IConfigurationLoader configLoader,
+        IScheduledTaskRegistry registry,
         ILogger<RejectedFileCleanupService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
         ArgumentNullException.ThrowIfNull(activityRepo);
         ArgumentNullException.ThrowIfNull(collections);
         ArgumentNullException.ThrowIfNull(configLoader);
+        ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(logger);
 
         _db = db;
         _activityRepo = activityRepo;
         _collections = collections;
         _configLoader = configLoader;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -89,7 +94,10 @@ public sealed class RejectedFileCleanupService : BackgroundService
     {
         _logger.LogInformation("RejectedFileCleanupService started — schedule: {Schedule}", DefaultSchedule);
 
+        var task = _registry.Register(Describe(DefaultSchedule));
+
         // Initial delay to let the rest of the app start.
+        task.NextRunIn(TimeSpan.FromSeconds(45));
         await Task.Delay(TimeSpan.FromSeconds(45), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -97,6 +105,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
             try
             {
                 await RunCleanupPassAsync(stoppingToken);
+                task.Done();
             }
             catch (OperationCanceledException)
             {
@@ -105,6 +114,7 @@ public sealed class RejectedFileCleanupService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Rejected file cleanup pass failed; will retry next cycle");
+                task.Failed(ex);
             }
 
             string cleanupSchedule;
@@ -121,11 +131,19 @@ public sealed class RejectedFileCleanupService : BackgroundService
             {
                 cleanupSchedule = DefaultSchedule;
             }
+            _registry.Register(Describe(cleanupSchedule));
             var delay = CronScheduler.UntilNext(cleanupSchedule, TimeSpan.FromHours(24));
+            task.NextRunIn(delay);
             _logger.LogInformation("Next rejected-file cleanup at {NextRun}", DateTimeOffset.Now.Add(delay));
             await Task.Delay(delay, stoppingToken);
         }
     }
+
+    private static ScheduledTaskDefinition Describe(string schedule) => new(
+        "rejected-file-cleanup",
+        "Remove rejected files",
+        "Permanently deletes files you rejected once they are past the keep-for limit.",
+        ScheduleDescriber.FromCron(schedule));
 
     // ── Internal ──────────────────────────────────────────────────────────────
 

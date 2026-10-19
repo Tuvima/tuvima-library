@@ -447,10 +447,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<PruneResponse?> TriggerPruneAsync(CancellationToken ct = default)
         => _api.TriggerPruneAsync(ct);
 
-    /// <summary>Updates the activity retention period in days.</summary>
-    public Task<bool> UpdateRetentionAsync(int days, CancellationToken ct = default)
-        => _api.UpdateRetentionAsync(days, ct);
-
     /// <summary>Returns activity entries filtered by action types for activity summaries.</summary>
     public Task<List<ActivityEntryResponse>> GetActivityByTypesAsync(
         string[] actionTypes, int limit = 50, CancellationToken ct = default)

@@ -148,6 +148,9 @@ public static class SettingsNav
     /// <summary>The Households sub-page of Profiles (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
+    /// <summary>The Logs sub-page of System: technical log and retention (server administrators only).</summary>
+    public const string LogsSubsection = "logs";
+
     private static readonly IReadOnlyDictionary<SettingsSection, LaunchFeatureEvidence> LaunchContracts =
         new Dictionary<SettingsSection, LaunchFeatureEvidence>
         {
@@ -274,6 +277,7 @@ public static class SettingsNav
             Node("System", AppMaterialIcons.Outlined.DesktopWindows, SettingsSection.AdminOverview, children:
             [
                 Node("Tools and requirements", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
+                Node("Logs", AppMaterialIcons.Outlined.List, SettingsSection.AdminOverview, LogsSubsection),
                 Node("Backup and recovery", AppMaterialIcons.Outlined.Backup, SettingsSection.Server),
             ]),
         ]),
@@ -318,7 +322,10 @@ public static class SettingsNav
             [
                 new("devices", "Devices", AppMaterialIcons.Outlined.Devices),
             ],
-            [SettingsSection.AdminOverview] = [],
+            [SettingsSection.AdminOverview] =
+            [
+                new(LogsSubsection, "Logs", AppMaterialIcons.Outlined.List),
+            ],
             [SettingsSection.Libraries] = [],
             [SettingsSection.Ingestion] = [],
             [SettingsSection.RecentlyAdded] = [],
@@ -572,7 +579,8 @@ public static class SettingsNav
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
             SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication",
-            SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
+            // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.
+            SettingsSection.AdminOverview or SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
                 string.IsNullOrWhiteSpace(normalized),
             _ => true,
         };
