@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
@@ -44,7 +45,7 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
     [Fact]
     public async Task GetOverviewAsync_ReturnsNullWhenProfileIsMissing()
     {
-        var service = new ProfileOverviewReadService(new FakeProfileService(null), _db, _activity, _taste);
+        var service = new ProfileOverviewReadService(new FakeProfileService(null), _db, _activity, _taste, new TasteOverrideRepository(_db));
 
         var result = await service.GetOverviewAsync(_profileId, CancellationToken.None);
 
@@ -61,7 +62,7 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
         _activity.Entries.Add(new SystemActivityEntry { Id = 1, ActionType = "Playback", ProfileId = _profileId });
         _activity.Entries.Add(new SystemActivityEntry { Id = 2, ActionType = "Playback", ProfileId = _profileId });
 
-        var service = new ProfileOverviewReadService(_profiles, _db, _activity, _taste);
+        var service = new ProfileOverviewReadService(_profiles, _db, _activity, _taste, new TasteOverrideRepository(_db));
 
         var result = await service.GetOverviewAsync(_profileId, CancellationToken.None);
 
@@ -120,6 +121,29 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
         return assetId;
     }
 
+    [Fact]
+    public async Task GetOverviewAsync_ShowsTheLearnedTasteWithThePersonsOwnRemovalsAndAdditionsApplied()
+    {
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO profiles (id, display_name, created_at) VALUES (@id, 'Owner', @now);",
+                new { id = _profileId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        _taste.Genres = new Dictionary<string, double> { ["sci-fi"] = 0.6, ["drama"] = 0.4 };
+        var overrides = new TasteOverrideRepository(_db);
+        await overrides.SetAsync(_profileId, TasteGroups.Genre, "sci-fi", TasteOverrideActions.Removed, DateTimeOffset.UtcNow);
+        await overrides.SetAsync(_profileId, TasteGroups.Genre, "western", TasteOverrideActions.Added, DateTimeOffset.UtcNow);
+        var service = new ProfileOverviewReadService(_profiles, _db, _activity, _taste, overrides);
+
+        var result = await service.GetOverviewAsync(_profileId, CancellationToken.None);
+
+        Assert.NotNull(result?.Taste);
+        Assert.Equal(["drama", "western"], result.Taste.GenreDistribution.Keys.Order());
+        Assert.Equal(0.6, _taste.Genres["sci-fi"]);
+    }
+
     private void SeedUserState(Guid assetId, double progress, DateTimeOffset lastAccessed, string extendedProperties)
     {
         using var conn = _db.CreateConnection();
@@ -164,11 +188,13 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
 
     private sealed class FakeTasteProfiler : ITasteProfiler
     {
+        public Dictionary<string, double> Genres { get; set; } = [];
+
         public Task<TasteProfileBuildResult> GetProfileAsync(Guid userId, CancellationToken ct = default) =>
             Task.FromResult(new TasteProfileBuildResult(
                 TasteProfileBuildStatus.Generated,
                 userId,
-                new TasteProfile { UserId = userId, LastUpdatedAt = DateTimeOffset.UtcNow },
+                new TasteProfile { UserId = userId, GenreDistribution = Genres, LastUpdatedAt = DateTimeOffset.UtcNow },
                 SignalCount: 3,
                 InputFingerprint: "test"));
     }

@@ -52,7 +52,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
         // The only Overview is the person's own, first in Personal; the retired System Overview is gone.
         var overview = Assert.Single(Flatten(groups), row => row.Label == "Overview");
         Assert.Equal("/settings/overview", overview.Route);
-        Assert.Empty(overview.Children ?? []);
+        Assert.Equal(["Taste"], (overview.Children ?? []).Select(child => child.Label));
+        Assert.DoesNotContain(overview.Children!, child => child.Route == overview.Route);
         Assert.Equal("Overview", groups[0].Items[0].Label);
     }
 

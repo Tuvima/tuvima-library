@@ -155,6 +155,9 @@ public static class SettingsNav
     /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
     public const string AppsSubsection = "apps";
 
+    /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
+    public const string TasteSubsection = "taste";
+
     /// <summary>The Activity sub-page of Overview (built with the Activity page).</summary>
     public const string ActivityRoute = "/settings/overview/activity";
 
@@ -243,7 +246,10 @@ public static class SettingsNav
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person,
         [
-            Node("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
+            Node("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview, children:
+            [
+                Node("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
+            ]),
             Node("Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles, children:
             [
                 Node("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Profiles, HouseholdsSubsection),
@@ -327,6 +333,7 @@ public static class SettingsNav
             [SettingsSection.Overview] =
             [
                 new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Devices),
+                new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
             ],
             [SettingsSection.Profiles] =
             [
