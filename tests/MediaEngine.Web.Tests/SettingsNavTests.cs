@@ -112,12 +112,13 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        // Local AI keeps AI settings only: the runtime moved to Tools and requirements.
+        // Local AI keeps today's content (Runtime, Vocabulary, Automation) until the Developer tools spec rebuilds it.
         Assert.Equal([
+            "Runtime",
             "Vocabulary",
             "Automation",
         ], labels);
-        Assert.Equal("vocabulary", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
+        Assert.Equal("models", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
 
@@ -306,7 +307,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
         Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
         Assert.Equal(["Tools and requirements", "Backup and recovery"], ChildLabels(groups, "System"));
-        Assert.Equal(["Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
+        Assert.Equal(["Runtime", "Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
         Assert.Equal(["Provider Tester", "Enrichment Tester"], ChildLabels(groups, "Developer Tools"));
         Assert.Empty(ChildLabels(groups, "Integrations"));
@@ -457,7 +458,6 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData(SettingsSection.Network, "streaming")]
-    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.LocalAi, "runtime")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]

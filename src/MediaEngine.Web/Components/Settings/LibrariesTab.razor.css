@@ -5,7 +5,6 @@
 .libraries-card__heading p {margin:5px 0 0;color:var(--tl-text-muted);font-size:14px;line-height:1.5}
 .libraries-card__heading h2 {margin:0;font-size:24px}
 .libraries-card__heading h3 {margin:0;font-size:18px}
-::deep .libraries-card {display:flex;flex-direction:column;gap:16px;padding:20px;border:1px solid var(--tl-border-subtle);background:color-mix(in srgb,var(--tl-bg-surface-raised) 65%,transparent)}
 .libraries-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .libraries-example {display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 12px;border:1px solid var(--tl-border-subtle);border-radius:8px;font-size:13px}
 .libraries-example code,.library-detail__advanced code {overflow-wrap:anywhere;display:block}
@@ -13,7 +12,6 @@
 .libraries-example details {margin-left:auto}
 .library-detail__note,.libraries__mobile-note {margin:4px 0 0;color:var(--tl-text-muted);font-size:13px;line-height:1.5}
 summary {cursor:pointer;padding:8px 0}
-.library-detail__advanced {padding:16px 20px;border:1px solid var(--tl-border-subtle);border-radius:12px;background:color-mix(in srgb,var(--tl-bg-surface-raised) 65%,transparent)}
 .library-detail__advanced summary span {margin-left:14px;color:var(--tl-text-muted);font-size:13px}
 .library-detail__advanced[open] summary {margin-bottom:18px}
 .library-detail__advanced p {margin:6px 0;color:var(--tl-text-secondary)}

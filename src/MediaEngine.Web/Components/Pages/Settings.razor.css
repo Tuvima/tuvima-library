@@ -227,7 +227,6 @@
 
 .settings-page-canvas ::deep .settings-section-card {
     height: 100%;
-    padding: clamp(18px, 2vw, 24px);
     border-color: var(--tl-border-subtle);
     border-radius: var(--tl-radius-lg, 12px);
     background: var(--tl-bg-surface, rgba(17, 29, 49, .78));
@@ -667,10 +666,6 @@
     padding-top: 16px !important;
 }
 
-:where(.settings-admin-panel) ::deep .settings-section-card {
-    padding: 17px 18px !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-section-card--dense {
     min-height: auto !important;
 }
@@ -956,11 +951,6 @@
     align-items: start;
 }
 
-:where(.settings-admin-panel) ::deep .settings-plugin-list-panel,
-:where(.settings-admin-panel) ::deep .settings-plugin-detail-panel {
-    padding: 18px !important;
-}
-
 :where(.settings-admin-panel) ::deep .settings-plugin-filter-row {
     flex-wrap: wrap;
 }
@@ -1076,7 +1066,6 @@
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-card,
 :where(.settings-admin-panel) ::deep .settings-plugin-catalog-card {
     margin-top: 18px;
-    padding: 18px;
 }
 
 :where(.settings-admin-panel) ::deep .settings-plugin-danger-card {

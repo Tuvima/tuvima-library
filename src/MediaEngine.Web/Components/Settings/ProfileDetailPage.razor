@@ -69,8 +69,8 @@
             <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@_notice</AppAlert>
         }
 
-        <section class="profile-detail__group" aria-labelledby="profile-detail-profile">
-            <h3 id="profile-detail-profile" class="profile-detail__group-title">Profile</h3>
+        <div class="profile-detail__group">
+        <SettingsSectionPanel Title="Profile">
             <ul class="profile-detail__list" role="list">
                 @if (CanEditDetails)
                 {
@@ -95,7 +95,8 @@
                     <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Phones, TVs and browsers" Href="@DevicesLink" />
                 </li>
             </ul>
-        </section>
+        </SettingsSectionPanel>
+        </div>
 
         @if (_forbidden)
         {
@@ -103,8 +104,8 @@
         }
         else
         {
-            <section class="profile-detail__group" aria-labelledby="profile-detail-preferences">
-                <h3 id="profile-detail-preferences" class="profile-detail__group-title">Preferences</h3>
+            <div class="profile-detail__group">
+            <SettingsSectionPanel Title="Preferences">
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         <SettingsNavRow Key="playback" Icon="@AppMaterialIcons.Outlined.PlayCircle" Title="Playback" Status="@PlaybackStatus" Href="@PreferenceLink("playback")" />
@@ -119,13 +120,14 @@
                         <SettingsNavRow Key="subtitles" Icon="@AppMaterialIcons.Outlined.Subtitles" Title="Subtitles" Status="@SubtitlesStatus" Href="@PreferenceLink("playback", "#subtitles")" />
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
+            </div>
         }
 
         @if (ShowHouseholdAccess)
         {
-            <section class="profile-detail__group" aria-labelledby="profile-detail-access" data-profile-section="household-access">
-                <h3 id="profile-detail-access" class="profile-detail__group-title">Household access</h3>
+            <div class="profile-detail__group" data-profile-section="household-access">
+            <SettingsSectionPanel Title="Household access">
                 @if (!string.IsNullOrWhiteSpace(_accessMessage))
                 {
                     <p class="who-page__error" role="alert">@_accessMessage</p>
@@ -155,14 +157,15 @@
                         }
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
+            </div>
         }
 
         @if (ShowPinProtection)
         {
             @* Moved here from Users and Sign-in: the PIN asked for before this person opens administrator settings. *@
-            <section class="profile-detail__group" aria-labelledby="profile-detail-pin" data-profile-section="pin-protection">
-                <h3 id="profile-detail-pin" class="profile-detail__group-title">PIN protection</h3>
+            <div class="profile-detail__group" data-profile-section="pin-protection">
+            <SettingsSectionPanel Title="PIN protection">
                 @if (!string.IsNullOrWhiteSpace(_protectionMessage))
                 {
                     <AppAlert Severity="AppSeverity.Success" Variant="AppVariant.Outlined" Dense="true">@_protectionMessage</AppAlert>
@@ -201,19 +204,22 @@
                         </div>
                     </div>
                 }
-            </section>
+            </SettingsSectionPanel>
+            </div>
         }
 
         @if (CanDelete)
         {
-            <section class="profile-detail__group" aria-label="Delete profile">
+            <div class="profile-detail__group">
+                <AppCard>
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
                         <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
                     </li>
                 </ul>
-            </section>
+                </AppCard>
+            </div>
         }
     }
 </div>

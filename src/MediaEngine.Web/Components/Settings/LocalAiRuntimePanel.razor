@@ -1,14 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
 
-@* The Local AI runtime (resource profile, benchmark, runtime limits and diagnostics), shown on Tools and requirements.
-   It was the Runtime page of Local AI; Local AI keeps only AI settings. Model files and downloads are the
-   "Local AI models" card beside it. *@
+@* The Local AI runtime (resource profile, benchmark, runtime limits and diagnostics): the Runtime page of Local AI.
+   Model files and downloads are the "Local AI models" card on Tools and requirements. The page title and its
+   one-line description come from the Settings frame. *@
 <div class="local-ai-runtime" data-testid="local-ai-runtime">
-    <SettingsSectionHeader Title="Local AI runtime"
-                           Description="Choose the resource profile and set runtime limits."
-                           Icon="@AppMaterialIcons.Outlined.Memory"
-                           Divider="true" />
     <ModelsTab />
     <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
         @if (_config is null)

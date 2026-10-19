@@ -190,6 +190,20 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Shell_EveryRowShowsItsFullLabelOnHover_SoATruncatedLabelCanStillBeRead()
+    {
+        var cut = RenderMenu(SettingsMenuBuilder.Build(Context(administrator: true)), "/settings/profiles");
+
+        var links = cut.FindAll("a.media-section-shell__tree-link");
+        Assert.NotEmpty(links);
+        foreach (var link in links)
+        {
+            var label = link.QuerySelector(".media-section-shell__tree-label")!.TextContent;
+            Assert.Equal(label, link.GetAttribute("title"));
+        }
+    }
+
+    [Fact]
     public void Shell_ParentClickOpensItsOwnPage_AndExpandsItsChildren()
     {
         var navigation = Services.GetRequiredService<NavigationManager>();

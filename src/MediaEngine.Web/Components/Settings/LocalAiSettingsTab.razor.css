@@ -31,18 +31,6 @@
     opacity: .65;
 }
 
-.local-ai-settings__section {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    gap: 16px;
-}
-
-::deep .local-ai-settings__section > .tl-page,
-::deep .local-ai-settings__section > .app-card {
-    min-width: 0;
-}
-
 @media (max-width: 1023px) {
     .local-ai-settings__summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));

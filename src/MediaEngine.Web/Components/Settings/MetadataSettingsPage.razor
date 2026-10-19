@@ -149,6 +149,7 @@
         }
         else
         {
+            <AppCard>
             <div class="metadata-provider-table-wrap">
                 <table class="metadata-provider-table">
                     <thead>
@@ -196,6 +197,7 @@
                     </tbody>
                 </table>
             </div>
+            </AppCard>
         }
     </div>;
 
@@ -323,8 +325,8 @@
     </section>;
 
     private RenderFragment IngestionFlowPage() => @<div class="metadata-experience metadata-flow-page">
+        <AppCard Title="Ingestion Flow" Description="See which providers run for each media type, their role, and the results they add to your library.">
         <div class="metadata-flow-intro">
-            <div><h2>Ingestion Flow</h2><p>See which providers run for each media type, their role, and the results they add to your library.</p></div>
             <div class="metadata-provider-toolbar">
                 <div class="metadata-filter-row" aria-label="Filter ingestion flow">
                     @foreach (var filter in FlowFilters)
@@ -359,6 +361,7 @@
                 </article>
             }
         </div>
+        </AppCard>
         <AppAlert Tone="AppUiTone.Info">Order and roles come from the active Engine configuration. Disabled or incomplete providers remain visible so gaps are clear.</AppAlert>
     </div>;
 

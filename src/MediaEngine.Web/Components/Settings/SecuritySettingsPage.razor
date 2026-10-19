@@ -38,8 +38,7 @@
             {
                 <p class="security-settings__note">Your account has no password, so it only works at home. Add one any time below.</p>
             }
-            <section class="security-settings__group" aria-labelledby="security-account-details">
-                <h3 id="security-account-details" class="security-settings__group-title">Account details</h3>
+            <SettingsSectionPanel Title="Account details">
                 <ul class="security-settings__list" role="list">
                     @if (_thisComputerOnly && !Capabilities.HasPassword)
                     {
@@ -60,28 +59,26 @@
                         </li>
                     }
                 </ul>
-            </section>
+            </SettingsSectionPanel>
 
             @* Everyone may sign out their own other sessions (a lost phone). Paired phones and TVs and signed-in browsers are on the Devices page, a child of Security. *@
-            <section class="security-settings__group" aria-labelledby="security-access">
-                <h3 id="security-access" class="security-settings__group-title">Access</h3>
+            <SettingsSectionPanel Title="Access">
                 <ul class="security-settings__list" role="list">
                     <li class="security-settings__item">
                         <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
                                         Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
 
             @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
-            <section class="security-settings__group" aria-labelledby="security-photos">
-                <h3 id="security-photos" class="security-settings__group-title">Your photos</h3>
+            <SettingsSectionPanel Title="Your photos">
                 <ul class="security-settings__list" role="list">
                     <li class="security-settings__item">
                         <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="Who viewed your photos" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
                     </li>
                 </ul>
-            </section>
+            </SettingsSectionPanel>
         </div>
 
         @if (_sheet != SecuritySheet.None)

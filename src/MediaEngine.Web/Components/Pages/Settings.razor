@@ -835,7 +835,13 @@ else
         SettingsSection.Network => "Manage how devices reach Tuvima Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Reset development library data, seed deterministic fixtures, or rescan configured media.",
         SettingsSection.Providers => GetMetadataDescription(),
-        SettingsSection.LocalAi => "Manage local intelligence features while keeping technical details out of the way.",
+        SettingsSection.LocalAi => _activeSubsection switch
+        {
+            "models" => "Choose the resource profile and set runtime limits.",
+            "vocabulary" => "Manage the controlled terms used by local enrichment.",
+            "automation" => "Control saved enrichment and maintenance schedules.",
+            _ => "Manage local intelligence features while keeping technical details out of the way.",
+        },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
         SettingsSection.Delivery => _activeSubsection switch
         {
