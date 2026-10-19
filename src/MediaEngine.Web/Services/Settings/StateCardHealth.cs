@@ -2,6 +2,7 @@ using MediaEngine.Contracts.Ai;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.System;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Formatting;
 
@@ -75,7 +76,7 @@ public static class StateCardHealth
 
         if (!plugin.IsCompatible)
         {
-            return new(HealthWord.Broken, FirstNonBlank(plugin.CompatibilityProblem) ?? "This plugin does not work with this version of the Library.");
+            return new(HealthWord.Broken, StringHelpers.FirstNonBlank(plugin.CompatibilityProblem)?.Trim() ?? "This plugin does not work with this version of the Library.");
         }
 
         if (string.Equals(health?.Status, "degraded", StringComparison.OrdinalIgnoreCase))
@@ -86,7 +87,7 @@ public static class StateCardHealth
 
         if (latestRun is not null && string.Equals(latestRun.Outcome, RunFailed, StringComparison.OrdinalIgnoreCase))
         {
-            return new(HealthWord.NeedsAttention, FirstNonBlank(latestRun.Message) ?? "The last run failed.");
+            return new(HealthWord.NeedsAttention, StringHelpers.FirstNonBlank(latestRun.Message)?.Trim() ?? "The last run failed.");
         }
 
         return new(HealthWord.Working);
@@ -220,5 +221,4 @@ public static class StateCardHealth
 
     private static bool Is(string? value, string expected) => string.Equals(value, expected, StringComparison.OrdinalIgnoreCase);
 
-    private static string? FirstNonBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
