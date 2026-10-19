@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1030; api=0; web-client=76
+# scopes: contracts=1031; api=0; web-client=76
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9919,6 +9919,11 @@
   StepName: System.String | json=step_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AppliedAt: System.DateTimeOffset? | json=applied_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.System.DevelopmentToolsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EnrichmentTester: System.Boolean | json=enrichment_tester | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DevelopmentData: System.Boolean | json=development_data | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.System.LogExportPreviewDto
   kind=class | converter=default | number-handling=default | unmapped=default
   LineCount: System.Int32 | json=line_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11332,10 +11337,7 @@
   ViewToggle: System.Boolean | json=view_toggle | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProfileSection: System.Boolean | json=profile_section | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ColorPicker: System.Boolean | json=color_picker | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  InternalTools: System.Boolean | json=internal_tools | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ProviderTester: System.Boolean | json=provider_tester | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EnrichmentTester: System.Boolean | json=enrichment_tester | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"command_palette":true,"search_button":true,"theme_toggle":true,"avatar_menu":true,"server_settings":true,"pending_files_alert":true,"view_toggle":true,"profile_section":true,"color_picker":true,"internal_tools":true,"provider_tester":true,"enrichment_tester":true}
+  sample={"command_palette":true,"search_button":true,"theme_toggle":true,"avatar_menu":true,"server_settings":true,"pending_files_alert":true,"view_toggle":true,"profile_section":true,"color_picker":true}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.UIHomePageSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

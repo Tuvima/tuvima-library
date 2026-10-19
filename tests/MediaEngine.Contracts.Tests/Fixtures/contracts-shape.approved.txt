@@ -8446,6 +8446,10 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
   StepName: System.String | nullability=not-null | accessors=get,init
   AppliedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.DevelopmentToolsResponse
+  EnrichmentTester: System.Boolean | nullability=not-null | accessors=get,init
+  DevelopmentData: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportLevels
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportPreviewDto

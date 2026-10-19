@@ -240,9 +240,12 @@ public static class SettingsNav
 
         new(SettingsSection.LocalAi, "developer", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Plugins, "developer", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.DevHarness, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Developer Tools", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.ProviderTester, "developer", "provider-tester", AppMaterialIcons.Outlined.Biotech, "Provider Tester", true, null, [], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        // Developer Tools (settings revamp D35) opens on the Provider Tester, so that page owns the "developer" address and its
+        // old "provider-tester" address. Enrichment Tester and Development data are its sub-pages; they are offered only when the
+        // running Engine is a development build (see DevelopmentToolsState). The Enrichment Tester is temporary: it is removed at beta.
+        new(SettingsSection.ProviderTester, "developer", "developer", AppMaterialIcons.Outlined.Construction, "Developer Tools", true, null, ["provider-tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.EnrichmentTester, "developer", "enrichment-tester", AppMaterialIcons.Outlined.Science, "Enrichment Tester", true, null, ["tester"], "internal", Status: SettingsStatusKind.Experimental, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.DevHarness, "developer", "development-data", AppMaterialIcons.Outlined.Inventory2, "Development data", true, null, ["dev-harness", "harness", "ingestion-harness", "test-harness"], "internal", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
     ];
 
     /// <summary>
@@ -321,10 +324,10 @@ public static class SettingsNav
             ]),
             Node("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Access, "applications"),
             Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
-            Node("Developer Tools", AppMaterialIcons.Outlined.Construction, SettingsSection.DevHarness, children:
+            Node("Developer Tools", AppMaterialIcons.Outlined.Construction, SettingsSection.ProviderTester, children:
             [
-                Node("Provider Tester", AppMaterialIcons.Outlined.Biotech, SettingsSection.ProviderTester),
                 Node("Enrichment Tester", AppMaterialIcons.Outlined.Science, SettingsSection.EnrichmentTester),
+                Node("Development data", AppMaterialIcons.Outlined.Inventory2, SettingsSection.DevHarness),
             ]),
         ]),
     ];

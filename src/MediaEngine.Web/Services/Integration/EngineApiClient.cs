@@ -238,6 +238,9 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     public async Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
         => await _systemClient.GetStartupReadinessAsync(ct);
 
+    public async Task<DevelopmentToolsResponse?> GetDevelopmentToolsAsync(CancellationToken ct = default)
+        => await _systemClient.GetDevelopmentToolsAsync(ct);
+
     public async Task<IReadOnlyList<SystemActivityOperationViewModel>> GetSystemActivityOperationsAsync(CancellationToken ct = default)
     {
         try
