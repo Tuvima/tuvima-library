@@ -256,14 +256,12 @@ public static class SettingsNav
             [
                 Node("Local Network", AppMaterialIcons.Outlined.Lan, SettingsSection.Network, "local"),
                 Node("Remote Access", AppMaterialIcons.Outlined.Public, SettingsSection.Network, "remote"),
-                Node("Streaming", AppMaterialIcons.Outlined.Stream, SettingsSection.Network, "streaming"),
                 Node("Advanced", AppMaterialIcons.Outlined.Tune, SettingsSection.Network, "advanced"),
             ]),
             Node("Streaming", AppMaterialIcons.Outlined.Stream, SettingsSection.Delivery, children:
             [
-                Node("Scheduling", AppMaterialIcons.Outlined.Schedule, SettingsSection.Delivery, "scheduling"),
-                Node("Optimized Copies", AppMaterialIcons.Outlined.Storage, SettingsSection.Delivery, "storage"),
-                Node("Active Jobs", AppMaterialIcons.Outlined.PendingActions, SettingsSection.Delivery, "active-jobs"),
+                Node("Hardware Acceleration", AppMaterialIcons.Outlined.Memory, SettingsSection.Delivery, "hardware"),
+                Node("Optimized Copies", AppMaterialIcons.Outlined.Storage, SettingsSection.Delivery, "optimized-copies"),
                 Node("Diagnostics", AppMaterialIcons.Outlined.MonitorHeart, SettingsSection.Delivery, "diagnostics"),
             ]),
         ]),
@@ -283,18 +281,11 @@ public static class SettingsNav
         [
             Node("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, children:
             [
-                Node("Runtime", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
                 Node("Vocabulary", AppMaterialIcons.Outlined.Spellcheck, SettingsSection.LocalAi, "vocabulary"),
                 Node("Automation", AppMaterialIcons.Outlined.Schedule, SettingsSection.LocalAi, "automation"),
             ]),
             Node("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Access, "applications"),
-            Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins, children:
-            [
-                Node("Health & Jobs", AppMaterialIcons.Outlined.HealthAndSafety, SettingsSection.Plugins, "jobs-health"),
-                Node("Approved Catalog", AppMaterialIcons.Outlined.Verified, SettingsSection.Plugins, "catalog"),
-                Node("Capabilities", AppMaterialIcons.Outlined.CheckCircleOutline, SettingsSection.Plugins, "capabilities"),
-                Node("Danger Zone", AppMaterialIcons.Outlined.Delete, SettingsSection.Plugins, "danger"),
-            ]),
+            Node("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
             Node("Developer Tools", AppMaterialIcons.Outlined.Construction, SettingsSection.DevHarness, children:
             [
                 Node("Provider Tester", AppMaterialIcons.Outlined.Biotech, SettingsSection.ProviderTester),
@@ -338,22 +329,14 @@ public static class SettingsNav
             ],
             [SettingsSection.LocalAi] =
             [
-                new("models", "Runtime", AppMaterialIcons.Outlined.Storage),
                 new("vocabulary", "Vocabulary", AppMaterialIcons.Outlined.Spellcheck),
                 new("automation", "Automation", AppMaterialIcons.Outlined.Schedule),
             ],
-            [SettingsSection.Plugins] =
-            [
-                new("jobs-health", "Health & Jobs", AppMaterialIcons.Outlined.HealthAndSafety),
-                new("catalog", "Approved Catalog", AppMaterialIcons.Outlined.Verified),
-                new("capabilities", "Capabilities", AppMaterialIcons.Outlined.CheckCircleOutline),
-                new("danger", "Danger Zone", AppMaterialIcons.Outlined.Delete),
-            ],
+            [SettingsSection.Plugins] = [],
             [SettingsSection.Delivery] =
             [
-                new("scheduling", "Scheduling", AppMaterialIcons.Outlined.Schedule),
-                new("storage", "Optimized Copies", AppMaterialIcons.Outlined.Storage),
-                new("active-jobs", "Active Jobs", AppMaterialIcons.Outlined.PendingActions),
+                new("hardware", "Hardware Acceleration", AppMaterialIcons.Outlined.Memory),
+                new("optimized-copies", "Optimized Copies", AppMaterialIcons.Outlined.Storage),
                 new("diagnostics", "Diagnostics", AppMaterialIcons.Outlined.MonitorHeart),
             ],
             [SettingsSection.Network] =
@@ -361,7 +344,6 @@ public static class SettingsNav
                 new("overview", "Overview", AppMaterialIcons.Outlined.Dashboard),
                 new("local", "Local Network", AppMaterialIcons.Outlined.Lan),
                 new("remote", "Remote Access", AppMaterialIcons.Outlined.Public),
-                new("streaming", "Streaming", AppMaterialIcons.Outlined.Stream),
                 new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune),
             ],
             [SettingsSection.Access] =
@@ -636,7 +618,6 @@ public static class SettingsNav
         var normalized = NormalizeKey(slug);
         normalized = (section, normalized) switch
         {
-            (SettingsSection.LocalAi, "runtime") => "models",
             (SettingsSection.LocalAi, "schedule") => "automation",
             // The old My household tab is gone: people, PINs and sign-ins live on each person's profile page.
             (SettingsSection.Access, "household") => "users",

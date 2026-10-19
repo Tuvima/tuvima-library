@@ -92,7 +92,9 @@ public sealed class SettingsNavTests
     }
 
     [Theory]
-    [InlineData(SettingsSection.LocalAi, "models", "/settings/ai/models")]
+    [InlineData(SettingsSection.LocalAi, "vocabulary", "/settings/ai/vocabulary")]
+    [InlineData(SettingsSection.Delivery, "hardware", "/settings/delivery/hardware")]
+    [InlineData(SettingsSection.Delivery, "optimized-copies", "/settings/delivery/optimized-copies")]
     [InlineData(SettingsSection.Providers, "providers", "/settings/metadata/providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow", "/settings/metadata/ingestion-flow")]
     public void RouteFor_Subsection_UsesNestedCanonicalUrl(
@@ -110,12 +112,12 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
+        // Local AI keeps AI settings only: the runtime moved to Tools and requirements.
         Assert.Equal([
-            "Runtime",
             "Vocabulary",
             "Automation",
         ], labels);
-        Assert.Equal("models", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
+        Assert.Equal("vocabulary", SettingsNav.GetDefaultSubsection(SettingsSection.LocalAi).Slug);
         Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.LocalAi, "unknown"));
     }
 
@@ -300,11 +302,12 @@ public sealed class SettingsNavTests
         Assert.Equal(["Playback", "Listening", "Reading"], ChildLabels(groups, "Preferences"));
         Assert.Equal(["Recently Added", "Libraries", "Metadata Providers"], ChildLabels(groups, "Library and Ingestion"));
         Assert.Equal(["Ingestion Flow"], ChildLabels(groups, "Metadata Providers"));
-        Assert.Equal(["Local Network", "Remote Access", "Streaming", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
-        Assert.Equal(["Scheduling", "Optimized Copies", "Active Jobs", "Diagnostics"], ChildLabels(groups, "Streaming"));
+        Assert.Equal(["Local Network", "Remote Access", "Advanced"], ChildLabels(groups, "Network and Remote Access"));
+        Assert.Equal(["Hardware Acceleration", "Optimized Copies", "Diagnostics"], ChildLabels(groups, "Streaming"));
         Assert.Equal(["Sign-in Methods"], ChildLabels(groups, "Users and Sign-in"));
         Assert.Equal(["Tools and requirements", "Backup and recovery"], ChildLabels(groups, "System"));
-        Assert.Equal(["Runtime", "Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
+        Assert.Equal(["Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
+        Assert.Empty(ChildLabels(groups, "Plugins"));
         Assert.Equal(["Provider Tester", "Enrichment Tester"], ChildLabels(groups, "Developer Tools"));
         Assert.Empty(ChildLabels(groups, "Integrations"));
 
@@ -435,16 +438,27 @@ public sealed class SettingsNavTests
     [Theory]
     [InlineData(SettingsSection.Network, "local")]
     [InlineData(SettingsSection.Network, "remote")]
-    [InlineData(SettingsSection.Network, "streaming")]
     [InlineData(SettingsSection.Network, "advanced")]
     [InlineData(SettingsSection.Providers, "providers")]
     [InlineData(SettingsSection.Providers, "ingestion-flow")]
     [InlineData(SettingsSection.Access, "users")]
     [InlineData(SettingsSection.Access, "applications")]
     [InlineData(SettingsSection.Access, "authentication")]
-    [InlineData(SettingsSection.LocalAi, "models")]
     [InlineData(SettingsSection.LocalAi, "vocabulary")]
     [InlineData(SettingsSection.LocalAi, "automation")]
+    [InlineData(SettingsSection.Delivery, "hardware")]
+    [InlineData(SettingsSection.Delivery, "optimized-copies")]
+    [InlineData(SettingsSection.Delivery, "diagnostics")]
+    public void EverySubPageAddressThatSurvivedTheServerRegroup_StillResolves(SettingsSection section, string slug)
+    {
+        Assert.NotNull(SettingsNav.ResolveSubsection(section, slug));
+        Assert.Equal($"{SettingsNav.RouteFor(section, slug)}", $"/settings/{SettingsNav.GetItem(section).Slug}/{slug}");
+    }
+
+    [Theory]
+    [InlineData(SettingsSection.Network, "streaming")]
+    [InlineData(SettingsSection.LocalAi, "models")]
+    [InlineData(SettingsSection.LocalAi, "runtime")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]
     [InlineData(SettingsSection.Plugins, "capabilities")]
@@ -452,11 +466,11 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Delivery, "scheduling")]
     [InlineData(SettingsSection.Delivery, "storage")]
     [InlineData(SettingsSection.Delivery, "active-jobs")]
-    [InlineData(SettingsSection.Delivery, "diagnostics")]
-    public void EveryPreExistingSubPageAddress_StillResolves(SettingsSection section, string slug)
+    public void SubPagesTheServerRegroupFoldedAway_HaveNoRoute_AndNoRedirect(SettingsSection section, string slug)
     {
-        Assert.NotNull(SettingsNav.ResolveSubsection(section, slug));
-        Assert.Equal($"{SettingsNav.RouteFor(section, slug)}", $"/settings/{SettingsNav.GetItem(section).Slug}/{slug}");
+        // Pre-release: the old addresses are simply gone (the settings page sends an unknown sub-page to Not found).
+        Assert.Null(SettingsNav.ResolveSubsection(section, slug));
+        Assert.Throws<ArgumentOutOfRangeException>(() => SettingsNav.RouteFor(section, slug));
     }
 
     [Fact]

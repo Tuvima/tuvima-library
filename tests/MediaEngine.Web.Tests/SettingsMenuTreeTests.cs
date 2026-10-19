@@ -237,7 +237,7 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.NotEmpty(cut.FindAll("a[href='/settings/ai/models']"));
+            Assert.NotEmpty(cut.FindAll("a[href='/settings/ai/vocabulary']"));
             Assert.Empty(cut.FindAll("a[href='/settings/libraries']"));
         });
     }

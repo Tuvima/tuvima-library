@@ -14,7 +14,7 @@ public sealed class NetworkSettingsUiTests
     {
         var subsections = SettingsNav.GetSubsections(SettingsSection.Network).ToArray();
 
-        Assert.Equal(["overview", "local", "remote", "streaming", "advanced"], subsections.Select(item => item.Slug));
+        Assert.Equal(["overview", "local", "remote", "advanced"], subsections.Select(item => item.Slug));
         Assert.Equal("/settings/network/overview", SettingsNav.RouteFor(SettingsSection.Network));
         Assert.Equal("/settings/network/remote", SettingsNav.RouteFor(SettingsSection.Network, "remote"));
     }
@@ -167,16 +167,24 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
-    public void RemoteAccessHasNoSecondOnOffSwitchAndOverviewShowsAddressesWithoutAMode()
+    public void RemoteAccessHasNoSecondOnOffSwitchAndOverviewShowsConnectionStatusOnly()
     {
         var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
         var overview = Read(@"src/MediaEngine.Web/Components/Settings/NetworkOverviewPanel.razor");
 
         Assert.DoesNotContain("Enable direct remote access", advanced, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings.Remote.PublicHostname", advanced, StringComparison.Ordinal);
-        Assert.Contains("Server Address (Local)", overview, StringComparison.Ordinal);
-        Assert.Contains("Server Address (External)", overview, StringComparison.Ordinal);
+        var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
+
+        Assert.Contains("Test Connection", overview, StringComparison.Ordinal);
+        Assert.Contains("Connection Status", overview, StringComparison.Ordinal);
+        // The server addresses and uptime moved off the Network overview (the System summary shows them), and the
+        // streaming limits moved to Streaming; Network has no Streaming page.
+        Assert.DoesNotContain("Server information", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Server Address", overview, StringComparison.Ordinal);
         Assert.DoesNotContain("Who can connect", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("StreamingLimits", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"streaming\"", host, StringComparison.Ordinal);
     }
 
     [Fact]

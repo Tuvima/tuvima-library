@@ -9,12 +9,16 @@ public sealed class SettingsServerAdministrationTests
         var jobs = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor");
 
         Assert.Contains("data-delivery-section", source, StringComparison.Ordinal);
-        Assert.Contains("Playback and Delivery overview", source, StringComparison.Ordinal);
+        Assert.Contains("Streaming limits and quality", source, StringComparison.Ordinal);
         Assert.DoesNotContain("private RenderFragment LandingPage", source, StringComparison.Ordinal);
-        Assert.Contains("case \"scheduling\"", source, StringComparison.Ordinal);
-        Assert.Contains("case \"active-jobs\"", source, StringComparison.Ordinal);
+        // Streaming opens on Limits and Quality; hardware acceleration, optimized copies and diagnostics are its sub-pages.
+        Assert.Contains("<StreamingLimitsSettingsTab />", source, StringComparison.Ordinal);
+        Assert.Contains("case \"hardware\"", source, StringComparison.Ordinal);
+        Assert.Contains("case \"optimized-copies\"", source, StringComparison.Ordinal);
         Assert.Contains("Section=\"diagnostics\"", source, StringComparison.Ordinal);
-        // Scheduling, Optimized Copies, Active Jobs and Diagnostics are rows of the Settings menu tree, not link cards.
+        Assert.DoesNotContain("case \"scheduling\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("case \"active-jobs\"", source, StringComparison.Ordinal);
+        // Hardware Acceleration, Optimized Copies and Diagnostics are rows of the Settings menu tree, not link cards.
         Assert.DoesNotContain("/settings/delivery/", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Active streams", source, StringComparison.Ordinal);

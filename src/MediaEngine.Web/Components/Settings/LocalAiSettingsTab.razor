@@ -5,52 +5,6 @@
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
     {
-        case "models":
-            <AppPanel Class="local-ai-settings__section">
-                @SectionHeading("Runtime", "Choose the resource profile and set runtime limits.", AppMaterialIcons.Outlined.Storage)
-                <SettingsAdvancedLinkRow Title="Model files and downloads" Description="Model files and downloads are on Tools and requirements." Href="/settings/tools" ActionLabel="Open" />
-                <ModelsTab />
-                <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
-                    @if (_config is null)
-                    {
-                        <AppEmptyState Title="AI configuration unavailable" Message="Runtime controls are hidden until the Engine returns saved configuration." />
-                    }
-                    else
-                    {
-                        <div class="tl-form-grid local-ai-settings__runtime-form">
-                            <AppTextField @bind-Value="_config.ModelsDirectory" Label="Models directory" />
-                            <AppNumericField T="int" @bind-Value="_config.IdleUnloadSeconds" Label="Idle unload seconds" Min="1" />
-                            <AppNumericField T="int" @bind-Value="_config.InferenceTimeoutSeconds" Label="Inference timeout seconds" Min="1" />
-                            <AppNumericField T="int" @bind-Value="_config.MaxConcurrentInferences" Label="Maximum concurrent inference" Min="1" Max="1" />
-                            <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="Minimum free disk (MB)" Min="256" />
-                            <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="Enrichment batch size" Min="1" />
-                        </div>
-                        <AppButton Label="Save runtime settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                   Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
-                    }
-                </AppCard>
-                @if (_profile is not null || _resources is not null)
-                {
-                    <AppCard Title="Runtime diagnostics" Density="AppSurfaceDensity.Compact">
-                        <div class="local-ai-settings__diagnostics">
-                            @if (_profile is not null)
-                            {
-                                <span><strong>Backend</strong>@_profile.Backend</span>
-                                <span><strong>Benchmark</strong>@BenchmarkLabel()</span>
-                            }
-                            @if (_resources is not null)
-                            {
-                                <span><strong>Engine memory</strong>@FormatMb(_resources.EngineRamMb)</span>
-                                <span><strong>CPU pressure</strong>@CpuPressureLabel(_resources.CpuPressure)</span>
-                            }
-                        </div>
-                    </AppCard>
-                }
-                <AppCard Title="Feature readiness" Description="Inspect model and hardware dependencies for every Local AI capability." Density="AppSurfaceDensity.Compact">
-                    <AiFeaturesTab />
-                </AppCard>
-            </AppPanel>
-            break;
         case "vocabulary":
             <AppPanel Class="local-ai-settings__section">
                 @SectionHeading("Vocabulary", "Manage the controlled terms used by local enrichment.", AppMaterialIcons.Outlined.Spellcheck)
@@ -74,20 +28,16 @@
 
     private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
     {
-        "models" => "models",
         "vocabulary" => "vocabulary",
         "automation" => "automation",
         _ => "overview",
     };
 
-    private HardwareProfileDto? _profile;
-    private ResourceSnapshotDto? _resources;
     private EnrichmentProgressDto? _progress;
     private AiConfigDto? _config;
     private List<AiModelStatusDto> _models = [];
     private string? _loadedSubsection;
     private bool _loading = true;
-    private bool _savingConfig;
     private bool _savingFeatures;
     private string? _featureMessage;
 
@@ -110,12 +60,6 @@
             _config = await Orchestrator.GetAiConfigAsync();
             _models = (await Orchestrator.GetAiModelStatusesAsync()).ToList();
             _progress = await Orchestrator.GetEnrichmentProgressAsync();
-        }
-        else if (NormalizedSubsection == "models")
-        {
-            _config = await Orchestrator.GetAiConfigAsync();
-            _profile = await Orchestrator.GetAiProfileAsync();
-            _resources = await Orchestrator.GetResourceSnapshotAsync();
         }
 
         _loading = false;
@@ -145,6 +89,7 @@
 
             @if (!DeviceContext.IsMobile)
             {
+            <SettingsAdvancedLinkRow Title="Models and runtime" Description="Model files, downloads and the Local AI runtime are on Tools and requirements." Href="/settings/tools" ActionLabel="Open" />
             <AppCard Title="Enabled features" Description="Choose which connected Local AI capabilities Tuvima Library may use.">
                 @if (_config is null)
                 {
@@ -169,6 +114,11 @@
                     <AppButton Label="Save features" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                                Class="tl-sp-mt-3" Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
                 }
+            </AppCard>
+
+            @* Feature readiness is the model and hardware dependency view of the same feature switches, so it stays with them. *@
+            <AppCard Title="Feature readiness" Description="Inspect model and hardware dependencies for every Local AI capability.">
+                <AiFeaturesTab />
             </AppCard>
             }
         }
@@ -206,42 +156,6 @@
     }
 
     private static RenderFragment SectionHeading(string title, string description, string icon) => @<SettingsSectionHeader Title="@title" Description="@description" Icon="@icon" Divider="true" />;
-
-    private async Task SaveConfig()
-    {
-        if (_config is null || !ValidateRuntime())
-            return;
-
-        _savingConfig = true;
-        await Orchestrator.SaveAiConfigAsync(_config);
-        _savingConfig = false;
-    }
-
-    private bool ValidateRuntime() => _config is
-    {
-        IdleUnloadSeconds: > 0,
-        InferenceTimeoutSeconds: > 0,
-        MaxConcurrentInferences: 1,
-        MinimumFreeDiskMB: >= 256,
-        EnrichmentBatchSize: > 0,
-    } && !string.IsNullOrWhiteSpace(_config.ModelsDirectory);
-
-    private static string FormatMb(long mb) => mb >= 1024 ? $"{mb / 1024.0:F1} GB" : $"{mb} MB";
-
-    private static string CpuPressureLabel(double pressure) => pressure switch
-    {
-        >= 0.85 => "High",
-        >= 0.5 => "Moderate",
-        _ => "Low",
-    };
-
-    private string BenchmarkLabel() => _profile?.Outcome switch
-    {
-        "succeeded" => $"{_profile.TokensPerSecond.GetValueOrDefault():F1} tokens/sec",
-        "failed" => "Failed — rerun available",
-        "invalidated" => "Invalidated for this machine",
-        _ => "Not run",
-    };
 
     private sealed record FeatureDefinition(string Key, string Name, string Description, bool Connected = true);
 

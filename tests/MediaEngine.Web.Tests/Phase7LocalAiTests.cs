@@ -7,15 +7,20 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("GetAiProfileAsync", source, StringComparison.Ordinal);
-        Assert.Contains("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
+        var runtime = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiRuntimePanel.razor");
+
+        // The overview keeps AI settings only; the runtime (profile, limits, diagnostics) moved to Tools and requirements.
+        Assert.DoesNotContain("GetAiProfileAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetResourceSnapshotAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetEnrichmentProgressAsync", source, StringComparison.Ordinal);
+        Assert.Contains("GetAiProfileAsync", runtime, StringComparison.Ordinal);
+        Assert.Contains("GetResourceSnapshotAsync", runtime, StringComparison.Ordinal);
         // Whether Local AI can run is told by the permanent page notice from the shared attention state, not by an alert here.
         Assert.DoesNotContain("_status?.IsReady", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
-        Assert.Contains("MaxConcurrentInferences", source, StringComparison.Ordinal);
-        Assert.Contains("MinimumFreeDiskMB", source, StringComparison.Ordinal);
-        Assert.Contains("CpuPressureLabel(double pressure)", source, StringComparison.Ordinal);
+        Assert.Contains("MaxConcurrentInferences", runtime, StringComparison.Ordinal);
+        Assert.Contains("MinimumFreeDiskMB", runtime, StringComparison.Ordinal);
+        Assert.Contains("CpuPressureLabel(double pressure)", runtime, StringComparison.Ordinal);
         Assert.Contains("switch (NormalizedSubsection)", source, StringComparison.Ordinal);
     }
 
@@ -99,10 +104,15 @@ public sealed class Phase7LocalAiTests
         var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("NormalizedSubsection", localAi, StringComparison.Ordinal);
-        Assert.Contains("NormalizedSubsection", plugins, StringComparison.Ordinal);
+        // Plugins is one page: installed plugins, then the approved catalog, then the advanced sections.
+        Assert.DoesNotContain("NormalizedSubsection", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
-        Assert.Contains("PluginSubsection(plugin)", plugins, StringComparison.Ordinal);
+        Assert.Contains("@ApprovedCatalogPanel()", plugins, StringComparison.Ordinal);
+        Assert.Contains("@AdvancedPluginPanel()", plugins, StringComparison.Ordinal);
+        Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
+        Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);
+        Assert.Contains("DangerPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
     }
 
@@ -116,7 +126,7 @@ public sealed class Phase7LocalAiTests
         Assert.Contains("Enabled features", source, StringComparison.Ordinal);
         Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
         Assert.Contains("/settings/tools", source, StringComparison.Ordinal);
-        // Runtime, Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page.
+        // Vocabulary and Automation are rows of the Settings menu tree, not link cards on this page.
         Assert.DoesNotContain("/settings/ai/", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);
     }

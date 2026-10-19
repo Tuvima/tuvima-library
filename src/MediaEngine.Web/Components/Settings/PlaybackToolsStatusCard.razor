@@ -1,0 +1,54 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+@* The playback service's current facts (formerly the "Current status" card on Playback and Delivery), shown on Tools and requirements. *@
+<AppCard Title="Playback tools and services"
+         Description="Current facts reported by the playback service."
+         Class="playback-tools-status">
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (_diagnostics is null)
+    {
+        <AppEmptyState Title="Current status is unavailable" />
+    }
+    else
+    {
+        <dl class="playback-tools-status__facts">
+            <div>
+                <dt>Active encode jobs</dt>
+                <dd>@_diagnostics.ActiveJobs.Count</dd>
+            </div>
+            <div>
+                <dt>Configured profiles</dt>
+                <dd>@(_settings?.QualityProfiles.Count.ToString() ?? "Unavailable")</dd>
+            </div>
+            <div>
+                <dt>FFmpeg</dt>
+                <dd>@ToolStatus(_diagnostics.FFmpegAvailable)</dd>
+            </div>
+        </dl>
+    }
+</AppCard>
+
+@code {
+    private TranscodingSettings? _settings;
+    private PlaybackDiagnosticsDto? _diagnostics;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settingsTask = ApiClient.GetTranscodingSettingsAsync();
+        var diagnosticsTask = ApiClient.GetPlaybackDiagnosticsAsync();
+        await Task.WhenAll(settingsTask, diagnosticsTask);
+        _settings = await settingsTask;
+        _diagnostics = await diagnosticsTask;
+        _loading = false;
+    }
+
+    private static string ToolStatus(bool available) => available ? "Available" : "Unavailable";
+}

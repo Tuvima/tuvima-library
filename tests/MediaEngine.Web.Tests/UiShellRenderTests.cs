@@ -950,9 +950,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void DeliverySettings_HidesUnpersistedControls()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"));
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"))
+                     + File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "EncodeSettingsTab.razor"));
 
-        Assert.Contains("Variant Storage", source);
+        Assert.Contains("Optimized copy storage", source);
         Assert.Contains("Diagnostics", source);
         Assert.DoesNotContain("Allow direct play", source);
         Assert.DoesNotContain("Subtitle extraction", source);
@@ -996,7 +997,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("SaveAiConfigAsync", source);
         Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
-        Assert.Single(Regex.Matches(source, "<ModelsTab />"));
+        // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.
+        var runtime = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
+        Assert.DoesNotContain("<ModelsTab />", source);
+        Assert.Single(Regex.Matches(runtime, "<ModelsTab />"));
         Assert.DoesNotContain("TODO: Persist AI limits", source);
     }
 

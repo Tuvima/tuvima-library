@@ -1,102 +1,23 @@
 @namespace MediaEngine.Web.Components.Settings
-@using MediaEngine.Contracts.Playback
-@using MediaEngine.Contracts.Settings
-@using MediaEngine.Web.Services.Integration
-@inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
-@inject DeviceContextService DeviceContext
 
+@* Streaming. It opens on Limits and Quality; Hardware Acceleration, Optimized Copies and Diagnostics are its sub-pages.
+   The playback tools and services status lives on Tools and requirements. *@
 <section class="tl-page playback-delivery"
          data-delivery-section="@ActiveSection"
          aria-label="@ActiveSectionLabel">
     @switch (ActiveSection)
     {
-        case "scheduling":
-            <EncodeSettingsTab @key="ActiveSection" Section="scheduling" />
+        case "hardware":
+            <EncodeSettingsTab @key="ActiveSection" Section="hardware" />
             break;
-        case "storage":
-            <EncodeSettingsTab @key="ActiveSection" Section="storage" />
-            break;
-        case "active-jobs":
-            <OfflineDownloadsTab />
+        case "optimized-copies":
+            <EncodeSettingsTab @key="ActiveSection" Section="optimized-copies" />
             break;
         case "diagnostics":
             <EncodeSettingsTab @key="ActiveSection" Section="diagnostics" />
             break;
         default:
-            @if (_loading)
-            {
-                <AppSkeleton Size="AppControlSize.Large" />
-            }
-            else
-            {
-                @if (_diagnostics is not null && !DeliveryChecksPassed)
-                {
-                    <AppAlert Tone="AppUiTone.Warning" Class="playback-delivery__health">
-                        <strong>Playback delivery needs attention</strong>
-                        <span>@DeliveryDetail</span>
-                    </AppAlert>
-                }
-                else
-                {
-                    <AppAlert Tone="AppUiTone.Warning" Class="playback-delivery__health">
-                        Delivery checks are unavailable. No sample health state has been substituted.
-                    </AppAlert>
-                }
-
-                <div class="playback-delivery__grid">
-                    @if (!DeviceContext.IsMobile)
-                    {
-                        <SettingsSectionPanel Title="Delivery settings"
-                                              Description="Set how the server prepares media for playback and offline use."
-                                              Icon="@AppMaterialIcons.Outlined.VideoSettings">
-                            @if (_settings is null)
-                            {
-                                <AppErrorState Title="Delivery settings are unavailable"
-                                               Message="Start the Engine or retry before changing server playback defaults." />
-                            }
-                            else
-                            {
-                                <div class="playback-delivery__settings">
-                                    <AppSelect T="string" @bind-Value="_defaultProfile" Label="Prepared download quality" Options="@ProfileOptions" />
-                                    <AppSelect T="string" @bind-Value="_hardwarePreference" Label="Hardware acceleration" Options="@HardwareOptions" />
-                                    <AppNumericField @bind-Value="_maxConcurrentJobs" Label="Maximum active encodes" Min="1" Max="4" />
-                                </div>
-                                <div class="playback-delivery__save">
-                                    <AppButton Label="@(_saving ? "Saving…" : "Save changes")" StartIcon="@AppMaterialIcons.Outlined.Save"
-                                               ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@SaveOverviewAsync" />
-                                </div>
-                            }
-                        </SettingsSectionPanel>
-                    }
-
-                    <SettingsSectionPanel Title="Current status"
-                                          Description="Current facts reported by the playback service."
-                                          Icon="@AppMaterialIcons.Outlined.MonitorHeart">
-                        @if (_diagnostics is null)
-                        {
-                            <AppEmptyState Title="Current status is unavailable" />
-                        }
-                        else
-                        {
-                            <dl class="playback-delivery__facts">
-                                <div>
-                                    <dt>Active encode jobs</dt>
-                                    <dd>@_diagnostics.ActiveJobs.Count</dd>
-                                </div>
-                                <div>
-                                    <dt>Configured profiles</dt>
-                                    <dd>@(_settings?.QualityProfiles.Count.ToString() ?? "Unavailable")</dd>
-                                </div>
-                                <div>
-                                    <dt>FFmpeg</dt>
-                                    <dd>@ToolStatus(_diagnostics.FFmpegAvailable)</dd>
-                                </div>
-                            </dl>
-                        }
-                    </SettingsSectionPanel>
-                </div>
-            }
+            <StreamingLimitsSettingsTab />
             break;
     }
 </section>
@@ -104,101 +25,19 @@
 @code {
     [Parameter] public string Subsection { get; set; } = string.Empty;
 
-    private static readonly IReadOnlyList<AppSelectOption> HardwareOptions =
-    [
-        new("auto", "Automatic"),
-        new("cpu", "CPU"),
-        new("gpu", "GPU when available"),
-    ];
-
-    private TranscodingSettings? _settings;
-    private PlaybackDiagnosticsDto? _diagnostics;
-    private bool _loading = true;
-    private bool _overviewLoaded;
-    private bool _saving;
-    private string _hardwarePreference = "auto";
-    private string _defaultProfile = string.Empty;
-    private int _maxConcurrentJobs = 1;
-
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {
-        "scheduling" => "scheduling",
-        "storage" => "storage",
-        "active-jobs" => "active-jobs",
+        "hardware" => "hardware",
+        "optimized-copies" => "optimized-copies",
         "diagnostics" => "diagnostics",
-        _ => "overview",
+        _ => "limits",
     };
 
     private string ActiveSectionLabel => ActiveSection switch
     {
-        "scheduling" => "Scheduling",
-        "storage" => "Variant Storage",
-        "active-jobs" => "Active Jobs",
+        "hardware" => "Hardware Acceleration",
+        "optimized-copies" => "Optimized Copies",
         "diagnostics" => "Diagnostics",
-        _ => "Playback and Delivery overview",
+        _ => "Streaming limits and quality",
     };
-
-    private IReadOnlyList<AppSelectOption> ProfileOptions =>
-        _settings?.QualityProfiles
-            .Select(profile => new AppSelectOption(profile.Name, $"{profile.Name} · {profile.Resolution}"))
-            .ToList() ?? [];
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (ActiveSection != "overview" || _overviewLoaded)
-            return;
-
-        _loading = true;
-        var settingsTask = ApiClient.GetTranscodingSettingsAsync();
-        var diagnosticsTask = ApiClient.GetPlaybackDiagnosticsAsync();
-        await Task.WhenAll(settingsTask, diagnosticsTask);
-
-        _settings = await settingsTask;
-        _diagnostics = await diagnosticsTask;
-        if (_settings is not null)
-        {
-            _hardwarePreference = _settings.HardwareAcceleration;
-            _defaultProfile = _settings.DefaultMobileProfile;
-            _maxConcurrentJobs = _settings.MaxConcurrentTranscodes;
-        }
-
-        _loading = false;
-        _overviewLoaded = true;
-    }
-
-    private bool DeliveryChecksPassed =>
-        _diagnostics is { FFmpegAvailable: true }
-        && _diagnostics.Warnings.Count == 0;
-
-    private string DeliveryDetail => DeliveryChecksPassed
-        ? string.Empty
-        : _diagnostics!.Warnings.FirstOrDefault()
-          ?? "One or more required media tools are unavailable.";
-
-    private static string ToolStatus(bool available) => available ? "Available" : "Unavailable";
-
-    private async Task SaveOverviewAsync()
-    {
-        if (_settings is null)
-            return;
-
-        _saving = true;
-        _settings.DefaultMobileProfile = _defaultProfile;
-        _settings.HardwareAcceleration = _hardwarePreference;
-        _settings.MaxConcurrentTranscodes = _maxConcurrentJobs;
-        var saved = await ApiClient.SaveTranscodingSettingsAsync(_settings);
-        _saving = false;
-
-        if (saved is null)
-        {
-            Snackbar.Add("Playback delivery settings could not be saved.", AppSeverity.Error);
-            return;
-        }
-
-        _settings = saved;
-        _defaultProfile = saved.DefaultMobileProfile;
-        _hardwarePreference = saved.HardwareAcceleration;
-        _maxConcurrentJobs = saved.MaxConcurrentTranscodes;
-        Snackbar.Add("Playback delivery settings saved.", AppSeverity.Success);
-    }
 }
