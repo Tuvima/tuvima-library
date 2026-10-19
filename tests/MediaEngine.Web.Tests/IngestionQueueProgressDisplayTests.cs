@@ -46,12 +46,18 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         Services.AddSingleton(api);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(_state);
-        Services.AddSingleton(provider => new UIOrchestratorService(
-            api,
-            _state,
-            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
-            provider.GetRequiredService<IConfiguration>(),
-            NullLogger<UIOrchestratorService>.Instance));
+        Services.AddSingleton(provider =>
+        {
+            var orchestrator = new UIOrchestratorService(
+                api,
+                _state,
+                new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
+                provider.GetRequiredService<IConfiguration>(),
+                NullLogger<UIOrchestratorService>.Instance);
+            // A normal circuit: the live connection to the Engine is up.
+            orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
+            return orchestrator;
+        });
         Services.AddSingleton(provider => new IngestionLiveDashboardState(
             api,
             provider.GetRequiredService<UIOrchestratorService>(),
@@ -143,7 +149,7 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
 
         var cut = RenderTab(snapshot);
 
-        Assert.StartsWith("Running for 4m", cut.Find(".ingestion-status__meta").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Running for 4 min", cut.Find(".ingestion-status__meta").TextContent);
         Assert.DoesNotContain("left", cut.Find(".ingestion-status").TextContent, StringComparison.Ordinal);
     }
 
@@ -185,14 +191,45 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         Assert.Null(IngestionQueueProgressText.TimeLine(snapshot, Now));
     }
 
-    [Fact]
-    public void TimeLine_WithoutAnEstimate_FormatsElapsedHoursAndMinutes()
+    [Theory]
+    [InlineData(0, "Running for less than a minute")]
+    [InlineData(59, "Running for less than a minute")]
+    [InlineData(60, "Running for 1 min")]
+    [InlineData(59 * 60 + 59, "Running for 59 min")]
+    [InlineData(60 * 60, "Running for 1 hr")]
+    [InlineData(135 * 60, "Running for 2 hr 15 min")]
+    public void TimeLine_WithoutAnEstimate_FormatsElapsedTimeInWholeMinutesAndHours(int elapsedSeconds, string expected)
     {
         var snapshot = Working();
         snapshot.EstimatedSecondsRemaining = null;
-        snapshot.StartedAt = Now.AddMinutes(-135);
+        snapshot.StartedAt = Now.AddSeconds(-elapsedSeconds);
 
-        Assert.Equal("Running for 2h 15m", IngestionQueueProgressText.TimeLine(snapshot, Now));
+        Assert.Equal(expected, IngestionQueueProgressText.TimeLine(snapshot, Now));
+    }
+
+    [Theory]
+    [InlineData(1, 0, "120 of 508 done · 1 needs review")]
+    [InlineData(3, 0, "120 of 508 done · 3 need review")]
+    [InlineData(1, 1, "120 of 508 done · 1 needs review · 1 failed")]
+    [InlineData(0, 2, "120 of 508 done · 2 failed")]
+    public void StatusLine_UsesTheRightVerbForOneOrManyFilesNeedingReview(int needsReview, int failed, string expected)
+    {
+        var snapshot = Working();
+        snapshot.FilesDone = 120;
+        snapshot.Outcomes = new IngestionQueueOutcomesDto { NeedsReview = needsReview, Failed = failed };
+
+        Assert.Equal(expected, IngestionQueueProgressText.StatusLine(snapshot));
+    }
+
+    [Fact]
+    public void Working_BeforeAnyFileIsFound_SaysItIsLookingNeverFoundZeroFiles()
+    {
+        var snapshot = Working();
+        snapshot.FilesFound = 0;
+        snapshot.FilesDone = 0;
+        snapshot.Progress = 0;
+
+        Assert.Equal("Looking for files", IngestionQueueProgressText.Headline(snapshot));
     }
 
     [Fact]
@@ -266,10 +303,11 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EngineUnreachable_SaysSoWithRetryAndKeepsTheLastKnownNumbersGreyed()
+    public void EngineUnreachable_WhenTheClientReportsFailedRequestsAsNull_SaysSoWithRetryAndKeepsTheLastKnownNumbersGreyed()
     {
+        // The Engine client swallows request errors and returns null, so this is what production sees.
         _state.PushIngestionQueueProgress(Working());
-        _presentation = () => Task.FromException<IngestionPresentationSnapshotDto?>(new HttpRequestException("down"));
+        _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(null);
         _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
 
         var cut = Render<IngestionTasksTab>();
@@ -288,9 +326,7 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
     public void EngineUnreachable_RetryRunsTheLoadAgainAndRecovers()
     {
         var failing = true;
-        _presentation = () => failing
-            ? Task.FromException<IngestionPresentationSnapshotDto?>(new HttpRequestException("down"))
-            : Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto());
+        _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(failing ? null : new IngestionPresentationSnapshotDto());
         _queue = () => Task.FromResult<IngestionQueueProgressDto?>(failing ? null : Working());
 
         var cut = Render<IngestionTasksTab>();
@@ -305,6 +341,76 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
             Assert.True(_calls.Count(call => call == "presentation") > loadsBeforeRetry);
             Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
         });
+    }
+
+    [Fact]
+    public void EngineUnreachable_WhenALoadThrows_AlsoSaysSo()
+    {
+        _presentation = () => Task.FromException<IngestionPresentationSnapshotDto?>(new HttpRequestException("down"));
+
+        var cut = Render<IngestionTasksTab>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent));
+    }
+
+    [Fact]
+    public void EngineUnreachable_WhenALaterQueueFetchReturnsNothing_StillSaysSoDespiteAnEarlierSnapshot()
+    {
+        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<IngestionTasksTab>();
+        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
+
+        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
+        _ = Services.GetRequiredService<IngestionLiveDashboardState>().LoadAsync();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent);
+            Assert.Contains("Found 508 files", cut.Find(".ingestion-status__stale").TextContent, StringComparison.Ordinal);
+        });
+    }
+
+    [Theory]
+    [InlineData(EngineConnectionState.Reconnecting)]
+    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
+    [InlineData(EngineConnectionState.Offline)]
+    public void EngineUnreachable_WhenTheEngineConnectionDropsAndComesBack_FollowsTheConnection(EngineConnectionState dropped)
+    {
+        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<IngestionTasksTab>();
+        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+
+        orchestrator.SetEngineConnectionState(dropped);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent);
+            Assert.Contains("Found 508 files", cut.Find(".ingestion-status__stale").TextContent, StringComparison.Ordinal);
+        });
+
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
+            Assert.Empty(cut.FindAll(".ingestion-status__stale"));
+        });
+    }
+
+    [Fact]
+    public void EngineUnreachable_RecoversByItselfWhenAFreshSnapshotArrives()
+    {
+        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(null);
+        var cut = Render<IngestionTasksTab>();
+        cut.WaitForAssertion(() => Assert.Equal("The Library's engine isn't responding", cut.Find(".ingestion-status h2").TextContent));
+
+        _state.PushIngestionQueueProgress(Working());
+
+        cut.WaitForAssertion(
+            () => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent),
+            TimeSpan.FromSeconds(6));
     }
 
     [Fact]
@@ -362,7 +468,7 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
 
         overview.WaitForAssertion(() =>
         {
-            Assert.Contains("Running for 3m", overview.Find(".admin-system-status__row small").TextContent, StringComparison.Ordinal);
+            Assert.Contains("Running for 3 min", overview.Find(".admin-system-status__row small").TextContent, StringComparison.Ordinal);
             Assert.DoesNotContain("Calculating", overview.Markup, StringComparison.Ordinal);
         });
     }

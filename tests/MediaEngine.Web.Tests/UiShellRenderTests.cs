@@ -361,6 +361,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("RefreshSystemActivityAsync", activityState);
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", activityState);
         Assert.Contains("IngestionQueueProgress", activityState);
+        Assert.Contains("LiveIngestionActivityTtl", activityState);
         Assert.DoesNotContain("BatchProgressReceivedAt", activityState);
         Assert.DoesNotContain("IngestionProgressReceivedAt", activityState);
         Assert.Contains("<TopNavAccountMenu", source);

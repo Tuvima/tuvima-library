@@ -25,7 +25,8 @@ public static class SystemActivityText
         }
 
         var parts = new List<string>();
-        if (snapshot.Queue is { } queue && ShellActivityState.IsQueueWorking(queue))
+        // The snapshot's ingestion item exists only while the queue is working and its numbers are fresh.
+        if (snapshot.Queue is { } queue && snapshot.Items.Any(item => item.Kind == ShellActivityKind.Ingestion))
         {
             parts.Add(Ingestion(queue, now));
         }
@@ -44,10 +45,21 @@ public static class SystemActivityText
         return IngestionQueueProgressText.TimeLine(queue, now) is { } time ? $"{text} · {time}" : text;
     }
 
-    public static string Idle(IngestionQueueProgressDto? queue, DateTimeOffset now) =>
-        queue is not null && IngestionQueueProgressText.LastActivityLine(queue, now) is { } last
+    /// <summary>
+    /// The idle line. While tools are missing the indicator stays green but says why, in the live page's words:
+    /// "Waiting for media tools · 3 files are waiting".
+    /// </summary>
+    public static string Idle(IngestionQueueProgressDto? queue, DateTimeOffset now)
+    {
+        if (queue is not null && IngestionQueueProgressText.IsWaiting(queue))
+        {
+            return $"{IngestionQueueProgressText.WaitingHeadline(queue)} · {IngestionQueueProgressText.WaitingLine(queue)}";
+        }
+
+        return queue is not null && IngestionQueueProgressText.LastActivityLine(queue, now) is { } last
             ? $"{IdleLabel} · {last}"
             : IdleLabel;
+    }
 
     private static string FormatActivity(ShellActivityItem activity) => activity.ProgressPercent is { } progress
         ? $"{activity.Label} ({progress}%)"

@@ -28,6 +28,13 @@ public sealed class IngestionQueueProgressGuardrailTests
         {
             foreach (var member in OldBatchFormulaMembers)
             {
+                // The shell's activity items carry a ProgressPercent of their own for non-ingestion work (enrichment, AI,
+                // maintenance); the ingestion item's value comes from the snapshot through IngestionQueueProgressText.BarValue.
+                if (member == "ProgressPercent" && IsMenuIndicatorFile(path))
+                {
+                    continue;
+                }
+
                 Assert.False(
                     Regex.IsMatch(source, $@"\b{member}\b"),
                     $"{path} must not reference {member}; the Engine's queue snapshot is the only progress source.");
@@ -52,7 +59,7 @@ public sealed class IngestionQueueProgressGuardrailTests
         {
             // "<done-ish count> * 100" and "100 * <done-ish count>"
             new Regex(@"(Done|Processed|Completed|Found|Waiting|Steps\w*)\s*\*\s*100", RegexOptions.None),
-            new Regex(@"100d?\s*\*\s*[\w.]*(Done|Processed|Completed|Found|Waiting|Steps\w*)", RegexOptions.None),
+            new Regex(@"100(\.0+)?[dDfFmM]?\s*\*\s*[\w.]*(Done|Processed|Completed|Found|Waiting|Steps\w*)", RegexOptions.None),
             // "... / <total-ish count>"
             new Regex(@"/\s*[\w.()?]*(FilesFound|FilesTotal|TotalFiles|StepsTotal|StepsPossible)\b", RegexOptions.None),
         };
@@ -65,7 +72,7 @@ public sealed class IngestionQueueProgressGuardrailTests
                 Assert.False(expression.IsMatch(source), $"{path} derives its own percentage ({expression}).");
             }
 
-            progressTimesHundred += Regex.Matches(source, @"\bProgress\s*\*\s*100\b").Count;
+            progressTimesHundred += Regex.Matches(source, @"\bProgress\s*\*\s*100(\.0+)?[dDfFmM]?\b").Count;
         }
 
         Assert.Equal(1, progressTimesHundred);
@@ -87,6 +94,10 @@ public sealed class IngestionQueueProgressGuardrailTests
         }
     }
 
+    private static bool IsMenuIndicatorFile(string path) =>
+        path.EndsWith("ShellActivityState.cs", StringComparison.Ordinal)
+        || path.Contains("Navigation", StringComparison.Ordinal);
+
     private static string WebRoot => Path.Combine(RepoRoot, "src", "MediaEngine.Web");
 
     private static IEnumerable<(string Path, string Source)> QueueSnapshotSources()
@@ -96,6 +107,10 @@ public sealed class IngestionQueueProgressGuardrailTests
             Path.Combine(WebRoot, "Components", "Settings", "IngestionTasksTab.razor"),
             Path.Combine(WebRoot, "Components", "Settings", "OverviewTab.razor"),
             Path.Combine(WebRoot, "Components", "Settings", "IngestionQueueProgressText.cs"),
+            // The menu indicator shows the same snapshot, so it may not work out a percentage of its own either.
+            Path.Combine(WebRoot, "Services", "Integration", "ShellActivityState.cs"),
+            Path.Combine(WebRoot, "Components", "Navigation", "SystemActivityText.cs"),
+            Path.Combine(WebRoot, "Components", "Navigation", "SystemActivityIndicator.razor"),
         };
         files.AddRange(Directory.GetFiles(Path.Combine(WebRoot, "Services", "Integration"), "IngestionLiveDashboardState*.cs"));
 

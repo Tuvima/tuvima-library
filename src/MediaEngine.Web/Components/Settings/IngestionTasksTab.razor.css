@@ -104,12 +104,22 @@
     border-radius: 50%;
 }
 
-/* Last-known numbers stay readable but recede while the Engine is unreachable. */
+/* Last-known numbers stay readable but recede while the Engine is unreachable: the muted text token, not reduced opacity, so contrast holds. */
 .ingestion-status__stale {
     display: grid;
     gap: .4rem;
     color: var(--tl-text-muted);
-    opacity: .6;
+}
+
+.ingestion-status__stale .ingestion-status__line,
+.ingestion-status__stale .ingestion-status__meta,
+.ingestion-status__stale .ingestion-status__tally,
+.ingestion-status__stale .ingestion-status__more {
+    color: var(--tl-text-muted);
+}
+
+.ingestion-status__stale .ingestion-status__bar {
+    filter: grayscale(1);
 }
 
 .ingestion-status ::deep .ingestion-status__skeleton-heading,

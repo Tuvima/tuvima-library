@@ -28,6 +28,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     private bool _signalsDisposed;
     private bool _disposed;
     private bool _initialized;
+    private bool _queueFetchFailed;
 
     public IngestionLiveDashboardState(
         IEngineApiClient api,
@@ -52,14 +53,18 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
 
     public EngineConnectionState ConnectionState => _orchestrator.EngineConnectionState;
 
-    /// <summary>True when the Engine did not answer the last load or its connection check reports it offline.</summary>
-    public bool IsEngineUnreachable => Error is not null || ConnectionState == EngineConnectionState.Offline;
+    /// <summary>
+    /// True when the Engine is not answering: a load failed, the latest queue fetch came back empty after a request, or
+    /// the connection is down or reconnecting. It clears by itself when a fresh snapshot arrives or the connection is back.
+    /// </summary>
+    public bool IsEngineUnreachable => Error is not null || _queueFetchFailed || ConnectionState.IsDown();
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
         if (!_initialized)
         {
             _stateContainer.OnStateChanged += OnRealtimeStateChanged;
+            _stateContainer.IngestionQueueProgressReceived += OnQueueSnapshotReceived;
             _orchestrator.OnEngineConnectionStateChanged += OnConnectionStateChanged;
             _initialized = true;
         }
@@ -111,22 +116,16 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
             Presentation = MergePresentation(Presentation, presentationTask.Result);
 
             // The Engine pushes this snapshot itself; fetching it here covers a page opened before the first push and
-            // makes Retry recover it. A newer pushed snapshot is never replaced by an older fetched one.
-            var current = _stateContainer.IngestionQueueProgress;
+            // makes Retry recover it. The container never lets an older fetched snapshot replace a newer pushed one.
+            // The client reports a failed request as null, so a null here after a request means the Engine did not answer.
+            _queueFetchFailed = queueTask.Result is null;
             if (queueTask.Result is { } fetched)
             {
-                if (current is null || fetched.UpdatedAt > current.UpdatedAt)
-                {
-                    _stateContainer.PushIngestionQueueProgress(fetched);
-                }
-            }
-            else if (current is null)
-            {
-                Error = "The Engine did not return ingestion progress.";
+                _stateContainer.PushIngestionQueueProgress(fetched);
             }
 
             var presentationSignature = BuildPresentationSignature(Presentation);
-            var queueSignature = BuildQueueSignature(QueueProgress);
+            var queueSignature = BuildQueueSignature(QueueProgress) + (_queueFetchFailed ? "|unreachable" : string.Empty);
             var changed = !string.Equals(_lastPresentationSignature, presentationSignature, StringComparison.Ordinal)
                 || !string.Equals(_lastQueueSignature, queueSignature, StringComparison.Ordinal);
             _lastPresentationSignature = presentationSignature;
@@ -286,6 +285,13 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
         {
             DebounceSnapshotRefresh();
         }
+    }
+
+    private void OnQueueSnapshotReceived(IngestionQueueProgressDto snapshot)
+    {
+        // A snapshot only arrives when the Engine is answering, so any earlier failure is over.
+        _queueFetchFailed = false;
+        Error = null;
     }
 
     private void OnConnectionStateChanged(EngineConnectionState state)
@@ -469,6 +475,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
         if (_initialized)
         {
             _stateContainer.OnStateChanged -= OnRealtimeStateChanged;
+            _stateContainer.IngestionQueueProgressReceived -= OnQueueSnapshotReceived;
             _orchestrator.OnEngineConnectionStateChanged -= OnConnectionStateChanged;
             _initialized = false;
         }

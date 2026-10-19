@@ -48,7 +48,7 @@ do not apply single-column `Virtualize` to responsive variable-width flex layout
 - Primary navigation.
 - A global Search icon in the top-right action group that opens the instant cross-library search overlay without navigating away.
 - A profile-aware **My List** bookmark route backed by the saved/favorites collection.
-- A unified circular activity indicator for playback, ingestion, AI work, enrichment, and other durable operations; it becomes an idle check icon when no work is active.
+- A unified activity indicator for ingestion (the Engine's queue snapshot), AI work, enrichment, and other durable operations: blue while the Library is working, green when it is idle. Playback does not light it.
 - The account menu, including profile switching, Settings, Help, conditional sign-out, and permission-gated Needs Review count.
 - Engine connection/degraded-state messaging.
 - Universal search overlay host, including Ctrl+K, focus trapping, and focus restoration.

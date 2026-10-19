@@ -41,7 +41,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WaitingQueue_ShowsTheIdleStateBecauseTheBannerCarriesMissingTools()
+    public void WaitingQueue_StaysIdleButTheTooltipUsesTheLivePagesWaitingWords()
     {
         _state.PushIngestionQueueProgress(Queue("waiting", found: 10, done: 0, progress: 0.2, waiting: 10));
 
@@ -50,7 +50,75 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var button = cut.Find("button.system-activity-indicator");
         Assert.Contains("is-idle", button.ClassList);
         Assert.DoesNotContain("is-working", button.ClassList);
+        Assert.Equal("Waiting for media tools · 10 files are waiting", Tooltip(cut));
+    }
+
+    [Fact]
+    public void WorkingQueueWhoseSnapshotIsStale_ShowsIdleInsteadOfWorking()
+    {
+        _state.PushIngestionQueueProgress(
+            Queue("working", found: 508, done: 120, progress: 0.4, secondsLeft: 240),
+            DateTimeOffset.UtcNow.AddSeconds(-16));
+
+        var cut = Render<SystemActivityIndicator>();
+
+        var button = cut.Find("button.system-activity-indicator");
+        Assert.Contains("is-idle", button.ClassList);
+        Assert.DoesNotContain("is-working", button.ClassList);
         Assert.Equal("Library is up to date", Tooltip(cut));
+    }
+
+    [Fact]
+    public void WorkingQueueWhoseSnapshotIsJustUnderTheLimit_StillShowsWorking()
+    {
+        _state.PushIngestionQueueProgress(
+            Queue("working", found: 508, done: 120, progress: 0.4, secondsLeft: 240),
+            DateTimeOffset.UtcNow.AddSeconds(-10));
+
+        var cut = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-working", cut.Find("button.system-activity-indicator").ClassList);
+    }
+
+    [Theory]
+    [InlineData(EngineConnectionState.Reconnecting)]
+    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
+    [InlineData(EngineConnectionState.Offline)]
+    public void WorkingQueueWhileTheEngineConnectionIsDown_ShowsIdleAndWorkingAgainOnceItIsBack(EngineConnectionState down)
+    {
+        _state.PushIngestionQueueProgress(Queue("working", found: 508, done: 120, progress: 0.4, secondsLeft: 240));
+        _state.SetEngineConnectionState(down);
+
+        var cut = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList);
+
+        _state.SetEngineConnectionState(EngineConnectionState.Online);
+        var again = Render<SystemActivityIndicator>();
+
+        Assert.Contains("is-working", again.Find("button.system-activity-indicator").ClassList);
+    }
+
+    [Fact]
+    public async Task ActivityState_ReadsTheQueueAgainWhileItLooksBusyAndStopsLookingBusyWhenItIsIdle()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ =>
+                Task.FromResult<IngestionQueueProgressDto?>(Queue("idle", found: 0, done: 0, progress: 1))));
+        using var activity = new ShellActivityState(
+            _state,
+            new PlaybackSessionController(null!, api),
+            api,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ShellActivityState>.Instance);
+        _state.PushIngestionQueueProgress(
+            Queue("working", found: 508, done: 120, progress: 0.4),
+            DateTimeOffset.UtcNow.AddSeconds(-14));
+        Assert.True(activity.Current.IsWorking);
+
+        await activity.InitializeAsync();
+
+        Assert.False(activity.Current.IsWorking);
+        Assert.Equal("idle", _state.IngestionQueueProgress!.State);
     }
 
     [Fact]
@@ -147,10 +215,10 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
         var queue = Queue("working", found: 508, done: 120, progress: 0.3);
         queue.StartedAt = now.AddMinutes(-4);
 
-        Assert.Equal("Found 508 files · 120 of 508 done · Running for 4m 0s", SystemActivityText.Ingestion(queue, now));
+        Assert.Equal("Found 508 files · 120 of 508 done · Running for 4 min", SystemActivityText.Ingestion(queue, now));
 
         queue.StartedAt = now.AddSeconds(-20);
-        Assert.Equal("Found 508 files · 120 of 508 done · Running for 0m 20s", SystemActivityText.Ingestion(queue, now));
+        Assert.Equal("Found 508 files · 120 of 508 done · Running for less than a minute", SystemActivityText.Ingestion(queue, now));
     }
 
     [Fact]

@@ -39,6 +39,7 @@ public sealed record ShellActivitySnapshot(IReadOnlyList<ShellActivityItem> Item
 public sealed class ShellActivityState : IDisposable
 {
     private static readonly TimeSpan VideoActivityTtl = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan LiveIngestionActivityTtl = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan EnrichmentActivityTtl = TimeSpan.FromSeconds(35);
     private static readonly TimeSpan ModelDownloadActivityTtl = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan SystemActivityRefreshInterval = TimeSpan.FromSeconds(10);
@@ -81,7 +82,7 @@ public sealed class ShellActivityState : IDisposable
     public bool IsPlaybackActive => IsVideoPlaybackActive(DateTimeOffset.UtcNow) || IsListenPlaybackActive();
 
     /// <summary>True when the Engine's ingestion queue reports it is working (waiting and idle are not work).</summary>
-    public static bool IsQueueWorking(IngestionQueueProgressDto? queue) =>
+    private static bool IsQueueWorking(IngestionQueueProgressDto? queue) =>
         queue is not null && IngestionQueueProgressText.IsWorking(queue);
 
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -124,6 +125,15 @@ public sealed class ShellActivityState : IDisposable
                     operation.ItemsTotal,
                     operation.ItemsCompleted,
                     operation.UpdatedAt)));
+
+            // The Engine only pushes when its numbers change, so while the last snapshot says "working" it is read again
+            // here; that keeps a long quiet stretch from looking stale and picks up a finish whose push was missed.
+            if (IsQueueWorking(_universeState.IngestionQueueProgress)
+                && await _api.GetIngestionQueueProgressAsync(ct) is { } queue
+                && !_disposed)
+            {
+                _universeState.PushIngestionQueueProgress(queue);
+            }
         }
         catch (Exception ex)
         {
@@ -179,7 +189,7 @@ public sealed class ShellActivityState : IDisposable
     {
         var items = new List<ShellActivityItem>();
 
-        AddIngestion(items);
+        AddIngestion(items, now);
         var hasUniverseEnrichment = AddUniverseEnrichment(items, now);
         AddModelDownloads(items, now);
         AddMediaOperations(items, hasUniverseEnrichment);
@@ -207,10 +217,18 @@ public sealed class ShellActivityState : IDisposable
         && _playback.Phase is PlaybackPhase.Playing or PlaybackPhase.Loading or PlaybackPhase.Ready
         && (_playback.IsPlaying || _playback.Phase == PlaybackPhase.Loading);
 
-    /// <summary>One item while the Engine's ingestion queue is working; waiting and idle add nothing.</summary>
-    private void AddIngestion(List<ShellActivityItem> items)
+    /// <summary>
+    /// One item while the Engine's ingestion queue is working; waiting and idle add nothing. A snapshot that has not
+    /// been refreshed within <see cref="LiveIngestionActivityTtl"/>, or that arrived on a connection now known to be
+    /// down, is not trusted as "working".
+    /// </summary>
+    private void AddIngestion(List<ShellActivityItem> items, DateTimeOffset now)
     {
-        if (_universeState.IngestionQueueProgress is not { } queue || !IsQueueWorking(queue))
+        if (_universeState.IngestionQueueProgress is not { } queue
+            || !IsQueueWorking(queue)
+            || _universeState.IngestionQueueProgressReceivedAt is not { } receivedAt
+            || now - receivedAt > LiveIngestionActivityTtl
+            || _universeState.EngineConnectionState.IsDown())
         {
             return;
         }
@@ -220,7 +238,7 @@ public sealed class ShellActivityState : IDisposable
             ShellActivityKind.Ingestion,
             "Processing library files",
             null,
-            Math.Clamp((int)Math.Round(queue.Progress * 100d), 0, 100),
+            Math.Clamp((int)Math.Round(IngestionQueueProgressText.BarValue(queue)), 0, 100),
             queue.UpdatedAt));
     }
 

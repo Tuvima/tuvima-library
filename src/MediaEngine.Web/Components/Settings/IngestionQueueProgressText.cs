@@ -37,9 +37,12 @@ public static class IngestionQueueProgressText
 
         if (IsWorking(snapshot))
         {
-            return snapshot.FilesFound == 1
-                ? "Found 1 file"
-                : $"Found {DisplayFormat.FormatCount(snapshot.FilesFound)} files";
+            return snapshot.FilesFound switch
+            {
+                <= 0 => "Looking for files",
+                1 => "Found 1 file",
+                _ => $"Found {DisplayFormat.FormatCount(snapshot.FilesFound)} files",
+            };
         }
 
         return "Library is up to date";
@@ -90,7 +93,9 @@ public static class IngestionQueueProgressText
         };
         if (snapshot.Outcomes.NeedsReview > 0)
         {
-            parts.Add($"{DisplayFormat.FormatCount(snapshot.Outcomes.NeedsReview)} need review");
+            parts.Add(snapshot.Outcomes.NeedsReview == 1
+                ? "1 needs review"
+                : $"{DisplayFormat.FormatCount(snapshot.Outcomes.NeedsReview)} need review");
         }
 
         if (snapshot.Outcomes.Failed > 0)
@@ -125,7 +130,7 @@ public static class IngestionQueueProgressText
         }
 
         return snapshot.StartedAt is { } startedAt
-            ? $"Running for {FormatDuration(now - startedAt.ToUniversalTime())}"
+            ? $"Running for {FormatElapsed(now - startedAt.ToUniversalTime())}"
             : null;
     }
 
@@ -174,10 +179,24 @@ public static class IngestionQueueProgressText
         return count == 1 ? singular : plural;
     }
 
-    public static string FormatDuration(TimeSpan value) =>
-        value.TotalHours >= 1
-            ? $"{(int)value.TotalHours}h {value.Minutes}m"
-            : $"{Math.Max(0, (int)value.TotalMinutes)}m {Math.Max(0, value.Seconds)}s";
+    /// <summary>"less than a minute", "4 min", "2 hr 15 min" or "2 hr" (minutes left out when zero).</summary>
+    public static string FormatElapsed(TimeSpan value)
+    {
+        var totalMinutes = Math.Max(0, (int)value.TotalMinutes);
+        if (totalMinutes < 1)
+        {
+            return "less than a minute";
+        }
+
+        if (totalMinutes < 60)
+        {
+            return $"{totalMinutes} min";
+        }
+
+        return totalMinutes % 60 == 0
+            ? $"{totalMinutes / 60} hr"
+            : $"{totalMinutes / 60} hr {totalMinutes % 60} min";
+    }
 
     private static string FormatRelative(DateTimeOffset value, DateTimeOffset now)
     {
