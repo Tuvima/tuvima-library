@@ -14,7 +14,8 @@ namespace MediaEngine.Api.Services.Playback;
 
 public sealed class PlayerService
 {
-    private static readonly TimeSpan StaleSessionWindow = TimeSpan.FromSeconds(45);
+    /// <summary>How long a heartbeat keeps a session or device live; the companion service shares this window.</summary>
+    internal static readonly TimeSpan StaleSessionWindow = TimeSpan.FromSeconds(45);
 
     private readonly PlayerSessionRepository _sessions;
     private readonly PlaybackCapabilitiesService _playback;
@@ -27,6 +28,7 @@ public sealed class PlayerService
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
     private readonly PlaybackTelemetryLifecycleService _telemetry;
+    private readonly PlayerDeviceStateRepository _deviceStates;
     private readonly ConcurrentDictionary<Guid, PlaybackConnectionContextDto> _connectionContexts = new();
 
     public PlayerService(
@@ -40,7 +42,8 @@ public sealed class PlayerService
         AudiobookBookmarkRepository bookmarks,
         MusicPlayStatsRepository musicStats,
         PlayerCatalogueScope scope,
-        PlaybackTelemetryLifecycleService telemetry)
+        PlaybackTelemetryLifecycleService telemetry,
+        PlayerDeviceStateRepository deviceStates)
     {
         _sessions = sessions;
         _playback = playback;
@@ -53,6 +56,7 @@ public sealed class PlayerService
         _musicStats = musicStats;
         _scope = scope;
         _telemetry = telemetry;
+        _deviceStates = deviceStates;
     }
 
     public async Task<PlayerStateDto> GetStateAsync(Guid? profileId, string? deviceId, string? client, CancellationToken ct = default)
@@ -210,6 +214,8 @@ public sealed class PlayerService
                     positionSeconds: 0,
                     progressPct: 0,
                     ct: ct);
+                // The device that held the player has stopped, so it no longer counts as live for companions.
+                await _deviceStates.MarkEndedAsync(profileId, state.DeviceId, DateTimeOffset.UtcNow, ct);
                 break;
             case PlayerCommands.Next:
                 await MoveRelativeAsync(profileId, state, 1, ct);
@@ -279,6 +285,14 @@ public sealed class PlayerService
             heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
         if (recordedAt is null && heartbeat.SessionId.HasValue && activeSession is not null && activeSession.SessionId != heartbeat.SessionId.Value)
         {
+            // Another device holds the shared player, so this heartbeat does not touch it. The device's own live state
+            // is still recorded, from the asset this heartbeat names and never from the other session's queue.
+            if (heartbeat.AssetId is { } ownAsset)
+            {
+                var ownContext = await _scope.RequireAssetContextAsync(ownAsset, ct);
+                await RecordDeviceStateAsync(profileId, deviceId, client, heartbeat.SessionId, ownAsset, ownContext.WorkId, heartbeat, ct);
+            }
+
             return await GetStateAsync(profileId, deviceId, client, ct);
         }
 
@@ -363,6 +377,14 @@ public sealed class PlayerService
 
         var assetId = heartbeatAsset;
 
+        if (assetId.HasValue)
+        {
+            var queuedWork = priorState?.Queue
+                .FirstOrDefault(item => item.AssetId == assetId && (!heartbeat.QueueItemId.HasValue || item.QueueItemId == heartbeat.QueueItemId))?.WorkId;
+            var workId = queuedWork ?? (await _scope.RequireAssetContextAsync(assetId.Value, ct)).WorkId;
+            await RecordDeviceStateAsync(profileId, deviceId, client, trustedPlayerSessionId, assetId.Value, workId, heartbeat, ct);
+        }
+
         UserPlaybackSettingsDto? settings = null;
         if (assetId.HasValue)
         {
@@ -426,6 +448,35 @@ public sealed class PlayerService
 
         return await GetStateAsync(profileId, deviceId, client, ct);
     }
+
+    /// <summary>
+    /// Records what this device is playing from its own heartbeat. It lives apart from the shared player, so a second
+    /// device on the same profile never overwrites it and a companion can read it within about one heartbeat.
+    /// </summary>
+    private Task RecordDeviceStateAsync(
+        Guid profileId,
+        string deviceId,
+        string client,
+        Guid? playerSessionId,
+        Guid assetId,
+        Guid? workId,
+        PlayerHeartbeatDto heartbeat,
+        CancellationToken ct) =>
+        _deviceStates.UpsertAsync(new PlayerDeviceStateRecord
+        {
+            ProfileId = profileId,
+            DeviceId = deviceId,
+            Client = client,
+            PlayerSessionId = playerSessionId,
+            AssetId = assetId,
+            WorkId = workId,
+            PlaybackState = heartbeat.HasPlaybackEnded
+                ? "ended"
+                : heartbeat.IsPlaying ? PlayerPlaybackStates.Playing : PlayerPlaybackStates.Paused,
+            PositionSeconds = Math.Max(0, heartbeat.PositionSeconds),
+            DurationSeconds = heartbeat.DurationSeconds,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        }, ct);
 
     private async Task ObserveCommandAsync(
         Guid profileId,
@@ -651,7 +702,7 @@ public sealed class PlayerService
         };
     }
 
-    private async Task<PlayerQueueItemDto?> ResolvePlayableWorkAsync(Guid workId, Guid? requestedAsset, Guid profileId, CancellationToken ct)
+    internal async Task<PlayerQueueItemDto?> ResolvePlayableWorkAsync(Guid workId, Guid? requestedAsset, Guid profileId, CancellationToken ct)
     {
         var allowedAsset = await _scope.FindAssetAsync(workId, requestedAsset, ct);
         if (allowedAsset is null)

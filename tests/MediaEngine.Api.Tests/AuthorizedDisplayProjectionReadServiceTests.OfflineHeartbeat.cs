@@ -50,7 +50,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var states = new UserStateRepository(_database);
         var player = new PlayerService(
             new PlayerSessionRepository(_database), null!, _database, new MediaAssetRepository(_database), states,
-            null!, null!, null!, null!, scope, telemetry);
+            null!, null!, null!, null!, scope, telemetry, new PlayerDeviceStateRepository(_database));
         return (player, profile, states);
     }
 
