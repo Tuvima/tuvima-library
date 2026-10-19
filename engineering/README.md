@@ -62,6 +62,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [0008 — Public docs site in `docs/`; internal planning in `engineering/`](architecture/decisions/0008-public-docs-vs-engineering-docs.md) | Accepted |
 | [0009 — Open from the start; apps always allowed](architecture/decisions/0009-open-from-the-start.md) | Accepted |
 | [0010 — Missing helper tools: report them, hold the files, offer a checked download](architecture/decisions/0010-helper-tools-report-hold-offer.md) | Accepted |
+| [0011 — Personal activity is its own lasting record; one scope check decides who sees whose](architecture/decisions/0011-personal-activity-record-and-scopes.md) | Accepted |
 
 ## Design
 
