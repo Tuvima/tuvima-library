@@ -162,6 +162,50 @@ public sealed class DurablePipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestionEngine_RegisteredFile_LinksItsIntakeOperationToTheNewAsset()
+    {
+        var filePath = CreateWatchFile("Foundation.epub");
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Foundation", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        var hash = await _hasher.ComputeAsync(FindFileAnywhere("Foundation.epub")!);
+        var asset = await _assetRepo.FindByHashAsync(hash.Hex);
+        Assert.NotNull(asset);
+        var operations = await _operationRepo.GetByEntityAsync(asset!.Id);
+        var intake = Assert.Single(operations, operation => operation.OperationType == MediaOperationType.IngestionFile);
+        Assert.Equal("MediaAsset", intake.EntityKind);
+    }
+
+    [Fact]
+    public async Task IngestionEngine_ExactDuplicate_LinksItsIntakeOperationToTheExistingAssetAndRecordsDuplicate()
+    {
+        var firstPath = CreateWatchFile("Dune.epub", "same bytes");
+        CreateWatchFile("Dune Copy.epub", "same bytes");
+        _processors.QueueResult(new ProcessorResult
+        {
+            FilePath = firstPath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        using var conn = _dbFactory.Connection.CreateConnection();
+        var keptAssetId = conn.ExecuteScalar<Guid>("SELECT id FROM media_assets LIMIT 1;");
+        var intakes = (await _operationRepo.GetByEntityAsync(keptAssetId))
+            .Where(operation => operation.OperationType == MediaOperationType.IngestionFile)
+            .ToList();
+        Assert.Equal(2, intakes.Count);
+        Assert.Single(intakes, operation => operation.ResultSummary == "duplicate");
+    }
+
+    [Fact]
     public async Task IngestionEngine_PersonalLocalOnlyLibrary_IsNotConsumedByCataloguePipeline()
     {
         var filePath = CreateWatchFile("Family Reunion.mp4");
@@ -424,6 +468,99 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.NotNull(batchIdValue);
         var batchId = GuidSql.FromDb(batchIdValue);
         Assert.All(candidates, candidate => Assert.Equal(batchId, candidate.BatchId));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_FileDeletedWhileSettling_ClosesItsIntakeOperationAsMissingInsteadOfLeavingItPending()
+    {
+        var path = CreateWatchFile("Short Lived.epub");
+        using var debounce = new DebounceQueue(new DebounceOptions
+        {
+            SettleDelay = TimeSpan.FromMilliseconds(400),
+            ProbeInterval = TimeSpan.FromMilliseconds(1),
+            MaxProbeAttempts = 1,
+            MaxProbeDelay = TimeSpan.FromMilliseconds(10),
+        });
+        using var engine = CreateEngine(debounce, CreateDeletionOptions());
+
+        await ((IIngestionEngine)engine).ScanDirectories(
+            [new IngestionScanTarget(_watchDir, IncludeSubdirectories: false)],
+            CancellationToken.None);
+        var waiting = await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path));
+        Assert.NotNull(waiting);
+        Assert.Equal(MediaOperationStatus.Pending, waiting!.Status);
+
+        File.Delete(path);
+
+        var closed = await WaitForOperationAsync(
+            waiting.Id, operation => operation.Status == MediaOperationStatus.MissingConfirmed);
+        Assert.NotNull(closed);
+        Assert.False(string.IsNullOrWhiteSpace(closed!.MissingReason));
+        Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
+
+        var history = await new MediaOperationEventRepository(_dbFactory.Connection).GetByOperationAsync(waiting.Id);
+        Assert.Contains(history, entry => entry.EventType == "missing_confirmed");
+        Assert.Contains(
+            _publisher.Published.ToArray(),
+            item => item.EventName == SignalREvents.MediaOperationChanged
+                && item.Payload is MediaOperationChangedEvent { Status: MediaOperationStatus.MissingConfirmed });
+    }
+
+    [Fact]
+    public async Task IngestionEngine_FileGoneWhenThePipelineReachesIt_AlsoClosesTheOperationOpenedWhenItWasNoticed()
+    {
+        var path = CreateWatchFile("Gone Before Reading.epub");
+        var noticed = await _operationTracker.EnsureQueuedAsync(new MediaOperation
+        {
+            OperationType = MediaOperationType.IngestionFile,
+            OperationKind = MediaOperationKind.Ingestion,
+            SourcePath = Path.GetFullPath(path),
+            Status = MediaOperationStatus.Pending,
+            Stage = MediaOperationStage.Discovered,
+            QueueName = "ingestion",
+            IdempotencyKey = $"ingestion:file:{Path.GetFullPath(path).Replace('\\', '/').ToLowerInvariant()}:{new FileInfo(path).Length}:{new FileInfo(path).LastWriteTimeUtc.Ticks}",
+        });
+        File.Delete(path);
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        using var engine = CreateEngine(debounce, CreateDeletionOptions());
+        var process = typeof(IngestionEngine).GetMethod(
+            "ProcessCandidateAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(process);
+        await Assert.IsAssignableFrom<Task>(process.Invoke(
+            engine,
+            [
+                new IngestionCandidate
+                {
+                    Path = path,
+                    EventType = FileEventType.Created,
+                    DetectedAt = DateTimeOffset.UtcNow,
+                    ReadyAt = DateTimeOffset.UtcNow,
+                },
+                CancellationToken.None,
+            ]));
+
+        var after = await _operationRepo.GetByIdAsync(noticed.Id);
+        Assert.Equal(MediaOperationStatus.MissingConfirmed, after!.Status);
+        Assert.Null(await _operationRepo.GetActiveBySourcePathAsync(Path.GetFullPath(path)));
+    }
+
+    private async Task<MediaOperation?> WaitForOperationAsync(Guid id, Func<MediaOperation, bool> isReady)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            var operation = await _operationRepo.GetByIdAsync(id);
+            if (operation is not null && isReady(operation))
+            {
+                return operation;
+            }
+
+            await Task.Delay(25);
+        }
+
+        return await _operationRepo.GetByIdAsync(id);
     }
 
     [Fact]

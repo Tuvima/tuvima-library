@@ -95,6 +95,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_database);
         CreateAccount();
         SeedLibrary();
     }

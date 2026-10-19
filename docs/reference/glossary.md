@@ -29,7 +29,7 @@ A rule a person makes that files new documents for them: when a document's words
 
 ### Browse Readiness Gate
 
-The rule that controls whether an item appears in Home, Read, Watch, Listen, Collections, or Search. The item needs a non-placeholder title, a resolved media type, and a settled artwork outcome.
+The older name for the rule that controls whether an item appears in Home, Read, Watch, Listen, Collections, or Search. It is replaced by **Ready**.
 
 ## C
 
@@ -212,6 +212,10 @@ A Wikidata entity identifier such as `Q190804`. A QID is a strong identity ancho
 A controlled outcome where Retail matching succeeded but Wikidata could not resolve a trustworthy QID. The item keeps its available metadata and may still be visible if it is otherwise ready.
 
 ## R
+
+### Ready
+
+The single state that decides whether an item appears anywhere in the Library. A leaf Work is Ready when it is matched to a real title, placed in its show or album, has its artwork present or settled, is not in Needs Review and is not rejected. The Engine stores it as `works.ready_at`; it is sticky (a rematch does not clear it, a negative outcome does) and an item is announced as added only the first time it is Ready. Items that are not Ready appear only on the live ingestion page.
 
 ### Readiness Label
 

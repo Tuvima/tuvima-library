@@ -37,6 +37,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         using var conn = _db.CreateConnection();
         var work = await conn.QueryFirstOrDefaultAsync<WorkIdentityRow>(
             """
+            -- readiness: credit context of one work, looked up by id
             SELECT w.id AS WorkId,
                    COALESCE(
                        NULLIF(TRIM(w.wikidata_qid), ''),
@@ -1093,6 +1094,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
                 ON cv.entity_id = w.id
                AND cv.key = 'title'
             WHERE primary_credit.person_id = @personId
+              AND {WorkReadinessSql.ReadyWorkPredicate("w")}
               AND (primary_credit.role != 'Author' OR NOT EXISTS (
                   SELECT 1
                   FROM primary_person_media_credits collective_credit

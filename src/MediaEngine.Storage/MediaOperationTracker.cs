@@ -80,6 +80,17 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
         }
     }
 
+    public async Task MarkMissingConfirmedAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default)
+    {
+        var before = await _operations.GetByIdAsync(operationId, ct);
+        await _operations.MarkMissingConfirmedAsync(operationId, reason, ct);
+        var after = await _operations.GetByIdAsync(operationId, ct);
+        if (after is not null)
+        {
+            await AddTransitionAsync("missing_confirmed", before, after, reason, detail, ct);
+        }
+    }
+
     public async Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default)
     {
         var before = await _operations.GetByIdAsync(operationId, ct);

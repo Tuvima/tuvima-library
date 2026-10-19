@@ -33,7 +33,6 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor", "@key=\"item.Id\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor", "@key=\"operation.BatchId\"")]
-    [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor", "@key=\"StageDetailKey(detail)\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {
@@ -64,17 +63,6 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("ScheduleRefresh", source, StringComparison.Ordinal);
         Assert.Contains("_loadInProgress", source, StringComparison.Ordinal);
         Assert.Contains("_loading = !_hasLoadedOnce", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void IngestionDashboard_DoesNotClearOperationDetailsWhenRowsAreSkipped()
-    {
-        var source = Read(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-
-        Assert.Contains("LoadSnapshotAsync", source, StringComparison.Ordinal);
-        Assert.Contains("_loadInProgress", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("_operationDetails.Clear();", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("_capabilitiesByEntity.Clear();", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -262,30 +250,6 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("!string.Equals(card.MediaType, \"TV\"", source, StringComparison.Ordinal);
         Assert.Contains("string.Equals(shelf.Key, \"tv-shows\"", source, StringComparison.Ordinal);
         Assert.Contains("TV landing spotlights use show cards exclusively", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void IngestionDashboard_ExplainsIconMeaningWithSimpleTooltips()
-    {
-        var source = Read(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor")
-                     + Read(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor.cs");
-
-        Assert.Contains("AppTooltip Text=\"Reload the latest ingestion status.\"", source, StringComparison.Ordinal);
-        Assert.Contains("AppTooltip Text=\"Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives.\"", source, StringComparison.Ordinal);
-        Assert.Contains("StageIconTooltip(stage)", source, StringComparison.Ordinal);
-        Assert.Contains("StageProgressTooltip(stage)", source, StringComparison.Ordinal);
-        Assert.Contains("StageDetailTooltip(detail)", source, StringComparison.Ordinal);
-        Assert.Contains("BatchSelectionTooltip(batch)", source, StringComparison.Ordinal);
-        Assert.Contains("BatchMediaTooltip(chip)", source, StringComparison.Ordinal);
-        Assert.Contains("BatchArtifactTooltip(chip)", source, StringComparison.Ordinal);
-        Assert.Contains("BatchActivityTooltip(batch)", source, StringComparison.Ordinal);
-        Assert.Contains("Recent batches show the latest scans and whether they are active or complete.", source, StringComparison.Ordinal);
-        Assert.Contains("Matches files to retail catalog data like title, cover, and description.", source, StringComparison.Ordinal);
-        Assert.Contains("Links matched items to Wikidata IDs so relationships can be built.", source, StringComparison.Ordinal);
-        Assert.Contains("Files or works that have a direct Wikidata ID.", source, StringComparison.Ordinal);
-        Assert.Contains("Extra Wikidata IDs found for people, series, universes, or story details.", source, StringComparison.Ordinal);
-        Assert.Contains("Items Tuvima Library could not confidently finish.", source, StringComparison.Ordinal);
-        Assert.Contains("People with extra profile data such as biography or images.", source, StringComparison.Ordinal);
     }
 
     [Fact]

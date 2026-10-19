@@ -16,7 +16,6 @@ public sealed class HomeSpotlightStateTests
             AssetId = Guid.NewGuid(),
             MediaType = type,
             Title = title,
-            IsIdentityReady = true,
             CreatedAt = DateTimeOffset.UtcNow,
             BackgroundUrl = "/background.jpg",
         };
@@ -220,7 +219,6 @@ public sealed class HomeSpotlightStateTests
         RootWorkId = show,
         MediaType = "TV",
         WorkKind = "child",
-        IsIdentityReady = true,
         Title = title,
         ShowName = "The Show",
         SeasonNumber = "2",

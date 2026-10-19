@@ -87,6 +87,13 @@ public sealed class DebounceQueue : IDisposable
     public ChannelReader<IngestionCandidate> Reader => _channel.Reader;
 
     /// <summary>
+    /// Raised when a noticed file is dropped because it is no longer there (or is no longer a file) once its settle
+    /// delay has passed. Nothing reaches <see cref="Reader"/> for it, so the owner uses this to close whatever it was
+    /// tracking for the file instead of leaving it waiting for ever.
+    /// </summary>
+    public event Action<FileEvent>? FileVanished;
+
+    /// <summary>
     /// Accepts a raw file event and schedules (or resets) the settle timer for
     /// the file at <see cref="FileEvent.Path"/>.
     ///
@@ -219,17 +226,20 @@ public sealed class DebounceQueue : IDisposable
         if (Directory.Exists(fileEvent.Path))
         {
             CleanupEntry(key);
+            RaiseFileVanished(fileEvent);
             return;
         }
 
         // Fast path: file no longer exists at probe time. This happens when
         // a stale Created/Modified event for a file that was already processed
         // and moved to staging finally fires its settle timer — the original
-        // path is gone. Drop silently instead of running the full retry/backoff
-        // loop and quarantining a file that was already successfully ingested.
+        // path is gone. Drop instead of running the full retry/backoff loop
+        // and quarantining a file that was already successfully ingested; the
+        // owner is told so it can close any job it opened for the file.
         if (!File.Exists(fileEvent.Path))
         {
             CleanupEntry(key);
+            RaiseFileVanished(fileEvent);
             return;
         }
 
@@ -368,6 +378,9 @@ public sealed class DebounceQueue : IDisposable
         // cancelled while the write is in progress.
         CleanupEntry(key);
     }
+
+    // The subscriber (the ingestion engine) hands the work to its own tracked task and never throws back into here.
+    private void RaiseFileVanished(FileEvent fileEvent) => FileVanished?.Invoke(fileEvent);
 
     private void CancelExistingTimer(string key)
     {

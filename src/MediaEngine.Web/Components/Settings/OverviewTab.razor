@@ -216,7 +216,7 @@
     private List<ActivityEntryResponse> _recentActivity = [];
     private IReadOnlyList<BackupArchiveDto> _backups = [];
     private StartupReadinessResponse? _readiness;
-    private OverviewRun _currentRun = OverviewRun.Empty;
+    private OverviewRun _currentRun = new(IsActive: false, Failed: 0, Detail: "No recent run data is available.");
 
     private int _pendingReviewCount;
 
@@ -230,9 +230,7 @@
 
     private bool HasSystemExceptions => ReadinessIssues.Count > 0 || _currentRun.Failed > 0 || _backups.Count == 0;
 
-    private string IngestionStatusDetail => _currentRun.IsActive
-        ? $"{DisplayFormat.FormatCount(_currentRun.Processed)} of {DisplayFormat.FormatCount(_currentRun.Total)} files processed"
-        : _currentRun.IdleDetail;
+    private string IngestionStatusDetail => _currentRun.Detail;
 
     private int _libraryTotal
     {
@@ -415,84 +413,22 @@
 
     private OverviewRun BuildCurrentRun()
     {
-        var batchProgress = StateContainer.BatchProgress;
-        if (batchProgress is not null)
+        // The Engine's queue snapshot is the only source: same numbers and words as the live Ingestion page.
+        if (StateContainer.IngestionQueueProgress is { } queue)
         {
             return new OverviewRun(
-                IsActive: true,
-                Status: "Processing",
-                Progress: batchProgress.ProgressPercent,
-                Processed: batchProgress.FilesProcessed,
-                Total: batchProgress.FilesTotal,
-                Library: "Current batch",
-                CurrentItem: StringHelpers.FirstNonBlankOr("", batchProgress.CurrentFileTitle, batchProgress.RecentTitles?.FirstOrDefault(), "Processing item"),
-                Stage: StringHelpers.FirstNonBlankOr("", batchProgress.CurrentStage, batchProgress.LifecycleStage, "Processing"),
-                StartedBy: "Engine",
-                Elapsed: "In progress",
-                Remaining: batchProgress.EstimatedSecondsRemaining.HasValue
-                    ? DisplayFormat.FormatDurationHoursMinutes(TimeSpan.FromSeconds(batchProgress.EstimatedSecondsRemaining.Value))
-                    : "Calculating",
-                Queued: batchProgress.FilesQueued,
-                Failed: batchProgress.FilesFailed,
-                IdleDetail: "");
-        }
-
-        var signalProgress = StateContainer.IngestionProgress;
-        if (signalProgress is not null)
-        {
-            var percent = signalProgress.TotalCount > 0
-                ? signalProgress.ProcessedCount * 100d / signalProgress.TotalCount
-                : 0;
-
-            return new OverviewRun(
-                IsActive: true,
-                Status: signalProgress.Stage,
-                Progress: percent,
-                Processed: signalProgress.ProcessedCount,
-                Total: signalProgress.TotalCount,
-                Library: "Watch folder",
-                CurrentItem: StringHelpers.FirstNonBlankOr("", signalProgress.CurrentFile, "Scanning"),
-                Stage: signalProgress.Stage,
-                StartedBy: "Engine",
-                Elapsed: "In progress",
-                Remaining: signalProgress.TotalCount > 0 ? "Calculating" : "Discovering files",
-                Queued: Math.Max(0, signalProgress.TotalCount - signalProgress.ProcessedCount),
-                Failed: 0,
-                IdleDetail: "");
-        }
-
-        var activeRun = _recentRuns.FirstOrDefault(run => IsActiveRunStatus(run.Status) && !IsRunEffectivelyComplete(run));
-        if (activeRun is not null)
-        {
-            var progress = activeRun.FilesTotal > 0
-                ? activeRun.FilesProcessed * 100d / activeRun.FilesTotal
-                : 0;
-
-            return new OverviewRun(
-                IsActive: true,
-                Status: FormatStatus(activeRun.Status),
-                Progress: progress,
-                Processed: activeRun.FilesProcessed,
-                Total: activeRun.FilesTotal,
-                Library: RunLibrary(activeRun),
-                CurrentItem: "Current item unavailable",
-                Stage: RunStage(activeRun),
-                StartedBy: "Engine",
-                Elapsed: DisplayFormat.FormatDurationHoursMinutes(DateTimeOffset.UtcNow - activeRun.StartedAt.ToUniversalTime()),
-                Remaining: "Calculating",
-                Queued: Math.Max(0, activeRun.FilesTotal - activeRun.FilesProcessed),
-                Failed: activeRun.FilesFailed,
-                IdleDetail: "");
+                IsActive: !IngestionQueueProgressText.IsIdle(queue),
+                Failed: queue.Outcomes.Failed,
+                Detail: IngestionQueueProgressText.SummaryLine(queue, DateTimeOffset.UtcNow));
         }
 
         var lastRun = _recentRuns.FirstOrDefault();
-        return OverviewRun.Empty with
-        {
-            Failed = _recentRuns.Sum(run => run.FilesFailed),
-            IdleDetail = lastRun is null
+        return new OverviewRun(
+            IsActive: false,
+            Failed: _recentRuns.Sum(run => run.FilesFailed),
+            Detail: lastRun is null
                 ? "No recent run data is available."
-                : $"Last run {FormatStatus(lastRun.Status).ToLowerInvariant()} {FormatRelative(lastRun.StartedAt)}."
-        };
+                : $"Last run {FormatStatus(lastRun.Status).ToLowerInvariant()} {FormatRelative(lastRun.StartedAt)}.");
     }
 
     private static MediaBreakdownItem MediaItem(string label, Dictionary<string, int> counts, string mediaType) =>
@@ -590,52 +526,6 @@
         return FormatTrigger(status);
     }
 
-    private static bool IsActiveRunStatus(string status) =>
-        status.Contains("processing", StringComparison.OrdinalIgnoreCase)
-        || status.Contains("running", StringComparison.OrdinalIgnoreCase)
-        || status.Contains("queued", StringComparison.OrdinalIgnoreCase)
-        || status.Contains("active", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsRunEffectivelyComplete(IngestionBatchResponse run) =>
-        run.FilesTotal > 0
-        && run.FilesProcessed >= run.FilesTotal
-        && !run.Status.Contains("fail", StringComparison.OrdinalIgnoreCase);
-
-    private static string RunLibrary(IngestionBatchResponse run) =>
-        StringHelpers.FirstNonBlankOr("", run.Category, ShortPath(run.SourcePath), "Library");
-
-    private static string RunStage(IngestionBatchResponse run)
-    {
-        if (run.FilesFailed > 0)
-        {
-            return "Failed";
-        }
-
-        if (run.FilesReview > 0)
-        {
-            return "Review";
-        }
-
-        if (run.FilesProcessed < run.FilesTotal)
-        {
-            return "Processing";
-        }
-
-        return "Complete";
-    }
-
-    private static string ShortPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return string.Empty;
-        }
-
-        var trimmed = path.TrimEnd('\\', '/');
-        var index = Math.Max(trimmed.LastIndexOf('\\'), trimmed.LastIndexOf('/'));
-        return index >= 0 ? trimmed[(index + 1)..] : trimmed;
-    }
-
     private sealed record MediaBreakdownItem(
         string Label,
         int Count,
@@ -643,36 +533,5 @@
         string IconKey,
         string Color);
 
-    private sealed record OverviewRun(
-        bool IsActive,
-        string Status,
-        double Progress,
-        int Processed,
-        int Total,
-        string Library,
-        string CurrentItem,
-        string Stage,
-        string StartedBy,
-        string Elapsed,
-        string Remaining,
-        int Queued,
-        int Failed,
-        string IdleDetail)
-    {
-        public static OverviewRun Empty { get; } = new(
-            false,
-            "Idle",
-            0,
-            0,
-            0,
-            "None",
-            "None",
-            "Idle",
-            "None",
-            "0m",
-            "None",
-            0,
-            0,
-            "No recent run data is available.");
-    }
+    private sealed record OverviewRun(bool IsActive, int Failed, string Detail);
 }

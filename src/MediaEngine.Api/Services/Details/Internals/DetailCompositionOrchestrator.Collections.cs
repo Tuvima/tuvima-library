@@ -968,6 +968,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var rows = await conn.QueryAsync<Guid>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT DISTINCT COALESCE(p.id, w.id)
             FROM primary_person_media_credits credit
             INNER JOIN media_assets ma ON ma.id = credit.media_asset_id
@@ -998,6 +999,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var seasons = conn.Query<SeasonWorkArtworkRow>(
             """
+            -- readiness: detail page of one item opened by id
             SELECT season.id AS WorkId,
                    season.ordinal AS Ordinal,
                    (SELECT NULLIF(CAST(value AS TEXT), '')
@@ -1065,6 +1067,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var rawRow = await conn.QueryFirstOrDefaultAsync(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT w.id AS Id,
                    COALESCE(
                        (SELECT NULLIF(CAST(value AS TEXT), '') FROM canonical_values WHERE entity_id = w.id AND key = 'show_name' LIMIT 1),

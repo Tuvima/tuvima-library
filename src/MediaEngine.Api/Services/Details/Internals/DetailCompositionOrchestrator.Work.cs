@@ -444,6 +444,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var rootWorkId = await conn.QueryFirstOrDefaultAsync<Guid?>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             WITH RECURSIVE ancestors(id, parent_work_id, depth) AS (
                 SELECT id, parent_work_id, 0
                 FROM works

@@ -3110,6 +3110,34 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionProvide
   LastError: System.String | nullability=nullable | accessors=get,set
   Warning: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueOutcomesDto
+  Added: System.Int32 | nullability=not-null | accessors=get,set
+  NeedsReview: System.Int32 | nullability=not-null | accessors=get,set
+  Failed: System.Int32 | nullability=not-null | accessors=get,set
+  Skipped: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto
+  State: System.String | nullability=not-null | accessors=get,set
+  FilesFound: System.Int32 | nullability=not-null | accessors=get,set
+  FilesDone: System.Int32 | nullability=not-null | accessors=get,set
+  FilesWaiting: System.Int32 | nullability=not-null | accessors=get,set
+  WaitingFor: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,set
+  FilesMoreFound: System.Int32 | nullability=not-null | accessors=get,set
+  Outcomes: MediaEngine.Contracts.Ingestion.IngestionQueueOutcomesDto | nullability=not-null | accessors=get,set
+  Tally: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Ingestion.IngestionQueueTypeTallyDto> | nullability=not-null | accessors=get,set
+  FilesUnsorted: System.Int32 | nullability=not-null | accessors=get,set
+  StepsTotal: System.Int64 | nullability=not-null | accessors=get,set
+  StepsCompleted: System.Int64 | nullability=not-null | accessors=get,set
+  Progress: System.Double | nullability=not-null | accessors=get,set
+  StartedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastActivityAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  EstimatedSecondsRemaining: System.Int32? | nullability=nullable | accessors=get,set
+  UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueTypeTallyDto
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  Files: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionRecentDayDto
   Date: System.DateOnly | nullability=not-null | accessors=get,set
   TotalCount: System.Int32 | nullability=not-null | accessors=get,set

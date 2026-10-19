@@ -30,7 +30,7 @@
                     if (snapshot is not null) Notifications.Observe(snapshot);
                     var path = new Uri(Navigation.Uri).AbsolutePath;
                     var quiet = Playback.CurrentItem is not null
-                        || Activity.Current.Items.Any(item => item.Kind == ShellActivityKind.Playback)
+                        || Activity.IsPlaybackActive
                         || path.StartsWith("/read/", StringComparison.OrdinalIgnoreCase) && path.Contains("reader")
                         || path.Contains("/player/", StringComparison.OrdinalIgnoreCase)
                         || path.StartsWith("/view", StringComparison.OrdinalIgnoreCase);

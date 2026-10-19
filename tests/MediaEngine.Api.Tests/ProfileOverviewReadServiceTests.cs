@@ -25,6 +25,7 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_db);
         _profiles = new FakeProfileService(new Profile
         {
             Id = _profileId,

@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Maintenance;
 using MediaEngine.Contracts.Paging;
@@ -1196,6 +1197,16 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _state.PushBatchProgress(ev);
         });
 
+        // -- "IngestionQueueProgress" ----------------------------------------
+        // The Engine's one set of live ingestion numbers (files found, tally, bar, state).
+        _hubConnection.On<IngestionQueueProgressDto>(SignalREvents.IngestionQueueProgress, ev =>
+        {
+            _logger.LogDebug(
+                "Intercom ? IngestionQueueProgress: {State} {Done}/{Found}",
+                ev.State, ev.FilesDone, ev.FilesFound);
+            _state.PushIngestionQueueProgress(ev);
+        });
+
         _hubConnection.On<ProviderActivityEvent>(SignalREvents.ProviderActivity, ev =>
         {
             _logger.LogDebug(
@@ -1384,7 +1395,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         {
             _logger.LogInformation("Intercom reconnected (connectionId={Id})", connectionId);
             SetEngineConnectionState(EngineConnectionState.Online);
-            return Task.CompletedTask;
+            return RefreshIngestionQueueProgressAsync(CancellationToken.None);
         };
         _hubConnection.Closed += ex =>
         {
@@ -1396,6 +1407,16 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         await TryStartSignalRConnectionAsync(_hubConnection, collectionUrl, ct);
     }
 
+    // Live events only carry changes, so the latest ingestion numbers are read once on every (re)connect.
+    private async Task RefreshIngestionQueueProgressAsync(CancellationToken ct)
+    {
+        var snapshot = await _api.GetIngestionQueueProgressAsync(ct);
+        if (snapshot is not null)
+        {
+            _state.PushIngestionQueueProgress(snapshot);
+        }
+    }
+
     private async Task TryStartSignalRConnectionAsync(HubConnection connection, string? collectionUrl, CancellationToken ct)
     {
         try
@@ -1404,6 +1425,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _logger.LogInformation("Intercom connected ? {Url}", collectionUrl ?? connection.ConnectionId);
             SetEngineConnectionState(EngineConnectionState.Online);
             _state.PushServerStarted();
+            await RefreshIngestionQueueProgressAsync(ct);
         }
         catch (Exception ex)
         {
@@ -1447,7 +1469,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
 
     public event Action<EngineConnectionState>? OnEngineConnectionStateChanged;
 
-    private void SetEngineConnectionState(EngineConnectionState state)
+    internal void SetEngineConnectionState(EngineConnectionState state)
     {
         if (_engineConnectionState == state)
         {
@@ -1455,6 +1477,8 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         }
 
         _engineConnectionState = state;
+        // Shared with the menu indicator, which has no orchestrator of its own.
+        _state.SetEngineConnectionState(state);
         OnEngineConnectionStateChanged?.Invoke(state);
     }
 

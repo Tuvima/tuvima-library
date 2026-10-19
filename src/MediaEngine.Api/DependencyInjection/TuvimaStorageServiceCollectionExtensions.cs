@@ -167,6 +167,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.TryAddSingleton<IMediaInspectionHoldRepository, MediaInspectionHoldRepository>();
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
+        services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
@@ -192,6 +193,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IProviderHealthRepository, ProviderHealthRepository>();
         services.AddSingleton<IProviderConnectionCheckRepository, ProviderConnectionCheckRepository>();
         services.AddSingleton<IIdentityJobRepository, IdentityJobRepository>();
+        services.AddSingleton<IWorkReadinessRepository, WorkReadinessRepository>();
         services.AddSingleton<IRetailCandidateRepository, RetailCandidateRepository>();
         services.AddSingleton<IWikidataCandidateRepository, WikidataCandidateRepository>();
 

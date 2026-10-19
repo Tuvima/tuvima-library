@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared
@@ -20,68 +21,88 @@
     {
         <IngestionMediaPagedView Mode="@PagedViewMode" OnOpen="OpenDrawer" />
     }
-    else if (Dashboard.IsLoading && Dashboard.Presentation is null)
-    {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading ingestion status" />
-    }
-    else if (Dashboard.Presentation is null)
-    {
-        <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
-    }
     else
     {
-        <AppPanel Class="@($"tl-card ingestion-status {(Model.IsRunning ? "is-active" : "is-idle")}")"
+        <AppPanel Class="@StatusPanelClass"
                   aria-live="polite"
-                  aria-busy="@(Model.IsRunning ? "true" : "false")">
+                  aria-busy="@(IsBusy ? "true" : "false")">
             <div class="ingestion-status__main">
-                <div class="ingestion-status__header">
-                    <h2>@HeadingText</h2>
-                    <div class="ingestion-status__menu"><IngestionScanAction /></div>
-                </div>
-                @if (Model.IsRunning)
+                @if (Dashboard.IsEngineUnreachable)
                 {
-                    <AppProgressBar Class="ingestion-status__bar" Indeterminate="@(Dashboard.BatchProgress is not { FilesTotal: > 0 } || Dashboard.BatchProgress.ProgressIsIndeterminate)" Value="@(BatchSummary?.Percent ?? 0)" ShowValue="false" />
+                    <div class="ingestion-status__header">
+                        <h2>The Library's engine isn't responding</h2>
+                        <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
+                    </div>
+                    @if (Queue is { } lastKnown)
+                    {
+                        <div class="ingestion-status__stale">
+                            <p class="ingestion-status__line">@IngestionQueueProgressText.Headline(lastKnown)</p>
+                            @QueueDetails(lastKnown)
+                        </div>
+                    }
                 }
-                <p class="ingestion-status__line">@StatusLine</p>
-                @if (MetaLine is { Length: > 0 })
+                else if (Queue is not { } queue)
                 {
-                    <p class="ingestion-status__meta">@MetaLine</p>
+                    <div class="ingestion-status__header">
+                        <AppSkeleton Class="ingestion-status__skeleton-heading" Width="11rem" Height="1.4rem" />
+                        <div class="ingestion-status__menu"><IngestionScanAction /></div>
+                    </div>
+                    <AppSkeleton Class="ingestion-status__skeleton-tally" Width="22rem" Height=".9rem" />
+                    <AppSkeleton Class="ingestion-status__skeleton-bar" Width="100%" Height=".4rem" />
+                }
+                else
+                {
+                    <div class="ingestion-status__header">
+                        <h2>@if (IngestionQueueProgressText.IsIdle(queue)) { <i class="ingestion-status__dot" aria-hidden="true"></i> }@IngestionQueueProgressText.Headline(queue)</h2>
+                        <div class="ingestion-status__menu"><IngestionScanAction /></div>
+                    </div>
+                    @QueueDetails(queue)
                 }
             </div>
         </AppPanel>
 
-        @if (Model.Attention.Count > 0)
+        @if (Dashboard.Presentation is null)
         {
-            <AppPanel Class="tl-card ingestion-attention">
-                <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
-                @foreach (var item in Model.Attention)
-                {
-                    <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
-                }
-            </AppPanel>
+            if (!Dashboard.IsLoading && !Dashboard.IsEngineUnreachable)
+            {
+                <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
+            }
         }
-
-        @if (Model.IsRunning)
+        else
         {
-            <section class="ingestion-section" aria-labelledby="being-added-title">
-                <header><div><h2 id="being-added-title">Being added now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="/settings/ingestion?view=all" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
-                @if (Model.CurrentMedia.Count > 0)
-                {
-                    <div class="ingestion-media-list">
-                        @foreach (var item in Model.CurrentMedia)
-                        {
-                            <IngestionMediaCard Item="item" DisplayMode="list" OnOpen="OpenDrawer" @key="(item.BatchId, item.GroupId)" />
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="ingestion-grouping-state"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
-                }
-            </section>
-        }
+            if (Model.Attention.Count > 0)
+            {
+                <AppPanel Class="tl-card ingestion-attention">
+                    <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
+                    @foreach (var item in Model.Attention)
+                    {
+                        <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
+                    }
+                </AppPanel>
+            }
 
-        <IngestionRecentlyAddedPreview Days="Model.RecentDays" />
+            if (Model.IsRunning)
+            {
+                <section class="ingestion-section" aria-labelledby="being-added-title">
+                    <header><div><h2 id="being-added-title">Being added now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="/settings/ingestion?view=all" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
+                    @if (Model.CurrentMedia.Count > 0)
+                    {
+                        <div class="ingestion-media-list">
+                            @foreach (var item in Model.CurrentMedia)
+                            {
+                                <IngestionMediaCard Item="item" DisplayMode="list" OnOpen="OpenDrawer" @key="(item.BatchId, item.GroupId)" />
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="ingestion-grouping-state"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
+                    }
+                </section>
+            }
+
+            <IngestionRecentlyAddedPreview Days="Model.RecentDays" />
+        }
     }
 </div>
 
@@ -109,46 +130,64 @@
     private bool IsHistoricalBatchView => _view == "all" && _runId.HasValue;
     private bool IsCurrentPagedView => _view == "all" && !_runId.HasValue;
     private string PagedViewMode => "current";
-    private int RecentCount => Model.RecentDays.Sum(day => day.TotalCount);
-    private string LastActivityCopy => Model.LastActivityAt.HasValue ? FormatRelative(Model.LastActivityAt.Value) : "No activity yet";
-    private IngestionBatchProgressSummary? BatchSummary => Dashboard.BatchProgress is { FilesTotal: > 0 } batch ? IngestionBatchProgressSummary.From(batch) : null;
-    private int RunTotal => BatchSummary?.ItemsTotal ?? Model.FilesDiscovered;
-    private string HeadingText => !Model.IsRunning
-        ? "Library is up to date"
-        : RunTotal > 0 ? $"Adding {RunTotal:N0} {(RunTotal == 1 ? "item" : "items")}" : "Adding items";
-
-    // One secondary line: "312 of 508 ready · Matching with providers · about 6 min left".
-    private string StatusLine
+    private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
+    private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
+    private string StatusPanelClass
     {
         get
         {
-            if (!Model.IsRunning)
-                return $"{Model.FilesProcessed:N0} files processed · {RecentCount:N0} media groups recently added";
-            if (BatchSummary is not { } summary || Dashboard.BatchProgress is not { } batch)
-                return "Discovering batch work…";
-            var parts = new List<string> { $"{summary.ItemsReady:N0} of {summary.ItemsTotal:N0} ready" };
-            if (!string.IsNullOrWhiteSpace(batch.CurrentStage)) parts.Add(batch.CurrentStage!);
-            if (FormatEta(batch.EstimatedSecondsRemaining) is { } eta) parts.Add(eta);
-            return string.Join(" · ", parts);
+            var state = Dashboard.IsEngineUnreachable ? "is-unreachable"
+                : Queue is null ? "is-loading"
+                : IngestionQueueProgressText.IsWorking(Queue) ? "is-active"
+                : IngestionQueueProgressText.IsWaiting(Queue) ? "is-waiting"
+                : "is-idle";
+            return $"tl-card ingestion-status {state}";
         }
     }
 
-    // Muted inline facts; only non-zero values are shown.
-    private string MetaLine
-    {
-        get
+    private Task RetryAsync() => Dashboard.LoadAsync();
+
+    // Everything under the headline; also renders the greyed last-known numbers while the Engine is unreachable.
+    private RenderFragment<IngestionQueueProgressDto> QueueDetails => queue => @<text>
+        @if (IngestionQueueProgressText.IsWorking(queue))
         {
-            var parts = new List<string>();
-            if (Model.IsRunning && Model.StartedAt.HasValue)
-                parts.Add($"Running for {FormatDuration(DateTimeOffset.UtcNow - Model.StartedAt.Value.ToUniversalTime())}");
-            else if (Model.LastActivityAt.HasValue)
-                parts.Add($"Last activity {LastActivityCopy.ToLowerInvariant()}");
-            if (Model.QueuedOperations > 0) parts.Add($"{Model.QueuedOperations:N0} queued");
-            if (Model.ActiveOperations > 0) parts.Add($"{Model.ActiveOperations:N0} active now");
-            if (Model.RetryWaitingOperations > 0) parts.Add($"{Model.RetryWaitingOperations:N0} waiting to retry");
-            return string.Join(" · ", parts);
+            if (IngestionQueueProgressText.TallyLine(queue) is { } tally)
+            {
+                <p class="ingestion-status__tally">@tally</p>
+            }
+            if (IngestionQueueProgressText.MoreFoundLine(queue) is { } more)
+            {
+                <p class="ingestion-status__more">@more</p>
+            }
+            <AppProgressBar Class="ingestion-status__bar"
+                            Value="@IngestionQueueProgressText.BarValue(queue)"
+                            ShowValue="false"
+                            Title="Ingestion progress"
+                            AccentColor="var(--tl-accent-secondary)" />
+            <p class="ingestion-status__line">@IngestionQueueProgressText.StatusLine(queue)</p>
+            if (IngestionQueueProgressText.TimeLine(queue, DateTimeOffset.UtcNow) is { } time)
+            {
+                <p class="ingestion-status__meta">@time</p>
+            }
         }
-    }
+        else if (IngestionQueueProgressText.IsWaiting(queue))
+        {
+            <p class="ingestion-status__line">@IngestionQueueProgressText.WaitingLine(queue)</p>
+            <AppProgressBar Class="ingestion-status__bar is-paused"
+                            Value="@IngestionQueueProgressText.BarValue(queue)"
+                            ShowValue="false"
+                            Label="Paused"
+                            Title="Ingestion is paused"
+                            AccentColor="var(--tl-text-muted)" />
+            <div class="ingestion-status__actions">
+                <AppButton Href="@SettingsNav.RouteFor(SettingsSection.Tools)" Label="Tools and requirements" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" />
+            </div>
+        }
+        else if (IngestionQueueProgressText.LastActivityLine(queue, DateTimeOffset.UtcNow) is { } last)
+        {
+            <p class="ingestion-status__meta">@last</p>
+        }
+    </text>;
 
     protected override async Task OnInitializedAsync()
     {
@@ -260,16 +299,6 @@
     }
 
     private static string AttentionIcon(string kind) => kind switch { "review" => AppMaterialIcons.Outlined.WarningAmber, "textTracks" => AppMaterialIcons.Outlined.Lyrics, _ => AppMaterialIcons.Outlined.CloudQueue };
-    private static string? FormatEta(int? seconds) => seconds switch
-    {
-        null or <= 0 => null,
-        < 60 => "less than a minute left",
-        < 3600 => $"about {(int)Math.Ceiling(seconds.Value / 60d)} min left",
-        _ => $"about {seconds.Value / 3600}h {seconds.Value % 3600 / 60}m left",
-    };
-    private static string FormatDuration(TimeSpan value) => value.TotalHours >= 1 ? $"{(int)value.TotalHours}h {value.Minutes}m" : $"{Math.Max(0, (int)value.TotalMinutes)}m {Math.Max(0, value.Seconds)}s";
-    private static string FormatRelative(DateTimeOffset value) { var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime(); return elapsed.TotalMinutes < 1 ? "Just now" : elapsed.TotalHours < 1 ? $"{(int)elapsed.TotalMinutes} minutes ago" : elapsed.TotalDays < 1 ? $"{(int)elapsed.TotalHours} hours ago" : value.ToLocalTime().ToString("MMM d, yyyy"); }
-
     public async ValueTask DisposeAsync()
     {
         _drawerRevision++;

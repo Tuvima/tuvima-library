@@ -14,14 +14,13 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    color: var(--app-text-primary, #f5f7fb);
+    color: var(--tl-status-success);
     background: transparent;
     cursor: pointer;
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:hover,
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {
-    color: #fff;
     background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
 }
 
@@ -30,18 +29,14 @@
     outline-offset: 2px;
 }
 
-.system-activity-indicator-shell ::deep .system-activity-indicator.is-active {
+/* Two states only: blue while the Library works, green when it is idle. */
+.system-activity-indicator-shell ::deep .system-activity-indicator.is-working {
     --system-activity-glyph: 1.4rem;
-    color: var(--app-text-primary, #f5f7fb);
+    color: var(--tl-accent-secondary);
 }
 
-.system-activity-indicator-shell ::deep .system-activity-indicator.is-playback {
-    color: var(--playback-accent, #ff9657);
-    background: color-mix(in srgb, var(--playback-accent, #ff9657) 14%, transparent);
-}
-
-.system-activity-indicator-shell ::deep .system-activity-indicator.is-warning {
-    color: var(--tl-status-warning, #fbbf24);
+.system-activity-indicator-shell ::deep .system-activity-indicator.is-idle {
+    color: var(--tl-status-success);
 }
 
 .system-activity-indicator__ring,
@@ -84,7 +79,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 999px;
-    background: var(--tl-accent-primary);
+    background: var(--tl-accent-secondary);
     animation: system-activity-dot-pulse 1.8s ease-in-out infinite;
 }
 
@@ -110,8 +105,8 @@
     padding-inline: 0.2rem;
     border: 2px solid var(--app-surface, #1e1f27);
     border-radius: 999px;
-    color: #fff;
-    background: var(--tl-accent-primary);
+    color: var(--app-surface, #1e1f27);
+    background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
     line-height: 1;

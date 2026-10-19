@@ -82,6 +82,7 @@ public sealed class ProfileOverviewReadService(
         using var conn = db.CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
+            -- readiness: a profile's own progress rows; they exist only for items that were played
             SELECT
                 us.asset_id,
                 w.id AS work_id,
@@ -160,7 +161,7 @@ public sealed class ProfileOverviewReadService(
     {
         using var conn = db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             SELECT
                 ma.id AS asset_id,
                 w.id AS work_id,
@@ -194,7 +195,7 @@ public sealed class ProfileOverviewReadService(
             LEFT JOIN collections h ON h.id = w.collection_id
             LEFT JOIN metadata_claims mc ON mc.entity_id IN (ma.id, e.id, w.id, COALESCE(gpw.id, pw.id, w.id))
             WHERE COALESCE(w.ownership, 'Owned') = 'Owned'
-              AND COALESCE(w.is_catalog_only, 0) = 0
+              AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             GROUP BY ma.id, w.id, w.media_type, ma.file_path_root, h.display_name
             ORDER BY added_at DESC
             LIMIT @limit;
@@ -231,7 +232,7 @@ public sealed class ProfileOverviewReadService(
     {
         using var conn = db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             SELECT COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'media_type' LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'media_type' LIMIT 1),
@@ -242,7 +243,7 @@ public sealed class ProfileOverviewReadService(
             JOIN editions e ON e.id = ma.edition_id
             JOIN works w ON w.id = e.work_id
             WHERE COALESCE(w.ownership, 'Owned') = 'Owned'
-              AND COALESCE(w.is_catalog_only, 0) = 0
+              AND {WorkReadinessSql.ReadyWorkPredicate("w")}
             GROUP BY media_type
             ORDER BY total DESC;
             """;

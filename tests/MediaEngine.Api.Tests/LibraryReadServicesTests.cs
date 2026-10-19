@@ -17,6 +17,7 @@ public sealed class LibraryReadServicesTests : IDisposable
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_db);
     }
 
     public void Dispose()
