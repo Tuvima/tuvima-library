@@ -78,7 +78,6 @@
                 </div>
 
                 <footer>
-                    <AppButton Href="@($"/settings/ingestion?runId={Item.BatchId:D}&view=all")" Label="View batch" StartIcon="@AppMaterialIcons.Outlined.ReceiptLong" />
                     @if (!string.IsNullOrWhiteSpace(Item.DetailRoute))
                     {
                         <AppButton Href="@Item.DetailRoute" Label="Open item" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
@@ -167,7 +166,7 @@
         {
             if (IsCurrentLoad(version, ct))
             {
-                Logger.LogWarning(ex, "Could not load ingestion child details for batch {BatchId} and group {GroupId}.", item.BatchId, item.GroupId);
+                Logger.LogWarning(ex, "Could not load ingestion child details for group {GroupId}.", item.GroupId);
                 _children = [];
                 _childrenError = "Child details could not be loaded. Try again.";
             }

@@ -14,10 +14,10 @@
             <AppSpinner Indeterminate="true" Color="AppColor.Warning" />
         </div>
     }
-    else if (_adaptations?.Works.Count > 0)
+    else if (_adaptations?.works.Count > 0)
     {
         <div class="adaptation-tree tl-u-overflow-y-auto tl-u-max-height-500px" >
-            @foreach (var root in _adaptations.Works)
+            @foreach (var root in _adaptations.works)
             {
                 <AdaptationTreeNode Node="@root" Depth="0" />
             }
@@ -35,7 +35,7 @@
     [Parameter] public string UniverseQid { get; set; } = string.Empty;
 
     private bool _loading;
-    private UniverseAdaptationsResponse? _adaptations;
+    private UniverseAdaptationTreeResponse? _adaptations;
 
     protected override async Task OnParametersSetAsync()
     {

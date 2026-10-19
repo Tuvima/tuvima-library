@@ -16,7 +16,7 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed partial class UiShellRenderTests
 {
-    private const string NeedsReviewLink = "a[href='/settings/recently-added?review=expanded']";
+    private const string NeedsReviewLink = "a[href='/settings/review']";
 
     private static DashboardAuthorityResponse ShellAuthority(bool effectiveAdministrator, string[] navigation, string[] actions)
     {

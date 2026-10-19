@@ -56,6 +56,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    ma.id AS AssetId,
                    CAST(w.media_type AS TEXT) AS MediaType,
                    w.ordinal AS Ordinal,
+                   CAST(COALESCE(w.ordinal_sort, w.ordinal) AS REAL) AS OrdinalSort,
+                   CAST(COALESCE(
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'series_position' LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS TEXT) AS SeriesPosition,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
@@ -188,7 +192,7 @@ internal sealed partial class DetailCompositionOrchestrator
                    )
                )
             GROUP BY w.id
-            ORDER BY COALESCE(ci.sort_order, 9999), CAST(NULLIF(Season, '') AS INTEGER), CAST(NULLIF(Episode, '') AS INTEGER), CAST(NULLIF(TrackNumber, '') AS INTEGER), COALESCE(w.ordinal, 9999), Title;
+            ORDER BY COALESCE(ci.sort_order, 9999), CAST(NULLIF(Season, '') AS INTEGER), CAST(NULLIF(Episode, '') AS INTEGER), CAST(NULLIF(TrackNumber, '') AS INTEGER), COALESCE(w.ordinal_sort, w.ordinal, 9999), Title;
             """,
             new
             {
@@ -238,6 +242,8 @@ internal sealed partial class DetailCompositionOrchestrator
             LastAccessed = StringValue(row.LastAccessed),
             PositionSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).PositionSeconds,
             DurationSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).DurationSeconds,
+            OrdinalSort = DoubleValue(row.OrdinalSort),
+            RetailSeriesPosition = StringValue(row.SeriesPosition),
         }).ToList();
 
         // Dynamic collections can include an owned work before its edition and
@@ -522,7 +528,7 @@ internal sealed partial class DetailCompositionOrchestrator
                         WHERE child.parent_work_id = COALESCE(gp.id, p.id, w.id)
                     )
               )
-            ORDER BY COALESCE(w.ordinal, 9999), w.id
+            ORDER BY COALESCE(w.ordinal_sort, w.ordinal, 9999), w.id
             LIMIT 1;
             """,
             new

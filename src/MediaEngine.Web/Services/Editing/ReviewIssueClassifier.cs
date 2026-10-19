@@ -35,6 +35,7 @@ public static class ReviewIssueClassifier
             "StagedUnidentifiable" => new(ReviewIssueBucket.HighPriority, "Item could not be identified", "The file is blocked in staging because there is not enough reliable identity evidence.", true),
             "LanguageMismatch" => new(ReviewIssueBucket.ManualReview, "Language needs confirmation", "The file language conflicts with the configured library language.", false),
             "AmbiguousMediaType" or "RootWatchFolder" => new(ReviewIssueBucket.ManualReview, "Media type is uncertain", "The file could belong to more than one media lane and needs a person to choose.", false),
+            "AmbiguousSeriesMembership" => new(ReviewIssueBucket.ManualReview, "More than one Series claims this", "Wikidata lists this in the main sequence of two Series and nothing says which one it belongs to. It stays off both until you choose.", false),
             "MovieMatchedAsTv" => new(ReviewIssueBucket.ManualReview, "Found as a TV title", "TMDB lists this film as a TV series. Nothing changes until you choose.", false),
             "FromMerge" => new(ReviewIssueBucket.ManualReview, "From merge", "This file came from a folder merge and could not be named yet. It waits in the From merge folder until a person confirms what it is.", false),
             "NameCollision" => new(ReviewIssueBucket.ManualReview, "Two different files want the same name", "Neither file was overwritten. The second one kept a numbered name so you can decide which is which.", false),

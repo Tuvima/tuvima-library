@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0012 approval_records).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0013 approval_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -244,8 +244,8 @@ CREATE TABLE applications (
 
 CREATE TABLE approval_records (
     id                          BLOB NOT NULL PRIMARY KEY,
-    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application_credential | webhook
-    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id or webhook id
+    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application | application_credential | webhook
+    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id, application id or webhook id
     statement_hash              TEXT NOT NULL,   -- SHA-256, lower-case hex, of the canonical statement
     statement_json              TEXT NOT NULL,   -- the statement as shown (title, can-do lines, data out, notes); never a secret value
     approved_by_account_id      BLOB NULL,       -- the account that confirmed; NULL when an application confirmed
@@ -573,7 +573,7 @@ CREATE TABLE collections (
     wikidata_qid      TEXT,
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT);
+, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT);
 
 CREATE TABLE consumption_history (
     id BLOB PRIMARY KEY,
@@ -2164,8 +2164,8 @@ CREATE TABLE search_results_cache (
     searched_at  TEXT NOT NULL
 );
 
-CREATE TABLE series_manifest_hydrations (
-    series_qid            TEXT PRIMARY KEY,
+CREATE TABLE "series_manifest_hydrations" (
+    series_qid            TEXT NOT NULL,
     collection_id         BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     series_label          TEXT,
     manifest_source       TEXT NOT NULL DEFAULT 'Tuvima.Wikidata',
@@ -2176,7 +2176,8 @@ CREATE TABLE series_manifest_hydrations (
     api_metadata_json     TEXT NOT NULL DEFAULT '{}',
     last_hydrated_at      TEXT NOT NULL,
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (collection_id, series_qid)
 );
 
 CREATE TABLE series_manifest_items (
@@ -2707,6 +2708,8 @@ CREATE INDEX idx_collections_resolution ON collections(resolution);
 
 CREATE INDEX idx_collections_rule_hash ON collections(rule_hash);
 
+CREATE INDEX idx_collections_series_identity ON collections(wikidata_qid, media_type);
+
 CREATE INDEX idx_cva_key_qid
     ON canonical_value_arrays(key, value_qid);
 
@@ -3059,8 +3062,7 @@ CREATE INDEX idx_review_queue_status
 CREATE INDEX idx_review_queue_status_entity_ready
     ON review_queue(status, entity_id, review_ready_at);
 
-CREATE INDEX idx_series_manifest_hydrations_collection
-    ON series_manifest_hydrations(collection_id);
+CREATE INDEX idx_series_manifest_hydrations_series_qid ON series_manifest_hydrations(series_qid);
 
 CREATE INDEX idx_series_manifest_items_collection
     ON series_manifest_items(collection_id);

@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
@@ -18,11 +19,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Settings → Recently Added: the pinned Needs Review list reports a failed load instead of an empty queue,
-/// says so when Dismiss or Keep provider match is refused, shows the From merge / Import folder badges, and
-/// sends the Added status filter to the Engine. Only server administrators get the section at all.
+/// Settings → Needs Review: the page reports a failed load instead of an empty queue, says so when Dismiss or
+/// Keep provider match is refused, shows the From merge / Import folder badges, and resolves an item. Only server
+/// administrators get the list at all. Recently Added no longer holds any review markup or request.
 /// </summary>
-public sealed class RecentlyAddedReviewTests : AsyncBunitContext
+public sealed class NeedsReviewPageTests : AsyncBunitContext
 {
     private static readonly Guid FirstId = Guid.Parse("11111111-1111-4111-8111-111111111111");
     private static readonly Guid SecondId = Guid.Parse("22222222-2222-4222-8222-222222222222");
@@ -118,7 +119,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         (cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Status").Instance.Options ?? [])
             .Select(option => option.Value);
 
-    private static void OpenMenuAndClick(IRenderedComponent<RecentlyAddedPageContent> cut, string label)
+    private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string label)
     {
         cut.Find("article.review-row .app-overflow-menu__trigger").Click();
         cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains(label, StringComparison.Ordinal)).Click();
@@ -130,7 +131,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         var failing = true;
         Register(() => failing ? new ReviewListAttempt(null, "The Engine answered 500.") : Loaded(Item(FirstId, "Recovered Book")));
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
 
         cut.WaitForAssertion(() => Assert.Contains("Needs Review could not load. Nothing was changed.", cut.Markup));
         Assert.DoesNotContain("No items need review", cut.Markup);
@@ -149,7 +150,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
     {
         Register(() => Loaded());
 
-        var cut = Render<RecentlyAddedPageContent>();
+        var cut = Render<NeedsReviewPageContent>();
 
         cut.WaitForAssertion(() => Assert.Contains("No items need review", cut.Markup));
         Assert.DoesNotContain("could not load", cut.Markup);
@@ -163,7 +164,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         Register(
             () => Loaded(Item(FirstId, "Stubborn Book"), Item(SecondId, "Other Book")),
             dismiss: () => throws ? Task.FromException<bool>(new InvalidOperationException("boom")) : Task.FromResult(false));
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("article.review-row").Count));
 
         OpenMenuAndClick(cut, "Dismiss from review");
@@ -192,7 +193,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         var registered = Register(
             () => Loaded(Item(FirstId, "Stubborn Book", "MissingQid")),
             skipUniverse: () => throws ? Task.FromException<bool>(new InvalidOperationException("boom")) : Task.FromResult(false));
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
 
         OpenMenuAndClick(cut, "Keep provider match");
@@ -214,7 +215,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         var plain = Item(Guid.Parse("33333333-3333-4333-8333-333333333333"), "Plain Book");
         Register(() => Loaded(merged, imported, plain));
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("article.review-row").Count));
 
         string[] BadgesOf(string title) => cut.FindAll("article.review-row")
@@ -229,7 +230,7 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
     }
 
     [Fact]
-    public void StatusFilter_AllAsksForHistoryWithoutAStatus_AddedAsksForAdded_AndNeedsReviewHidesHistory()
+    public void StatusFilter_AllAsksForHistoryWithoutAStatus_AddedAsksForAdded_AndThereIsNoNeedsReviewOption()
     {
         var registered = Register(() => Loaded());
         var cut = Render<RecentlyAddedPageContent>();
@@ -242,15 +243,11 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal([null, "added"], registered.HistoryStatuses));
         Assert.NotEmpty(cut.FindAll("section.recent-history"));
 
-        cut.InvokeAsync(() => status.Instance.ValueChanged.InvokeAsync("review"));
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("section.recent-history")));
-        Assert.Equal([null, "added", null], registered.HistoryStatuses);
-
         cut.InvokeAsync(() => status.Instance.ValueChanged.InvokeAsync("all"));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
-        Assert.Equal([null, "added", null, null], registered.HistoryStatuses);
+        cut.WaitForAssertion(() => Assert.Equal([null, "added", null], registered.HistoryStatuses));
+        Assert.NotEmpty(cut.FindAll("section.recent-history"));
+        Assert.DoesNotContain(StatusFilterValues(cut), value => value == "review");
     }
 
     [Fact]
@@ -258,13 +255,12 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
     {
         var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
         Assert.Contains("Needs Review", cut.Markup);
         Assert.Contains(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
         Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
-        Assert.Contains(StatusFilterValues(cut), value => value == "review");
     }
 
     [Fact]
@@ -272,10 +268,9 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
     {
         var registered = Register(() => Loaded(Item(FirstId, "Pending Book")), authority: HouseholdAdministrator());
 
-        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        var cut = Render<NeedsReviewPageContent>();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
-        Assert.DoesNotContain("Needs Review", cut.Markup);
+        cut.WaitForAssertion(() => Assert.Contains("server administrators", cut.Markup));
         Assert.DoesNotContain("No items need review", cut.Markup);
         Assert.DoesNotContain("could not load", cut.Markup);
         Assert.Empty(cut.FindAll("article.review-row"));
@@ -283,8 +278,48 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), registered.EngineCalls);
         Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+    }
+
+    [Fact]
+    public void Dismiss_WhenTheEngineAccepts_CallsTheEngineAndTheRowLeavesTheList()
+    {
+        var registered = Register(() => Loaded(Item(FirstId, "Resolved Book"), Item(SecondId, "Other Book")));
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("article.review-row").Count));
+
+        OpenMenuAndClick(cut, "Dismiss from review");
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        Assert.Single(registered.Dismissed);
+        Assert.Empty(Toasts);
+    }
+
+    [Fact]
+    public void NeedsReviewPage_SearchNarrowsTheList_AndStartsFromTheQueryText()
+    {
+        Register(() => Loaded(Item(FirstId, "Dune"), Item(SecondId, "Emma")));
+
+        var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.InitialSearch, "dune"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        Assert.Contains("Dune", cut.Markup);
+        Assert.DoesNotContain("Emma", cut.Markup);
+    }
+
+    [Fact]
+    public void RecentlyAdded_ForAServerAdministrator_HasNoReviewMarkup_AndRequestsNoReviewList()
+    {
+        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
+
+        var cut = Render<RecentlyAddedPageContent>();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
+        Assert.Empty(cut.FindAll(".review-pinned"));
+        Assert.Empty(cut.FindAll("article.review-row"));
+        Assert.DoesNotContain("No items need review", cut.Markup);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), registered.EngineCalls);
         Assert.DoesNotContain(StatusFilterValues(cut), value => value == "review");
-        Assert.Contains(nameof(IEngineApiClient.GetRecentIngestionAdditionsAsync), registered.EngineCalls);
     }
 
     [Fact]

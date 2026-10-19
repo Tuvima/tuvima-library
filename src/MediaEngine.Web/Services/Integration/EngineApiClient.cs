@@ -518,12 +518,12 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<LoreDeltaResultDto>> CheckLoreDeltaAsync(
+    public async Task<IReadOnlyList<UniverseLoreDeltaResponse>> CheckLoreDeltaAsync(
         string qid, CancellationToken ct = default)
     {
         try
         {
-            var raw = await _http.GetFromJsonAsync<List<LoreDeltaResultDto>>(
+            var raw = await _http.GetFromJsonAsync<List<UniverseLoreDeltaResponse>>(
                 $"universe/{Uri.EscapeDataString(qid)}/lore-delta", ct);
             return raw ?? [];
         }
@@ -536,12 +536,12 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<UniverseLoreSourceViewModel>> GetUniverseLoreSourcesAsync(
+    public async Task<IReadOnlyList<UniverseLoreSourceResponse>> GetUniverseLoreSourcesAsync(
         string qid, CancellationToken ct = default)
     {
         try
         {
-            return await _http.GetFromJsonAsync<List<UniverseLoreSourceViewModel>>(
+            return await _http.GetFromJsonAsync<List<UniverseLoreSourceResponse>>(
                 $"universe/{Uri.EscapeDataString(qid)}/lore-sources", ct) ?? [];
         }
         catch (OperationCanceledException) { return []; }
@@ -553,7 +553,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<UniverseLoreSourceViewModel>> DiscoverUniverseLoreSourcesAsync(
+    public async Task<IReadOnlyList<UniverseLoreSourceResponse>> DiscoverUniverseLoreSourcesAsync(
         string qid, CancellationToken ct = default)
     {
         try
@@ -565,7 +565,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 return [];
             }
 
-            return await response.Content.ReadFromJsonAsync<List<UniverseLoreSourceViewModel>>(cancellationToken: ct) ?? [];
+            return await response.Content.ReadFromJsonAsync<List<UniverseLoreSourceResponse>>(cancellationToken: ct) ?? [];
         }
         catch (OperationCanceledException) { return []; }
         catch (Exception ex)
@@ -576,7 +576,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<UniverseLoreSourceViewModel?> AddUniverseLoreSourceAsync(
+    public async Task<UniverseLoreSourceResponse?> AddUniverseLoreSourceAsync(
         string qid, UniverseLoreManualSourceRequest request, CancellationToken ct = default)
     {
         try
@@ -588,7 +588,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 return null;
             }
 
-            return await response.Content.ReadFromJsonAsync<UniverseLoreSourceViewModel>(cancellationToken: ct);
+            return await response.Content.ReadFromJsonAsync<UniverseLoreSourceResponse>(cancellationToken: ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
@@ -599,15 +599,15 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public Task<IReadOnlyList<UniverseLoreSourceViewModel>> ApproveUniverseLoreSourceAsync(
+    public Task<IReadOnlyList<UniverseLoreSourceResponse>> ApproveUniverseLoreSourceAsync(
         string qid, Guid sourceId, CancellationToken ct = default) =>
         SetUniverseLoreSourceStatusAsync(qid, sourceId, "approve", ct);
 
-    public Task<IReadOnlyList<UniverseLoreSourceViewModel>> RejectUniverseLoreSourceAsync(
+    public Task<IReadOnlyList<UniverseLoreSourceResponse>> RejectUniverseLoreSourceAsync(
         string qid, Guid sourceId, CancellationToken ct = default) =>
         SetUniverseLoreSourceStatusAsync(qid, sourceId, "reject", ct);
 
-    public async Task<UniverseLoreEnrichmentSummaryViewModel?> EnrichUniverseLoreAsync(
+    public async Task<UniverseLoreEnrichResponse?> EnrichUniverseLoreAsync(
         string qid, CancellationToken ct = default)
     {
         try
@@ -619,7 +619,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 return null;
             }
 
-            return await response.Content.ReadFromJsonAsync<UniverseLoreEnrichmentSummaryViewModel>(cancellationToken: ct);
+            return await response.Content.ReadFromJsonAsync<UniverseLoreEnrichResponse>(cancellationToken: ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
@@ -630,7 +630,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    private async Task<IReadOnlyList<UniverseLoreSourceViewModel>> SetUniverseLoreSourceStatusAsync(
+    private async Task<IReadOnlyList<UniverseLoreSourceResponse>> SetUniverseLoreSourceStatusAsync(
         string qid,
         Guid sourceId,
         string statusAction,
@@ -645,7 +645,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
                 return [];
             }
 
-            return await response.Content.ReadFromJsonAsync<List<UniverseLoreSourceViewModel>>(cancellationToken: ct) ?? [];
+            return await response.Content.ReadFromJsonAsync<List<UniverseLoreSourceResponse>>(cancellationToken: ct) ?? [];
         }
         catch (OperationCanceledException) { return []; }
         catch (Exception ex)
@@ -674,11 +674,11 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<UniverseAdaptationsResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default)
+    public async Task<UniverseAdaptationTreeResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default)
     {
         try
         {
-            return await _http.GetFromJsonAsync<UniverseAdaptationsResponse>(
+            return await _http.GetFromJsonAsync<UniverseAdaptationTreeResponse>(
                 $"universe/{Uri.EscapeDataString(qid)}/adaptations", ct);
         }
         catch (OperationCanceledException) { return null; }
@@ -710,7 +710,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<FamilyTreeResponse?> GetFamilyTreeAsync(
+    public async Task<UniverseFamilyTreeResponse?> GetFamilyTreeAsync(
         string qid, string characterQid, int generations = 3, CancellationToken ct = default)
     {
         try
@@ -718,7 +718,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             var url = $"universe/{Uri.EscapeDataString(qid)}/family-tree" +
                       $"?character={Uri.EscapeDataString(characterQid)}" +
                       $"&generations={generations}";
-            return await _http.GetFromJsonAsync<FamilyTreeResponse>(url, ct);
+            return await _http.GetFromJsonAsync<UniverseFamilyTreeResponse>(url, ct);
         }
         catch (OperationCanceledException) { return null; }
         catch (Exception ex)
