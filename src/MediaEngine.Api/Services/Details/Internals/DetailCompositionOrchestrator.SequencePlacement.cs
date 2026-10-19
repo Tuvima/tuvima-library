@@ -382,9 +382,11 @@ internal sealed partial class DetailCompositionOrchestrator
                 or DetailEntityType.MovieSeries or DetailEntityType.TvShow
                     ? detail.Description
                     : null);
-        var currentIsAlsoInThisWorld = alsoInThisWorld.Any(item => item.IsCurrent);
-        var navigation = currentIsAlsoInThisWorld ? alsoInThisWorld : items;
-        var currentIndex = Math.Max(0, navigation.FindIndex(i => i.IsCurrent));
+        if (ResolveSequenceNavigation(items, alsoInThisWorld) is not var (navigation, currentIndex, currentIsAlsoInThisWorld))
+        {
+            return null;
+        }
+
         var current = navigation[currentIndex];
         var mainSequenceItemCount = allItems.Count(item =>
             string.IsNullOrWhiteSpace(item.MembershipScope)

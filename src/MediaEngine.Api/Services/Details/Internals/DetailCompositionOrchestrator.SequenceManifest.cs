@@ -43,7 +43,8 @@ internal sealed partial class DetailCompositionOrchestrator
             return items.ToList();
         }
 
-        var manifestItems = await LoadManifestItemsForSequenceContainerAsync(normalizedContainerId, ct);
+        var mediaType = SeriesMediaTypeName(entityType);
+        var manifestItems = await LoadManifestItemsForSequenceContainerAsync(normalizedContainerId, mediaType, ct);
         var exactManifestItems = manifestItems
             .Where(item => SequenceContainerIdEquals(item.SeriesQid, normalizedContainerId))
             .ToList();
@@ -95,9 +96,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    membership_scope AS MembershipScope
             FROM series_manifest_items
             WHERE series_qid = @seriesQid
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { seriesQid = normalizedContainerId },
+            new { seriesQid = normalizedContainerId, mediaType = SeriesMediaTypeName(entityType) },
             cancellationToken: ct));
 
         var updated = items.ToList();
@@ -209,6 +211,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private async Task<IReadOnlyList<SeriesManifestItemRecord>> LoadManifestItemsForSequenceContainerAsync(
         string containerId,
+        string? mediaType,
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
@@ -246,9 +249,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE series_qid = @containerId
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId },
+            new { containerId, mediaType },
             cancellationToken: ct));
         var exactItems = exactRows.Select(row => row.ToEntity()).ToList();
         if (exactItems.Count > 0)
@@ -256,7 +260,9 @@ internal sealed partial class DetailCompositionOrchestrator
             return exactItems;
         }
 
-        var seriesItems = await _seriesManifests.GetItemsBySeriesQidAsync(containerId, ct);
+        var seriesItems = mediaType is null
+            ? await _seriesManifests.GetItemsBySeriesQidAsync(containerId, ct)
+            : await _seriesManifests.GetItemsBySeriesQidAsync(containerId, mediaType, ct);
         if (seriesItems.Count > 0)
         {
             return seriesItems;
@@ -296,9 +302,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE parent_collection_qid = @containerId
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId },
+            new { containerId, mediaType },
             cancellationToken: ct));
 
         return rows.Select(row => row.ToEntity()).ToList();

@@ -86,15 +86,20 @@ on the same shelf. Precedence:
 
 1. A hydrated Wikidata Series manifest that lists the work (any scope) decides
    the Series, with the scope the manifest gives it.
-2. Otherwise a parent-collection manifest that lists the work (for example
-   Memory's Legion, stored with `parentCollectionHydration: true`) places it in
-   the Series whose manifest lists that parent, as `CollectedContent`. The parent
-   collection never becomes a shelf for those works.
+2. Otherwise a parent-collection manifest that lists the work places it in the
+   Series whose manifest lists that parent, as `CollectedContent`. A collection
+   is a parent (for example Memory's Legion) when another Series manifest of the
+   same media type lists its QID as a collection item; this is read from the
+   data every time, never from a flag. The parent collection never becomes a
+   shelf for those works, and manifest linking moves them to the listing Series
+   without waiting for a later assignment run.
 3. A Series of another media type is never a candidate. If two Series of the
-   work's own media type remain with the same strongest scope, the work is
-   ambiguous: it is left on no Series and a Needs Review item
+   work's own media type both list it in the main sequence, the work is
+   ambiguous: it is left on no Series and one Needs Review item
    (`AmbiguousSeriesMembership`, category Metadata Conflicts) names the competing
-   Series. Nothing is guessed.
+   Series; assignment and manifest linking raise the same item. Nothing is
+   guessed. A tie at any other scope is not ambiguous: the Series the work's own
+   `series_qid` claim names wins, else the lowest QID.
 4. With no Wikidata manifest, a retail provider's own manifest, then the retail
    identity (provider key, then label plus media type), as `MainSequence`.
 

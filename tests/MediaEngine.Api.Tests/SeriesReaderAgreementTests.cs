@@ -119,6 +119,77 @@ public sealed class SeriesReaderAgreementTests : IDisposable
         Assert.All(also, item => Assert.NotEqual(SeriesMembershipScopeNames.MainSequence, item.MembershipScope));
     }
 
+    [Fact]
+    public void WhenEveryMemberIsInAlsoInThisWorldAndNoneIsCurrent_NavigationStillResolves_AndAnEmptyPageResolvesToNothing()
+    {
+        var also = new List<SequenceItemViewModel>
+        {
+            new() { Id = "a", Title = "A", MembershipScope = SeriesMembershipScopeNames.Supplementary },
+            new() { Id = "b", Title = "B", MembershipScope = SeriesMembershipScopeNames.CollectedContent },
+        };
+
+        var resolved = Assert.IsType<(List<SequenceItemViewModel>, int, bool)>(
+            InvokeNullable("ResolveSequenceNavigation", new List<SequenceItemViewModel>(), also));
+        Assert.Equal(0, resolved.Item2);
+        Assert.True(resolved.Item3);
+        Assert.Equal("A", resolved.Item1[0].Title);
+
+        var current = Assert.IsType<(List<SequenceItemViewModel>, int, bool)>(
+            InvokeNullable("ResolveSequenceNavigation", new List<SequenceItemViewModel>(), new List<SequenceItemViewModel>
+            {
+                new() { Id = "x", Title = "X", MembershipScope = SeriesMembershipScopeNames.Supplementary },
+                new() { Id = "y", Title = "Y", MembershipScope = SeriesMembershipScopeNames.Supplementary, IsCurrent = true },
+            }));
+        Assert.Equal(1, current.Item2);
+
+        var nothing = InvokeNullable("ResolveSequenceNavigation", new List<SequenceItemViewModel>(), new List<SequenceItemViewModel>());
+        Assert.Null(nothing);
+    }
+
+    [Fact]
+    public void AnUnpositionedMemberWithARetailPosition_ShowsAfterTheNumberedRunWithoutANumber()
+    {
+        var items = new List<SequenceItemViewModel>
+        {
+            new() { Id = "u", Title = "Unpositioned", MembershipScope = SeriesMembershipScopeNames.Unpositioned, PositionLabel = "0.5", PositionSort = 0.5 },
+            new() { Id = "n", Title = "Numbered", MembershipScope = SeriesMembershipScopeNames.MainSequence, PositionLabel = "9", PositionSort = 9, PositionNumber = 9 },
+        };
+
+        var (run, also) = InvokeStatic<(List<SequenceItemViewModel>, List<SequenceItemViewModel>)>("SplitSeriesRun", items);
+
+        Assert.Empty(also);
+        Assert.Equal(["Numbered", "Unpositioned"], run.Select(item => item.Title));
+        Assert.Null(run[1].PositionLabel);
+        Assert.Null(run[1].PositionSort);
+    }
+
+    [Theory]
+    [InlineData(DetailEntityType.Book, "Books")]
+    [InlineData(DetailEntityType.BookSeries, "Books")]
+    [InlineData(DetailEntityType.Audiobook, "Audiobooks")]
+    [InlineData(DetailEntityType.ComicIssue, "Comics")]
+    [InlineData(DetailEntityType.MovieSeries, "Movies")]
+    [InlineData(DetailEntityType.TvEpisode, "TV")]
+    [InlineData(DetailEntityType.MusicAlbum, null)]
+    public void TheItemPageReadsManifestRowsFromTheShelfOfTheMediaItShows(DetailEntityType entityType, string? expected)
+    {
+        var method = typeof(DetailComposerService).Assembly
+            .GetType("MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator", throwOnError: true)!
+            .GetMethod("SeriesMediaTypeName", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        Assert.Equal(expected, (string?)method.Invoke(null, [entityType]));
+    }
+
+    [Fact]
+    public void TheNativeUniversePath_ReadsEveryMemberShelfsManifestRowsInOneCall()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "MediaEngine.Api", "Services", "ReadServices", "UniverseClientReadService.cs"));
+
+        Assert.Contains("GetLinkedItemsByCollectionIdsAsync", source);
+        Assert.DoesNotContain("GetViewByCollectionIdAsync", source);
+    }
+
     // ----------------------------------------------------------------------------------------------------------------
     // The three readers
     // ----------------------------------------------------------------------------------------------------------------
@@ -141,7 +212,7 @@ public sealed class SeriesReaderAgreementTests : IDisposable
 
         // Request the works in a scrambled order: the Series ordering, not the request order, decides.
         var scrambled = workIds.OrderBy(id => id).ToList();
-        var task = (Task<List<CollectionItemDto>>)method!.Invoke(service, [collectionId, scrambled, false, null, CancellationToken.None])!;
+        var task = (Task<List<CollectionItemDto>>)method!.Invoke(service, [collectionId, scrambled, false, true, null, CancellationToken.None])!;
         return await task;
     }
 
@@ -382,6 +453,26 @@ public sealed class SeriesReaderAgreementTests : IDisposable
         }
 
         return list;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+
+    private static object? InvokeNullable(string name, params object?[] args)
+    {
+        var orchestrator = typeof(DetailComposerService).Assembly.GetType(
+            "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator", throwOnError: true)!;
+        var method = orchestrator.GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+        return method!.Invoke(null, args);
     }
 
     private static T InvokeStatic<T>(string name, params object?[] args)

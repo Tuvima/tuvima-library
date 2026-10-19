@@ -91,10 +91,15 @@ public sealed record SeriesPlacementCandidate(Guid CollectionId, string SeriesQi
 /// <param name="WorkMediaType">The Work's media type (a <c>MediaType</c> name such as Books or Audiobooks).</param>
 /// <param name="Memberships">Every stored manifest row that names the Work.</param>
 /// <param name="Retail">The retail or provider identity from the Work's claims, when there is one.</param>
+/// <param name="ClaimedSeriesQid">The Series QID the Work's own <c>series_qid</c> claim names; it breaks a tie that is not at main sequence.</param>
 public sealed record SeriesPlacementInput(
     string WorkMediaType,
     IReadOnlyList<SeriesManifestMembership> Memberships,
-    SeriesShelfIdentity? Retail);
+    SeriesShelfIdentity? Retail,
+    string? ClaimedSeriesQid = null);
+
+/// <summary>A work that two or more Series claim equally as main sequence, found while linking manifest rows.</summary>
+public sealed record AmbiguousSeriesPlacement(Guid WorkId, IReadOnlyList<SeriesPlacementCandidate> Candidates);
 
 /// <summary>
 /// The one rule that says which Series a Work belongs to. Collection assignment and manifest linking both call it, so
@@ -105,8 +110,10 @@ public sealed record SeriesPlacementInput(
 /// (b) otherwise a parent-collection manifest that lists the Work, placing it in the Series whose manifest lists that
 ///     parent, as <see cref="SeriesMembershipScopeNames.CollectedContent"/> (the parent never becomes a shelf for it);
 /// (c) a Series of another media type is never a candidate. If several Series of the Work's own media type remain, the
-///     strongest scope wins (main sequence over supplementary over collected over broader over unpositioned); if two
-///     Series are still tied, the Work is ambiguous and is not guessed into either;
+///     strongest scope wins (main sequence over supplementary over collected over broader over unpositioned). A tie at
+///     main sequence makes the Work ambiguous: it is not guessed into either Series. A tie at any other scope is not
+///     ambiguous: the Series the Work's own <c>series_qid</c> claim names wins, else the lowest QID (ordinal
+///     comparison), so every caller picks the same one;
 /// (d) with no Wikidata manifest, a retail provider's own manifest, then the retail identity (provider key, then
 ///     label plus media type), as main sequence.
 /// </summary>
@@ -143,7 +150,7 @@ public static class SeriesPlacementRule
 
         if (targets.Count > 0)
         {
-            return DecideAmong(targets, basis);
+            return DecideAmong(targets, basis, input.ClaimedSeriesQid);
         }
 
         var providerShelves = eligible
@@ -203,7 +210,8 @@ public static class SeriesPlacementRule
 
     private static SeriesPlacementDecision DecideAmong(
         IReadOnlyList<SeriesPlacementCandidate> targets,
-        SeriesPlacementBasis basis)
+        SeriesPlacementBasis basis,
+        string? claimedSeriesQid)
     {
         // The same Series reached twice (two manifest rows, or a parent listed in two rows) counts once, at its
         // strongest scope.
@@ -214,9 +222,13 @@ public static class SeriesPlacementRule
 
         var best = collapsed.Min(t => ScopeRank(t.Scope));
         var top = collapsed.Where(t => ScopeRank(t.Scope) == best).ToList();
-        if (top.Count == 1)
+        if (top.Count == 1 || best != 0)
         {
-            var winner = top[0];
+            var winner = top.Count == 1
+                ? top[0]
+                : top.FirstOrDefault(t => !string.IsNullOrWhiteSpace(claimedSeriesQid)
+                        && string.Equals(t.SeriesQid, claimedSeriesQid.Trim(), StringComparison.OrdinalIgnoreCase))
+                  ?? top.OrderBy(t => t.SeriesQid, StringComparer.Ordinal).ThenBy(t => t.CollectionId).First();
             return new SeriesPlacementDecision(
                 SeriesPlacementKind.Placed,
                 basis,
@@ -236,7 +248,7 @@ public static class SeriesPlacementRule
             null,
             SeriesMembershipScopeNames.MainSequence,
             top.OrderBy(t => t.SeriesQid, StringComparer.OrdinalIgnoreCase).ToList(),
-            $"{top.Count} Series of the work's media type list it as {top[0].Scope} and nothing separates them");
+            $"{top.Count} Series of the work's media type list it as main sequence and nothing separates them");
     }
 
     private static string NormalizeScope(string? scope)

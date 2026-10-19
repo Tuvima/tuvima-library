@@ -141,13 +141,13 @@ public sealed class SeriesIdentityTests : IDisposable
 
         if (parentFirst)
         {
-            await UpsertAndLinkParentAsync(parent, MemorysLegion, now, parentItems);
+            await UpsertAndLinkAsync(parent, MemorysLegion, now, parentItems);
             await UpsertAndLinkAsync(series, Expanse, now, seriesItems);
         }
         else
         {
             await UpsertAndLinkAsync(series, Expanse, now, seriesItems);
-            await UpsertAndLinkParentAsync(parent, MemorysLegion, now, parentItems);
+            await UpsertAndLinkAsync(parent, MemorysLegion, now, parentItems);
         }
 
         Assert.Equal(series, await ShelfOfAsync(leviathan));
@@ -158,27 +158,127 @@ public sealed class SeriesIdentityTests : IDisposable
     }
 
     [Fact]
-    public async Task ParentCollectionHydratedFirst_ThenAListingSeries_PlacesTheWorkWithoutAnyAssignmentRun()
+    public async Task AParentCollectionsWork_IsMovedToTheListingSeries_ByLinkingAlone()
     {
-        // The Gods of Risk case: the parent manifest alone names the work, and the Series that lists it arrives later.
+        // The Gods of Risk case: only the parent's manifest names the work; the Series that lists the parent arrives
+        // later and lists the collection itself, with no row for the work. No assignment run happens in between.
         var series = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
         var parent = await CreateSeriesAsync(MemorysLegion, "Memory's Legion", "Books");
         var godsOfRisk = await CreateWorkAsync("QGodsOfRisk", "Books");
         var now = DateTimeOffset.UtcNow;
 
-        await UpsertAndLinkParentAsync(parent, MemorysLegion, now,
+        await UpsertAndLinkAsync(parent, MemorysLegion, now,
             Item(parent, MemorysLegion, "QGodsOfRisk", "Gods of Risk", "Books", linked: godsOfRisk, parsed: 3));
-        Assert.Null(await ShelfOfAsync(godsOfRisk));
+        Assert.Equal(parent, await ShelfOfAsync(godsOfRisk));
 
-        // The Series lists the parent as a collection item only (no expanded row for the work yet).
         await UpsertAndLinkAsync(series, Expanse, now,
             Item(series, Expanse, MemorysLegion, "Memory's Legion", "Books", isCollection: true, scope: SeriesMembershipScopeNames.CollectedContent));
-        var memberships = await _manifests.GetMembershipsForWorkAsync(godsOfRisk);
-        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput("Books", memberships, null));
 
-        Assert.Equal(SeriesPlacementKind.Placed, decision.Kind);
+        Assert.Equal(series, await ShelfOfAsync(godsOfRisk));
+        Assert.Equal(1, await CountItemsAsync(series));
+        Assert.Equal(0, await CountItemsAsync(parent));
+        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput("Books", await _manifests.GetMembershipsForWorkAsync(godsOfRisk), null));
         Assert.Equal(series, decision.ShelfCollectionId);
         Assert.Equal(SeriesMembershipScopeNames.CollectedContent, decision.Scope);
+
+        // Linking again changes nothing.
+        await _manifests.LinkOwnedWorksAsync(series, [Item(series, Expanse, MemorysLegion, "Memory's Legion", "Books", isCollection: true, scope: SeriesMembershipScopeNames.CollectedContent)]);
+        Assert.Equal(series, await ShelfOfAsync(godsOfRisk));
+        Assert.Equal(1, await CountItemsAsync(series));
+    }
+
+    [Fact]
+    public async Task AParentCollectionIsReadFromTheData_NotFromAnyFlagOnItsHydration()
+    {
+        var series = await CreateSeriesAsync(Expanse, "The Expanse", "Books");
+        var parent = await CreateSeriesAsync(MemorysLegion, "Memory's Legion", "Books");
+        var gods = await CreateWorkAsync("QGodsOfRisk", "Books");
+        var now = DateTimeOffset.UtcNow;
+
+        // Whichever way the parent's own hydration was written (an ordinary Series hydration here), it is a parent as
+        // soon as another Series manifest of the same media type lists its QID as a collection item.
+        await UpsertAndLinkAsync(parent, MemorysLegion, now, Item(parent, MemorysLegion, "QGodsOfRisk", "Gods of Risk", "Books", linked: gods, parsed: 3));
+        await UpsertAndLinkAsync(series, Expanse, now,
+            Item(series, Expanse, MemorysLegion, "Memory's Legion", "Books", isCollection: true),
+            Item(series, Expanse, "QGodsOfRisk", "Gods of Risk", "Books", linked: gods, scope: SeriesMembershipScopeNames.CollectedContent, expandedFrom: MemorysLegion));
+
+        var memberships = await _manifests.GetMembershipsForWorkAsync(gods);
+
+        Assert.Contains(memberships, m => m.CollectionId == parent && m.Origin == SeriesMembershipOrigin.WikidataParentCollection);
+        Assert.Contains(memberships, m => m.CollectionId == series && m.Origin == SeriesMembershipOrigin.WikidataSeries);
+        Assert.Equal(series, await ShelfOfAsync(gods));
+    }
+
+    [Fact]
+    public async Task ASeriesListingOfADifferentMediaType_DoesNotMakeTheParentAParent()
+    {
+        var audiobookSeries = await CreateSeriesAsync(Expanse, "The Expanse", "Audiobooks");
+        var parent = await CreateSeriesAsync(MemorysLegion, "Memory's Legion", "Books");
+        var gods = await CreateWorkAsync("QGodsOfRisk", "Books");
+        var now = DateTimeOffset.UtcNow;
+
+        await UpsertAndLinkAsync(parent, MemorysLegion, now, Item(parent, MemorysLegion, "QGodsOfRisk", "Gods of Risk", "Books", linked: gods, parsed: 3));
+        await UpsertAndLinkAsync(audiobookSeries, Expanse, now,
+            Item(audiobookSeries, Expanse, MemorysLegion, "Memory's Legion", "Audiobooks", isCollection: true));
+
+        Assert.Equal(parent, await ShelfOfAsync(gods));
+    }
+
+    [Fact]
+    public async Task ReLinkingAWorkTwoSeriesNowClaimAsMainSequence_ReturnsItSoAReviewCanBeRaised()
+    {
+        var one = await CreateSeriesAsync("QOne", "Series One", "Books");
+        var two = await CreateSeriesAsync("QTwo", "Series Two", "Books");
+        var work = await CreateWorkAsync("QWork", "Books");
+        var now = DateTimeOffset.UtcNow;
+
+        var first = await UpsertAndLinkAsync(one, "QOne", now, Item(one, "QOne", "QWork", "Shared Work", "Books", linked: work, parsed: 1));
+        var second = await UpsertAndLinkAsync(two, "QTwo", now, Item(two, "QTwo", "QWork", "Shared Work", "Books", linked: work, parsed: 4));
+
+        Assert.Empty(first);
+        var ambiguous = Assert.Single(second);
+        Assert.Equal(work, ambiguous.WorkId);
+        Assert.Equal(["QOne", "QTwo"], ambiguous.Candidates.Select(c => c.SeriesQid).Order().ToArray());
+        Assert.Null(await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task ATieBelowMainSequence_IsNotAmbiguous_AndTheSeriesTheWorkClaimsWins()
+    {
+        var one = await CreateSeriesAsync("QOne", "Series One", "Books");
+        var two = await CreateSeriesAsync("QTwo", "Series Two", "Books");
+        var work = await CreateWorkAsync("QWork", "Books");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'series_qid', 'QTwo::Series Two', @now);",
+                new { work, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        await UpsertAndLinkAsync(one, "QOne", now, Item(one, "QOne", "QWork", "Shared Work", "Books", linked: work, scope: SeriesMembershipScopeNames.Supplementary));
+        var result = await UpsertAndLinkAsync(two, "QTwo", now, Item(two, "QTwo", "QWork", "Shared Work", "Books", linked: work, scope: SeriesMembershipScopeNames.Supplementary));
+
+        Assert.Empty(result);
+        Assert.Equal(two, await ShelfOfAsync(work));
+    }
+
+    [Fact]
+    public async Task GetLinkedItemsByCollectionIds_ReadsManyShelvesInOneCall()
+    {
+        var one = await CreateSeriesAsync("QOne", "Series One", "Books");
+        var two = await CreateSeriesAsync("QTwo", "Series Two", "Books");
+        var a = await CreateWorkAsync("QA", "Books");
+        var b = await CreateWorkAsync("QB", "Books");
+        var now = DateTimeOffset.UtcNow;
+        await UpsertAndLinkAsync(one, "QOne", now, Item(one, "QOne", "QA", "A", "Books", linked: a, parsed: 1), Item(one, "QOne", "QMissing", "Missing", "Books"));
+        await UpsertAndLinkAsync(two, "QTwo", now, Item(two, "QTwo", "QB", "B", "Books", linked: b, parsed: 2));
+
+        var rows = await _manifests.GetLinkedItemsByCollectionIdsAsync([one, two]);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, row => row.CollectionId == one && row.LinkedWorkId == a);
+        Assert.Contains(rows, row => row.CollectionId == two && row.LinkedWorkId == b);
     }
 
     [Fact]
@@ -280,22 +380,14 @@ public sealed class SeriesIdentityTests : IDisposable
         return Task.FromResult(id);
     }
 
-    private Task UpsertAndLinkAsync(
+    private async Task<IReadOnlyList<AmbiguousSeriesPlacement>> UpsertAndLinkAsync(
         Guid collectionId,
         string seriesQid,
         DateTimeOffset now,
         params SeriesManifestItemRecord[] items)
-        => HydrateAsync(collectionId, seriesQid, now, "{}", items);
+        => await HydrateAsync(collectionId, seriesQid, now, "{}", items);
 
-    /// <summary>Stores the manifest the way the hydration service stores a parent collection reached from a Series.</summary>
-    private Task UpsertAndLinkParentAsync(
-        Guid collectionId,
-        string seriesQid,
-        DateTimeOffset now,
-        params SeriesManifestItemRecord[] items)
-        => HydrateAsync(collectionId, seriesQid, now, """{"parentCollectionHydration":true,"sourceSeriesQid":"QExpanse"}""", items);
-
-    private async Task HydrateAsync(
+    private async Task<IReadOnlyList<AmbiguousSeriesPlacement>> HydrateAsync(
         Guid collectionId,
         string seriesQid,
         DateTimeOffset now,
@@ -315,7 +407,7 @@ public sealed class SeriesIdentityTests : IDisposable
                 UpdatedAt = now,
             },
             items);
-        await _manifests.LinkOwnedWorksAsync(collectionId, items);
+        return await _manifests.LinkOwnedWorksAsync(collectionId, items);
     }
 
     private static SeriesManifestItemRecord Item(

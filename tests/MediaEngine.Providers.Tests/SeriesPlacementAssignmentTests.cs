@@ -29,6 +29,7 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
     private readonly SeriesManifestRepository _manifests;
     private readonly ReviewQueueRepository _reviews;
     private readonly CollectionAssignmentService _assignment;
+    private readonly WikidataSeriesManifestHydrationService _hydration;
     private readonly Dictionary<string, Library> _works = new();
 
     private sealed record Library(Guid WorkId, Guid AssetId);
@@ -51,6 +52,11 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
             new SilentEventPublisher(),
             canonicals,
             NullLogger<StageOutcomeFactory>.Instance);
+        var reviewer = new SeriesAmbiguityReviewer(
+            outcomes,
+            _collections,
+            NullLogger<SeriesAmbiguityReviewer>.Instance,
+            new MediaAssetRepository(_db));
         _assignment = new CollectionAssignmentService(
             _collections,
             canonicals,
@@ -58,7 +64,16 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
             NullLogger<CollectionAssignmentService>.Instance,
             new CanonicalValueArrayRepository(_db),
             _manifests,
-            outcomes);
+            reviewer);
+
+        // Only the linking half of hydration is exercised here, so the Wikidata client and configuration stay unused.
+        _hydration = new WikidataSeriesManifestHydrationService(
+            null!,
+            _manifests,
+            _collections,
+            null!,
+            NullLogger<WikidataSeriesManifestHydrationService>.Instance,
+            reviewer);
     }
 
     public void Dispose()
@@ -120,6 +135,65 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
         Assert.Equal("Audiobooks", audiobookSeries.MediaType);
         Assert.Equal("TV", tvSeries.MediaType);
         Assert.Equal("Books", bookSeries.MediaType);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MemorysLegionHydratedAsAnOrdinarySeries_NeverKeepsTheNovellas_InEitherHydrationOrder(bool memorysLegionFirst)
+    {
+        // Gods of Risk's own claim names Memory's Legion, so Memory's Legion is hydrated as an ordinary Series (no flag
+        // marks it a parent). The Expanse lists it as a collection, and that alone makes it a parent.
+        SeedExpanseLibrary();
+        await AssignEverythingAsync();
+
+        await HydrateExpanseManifestsAsync(memorysLegionFirst);
+        await AssignEverythingAsync();
+        await AssignEverythingAsync();
+
+        var bookSeries = (await _collections.FindSeriesShelfAsync(Expanse, "Books"))!;
+        foreach (var title in new[] { "The Churn", "Gods of Risk", "The Vital Abyss" })
+        {
+            Assert.Equal(bookSeries.Id, await ShelfOfAsync(title));
+        }
+
+        var memorysLegion = (await _collections.FindSeriesShelfAsync(MemorysLegion, "Books"))!;
+        Assert.Equal(0, await CountWorksOnShelfAsync(memorysLegion.Id));
+
+        // They sit in "Also in this world": the Expanse's manifest holds each as collected content.
+        var memberships = await _manifests.GetMembershipsForWorkAsync(_works["Gods of Risk"].WorkId);
+        var decision = MediaEngine.Domain.Services.SeriesPlacementRule.Decide(
+            new MediaEngine.Domain.Services.SeriesPlacementInput("Books", memberships, null));
+        Assert.Equal(bookSeries.Id, decision.ShelfCollectionId);
+        Assert.Equal(SeriesMembershipScopeNames.CollectedContent, decision.Scope);
+    }
+
+    [Fact]
+    public async Task HydratingASecondSeriesThatClaimsAPlacedWorkAsMainSequence_UnplacesItAndRaisesOneReviewItem()
+    {
+        var a = await CreateSeriesShelfAsync("QSeriesA", "Series A", "Books");
+        var b = await CreateSeriesShelfAsync("QSeriesB", "Series B", "Books");
+        var x = AddWork("Work X", "Books", seriesQid: "QSeriesA", seriesLabel: "Series A");
+        await _assignment.AssignAsync(x.AssetId);
+        var aRows = new[] { Item(a, "QSeriesA", "QX", "Work X", x.WorkId, parsed: 1) };
+        await _manifests.UpsertManifestAsync(Hydrated(a, "QSeriesA"), aRows);
+        await _hydration.LinkAndReportAsync(a, aRows, default);
+        Assert.Equal(a, await ShelfOfAsync("Work X"));
+        Assert.DoesNotContain(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+
+        var bRows = new[] { Item(b, "QSeriesB", "QX", "Work X", x.WorkId, parsed: 4) };
+        await _manifests.UpsertManifestAsync(Hydrated(b, "QSeriesB"), bRows);
+        await _hydration.LinkAndReportAsync(b, bRows, default);
+
+        Assert.Null(await ShelfOfAsync("Work X"));
+        var review = Assert.Single(
+            await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
+        Assert.Equal(x.AssetId, review.EntityId);
+
+        // Linking again, and assigning, raise nothing more: every path shares the one item.
+        await _hydration.LinkAndReportAsync(b, bRows, default);
+        await _assignment.AssignAsync(x.AssetId);
+        Assert.Single(await _reviews.GetPendingAsync(50), r => r.Trigger == ReviewTrigger.AmbiguousSeriesMembership);
     }
 
     [Fact]
@@ -211,7 +285,7 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
         SetQid("Leviathan Wakes", "QNovel1");
     }
 
-    private async Task HydrateExpanseManifestsAsync()
+    private async Task HydrateExpanseManifestsAsync(bool memorysLegionFirst = false)
     {
         var series = await FindOrCreateSeriesShelfAsync(Expanse, "The Expanse", "Books");
         var parent = await FindOrCreateSeriesShelfAsync(MemorysLegion, "Memory's Legion", "Books");
@@ -233,15 +307,40 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
             seriesItems.Add(Item(series, Expanse, $"QNovel{index + 1}", NovelTitles[index], _works[NovelTitles[index]].WorkId, parsed: index + 1));
         }
 
-        await StoreManifestAsync(series, Expanse, [.. seriesItems]);
-
         var parentItems = new[]
         {
             Item(parent, MemorysLegion, "QChurn", "The Churn", _works["The Churn"].WorkId, parsed: 1),
             Item(parent, MemorysLegion, "QGodsOfRisk", "Gods of Risk", _works["Gods of Risk"].WorkId, parsed: 2),
             Item(parent, MemorysLegion, "QVitalAbyss", "The Vital Abyss", _works["The Vital Abyss"].WorkId, parsed: 3),
         };
-        await StoreManifestAsync(parent, MemorysLegion, parentItems, isParentCollection: true);
+
+        // Memory's Legion is stored as an ordinary Series manifest: nothing marks it a parent but The Expanse listing it.
+        if (memorysLegionFirst)
+        {
+            await StoreManifestAsync(parent, MemorysLegion, parentItems);
+            await StoreManifestAsync(series, Expanse, [.. seriesItems]);
+        }
+        else
+        {
+            await StoreManifestAsync(series, Expanse, [.. seriesItems]);
+            await StoreManifestAsync(parent, MemorysLegion, parentItems);
+        }
+    }
+
+    private static SeriesManifestHydration Hydrated(Guid collectionId, string seriesQid)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new SeriesManifestHydration
+        {
+            SeriesQid = seriesQid,
+            CollectionId = collectionId,
+            SeriesLabel = seriesQid,
+            WarningsJson = "[]",
+            ApiMetadataJson = "{}",
+            LastHydratedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
     }
 
     private async Task AssignEverythingAsync()
@@ -354,26 +453,10 @@ public sealed class SeriesPlacementAssignmentTests : IDisposable
     private async Task StoreManifestAsync(
         Guid collectionId,
         string seriesQid,
-        SeriesManifestItemRecord[] items,
-        bool isParentCollection = false)
+        SeriesManifestItemRecord[] items)
     {
-        var now = DateTimeOffset.UtcNow;
-        await _manifests.UpsertManifestAsync(
-            new SeriesManifestHydration
-            {
-                SeriesQid = seriesQid,
-                CollectionId = collectionId,
-                SeriesLabel = seriesQid,
-                WarningsJson = "[]",
-                ApiMetadataJson = isParentCollection
-                    ? """{"parentCollectionHydration":true,"sourceSeriesQid":"QExpanse"}"""
-                    : "{}",
-                LastHydratedAt = now,
-                CreatedAt = now,
-                UpdatedAt = now,
-            },
-            items);
-        await _manifests.LinkOwnedWorksAsync(collectionId, items);
+        await _manifests.UpsertManifestAsync(Hydrated(collectionId, seriesQid), items);
+        await _hydration.LinkAndReportAsync(collectionId, items, default);
     }
 
     private static SeriesManifestItemRecord Item(

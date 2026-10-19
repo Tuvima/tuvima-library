@@ -8,7 +8,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
-using ManifestItem = MediaEngine.Domain.Models.SeriesManifestItemDto;
+using ManifestItem = MediaEngine.Domain.Entities.SeriesManifestItemRecord;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -75,6 +75,9 @@ public sealed partial class UniverseClientReadService(
             .GroupBy(row => row.CollectionId!.Value)
             .ToDictionary(group => group.Key, group => group.ToList());
 
+        // One read for every member shelf's manifest rows, not one per shelf.
+        var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+
         var shelves = new List<UniverseMemberShelfDto>();
         foreach (var member in members)
         {
@@ -83,7 +86,11 @@ public sealed partial class UniverseClientReadService(
                 continue;
             }
 
-            var memberCards = BuildCards(rows, await LoadManifestPlacementsAsync(member.Id, ct).ConfigureAwait(false));
+            var memberCards = BuildCards(
+                rows,
+                placementsByShelf.TryGetValue(member.Id, out var placements)
+                    ? placements
+                    : new Dictionary<Guid, ManifestItem>());
             if (memberCards.Count == 0)
             {
                 continue;
@@ -152,23 +159,28 @@ public sealed partial class UniverseClientReadService(
     }
 
     /// <summary>The manifest row that places each owned work on this Series shelf, for the shared Series ordering.</summary>
-    private async Task<IReadOnlyDictionary<Guid, ManifestItem>> LoadManifestPlacementsAsync(Guid collectionId, CancellationToken ct)
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>> LoadManifestPlacementsAsync(
+        IReadOnlyCollection<Guid> shelfIds,
+        CancellationToken ct)
     {
-        if (manifests is null)
+        if (manifests is null || shelfIds.Count == 0)
         {
-            return new Dictionary<Guid, ManifestItem>();
+            return new Dictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>();
         }
 
-        var view = await manifests.GetViewByCollectionIdAsync(collectionId, ct).ConfigureAwait(false);
-        return (view?.Items ?? [])
-            .Where(item => item.LinkedWorkId.HasValue && !item.IsCollection)
-            .GroupBy(item => item.LinkedWorkId!.Value)
+        var rows = await manifests.GetLinkedItemsByCollectionIdsAsync(shelfIds, ct).ConfigureAwait(false);
+        return rows
+            .GroupBy(item => item.CollectionId)
             .ToDictionary(
-                group => group.Key,
-                group => group
-                    .OrderBy(item => item.IsExpandedFromCollection)
-                    .ThenBy(item => SeriesPlacementRule.ScopeRank(item.MembershipScope))
-                    .First());
+                shelf => shelf.Key,
+                shelf => (IReadOnlyDictionary<Guid, ManifestItem>)shelf
+                    .GroupBy(item => item.LinkedWorkId!.Value)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group
+                            .OrderBy(item => item.IsExpandedFromCollection)
+                            .ThenBy(item => SeriesPlacementRule.ScopeRank(item.MembershipScope))
+                            .First()));
     }
 
     private IReadOnlyList<DisplayCardDto> BuildCards(

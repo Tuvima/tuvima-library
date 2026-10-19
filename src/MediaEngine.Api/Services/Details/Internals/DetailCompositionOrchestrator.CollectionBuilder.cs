@@ -401,7 +401,7 @@ internal sealed partial class DetailCompositionOrchestrator
             {
                 SequenceSort = SeriesOrdering.SortValue(input),
                 SequenceLabel = SeriesOrdering.DisplayNumber(
-                    ordinalBelongs ? item.RawOrdinal : null, work.RetailSeriesPosition, work.OrdinalSort),
+                    item.MembershipScope, ordinalBelongs ? item.RawOrdinal : null, work.RetailSeriesPosition, work.OrdinalSort),
                 MembershipScope = item.MembershipScope,
                 Year = StringHelpers.FirstNonBlankOr(string.Empty, work.Year, item.PublicationDate),
             };
@@ -519,10 +519,10 @@ internal sealed partial class DetailCompositionOrchestrator
             var itemType = InferMediaItemEntityType(work);
             var positionLabel = entityType == DetailEntityType.TvShow
                 ? StringHelpers.FirstNonBlankOr(string.Empty, work.Episode, work.SequenceLabel, work.Ordinal?.ToString(CultureInfo.InvariantCulture))
-                : StringHelpers.FirstNonBlankOr(string.Empty, work.SequenceLabel, SeriesOrdering.DisplayNumber(null, work.RetailSeriesPosition, work.OrdinalSort));
+                : StringHelpers.FirstNonBlankOr(string.Empty, work.SequenceLabel, SeriesOrdering.DisplayNumber(work.MembershipScope, null, work.RetailSeriesPosition, work.OrdinalSort));
             var positionSort = entityType == DetailEntityType.TvShow
                 ? work.SequenceSort ?? TryParseSeriesPositionSort(positionLabel) ?? work.Ordinal
-                : work.SequenceSort ?? work.OrdinalSort ?? TryParseSeriesPositionSort(positionLabel);
+                : work.SequenceSort ?? (string.Equals(work.MembershipScope, SeriesMembershipScopeNames.Unpositioned, StringComparison.OrdinalIgnoreCase) ? null : work.OrdinalSort ?? TryParseSeriesPositionSort(positionLabel));
             var positionNumber = ToDisplayPositionNumber(positionSort) ?? TryParseInt(positionLabel);
             var season = entityType == DetailEntityType.TvShow
                 ? StringHelpers.FirstNonBlankOr(string.Empty, NormalizeEpisodeKey(work.Season), "unknown")

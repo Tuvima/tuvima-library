@@ -19,6 +19,7 @@ public sealed class WikidataSeriesManifestHydrationService
     private readonly ICollectionRepository _collectionRepo;
     private readonly IConfigurationLoader _configLoader;
     private readonly ILogger<WikidataSeriesManifestHydrationService> _logger;
+    private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
 
     private readonly ConcurrentDictionary<string, Lazy<Task>> _inFlight = new(StringComparer.OrdinalIgnoreCase);
 
@@ -31,13 +32,15 @@ public sealed class WikidataSeriesManifestHydrationService
         ISeriesManifestRepository manifestRepo,
         ICollectionRepository collectionRepo,
         IConfigurationLoader configLoader,
-        ILogger<WikidataSeriesManifestHydrationService> logger)
+        ILogger<WikidataSeriesManifestHydrationService> logger,
+        SeriesAmbiguityReviewer? ambiguityReviewer = null)
     {
         _reconciler = reconciler;
         _manifestRepo = manifestRepo;
         _collectionRepo = collectionRepo;
         _configLoader = configLoader;
         _logger = logger;
+        _ambiguityReviewer = ambiguityReviewer;
     }
 
     public async Task HydrateAsync(SeriesManifestHydrationContext context, CancellationToken ct = default)
@@ -115,8 +118,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
                     await _manifestRepo.UpsertManifestAsync(cachedHydration.WithUpdatedTimestamp(), relinked, ct)
                         .ConfigureAwait(false);
-                    await _manifestRepo.LinkOwnedWorksAsync(cachedHydration.CollectionId, relinked, ct)
-                        .ConfigureAwait(false);
+                    await LinkAndReportAsync(cachedHydration.CollectionId, relinked, ct).ConfigureAwait(false);
 
                     _logger.LogDebug(
                         "Series manifest cache hit for {SeriesQid}; relinked {Count} cached rows",
@@ -206,7 +208,7 @@ public sealed class WikidataSeriesManifestHydrationService
             };
 
             await _manifestRepo.UpsertManifestAsync(hydration, itemRecords, ct).ConfigureAwait(false);
-            await _manifestRepo.LinkOwnedWorksAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
+            await LinkAndReportAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Hydrated Wikidata series manifest {SeriesQid} ({SeriesLabel}) with {Count} named items",
@@ -297,8 +299,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
                 await _manifestRepo.UpsertManifestAsync(cachedHydration.WithUpdatedTimestamp(), relinked, ct)
                     .ConfigureAwait(false);
-                await _manifestRepo.LinkOwnedWorksAsync(cachedHydration.CollectionId, relinked, ct)
-                    .ConfigureAwait(false);
+                await LinkAndReportAsync(cachedHydration.CollectionId, relinked, ct).ConfigureAwait(false);
                 return;
             }
         }
@@ -355,18 +356,14 @@ public sealed class WikidataSeriesManifestHydrationService
             ManifestHash = Hashing.Sha256Hex(manifestJson),
             KnownItemQidsHash = Hashing.Sha256Hex(string.Join('\n', itemQids)),
             WarningsJson = JsonSerializer.Serialize(warningDtos, MediaEngineJson.Web),
-            ApiMetadataJson = BuildApiMetadataJson(
-                language,
-                manifest,
-                sourceSeriesQid: childSeriesQid,
-                parentCollectionHydration: true),
+            ApiMetadataJson = BuildApiMetadataJson(language, manifest),
             LastHydratedAt = now,
             CreatedAt = cachedHydration?.CreatedAt ?? now,
             UpdatedAt = now,
         };
 
         await _manifestRepo.UpsertManifestAsync(hydration, itemRecords, ct).ConfigureAwait(false);
-        await _manifestRepo.LinkOwnedWorksAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
+        await LinkAndReportAsync(collection.Id, itemRecords, ct).ConfigureAwait(false);
 
         _logger.LogInformation(
             "Hydrated Wikidata parent collection manifest {SeriesQid} ({SeriesLabel}) from series {ChildSeriesQid} with {Count} named items",
@@ -374,6 +371,27 @@ public sealed class WikidataSeriesManifestHydrationService
             manifest.SeriesLabel ?? parent.Label,
             childSeriesQid,
             itemRecords.Count);
+    }
+
+    /// <summary>
+    /// Links the owned works with the one placement rule. A work that two Series claim equally as main sequence is taken
+    /// off both by the repository; it raises the same Needs Review item as collection assignment does.
+    /// </summary>
+    internal async Task LinkAndReportAsync(
+        Guid collectionId,
+        IReadOnlyList<SeriesManifestItemRecord> items,
+        CancellationToken ct)
+    {
+        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, items, ct).ConfigureAwait(false);
+        if (_ambiguityReviewer is null)
+        {
+            return;
+        }
+
+        foreach (var work in ambiguous)
+        {
+            await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
+        }
     }
 
     private static SeriesManifestRequest CreateManifestRequest(string seriesQid, string language) => new()
@@ -516,9 +534,7 @@ public sealed class WikidataSeriesManifestHydrationService
 
     private static string BuildApiMetadataJson(
         string language,
-        SeriesManifestResult manifest,
-        string? sourceSeriesQid = null,
-        bool parentCollectionHydration = false)
+        SeriesManifestResult manifest)
     {
         var expectedCounts = manifest.ExpectedCounts;
         var expectedTotal = SelectExpectedTotalFact(expectedCounts);
@@ -531,8 +547,6 @@ public sealed class WikidataSeriesManifestHydrationService
             includePublicationDate = true,
             includeDescriptions = true,
             scopeFilter = ManifestScopeFilter,
-            sourceSeriesQid,
-            parentCollectionHydration,
             maxDepth = ManifestMaxDepth,
             maxItems = ManifestMaxItems,
             containerKind = manifest.ContainerKind.ToString(),

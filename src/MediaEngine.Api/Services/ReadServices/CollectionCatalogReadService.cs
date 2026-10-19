@@ -295,13 +295,13 @@ public sealed class CollectionCatalogReadService(
         {
             // The order of a generated series comes from the lookup itself, so the whole set is resolved.
             var all = await ResolveCollectionWorkIdsToItemsAsync(
-                collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, allowedMemberIds, ct).ConfigureAwait(false);
+                collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, UsesSeriesOrdering(collection), allowedMemberIds, ct).ConfigureAwait(false);
             return new CollectionItemPageResult(true, false, all.Count, all.Skip(offset).Take(take).ToList());
         }
 
         var queryIds = rootIds.Take(MaxPagedItems).ToList();
         var resolved = await ResolveCollectionWorkIdsToItemsAsync(
-            collection.Id, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, allowedMemberIds, ct).ConfigureAwait(false);
+            collection.Id, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, UsesSeriesOrdering(collection), allowedMemberIds, ct).ConfigureAwait(false);
         // The lookup numbers items from zero within the ids it was given; keep the position within the whole list.
         foreach (var item in resolved)
         {
@@ -332,6 +332,7 @@ public sealed class CollectionCatalogReadService(
                 collection.Id,
                 rootMembers.PreserveOrder ? rootIds.Take(take).ToList() : rootIds,
                 rootMembers.PreserveOrder,
+                UsesSeriesOrdering(collection),
                 allowedMemberIds,
                 ct).ConfigureAwait(false)
             : await mediaLookupReadService.ResolveItemsAsync(
@@ -1365,12 +1366,21 @@ public sealed class CollectionCatalogReadService(
         return displayWorkIds.Where(ownedIds.Contains).ToList();
     }
 
+    /// <summary>
+    /// The Series ordering (manifest ordinal, the work's own decimal position, date, title, with "Also in this world"
+    /// last) applies to a Series shelf only. A generated Universe list keeps the order it always had.
+    /// </summary>
+    private static bool UsesSeriesOrdering(Collection collection)
+        => collection.CollectionType is CollectionType.ContentGroup or CollectionType.Series;
+
     /// <param name="workIds">Display root ids that are already owned and allowed; they are not expanded again.</param>
+    /// <param name="seriesOrdering">True for a Series shelf; false keeps a generated Universe list in its previous order.</param>
     /// <param name="allowedMemberIds">Limits the file that stands in for each root; null leaves every work eligible.</param>
     private async Task<List<CollectionItemDto>> ResolveCollectionWorkIdsToItemsAsync(
         Guid collectionId,
         IReadOnlyList<Guid> workIds,
         bool preserveRequestedOrder,
+        bool seriesOrdering,
         IReadOnlySet<Guid>? allowedMemberIds,
         CancellationToken ct)
     {
@@ -1468,6 +1478,7 @@ public sealed class CollectionCatalogReadService(
                              c.created_at,
                              c.id
                     LIMIT 1) AS StructuralCollectionId,
+                   CAST(COALESCE(w.ordinal, series_item.sort_order, 999999) AS INTEGER) AS LegacySortOrder,
                    CAST(COALESCE(w.ordinal_sort, w.ordinal) AS REAL) AS WorkOrdinalSort,
                    series_item.parsed_ordinal AS ManifestOrdinal,
                    series_item.ordinal_scope_qid AS ManifestOrdinalScopeQid,
@@ -1481,6 +1492,7 @@ public sealed class CollectionCatalogReadService(
                         FROM canonical_values cv
                         WHERE cv.entity_id IN (w.id, ra.AssetId)
                           AND cv.key IN ('publication_date', 'release_date', 'year')
+                        ORDER BY CASE cv.key WHEN 'publication_date' THEN 0 WHEN 'release_date' THEN 1 ELSE 2 END, cv.entity_id
                         LIMIT 1)) AS PublicationDate,
                    COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ra.AssetId AND cv.key = 'series_position' LIMIT 1),
@@ -1510,22 +1522,38 @@ public sealed class CollectionCatalogReadService(
         var requestedPosition = displayWorkIds
             .Select((workId, index) => (workId, index))
             .ToDictionary(entry => entry.workId, entry => entry.index);
-        // One row per work: the manifest row that is not an expansion of a collection, then the strongest scope.
-        var selectedRows = rows
-            .GroupBy(row => row.WorkId)
-            .Select(group => group
-                .OrderBy(row => row.IsExpandedFromCollection)
-                .ThenBy(row => SeriesPlacementRule.ScopeRank(row.MembershipScope))
-                .First())
-            .OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
-            .ToList();
-
-        // A generated Series list uses the one Series ordering (manifest ordinal, the work's own decimal position,
-        // publication date, title) with "Also in this world" members after the Series run; an explicit list keeps the
-        // order it was given. The sort is stable, so equal members keep the order they were requested in.
-        if (!preserveRequestedOrder)
+        List<GeneratedCollectionItemRow> selectedRows;
+        if (seriesOrdering)
         {
-            selectedRows = SeriesOrdering.Order(selectedRows, row => row.ToOrderInput());
+            // One row per work: the manifest row that is not an expansion of a collection, then the strongest scope.
+            selectedRows = rows
+                .GroupBy(row => row.WorkId)
+                .Select(group => group
+                    .OrderBy(row => row.IsExpandedFromCollection)
+                    .ThenBy(row => SeriesPlacementRule.ScopeRank(row.MembershipScope))
+                    .First())
+                .OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
+                .ToList();
+
+            // A generated Series list uses the one Series ordering (manifest ordinal, the work's own decimal position,
+            // publication date, title) with "Also in this world" members after the Series run; an explicit list keeps
+            // the order it was given. The sort is stable, so equal members keep the order they were requested in.
+            if (!preserveRequestedOrder)
+            {
+                selectedRows = SeriesOrdering.Order(selectedRows, row => row.ToOrderInput());
+            }
+        }
+        else
+        {
+            // A generated Universe list is outside the Series ordering: whole-number position, then the order the
+            // collection holds its members in, exactly as before.
+            var legacyRows = rows
+                .GroupBy(row => row.WorkId)
+                .Select(group => group.OrderBy(row => row.LegacySortOrder).ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase).First());
+            selectedRows = (preserveRequestedOrder
+                    ? legacyRows.OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
+                    : legacyRows.OrderBy(row => row.LegacySortOrder).ThenBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue)))
+                .ToList();
         }
 
         return selectedRows
@@ -1537,12 +1565,12 @@ public sealed class CollectionCatalogReadService(
                 Creator = ToNullableText(row.Creator),
                 MediaType = row.MediaType,
                 CoverUrl = ResolveCollectionItemCoverUrl(row),
-                SortOrder = index,
+                SortOrder = seriesOrdering || preserveRequestedOrder ? index : row.LegacySortOrder,
                 DetailRoute = BuildCollectionItemDetailRoute(row),
                 MembershipScope = string.IsNullOrWhiteSpace(row.MembershipScope)
                     ? SeriesMembershipScopeNames.MainSequence
                     : row.MembershipScope,
-                PositionLabel = row.ToPositionLabel(),
+                PositionLabel = seriesOrdering ? row.ToPositionLabel() : null,
             }).ToList();
     }
 
@@ -1892,6 +1920,7 @@ public sealed class CollectionCatalogReadService(
         public Guid? MediaAssetId { get; init; }
         public string? CoverUrl { get; init; }
         public Guid? StructuralCollectionId { get; init; }
+        public int LegacySortOrder { get; init; }
         public double? WorkOrdinalSort { get; init; }
         public double? ManifestOrdinal { get; init; }
         public string? ManifestOrdinalScopeQid { get; init; }
@@ -1912,6 +1941,7 @@ public sealed class CollectionCatalogReadService(
             Title);
 
         public string? ToPositionLabel() => SeriesOrdering.DisplayNumber(
+            MembershipScope,
             SeriesOrdering.OrdinalBelongsToSeries(ManifestOrdinalScopeQid, ManifestSeriesQid) ? ManifestRawOrdinal : null,
             RetailSeriesPosition,
             WorkOrdinalSort);
