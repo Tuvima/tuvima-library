@@ -857,6 +857,10 @@ The account password (`credential_kind` = `Password`, one row per account). Only
 
 A profile's PIN, when one is set (`credential_kind` = `ProfilePin`, one row per profile). Only a hash is stored: `secret_hash`, `hash_scheme`, `hash_version`, `security_stamp`, `failed_attempt_count`, `locked_until`, `created_at`, `updated_at` and `last_used_at`. Deleting the profile removes the row.
 
+### account_notice_dismissals
+
+Which one-time reminders an account chose **Not now** for, so the choice follows the person to any browser (for example the **Secure your account** card in the profile menu, key `secure-account`). One row per account and notice: `account_id` (deleting the account removes its rows), `notice_key` (primary key with `account_id`; the Engine accepts only known keys) and `dismissed_at`.
+
 ### account_passkeys
 
 Passkeys a person added under **Settings > Security**. `credential_id` (BLOB, primary key), `account_id` (deleting the account removes its passkeys), `name`, `data_json` (the stored credential), `created_at`, and `last_used_at` (NULL until the passkey is used).

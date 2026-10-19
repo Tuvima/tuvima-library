@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
@@ -234,6 +235,30 @@ public static class AccountEndpoints
             await WriteAuditAsync(audit, clock, authority, "account.external_login_unlinked", loginId, ct);
             return Results.NoContent();
         }).Produces(StatusCodes.Status204NoContent);
+
+        // One-time reminders ("Not now") belong to the signed-in account; the account is never read from the request.
+        self.MapGet("/notices", async (HttpContext http, IRequestAuthorityResolver resolver,
+            ISelfServiceAuthorizationService decisions, [FromServices] AccountNoticeService notices,
+            CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return Results.Ok(await notices.ListAsync(authority.AccountId!.Value, ct));
+        })
+        .WithName("ListAccountNotices")
+        .Produces<AccountNoticesResponse>();
+
+        self.MapPost("/notices/{key}/dismiss", async (string key, HttpContext http, IRequestAuthorityResolver resolver,
+            ISelfServiceAuthorizationService decisions, [FromServices] AccountNoticeService notices,
+            CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return await notices.DismissAsync(authority.AccountId!.Value, key, ct)
+                ? Results.NoContent()
+                : ApiErrors.BadRequest("That reminder is not one the Library knows.");
+        })
+        .WithName("DismissAccountNotice")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
     }
 
     internal static IReadOnlyList<string> AttachedAuthenticationMethods(

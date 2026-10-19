@@ -4,6 +4,7 @@
 @page "/settings/{Section}/{Subsection}/{Detail}"
 @rendermode InteractiveServer
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Authorization
@@ -12,6 +13,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
+@inject AccountNoticeState Notices
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
@@ -261,8 +263,11 @@ else
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
-    // A this-computer-only account has no password yet: its Security entry carries the attention dot.
+    // A this-computer-only account has no password yet: its Security entry carries the attention dot until the person
+    // chooses Not now on the Secure your account card (remembered with the account); Security then shows a quiet note instead.
     private bool _thisComputerOnly;
+    private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
+    private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
     private Guid? _loadedBreadcrumbBatchId;
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
@@ -342,6 +347,7 @@ else
         await LoadShellStateAsync();
 
         Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
+        Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
     }
@@ -380,6 +386,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        Notices.Changed -= OnNoticesChanged;
         Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
@@ -446,6 +453,7 @@ else
         {
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(principal);
+            if (_thisComputerOnly) await Notices.EnsureLoadedAsync();
             Session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(Session);
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -690,7 +698,7 @@ else
             MetaAriaLabel: showReviewNotification
                 ? $"{DisplayFormat.FormatCount(_reviewCount)} item{(_reviewCount == 1 ? "" : "s")} need review"
                 : null,
-            AttentionDot: item.Value == SettingsSection.Security && _thisComputerOnly);
+            AttentionDot: item.Value == SettingsSection.Security && ShowSecurityAttentionDot);
     }
 
     private bool IsItemEnabledByUiSettings(SettingsItemDef item) => item.Value switch
