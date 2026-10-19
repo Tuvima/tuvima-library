@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
@@ -50,6 +51,7 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     private readonly ILibraryFolderResolver _libraryFolderResolver;
     private readonly MediaEngine.Ingestion.Contracts.IImportFolderService? _importFolders;
     private readonly MediaEngine.Ingestion.Services.ImportFilingJournal? _importJournal;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<LibraryReconciliationService> _logger;
 
     /// <summary>Category root folder names that should never be deleted.</summary>
@@ -77,10 +79,12 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         AssetPathService assetPaths,
         IDatabaseConnection db,
         ILibraryFolderResolver libraryFolderResolver,
+        ScheduledTaskRunner runner,
         ILogger<LibraryReconciliationService> logger,
         MediaEngine.Ingestion.Contracts.IImportFolderService? importFolders = null,
         MediaEngine.Ingestion.Services.ImportFilingJournal? importJournal = null)
     {
+        _runner = runner;
         _importFolders = importFolders;
         _importJournal = importJournal;
         _assetRepo = assetRepo;
@@ -140,7 +144,12 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
 
                     var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
                     await Task.Delay(delay, stoppingToken);
-                    await ReconcileAsync(stoppingToken);
+                    await _runner.RunAsync(ScheduledTaskKeys.LibraryReconciliation, async ct =>
+                    {
+                        var result = await ReconcileAsync(ct);
+                        return TaskRunResult.Succeeded(
+                            result.TotalScanned, $"Checked {result.TotalScanned} files; {result.MissingCount} missing.");
+                    }, stoppingToken);
                 }
                 else
                 {

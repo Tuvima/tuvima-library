@@ -5,6 +5,7 @@ using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage.Services;
 
@@ -21,6 +22,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<UISettingsCacheWarmupHostedService>();
         services.AddHostedService<OrphanReviewQueuePurgeHostedService>();
         services.AddHostedService<AiUnavailableQuarantineRecoveryHostedService>();
+        services.AddHostedService<ScheduledTaskRunRecoveryHostedService>();
 
         services.AddHostedService<EncodeQueueService>();
         services.AddHostedService(provider => provider.GetRequiredService<AdaptiveHlsCleanupService>());

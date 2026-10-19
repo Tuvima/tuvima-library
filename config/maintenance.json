@@ -15,5 +15,16 @@
     "search_cache_max_age_days": 30,
     "image_cache_retention_days": 30,
     "claim_compaction_batch_size": 5000
+  },
+  "schedules": {
+    "activity_pruning": "0 3 * * *",
+    "library_reconciliation": "0 5 * * *",
+    "missing_universe_sweep": "0 4 * * 0",
+    "rejected_file_cleanup": "0 4 * * *",
+    "universe_enrichment": "0 3 * * *",
+    "pass2_nightly_sweep": "0 2 * * *",
+    "retag_sweep": "0 3 * * *",
+    "storage_maintenance": "0 2 * * *",
+    "plugin_segment_detection": "0 2 * * *"
   }
 }

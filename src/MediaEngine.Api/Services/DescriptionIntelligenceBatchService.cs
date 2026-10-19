@@ -1,5 +1,6 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -44,6 +45,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
     private readonly IRecursiveIdentityService _identityService;
     private readonly IMetadataHarvestingService _harvesting;
     private readonly BackgroundAiAdmissionController _admission;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<DescriptionIntelligenceBatchService> _logger;
 
     public DescriptionIntelligenceBatchService(
@@ -65,8 +67,10 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         IRecursiveIdentityService identityService,
         IMetadataHarvestingService harvesting,
         BackgroundAiAdmissionController admission,
+        ScheduledTaskRunner runner,
         ILogger<DescriptionIntelligenceBatchService> logger)
     {
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(configLoader);
         ArgumentNullException.ThrowIfNull(resourceMonitor);
@@ -105,6 +109,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _identityService = identityService;
         _harvesting = harvesting;
         _admission = admission;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -124,7 +129,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         {
             try
             {
-                await ProcessBatchAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.DescriptionInsights, ProcessBatchAsync, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
@@ -147,12 +152,12 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         }
     }
 
-    private async Task ProcessBatchAsync(CancellationToken ct)
+    private async Task<TaskRunResult> ProcessBatchAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.DescriptionIntelligence, MediaEngine.Domain.Enums.AiModelRole.TextScholar))
         {
             _logger.LogDebug("[DESCRIPTION-INTEL-BATCH] Feature disabled or selected model unavailable — skipping before scan");
-            return;
+            return TaskRunResult.Skipped("Description insights is off");
         }
 
         // Check if resources allow enrichment right now.
@@ -161,7 +166,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         if (!recommendation.CanLoad)
         {
             _logger.LogInformation("[DESCRIPTION-INTEL-BATCH] Deferring: {Reason}", recommendation.Reason);
-            return;
+            return TaskRunResult.Skipped("Waiting: the machine is busy");
         }
 
         _logger.LogDebug(
@@ -193,7 +198,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         if (entityIds.Count == 0)
         {
             _logger.LogDebug("[DESCRIPTION-INTEL-BATCH] No entities needing enrichment");
-            return;
+            return TaskRunResult.Succeeded(0, "Nothing needed enriching.");
         }
 
         _logger.LogInformation(
@@ -243,7 +248,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
                     ct);
                 if (admission is null)
                 {
-                    return;
+                    return TaskRunResult.Skipped("Waiting: the machine is busy");
                 }
 
                 var diResult = await descIntel.AnalyzeAsync(entityId, mediaCategory, admission.Token)
@@ -482,7 +487,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
                 _logger.LogInformation(
                     "[DESCRIPTION-INTEL-BATCH] Yielding entity {EntityId} to interactive traffic",
                     entityId);
-                return;
+                return TaskRunResult.Skipped("Paused to make way for something you were doing");
             }
             catch (Exception ex)
             {
@@ -532,6 +537,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _logger.LogInformation(
             "[DESCRIPTION-INTEL-BATCH] Processed {Processed}/{Total} entities",
             processed, entityIds.Count);
+        return TaskRunResult.Succeeded(processed);
     }
 
     /// <summary>

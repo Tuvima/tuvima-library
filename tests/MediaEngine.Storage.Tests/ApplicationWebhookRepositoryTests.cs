@@ -59,6 +59,31 @@ public sealed class ApplicationWebhookRepositoryTests : IDisposable
         Assert.Null(await repository.FindAsync(endpoint.Id));
     }
 
+    [Fact]
+    public async Task LastAttempt_IsEmptyBeforeAnyAttempt_ThenReportsTheNewestAttemptAndItsStatus()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var endpoint = NewEndpoint();
+        await repository.SaveAsync(endpoint, true);
+        var delivery = NewDelivery(endpoint);
+        await repository.QueueAsync(endpoint, 1, [delivery]);
+
+        Assert.Null(await repository.LastAttemptAsync());
+
+        var attemptedAt = new DateTimeOffset(2026, 10, 19, 8, 30, 0, TimeSpan.Zero);
+        var due = Assert.Single(await repository.DueAsync(DateTimeOffset.UtcNow));
+        due.AttemptCount = 1;
+        due.Status = "delivered";
+        due.UpdatedAt = attemptedAt;
+        await repository.FinishAttemptAsync(due, "HTTP 204", true, attemptedAt);
+
+        var last = await repository.LastAttemptAsync();
+
+        Assert.NotNull(last);
+        Assert.Equal(attemptedAt, last.At);
+        Assert.Equal("delivered", last.Status);
+    }
+
     private static ApplicationWebhook NewEndpoint() => new()
     {
         Id = Guid.NewGuid(),

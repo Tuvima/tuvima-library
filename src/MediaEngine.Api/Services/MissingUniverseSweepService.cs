@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -49,6 +50,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
     private readonly IHydrationPipelineService _pipeline;
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IConfigurationLoader _configLoader;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<MissingUniverseSweepService> _logger;
 
     public MissingUniverseSweepService(
@@ -59,6 +61,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         IHydrationPipelineService pipeline,
         ISystemActivityRepository activityRepo,
         IConfigurationLoader configLoader,
+        ScheduledTaskRunner runner,
         ILogger<MissingUniverseSweepService> logger)
     {
         ArgumentNullException.ThrowIfNull(db);
@@ -68,7 +71,10 @@ public sealed class MissingUniverseSweepService : BackgroundService
         ArgumentNullException.ThrowIfNull(pipeline);
         ArgumentNullException.ThrowIfNull(activityRepo);
         ArgumentNullException.ThrowIfNull(configLoader);
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(logger);
+
+        _runner = runner;
 
         _db = db;
         _search = search;
@@ -93,7 +99,7 @@ public sealed class MissingUniverseSweepService : BackgroundService
         {
             try
             {
-                await RunSweepAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.MissingUniverseSweep, RunSweepAsync, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -125,13 +131,13 @@ public sealed class MissingUniverseSweepService : BackgroundService
 
     // ── Sweep logic ───────────────────────────────────────────────────────────
 
-    private async Task RunSweepAsync(CancellationToken ct)
+    private async Task<TaskRunResult> RunSweepAsync(CancellationToken ct)
     {
         var candidates = LoadMissingWorks();
         if (candidates.Count == 0)
         {
             _logger.LogDebug("MissingUniverseSweepService: no 'missing' works found — nothing to do");
-            return;
+            return TaskRunResult.Succeeded(0, "No works were waiting for a Universe match.");
         }
 
         _logger.LogInformation(
@@ -174,6 +180,8 @@ public sealed class MissingUniverseSweepService : BackgroundService
         _logger.LogInformation(
             "MissingUniverseSweepService: sweep complete — recovered {Recovered}/{Total}",
             recovered, candidates.Count);
+        return TaskRunResult.Succeeded(
+            candidates.Count, $"Matched {recovered} of {candidates.Count} works to a Universe.");
     }
 
     /// <summary>

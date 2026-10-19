@@ -637,6 +637,7 @@ public sealed class DatabaseStartupSafetyTests
             ("password_recovery_codes", "id"),
             ("password_recovery_codes", "account_id"),
             ("retail_match_candidates", "provider_id"),
+            ("scheduled_task_runs", "id"),
             ("search_results_cache", "entity_id"),
             ("series_manifest_hydrations", "collection_id"),
             ("series_manifest_items", "id"),

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0002 media_inspection_holds).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0003 scheduled_task_runs).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2078,6 +2078,17 @@ CREATE TABLE review_queue (
     resolved_by      TEXT
 , source_operation_id BLOB, source_capability_id TEXT, source_capability_sub_key TEXT, review_ready_at TEXT, automation_completed_at TEXT);
 
+CREATE TABLE scheduled_task_runs (
+    id              BLOB    NOT NULL PRIMARY KEY,
+    task_key        TEXT    NOT NULL,   -- snake_case task key, for example vibe_tags
+    plugin_id       TEXT    NULL,       -- set when the run belongs to a plugin
+    started_at      TEXT    NOT NULL,   -- ISO 8601 UTC
+    finished_at     TEXT    NULL,       -- ISO 8601 UTC; NULL while the run is going
+    outcome         TEXT    NOT NULL,   -- running | succeeded | failed | skipped | interrupted
+    items_processed INTEGER NULL,
+    message         TEXT    NULL        -- plain-English result, failure message or skip reason
+);
+
 CREATE TABLE search_results_cache (
     entity_id    BLOB NOT NULL PRIMARY KEY,
     results_json TEXT NOT NULL,
@@ -3165,6 +3176,8 @@ CREATE INDEX ix_playback_telemetry_library ON playback_telemetry_sessions(librar
 CREATE INDEX ix_playback_telemetry_profile ON playback_telemetry_sessions(account_id,profile_id,started_at DESC,id);
 
 CREATE INDEX ix_profiles_household ON profiles(household_id);
+
+CREATE INDEX ix_scheduled_task_runs_task_started ON scheduled_task_runs(task_key, started_at DESC);
 
 CREATE INDEX ix_tv_episode_credits_show ON tv_episode_credits(show_work_id, season, episode);
 

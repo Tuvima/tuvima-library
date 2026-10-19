@@ -1,5 +1,6 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Jobs;
@@ -27,6 +28,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
     private readonly IAiFeaturePersistenceRepository _featurePersistence;
     private readonly ILibraryItemRepository _libraryItems;
     private readonly BackgroundAiAdmissionController _admission;
+    private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<SeriesAlignmentBackgroundService> _logger;
 
     public SeriesAlignmentBackgroundService(
@@ -38,8 +40,10 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         IAiFeaturePersistenceRepository featurePersistence,
         ILibraryItemRepository libraryItems,
         BackgroundAiAdmissionController admission,
+        ScheduledTaskRunner runner,
         ILogger<SeriesAlignmentBackgroundService> logger)
     {
+        ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(featureGate);
         ArgumentNullException.ThrowIfNull(configurationStore);
@@ -58,6 +62,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         _featurePersistence = featurePersistence;
         _libraryItems = libraryItems;
         _admission = admission;
+        _runner = runner;
         _logger = logger;
     }
 
@@ -76,7 +81,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         {
             try
             {
-                await RunAlignmentAsync(stoppingToken);
+                await _runner.RunAsync(ScheduledTaskKeys.SeriesOrder, RunAlignmentAsync, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -102,12 +107,12 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         }
     }
 
-    private async Task RunAlignmentAsync(CancellationToken ct)
+    private async Task<TaskRunResult> RunAlignmentAsync(CancellationToken ct)
     {
         if (!_featureGate.CanExecute(AiFeature.SeriesAlignment, MediaEngine.Domain.Enums.AiModelRole.TextQuality))
         {
             _logger.LogDebug("SeriesAlignmentService: feature disabled or selected model unavailable — skipping before scan");
-            return;
+            return TaskRunResult.Skipped("Series order is off");
         }
 
         _logger.LogInformation("SeriesAlignmentService: scanning for unpositioned series works");
@@ -161,7 +166,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
                     ct);
                 if (admission is null)
                 {
-                    return;
+                    return TaskRunResult.Skipped("Waiting: the machine is busy");
                 }
 
                 attempted++;
@@ -209,7 +214,7 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
                     _logger.LogInformation(
                         "SeriesAlignmentService: yielding entity {Id} to interactive traffic",
                         entityId);
-                    return;
+                    return TaskRunResult.Skipped("Paused to make way for something you were doing");
                 }
                 catch (Exception ex)
                 {
@@ -246,5 +251,6 @@ public sealed class SeriesAlignmentBackgroundService : BackgroundService
         _logger.LogInformation(
             "SeriesAlignmentService: attempted {Count} bounded suggestion(s)",
             attempted);
+        return TaskRunResult.Succeeded(attempted);
     }
 }

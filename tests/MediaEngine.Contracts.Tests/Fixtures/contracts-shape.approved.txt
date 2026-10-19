@@ -8317,6 +8317,27 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduleRestoreResultD
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Owner: System.String | nullability=not-null | accessors=get,set
+  PluginId: System.String | nullability=nullable | accessors=get,set
+  Schedule: System.String | nullability=not-null | accessors=get,set
+  IsContinuous: System.Boolean | nullability=not-null | accessors=get,set
+  SettingsPlace: System.String | nullability=not-null | accessors=get,set
+  NextRunAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastRun: MediaEngine.Contracts.System.ScheduledTaskLastRunDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskLastRunDto
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  FinishedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  ItemsProcessed: System.Int32? | nullability=nullable | accessors=get,set
+  Message: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.ScheduledTaskListResponse
+  Tasks: System.Collections.Generic.List<MediaEngine.Contracts.System.ScheduledTaskDto> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.StartupReadinessCheckResponse
   Name: System.String | nullability=not-null | accessors=get,set
   Category: System.String | nullability=not-null | accessors=get,set

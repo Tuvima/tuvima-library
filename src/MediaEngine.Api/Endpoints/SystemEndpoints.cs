@@ -3,6 +3,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.System;
 using MediaEngine.Domain.Authorization;
@@ -47,6 +48,16 @@ public static class SystemEndpoints
         .WithName("GetStartupReadiness")
         .WithSummary("Reports database, configuration, storage, model, provider, and worker readiness.")
         .Produces<StartupReadinessResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
+
+        app.MapGet("/system/scheduled-tasks", async (
+            IScheduledTaskRegistry registry,
+            IScheduledTaskRunRepository runs,
+            CancellationToken ct) => Results.Ok(await ScheduledTaskListBuilder.BuildAsync(registry, runs, DateTimeOffset.Now, ct).ConfigureAwait(false)))
+        .WithTags("System")
+        .WithName("GetScheduledTasks")
+        .WithSummary("Lists every recurring task with its schedule, last run and next run.")
+        .Produces<ScheduledTaskListResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
 
         app.MapGet("/system/activity-status", async (

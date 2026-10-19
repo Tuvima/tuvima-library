@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -176,6 +177,8 @@ public sealed class DataStoreVersionEndpointTests : IDisposable
         // The other system routes are mapped too; their services only need to be known so they bind as services.
         builder.Services.AddSingleton<IConfigurationLoader>(_ => null!);
         builder.Services.AddSingleton<StartupReadinessService>(_ => null!);
+        builder.Services.AddSingleton<IScheduledTaskRegistry>(_ => null!);
+        builder.Services.AddSingleton<IScheduledTaskRunRepository>(_ => null!);
         builder.Services.AddSingleton<IMediaOperationRepository>(_ => null!);
         builder.Services.AddSingleton<IFileWatcher>(_ => null!);
         builder.Services.AddSingleton<AssetStoreCleanupService>(_ => null!);

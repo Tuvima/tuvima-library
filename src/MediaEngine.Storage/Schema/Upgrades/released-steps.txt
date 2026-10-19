@@ -2,3 +2,4 @@
 # A step that has been merged to main must never change. Maintained by: pwsh -File tools/Update-SchemaSnapshot.ps1
 0001 baseline 072279fb32cf53dd0b5a7a22fbbe37a11c4838374b2bf0cbd976e612558cc69e
 0002 media_inspection_holds f6c382ca88e8a5364134794744c459dd02feec147ab7b0fa3d30c96a83fb26c4
+0003 scheduled_task_runs 23ba5fd6649731910e153068027408aad762c284997651cdb897b46493183a4b
