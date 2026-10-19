@@ -12,13 +12,16 @@ namespace MediaEngine.Api.Services.Approvals;
 /// What a person is shown before something is switched on: a title, what it can do, and whether anything leaves the
 /// machine. The Engine writes every word here so the Dashboard, applications and the approval record all agree.
 /// </summary>
+/// <param name="Notes">Every note shown to the person.</param>
+/// <param name="UnhashedNotes">Notes that are shown (and are part of <paramref name="Notes"/>) but describe a passing condition, so they are left out of the fingerprint and a change in them does not ask again.</param>
 internal sealed record ApprovalStatement(
     string Title,
     string KindLabel,
     IReadOnlyList<string> CanDo,
     bool SendsDataOut,
     string? SendsDataTo,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    IReadOnlyList<string>? UnhashedNotes = null);
 
 /// <summary>
 /// Builds <see cref="ApprovalStatement"/>s and their fingerprint. Pure: no storage, no clock, no secrets. A statement
@@ -32,9 +35,13 @@ internal static class ApprovalStatementBuilder
     /// <summary>Where a credential's holder is described in words, since the Engine cannot know the software.</summary>
     public const string TheSoftwareHoldingTheKey = "the software that holds this key";
 
+    /// <summary>Where an integration's existing keys are described, since the Engine cannot know the software.</summary>
+    public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
+
     public const string PluginKindLabel = "Plugin";
     public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
+    public const string ApplicationKindLabel = "Integration";
     public const string WebhookKindLabel = "Webhook";
 
     private const string UsesLocalAi = "Uses Local AI";
@@ -159,6 +166,7 @@ internal static class ApprovalStatementBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
         var canDo = AiFeatureAllowedTo(featureKey).Append(RunsWithLocalAi).ToList();
+        // The download note is shown but not fingerprinted: downloading the model later must not ask again.
         IReadOnlyList<string> notes = modelReady ? [] : [ModelMayDownload];
         return new ApprovalStatement(
             FeatureTitles.TryGetValue(featureKey, out var title) ? title : featureKey,
@@ -166,7 +174,8 @@ internal static class ApprovalStatementBuilder
             canDo,
             SendsDataOut: false,
             SendsDataTo: null,
-            notes);
+            notes,
+            UnhashedNotes: notes);
     }
 
     /// <param name="permissionNames">The human-readable name of each permission the application holds.</param>
@@ -184,6 +193,25 @@ internal static class ApprovalStatementBuilder
             SendsDataOut: true,
             SendsDataTo: TheSoftwareHoldingTheKey,
             ["Anyone with this key can do the above until it is revoked."]);
+    }
+
+    /// <summary>
+    /// An integration whose existing keys gain permissions, or that is switched back on while it holds keys. The permission
+    /// names are sorted so the same set always gives the same fingerprint.
+    /// </summary>
+    /// <param name="permissionNames">The human-readable name of every permission the integration's keys will hold.</param>
+    /// <param name="activeKeyCount">How many keys are live now and would be affected.</param>
+    public static ApprovalStatement ForApplication(string applicationName, IEnumerable<string> permissionNames, int activeKeyCount)
+    {
+        ArgumentNullException.ThrowIfNull(permissionNames);
+        var names = permissionNames.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        return new ApprovalStatement(
+            $"Keys for {applicationName}",
+            ApplicationKindLabel,
+            [$"Its keys can: {string.Join(", ", names)}"],
+            SendsDataOut: true,
+            SendsDataTo: TheSoftwareHoldingItsKeys,
+            [activeKeyCount == 1 ? "Applies to 1 existing key" : $"Applies to {activeKeyCount.ToString(CultureInfo.InvariantCulture)} existing keys"]);
     }
 
     /// <summary>The receiver is shown by host only (no path or query), so nothing in the address that could be a secret is recorded.</summary>
@@ -214,7 +242,7 @@ internal static class ApprovalStatementBuilder
             statement.CanDo.ToArray(),
             statement.SendsDataOut,
             statement.SendsDataTo,
-            statement.Notes.ToArray());
+            statement.Notes.Where(note => statement.UnhashedNotes?.Contains(note, StringComparer.Ordinal) != true).ToArray());
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical, CanonicalJson)));
         return Convert.ToHexStringLower(bytes);
     }

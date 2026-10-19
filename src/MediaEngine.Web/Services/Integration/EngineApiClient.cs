@@ -105,7 +105,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 
             // 409 can mean the Engine wants the person to see what the plugin can do first (approval required), or that it
             // refused to switch the plugin on and says why in plain English (problem detail).
-            if (await ApprovalResponses.TryReadAsync(response, ct) is { } approval)
+            if (await ApprovalResponses.TryReadAsync(response, _logger, ct) is { } approval)
             {
                 return PluginActionResult.ApprovalRequired(approval);
             }

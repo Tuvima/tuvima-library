@@ -43,6 +43,7 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
         {
             ApprovalKinds.ApplicationCredential => "Issue this key?",
             ApprovalKinds.Webhook => "Save this webhook?",
+            ApprovalKinds.Application => "Change what these keys can do?",
             _ => $"Turn on {preview.Title}?",
         };
     }
@@ -75,7 +76,8 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
     /// <summary>
     /// Saves the Local AI configuration. A feature switched on that the person has not seen yet comes back as an approval
     /// request; each is confirmed and the save repeated with the hashes. When anything is cancelled, nothing is saved and
-    /// those features go back to off, their saved value (an approval is only asked for when a feature was off).
+    /// every switch goes back to its saved value (the saved configuration is read again, so a switch the person changed but
+    /// that needed no approval returns too).
     /// </summary>
     public async Task<AiSaveOutcome> SaveAiConfigAsync(UIOrchestratorService orchestrator, AiConfigDto config)
     {
@@ -95,11 +97,7 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
                 var hashes = await ConfirmAsync(result.Approval.Approvals);
                 if (hashes is null)
                 {
-                    foreach (var preview in result.Approval.Approvals)
-                    {
-                        config.Features[preview.ItemId] = false;
-                    }
-
+                    await RestoreSavedSwitchesAsync(orchestrator, config, result.Approval.Approvals);
                     return AiSaveOutcome.Cancelled;
                 }
 
@@ -114,6 +112,31 @@ public sealed class ApprovalFlow(IAppDialogService dialogs)
         finally
         {
             config.Approvals.Clear();
+        }
+    }
+
+    private static async Task RestoreSavedSwitchesAsync(
+        UIOrchestratorService orchestrator,
+        AiConfigDto config,
+        IReadOnlyList<ApprovalPreviewResponse> asked)
+    {
+        var saved = await orchestrator.GetAiConfigAsync();
+        if (saved is not null)
+        {
+            config.Features.Clear();
+            foreach (var (feature, enabled) in saved.Features)
+            {
+                config.Features[feature] = enabled;
+            }
+
+            return;
+        }
+
+        // The saved configuration could not be read, so at least put back the switches the Engine asked about: an approval
+        // is only asked for when a feature was off.
+        foreach (var preview in asked)
+        {
+            config.Features[preview.ItemId] = false;
         }
     }
 }

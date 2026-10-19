@@ -185,6 +185,107 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AddingAPermission_ShowsTheApprovalDialog_AndSavesWithAllowCarryingTheHash()
+    {
+        _handler.GrantedPermissions = ["library.read"];
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        PermissionCheckbox(cut, "Write playback progress").Change(true);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        dialogs.WaitForAssertion(() =>
+        {
+            Assert.Contains("Change what these keys can do?", dialogs.Markup);
+            Assert.Contains("Reads your library", dialogs.Markup);
+            Assert.Contains("Yes, to receiver.example", dialogs.Markup);
+        });
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Allow").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        var puts = _handler.Requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/permissions", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, puts.Count);
+        Assert.Null(JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(puts[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-application", JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(puts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void AddingAPermission_Cancel_AppliesNothingAndSendsNoSecondRequest()
+    {
+        _handler.GrantedPermissions = ["library.read"];
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        PermissionCheckbox(cut, "Write playback progress").Change(true);
+        ButtonNamed(cut, "Save application").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("keys can do?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was not confirmed", cut.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/permissions", StringComparison.Ordinal));
+        Assert.Equal(["library.read"], _handler.Granted);
+    }
+
+    [Fact]
+    public void SwitchingAnApplicationBackOn_WhileItHoldsKeys_ShowsTheApprovalDialog_AndSavesWithTheHash()
+    {
+        _handler.SeedKey();
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForElement("input[role=switch][aria-label='Application enabled']").Change(true);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Change what these keys can do?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Allow").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        var updates = _handler.Requests.Where(request => request.Method == HttpMethod.Put && request.Path == $"/access/applications/{_handler.ApplicationId:D}").ToList();
+        Assert.Equal(2, updates.Count);
+        Assert.Null(JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-application", JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[1].Body, JsonOptions)!.ApprovalHash);
+        Assert.True(JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[1].Body, JsonOptions)!.IsEnabled);
+    }
+
+    [Fact]
+    public void SwitchingAnApplicationBackOn_Cancel_LeavesItOff()
+    {
+        _handler.SeedKey();
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForElement("input[role=switch][aria-label='Application enabled']").Change(true);
+        ButtonNamed(cut, "Save application").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("keys can do?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was not confirmed", cut.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/applications/{_handler.ApplicationId:D}");
+        Assert.False(_handler.IsEnabled);
+    }
+
+    [Fact]
+    public void SavingAnApplicationThatNeedsNoApproval_ShowsNoDialog()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        Assert.DoesNotContain("approval-dialog", dialogs.Markup);
+    }
+
+    [Fact]
     public void CreateApplication_UsesSelectedPresetAndContinuesToCredentialSetup()
     {
         var cut = RenderApplications();
@@ -572,6 +673,17 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
         /// <summary>When set, issuing a key and saving a webhook answer 409 approval_required until the request carries the hash.</summary>
         public bool RequireApprovalHash { get; set; }
+
+        /// <summary>The permissions the application holds, for tests that add one.</summary>
+        public IReadOnlyList<string> GrantedPermissions { set => _permissions = value; }
+
+        public IReadOnlyList<string> Granted => _permissions;
+
+        public bool IsEnabled => _enabled;
+
+        /// <summary>Gives the application a live key, so switching it back on affects an existing key.</summary>
+        public void SeedKey() => _credentials.Add(new ApplicationCredentialResponse(
+            Guid.NewGuid(), ApplicationId, "Existing key", DateTimeOffset.UtcNow.AddDays(-2), null, null, null));
         public IReadOnlyList<RequestRecord> Requests
         {
             get
@@ -721,7 +833,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Put && path.EndsWith("/permissions", StringComparison.Ordinal))
             {
-                _permissions = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(body, JsonOptions)!.PermissionIds;
+                var permissions = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(body, JsonOptions)!;
+                if (RequireApprovalHash && permissions.ApprovalHash is null && permissions.PermissionIds.Except(_permissions).Any())
+                {
+                    return ApprovalRequired("application", "Keys for Living room", "hash-application");
+                }
+
+                _permissions = permissions.PermissionIds;
                 return Json(Application());
             }
             if (request.Method == HttpMethod.Put && path.EndsWith("/client-bindings", StringComparison.Ordinal))
@@ -742,6 +860,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
                 }
 
                 var value = JsonSerializer.Deserialize<UpdateApplicationRequest>(body, JsonOptions)!;
+                if (RequireApprovalHash && value.ApprovalHash is null && !_enabled && value.IsEnabled && _credentials.Count > 0)
+                {
+                    return ApprovalRequired("application", "Keys for Living room", "hash-application");
+                }
+
                 _name = value.Name;
                 _type = value.ApplicationType;
                 _enabled = value.IsEnabled;

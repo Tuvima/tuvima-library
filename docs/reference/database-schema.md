@@ -974,13 +974,13 @@ One row per run of a recurring background task (activity log cleanup, Local AI b
 
 ### approval_records
 
-One append-only row each time a server administrator (or an application holding the matching permission) confirmed what an item can do before it was switched on: a plugin, a Local AI feature, an application credential or a webhook. Nothing updates or deletes a row; `IApprovalRecordRepository` offers add, list and exists only. `statement_json` is exactly what the person was shown, and `statement_hash` is the SHA-256 of its canonical form, so an item whose statement later changes (for example a plugin that now asks for another permission) is asked about again. No secret value is ever stored here: a webhook is recorded by its receiver's host only, and a credential's key is never part of its statement.
+One append-only row each time a server administrator (or an application holding the matching permission) confirmed what an item can do before it was switched on: a plugin, a Local AI feature, an application credential, a webhook, or an integration whose existing keys gained permissions or that was switched back on while it held keys. Nothing updates or deletes a row; `IApprovalRecordRepository` offers add, list and exists only. `statement_json` is exactly what the person was shown, and `statement_hash` is the SHA-256 of its canonical form, so an item whose statement later changes (for example a plugin that now asks for another permission) is asked about again. No secret value is ever stored here: a webhook is recorded by its receiver's host only, and a credential's key is never part of its statement.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BLOB | 16-byte GUID, primary key |
-| `item_kind` | TEXT | `plugin`, `ai_feature`, `application_credential` or `webhook` |
-| `item_id` | TEXT | Plugin id, AI feature key, credential id or webhook id |
+| `item_kind` | TEXT | `plugin`, `ai_feature`, `application_credential`, `webhook` or `application` |
+| `item_id` | TEXT | Plugin id, AI feature key, credential id, webhook id or (for `application`) application id |
 | `statement_hash` | TEXT | SHA-256, lower-case hex |
 | `statement_json` | TEXT | The statement as shown: title, kind label, what it can do, whether data leaves the machine and where, notes |
 | `approved_by_account_id` | BLOB | The account that confirmed; null when an application confirmed |

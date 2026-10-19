@@ -181,7 +181,7 @@ public sealed class PluginCapabilityAuthorizationTests
                   "entry_type": "Anything.Plugin"
                 }
                 """);
-            var catalog = new PluginCatalog([], new PluginSettingsService(loader), loader, NullLogger<PluginCatalog>.Instance);
+            var catalog = new PluginCatalog([], new PluginSettingsService(loader), loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
 
             var registration = Assert.Single(catalog.List());
             Assert.Contains("outside the plugin directory", registration.LoadError, StringComparison.OrdinalIgnoreCase);
@@ -409,7 +409,7 @@ public sealed class PluginCapabilityAuthorizationTests
                 [new TestPlugin(manifest)],
                 new PluginSettingsService(Loader),
                 Loader,
-                NullLogger<PluginCatalog>.Instance);
+                AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         }
 
         public string Root { get; }

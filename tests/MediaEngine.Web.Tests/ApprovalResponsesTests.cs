@@ -19,7 +19,7 @@ public sealed class ApprovalResponsesTests
             }),
         };
 
-        var approval = await ApprovalResponses.TryReadAsync(response, default);
+        var approval = await ApprovalResponses.TryReadAsync(response, null, default);
 
         var preview = Assert.Single(approval!.Approvals);
         Assert.Equal("h", preview.StatementHash);
@@ -33,7 +33,7 @@ public sealed class ApprovalResponsesTests
             Content = new StringContent("""{"title":"Conflict.","detail":"Needs Library 2.0.0 or later."}""", Encoding.UTF8, "application/problem+json"),
         };
 
-        var approval = await ApprovalResponses.TryReadAsync(response, default);
+        var approval = await ApprovalResponses.TryReadAsync(response, null, default);
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Null(approval);
@@ -47,7 +47,7 @@ public sealed class ApprovalResponsesTests
     {
         using var response = new HttpResponseMessage(status) { Content = JsonContent.Create(new ApprovalRequiredResponse()) };
 
-        Assert.Null(await ApprovalResponses.TryReadAsync(response, default));
+        Assert.Null(await ApprovalResponses.TryReadAsync(response, null, default));
     }
 
     [Fact]
@@ -55,6 +55,6 @@ public sealed class ApprovalResponsesTests
     {
         using var response = new HttpResponseMessage(HttpStatusCode.Conflict) { Content = JsonContent.Create(new ApprovalRequiredResponse()) };
 
-        Assert.Null(await ApprovalResponses.TryReadAsync(response, default));
+        Assert.Null(await ApprovalResponses.TryReadAsync(response, null, default));
     }
 }

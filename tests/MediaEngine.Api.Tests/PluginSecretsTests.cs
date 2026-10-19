@@ -48,7 +48,7 @@ public sealed class PluginSecretsTests : IDisposable
             ],
             new PluginSettingsService(_loader),
             _loader,
-            NullLogger<PluginCatalog>.Instance);
+            AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         foreach (var plugin in _catalog.List())
         {
             _catalog.SetEnabled(plugin.Manifest.Id, true);
@@ -161,7 +161,7 @@ public sealed class PluginSecretsTests : IDisposable
         Assert.Equal(StatusCodes.Status204NoContent, set.Status);
         Assert.Equal(SecretValue, await _store.GetAsync(SecretOwner.Plugin(PluginA), "api_token"));
 
-        var listed = await Execute(await PluginEndpoints.ListPluginSecretsAsync(PluginA, _catalog, _store, default));
+        var listed = await Execute(await PluginEndpoints.ListPluginSecretsAsync(PluginA, _catalog, _store, logs, default));
         Assert.Equal(StatusCodes.Status200OK, listed.Status);
         Assert.DoesNotContain(SecretValue, listed.Body, StringComparison.Ordinal);
         var statuses = JsonSerializer.Deserialize<List<PluginSecretStatusResponse>>(listed.Body)!;
@@ -227,6 +227,55 @@ public sealed class PluginSecretsTests : IDisposable
     }
 
     [Fact]
+    public async Task ADamagedSecretsFile_IsAPlainConflict_OnListSetAndRemove_LoggedByPluginIdOnly()
+    {
+        var logs = new SpyLoggerFactory();
+        await _store.SetAsync(SecretOwner.Plugin(PluginB), Values("api_token", SecretValue));
+        File.WriteAllText(
+            Path.Combine(_root, "config", "secrets", "plugins", $"{PluginB}.json"),
+            "{\"api_token\": \"" + SecretValue + "\" broken");
+
+        var listed = await Execute(await PluginEndpoints.ListPluginSecretsAsync(PluginB, _catalog, _store, logs, default));
+        var set = await Execute(await PluginEndpoints.SetPluginSecretAsync(
+            PluginB, "api_token", new PluginSecretWriteRequest { Value = "another-value-77" }, _catalog, _store, logs, default));
+        var removed = await Execute(await PluginEndpoints.RemovePluginSecretAsync(PluginB, "api_token", _catalog, _store, logs, default));
+
+        Assert.All(new[] { listed, set, removed }, outcome =>
+        {
+            Assert.Equal(StatusCodes.Status409Conflict, outcome.Status);
+            Assert.Contains("could not be read or saved", outcome.Body, StringComparison.Ordinal);
+            Assert.DoesNotContain(SecretValue, outcome.Body, StringComparison.Ordinal);
+        });
+        Assert.NotEmpty(logs.Entries);
+        Assert.Contains(logs.Entries, entry => entry.Contains(PluginB, StringComparison.Ordinal));
+        Assert.DoesNotContain(logs.Entries, entry => entry.Contains(SecretValue, StringComparison.Ordinal) || entry.Contains("another-value-77", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task APluginIdTheSecretsStoreCannotUse_IsABadRequest_OnListSetAndRemove()
+    {
+        var logs = new SpyLoggerFactory();
+        var badId = "Bad/Id";
+        var catalog = new PluginCatalog(
+            [new TestPlugin(Manifest(badId, [PluginPermissionIds.PluginSecrets], ["api_token"]))],
+            new PluginSettingsService(_loader),
+            _loader,
+            AllowAllPluginApprovals.Instance,
+            NullLogger<PluginCatalog>.Instance);
+
+        var listed = await Execute(await PluginEndpoints.ListPluginSecretsAsync(badId, catalog, _store, logs, default));
+        var set = await Execute(await PluginEndpoints.SetPluginSecretAsync(
+            badId, "api_token", new PluginSecretWriteRequest { Value = SecretValue }, catalog, _store, logs, default));
+        var removed = await Execute(await PluginEndpoints.RemovePluginSecretAsync(badId, "api_token", catalog, _store, logs, default));
+
+        Assert.All(new[] { listed, set, removed }, outcome =>
+        {
+            Assert.Equal(StatusCodes.Status400BadRequest, outcome.Status);
+            Assert.DoesNotContain(SecretValue, outcome.Body, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public async Task UninstallingAPlugin_RemovesItsSecretsFile()
     {
         var pluginRoot = Path.Combine(_root, "library", ".data", "plugins", "sample-plugin");
@@ -245,7 +294,7 @@ public sealed class PluginSecretsTests : IDisposable
               "secrets": [{ "name": "api_token", "label": "Token", "description": "Key from the service." }]
             }
             """);
-        var catalog = new PluginCatalog([], new PluginSettingsService(_loader), _loader, NullLogger<PluginCatalog>.Instance);
+        var catalog = new PluginCatalog([], new PluginSettingsService(_loader), _loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         var owner = SecretOwner.Plugin("tuvima.test.dynamic");
         await _store.SetAsync(owner, Values("api_token", SecretValue));
         var secretsFile = Path.Combine(_root, "config", "secrets", "plugins", "tuvima.test.dynamic.json");

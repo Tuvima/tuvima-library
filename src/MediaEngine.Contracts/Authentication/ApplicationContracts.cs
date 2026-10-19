@@ -68,10 +68,12 @@ public sealed record UpdateApplicationRequest(
     [property: JsonPropertyName("description")] string? Description,
     [property: JsonPropertyName("application_type")] ApplicationTypeDto ApplicationType,
     [property: JsonPropertyName("is_enabled")] bool IsEnabled,
-    [property: JsonPropertyName("is_administrator")] bool IsAdministrator);
+    [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
+    [property: JsonPropertyName("approval_hash")] string? ApprovalHash = null);
 
 public sealed record SetApplicationPermissionsRequest(
-    [property: JsonPropertyName("permission_ids")] IReadOnlyList<string> PermissionIds);
+    [property: JsonPropertyName("permission_ids")] IReadOnlyList<string> PermissionIds,
+    [property: JsonPropertyName("approval_hash")] string? ApprovalHash = null);
 
 public sealed record SetApplicationClientBindingsRequest(
     [property: JsonPropertyName("client_ids")] IReadOnlyList<string> ClientIds);
