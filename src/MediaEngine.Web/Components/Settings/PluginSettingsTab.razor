@@ -2,10 +2,16 @@
 @using System.Globalization
 @using System.Text.Json
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Contracts.System
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Settings
+@implements IDisposable
 @inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
+@inject SettingsAttentionState Attention
 
 @if (_loading)
 {
@@ -27,13 +33,9 @@ else
         @* One page: the installed plugins first, then the approved catalog, then the advanced plugin sections
            (health and jobs, capabilities, danger zone). The advanced sections and the catalog are desktop and tablet only. *@
         @OverviewSummary()
-        @if (DeviceContext.IsMobile)
+        @InstalledPluginsPanel()
+        @if (!DeviceContext.IsMobile)
         {
-            @MobileInstalledPluginsPanel()
-        }
-        else
-        {
-            @InstalledPluginsPanel()
             @if (ConfiguredPlugin is not null)
             {
                 <AppCard Title="@($"Configure {ConfiguredPlugin.Name}")" Description="@ConfiguredPlugin.Description" Class="settings-plugin-configure-panel">
@@ -56,6 +58,10 @@ else
     private readonly Dictionary<string, PluginHealthResponse> _health = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<OperationDto>> _jobs = new(StringComparer.OrdinalIgnoreCase);
     private List<PluginSummaryResponse> _plugins = [];
+    private readonly HashSet<string> _healthLoading = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _disposed = new();
+    private IReadOnlyList<ScheduledTaskDto>? _tasks;
+    private bool _tasksLoaded;
     private ApprovedPluginCatalogDto? _approvedCatalog;
     private bool _approvedCatalogLoading;
     private bool _loading = true;
@@ -92,71 +98,76 @@ else
         }
     </div>;
 
-    private RenderFragment InstalledPluginsPanel() => @<AppCard Title="Installed plugins" Description="Enable extensions and open the settings each plugin actually provides.">
+    private RenderFragment InstalledPluginsPanel() => @<section class="settings-plugin-cards-section" aria-label="Installed plugins">
+        <AppText Typo="AppTypo.subtitle1">Installed plugins</AppText>
+        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@(DeviceContext.IsMobile ? "Plugin configuration is available on desktop and tablet." : "Switch plugins on or off and open the settings each plugin provides.")</AppText>
         @if (_plugins.Count == 0)
         {
             <AppEmptyState Title="No installed plugins" Message="The Engine did not return any installed extensions." />
         }
         else
         {
-            <AppTable Class="settings-plugin-installed-table">
-                <thead>
-                    <tr><th>Plugin</th><th>Purpose</th><th>Status</th><th>Version</th><th><span class="sr-only">Actions</span></th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var plugin in _plugins)
-                    {
-                        <tr>
-                            <td>
-                                <strong class="settings-plugin-table-title">@plugin.Name</strong>
-                                <span class="settings-plugin-table-meta">@(plugin.IsBuiltIn ? "Built-in" : "Extension")</span>
-                            </td>
-                            <td>@plugin.Description</td>
-                            <td>
-                                <AppSwitchRow Label="@(plugin.Enabled ? "Enabled" : "Disabled")"
-                                              Value="@plugin.Enabled"
-                                              Disabled="@(!plugin.IsCompatible && !plugin.Enabled)"
-                                              ValueChanged="@(value => SetEnabledAsync(plugin, value))"
-                                              StopClickPropagation="true" />
-                                @if (!string.IsNullOrWhiteSpace(plugin.LoadError))
-                                {
-                                    <AppStatusBadge Text="Needs setup" Tone="AppUiTone.Warning" />
-                                }
-                                @if (!plugin.IsCompatible && !string.IsNullOrWhiteSpace(plugin.CompatibilityProblem))
-                                {
-                                    <span class="settings-plugin-table-meta">@plugin.CompatibilityProblem</span>
-                                }
-                            </td>
-                            <td>@plugin.Version</td>
-                            <td>
-                                <AppButton Label="Configure" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </AppTable>
-        }
-    </AppCard>;
-
-    private RenderFragment MobileInstalledPluginsPanel() => @<AppCard Title="Installed plugins" Description="Plugin configuration is available on desktop and tablet.">
-        @if (_plugins.Count == 0)
-        {
-            <AppEmptyState Class="app-page-state--compact" Title="No installed plugins" />
-        }
-        else
-        {
-            <div class="settings-plugin-mobile-list" role="list">
+            <div class="settings-plugin-cards" role="list">
                 @foreach (var plugin in _plugins)
                 {
-                    <div class="settings-plugin-mobile-row" role="listitem">
-                        <span><strong>@plugin.Name</strong><small>@plugin.Description</small></span>
-                        <AppStatusBadge Text="@(!string.IsNullOrWhiteSpace(plugin.LoadError) ? "Needs setup" : plugin.Enabled ? "Enabled" : "Disabled")"
-                                        Tone="@(!string.IsNullOrWhiteSpace(plugin.LoadError) ? AppUiTone.Warning : plugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
-                    </div>
+                    <div role="listitem" @key="plugin.Id">@PluginCard(plugin)</div>
                 }
             </div>
         }
-    </AppCard>;
+    </section>;
+
+    private RenderFragment PluginCard(PluginSummaryResponse plugin)
+    {
+        _health.TryGetValue(plugin.Id, out var health);
+        var run = StateCardHealth.LatestRun(_tasks, plugin.Id);
+        var state = StateCardHealth.ForPlugin(plugin, health, run);
+        var sendsOut = StateCardHealth.PluginSendsDataOut(plugin);
+        // Phones read the cards; switching and configuring plugins stays on desktop and tablet.
+        var canChange = !DeviceContext.IsMobile;
+        return @<AppStateCard Name="@plugin.Name"
+                              Kind="StateCardKind.Plugin"
+                              Description="@plugin.Description"
+                              IsOn="@(canChange ? plugin.Enabled : null)"
+                              IsOnChanged="@(value => SetEnabledAsync(plugin, value))"
+                              SwitchDisabledReason="@SwitchDisabledReason(plugin)"
+                              Health="@state.Word"
+                              LastProblem="@state.LastProblem"
+                              AllowedTo="@StateCardHealth.PluginAllowedTo(plugin)"
+                              SendsDataOut="@sendsOut"
+                              SendsDataTo="@(sendsOut ? StateCardHealth.TheInternet : null)"
+                              LastActivity="@StateCardHealth.ActivityTime(run)"
+                              Loading="@_healthLoading.Contains(plugin.Id)"
+                              Action="@PluginAction(plugin, state.Word, canChange)">
+            <Badges><AppStatusBadge Text="@TrustLabel(plugin.TrustLevel)" Tone="@TrustTone(plugin.TrustLevel)" /></Badges>
+        </AppStateCard>;
+    }
+
+    private RenderFragment? PluginAction(PluginSummaryResponse plugin, HealthWord word, bool canChange) => word == HealthWord.Broken
+        ? @<AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@ReloadAsync" />
+        : canChange
+            ? @<AppButton Label="Open settings" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
+            : null;
+
+    // A plugin that cannot work here cannot be switched on; once it is on, switching off is always allowed.
+    private static string? SwitchDisabledReason(PluginSummaryResponse plugin) => !plugin.IsCompatible && !plugin.Enabled
+        ? string.IsNullOrWhiteSpace(plugin.CompatibilityProblem) ? "This plugin cannot be switched on here." : plugin.CompatibilityProblem
+        : null;
+
+    private static string TrustLabel(string trustLevel) => trustLevel.ToLowerInvariant() switch
+    {
+        "official" => "Official",
+        "verified" => "Verified",
+        "community" => "Community",
+        "private" => "Private",
+        _ => ToTitle(trustLevel),
+    };
+
+    private static AppUiTone TrustTone(string trustLevel) => trustLevel.ToLowerInvariant() switch
+    {
+        "official" => AppUiTone.Primary,
+        "verified" => AppUiTone.Info,
+        _ => AppUiTone.Neutral,
+    };
 
     private RenderFragment MarketplaceNote() => @<AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
         Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
@@ -360,6 +371,12 @@ else
         await LoadAsync();
     }
 
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+
     private async Task LoadAsync()
     {
         _loading = true;
@@ -370,6 +387,13 @@ else
             if (_plugins.Count > 0 && SelectedPlugin is null)
                 _selectedPluginId = _plugins[0].Id;
 
+            Attention.ReportPlugins(_plugins);
+            if (!_tasksLoaded)
+            {
+                // The run records are read once per visit; they only give each card its last activity and last failure.
+                _tasksLoaded = true;
+                _tasks = (await ApiClient.GetScheduledTasksAsync(_disposed.Token))?.Tasks;
+            }
         }
         catch
         {
@@ -379,11 +403,45 @@ else
         {
             _loading = false;
         }
+
+        StartHealthChecks(_plugins.Where(plugin => plugin.Enabled && plugin.IsCompatible && string.IsNullOrWhiteSpace(plugin.LoadError)));
     }
 
     private async Task ReloadAsync()
     {
         await LoadAsync();
+    }
+
+    // Each switched-on plugin that loaded gets one health check in the background; its card shows a quiet placeholder
+    // until the answer arrives. A plugin that is off or broken needs no check to know its word.
+    private void StartHealthChecks(IEnumerable<PluginSummaryResponse> plugins)
+    {
+        foreach (var plugin in plugins.ToList())
+        {
+            if (_healthLoading.Add(plugin.Id))
+                _ = CheckHealthInBackgroundAsync(plugin);
+        }
+    }
+
+    private async Task CheckHealthInBackgroundAsync(PluginSummaryResponse plugin)
+    {
+        try
+        {
+            var result = await Orchestrator.CheckPluginHealthAsync(plugin.Id, _disposed.Token);
+            if (result is not null)
+                _health[plugin.Id] = result;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        finally
+        {
+            _healthLoading.Remove(plugin.Id);
+        }
+
+        if (!_disposed.IsCancellationRequested)
+            await InvokeAsync(StateHasChanged);
     }
 
     private void SelectPlugin(string pluginId)
@@ -416,6 +474,9 @@ else
         }
 
         plugin.Enabled = enabled;
+        Attention.ReportPlugins(_plugins);
+        if (enabled)
+            StartHealthChecks([plugin]);
         Snackbar.Add($"{plugin.Name} {(enabled ? "enabled" : "disabled")}.", AppSeverity.Success);
     }
 

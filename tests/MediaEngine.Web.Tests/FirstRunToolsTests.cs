@@ -5,6 +5,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
@@ -56,6 +57,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton(new DeviceContextService(api));
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddSingleton<SettingsAttentionState>();
     }
 
     // ── Setup: "Getting things ready" ────────────────────────────────────────
