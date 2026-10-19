@@ -7379,10 +7379,10 @@
   ReleaseUrl: System.String | json=release_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PackageUrl: System.String | json=package_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sha256: System.String | json=sha256 | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  MinimumTuvimaApiVersion: System.String | json=minimum_tuvima_api_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MinimumLibraryVersion: System.String | json=minimum_library_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.List<System.String> | json=capabilities | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InstallNotes: System.String | json=install_notes | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","version":"sample","description":"sample","author":"sample","status":"sample","repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","minimum_tuvima_api_version":"sample","capabilities":[],"install_notes":"sample"}
+  sample={"id":"sample","name":"sample","version":"sample","description":"sample","author":"sample","status":"sample","repository_url":"sample","release_url":"sample","package_url":"sample","sha256":"sample","minimum_library_version":"sample","capabilities":[],"install_notes":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7493,6 +7493,13 @@
   Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsBuiltIn: System.Boolean | json=is_built_in | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LoadError: System.String | json=load_error | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TrustLevel: System.String | json=trust_level | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MinimumLibraryVersion: System.String | json=minimum_library_version | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaximumLibraryVersion: System.String | json=maximum_library_version | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SupportedPlatforms: System.Collections.Generic.List<System.String> | json=supported_platforms | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsCompatible: System.Boolean | json=is_compatible | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CompatibilityProblem: System.String | json=compatibility_problem | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCapabilityDto> | json=capabilities | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Permissions: System.Collections.Generic.List<System.String> | json=permissions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ToolRequirements: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginToolRequirementDto> | json=tool_requirements | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7500,7 +7507,7 @@
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | json=settings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SettingsSchema: System.Text.Json.JsonElement? | json=settings_schema | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ManifestPath: System.String | json=manifest_path | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"load_error":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample"}
+  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"load_error":"sample","kind":"sample","trust_level":"sample","minimum_library_version":"sample","maximum_library_version":"sample","supported_platforms":[],"is_compatible":true,"compatibility_problem":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginToolPlatformDto
   kind=class | converter=default | number-handling=default | unmapped=default

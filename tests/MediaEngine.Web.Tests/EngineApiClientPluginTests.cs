@@ -134,6 +134,75 @@ public sealed class EngineApiClientPluginTests
         Assert.NotNull(job.CompletedAt);
     }
 
+    [Fact]
+    public async Task SetPluginEnabledAsync_WhenTheEngineRefuses_ReturnsTheEnginesPlainReason()
+    {
+        using var http = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.Conflict)
+        {
+            Content = new StringContent(
+                """{"title":"Conflict.","status":409,"detail":"Needs Library 2.0.0 or later; this is 1.0.0.","traceId":"abc"}""",
+                Encoding.UTF8,
+                "application/problem+json"),
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var result = await client.SetPluginEnabledAsync("plugin.one", enabled: true);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Needs Library 2.0.0 or later; this is 1.0.0.", result.Message);
+    }
+
+    [Fact]
+    public async Task SetPluginEnabledAsync_WhenTheEngineFailsWithoutAReason_HasNoMessage()
+    {
+        using var http = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var result = await client.SetPluginEnabledAsync("plugin.one", enabled: true);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Message);
+    }
+
+    [Fact]
+    public async Task SetPluginEnabledAsync_WhenTheEngineAgrees_Succeeds()
+    {
+        using var http = CreateClient(_ => Json("""{"plugin_id":"plugin.one","enabled":true}"""));
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var result = await client.SetPluginEnabledAsync("plugin.one", enabled: true);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task GetPluginsAsync_PreservesCompatibilityAndTrustDetails()
+    {
+        using var http = CreateClient(_ => Json("""
+            [{
+              "id":"plugin.one","name":"Plugin One","version":"1.0.0","description":"Test",
+              "enabled":false,"is_built_in":false,"load_error":null,
+              "kind":"declarative","trust_level":"private",
+              "minimum_library_version":"1.2.0","maximum_library_version":"1.9.0",
+              "supported_platforms":["linux"],
+              "is_compatible":false,"compatibility_problem":"Not available on win-x64.",
+              "capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],
+              "settings":{},"settings_schema":null,"manifest_path":null
+            }]
+            """));
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var plugin = Assert.Single(await client.GetPluginsAsync());
+
+        Assert.Equal("declarative", plugin.Kind);
+        Assert.Equal("private", plugin.TrustLevel);
+        Assert.Equal("1.2.0", plugin.MinimumLibraryVersion);
+        Assert.Equal("1.9.0", plugin.MaximumLibraryVersion);
+        Assert.Equal("linux", Assert.Single(plugin.SupportedPlatforms));
+        Assert.False(plugin.IsCompatible);
+        Assert.Equal("Not available on win-x64.", plugin.CompatibilityProblem);
+    }
+
     private static HttpClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> responder) =>
         new(new StubHttpMessageHandler(responder))
         {

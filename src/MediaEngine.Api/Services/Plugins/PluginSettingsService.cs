@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Services.Plugins;
 
@@ -15,9 +16,11 @@ public sealed class PluginSettingsService
     };
 
     private readonly string _configRoot;
+    private readonly ILogger<PluginSettingsService> _logger;
 
-    public PluginSettingsService(IConfigurationLoader configurationLoader)
+    public PluginSettingsService(IConfigurationLoader configurationLoader, ILogger<PluginSettingsService>? logger = null)
     {
+        _logger = logger ?? NullLogger<PluginSettingsService>.Instance;
         var core = configurationLoader.LoadCore();
         var root = string.IsNullOrWhiteSpace(core.LibraryRoot)
             ? Path.GetFullPath(".data")
@@ -54,8 +57,11 @@ public sealed class PluginSettingsService
 
             return config;
         }
-        catch
+        catch (Exception ex)
         {
+            // An unreadable settings file must not take the plugin down: report it and fall back to the safe
+            // default (switched off, manifest default settings).
+            _logger.LogWarning(ex, "Plugin {PluginId} settings file {SettingsPath} could not be read; using defaults", manifest.Id, path);
             return new PluginUserConfiguration
             {
                 PluginId = manifest.Id,

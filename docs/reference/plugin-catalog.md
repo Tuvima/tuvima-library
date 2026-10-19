@@ -62,7 +62,7 @@ The Engine only accepts HTTPS URLs hosted by `raw.githubusercontent.com` or `git
       "release_url": "https://github.com/example/tuvima-sample-plugin/releases/tag/v0.1.0",
       "package_url": "https://github.com/example/tuvima-sample-plugin/releases/download/v0.1.0/sample-plugin.zip",
       "sha256": "64-character lowercase hex checksum",
-      "minimum_tuvima_api_version": "1.0.0",
+      "minimum_library_version": "1.0.0",
       "capabilities": ["playback-segment-detector"],
       "install_notes": "Extract the archive under {library_root}/.data/plugins/sample-plugin."
     }

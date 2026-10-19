@@ -6312,7 +6312,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.ApprovedPluginDto
   ReleaseUrl: System.String | nullability=nullable | accessors=get,set
   PackageUrl: System.String | nullability=nullable | accessors=get,set
   Sha256: System.String | nullability=nullable | accessors=get,set
-  MinimumTuvimaApiVersion: System.String | nullability=not-null | accessors=get,set
+  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
   Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   InstallNotes: System.String | nullability=nullable | accessors=get,set
 
@@ -6401,6 +6401,13 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   Enabled: System.Boolean | nullability=not-null | accessors=get,set
   IsBuiltIn: System.Boolean | nullability=not-null | accessors=get,init
   LoadError: System.String | nullability=nullable | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  TrustLevel: System.String | nullability=not-null | accessors=get,set
+  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
+  MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
+  SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  IsCompatible: System.Boolean | nullability=not-null | accessors=get,set
+  CompatibilityProblem: System.String | nullability=nullable | accessors=get,set
   Capabilities: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginCapabilityDto> | nullability=not-null | accessors=get,set
   Permissions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   ToolRequirements: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginToolRequirementDto> | nullability=not-null | accessors=get,set

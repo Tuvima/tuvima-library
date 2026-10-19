@@ -68,6 +68,32 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("load_error")]
     public string? LoadError { get; set; }
 
+    /// <summary>How the plugin runs: <c>official</c>, <c>declarative</c>, <c>service</c> or <c>sandboxed</c>.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "official";
+
+    /// <summary>How far the Library trusts the plugin, decided by the Library: <c>official</c>, <c>verified</c>, <c>community</c> or <c>private</c>.</summary>
+    [JsonPropertyName("trust_level")]
+    public string TrustLevel { get; set; } = "private";
+
+    [JsonPropertyName("minimum_library_version")]
+    public string MinimumLibraryVersion { get; set; } = "1.0.0";
+
+    [JsonPropertyName("maximum_library_version")]
+    public string? MaximumLibraryVersion { get; set; }
+
+    /// <summary>Operating systems or runtime identifiers the plugin supports; empty means every platform.</summary>
+    [JsonPropertyName("supported_platforms")]
+    public List<string> SupportedPlatforms { get; set; } = [];
+
+    /// <summary>False when the plugin cannot be switched on here (Library version, platform, kind or a load problem).</summary>
+    [JsonPropertyName("is_compatible")]
+    public bool IsCompatible { get; set; } = true;
+
+    /// <summary>Plain-English reason the plugin cannot be switched on, or null when it can.</summary>
+    [JsonPropertyName("compatibility_problem")]
+    public string? CompatibilityProblem { get; set; }
+
     [JsonPropertyName("capabilities")]
     public List<PluginCapabilityDto> Capabilities { get; set; } = [];
 
@@ -264,8 +290,8 @@ public sealed class ApprovedPluginDto
     [JsonPropertyName("sha256")]
     public string? Sha256 { get; set; }
 
-    [JsonPropertyName("minimum_tuvima_api_version")]
-    public string MinimumTuvimaApiVersion { get; set; } = "1.0.0";
+    [JsonPropertyName("minimum_library_version")]
+    public string MinimumLibraryVersion { get; set; } = "1.0.0";
 
     [JsonPropertyName("capabilities")]
     public List<string> Capabilities { get; set; } = [];

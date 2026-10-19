@@ -123,7 +123,8 @@ internal static class SegmentManifestFactory
             Id = id,
             Name = name,
             Version = "0.1.0",
-            MinimumTuvimaApiVersion = "1.0.0",
+            Kind = PluginKind.Official,
+            MinimumLibraryVersion = "1.0.0",
             Description = description,
             Capabilities =
         [
@@ -137,7 +138,7 @@ internal static class SegmentManifestFactory
             Permissions = BuildPermissions(tools, ai),
             ToolRequirements = tools ?? FfmpegTools(),
             AiPermissions = ai ?? [],
-            SupportedPlatforms = ["win-x64", "linux-x64", "osx-x64", "osx-arm64"],
+            SupportedPlatforms = [], // managed code and FFmpeg only: runs on every platform
             DefaultSettings = settings,
         };
 

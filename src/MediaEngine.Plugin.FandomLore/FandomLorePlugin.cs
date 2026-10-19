@@ -12,7 +12,8 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
         Id = PluginId,
         Name = "Fandom Lore",
         Version = "0.1.0",
-        MinimumTuvimaApiVersion = "1.0.0",
+        Kind = PluginKind.Official,
+        MinimumLibraryVersion = "1.0.0",
         Description = "Supplements Wikidata universe graphs with approved structured Fandom wiki lore.",
         Capabilities =
         [
@@ -30,7 +31,7 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
             },
         ],
         Permissions = [PluginPermissionIds.NetworkHttp],
-        SupportedPlatforms = ["win-x64", "linux-x64", "osx-x64", "osx-arm64"],
+        SupportedPlatforms = [], // managed code and FFmpeg only: runs on every platform
         DefaultSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
         {
             ["auto_discovery_enabled"] = JsonSerializer.SerializeToElement(true),

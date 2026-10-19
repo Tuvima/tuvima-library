@@ -133,11 +133,16 @@ else
                             <td>
                                 <AppSwitchRow Label="@(plugin.Enabled ? "Enabled" : "Disabled")"
                                               Value="@plugin.Enabled"
+                                              Disabled="@(!plugin.IsCompatible && !plugin.Enabled)"
                                               ValueChanged="@(value => SetEnabledAsync(plugin, value))"
                                               StopClickPropagation="true" />
                                 @if (!string.IsNullOrWhiteSpace(plugin.LoadError))
                                 {
                                     <AppStatusBadge Text="Needs setup" Tone="AppUiTone.Warning" />
+                                }
+                                @if (!plugin.IsCompatible && !string.IsNullOrWhiteSpace(plugin.CompatibilityProblem))
+                                {
+                                    <span class="settings-plugin-table-meta">@plugin.CompatibilityProblem</span>
                                 }
                             </td>
                             <td>@plugin.Version</td>
@@ -457,9 +462,11 @@ else
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
-        if (!await Orchestrator.SetPluginEnabledAsync(plugin.Id, enabled))
+        var result = await Orchestrator.SetPluginEnabledAsync(plugin.Id, enabled);
+        if (!result.Succeeded)
         {
-            Snackbar.Add("Plugin state could not be saved.", AppSeverity.Error);
+            // The Engine's plain-English reason (for example a Library version the plugin does not support) beats the generic text.
+            Snackbar.Add(string.IsNullOrWhiteSpace(result.Message) ? "Plugin state could not be saved." : result.Message, AppSeverity.Error);
             return;
         }
 
