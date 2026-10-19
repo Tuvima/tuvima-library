@@ -90,7 +90,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/recently-added` | `RecentlyAddedPage` | Recently added |
 | `/search` | `SearchPage` | Global search |
 | `/view`, `/view/*` (artwork, contributions, documents, folders, galleries, people, places) | `View*Page` | Personal and shared View library |
-| `/downloads` | `DownloadsPage` | Explains downloads live in the Tuvima app |
+| `/downloads` | `DownloadsPage` | Explains downloads live in the Library app |
 | `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review lives in `/settings/recently-added` (opened from Library and Ingestion's "View all"); `/settings/review` redirects there |
 | `/engine-activity-artwork/{key}`, `/engine-activity-export` | `Program.cs` minimal endpoints | Stream the signed-in person's private activity pictures and CSV export from the Engine with that person's own sign-in (never the service credential) |
 | `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion`, `/settings/recently-added`, or for `activity`/`timeline` the Activity log at `/settings/system/logs?tab=events`) |

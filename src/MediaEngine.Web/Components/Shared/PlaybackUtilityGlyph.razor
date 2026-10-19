@@ -106,4 +106,7 @@
 
 @code {
     [Parameter, EditorRequired] public PlaybackUtilityGlyphKind Glyph { get; set; }
+
+    /// <summary>Fills the outline, for a toggle that is on (a saved My List heart).</summary>
+    [Parameter] public bool Filled { get; set; }
 }

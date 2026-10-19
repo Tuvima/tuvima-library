@@ -33,7 +33,8 @@ public sealed class PasswordResetEmailSenderTests
         var identity = new DashboardIdentityClient(new AccountClientFactory("owner@example.test"));
         var sent = await DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync(
             identity, sender, timeout.Token);
-        var transcript = await conversation;
+        // The body is quoted-printable, so a long line can be soft-wrapped ("=" at the line end) anywhere.
+        var transcript = (await conversation).Replace("=\n", string.Empty);
 
         Assert.True(sent);
         Assert.Contains("RCPT TO:<owner@example.test>", transcript, StringComparison.OrdinalIgnoreCase);

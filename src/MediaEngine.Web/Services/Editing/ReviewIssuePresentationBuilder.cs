@@ -51,7 +51,7 @@ public static class ReviewIssuePresentationBuilder
         "AmbiguousMediaType" or "RootWatchFolder" => "Library could not confidently decide which part of the library this file belongs in.",
         "WritebackFailed" => "Library identified this item, but could not save the updated metadata to its physical file.",
         "MediaInspectionFailed" => $"This {media} couldn't be read. It may be damaged or incomplete.",
-        "AmbiguousSeriesMembership" => $"Wikidata lists this {media} in the main sequence of more than one Series and nothing separates them, so Tuvima Library did not guess. It is not on any Series for now.",
+        "AmbiguousSeriesMembership" => $"Wikidata lists this {media} in the main sequence of more than one Series and nothing separates them, so Library did not guess. It is not on any Series for now.",
         _ => fallback,
     };
 
