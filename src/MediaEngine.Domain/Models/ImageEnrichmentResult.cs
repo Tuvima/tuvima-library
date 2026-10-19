@@ -12,7 +12,11 @@ public sealed record ImageEnrichmentResult
     public string? BridgeId { get; init; }
     public string? Endpoint { get; init; }
     public int? HttpStatusCode { get; init; }
+    /// <summary>Images this pass newly saved. Depends on whether an earlier or concurrent pass got there first.</summary>
     public int DownloadedCount { get; init; }
+
+    /// <summary>Provider images the pass's scopes hold once it is done, whether newly saved or already present.</summary>
+    public int HeldCount { get; init; }
     public int UpdatedPreferredCount { get; init; }
     public IReadOnlyDictionary<string, int> StoredVariantCounts { get; init; } =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);

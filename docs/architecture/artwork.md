@@ -43,6 +43,16 @@ Collection path columns are compatibility projections of the preferred collectio
 
 Physical cleanup treats every canonical original/rendition as referenced. Removing one link never deletes shared files; orphan retention remains the responsibility of the normal managed-asset cleanup policy.
 
+## Provider artwork passes
+
+TMDB and TheTVDB artwork passes record their outcome on the item, its work and its root as `{provider}_artwork_status`, `{provider}_artwork_held_count` and related diagnostics.
+
+- **Held count:** the number of provider images the pass's scopes hold once it finishes, whether this pass downloaded them or found them already stored. Sibling episodes of one show therefore record the same values whichever finishes first. A repeat pass that skips the provider call reports what the earlier pass stored instead of `NoImages`.
+- **Show-level root:** when the root is a separate show above the episode, it records only its own show-level count.
+- **"Added" count:** the result's `DownloadedCount` still means "newly added by this pass". The Dashboard uses it to say how many images a refresh added.
+
+Before downloading, a pass takes the per-URL download lease, then re-reads the owner's stored artwork. A concurrent pass that already saved the same image is reused rather than stored twice.
+
 ## API and UI
 
 - The user-facing library has one destination, **View > Artwork Library** at `/view/artwork`. Older `/view/artwork/media`, `/people`, `/universes`, and `/assets` bookmarks resolve to the same browser; they are not separate browse modes.

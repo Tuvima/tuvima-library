@@ -137,6 +137,59 @@ public sealed class ScoringEngineTests
     }
 
     [Fact]
+    public async Task SameResponseClaims_FirstCreditWinsInBothPriorityAndDefaultTiers()
+    {
+        var loader = new StubConfigurationLoader
+        {
+            PipelineConfiguration = new PipelineConfiguration
+            {
+                Pipelines =
+                {
+                    ["Movies"] = new MediaTypePipeline
+                    {
+                        FieldPriorities = { ["narrator"] = ["apple_api"] },
+                    },
+                },
+            },
+            ProviderConfigurations =
+            [
+                new MediaEngine.Domain.Configuration.ProviderConfiguration
+                {
+                    Name = "apple_api",
+                    ProviderId = AppleProviderId.ToString("D"),
+                    Enabled = true,
+                },
+            ],
+        };
+        var engine = new PriorityCascadeEngine(loader, NullLogger<PriorityCascadeEngine>.Instance);
+        var observedAt = DateTimeOffset.UtcNow;
+        MetadataClaim Observed(string key, string value)
+        {
+            var claim = MakeClaim(key, value, AppleProviderId, 0.92);
+            claim.ClaimedAt = observedAt;
+            return claim;
+        }
+
+        var result = await engine.ScoreEntityAsync(new ScoringContext
+        {
+            EntityId = EntityId,
+            DetectedMediaType = MediaType.Movies,
+            Claims =
+            [
+                Observed("narrator", "First Credit"),
+                Observed("narrator", "Second Credit"),
+                Observed("composer_tmdb_id", "117992"),
+                Observed("composer_tmdb_id", "1364427"),
+            ],
+            ProviderWeights = new Dictionary<Guid, double> { [AppleProviderId] = 1.0 },
+            Configuration = DefaultConfig,
+        });
+
+        Assert.Equal("First Credit", result.FieldScores.First(f => f.Key == "narrator").WinningValue);
+        Assert.Equal("117992", result.FieldScores.First(f => f.Key == "composer_tmdb_id").WinningValue);
+    }
+
+    [Fact]
     public async Task MoviePipelinePriority_AllowsTmdbCollectionSequenceToWinImmediatePlacement()
     {
         var loader = new StubConfigurationLoader
