@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.View;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
@@ -54,7 +55,7 @@ public sealed class CollectionPersonalMediaAuthorizationTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         if (File.Exists(_databasePath))
         {
             File.Delete(_databasePath);

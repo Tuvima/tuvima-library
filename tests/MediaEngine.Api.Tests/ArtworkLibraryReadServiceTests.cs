@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -23,7 +24,7 @@ public sealed class ArtworkLibraryReadServiceTests : IDisposable
     public void Dispose()
     {
         try { _database.Dispose(); } catch { }
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_dbPath);
         try { File.Delete(_dbPath); } catch { }
     }
 

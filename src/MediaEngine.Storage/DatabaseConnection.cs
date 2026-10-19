@@ -221,6 +221,14 @@ public sealed class DatabaseConnection : IDatabaseConnection
             ct);
     }
 
+    /// <summary>
+    /// Closes the idle pooled connections to one data file so it can be replaced or moved
+    /// before the Engine opens it. Only that file's pool is cleared: clearing every pool in the
+    /// process can dispose a connection another thread is opening at that moment.
+    /// </summary>
+    public static void ReleasePooledConnections(string databasePath) =>
+        SqliteConnectionFactory.ClearPool(databasePath);
+
     /// <inheritdoc/>
     public void Dispose()
     {

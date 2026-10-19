@@ -4,6 +4,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -290,7 +291,7 @@ public sealed class HouseholdsTests : IDisposable
         catch
         {
             database.Dispose();
-            SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(path);
             throw;
         }
     }
@@ -326,9 +327,9 @@ public sealed class HouseholdsTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         foreach (var path in _paths)
         {
+            TestTemp.ReleaseSqlitePool(path);
             foreach (var file in new[] { path, $"{path}-wal", $"{path}-shm" })
             {
                 if (File.Exists(file))

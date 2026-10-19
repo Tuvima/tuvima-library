@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -20,7 +21,7 @@ public sealed class ToolDownloadConfigAndPreferenceTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePoolsIn(_root);
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);

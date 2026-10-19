@@ -1,6 +1,7 @@
 using System.Reflection;
 using MediaEngine.Api.DevSupport;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -12,7 +13,7 @@ public sealed class DevHarnessResetServiceTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_path);
         foreach (var file in new[] { _path, $"{_path}-wal", $"{_path}-shm" })
         {
             if (File.Exists(file))

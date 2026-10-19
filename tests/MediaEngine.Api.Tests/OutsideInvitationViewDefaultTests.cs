@@ -4,6 +4,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Api.Tests;
 
@@ -74,12 +75,12 @@ public sealed class OutsideInvitationViewDefaultTests
             await accounts.ReplaceAccountAccessAsync(account.Id, features, new HashSet<Guid>(), DateTimeOffset.UtcNow);
 
             Assert.Contains(AccountFeatureId.View, await accounts.GetFeatureGrantsAsync(account.Id));
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePoolsIn(root);
         }
         finally
         {
             database?.Dispose();
-            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePoolsIn(root);
             Directory.Delete(root, recursive: true);
         }
     }

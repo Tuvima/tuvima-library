@@ -5,6 +5,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -278,7 +279,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         File.Delete(_databasePath);
     }
 }

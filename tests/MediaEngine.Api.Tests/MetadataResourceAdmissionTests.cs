@@ -5,6 +5,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -251,7 +252,8 @@ public sealed class MetadataResourceAdmissionTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        _database.Dispose();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try
         {
             if (File.Exists(_databasePath))
