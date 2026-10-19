@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -50,6 +51,32 @@ public static class PluginCompatibility
             if (!IsKnownPlatform(platform))
             {
                 return $"Plugin manifest lists an unknown supported platform '{platform}'. Use an operating system (windows, linux, macos) or a runtime identifier such as win-x64 or linux-arm64.";
+            }
+        }
+
+        if (manifest.Secrets.Count > 0)
+        {
+            try
+            {
+                _ = SecretOwner.Plugin(manifest.Id);
+            }
+            catch (ArgumentException)
+            {
+                return "A plugin that declares secrets needs an id of lowercase letters, digits, '-', '_' and '.'.";
+            }
+        }
+
+        var secretNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var secret in manifest.Secrets)
+        {
+            if (string.IsNullOrWhiteSpace(secret.Name) || secret.Name.Length > 128 || secret.Name.Any(char.IsControl))
+            {
+                return "Plugin manifest declares a secret with a missing or invalid name.";
+            }
+
+            if (!secretNames.Add(secret.Name))
+            {
+                return $"Plugin manifest declares the secret '{secret.Name}' more than once.";
             }
         }
 

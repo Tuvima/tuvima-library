@@ -48,6 +48,13 @@ public sealed record PluginManifest
     public IReadOnlyList<PluginAiPermission> AiPermissions { get; init; } = [];
 
     /// <summary>
+    /// Keys and logins the plugin needs the administrator to enter. A plugin can only read names listed here,
+    /// and only with the <c>secrets.plugin</c> permission.
+    /// </summary>
+    [JsonPropertyName("secrets")]
+    public IReadOnlyList<PluginSecretDeclaration> Secrets { get; init; } = [];
+
+    /// <summary>
     /// Runtime identifiers (<c>win-x64</c>, <c>linux-arm64</c>, ...) for an exact match, or an OS family
     /// (<c>windows</c>, <c>linux</c>, <c>macos</c>) matching any architecture. Empty means every platform.
     /// </summary>
@@ -155,6 +162,19 @@ public sealed record PluginToolPlatform
 
     [JsonPropertyName("relative_executable_path")]
     public string? RelativeExecutablePath { get; init; }
+}
+
+/// <summary>One secret a plugin declares: the name it reads, and what to tell the administrator who enters it.</summary>
+public sealed record PluginSecretDeclaration
+{
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = "";
+
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = "";
+
+    [JsonPropertyName("description")]
+    public string Description { get; init; } = "";
 }
 
 public sealed record PluginAiPermission

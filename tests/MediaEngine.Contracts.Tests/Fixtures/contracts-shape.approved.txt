@@ -6502,6 +6502,15 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   saved: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSecretStatusResponse
+  Name: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Configured: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSecretWriteRequest
+  Value: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryResponse
   Id: System.String | nullability=not-null | accessors=get,set
   Name: System.String | nullability=not-null | accessors=get,set
@@ -6521,6 +6530,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   Permissions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   ToolRequirements: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginToolRequirementDto> | nullability=not-null | accessors=get,set
   AiPermissions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginAiPermissionDto> | nullability=not-null | accessors=get,set
+  DeclaredSecrets: System.Int32 | nullability=not-null | accessors=get,set
+  ConfiguredSecrets: System.Int32 | nullability=not-null | accessors=get,set
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set

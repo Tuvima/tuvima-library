@@ -106,6 +106,14 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("ai_permissions")]
     public List<PluginAiPermissionDto> AiPermissions { get; set; } = [];
 
+    /// <summary>How many secrets (keys, logins) the plugin declares it needs.</summary>
+    [JsonPropertyName("declared_secrets")]
+    public int DeclaredSecrets { get; set; }
+
+    /// <summary>How many of the declared secrets an administrator has entered. Never the values.</summary>
+    [JsonPropertyName("configured_secrets")]
+    public int ConfiguredSecrets { get; set; }
+
     [JsonPropertyName("settings")]
     public Dictionary<string, JsonElement> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -178,6 +186,31 @@ public sealed record PluginAiPermissionDto
 
     [JsonPropertyName("resource_class")]
     public string ResourceClass { get; set; } = "";
+}
+
+/// <summary>
+/// One secret a plugin declares, for <c>GET /plugins/{pluginId}/secrets</c>. Says whether a value is set; never carries the value.
+/// </summary>
+public sealed record PluginSecretStatusResponse
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = "";
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = "";
+
+    [JsonPropertyName("configured")]
+    public bool Configured { get; set; }
+}
+
+/// <summary>Body for <c>PUT /plugins/{pluginId}/secrets/{name}</c>.</summary>
+public sealed record PluginSecretWriteRequest
+{
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = "";
 }
 
 public sealed record PluginHealthResponse

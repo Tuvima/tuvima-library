@@ -326,6 +326,7 @@ public sealed class PluginApplicationServiceGatewayTests
         public IPluginStorage Storage => null!;
         public IPluginToolRuntime Tools => null!;
         public IPluginAiClient Ai => null!;
+        public IPluginSecrets Secrets => null!;
         public ValueTask DisposeAsync()
         {
             IsDisposed = true;
