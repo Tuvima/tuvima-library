@@ -915,6 +915,7 @@ public static class JsonConfigValidator
             ValidateRequestFilters(strategy.ReleaseSelection?.RequestFilters, strategy.Name, errors);
         }
 
+        ProviderDeclarativeValidator.Validate(provider, errors);
         ValidateProviderOnboarding(provider.Onboarding, errors);
     }
 

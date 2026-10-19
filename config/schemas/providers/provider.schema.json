@@ -2,6 +2,165 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Tuvima provider configuration",
   "$defs": {
+    "lookupFollowUp": {
+      "type": "object",
+      "required": ["name", "url", "rules"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "media_types": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^(claim|result|parent|request|hint):.+" }
+          }
+        },
+        "url": { "type": "string", "minLength": 1 },
+        "cache": {
+          "type": "object",
+          "properties": {
+            "store": { "enum": ["response_cache", "memory"] },
+            "key": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "on_error": { "enum": ["log_and_continue", "propagate"] },
+        "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
+        "rules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/claimRule" } }
+      },
+      "additionalProperties": false
+    },
+    "claimSort": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["number", "text"] },
+        "order": { "enum": ["asc", "asc_then_reverse"] },
+        "null_as": { "type": "number" },
+        "ci": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "claimRule": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["field", "priority_pick", "items", "lookup", "sequence"] },
+        "claim_key": { "type": "string", "minLength": 1 },
+        "json_path": { "type": "string", "minLength": 1 },
+        "json_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "transform": { "type": "string" },
+        "transform_args": { "type": "string" },
+        "prefix": { "type": "string" },
+        "trim_leading_slash": { "type": "boolean" },
+        "template": { "type": "string" },
+        "join": {
+          "type": "object",
+          "required": ["array", "item_path"],
+          "properties": {
+            "array": { "type": "string", "minLength": 1 },
+            "item_path": { "type": "string", "minLength": 1 },
+            "sort": { "$ref": "#/$defs/claimSort" },
+            "distinct": { "type": "boolean" },
+            "take": { "type": "integer", "minimum": 0 },
+            "separator": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "add": { "enum": ["always", "if_missing_key", "if_missing_value"] },
+        "array": { "type": "string", "minLength": 1 },
+        "key_path": { "type": "string", "minLength": 1 },
+        "order": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "value_path": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "where_not_blank": { "type": "string", "minLength": 1 },
+        "sort": { "type": "array", "items": { "$ref": "#/$defs/claimSort" } },
+        "take": { "type": "integer", "minimum": 0 },
+        "role": {
+          "type": "object",
+          "required": ["paths", "map"],
+          "properties": {
+            "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "map": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["contains", "claim_key"],
+                "properties": {
+                  "contains": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                  "claim_key": { "type": "string", "minLength": 1 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "normalize": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "each": { "type": "array", "items": { "$ref": "#/$defs/claimRule" } },
+        "first": { "type": "array", "items": { "$ref": "#/$defs/claimRule" } },
+        "joined": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claim_key", "item_path", "confidence"],
+            "properties": {
+              "claim_key": { "type": "string", "minLength": 1 },
+              "item_path": { "type": "string", "minLength": 1 },
+              "separator": { "type": "string" },
+              "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+              "add": { "enum": ["always", "if_missing_key", "if_missing_value"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "lookup": { "$ref": "#/$defs/lookupFollowUp" },
+        "items_path": { "type": "string", "minLength": 1 },
+        "item": {
+          "type": "object",
+          "required": ["id_path", "title_paths"],
+          "properties": {
+            "id_path": { "type": "string", "minLength": 1 },
+            "title_paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+            "date_path": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "order_by": { "type": "array", "items": { "enum": ["date", "title"] } },
+        "current_id": { "type": "string" },
+        "emit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claim_key", "confidence"],
+            "properties": {
+              "claim_key": { "type": "string", "minLength": 1 },
+              "from": { "enum": ["position", "count"] },
+              "value": { "type": "string" },
+              "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "manifest": {
+          "type": "object",
+          "required": ["claim_key", "container_id", "external_id_key", "confidence"],
+          "properties": {
+            "claim_key": { "type": "string", "minLength": 1 },
+            "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "container_id": { "type": "string", "minLength": 1 },
+            "container_label": { "type": "string" },
+            "external_id_key": { "type": "string", "minLength": 1 },
+            "authoritative": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "requestFilter": {
       "type": "object",
       "required": ["request_field", "candidate_paths", "operator"],
@@ -34,6 +193,10 @@
         "max_concurrency": { "type": "integer", "minimum": 1 }
       },
       "additionalProperties": false
+    },
+    "follow_ups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lookupFollowUp" }
     },
     "hydration_stages": { "type": "array", "items": { "enum": [1, 2, 3] } },
     "provider_capabilities": {

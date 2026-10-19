@@ -48,6 +48,8 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Lazy<Task<ProviderSequenceManifest?>>> _comicVineSequenceManifests =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<Task<System.Text.Json.Nodes.JsonNode?>>> _memoryLookups =
+        new(StringComparer.OrdinalIgnoreCase);
 
     // Parsed once at construction.
     private readonly Guid _providerId;

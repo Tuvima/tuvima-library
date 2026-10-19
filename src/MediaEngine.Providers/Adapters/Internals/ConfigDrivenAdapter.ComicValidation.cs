@@ -47,7 +47,7 @@ public sealed partial class ConfigDrivenAdapter
             return [];
         }
 
-        claims = await EnrichClaimsWithTmdbDetailsAsync(claims, resultNode, request, ct)
+        claims = await RunFollowUpsAsync(claims, resultNode, request, ct)
             .ConfigureAwait(false);
         claims = await EnrichClaimsWithComicVineVolumeAsync(claims, request, ct)
             .ConfigureAwait(false);

@@ -177,6 +177,13 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("search_strategies")]
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
+    /// <summary>
+    /// Extra lookups made after a strategy matched a result, each turning its response into more
+    /// claims. See <see cref="LookupFollowUpConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("follow_ups")]
+    public List<LookupFollowUpConfiguration>? FollowUps { get; set; }
+
     /// <summary>Optional provider-neutral ordered member enumeration request.</summary>
     [JsonPropertyName("sequence_manifest")]
     public ProviderSequenceManifestRequestConfiguration? SequenceManifest { get; set; }

@@ -95,15 +95,15 @@ public sealed class TvdbRecordingTests
     private static ProviderLookupRequest Request(
         string? showName = "Solo Leveling", string? season = "1", string? episode = "1",
         Dictionary<string, string>? hints = null) => new()
-    {
-        EntityId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-        EntityType = EntityType.MediaAsset,
-        MediaType = MediaType.TV,
-        ShowName = showName,
-        SeasonNumber = season,
-        EpisodeNumber = episode,
-        Hints = hints,
-    };
+        {
+            EntityId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
+            EntityType = EntityType.MediaAsset,
+            MediaType = MediaType.TV,
+            ShowName = showName,
+            SeasonNumber = season,
+            EpisodeNumber = episode,
+            Hints = hints,
+        };
 
     private static async Task RecordFetchAsync(
         string name, ProviderLookupRequest request, Func<RecordedRequest, HttpResponseMessage?>? extra = null,

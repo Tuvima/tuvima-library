@@ -839,9 +839,4 @@ public sealed partial class ConfigDrivenAdapter
         int? IssueCount,
         int? StartYear,
         string? Publisher);
-
-    private sealed record TmdbCollectionPart(
-        string Id,
-        string Title,
-        DateOnly? ReleaseDate);
 }
