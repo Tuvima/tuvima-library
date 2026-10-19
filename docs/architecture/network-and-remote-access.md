@@ -20,7 +20,7 @@ How Tuvima separates desired network configuration from observed connectivity an
 - `deploy`
 
 Tuvima treats networking as an appliance-style workflow. Administrators use
-**Settings → Network & Remote Access** for a health overview, LAN settings,
+**Settings → Server → Network and Remote Access** for a health overview, LAN settings,
 remote access, network-aware streaming, and advanced diagnostics. A new install
 uses the same panels in `/setup/network`; there is no second onboarding model.
 Tuvima is open from the start: any device that can reach the server can use it,

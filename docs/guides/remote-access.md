@@ -29,7 +29,7 @@ tailscale serve --bg http://127.0.0.1:5016
 tailscale serve status --json
 ```
 
-Open **Settings → Network & Remote Access → Remote Access**, select
+Open **Settings → Server → Network and Remote Access → Remote Access**, select
 **Tailscale**, and confirm that the private `https://…ts.net` address and Serve
 HTTPS are detected. Choose **Test remote access** to check it. Do not use
 Tailscale Funnel; this deployment is tailnet-private.
@@ -74,8 +74,8 @@ or hosting option that trusts forwarded headers from every address.
 
 ## Check account access
 
-1. Under **Settings → Users & Access → Authentication**, choose the sign-in methods you want to allow.
-2. In **Users & Access → Users**, grant the intended account only the profiles, features, and libraries it should reach.
+1. Under **Settings → Manage → Users and Sign-in → Sign-in Methods**, choose the sign-in methods you want to allow.
+2. In **Users and Sign-in → Users**, grant the intended account only the profiles, features, and libraries it should reach.
 3. If you started Tuvima on your computer without a password, add a password or passkey before you use an outside address. That no-password account works from any device that reaches the server, with administrator rights (see [Account security](account-security.md)).
 4. Test with that account from the remote device.
 

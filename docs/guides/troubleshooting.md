@@ -61,9 +61,9 @@ The Dashboard retries credentials on later requests and detects replacement. Do 
 
 ## Sign-in or administrator settings are unavailable
 
-Check the active account, profile grant, and **Users & Access → Authentication** settings.
+Check the active account, profile grant, and **Users and Sign-in → Sign-in Methods** settings.
 
-Account access from outside needs the sign-in methods you allow under Users & Access → Authentication and a secure path (Tailscale or an HTTPS reverse proxy; the Dashboard itself serves plain http). Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
+Account access from outside needs the sign-in methods you allow under Users and Sign-in → Sign-in Methods and a secure path (Tailscale or an HTTPS reverse proxy; the Dashboard itself serves plain http). Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
 
 Use [account recovery](account-security.md) if your password and authenticators are unavailable. A request from localhost alone never grants administration.
 

@@ -47,9 +47,9 @@ Operations and the navbar consume the same Engine batch progress definition, inc
 
 View uses a common library-detail header and Folders, Organization, File Handling, Sharing & Access, and Advanced Settings sections. The configurable View library root contains Shared and Profiles; Shared Library is an authorization scope distinct from the physical base. Logical personal-space/source registration never creates directories. Uploads and accepted transfers create destination folders only at actual write time. Merely visiting View or adding a profile must leave unused storage empty.
 
-The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. System Overview offers an independent manual installation action.
+The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. Settings > Overview > Apps offers an independent manual installation action ("Install on this device").
 
-_Note 2026-10-17: Operations pages now redirect; review lives in Settings → Recently Added → Needs Review._
+_Note 2026-10-19: Operations pages now redirect; review lives in Settings → Server → Library and Ingestion → Recently Added (Needs Review), opened from "View all"; Recently Added is no longer a menu row._
 
 ## UI action alignment completion rule
 

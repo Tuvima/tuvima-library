@@ -29,7 +29,7 @@ On a phone, **Settings → Users and Sign-in** shows people and applications as 
 
 An invitation is a short code such as `KQ7M4-XH2TA` (ten letters and digits; the confusing ones, 0, O, 1, I and L, are left out). Tuvima shows the code, a link (`<address>/auth/invite?code=KQ7M4-XH2TA`), a QR code, a **Copy** button for the code and the link, and the expiry. The link uses the server's public address when one is set under **Settings → Network**, and otherwise the address you are using now. Only a fingerprint of the code is stored, so it cannot be shown again.
 
-The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users & Access → Authentication**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
+The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users and Sign-in → Sign-in Methods**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
 
 This page sets a password only; passkeys can be added afterwards in **Settings → Security → Extra protection**.
 
@@ -73,7 +73,7 @@ Open **Settings → Security**. **Password** changes your password. Once you hav
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 
-Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users & Access → Authentication** reports readiness and explains unavailable methods.
+Passkeys need a secure browser origin. Development on `localhost` is allowed; other hostnames need HTTPS and the server's public address (`remote.public_hostname`, set under **Settings → Network**). **Users and Sign-in → Sign-in Methods** reports readiness and explains unavailable methods.
 
 ## Secure a this-computer account
 
@@ -139,7 +139,7 @@ Email is optional. Use an authenticated SMTP relay with a verified sender and pr
 2. Copy `config/examples/email.secrets.example.json` to `config/.secrets/email.json`.
 3. Enter `smtp_password` and restrict file access to the Dashboard's operating-system account.
 4. Restart the Dashboard.
-5. In **Users & Access → Authentication**, use **Send test email to my account** when delivery reports ready.
+5. In **Users and Sign-in → Sign-in Methods**, use **Send test email to my account** when delivery reports ready.
 
 Password-reset links are built from the server's public address, the same one passkeys and linked sign-in use. Set it under **Settings → Network** (`remote.public_hostname` in `config/network.json`) before enabling email recovery.
 
