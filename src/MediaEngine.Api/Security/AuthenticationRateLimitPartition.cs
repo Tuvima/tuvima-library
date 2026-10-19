@@ -62,7 +62,10 @@ public static class AuthenticationRateLimitPartition
     /// one person switching rapidly can never use up the shared Dashboard allowance that home sign-ins rely on.
     /// Anything else falls back to <see cref="For"/>.
     /// </summary>
-    public static RateLimitPartition<string> ForSession(HttpContext context)
+    public static RateLimitPartition<string> ForSession(HttpContext context) => ForSession(context, PerSessionPermitLimit);
+
+    /// <summary>As <see cref="ForSession(HttpContext)"/>, with the allowance each signed-in session gets a minute.</summary>
+    public static RateLimitPartition<string> ForSession(HttpContext context, int perSessionPermitLimit)
     {
         var recognizer = context.RequestServices.GetService<DashboardServiceCredentialRecognizer>();
         if (recognizer is not null
@@ -73,7 +76,7 @@ public static class AuthenticationRateLimitPartition
         {
             // Only a hash is kept, so the limiter never holds a usable session token.
             var key = "session:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(session.ToString())));
-            return RateLimitPartition.GetFixedWindowLimiter(key, _ => Options(PerSessionPermitLimit));
+            return RateLimitPartition.GetFixedWindowLimiter(key, _ => Options(perSessionPermitLimit));
         }
 
         return For(context);

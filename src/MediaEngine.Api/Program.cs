@@ -335,15 +335,10 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                 }));
         options.AddPolicy("authentication", context => AuthenticationRateLimitPartition.For(context));
         options.AddPolicy("authentication-session", context => AuthenticationRateLimitPartition.ForSession(context));
-        options.AddPolicy("intercom", context =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 20,
-                    Window = TimeSpan.FromMinutes(1),
-                    QueueLimit = 0,
-                }));
+        // Live updates: the token mint and each hub keep separate budgets (see LiveUpdatesRateLimitPolicies).
+        options.AddPolicy(LiveUpdatesRateLimitPolicies.TokenMint, LiveUpdatesRateLimitPolicies.ForTokenMint);
+        options.AddPolicy(LiveUpdatesRateLimitPolicies.IntercomHub, LiveUpdatesRateLimitPolicies.ForHub);
+        options.AddPolicy(LiveUpdatesRateLimitPolicies.ApplicationEventsHub, LiveUpdatesRateLimitPolicies.ForHub);
         // Starting a cast session mints a secret link, so it is limited per paired device (else per address).
         options.AddPolicy("cast_grants", context =>
             RateLimitPartition.GetFixedWindowLimiter(
