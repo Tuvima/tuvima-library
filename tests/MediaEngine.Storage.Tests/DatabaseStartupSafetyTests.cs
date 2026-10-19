@@ -5,6 +5,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Schema.Upgrades;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -92,6 +93,7 @@ public sealed class DatabaseStartupSafetyTests
         {
             DataSource = fixture.Path,
             Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
         }.ToString();
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
@@ -994,7 +996,7 @@ public sealed class DatabaseStartupSafetyTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
+            TestTemp.ReleaseSqlitePool(path);
             TryDelete(path);
             TryDelete($"{path}-wal");
             TryDelete($"{path}-shm");

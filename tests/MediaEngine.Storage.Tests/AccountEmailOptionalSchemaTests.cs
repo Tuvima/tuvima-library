@@ -1,3 +1,4 @@
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -34,7 +35,7 @@ public sealed class AccountEmailOptionalSchemaTests : IDisposable
             database.RunStartupChecks();
         }
 
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(path);
         var now = DateTimeOffset.UtcNow.ToString("O");
         using var raw = new SqliteConnection($"Data Source={path};Pooling=False");
         raw.Open();
@@ -77,9 +78,9 @@ public sealed class AccountEmailOptionalSchemaTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         foreach (var path in _paths)
         {
+            TestTemp.ReleaseSqlitePool(path);
             foreach (var suffix in new[] { string.Empty, "-wal", "-shm" })
             {
                 var file = path + suffix;

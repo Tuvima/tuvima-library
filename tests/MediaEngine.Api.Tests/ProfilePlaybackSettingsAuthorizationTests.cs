@@ -11,6 +11,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Identity;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -259,7 +260,7 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try
         {
             File.Delete(_databasePath);

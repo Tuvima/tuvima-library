@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Search;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 
@@ -28,7 +29,7 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
     public void Dispose()
     {
         try { _db.Dispose(); } catch { }
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_dbPath);
         try { File.Delete(_dbPath); } catch { }
     }
 

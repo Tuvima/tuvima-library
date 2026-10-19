@@ -10,7 +10,7 @@
    The Tools page always offers the button. It is not shown to anyone else and not on the Tools page itself. *@
 @if (_rows.Count > 0 && !OnToolsPage)
 {
-    <div class="tools-banner" data-testid="tools-banner">
+    <div class="tools-banner @(Cinematic ? "tools-banner--cinematic" : null)" data-testid="tools-banner">
         @foreach (var tool in _rows)
         {
             <AppAlert Tone="AppUiTone.Warning" Class="tools-banner__alert" data-tool-id="@tool.Id">
@@ -50,6 +50,9 @@
 
     /// <summary>How often progress is read while a download this banner may show is running.</summary>
     [Parameter] public TimeSpan ProgressInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>True on full-bleed pages (Home, details) whose content starts under the see-through top bar.</summary>
+    [Parameter] public bool Cinematic { get; set; }
 
     private readonly CancellationTokenSource _lifetime = new();
     private IReadOnlyList<ToolRequirementDto> _rows = [];

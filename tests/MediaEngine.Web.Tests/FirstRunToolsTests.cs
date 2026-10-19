@@ -182,11 +182,22 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadinessStep_DoesNotRepeatARequiredToolOrAnAiModel()
+    public void ReadinessStep_RemindsAboutAMissingRequiredTool_ButNeverAnAiModel()
     {
         var cut = RenderReadiness(Tools(
             Tool("ffmpeg", "FFmpeg"),
             Tool("ai_model:audio", "Local AI audio model", kind: "ai_model", requirement: ToolRequirementLevels.Optional)));
+
+        var notes = cut.FindAll(".setup-tool-notes li").Select(item => item.TextContent.Trim()).ToList();
+        var reminder = Assert.Single(notes);
+        Assert.StartsWith("FFmpeg is still missing.", reminder, StringComparison.Ordinal);
+        Assert.Contains("Tools and requirements", reminder, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadinessStep_SaysNothingAboutARequiredToolThatIsReady()
+    {
+        var cut = RenderReadiness(Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready)));
 
         Assert.Empty(cut.FindAll(".setup-tool-notes"));
     }

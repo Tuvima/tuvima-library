@@ -6,6 +6,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Playback;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -148,7 +149,7 @@ public sealed class PlaybackTelemetryAuthorizationTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_path);
         foreach (var suffix in new[] { "", "-wal", "-shm" })
         {
             if (File.Exists(_path + suffix))

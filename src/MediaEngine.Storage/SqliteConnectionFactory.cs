@@ -48,10 +48,20 @@ internal sealed class SqliteConnectionFactory
     /// Closes this database's idle pooled connections so the file (and its WAL/SHM
     /// sidecars) is released. Connections still checked out close when returned.
     /// </summary>
-    public void ClearPool()
+    public void ClearPool() => ClearPool(_databasePath);
+
+    /// <summary>
+    /// Closes the idle pooled connections to one database file. Never clear every pool in the
+    /// process instead: Microsoft.Data.Sqlite treats a connection another thread is part-way
+    /// through opening as leaked and disposes its handle, so a process-wide clear breaks
+    /// unrelated work that happens to be opening a connection at that moment.
+    /// </summary>
+    public static void ClearPool(string databasePath)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+
         // Pool lookup is keyed by connection string; this instance is never opened.
-        using var key = new SqliteConnection($"Data Source={_databasePath}");
+        using var key = new SqliteConnection($"Data Source={databasePath}");
         SqliteConnection.ClearPool(key);
     }
 

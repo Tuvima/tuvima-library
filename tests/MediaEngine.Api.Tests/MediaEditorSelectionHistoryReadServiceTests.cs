@@ -101,6 +101,7 @@ public sealed class MediaEditorSelectionHistoryReadServiceTests : IDisposable
 
     public void Dispose()
     {
+        _database.Dispose();
         try { File.Delete(_path); } catch { }
     }
 }

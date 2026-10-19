@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -282,7 +283,7 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_dbPath);
         foreach (var suffix in new[] { "", "-wal", "-shm" })
         {
             var path = _dbPath + suffix;

@@ -14,6 +14,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -1837,7 +1838,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch { }
     }
 

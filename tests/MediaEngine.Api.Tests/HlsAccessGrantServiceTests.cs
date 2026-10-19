@@ -4,6 +4,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 
@@ -335,7 +336,8 @@ public sealed class HlsAccessGrantServiceTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        _database.Dispose();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try { File.Delete(_databasePath); } catch (IOException) { }
     }
 

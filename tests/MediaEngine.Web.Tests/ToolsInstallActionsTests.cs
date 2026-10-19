@@ -89,6 +89,18 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
         Assert.Contains(banner.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Install for me");
         Assert.Contains(banner.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Not now");
         Assert.Contains(banner.QuerySelectorAll("a"), link => link.GetAttribute("href") == "/settings/tools");
+        Assert.DoesNotContain("tools-banner--cinematic", banner.ClassName ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Banner_OnAFullBleedPage_StepsDownBelowTheTopBar()
+    {
+        SignIn(administrator: true);
+        _onGet = () => Tools(Tool("ffmpeg", "FFmpeg", canInstall: true));
+
+        var cut = Render<ToolsAttentionBanner>(parameters => parameters.Add(p => p.Cinematic, true));
+
+        Assert.Contains("tools-banner--cinematic", cut.Find("[data-testid=tools-banner]").ClassName ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -221,11 +233,11 @@ public sealed class ToolsInstallActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MainLayout_ShowsTheBannerInTheAppShell()
+    public void MainLayout_ShowsTheBannerInTheAppShell_BelowTheTopBarOnFullBleedPages()
     {
         var layout = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
 
-        Assert.Contains("<ToolsAttentionBanner />", layout, StringComparison.Ordinal);
+        Assert.Contains("<ToolsAttentionBanner Cinematic=\"@IsCinematicShell\" />", layout, StringComparison.Ordinal);
     }
 
     // ── The Tools page ───────────────────────────────────────────────────────

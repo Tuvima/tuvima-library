@@ -4,6 +4,14 @@
     margin-bottom: 16px;
 }
 
+/* Full-bleed pages start under the see-through top bar, so the note steps down below it and keeps a side gutter. */
+.tools-banner--cinematic {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 0;
+    padding: calc(var(--app-topbar-height) + 12px) 16px 12px;
+}
+
 .tools-banner__body {
     display: grid;
     gap: 8px;

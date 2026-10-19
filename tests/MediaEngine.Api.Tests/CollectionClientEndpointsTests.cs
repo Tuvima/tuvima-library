@@ -17,6 +17,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -843,7 +844,7 @@ public sealed class CollectionClientEndpointsTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_databasePath);
         try { _database.Dispose(); } catch (ObjectDisposedException) { /* Already closed by the pool sweep. */ }
         try { File.Delete(_databasePath); } catch (IOException) { /* The OS temp sweep removes a handle SQLite releases late. */ }
     }

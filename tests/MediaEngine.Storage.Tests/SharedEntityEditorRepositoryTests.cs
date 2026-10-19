@@ -3,6 +3,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -73,6 +74,7 @@ public sealed class SharedEntityEditorRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        // DatabaseConnection owns a pooled shared handle for the fixture lifetime.
+        _db.Dispose();
+        TestTemp.DeleteDatabase(_path);
     }
 }

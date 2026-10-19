@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Playback;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Api.Tests;
@@ -284,7 +285,7 @@ public sealed class AudiobookListenHistoryRepositoryTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
+        TestTemp.ReleaseSqlitePool(_dbPath);
         foreach (var suffix in new[] { "", "-wal", "-shm" })
         {
             var path = _dbPath + suffix;
