@@ -564,14 +564,14 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
         });
 
-        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library & Ingestion']").Click());
+        await cut.InvokeAsync(() => cut.Find("button[aria-label='Expand Library and Ingestion']").Click());
 
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
-            Assert.NotEmpty(cut.FindAll(".media-section-shell__rail-item"));
-            var recentlyAdded = cut.FindAll(".media-section-shell__rail-item--child")
+            Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
+            var recentlyAdded = cut.FindAll(".media-section-shell__tree-link")
                 .Single(item => item.TextContent.Contains("Recently Added", StringComparison.Ordinal));
             var reviewNotification = recentlyAdded.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.NotNull(reviewNotification);
@@ -796,20 +796,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("width:25%", segments[2].GetAttribute("style"), StringComparison.Ordinal);
             Assert.Contains("Books 2, 50%", cut.Find(".admin-composition-bar").GetAttribute("aria-label"), StringComparison.Ordinal);
         });
-    }
-
-    [Fact]
-    public void PrivacyHistoryTab_DisablesUnavailableControlsAndExplainsThatNoDataChanges()
-    {
-        var cut = Render<PrivacyHistoryTab>();
-
-        Assert.Contains("not available yet", cut.Markup);
-        Assert.Empty(cut.FindAll("button"));
-        Assert.Empty(cut.FindAll("input"));
-
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PrivacyHistoryTab.razor"));
-        Assert.DoesNotContain("OnClick=", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("TODO", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1455,7 +1441,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var cut = RenderSettingsForAThisComputerOnlyAccount([]);
 
         cut.WaitForAssertion(() => Assert.Single(
-            cut.Find("a.media-section-shell__rail-item[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot")));
+            cut.Find("a.media-section-shell__tree-link[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot")));
     }
 
     [Fact]
@@ -1463,7 +1449,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var cut = RenderSettingsForAThisComputerOnlyAccount([MediaEngine.Contracts.Authentication.AccountNoticeKeys.SecureAccount]);
 
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("a.media-section-shell__rail-item[href='/settings/security']")));
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("a.media-section-shell__tree-link[href='/settings/security']")));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".media-section-shell__attention-dot")));
     }
 

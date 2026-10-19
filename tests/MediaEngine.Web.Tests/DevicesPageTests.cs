@@ -20,7 +20,7 @@ public sealed class DevicesNavTests
     public void Devices_IsAnAdministrationPageAfterNetwork_WithTheAppsAlias()
     {
         var item = SettingsNav.GetItem(SettingsSection.Devices);
-        var administration = SettingsNav.TreeGroups.Single(group => group.Key == "administration");
+        var server = SettingsNav.MenuGroups.Single(group => group.Key == "server");
 
         Assert.Equal("devices", item.Slug);
         Assert.Equal("Devices", item.Label);
@@ -29,9 +29,8 @@ public sealed class DevicesNavTests
         Assert.Equal(SettingsMobileAvailability.Full, item.MobileAvailability);
         Assert.True(SettingsNav.MeetsLaunchContract(SettingsSection.Devices));
         Assert.Contains("apps", item.Aliases);
-        Assert.Equal(
-            administration.Sections.ToList().IndexOf(SettingsSection.Network) + 1,
-            administration.Sections.ToList().IndexOf(SettingsSection.Devices));
+        // Devices stays in Server for now (it moves to Security in WP6), after the other Server pages.
+        Assert.Equal(SettingsSection.Devices, server.Nodes[^1].Section);
         Assert.Equal("/settings/devices", SettingsNav.RouteFor(SettingsSection.Devices));
         Assert.DoesNotContain("apps", SettingsNav.GetSubsections(SettingsSection.Network).Select(subsection => subsection.Slug));
     }
@@ -55,12 +54,11 @@ public sealed class DevicesNavTests
     [Fact]
     public void HouseholdAdministrator_SeesOnlyDevicesInAdministration()
     {
-        var groups = SettingsNav.FilteredTreeGroups(false, true).Select(group => group.Key).ToArray();
-        var administration = SettingsNav.TreeGroups.Single(group => group.Key == "administration");
+        var groups = SettingsNav.FilteredMenuGroups(false, true);
 
-        Assert.Equal(["personal", "administration"], groups);
-        Assert.Equal(["Devices"], SettingsNav.FilteredTreeItems(administration, false, true).Select(item => item.Label));
-        Assert.Empty(SettingsNav.FilteredChildTreeGroups(administration, false, true));
+        Assert.Equal(["personal", "server"], groups.Select(group => group.Key));
+        var server = groups.Single(group => group.Key == "server");
+        Assert.Equal(["Devices"], SettingsNav.Flatten(server.Nodes).Select(node => node.Label));
         Assert.False(SettingsNav.IsVisible(SettingsSection.Network, false, true));
         Assert.False(SettingsNav.IsVisible(SettingsSection.Access, false, true));
         Assert.False(SettingsNav.ResolveRoute("access", false, true).RequestedSectionAllowed);
@@ -69,7 +67,7 @@ public sealed class DevicesNavTests
     [Fact]
     public void MemberWithoutAdministration_NeverSeesTheAdministrationGroup()
     {
-        Assert.Equal(["personal"], SettingsNav.FilteredTreeGroups(false).Select(group => group.Key));
+        Assert.Equal(["personal"], SettingsNav.FilteredMenuGroups(false).Select(group => group.Key));
     }
 
     [Theory]

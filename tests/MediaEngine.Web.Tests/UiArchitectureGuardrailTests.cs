@@ -209,7 +209,7 @@ public sealed class UiArchitectureGuardrailTests
     }
 
     [Fact]
-    public void MetadataAdministration_UsesTheSharedSettingsHeaderAndSubsectionNavigation()
+    public void MetadataAdministration_UsesTheSharedSettingsHeaderAndTheMenuTreeInsteadOfATabStrip()
     {
         var shell = Read("src/MediaEngine.Web/Components/Settings/MetadataAdminShell.razor");
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");
@@ -221,9 +221,27 @@ public sealed class UiArchitectureGuardrailTests
         Assert.Contains("<SidebarPageHeader", Read("src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
         Assert.Contains("<MetadataAdminShell ActiveSubsection=\"@ActiveSurface\">", metadata, StringComparison.Ordinal);
-        Assert.Contains("<SettingsSubsectionNav", metadata, StringComparison.Ordinal);
+        Assert.DoesNotContain("<SettingsSubsectionNav", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("Source Priority", metadata, StringComparison.Ordinal);
         Assert.DoesNotContain("DragIndicator", metadata, StringComparison.Ordinal);
+    }
+
+    // Sub-pages are rows of the Settings menu tree (spec D2), so no Settings page draws its own sideways tab strip.
+    // AppTabs stays the one component for sections inside a single page.
+    [Fact]
+    public void NoSettingsPage_RendersASubPageTabStrip()
+    {
+        var retired = new[] { "<SettingsSubsectionNav", "<SurfaceNavigationBar", "<SurfaceTabBar" };
+        var files = Directory.EnumerateFiles(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Settings"), "*.razor", SearchOption.AllDirectories)
+            .Append(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Pages/Settings.razor"));
+
+        var offenders = files
+            .SelectMany(path => retired.Where(tag => File.ReadAllText(path).Contains(tag, StringComparison.Ordinal))
+                .Select(tag => $"{Path.GetRelativePath(RepoRoot, path)} renders {tag}"))
+            .ToArray();
+
+        Assert.True(offenders.Length == 0, string.Join("; ", offenders));
+        Assert.False(File.Exists(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor")));
     }
 
     private static string Read(string relativePath) =>

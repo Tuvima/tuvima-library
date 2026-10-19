@@ -168,12 +168,12 @@ One selected text resource profile supplies the same Qwen3 artifact to **text_fa
 
 ## Settings
 
-Settings at `/settings/{Section}` is the Dashboard's operational hub. `SettingsNav` (`src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs`) is the canonical route map: two sidebar groups with role-filtered visibility. Sections (each rendered by a `src/MediaEngine.Web/Components/Settings/*Tab.razor`):
+Settings at `/settings/{Section}` is the Dashboard's operational hub. `SettingsNav` (`src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs`) is the canonical route map: four menu groups (Personal, Server, Manage, Developer) with role-filtered visibility. Sections (each rendered by a `src/MediaEngine.Web/Components/Settings/*Tab.razor`):
 
 | Group | Sections (slug → tab) |
 |---|---|
-| **User Settings** | Profiles → `ProfilesTab`, `playback` → `PlaybackSettingsPage`, `privacy` → `PrivacyHistoryTab` |
-| **Admin Settings** | `admin` → `OverviewTab`, `libraries` → `LibrariesTab`, `ingestion` → the Operations `IngestionTasksTab` (automatic live summary on desktop/mobile), `review` → redirects to `recently-added` (`RecentlyAddedPageContent`, Needs Review), `dev-harness` → `DevHarnessTab`, `providers` → `ProviderPriorityTab`, `ai` → `LocalAiSettingsTab`, `plugins` → `PluginSettingsTab`, `delivery` → `PlaybackDeliverySettingsTab`, `access` → `UsersAccessSettingsTab`, `provider-tester` → `ProviderTesterToolTab`, `enrichment-tester` → `EnrichmentTesterToolTab` |
+| **Personal** | Profiles → `ProfilesTab`, `preferences` → `PreferencesSummaryPage` (with `playback` → `PlaybackSettingsPage`, `listening`, `reading` beneath it), `security` → `SecuritySettingsPage` |
+| **Server, Manage and Developer** | `admin` → `OverviewTab`, `libraries` → `LibrariesTab`, `ingestion` → the Operations `IngestionTasksTab` (automatic live summary on desktop/mobile), `review` → redirects to `recently-added` (`RecentlyAddedPageContent`, Needs Review), `dev-harness` → `DevHarnessTab`, `providers` → `ProviderPriorityTab`, `ai` → `LocalAiSettingsTab`, `plugins` → `PluginSettingsTab`, `delivery` → `PlaybackDeliverySettingsTab`, `access` → `UsersAccessSettingsTab`, `provider-tester` → `ProviderTesterToolTab`, `enrichment-tester` → `EnrichmentTesterToolTab` |
 
 Additional tab components composed inside those sections: `EncodeSettingsTab`, `OfflineDownloadsTab`, `ModelsTab`, `AiFeaturesTab`, `VibeVocabularyTab`, `AiScheduleTab`, `WikidataConfigTab`, `UniverseSettingsTab`, `SecurityTab`, `UsersTab`, `ApiKeysTab`.
 
