@@ -30,7 +30,7 @@ public enum DevelopmentFixtureSet
 ///   POST /dev/wipe           — Wipe DB, library root, watch folder, and reinitialize
 ///   POST /dev/full-test      — Wipe → Seed → return summary
 /// </summary>
-public static class DevSeedEndpoints
+public static partial class DevSeedEndpoints
 {
     private static readonly HashSet<string> StandardBookTitles = new(StringComparer.Ordinal)
     {

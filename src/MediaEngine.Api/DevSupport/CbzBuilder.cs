@@ -14,6 +14,9 @@ namespace MediaEngine.Api.DevSupport;
 /// </summary>
 public static class CbzBuilder
 {
+    // A fixed entry time keeps the archive bytes identical between runs (the ingestion baseline compares content hashes).
+    private static readonly DateTimeOffset FixedEntryTime = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
     /// <summary>
     /// Generates a valid CBZ file as a byte array.
     /// Contains a minimal JPEG image and a ComicInfo.xml with metadata.
@@ -38,6 +41,7 @@ public static class CbzBuilder
             for (int i = 1; i <= pageCount; i++)
             {
                 var entry = archive.CreateEntry($"page_{i:D3}.jpg", CompressionLevel.Fastest);
+                entry.LastWriteTime = FixedEntryTime;
                 using var entryStream = entry.Open();
                 entryStream.Write(CreatePageJpeg(title, series, number, i));
             }
@@ -45,6 +49,7 @@ public static class CbzBuilder
             // 2. Add ComicInfo.xml with metadata
             string comicInfo = BuildComicInfoXml(title, writer, series, number, year, genre, summary, publisher, penciller, pageCount);
             var xmlEntry = archive.CreateEntry("ComicInfo.xml", CompressionLevel.Fastest);
+            xmlEntry.LastWriteTime = FixedEntryTime;
             using (var xmlStream = new StreamWriter(xmlEntry.Open(), new UTF8Encoding(false)))
             {
                 xmlStream.Write(comicInfo);

@@ -23,7 +23,7 @@
 
   <!-- These fixtures exercise the API's intentionally Debug-only DevSupport assembly surface. -->
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Compile Remove="CbzBuilderTests.cs;IntegrationTestEndpointsTests.cs;ProtectedSetupTests.cs;RealMediaHarnessTests.cs;RealWorldEdgeFixtureTests.cs;ViewDensityFixturesTests.cs" />
+    <Compile Remove="BaselineComparerTests.cs;BaselineExportTests.cs;BaselineNormalizerTests.cs;BaselineRunTests.cs;BaselineSampleGeneratorTests.cs;BaselineWaitTests.cs;CbzBuilderTests.cs;IntegrationTestEndpointsTests.cs;ProtectedSetupTests.cs;RealMediaHarnessTests.cs;RealWorldEdgeFixtureTests.cs;ViewDensityFixturesTests.cs" />
   </ItemGroup>
 
 </Project>
