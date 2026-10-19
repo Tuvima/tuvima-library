@@ -26,10 +26,6 @@
                            AccentColor="@AvatarColor"
                            ForegroundColor="@AvatarForeground"
                            Class="top-nav-account-menu__avatar" />
-                @if (ShowSecureAccount)
-                {
-                    <span class="top-nav-account-menu__attention-dot" aria-hidden="true"></span>
-                }
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
                 @if (IsKids)
                 {
@@ -42,6 +38,26 @@
     @if (_open)
     {
             <div class="top-nav-account-menu__panel" role="menu">
+                @if (ShowSecureAccount && !_secureNotNow && !IsKids)
+                {
+                    <section class="top-nav-account-menu__secure-card" aria-labelledby="top-nav-secure-account-title">
+                        <h3 id="top-nav-secure-account-title" class="top-nav-account-menu__secure-title">Secure your account</h3>
+                        <p class="top-nav-account-menu__secure-body">Add a password to use the Library away from home. Phones and TVs at home keep working without one.</p>
+                        <div class="top-nav-account-menu__secure-actions">
+                            <AppButton Label="Secure account"
+                                       Href="@SecureAccountPrompt.SecureAccountHref"
+                                       ButtonStyle="AppButtonStyle.Filled"
+                                       Tone="AppUiTone.Primary"
+                                       Class="top-nav-account-menu__secure-action"
+                                       OnClick="CloseMenu" />
+                            <AppButton Label="Not now"
+                                       ButtonStyle="AppButtonStyle.Text"
+                                       Class="top-nav-account-menu__secure-action"
+                                       OnClick="NotNowAsync" />
+                        </div>
+                    </section>
+                }
+
                 <header class="top-nav-account-menu__header">
                     <AppAvatar ImageUrl="@AvatarImageUrl"
                                AltText=""
@@ -112,21 +128,6 @@
                             <span>Manage profiles</span>
                         </a>
                     }
-
-                    if (ShowSecureAccount)
-                    {
-                        <a class="top-nav-account-menu__item"
-                           href="@SecureAccountPrompt.SecureAccountHref"
-                           role="menuitem"
-                           @onclick="CloseMenu">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Security"
-                                     Class="top-nav-account-menu__item-icon" />
-                            <span class="top-nav-account-menu__item-copy">
-                                <span>Secure account</span>
-                                <span class="top-nav-account-menu__attention-dot top-nav-account-menu__attention-dot--inline" aria-hidden="true"></span>
-                            </span>
-                        </a>
-                    }
                 }
 
                 @if (!IsKids)
@@ -178,8 +179,10 @@
     /// <summary>Signed-in account (email); the header falls back to <see cref="DisplayName"/> when unavailable.</summary>
     [Parameter] public string? AccountLabel { get; set; }
     [Parameter] public bool CanManageProfiles { get; set; }
-    /// <summary>True while the account is this-computer-only: shows the Secure account item and an attention dot.</summary>
+    /// <summary>True while the account is this-computer-only and has not chosen Not now: shows the Secure your account card at the top of the menu.</summary>
     [Parameter] public bool ShowSecureAccount { get; set; }
+    /// <summary>Raised when the person chooses Not now on the Secure your account card; the owner remembers it with the account.</summary>
+    [Parameter] public EventCallback OnSecureAccountNotNow { get; set; }
     public const string ManageProfilesHref = "/settings/profiles";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
@@ -212,6 +215,15 @@
     private void CloseMenu()
     {
         _open = false;
+    }
+
+    // Not now hides the card at once, before the owner has finished remembering the choice.
+    private bool _secureNotNow;
+
+    private async Task NotNowAsync()
+    {
+        _secureNotNow = true;
+        await OnSecureAccountNotNow.InvokeAsync();
     }
 
     private void HandleKeyDown(KeyboardEventArgs args)

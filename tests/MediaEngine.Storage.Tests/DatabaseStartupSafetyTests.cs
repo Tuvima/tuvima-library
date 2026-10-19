@@ -572,6 +572,7 @@ public sealed class DatabaseStartupSafetyTests
             ("account_feature_grants", "account_id"),
             ("account_library_grants", "account_id"),
             ("account_library_grants", "library_id"),
+            ("account_notice_dismissals", "account_id"),
             ("grant_admin_protections", "account_id"),
             ("grant_admin_protections", "profile_id"),
             ("account_invitations", "id"),
