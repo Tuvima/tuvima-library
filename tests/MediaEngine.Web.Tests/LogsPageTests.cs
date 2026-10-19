@@ -25,6 +25,10 @@ public sealed class LogsPageTests : AsyncBunitContext
     private Func<ScheduledTasksResponse?> _onTasks = () => null;
     private Func<LogRetentionStatusDto?> _onRetention = () => Status();
     private Func<LogRetentionSettingsDto, LogRetentionStatusDto?> _onSave = settings => Status(settings);
+    private readonly List<LogExportRequest> _previews = [];
+    private readonly List<LogExportRequest> _exports = [];
+    private Func<LogExportRequest, LogExportPreviewDto?> _onPreview = _ => Preview();
+    private Func<LogExportRequest, LogExportDownload?> _onExport = _ => new LogExportDownload("tuvima-logs-test.txt", [1, 2, 3]);
 
     public LogsPageTests()
     {
@@ -46,6 +50,18 @@ public sealed class LogsPageTests : AsyncBunitContext
                 var settings = (LogRetentionSettingsDto)args![0]!;
                 _saves.Add(settings);
                 return Task.FromResult(_onSave(settings));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.PreviewLogExportAsync), args =>
+            {
+                var request = (LogExportRequest)args![0]!;
+                _previews.Add(request);
+                return Task.FromResult(_onPreview(request));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.ExportLogsAsync), args =>
+            {
+                var request = (LogExportRequest)args![0]!;
+                _exports.Add(request);
+                return Task.FromResult(_onExport(request));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetToolRequirementsAsync),
                 _ => Task.FromResult<ToolRequirementsDto?>(new ToolRequirementsDto("native", DateTimeOffset.UtcNow, false, [])));
@@ -101,7 +117,7 @@ public sealed class LogsPageTests : AsyncBunitContext
         var cut = Render<LogsPage>();
 
         var tabs = cut.FindAll("[role=tab]").Select(tab => tab.TextContent.Trim()).ToArray();
-        Assert.Equal(["Technical log", "Retention"], tabs);
+        Assert.Equal(["Technical log", "Retention", "Export"], tabs);
         Assert.Contains("Technical log", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
         Assert.NotEmpty(_logRequests);
     }
@@ -340,6 +356,130 @@ public sealed class LogsPageTests : AsyncBunitContext
         Assert.NotNull(LogRetentionLimits.Validate(0, 250_000, 14, 512));
     }
 
+    // ── Export ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void LogsPage_WithTheExportTabRequested_OpensOnExport()
+    {
+        var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "export"));
+
+        Assert.Contains("Export", cut.Find("[aria-selected=true]").TextContent, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-testid=export-preview]")));
+    }
+
+    [Fact]
+    public void Export_ShowsALivePreviewOfTheLinesAndSize()
+    {
+        _onPreview = _ => Preview(lines: 12_400, bytes: 1_800_000);
+
+        var cut = Render<LogExportPanel>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var text = cut.Find("[data-testid=export-preview]").TextContent;
+            Assert.Contains("About 12,400 lines", text, StringComparison.Ordinal);
+            Assert.Contains("MB", text, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public void Export_ThePreviewAsksForWarningsAndErrorsOfTheLastDay_WithFileNamesHidden_AndEventsIncluded()
+    {
+        Render<LogExportPanel>();
+
+        var request = Assert.Single(_previews);
+        Assert.Equal("warnings_and_above", request.Level);
+        Assert.Empty(request.Areas);
+        Assert.Null(request.ItemOrRun);
+        Assert.False(request.ShowFileNames);
+        Assert.True(request.IncludeEvents);
+        Assert.InRange((request.To!.Value - request.From!.Value).TotalHours, 23.9, 24.1);
+    }
+
+    [Fact]
+    public void Export_ChoosingAnAreaOrTurningAFileNameSwitch_AsksAgainWithThatChoice()
+    {
+        var cut = Render<LogExportPanel>();
+        _previews.Clear();
+
+        cut.FindAll("label.app-checkbox input, .app-checkbox input").First().Change(true);
+        cut.WaitForAssertion(() => Assert.Equal(["Ingestion"], _previews[^1].Areas));
+
+        cut.FindAll("input[role=switch]").Last().Change(true);
+        cut.WaitForAssertion(() => Assert.True(_previews[^1].ShowFileNames));
+        Assert.Equal(["Ingestion"], _previews[^1].Areas);
+    }
+
+    [Fact]
+    public void Export_AnItemOrRunId_IsSentInTheBodyOfTheRequest_NotInAnAddress()
+    {
+        var cut = Render<LogExportPanel>();
+        _previews.Clear();
+
+        cut.Find("[data-testid=export-item-or-run]").Input("6f9619ff-8b86-d011-b42d-00c04fc964ff");
+
+        cut.WaitForAssertion(() => Assert.Equal("6f9619ff-8b86-d011-b42d-00c04fc964ff", _previews[^1].ItemOrRun), TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public void Export_Download_AsksForTheFileWithTheSameFilters_AndHandsItToTheBrowser()
+    {
+        var cut = Render<LogExportPanel>();
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=export-download]").HasAttribute("disabled")));
+
+        cut.Find("[data-testid=export-download]").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_exports));
+        var invocation = Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
+        Assert.Equal("tuvima-logs-test.txt", invocation.Arguments[0]);
+        Assert.Equal("warnings_and_above", _exports[0].Level);
+        Assert.False(_exports[0].ShowFileNames);
+    }
+
+    [Fact]
+    public void Export_WhenTheEngineRefuses_SaysSoAndDownloadsNothing()
+    {
+        _onExport = _ => null;
+        var cut = Render<LogExportPanel>();
+        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=export-download]").HasAttribute("disabled")));
+
+        cut.Find("[data-testid=export-download]").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_exports));
+        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaDownloads.fromStream");
+    }
+
+    [Fact]
+    public void Export_WhenThePreviewFails_SaysSo_AndTheDownloadIsOff()
+    {
+        _onPreview = _ => null;
+
+        var cut = Render<LogExportPanel>();
+
+        cut.WaitForAssertion(() => Assert.Contains("could not be worked out", cut.Find("[data-testid=export-preview]").TextContent, StringComparison.Ordinal));
+        Assert.True(cut.Find("[data-testid=export-download]").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void Export_WithNothingMatching_SaysTheFileWouldBeEmpty()
+    {
+        _onPreview = _ => Preview(lines: 0, bytes: 300);
+
+        var cut = Render<LogExportPanel>();
+
+        cut.WaitForAssertion(() => Assert.Contains("would be empty", cut.Find("[data-testid=export-preview]").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Export_ARangeLargerThanOneFileCanHold_SaysOnlyTheNewestLinesAreKept()
+    {
+        _onPreview = _ => Preview(lines: 200_000, bytes: 40_000_000, truncated: true);
+
+        var cut = Render<LogExportPanel>();
+
+        cut.WaitForAssertion(() => Assert.Contains("only the newest lines", cut.Find("[data-testid=export-preview]").TextContent, StringComparison.Ordinal));
+    }
+
     // ── Scheduled tasks ──────────────────────────────────────────────────────
 
     [Fact]
@@ -427,6 +567,9 @@ public sealed class LogsPageTests : AsyncBunitContext
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static LogExportPreviewDto Preview(int lines = 5, long bytes = 2_048, bool truncated = false) =>
+        new() { LineCount = lines, SizeBytes = bytes, Truncated = truncated, FileName = "tuvima-logs-test.txt" };
 
     private static TechnicalLogLineDto Line(string message, string level, string area, DateTimeOffset time) =>
         new() { Message = message, Level = level, Area = area, Time = time };

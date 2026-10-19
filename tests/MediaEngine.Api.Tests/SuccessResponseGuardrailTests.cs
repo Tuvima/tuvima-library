@@ -30,6 +30,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "DownloadOfflineVariant",
         "DownloadBackup",
         "ExportFolderJobLog",
+        "ExportLogs",
         "GetArtworkVariant",
         "GetCharacterPortrait",
         "GetViewItemPreview",

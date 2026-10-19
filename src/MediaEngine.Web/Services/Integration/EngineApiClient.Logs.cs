@@ -34,6 +34,42 @@ public sealed partial class EngineApiClient
         return GetAsync<TechnicalLogPageDto>("GET /logs/technical", "/logs/technical", query, ct: ct);
     }
 
+    // The filters go in the body, never in the address, so an id or search text is not left in browser history.
+    public Task<LogExportPreviewDto?> PreviewLogExportAsync(LogExportRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return PostAsync<LogExportRequest, LogExportPreviewDto>(
+            "POST /logs/export/preview", "/logs/export/preview", request, ct: ct);
+    }
+
+    public async Task<LogExportDownload?> ExportLogsAsync(LogExportRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        try
+        {
+            using var response = await _http.PostAsJsonAsync("/logs/export", request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                await RecordHttpFailureAsync("POST /logs/export", response, ct, logAsWarning: true);
+                return null;
+            }
+
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "tuvima-logs.txt";
+            var content = await response.Content.ReadAsByteArrayAsync(ct);
+            ClearFailure("POST /logs/export");
+            return new LogExportDownload(fileName, content);
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "{Endpoint} failed", "POST /logs/export");
+            RecordExceptionFailure("POST /logs/export", ex, logAsWarning: true);
+            return null;
+        }
+    }
+
     public Task<ScheduledTasksResponse?> GetScheduledTasksAsync(CancellationToken ct = default) =>
         GetAsync<ScheduledTasksResponse>("GET /system/scheduled-tasks", "/system/scheduled-tasks", ct: ct);
 }

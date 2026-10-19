@@ -22,6 +22,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<IScheduledTaskRegistry, ScheduledTaskRegistry>();
         services.AddSingleton(EngineLogLocation.FromEnvironment());
         services.AddSingleton<ITechnicalLogService, TechnicalLogService>();
+        services.AddSingleton<ILogExportService, LogExportService>();
         services.AddSingleton<ActivityRetentionPruner>();
         services.AddHostedService<LogFileRetentionService>();
 

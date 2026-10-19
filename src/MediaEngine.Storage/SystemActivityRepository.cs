@@ -6,10 +6,10 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Storage;
 
 /// <summary>
-/// SQLite implementation of <see cref="ISystemActivityRepository"/> and <see cref="ISystemActivityRetention"/>.
+/// SQLite implementation of <see cref="ISystemActivityRepository"/>, <see cref="ISystemActivityRetention"/> and <see cref="ISystemActivityRangeReader"/>.
 /// Uses Dapper for type-safe column-to-property mapping.
 /// </summary>
-public sealed class SystemActivityRepository : ISystemActivityRepository, ISystemActivityRetention
+public sealed class SystemActivityRepository : ISystemActivityRepository, ISystemActivityRetention, ISystemActivityRangeReader
 {
     private readonly IDatabaseConnection _db;
 
@@ -117,6 +117,68 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
 
         return Task.FromResult(deleted);
     }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<SystemActivityEntry>> GetRangeAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        Guid? matchId,
+        int limit,
+        CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+
+        // Entries are stored as round-trip UTC text, which sorts in time order.
+        var parameters = new DynamicParameters();
+        parameters.Add("from", from.ToUniversalTime().ToString("O"));
+        parameters.Add("to", to.ToUniversalTime().ToString("O"));
+        parameters.Add("limit", limit);
+
+        if (matchId is { } id)
+        {
+            parameters.Add("matchId", id);
+        }
+
+        using var conn = _db.CreateConnection();
+        var results = conn.Query<SystemActivityEntry>(matchId is null ? RangeSql : RangeForMatchSql, parameters).AsList();
+
+        return Task.FromResult<IReadOnlyList<SystemActivityEntry>>(results);
+    }
+
+    private const string RangeSql = """
+            SELECT id             AS Id,
+                   occurred_at    AS OccurredAt,
+                   action_type    AS ActionType,
+                   collection_name       AS CollectionName,
+                   entity_id      AS EntityId,
+                   entity_type    AS EntityType,
+                   profile_id     AS ProfileId,
+                   changes_json   AS ChangesJson,
+                   detail         AS Detail,
+                   ingestion_run_id AS IngestionRunId
+            FROM   system_activity
+            WHERE  occurred_at >= @from AND occurred_at <= @to
+            ORDER BY id ASC
+            LIMIT  @limit;
+            """;
+
+    private const string RangeForMatchSql = """
+            SELECT id             AS Id,
+                   occurred_at    AS OccurredAt,
+                   action_type    AS ActionType,
+                   collection_name       AS CollectionName,
+                   entity_id      AS EntityId,
+                   entity_type    AS EntityType,
+                   profile_id     AS ProfileId,
+                   changes_json   AS ChangesJson,
+                   detail         AS Detail,
+                   ingestion_run_id AS IngestionRunId
+            FROM   system_activity
+            WHERE  occurred_at >= @from AND occurred_at <= @to
+              AND  (ingestion_run_id = @matchId OR entity_id = @matchId)
+            ORDER BY id ASC
+            LIMIT  @limit;
+            """;
 
     /// <inheritdoc/>
     public Task<long> CountAsync(CancellationToken ct = default)

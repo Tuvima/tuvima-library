@@ -67,6 +67,57 @@ public static class LogEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 
+        // POST /logs/export/preview — how many lines and how large the export would be. A body, not a query string, so
+        // an id or search text is not left in browser history.
+        logs.MapPost("/export/preview", async (
+            LogExportRequest request,
+            ILogExportService export,
+            CancellationToken ct) =>
+        {
+            var problem = LogExportService.Validate(request);
+            if (problem is not null)
+            {
+                return ApiErrors.BadRequest(problem);
+            }
+
+            var result = await export.BuildAsync(request, ct);
+            return Results.Ok(new LogExportPreviewDto
+            {
+                LineCount = result.LineCount,
+                SizeBytes = result.Content.LongLength,
+                Truncated = result.Truncated,
+                FileName = result.FileName,
+            });
+        })
+        .WithName("PreviewLogExport")
+        .WithSummary("Returns how many lines and how large a log export for these filters would be.")
+        .Produces<LogExportPreviewDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // POST /logs/export — one plain-text file with private details hidden.
+        logs.MapPost("/export", async (
+            LogExportRequest request,
+            ILogExportService export,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var problem = LogExportService.Validate(request);
+            if (problem is not null)
+            {
+                return ApiErrors.BadRequest(problem);
+            }
+
+            var result = await export.BuildAsync(request, ct);
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.File(result.Content, "text/plain; charset=utf-8", result.FileName);
+        })
+        .WithName("ExportLogs")
+        .WithSummary("Downloads one plain-text log file for the chosen range, level and areas, with private details hidden.")
+        .Produces(StatusCodes.Status200OK, contentType: "text/plain")
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
         // GET /logs/retention — the four limits plus how much is stored now.
         logs.MapGet("/retention", async (
             ISystemActivityRepository activity,

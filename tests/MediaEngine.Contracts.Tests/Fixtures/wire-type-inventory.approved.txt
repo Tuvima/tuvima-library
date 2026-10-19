@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1019; api=0; web-client=75
+# scopes: contracts=1021; api=0; web-client=76
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9886,6 +9886,25 @@
   StepName: System.String | json=step_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AppliedAt: System.DateTimeOffset? | json=applied_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.System.LogExportPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  LineCount: System.Int32 | json=line_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SizeBytes: System.Int64 | json=size_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Truncated: System.Boolean | json=truncated | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"line_count":7,"size_bytes":7,"truncated":true,"file_name":"sample"}
+
+[contracts] MediaEngine.Contracts.System.LogExportRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  From: System.DateTimeOffset? | json=from | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  To: System.DateTimeOffset? | json=to | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Level: System.String | json=level | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Areas: System.Collections.Generic.List<System.String> | json=areas | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemOrRun: System.String | json=item_or_run | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowFileNames: System.Boolean | json=show_file_names | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IncludeEvents: System.Boolean | json=include_events | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"from":"2025-01-02T03:04:05+00:00","to":"2025-01-02T03:04:05+00:00","level":"sample","areas":[],"item_or_run":"sample","show_file_names":true,"include_events":true}
+
 [contracts] MediaEngine.Contracts.System.LogRetentionSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   ActivityRetentionDays: System.Int32 | json=activity_retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -10907,6 +10926,11 @@
   Category: System.String | json=category | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ActorLabel: System.String | json=actor_label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","entity_id":"11111111-2222-3333-4444-555555555555","occurred_at":"2025-01-02T03:04:05+00:00","event_type":"sample","label":"sample","detail":"sample","category":"sample","actor_label":"sample"}
+
+[web-client] MediaEngine.Web.Models.ViewDTOs.LogExportDownload
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Content: System.Byte[] | json=content | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.LoreDeltaResultDto
   kind=class | converter=default | number-handling=default | unmapped=default

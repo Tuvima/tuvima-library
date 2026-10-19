@@ -8418,6 +8418,23 @@ MediaEngine.Contracts.System.MediaEngine.Contracts.System.DataStoreVersionDto
   StepName: System.String | nullability=not-null | accessors=get,init
   AppliedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportLevels
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportPreviewDto
+  LineCount: System.Int32 | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64 | nullability=not-null | accessors=get,init
+  Truncated: System.Boolean | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogExportRequest
+  From: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  To: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Level: System.String | nullability=not-null | accessors=get,init
+  Areas: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  ItemOrRun: System.String | nullability=nullable | accessors=get,init
+  ShowFileNames: System.Boolean | nullability=not-null | accessors=get,init
+  IncludeEvents: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogRetentionLimits
 
 MediaEngine.Contracts.System.MediaEngine.Contracts.System.LogRetentionSettingsDto

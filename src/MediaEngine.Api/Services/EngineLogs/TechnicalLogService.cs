@@ -10,6 +10,9 @@ public sealed record TechnicalLogEntry(DateTimeOffset Time, string Level, string
 /// <summary>A page of entries and, when there may be older ones, the cursor that continues after the last entry.</summary>
 public sealed record TechnicalLogPage(IReadOnlyList<TechnicalLogEntry> Lines, string? NextCursor);
 
+/// <summary>Every matching entry in a range, oldest first, and whether older ones were left out to stay within the limit.</summary>
+public sealed record TechnicalLogRange(IReadOnlyList<TechnicalLogEntry> Lines, bool Truncated);
+
 /// <summary>
 /// What to read. <paramref name="Level"/> is the lowest level wanted: <c>error</c> (errors and worse),
 /// <c>warning</c> (warnings and worse), <c>information</c>, or <c>all</c>/<see langword="null"/>.
@@ -156,6 +159,85 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
         CancellationToken ct)
     {
         var window = new Queue<Match>(keep);
+        ScanFile(path, ordinalLimit, ct, entry =>
+        {
+            if (!Passes(entry, query, minimumRank, area))
+            {
+                return;
+            }
+
+            if (window.Count == keep)
+            {
+                window.Dequeue();
+            }
+
+            window.Enqueue(new Match(entry.Ordinal, new TechnicalLogEntry(
+                entry.Time, entry.Level, LogAreas.Classify(entry.Context), entry.Message())));
+        });
+
+        return [.. window];
+    }
+
+    /// <inheritdoc/>
+    public Task<TechnicalLogRange> ReadRangeAsync(TechnicalLogQuery query, int maxLines, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxLines, 1);
+        return Task.Run(() => ReadRange(query, maxLines, ct), ct);
+    }
+
+    // Every matching entry, oldest first. Only the newest `maxLines` are kept, so a very wide range cannot fill memory.
+    private TechnicalLogRange ReadRange(TechnicalLogQuery query, int maxLines, CancellationToken ct)
+    {
+        var directory = Path.GetFullPath(_location.Directory);
+        if (!Directory.Exists(directory))
+        {
+            return new TechnicalLogRange([], false);
+        }
+
+        TryParseMinimumLevel(query.Level, out var minimumRank);
+        var area = LogAreas.Normalize(query.Area);
+
+        var files = new DirectoryInfo(directory)
+            .EnumerateFiles(EngineLogLocation.FilePattern, SearchOption.TopDirectoryOnly)
+            .OrderBy(file => file.Name, StringComparer.Ordinal)
+            .ToList();
+
+        var kept = new Queue<TechnicalLogEntry>();
+        var truncated = false;
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // A file last written before the window starts cannot hold anything inside it.
+            if (query.From is { } from && file.LastWriteTimeUtc < from.UtcDateTime)
+            {
+                continue;
+            }
+
+            ScanFile(file.FullName, int.MaxValue, ct, entry =>
+            {
+                if (!Passes(entry, query, minimumRank, area))
+                {
+                    return;
+                }
+
+                if (kept.Count == maxLines)
+                {
+                    kept.Dequeue();
+                    truncated = true;
+                }
+
+                kept.Enqueue(new TechnicalLogEntry(entry.Time, entry.Level, LogAreas.Classify(entry.Context), entry.Message()));
+            });
+        }
+
+        return new TechnicalLogRange([.. kept], truncated);
+    }
+
+    // Reads one file entry by entry, oldest first, and hands each to `onEntry`. Stops before entry number `ordinalLimit`.
+    private static void ScanFile(string path, int ordinalLimit, CancellationToken ct, Action<Pending> onEntry)
+    {
         try
         {
             // ReadWrite sharing is what lets the live file be read while the Engine keeps appending to it.
@@ -165,29 +247,6 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
             Pending? current = null;
             var ordinal = -1;
             var lineNumber = 0;
-
-            void Flush()
-            {
-                if (current is null)
-                {
-                    return;
-                }
-
-                var entry = current;
-                current = null;
-                if (!Passes(entry, query, minimumRank, area))
-                {
-                    return;
-                }
-
-                if (window.Count == keep)
-                {
-                    window.Dequeue();
-                }
-
-                window.Enqueue(new Match(entry.Ordinal, new TechnicalLogEntry(
-                    entry.Time, entry.Level, LogAreas.Classify(entry.Context), entry.Message())));
-            }
 
             while (reader.ReadLine() is { } line)
             {
@@ -199,12 +258,17 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
                 var header = HeaderPattern().Match(line);
                 if (header.Success && TryParseTime(header.Groups[1].Value, out var time))
                 {
-                    Flush();
+                    if (current is not null)
+                    {
+                        onEntry(current);
+                        current = null;
+                    }
+
                     ordinal++;
                     if (ordinal >= ordinalLimit)
                     {
                         // Everything from here on is newer than the cursor.
-                        break;
+                        return;
                     }
 
                     current = new Pending(ordinal, time, LevelName(header.Groups[2].Value), LevelRank(header.Groups[2].Value),
@@ -216,16 +280,16 @@ public sealed partial class TechnicalLogService : ITechnicalLogService
                 current?.Append(line);
             }
 
-            Flush();
+            if (current is not null)
+            {
+                onEntry(current);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A file removed by the nightly clean-up mid-read, or one the operating system will not share, is skipped
             // rather than failing the whole page.
-            return [.. window];
         }
-
-        return [.. window];
     }
 
     private static bool Passes(Pending entry, TechnicalLogQuery query, int minimumRank, string? area)
