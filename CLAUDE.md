@@ -44,7 +44,7 @@ dotnet test MediaEngine.slnx --no-build
 | Docs site | `pwsh -File scripts/docs/build-docs.ps1` (`-InstallDependencies` first time, Node 24) |
 | Wire snapshot refresh | `pwsh -File tools/Update-ContractFixtures.ps1` |
 | Clean outputs | `pwsh -File tools/Clean-RepoOutputs.ps1` (after stopping Engine/Dashboard) |
-| Release locked binaries | `taskkill //F //IM dotnet.exe` |
+| Release your own build locks | `dotnet build-server shutdown` (never kill every `dotnet` process: other sessions may be running) |
 
 Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, all tests passing**. Dashboard changes also need the visual checks in `src/MediaEngine.Web/CLAUDE.md`; a passing build is not visual proof.
 
