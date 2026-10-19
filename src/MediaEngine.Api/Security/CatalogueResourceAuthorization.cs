@@ -244,34 +244,6 @@ internal sealed class CatalogueResourceAuthorizationService(
         return found ? CatalogueResourceAccess.Denied : CatalogueResourceAccess.NotFound;
     }
 
-    public async ValueTask<CatalogueResourceAccess> EvaluateEntityAssetContainerAsync(
-        HttpContext context,
-        Guid entityId,
-        ApplicationPermissionId applicationPermission,
-        CancellationToken ct = default)
-    {
-        using var connection = database.CreateConnection();
-        var entityTypes = (await connection.QueryAsync<string>(new CommandDefinition(
-            "SELECT DISTINCT entity_type FROM entity_assets WHERE entity_id=@entityId;",
-            new { entityId },
-            cancellationToken: ct)).ConfigureAwait(false)).AsList();
-        if (entityTypes.Count == 0)
-        {
-            return CatalogueResourceAccess.NotFound;
-        }
-
-        foreach (var entityType in entityTypes)
-        {
-            if (await EvaluateEntityAsync(
-                    context, entityType, entityId, applicationPermission, ct).ConfigureAwait(false) ==
-                CatalogueResourceAccess.Allowed)
-            {
-                return CatalogueResourceAccess.Allowed;
-            }
-        }
-        return CatalogueResourceAccess.Denied;
-    }
-
     public async ValueTask<CatalogueResourceAccess> EvaluateAssetAsync(
         RequestAuthority authority,
         Guid assetId,
@@ -631,7 +603,6 @@ public sealed record CatalogueEntityAccessMetadata(string Permission);
 public sealed record CatalogueAnyEntityAccessMetadata(string Permission);
 public sealed record CatalogueQidAccessMetadata(string Permission);
 public sealed record CatalogueCharacterPortraitAccessMetadata(string Permission);
-public sealed record CatalogueEntityAssetContainerAccessMetadata(string Permission);
 public sealed record ProfileOperationAccessMetadata(string Permission);
 
 internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permission) : IEndpointFilter
@@ -831,28 +802,6 @@ internal sealed class CatalogueCharacterPortraitAccessFilter(ApplicationPermissi
     }
 }
 
-internal sealed class CatalogueEntityAssetContainerAccessFilter(ApplicationPermissionId permission) : IEndpointFilter
-{
-    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
-    {
-        var rawId = Convert.ToString(context.HttpContext.Request.RouteValues["entityId"],
-            System.Globalization.CultureInfo.InvariantCulture);
-        if (!Guid.TryParse(rawId, out var entityId))
-        {
-            return Results.NotFound();
-        }
-
-        var service = context.HttpContext.RequestServices
-            .GetRequiredService<CatalogueResourceAuthorizationService>();
-        return await service.EvaluateEntityAssetContainerAsync(
-            context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false) switch
-        {
-            CatalogueResourceAccess.Allowed => await next(context),
-            _ => Results.NotFound(),
-        };
-    }
-}
-
 internal static class IngestionEditGuard
 {
     public static Task<bool> IsLockedAsync(HttpContext context, ApplicationPermissionId permission, Guid entityId) =>
@@ -911,12 +860,6 @@ public static class CatalogueResourceEndpointExtensions
         ApplicationPermissionId permission) =>
         builder.AddEndpointFilter(new CatalogueCharacterPortraitAccessFilter(permission))
             .WithMetadata(new CatalogueCharacterPortraitAccessMetadata(permission.Value));
-
-    public static RouteHandlerBuilder RequireCatalogueEntityAssetContainerAccess(
-        this RouteHandlerBuilder builder,
-        ApplicationPermissionId permission) =>
-        builder.AddEndpointFilter(new CatalogueEntityAssetContainerAccessFilter(permission))
-            .WithMetadata(new CatalogueEntityAssetContainerAccessMetadata(permission.Value));
 
     public static RouteHandlerBuilder RequireCatalogueEntityAccess(
         this RouteHandlerBuilder builder,

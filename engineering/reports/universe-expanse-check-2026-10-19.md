@@ -20,15 +20,15 @@
 | Strange Dog | The Expanse | 6.5 | Not in the manifest |
 | Gods of Risk | **Memory's Legion** (its own shelf) | 2.5 | Collected content of Memory's Legion |
 
-## Confirmed causes
+## Causes (1, 2 and 4 confirmed from the data; 3 likely)
 
 1. **The shelf ignores the manifest's membership scope.** Novellas the manifest marks as collected content (The Churn, The Vital Abyss) sit inside the numbered run of the main shelf. Nothing produces an "Also in this world" split.
 2. **The retail position wins over Wikidata's.** Every shelf number above comes from the retail `series_position` (0.2, 2.5, 5.5 …), not from the manifest's ordinal, so shelf order and manifest order disagree.
-3. **Shelf membership depends on processing order.** `CollectionAssignmentService.AssignAsync` treats a work that is already on a "broader" collection as misplaced and moves it to whatever shelf its current claims resolve to ("is assigned to broader collection 'Memory's Legion' … reassigning" in the 18 October log). The Churn and The Vital Abyss were moved from Memory's Legion back to The Expanse; Gods of Risk, with the same Wikidata membership, was left on a separate Memory's Legion shelf. Siblings end up on different shelves, and Gods of Risk's item page says "The Expanse #2.5" while its shelf says Memory's Legion.
+3. **Siblings land on different shelves (cause likely, not proven).** `CollectionAssignmentService.AssignAsync` treats a work that is already on a "broader" collection as misplaced and moves it to whatever shelf its current claims resolve to ("is assigned to broader collection 'Memory's Legion' … reassigning" in the 18 October log). The Churn and The Vital Abyss were moved from Memory's Legion back to The Expanse; Gods of Risk, with the same Wikidata membership, was left on a separate Memory's Legion shelf. Siblings end up on different shelves, and Gods of Risk's item page says "The Expanse #2.5" while its shelf says Memory's Legion. The code moves a Work whenever its current shelf differs from the one its claims resolve to *now* (and logs every such move as "broader", whether it is or not), so the result can depend on which claims had arrived when assignment ran. The logs fit that reading, but Gods of Risk may instead carry different Series claims from its siblings; U-WP3 should check both before fixing.
 4. **Decimal positions are lost from the whole-number column.** `works.ordinal` is empty for every decimal position (0.1, 0.2, 0.5, 2.5, 5.5, 6.5); only `works.ordinal_sort` keeps the value. Anything that reads `ordinal` shows no number for these Works.
 
 Not confirmed, because the data has no second media type: grouping by label text merging two lines that share the name "The Expanse" (books and TV). The code path is still as section 0 of the spec describes; U-WP3 covers it with a test.
 
 ## What this means for U-WP3
 
-U-WP3's plan is right, and it should also fix cause 3: shelf placement must come from one rule (Wikidata membership scope, then retail), applied the same way however many times assignment runs, so a re-run can never move a sibling to a different shelf.
+U-WP3's plan is right, and it should also settle cause 3: shelf placement must come from one rule (Wikidata membership scope, then retail), applied the same way however many times assignment runs, so a re-run can never move a sibling to a different shelf.

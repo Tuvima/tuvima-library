@@ -155,12 +155,5 @@ public sealed class CatalogueEndpointPolicyTests
                 metadata => metadata.Permission == permission.Value);
             return this;
         }
-
-        public RouteAssertion HasEntityAssetContainerResource(ApplicationPermissionId permission)
-        {
-            Assert.Contains(endpoint.Metadata.OfType<CatalogueEntityAssetContainerAccessMetadata>(),
-                metadata => metadata.Permission == permission.Value);
-            return this;
-        }
     }
 }

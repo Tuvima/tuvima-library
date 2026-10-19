@@ -75,6 +75,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Doc | Status |
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
+| [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
 
 ## History (pre-2026-10-17 engineering records)
 
@@ -194,7 +195,6 @@ Kept as a record of what was planned, decided and verified. Not maintained; newe
 | [Player update verification report](reports/player-update-2026-10-03.md) | Historical — still cited as current player evidence by the Dashboard rules |
 | [Player visual consistency](reports/player-visual-consistency-2026-10-05.md) | Historical |
 | [Real-media harness implementation and execution](reports/real-media-harness-2026-09-26.md) | Historical |
-| [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current |
 | [Home Browse View and Player Remediation](reports/remediation-2026-10-04.md) | Historical |
 | [Dashboard UI bugfix round — October 6, 2026](reports/ui-bugfix-round-2026-10-06.md) | Historical |
 

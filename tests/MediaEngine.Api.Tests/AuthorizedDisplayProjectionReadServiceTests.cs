@@ -758,8 +758,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
             await service.EvaluateCharacterPortraitAsync(context, deniedPortrait, ApplicationPermissionIds.ArtworkRead));
         Assert.Equal(CatalogueResourceAccess.Allowed,
             await service.EvaluateAnyEntityAsync(context, allowed.WorkId, ApplicationPermissionIds.MetadataEnrichmentRead));
-        Assert.Equal(CatalogueResourceAccess.Allowed,
-            await service.EvaluateEntityAssetContainerAsync(context, allowed.WorkId, ApplicationPermissionIds.MetadataRead));
     }
 
     [Fact]
