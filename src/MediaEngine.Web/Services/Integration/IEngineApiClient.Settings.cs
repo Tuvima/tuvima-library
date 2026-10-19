@@ -240,6 +240,12 @@ public partial interface IEngineApiClient
     /// <summary>GET /logs/technical — the Engine's technical log, newest first. Null when the Engine could not be asked.</summary>
     Task<TechnicalLogPageDto?> GetTechnicalLogAsync(TechnicalLogRequest request, CancellationToken ct = default);
 
+    /// <summary>POST /logs/export/preview — how many lines and how large the export would be. Null when the Engine refused or could not be asked.</summary>
+    Task<LogExportPreviewDto?> PreviewLogExportAsync(LogExportRequest request, CancellationToken ct = default);
+
+    /// <summary>POST /logs/export — the finished export file. Null when the Engine refused or could not be asked.</summary>
+    Task<LogExportDownload?> ExportLogsAsync(LogExportRequest request, CancellationToken ct = default);
+
     /// <summary>GET /system/scheduled-tasks — every recurring Engine task with its last and next run. Null when the Engine could not be asked.</summary>
     Task<ScheduledTasksResponse?> GetScheduledTasksAsync(CancellationToken ct = default);
 

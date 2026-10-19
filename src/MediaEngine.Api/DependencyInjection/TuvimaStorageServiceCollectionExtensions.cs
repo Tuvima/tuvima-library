@@ -205,6 +205,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<SystemActivityRepository>();
         services.AddSingleton<ISystemActivityRepository>(sp => sp.GetRequiredService<SystemActivityRepository>());
         services.AddSingleton<ISystemActivityRetention>(sp => sp.GetRequiredService<SystemActivityRepository>());
+        services.AddSingleton<ISystemActivityRangeReader>(sp => sp.GetRequiredService<SystemActivityRepository>());
         services.AddSingleton<IIngestionLogRepository, IngestionLogRepository>();
         services.AddSingleton<IResolverCacheRepository, ResolverCacheRepository>();
         services.AddSingleton<UserStateRepository>();

@@ -43,6 +43,8 @@ public sealed class LogEndpointTests : IDisposable
     [InlineData("GET", "/logs/technical", "GetTechnicalLog")]
     [InlineData("GET", "/logs/retention", "GetLogRetention")]
     [InlineData("PUT", "/logs/retention", "UpdateLogRetention")]
+    [InlineData("POST", "/logs/export/preview", "PreviewLogExport")]
+    [InlineData("POST", "/logs/export", "ExportLogs")]
     [InlineData("GET", "/system/scheduled-tasks", "GetScheduledTasks")]
     public async Task EveryLogAction_IsForTheServerAdministratorOnly(string method, string route, string name)
     {
@@ -187,6 +189,64 @@ public sealed class LogEndpointTests : IDisposable
         Assert.Equal(JsonValueKind.Null, task.GetProperty("last_run_result").ValueKind);
     }
 
+    [Fact]
+    public async Task Export_ReturnsOneTextFileNamedFromTheRange_WithPrivateDetailsHidden()
+    {
+        File.WriteAllText(Path.Combine(_logDirectory, "tuvima-20261019.log"),
+            "2026-10-19 09:00:00.000 +00:00 [ERR] MediaEngine.Ingestion.IngestionEngine\n  Could not read C:\\Media\\Dune.mkv with api_key=ABCDEF123456\n");
+        File.SetLastWriteTimeUtc(Path.Combine(_logDirectory, "tuvima-20261019.log"), new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var app = BuildApplication();
+        IHeaderDictionary? headers = null;
+
+        var (status, body) = await SendAsync(app, "POST", "/logs/export",
+            """{"from":"2026-10-19T08:00:00Z","to":"2026-10-19T10:00:00Z","level":"errors"}""", onHeaders: found => headers = found);
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.StartsWith("text/plain", headers!.ContentType.ToString(), StringComparison.Ordinal);
+        Assert.Contains("tuvima-logs-20261019-0800-20261019-1000.txt", headers.ContentDisposition.ToString(), StringComparison.Ordinal);
+        Assert.Equal("no-store", headers.CacheControl.ToString());
+        Assert.Contains("Could not read [path]", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("ABCDEF123456", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dune", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExportPreview_SaysHowManyLinesAndHowLarge_TheSameWayTheExportIsBuilt()
+    {
+        File.WriteAllText(Path.Combine(_logDirectory, "tuvima-20261019.log"),
+            "2026-10-19 09:00:00.000 +00:00 [ERR] MediaEngine.Ingestion.IngestionEngine\n  one\n"
+            + "2026-10-19 09:01:00.000 +00:00 [ERR] MediaEngine.Ingestion.IngestionEngine\n  two\n");
+        File.SetLastWriteTimeUtc(Path.Combine(_logDirectory, "tuvima-20261019.log"), new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await using var app = BuildApplication();
+        const string request = """{"from":"2026-10-19T08:00:00Z","to":"2026-10-19T10:00:00Z","level":"errors"}""";
+
+        var (previewStatus, previewBody) = await SendAsync(app, "POST", "/logs/export/preview", request);
+        var (_, exported) = await SendAsync(app, "POST", "/logs/export", request);
+
+        Assert.Equal(StatusCodes.Status200OK, previewStatus);
+        var preview = JsonDocument.Parse(previewBody).RootElement;
+        Assert.Equal(2, preview.GetProperty("line_count").GetInt32());
+        Assert.Equal(Encoding.UTF8.GetByteCount(exported), preview.GetProperty("size_bytes").GetInt64());
+        Assert.False(preview.GetProperty("truncated").GetBoolean());
+        Assert.Equal("tuvima-logs-20261019-0800-20261019-1000.txt", preview.GetProperty("file_name").GetString());
+    }
+
+    [Theory]
+    [InlineData("""{"to":"2026-10-19T10:00:00Z","level":"errors"}""")]
+    [InlineData("""{"from":"2026-10-19T10:00:00Z","to":"2026-10-19T08:00:00Z"}""")]
+    [InlineData("""{"from":"2026-10-19T08:00:00Z","to":"2026-10-19T10:00:00Z","level":"loud"}""")]
+    [InlineData("""{"from":"2026-10-19T08:00:00Z","to":"2026-10-19T10:00:00Z","areas":["Nonsense"]}""")]
+    public async Task Export_WithAnIncompleteOrUnknownChoice_IsRefusedWithAReason(string request)
+    {
+        await using var app = BuildApplication();
+
+        var (previewStatus, _) = await SendAsync(app, "POST", "/logs/export/preview", request);
+        var (exportStatus, _) = await SendAsync(app, "POST", "/logs/export", request);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, previewStatus);
+        Assert.Equal(StatusCodes.Status400BadRequest, exportStatus);
+    }
+
     private WebApplication BuildApplication()
     {
         var builder = WebApplication.CreateBuilder();
@@ -196,6 +256,9 @@ public sealed class LogEndpointTests : IDisposable
         builder.Services.AddSingleton(new EngineLogLocation(_logDirectory));
         builder.Services.AddSingleton<ITechnicalLogService>(new TechnicalLogService(new EngineLogLocation(_logDirectory)));
         builder.Services.AddSingleton<IScheduledTaskRegistry>(_registry);
+        builder.Services.AddSingleton<ISystemActivityRangeReader>(new SystemActivityRepository(_database));
+        builder.Services.AddSingleton<ILogExportService>(sp => new LogExportService(
+            sp.GetRequiredService<ITechnicalLogService>(), sp.GetRequiredService<ISystemActivityRangeReader>(), TimeProvider.System));
         var app = builder.Build();
         app.MapLogEndpoints();
         app.MapScheduledTaskEndpoints();
@@ -210,7 +273,8 @@ public sealed class LogEndpointTests : IDisposable
                 candidate.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.Contains(method) == true);
 
     // Runs the endpoint's handler directly, the way the other endpoint tests do, so no host or sign-in is needed.
-    private static async Task<(int Status, string Text)> SendAsync(WebApplication app, string method, string route, string? json = null, string query = "")
+    private static async Task<(int Status, string Text)> SendAsync(
+        WebApplication app, string method, string route, string? json = null, string query = "", Action<IHeaderDictionary>? onHeaders = null)
     {
         var responseBody = new MemoryStream();
         await using var scope = app.Services.CreateAsyncScope();
@@ -232,6 +296,7 @@ public sealed class LogEndpointTests : IDisposable
 
         await EndpointOf(app, method, route).RequestDelegate!(context);
         responseBody.Position = 0;
+        onHeaders?.Invoke(context.Response.Headers);
         return (context.Response.StatusCode, await new StreamReader(responseBody).ReadToEndAsync());
     }
 

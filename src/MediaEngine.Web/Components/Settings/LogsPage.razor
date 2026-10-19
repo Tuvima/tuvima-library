@@ -10,11 +10,14 @@
         <AppTabPanel Text="Retention">
             <LogRetentionPanel />
         </AppTabPanel>
+        <AppTabPanel Text="Export">
+            <LogExportPanel />
+        </AppTabPanel>
     </AppTabs>
 </div>
 
 @code {
-    /// <summary>Which section opens first: <c>technical</c> (the default) or <c>retention</c>.</summary>
+    /// <summary>Which section opens first: <c>technical</c> (the default), <c>retention</c> or <c>export</c>.</summary>
     [Parameter] public string? Tab { get; set; }
 
     private int _tab;
@@ -29,6 +32,11 @@
         }
 
         _openedWith = Tab;
-        _tab = string.Equals(Tab, "retention", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        _tab = Tab?.ToLowerInvariant() switch
+        {
+            "retention" => 1,
+            "export" => 2,
+            _ => 0,
+        };
     }
 }
