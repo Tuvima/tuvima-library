@@ -279,8 +279,13 @@ public sealed partial class ProviderAnswerStore
         var bodyPath = entry?.Body is null ? null : Path.Combine(Folder, BodiesFolder, entry.Body + ".bin");
         if (entry is null || bodyPath is null || !File.Exists(bodyPath))
         {
-            NoteMiss(key);
-            return null;
+            var assembled = AssembleBatch(key, request);
+            if (assembled is null)
+            {
+                NoteMiss(key);
+            }
+
+            return assembled;
         }
 
         var content = new ByteArrayContent(File.ReadAllBytes(bodyPath));
@@ -294,6 +299,119 @@ public sealed partial class ProviderAnswerStore
         }
 
         return response;
+    }
+
+    // -- batched entity lookups ----------------------------------------------------------------------------
+    //
+    // Wikidata entity lookups group whatever item IDs are waiting at that moment into one request, so the grouping depends
+    // on timing and a replay asks for groupings the recording never made. Every entity in every recorded batch is indexed
+    // (per set of other query values), and a missed batch is answered from those entities when all of them are known.
+
+    private const string BatchIdsParameter = "ids";
+    private readonly object _batchIndexGate = new();
+    private Dictionary<string, Dictionary<string, JsonNode>>? _batchIndex;
+
+    private HttpResponseMessage? AssembleBatch(string key, HttpRequestMessage request)
+    {
+        if (BatchShape(key) is not { } shape)
+        {
+            return null;
+        }
+
+        var index = BatchIndex();
+        if (!index.TryGetValue(shape.Group, out var entities))
+        {
+            return null;
+        }
+
+        var answer = new JsonObject();
+        foreach (var id in shape.Ids)
+        {
+            if (!entities.TryGetValue(id, out var entity))
+            {
+                return null;
+            }
+
+            answer[id] = entity.DeepClone();
+        }
+
+        var body = new JsonObject { ["entities"] = answer, ["success"] = 1 };
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = request,
+            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+        };
+    }
+
+    /// <summary>For a <c>wbgetentities</c> request key: the IDs asked for, and the key with the IDs removed.</summary>
+    internal static (string Group, IReadOnlyList<string> Ids)? BatchShape(string key)
+    {
+        var parts = key.Split(' ');
+        if (parts.Length != 3 || !Uri.TryCreate(parts[1], UriKind.Absolute, out var uri)
+            || !uri.Host.EndsWith("wikidata.org", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var query = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        if (!query.Contains("action=wbgetentities", StringComparer.Ordinal))
+        {
+            return null;
+        }
+
+        var idsPart = query.FirstOrDefault(part => part.StartsWith(BatchIdsParameter + "=", StringComparison.Ordinal));
+        if (idsPart is null)
+        {
+            return null;
+        }
+
+        var ids = Uri.UnescapeDataString(idsPart[(BatchIdsParameter.Length + 1)..]).Split('|', StringSplitOptions.RemoveEmptyEntries);
+        var rest = string.Join('&', query.Where(part => !ReferenceEquals(part, idsPart)));
+        return ($"{parts[0]} {uri.GetLeftPart(UriPartial.Path)}?{rest} {parts[2]}", ids);
+    }
+
+    private Dictionary<string, Dictionary<string, JsonNode>> BatchIndex()
+    {
+        lock (_batchIndexGate)
+        {
+            if (_batchIndex is not null)
+            {
+                return _batchIndex;
+            }
+
+            var index = new Dictionary<string, Dictionary<string, JsonNode>>(StringComparer.Ordinal);
+            var entries = Path.Combine(Folder, EntriesFolder);
+            foreach (var file in Directory.GetFiles(entries, "*.json").Order(StringComparer.Ordinal))
+            {
+                var entry = ReadEntry(file);
+                if (entry is not { Status: 200, Body: not null } || BatchShape(entry.Key) is not { } shape)
+                {
+                    continue;
+                }
+
+                var bodyPath = Path.Combine(Folder, BodiesFolder, entry.Body + ".bin");
+                if (!File.Exists(bodyPath) || JsonNode.Parse(File.ReadAllBytes(bodyPath))?["entities"] is not JsonObject recorded)
+                {
+                    continue;
+                }
+
+                if (!index.TryGetValue(shape.Group, out var group))
+                {
+                    index[shape.Group] = group = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+                }
+
+                foreach (var (id, entity) in recorded)
+                {
+                    // Files are read in a fixed order, so the same entity always wins.
+                    if (entity is not null && !group.ContainsKey(id))
+                    {
+                        group[id] = entity.DeepClone();
+                    }
+                }
+            }
+
+            return _batchIndex = index;
+        }
     }
 
     private void NoteMiss(string key)

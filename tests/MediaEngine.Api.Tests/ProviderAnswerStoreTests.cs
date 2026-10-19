@@ -119,6 +119,45 @@ public sealed class ProviderAnswerStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task ReplayedEntityBatch_IsAssembledFromRecordedEntities_WhenTheGroupingDiffers()
+    {
+        const string Path = "https://www.wikidata.org/w/api.php?action=wbgetentities&ids=";
+        const string Rest = "&format=json&props=labels";
+        var network = new FakeNetwork(request =>
+        {
+            var ids = Uri.UnescapeDataString(request.RequestUri!.Query).Split("ids=")[1].Split('&')[0].Split('|');
+            var entities = new System.Text.Json.Nodes.JsonObject();
+            foreach (var id in ids)
+            {
+                entities[id] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["id"] = id,
+                    ["labels"] = new System.Text.Json.Nodes.JsonObject { ["en"] = new System.Text.Json.Nodes.JsonObject { ["value"] = "label " + id } },
+                };
+            }
+
+            var body = new System.Text.Json.Nodes.JsonObject { ["entities"] = entities, ["success"] = 1 };
+            return Json(HttpStatusCode.OK, body.ToJsonString());
+        });
+        using (var recording = Client(Store(ProviderAnswerMode.Record), network))
+        {
+            await recording.GetStringAsync(Path + "Q1%7CQ2" + Rest);
+            await recording.GetStringAsync(Path + "Q3" + Rest);
+        }
+
+        using var replaying = Client(Store(ProviderAnswerMode.Replay), new FakeNetwork(_ => throw new InvalidOperationException()));
+
+        var assembled = System.Text.Json.Nodes.JsonNode.Parse(await replaying.GetStringAsync(Path + "Q3%7CQ1" + Rest))!;
+        Assert.Equal(["Q3", "Q1"], assembled["entities"]!.AsObject().Select(pair => pair.Key));
+        Assert.Equal("label Q1", (string?)assembled["entities"]!["Q1"]!["labels"]!["en"]!["value"]);
+
+        using var unknown = await replaying.GetAsync(Path + "Q1%7CQ9" + Rest);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, unknown.StatusCode);
+        using var otherProps = await replaying.GetAsync(Path + "Q1%7CQ3&format=json&props=claims");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, otherProps.StatusCode);
+    }
+
+    [Fact]
     public async Task LoopbackRequests_AlwaysPassThrough()
     {
         var network = new FakeNetwork(_ => Json(HttpStatusCode.OK, "{}"));
