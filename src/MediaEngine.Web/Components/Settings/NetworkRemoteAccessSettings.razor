@@ -47,6 +47,12 @@
 @code {
     [Parameter] public string Subsection { get; set; } = "overview";
 
+    /// <summary>
+    /// Tells the Settings page whether remote access is not set up (the connection mode is still "local-only"), so the
+    /// page notice under the title can offer to set it up. Raised after the settings load and after every save.
+    /// </summary>
+    [Parameter] public EventCallback<bool> RemoteAccessOffChanged { get; set; }
+
     private NetworkSettingsDto? _settings;
     private NetworkRuntimeStatusDto? _status;
     private bool _loading = true;
@@ -68,7 +74,12 @@
         _settings = await settingsTask;
         _status = await statusTask;
         _loading = false;
+        await ReportRemoteAccessAsync();
     }
+
+    private Task ReportRemoteAccessAsync() => RemoteAccessOffChanged.InvokeAsync(
+        _settings is not null
+        && string.Equals(_settings.Remote.ConnectionMode?.Trim(), "local-only", StringComparison.OrdinalIgnoreCase));
 
     private async Task SaveAsync()
     {
@@ -82,12 +93,14 @@
         }
         _settings = saved;
         Snackbar.Add("Network settings saved.", AppSeverity.Success);
+        await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
     }
 
     private async Task ReplaceSettingsAsync(NetworkSettingsDto replacement)
     {
         _settings = replacement;
+        await ReportRemoteAccessAsync();
         await RefreshStatusAsync();
     }
 

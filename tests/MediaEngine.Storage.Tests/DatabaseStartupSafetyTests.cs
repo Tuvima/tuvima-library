@@ -608,6 +608,7 @@ public sealed class DatabaseStartupSafetyTests
             ("playback_segments", "asset_id"),
             ("media_asset_coverage", "asset_id"),
             ("media_asset_coverage", "work_id"),
+            ("profile_notice_dismissals", "profile_id"),
             ("profile_credentials", "id"),
             ("profile_credentials", "profile_id"),
             ("profile_person_preferences", "person_id"),

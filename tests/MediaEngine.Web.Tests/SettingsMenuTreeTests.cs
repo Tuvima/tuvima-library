@@ -78,6 +78,27 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     }
 
     [Fact]
+    public void LocalAiBlocked_MakesItsRowRedWithOff_AndItsGroupInheritsIt_ButToolsStayUnshaded()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { LocalAiBlocked = true });
+
+        var localAi = Flatten(groups).Single(row => row.Label == "Local AI");
+        Assert.Equal(MediaSectionAttentionLevel.Blocked, localAi.Attention);
+        Assert.Equal("Off", localAi.AttentionLabel);
+        Assert.Equal(MediaSectionAttentionLevel.Blocked, groups.Single(group => group.Label == "Developer").Items.Max(row => row.EffectiveAttention));
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Tools and requirements").EffectiveAttention);
+        Assert.Equal(MediaSectionAttentionLevel.None, Flatten(groups).Single(row => row.Label == "Recently Added").EffectiveAttention);
+    }
+
+    [Fact]
+    public void LocalAiBlocked_OnAPhone_DrawsNoShading()
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { LocalAiBlocked = true, IsMobile = true });
+
+        Assert.All(Flatten(groups), row => Assert.Equal(MediaSectionAttentionLevel.None, row.EffectiveAttention));
+    }
+
+    [Fact]
     public void NothingWaiting_MeansNoShading()
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true));

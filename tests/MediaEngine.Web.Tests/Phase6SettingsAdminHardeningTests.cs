@@ -272,7 +272,8 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Plugin manifest JSON", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_settingsJson", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("_manifestJson", plugins, StringComparison.Ordinal);
-        Assert.Contains("_status?.IsReady != true", localAi, StringComparison.Ordinal);
+        // The "limited availability" alert moved to the permanent Local AI page notice, which reads the shared attention state.
+        Assert.DoesNotContain("_status?.IsReady", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", localAi, StringComparison.Ordinal);
     }
 

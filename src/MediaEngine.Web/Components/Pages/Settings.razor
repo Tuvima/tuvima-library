@@ -15,6 +15,7 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
+@inject SettingsAttentionState Attention
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
@@ -74,7 +75,9 @@ else
         <SettingsPageFrame Breadcrumbs="@Breadcrumbs"
                            Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
-                           Description="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))">
+                           Description="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))"
+                           Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
+                           PageNotice="@PageNoticeFragment">
             <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
                 <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
                 @if (ShouldDeferForRoleResolution)
@@ -123,7 +126,7 @@ else
                                 <SecuritySettingsPage />
                                 break;
                             case SettingsSection.AdminOverview:
-                                <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
+                                <OverviewTab ReviewCount="Attention.ReviewCount" Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Preferences:
                                 <PreferencesSummaryPage />
@@ -173,7 +176,7 @@ else
                                 <ToolsRequirementsTab />
                                 break;
                             case SettingsSection.Network:
-                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
+                                <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
                                 break;
                             case SettingsSection.Devices:
                                 <DevicesTab />
@@ -241,7 +244,6 @@ else
     private bool _profileRoleLoaded;
     private bool _kidsBlocked;
 
-    private int _reviewCount;
     private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
@@ -264,9 +266,10 @@ else
         CanManageAdministration,
         CanManageHousehold,
         DeviceContext.IsMobile,
-        _reviewCount,
+        Attention.ReviewCount,
         ShowSecurityAttentionDot,
-        IsSectionEnabledByUiSettings);
+        IsSectionEnabledByUiSettings,
+        Attention.LocalAiBlocked);
 
     // One menu tree: the desktop rail and the phone page selector are both built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
@@ -322,6 +325,31 @@ else
         ? SettingsNav.RouteFor(SettingsSection.AdminOverview)
         : SettingsNav.RouteFor(_activeSection);
 
+    // The administrator banner sits above the breadcrumb on every Settings page; it draws nothing for anyone else or on a phone.
+    private bool ShowAttentionBanner => Attention.IsServerAdministrator && !DeviceContext.IsMobile;
+    private RenderFragment AttentionBanner => @<SettingsAttentionBanner />;
+
+    // Permanent page notices cannot be dismissed. Local AI shows its notice on every sub-page while it is blocked; Network
+    // shows its notice while remote access is not set up (reported by the Network page, which already reads that setting).
+    private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
+    private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
+    private bool _remoteAccessOff;
+    private RenderFragment? PageNoticeFragment => _activeSection switch
+    {
+        SettingsSection.LocalAi => LocalAiNotice,
+        SettingsSection.Network when _remoteAccessOff => RemoteAccessNotice,
+        _ => null,
+    };
+
+    private void OnRemoteAccessOffChanged(bool off)
+    {
+        if (_remoteAccessOff != off)
+        {
+            _remoteAccessOff = off;
+            StateHasChanged();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (DeviceContext.IsPageDisabled("settings")
@@ -341,10 +369,13 @@ else
 
         await LoadShellStateAsync();
 
-        Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
+        Attention.Changed += OnAttentionChanged;
         Notices.Changed += OnNoticesChanged;
         Orchestrator.OnProfileChanged += OnProfileChanged;
         DeviceContext.OnChanged += OnDeviceContextChanged;
+
+        // The frame draws now; the banner and menu shading appear together when the first read has finished.
+        _ = Attention.StartAsync();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -354,7 +385,6 @@ else
             && !IsAdministrationRoute(Section);
         if (leavingAdministration && Session.ShouldLockOnLeave)
         {
-            _reviewCount = 0;
             await ExitAdministrationAsync();
         }
         _wasAdministrationRoute = IsAdministrationRoute(Section);
@@ -382,7 +412,8 @@ else
     public async ValueTask DisposeAsync()
     {
         Notices.Changed -= OnNoticesChanged;
-        Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
+        Attention.Changed -= OnAttentionChanged;
+        Attention.Stop();
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         DeviceContext.OnChanged -= OnDeviceContextChanged;
         if (Session.ShouldLockOnLeave)
@@ -420,15 +451,6 @@ else
     private async Task LoadShellStateAsync()
     {
         _shellStateLoading = true;
-
-        try
-        {
-            _reviewCount = await Orchestrator.RefreshReviewCountAsync();
-        }
-        catch
-        {
-            _reviewCount = 0;
-        }
 
         try
         {
@@ -612,11 +634,7 @@ else
     private static bool IsProviderRouteKey(string value) => value.All(character =>
         char.IsLetterOrDigit(character) || character is '_' or '-');
 
-    private void OnReviewCountChanged()
-    {
-        _reviewCount = Orchestrator.ReviewCount;
-        InvokeAsync(StateHasChanged);
-    }
+    private void OnAttentionChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void OnProfileChanged()
     {

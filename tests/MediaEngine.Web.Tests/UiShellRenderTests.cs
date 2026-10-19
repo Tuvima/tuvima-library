@@ -95,6 +95,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(new DelayedLockHandler(authority, session)));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
     }
@@ -581,7 +582,37 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.NotNull(cut.Find(".admin-library-summary").QuerySelector(".admin-overview-card--attention"));
             Assert.DoesNotContain("No active transcodes", cut.Markup);
             Assert.Contains("Recent Activity", cut.Markup);
+        }, AttentionArrives);
+    }
+
+    // The Needs Review count reaches the menu from the shared attention state a moment after the page first draws.
+    private static readonly TimeSpan AttentionArrives = TimeSpan.FromSeconds(5);
+
+    [Fact]
+    public void SettingsPage_ForAServerAdministrator_ShowsTheNeedsReviewLineAboveTheBreadcrumb_InTheFramesNoticeSlot()
+    {
+        var cut = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0);
+            builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1);
+            builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2);
+            builder.CloseComponent();
+            builder.OpenComponent<Settings>(3);
+            builder.AddAttribute(4, nameof(Settings.Section), "system");
+            builder.AddAttribute(5, nameof(Settings.Subsection), "overview");
+            builder.CloseComponent();
         });
+
+        cut.WaitForAssertion(() =>
+        {
+            var notices = cut.Find("[data-settings-frame-slot='notices']");
+            Assert.Contains("3 items need review", notices.TextContent, StringComparison.Ordinal);
+            var markup = cut.Markup;
+            Assert.True(markup.IndexOf("data-settings-frame-slot=\"notices\"", StringComparison.Ordinal)
+                < markup.IndexOf("aria-label=\"Breadcrumb\"", StringComparison.Ordinal));
+        }, AttentionArrives);
     }
 
     [Fact]
@@ -599,6 +630,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var host = Render(builder =>
@@ -634,6 +666,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var cut = Render(builder =>
@@ -670,6 +703,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
         Services.AddScoped(_ => session);
 
         var cut = Render<MainLayout>(parameters => parameters.Add(layout => layout.Body, builder =>
@@ -957,7 +991,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         Assert.Contains("GetAiConfigAsync", source);
         Assert.Contains("SaveAiConfigAsync", source);
-        Assert.Contains("_status?.IsReady != true", source);
+        Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
         Assert.Single(Regex.Matches(source, "<ModelsTab />"));
         Assert.DoesNotContain("TODO: Persist AI limits", source);

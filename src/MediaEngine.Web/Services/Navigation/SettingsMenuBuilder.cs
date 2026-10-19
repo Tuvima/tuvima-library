@@ -10,13 +10,15 @@ namespace MediaEngine.Web.Services.Navigation;
 /// <param name="ReviewCount">Items waiting in Needs Review.</param>
 /// <param name="SecurityNeedsAttention">Security carries the small attention dot.</param>
 /// <param name="IsSectionEnabled">Switches a page off for reasons that are not about rights (a feature flag). Null means all are on.</param>
+/// <param name="LocalAiBlocked">Local AI cannot work until the tools and libraries it needs are downloaded; its row shows red with "Off".</param>
 public sealed record SettingsMenuContext(
     bool AdministrationAllowed,
     bool HouseholdAdministrator,
     bool IsMobile,
     int ReviewCount,
     bool SecurityNeedsAttention,
-    Func<SettingsSection, bool>? IsSectionEnabled = null);
+    Func<SettingsSection, bool>? IsSectionEnabled = null,
+    bool LocalAiBlocked = false);
 
 /// <summary>One line of the phone page selector: a page and how deep it sits in the tree.</summary>
 public sealed record SettingsPhoneMenuOption(string Route, string Label, int Depth);
@@ -71,9 +73,11 @@ public static class SettingsMenuBuilder
     private static MediaSectionNavigationItem BuildItem(SettingsMenuNode node, SettingsMenuContext context)
     {
         // Needs Review is reached from Recently Added today, so that row carries the count and the amber "waiting" shading;
-        // a parent shows its most urgent child's level. Phones show plain rows.
+        // Local AI shows red with "Off" while it cannot work; a parent shows its most urgent child's level. Phones show
+        // plain rows, and Tools and requirements is never shaded.
         var showReview = node is { Section: SettingsSection.RecentlyAdded, Subsection: null } && context.ReviewCount > 0;
         var count = showReview ? DisplayFormat.FormatCount(context.ReviewCount) : null;
+        var localAiOff = node is { Section: SettingsSection.LocalAi, Subsection: null } && context.LocalAiBlocked && !context.IsMobile;
 
         return new MediaSectionNavigationItem(
             node.Label,
@@ -89,8 +93,11 @@ public static class SettingsMenuBuilder
                 ? $"{count} item{(context.ReviewCount == 1 ? "" : "s")} need review"
                 : null,
             AttentionDot: node is { Section: SettingsSection.Security, Subsection: null } && context.SecurityNeedsAttention,
-            Attention: showReview && !context.IsMobile
-                ? MediaSectionAttentionLevel.Waiting
-                : MediaSectionAttentionLevel.None);
+            Attention: localAiOff
+                ? MediaSectionAttentionLevel.Blocked
+                : showReview && !context.IsMobile
+                    ? MediaSectionAttentionLevel.Waiting
+                    : MediaSectionAttentionLevel.None,
+            AttentionLabel: localAiOff ? "Off" : null);
     }
 }
