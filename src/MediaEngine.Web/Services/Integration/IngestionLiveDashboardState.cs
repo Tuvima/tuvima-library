@@ -57,7 +57,12 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     /// True when the Engine is not answering: a load failed, the latest queue fetch came back empty after a request, or
     /// the connection is down or reconnecting. It clears by itself when a fresh snapshot arrives or the connection is back.
     /// </summary>
-    public bool IsEngineUnreachable => Error is not null || _queueFetchFailed || ConnectionState.IsDown();
+    /// <summary>
+    /// True only when the Engine itself cannot be reached. Live updates being off (reconnecting, or the live connection
+    /// refused) is not "not responding": the page keeps re-reading the numbers on its poll instead.
+    /// </summary>
+    public bool IsEngineUnreachable =>
+        Error is not null || _queueFetchFailed || ConnectionState == EngineConnectionState.Offline;
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {

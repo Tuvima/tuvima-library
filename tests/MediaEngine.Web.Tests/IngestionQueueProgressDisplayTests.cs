@@ -371,18 +371,15 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         });
     }
 
-    [Theory]
-    [InlineData(EngineConnectionState.Reconnecting)]
-    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
-    [InlineData(EngineConnectionState.Offline)]
-    public void EngineUnreachable_WhenTheEngineConnectionDropsAndComesBack_FollowsTheConnection(EngineConnectionState dropped)
+    [Fact]
+    public void EngineUnreachable_WhenTheEngineGoesOfflineAndComesBack_FollowsTheConnection()
     {
         _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
         var cut = Render<IngestionTasksTab>();
         cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
         var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
 
-        orchestrator.SetEngineConnectionState(dropped);
+        orchestrator.SetEngineConnectionState(EngineConnectionState.Offline);
 
         cut.WaitForAssertion(() =>
         {
@@ -391,6 +388,24 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
         });
 
         orchestrator.SetEngineConnectionState(EngineConnectionState.Online);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent);
+            Assert.Empty(cut.FindAll(".ingestion-status__stale"));
+        });
+    }
+
+    [Theory]
+    [InlineData(EngineConnectionState.Reconnecting)]
+    [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
+    public void LiveUpdatesOff_KeepsShowingTheNumbersWithoutSayingTheEngineIsNotResponding(EngineConnectionState liveUpdatesOff)
+    {
+        _queue = () => Task.FromResult<IngestionQueueProgressDto?>(Working());
+        var cut = Render<IngestionTasksTab>();
+        cut.WaitForAssertion(() => Assert.Equal("Found 508 files", cut.Find(".ingestion-status h2").TextContent));
+
+        Services.GetRequiredService<UIOrchestratorService>().SetEngineConnectionState(liveUpdatesOff);
 
         cut.WaitForAssertion(() =>
         {

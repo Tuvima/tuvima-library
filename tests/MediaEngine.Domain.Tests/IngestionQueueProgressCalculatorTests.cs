@@ -219,6 +219,26 @@ public sealed class IngestionQueueProgressCalculatorTests
     }
 
     [Fact]
+    public void AKnownFileSeenAgainAtItsOwnPath_IsLeftOutOfTheNumbers_WhileARealDuplicateStillCountsAsSkipped()
+    {
+        var open = Op("open", MediaOperationStage.Hashing, MediaOperationStatus.Running, Base);
+        var redetected = Op("moved", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Base) with
+        {
+            ResultSummary = "same_path_redetected",
+        };
+        var duplicate = Op("copy", MediaOperationStage.Completed, MediaOperationStatus.Succeeded, Base) with
+        {
+            ResultSummary = "duplicate",
+        };
+
+        var snapshot = IngestionQueueProgressCalculator.Calculate([open, redetected, duplicate], null, Base.AddSeconds(1)).Snapshot;
+
+        Assert.Equal(2, snapshot.FilesFound);
+        Assert.Equal(1, snapshot.FilesDone);
+        Assert.Equal(1, snapshot.Outcomes.Skipped);
+    }
+
+    [Fact]
     public void AFileThatAppearsAfterTheQueueWentIdle_StartsANewPeriodThatResetsTheBarAndTheStartTime()
     {
         var sim = QueueSim.Mixed(20, Base);

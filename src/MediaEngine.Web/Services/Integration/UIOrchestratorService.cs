@@ -27,19 +27,6 @@ public enum EngineConnectionState
     Reconnecting = 6,
 }
 
-public static class EngineConnectionStateExtensions
-{
-    /// <summary>
-    /// True when the Engine or its live connection is known to be down, degraded or reconnecting. Unknown and Checking
-    /// mean the state is not known yet, so they are not "down".
-    /// </summary>
-    public static bool IsDown(this EngineConnectionState state) =>
-        state is EngineConnectionState.Offline
-            or EngineConnectionState.Degraded
-            or EngineConnectionState.Reconnecting
-            or EngineConnectionState.LiveUpdatesDisconnected;
-}
-
 /// <summary>
 /// Scoped orchestrator: the single bridge between <see cref="IEngineApiClient"/>,
 /// the <see cref="UniverseStateContainer"/>, and the Engine API Intercom SignalR collection.

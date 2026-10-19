@@ -126,9 +126,13 @@ public sealed class ShellActivityState : IDisposable
                     operation.ItemsCompleted,
                     operation.UpdatedAt)));
 
-            // The Engine only pushes when its numbers change, so while the last snapshot says "working" it is read again
-            // here; that keeps a long quiet stretch from looking stale and picks up a finish whose push was missed.
-            if (IsQueueWorking(_universeState.IngestionQueueProgress)
+            // The Engine only pushes when its numbers change, so the snapshot is read again here while the last one says
+            // "working" (a long quiet stretch must not look stale, and a missed finish is picked up), and whenever live
+            // updates are off or no snapshot has arrived yet (nothing would be pushed at all).
+            var mustRead = _universeState.IngestionQueueProgress is null
+                || IsQueueWorking(_universeState.IngestionQueueProgress)
+                || _universeState.EngineConnectionState != EngineConnectionState.Online;
+            if (mustRead
                 && await _api.GetIngestionQueueProgressAsync(ct) is { } queue
                 && !_disposed)
             {
@@ -219,16 +223,15 @@ public sealed class ShellActivityState : IDisposable
 
     /// <summary>
     /// One item while the Engine's ingestion queue is working; waiting and idle add nothing. A snapshot that has not
-    /// been refreshed within <see cref="LiveIngestionActivityTtl"/>, or that arrived on a connection now known to be
-    /// down, is not trusted as "working".
+    /// been refreshed within <see cref="LiveIngestionActivityTtl"/> is not trusted as "working"; while live updates are
+    /// off the periodic refresh re-reads it, so only a truly stale snapshot drops out.
     /// </summary>
     private void AddIngestion(List<ShellActivityItem> items, DateTimeOffset now)
     {
         if (_universeState.IngestionQueueProgress is not { } queue
             || !IsQueueWorking(queue)
             || _universeState.IngestionQueueProgressReceivedAt is not { } receivedAt
-            || now - receivedAt > LiveIngestionActivityTtl
-            || _universeState.EngineConnectionState.IsDown())
+            || now - receivedAt > LiveIngestionActivityTtl)
         {
             return;
         }

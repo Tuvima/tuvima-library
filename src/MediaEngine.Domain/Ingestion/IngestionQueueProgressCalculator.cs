@@ -42,7 +42,10 @@ public static class IngestionQueueProgressCalculator
     {
         ArgumentNullException.ThrowIfNull(rows);
         var prev = previous ?? IngestionQueueProgressState.Empty;
-        var mapped = rows.Select(row => (Row: row, Progress: IngestionFileStepMapper.Map(row, now))).ToList();
+        var mapped = rows
+            .Where(row => !IngestionFileStepMapper.IsAlreadyKnownFile(row))
+            .Select(row => (Row: row, Progress: IngestionFileStepMapper.Map(row, now)))
+            .ToList();
 
         // Files held back by a missing tool, wherever they are in the queue and however old they are.
         var held = mapped.Where(file => file.Progress.IsWaiting).ToList();

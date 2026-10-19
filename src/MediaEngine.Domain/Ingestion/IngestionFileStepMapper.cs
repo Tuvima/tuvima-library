@@ -23,6 +23,20 @@ public static class IngestionFileStepMapper
     /// <summary>What an intake operation records in its result summary when the file was not new (see the pipeline).</summary>
     private static readonly string[] NotNewSummaries = ["duplicate", "same_path_redetected", "duplicate_race"];
 
+    /// <summary>What an intake operation records when the Library saw one of its own, unchanged files again.</summary>
+    private const string SamePathRedetectedSummary = "same_path_redetected";
+
+    /// <summary>
+    /// True for a file the Library already had, noticed again where it already was (for example after the organiser
+    /// moved it into place). It is not a file someone added, so it is left out of the live numbers entirely.
+    /// </summary>
+    public static bool IsAlreadyKnownFile(IngestionQueueFileRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return string.Equals(row.Status, MediaOperationStatus.Succeeded, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(row.ResultSummary, SamePathRedetectedSummary, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Whether the intake operation is still in the queue: pending, queued, leased, running or paused, or waiting for a
     /// retry that is due in the future or was due no more than <see cref="RetryGrace"/> ago.

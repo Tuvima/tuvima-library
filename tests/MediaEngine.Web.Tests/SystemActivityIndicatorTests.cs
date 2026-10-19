@@ -84,19 +84,14 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
     [InlineData(EngineConnectionState.Reconnecting)]
     [InlineData(EngineConnectionState.LiveUpdatesDisconnected)]
     [InlineData(EngineConnectionState.Offline)]
-    public void WorkingQueueWhileTheEngineConnectionIsDown_ShowsIdleAndWorkingAgainOnceItIsBack(EngineConnectionState down)
+    public void WorkingQueueWithAFreshSnapshotWhileLiveUpdatesAreOff_StillShowsWorking(EngineConnectionState down)
     {
         _state.PushIngestionQueueProgress(Queue("working", found: 508, done: 120, progress: 0.4, secondsLeft: 240));
         _state.SetEngineConnectionState(down);
 
         var cut = Render<SystemActivityIndicator>();
 
-        Assert.Contains("is-idle", cut.Find("button.system-activity-indicator").ClassList);
-
-        _state.SetEngineConnectionState(EngineConnectionState.Online);
-        var again = Render<SystemActivityIndicator>();
-
-        Assert.Contains("is-working", again.Find("button.system-activity-indicator").ClassList);
+        Assert.Contains("is-working", cut.Find("button.system-activity-indicator").ClassList);
     }
 
     [Fact]
@@ -119,6 +114,25 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
 
         Assert.False(activity.Current.IsWorking);
         Assert.Equal("idle", _state.IngestionQueueProgress!.State);
+    }
+
+    [Fact]
+    public async Task ActivityState_WithLiveUpdatesOffAndNoSnapshotYet_ReadsTheQueueAndShowsWorking()
+    {
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetIngestionQueueProgressAsync), _ =>
+                Task.FromResult<IngestionQueueProgressDto?>(Queue("working", found: 36, done: 15, progress: 0.6))));
+        using var activity = new ShellActivityState(
+            _state,
+            new PlaybackSessionController(null!, api),
+            api,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ShellActivityState>.Instance);
+        _state.SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+        Assert.False(activity.Current.IsWorking);
+
+        await activity.InitializeAsync();
+
+        Assert.True(activity.Current.IsWorking);
     }
 
     [Fact]

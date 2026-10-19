@@ -70,5 +70,8 @@ public interface IMediaOperationRepository
     /// <summary>Puts a paused job back in the queue. Returns <see langword="false"/> when it was not paused.</summary>
     Task<bool> ResumePausedAsync(Guid id, CancellationToken ct = default);
     Task<int> ReclaimStuckAsync(TimeSpan stuckThreshold, CancellationToken ct = default);
+
+    /// <summary>File intake jobs that are waiting to start (pending or queued), with the file each one is for.</summary>
+    Task<IReadOnlyList<(Guid Id, string SourcePath)>> ListWaitingIngestionFilesAsync(CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, int>> GetSummaryAsync(CancellationToken ct = default);
 }

@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "database_path": "library.db",
   "data_root": "",
-  "library_root": "{TuvimaData}/library",
+  "library_root": "C:\\Users\\shaya\\AppData\\Local\\Temp\\claude\\E--Source-Code-tuvima-library\\c3837f8d-2c88-41d1-ad13-6b5ad73e6262\\scratchpad\\vc1\\data\\library",
   "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {
     "default": "{Category}/{Title} ({Year})/{Title}{Ext}",
