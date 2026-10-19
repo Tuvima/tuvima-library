@@ -295,6 +295,7 @@ public sealed class CollectionRepository : ICollectionRepository
         foreach (var batch in works.Keys.Chunk(SqliteBatching.MaxParametersPerQuery))
         {
             rows.AddRange(conn.Query<WorkCanonicalValueRow>($"""
+                -- readiness: canonical values for works the caller named
                 WITH work_lineage AS (
                     SELECT w.id AS WorkId,
                            w.id AS LeafWorkId,
@@ -377,6 +378,7 @@ public sealed class CollectionRepository : ICollectionRepository
         using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = """
+                -- readiness: loads the collections with the ids the caller gave, for editing
                 SELECT h.id, h.universe_id, h.display_name, h.created_at,
                        h.universe_status, h.parent_collection_id, h.wikidata_qid,
                        h.collection_type, h.description, h.icon_name, h.scope,
@@ -557,6 +559,7 @@ public sealed class CollectionRepository : ICollectionRepository
 
         using var conn = _db.CreateConnection();
         var row = conn.QueryFirstOrDefault<WorkLineageIdsRow>("""
+            -- readiness: lineage of one file, looked up by id
             SELECT leaf.id   AS LeafWorkId,
                    parent.id AS ParentWorkId,
                    root.id   AS RootWorkId
@@ -591,6 +594,7 @@ public sealed class CollectionRepository : ICollectionRepository
 
         using var conn = _db.CreateConnection();
         var result = conn.ExecuteScalar<string>("""
+            -- readiness: collection name of one work, looked up by id
             SELECT h.display_name
             FROM   works w
             JOIN   collections h ON h.id = w.collection_id
@@ -1054,6 +1058,7 @@ public sealed class CollectionRepository : ICollectionRepository
         // Parent works are real containers for albums, TV shows, seasons, and
         // series; they are cleaned up only after their child graph is empty.
         total += conn.Execute("""
+            -- readiness: maintenance that removes empty collections and parents
             DELETE FROM works
             WHERE work_kind != 'parent'
               AND id NOT IN (
@@ -1073,6 +1078,7 @@ public sealed class CollectionRepository : ICollectionRepository
         while (true)
         {
             var emptyParentIds = conn.Query<Guid>("""
+                -- readiness: maintenance that finds empty parents
                 SELECT p.id
                 FROM works p
                 WHERE p.work_kind = 'parent'
@@ -1096,13 +1102,14 @@ public sealed class CollectionRepository : ICollectionRepository
                 conn.Execute("DELETE FROM metadata_claims WHERE entity_id = @parentId;", new { parentId });
                 conn.Execute("DELETE FROM review_queue WHERE entity_id = @parentId;", new { parentId });
                 conn.Execute("UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id = @parentId;", new { parentId });
-                total += conn.Execute("DELETE FROM works WHERE id = @parentId;", new { parentId });
+                total += conn.Execute("-- readiness: maintenance that removes empty collections and parents\nDELETE FROM works WHERE id = @parentId;", new { parentId });
             }
         }
 
         // Pass 4: Remove collections that have no works (after pass 2/3),
         // including their child collection_relationships rows.
         conn.Execute("""
+            -- readiness: maintenance that removes empty collections and parents
             DELETE FROM collection_relationships
             WHERE collection_id NOT IN (
                 SELECT DISTINCT collection_id FROM works
@@ -1115,6 +1122,7 @@ public sealed class CollectionRepository : ICollectionRepository
         // collections are query-resolved and intentionally have no work rows; they must
         // never be pruned.
         total += conn.Execute("""
+            -- readiness: maintenance that removes empty collections and parents
             DELETE FROM collections
             WHERE collection_type IN ('ContentGroup', 'Universe')
               AND id NOT IN (
@@ -1698,6 +1706,7 @@ public sealed class CollectionRepository : ICollectionRepository
         {
             var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
             cmd.CommandText = $"""
+                -- readiness: loads the collections with the ids the caller gave, for editing
                 SELECT h.id, h.universe_id, h.display_name, h.created_at,
                        h.universe_status, h.parent_collection_id, h.wikidata_qid,
                        h.collection_type, h.description, h.icon_name, h.scope,
@@ -1783,6 +1792,7 @@ public sealed class CollectionRepository : ICollectionRepository
             var parameterNames = batch.Select((_, index) => $"@p{index}").ToArray();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = $"""
+                -- readiness: loads the collections with the ids the caller gave, for editing
                 SELECT h.id, h.universe_id, h.display_name, h.created_at,
                        h.universe_status, h.parent_collection_id, h.wikidata_qid,
                        h.collection_type, h.description, h.icon_name, h.scope,
@@ -1839,7 +1849,7 @@ public sealed class CollectionRepository : ICollectionRepository
 
         using var conn = _db.CreateConnection();
         var collectionId = conn.QueryFirstOrDefault<Guid?>(
-            "SELECT collection_id FROM works WHERE id = @workId AND collection_id IS NOT NULL;",
+            "-- readiness: collection of one work, looked up by id\nSELECT collection_id FROM works WHERE id = @workId AND collection_id IS NOT NULL;",
             new { workId });
 
         return Task.FromResult(collectionId);
@@ -1865,6 +1875,7 @@ public sealed class CollectionRepository : ICollectionRepository
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var count = conn.ExecuteScalar<int>(
             $"""
+            -- readiness: administrator count of files not yet in a collection
             SELECT COUNT(DISTINCT w.id)
             FROM works w
             INNER JOIN editions e ON e.work_id = w.id
@@ -1896,6 +1907,7 @@ public sealed class CollectionRepository : ICollectionRepository
         var cursorPredicate = afterWorkId.HasValue ? "AND hex(w.id) > @AfterWorkIdHex" : string.Empty;
         var rows = conn.Query<CollectionBackfillCandidate>(
             $"""
+            -- readiness: representative files for the works the caller named
             SELECT w.id AS WorkId,
                    MIN(ma.id) AS MediaAssetId
             FROM works w

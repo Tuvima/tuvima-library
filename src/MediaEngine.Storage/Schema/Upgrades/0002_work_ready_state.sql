@@ -6,6 +6,10 @@
 
 ALTER TABLE works ADD COLUMN ready_at TEXT;
 
+-- The first time the Work was ever Ready. Set once together with the first ready_at and never cleared,
+-- so a Work that leaves Ready and returns is not announced as added a second time.
+ALTER TABLE works ADD COLUMN first_ready_at TEXT;
+
 CREATE INDEX idx_works_ready_at ON works (ready_at);
 
 -- The readiness service looks for what changed since its last pass: identity jobs by update time, and the three

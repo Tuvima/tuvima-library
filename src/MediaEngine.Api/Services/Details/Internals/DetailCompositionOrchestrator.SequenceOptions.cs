@@ -393,6 +393,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var row = await conn.QueryFirstOrDefaultAsync(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             WITH current_lineage AS (
                 SELECT COALESCE(current_grandparent.id, current_parent.id, current_work.id) AS RootWorkId,
                        current_work.parent_work_id AS ParentWorkId,

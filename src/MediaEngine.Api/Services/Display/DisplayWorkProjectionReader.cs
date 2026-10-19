@@ -38,6 +38,7 @@ public sealed class DisplayWorkProjectionReader
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
         var detailPredicate = hasDetail ? """
+            -- readiness: fragment of the projection query, which filters on the Ready rule
             AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
                 OR w.collection_id = (SELECT collection_id FROM works WHERE id = @detailId)
                 OR EXISTS (

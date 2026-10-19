@@ -142,6 +142,71 @@ public sealed class WorkReadinessServiceTests : IDisposable
         Assert.Null(ReadyAt(workId));
     }
 
+    [Fact]
+    public async Task AWorkThatIsReadyThenInReviewThenReadyAgain_IsAnnouncedOnlyOnce()
+    {
+        var (workId, assetId) = SeedBook("Dune");
+        SetJob(assetId, "Queued", DateTimeOffset.UtcNow.AddSeconds(-10));
+        SetCanonical(assetId, "cover_state", "present");
+        await _service.BackfillAsync(CancellationToken.None);
+
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
+        await _service.PollAsync(CancellationToken.None);
+        Assert.Single(_publisher.Published);
+
+        SetJob(assetId, "RetailMatchedNeedsReview", DateTimeOffset.UtcNow.AddSeconds(1));
+        await _service.PollAsync(CancellationToken.None);
+        Assert.Null(ReadyAt(workId));
+
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow.AddSeconds(2));
+        await _service.PollAsync(CancellationToken.None);
+
+        Assert.NotNull(ReadyAt(workId));
+        Assert.Single(_publisher.Published);
+    }
+
+    [Fact]
+    public async Task AnAnnouncementThatFailsOnce_IsRetriedOnTheNextPass_AndPublishedExactlyOnce()
+    {
+        var (workId, assetId) = SeedBook("Dune");
+        SetJob(assetId, "Queued", DateTimeOffset.UtcNow.AddSeconds(-10));
+        SetCanonical(assetId, "cover_state", "present");
+        await _service.BackfillAsync(CancellationToken.None);
+        _publisher.FailTimes = 1;
+
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
+        await _service.PollAsync(CancellationToken.None);
+
+        Assert.Empty(_publisher.Published);
+        Assert.NotNull(ReadyAt(workId));
+        Assert.Contains(_logger.Messages, message => message.Contains("could not be published", StringComparison.Ordinal));
+
+        await _service.PollAsync(CancellationToken.None);
+        await _service.PollAsync(CancellationToken.None);
+
+        var added = Assert.IsType<MediaAddedEvent>(Assert.Single(_publisher.Published).Payload);
+        Assert.Equal(workId, added.WorkId);
+    }
+
+    [Fact]
+    public async Task AWorkThatIsNoLongerWaitingForArtwork_IsForgottenOnTheNextFullSweep()
+    {
+        var (workId, assetId) = SeedBook("Dune");
+        SetJob(assetId, "Queued", DateTimeOffset.UtcNow.AddSeconds(-10));
+        await _service.BackfillAsync(CancellationToken.None);
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
+        await _service.PollAsync(CancellationToken.None);
+
+        // It goes into review, so it is no longer waiting for artwork; the sweep forgets when it was matched.
+        SetJob(assetId, "RetailMatchedNeedsReview", DateTimeOffset.UtcNow.AddSeconds(1));
+        await _service.SweepAsync(CancellationToken.None);
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow.AddSeconds(2));
+        SetCanonical(assetId, "cover_state", "present", DateTimeOffset.UtcNow.AddSeconds(2));
+        await _service.SweepAsync(CancellationToken.None);
+
+        Assert.Contains(_logger.Messages, message => message == $"Work {workId} is ready (Books)");
+    }
+
     private (Guid WorkId, Guid AssetId) SeedBook(string title)
     {
         var collectionId = Guid.NewGuid();
@@ -205,9 +270,17 @@ public sealed class WorkReadinessServiceTests : IDisposable
     {
         public List<(string EventName, object Payload)> Published { get; } = [];
 
+        public int FailTimes { get; set; }
+
         public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default)
             where TPayload : notnull
         {
+            if (FailTimes > 0)
+            {
+                FailTimes--;
+                throw new InvalidOperationException("The hub is not reachable.");
+            }
+
             Published.Add((eventName, payload));
             return Task.CompletedTask;
         }

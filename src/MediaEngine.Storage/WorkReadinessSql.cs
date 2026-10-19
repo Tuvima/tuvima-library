@@ -8,12 +8,16 @@ namespace MediaEngine.Storage;
 /// to a real title (Wikidata is not required, so a Work with no Wikidata match still counts); it is not waiting in
 /// Needs Review; it is placed in its show (TV) or album (Music); and its artwork is present or settled.
 ///
+/// Ready is sticky: the full rule must hold for a Work to become Ready the first time, but once it is Ready it stays
+/// Ready through the ordinary steps of re-identification (queued again, searching, hydrating) and loses the mark only
+/// on a negative outcome (see <see cref="StillReadyPredicate"/>).
+///
 /// A Work's files include the files that cover it (a combined file holding several episodes), so the file, job and
 /// review checks all follow <c>work_owned_assets</c>.
 ///
 /// The Engine's readiness service evaluates <see cref="ComputedReadyPredicate"/> and stores the result in
 /// <c>works.ready_at</c>. Every display query (Home, hero, lanes, Watch, Read, Listen, collections, the Library list)
-/// must filter with <see cref="ReadyWorkPredicate"/> or <see cref="ReadyGroupPredicate"/> and must never define its own
+/// must filter with <see cref="ReadyWorkPredicate"/> and must never define its own
 /// visibility rule; a guardrail test fails if one does.
 /// </summary>
 public static class WorkReadinessSql
@@ -24,6 +28,10 @@ public static class WorkReadinessSql
     /// a file in one of these libraries counts as matched without one. Pass an empty list when there are none.
     /// </summary>
     public const string BypassIdentityLibraryIdsParameter = "bypassIdentityLibraryIds";
+
+    // The identity states that are not negative outcomes. A Ready work whose latest job is in one of these stays Ready.
+    private const string ContinuingStates =
+        "'Queued', 'RetailSearching', 'RetailMatched', 'BridgeSearching', 'QidResolved', 'QidNoMatch', 'Hydrating', 'UniverseEnriching', 'Ready', 'ReadyWithoutUniverse'";
 
     private const string MatchedStates =
         "'RetailMatched', 'BridgeSearching', 'QidResolved', 'QidNoMatch', 'Hydrating', 'UniverseEnriching', 'Ready', 'ReadyWithoutUniverse'";
@@ -42,11 +50,27 @@ public static class WorkReadinessSql
     /// and placed. The repository uses it to find Works that are only waiting for artwork.
     /// </summary>
     public static string MatchedAndPlacedPredicate(string workAlias) => $"""
+        {EligiblePredicate(workAlias)}
+        AND {MatchedPredicate(workAlias)}
+        """;
+
+    /// <summary>
+    /// What a Work that is already Ready must keep satisfying. It is Ready for good unless something negative happens:
+    /// its latest identity job ends in review, no match or failure, a review is pending, the curator rejects it, it
+    /// loses its file or its place in a show or album, or it becomes catalog-only. Matching in progress and the artwork
+    /// state are not asked again.
+    /// </summary>
+    public static string StillReadyPredicate(string workAlias) => $"""
+        {EligiblePredicate(workAlias)}
+        AND {ContinuingPredicate(workAlias)}
+        """;
+
+    // The conditions that do not depend on identity: a leaf work that is eligible, visible, not in review and placed.
+    private static string EligiblePredicate(string workAlias) => $"""
         {workAlias}.work_kind IN ('standalone', 'child')
         AND COALESCE({workAlias}.is_catalog_only, 0) = 0
         AND COALESCE({workAlias}.curator_state, '') NOT IN ('rejected', 'provisional')
         AND {HomeVisibilitySql.VisibleAssetExistsPredicate($"{workAlias}.id")}
-        AND {MatchedPredicate(workAlias)}
         AND {PendingReviewExclusion($"{workAlias}.id")}
         AND {PlacedPredicate(workAlias)}
         """;
@@ -67,49 +91,40 @@ public static class WorkReadinessSql
     /// </summary>
     public static string ReadyMarkPredicate(string workAlias) => $"{workAlias}.ready_at IS NOT NULL";
 
-    /// <summary>
-    /// The display gate for a parent, season, show, album or series alias: it appears only when at least one child
-    /// or grandchild leaf Work is Ready.
-    /// </summary>
-    public static string ReadyGroupPredicate(string workAlias) => $"""
-        (
-            EXISTS (
-                SELECT 1
-                FROM works child_g
-                WHERE child_g.parent_work_id = {workAlias}.id
-                  AND {ReadyWorkPredicate("child_g")}
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM works mid_g
-                INNER JOIN works leaf_g ON leaf_g.parent_work_id = mid_g.id
-                WHERE mid_g.parent_work_id = {workAlias}.id
-                  AND {ReadyWorkPredicate("leaf_g")}
-            )
-        )
-        """;
-
     // The latest identity job across the Work's assets says the Work was matched to a real title, or the Work lives in
     // a library that never runs identity (local-only or manual metadata policy).
     private static string MatchedPredicate(string workAlias) => $"""
-        (COALESCE((
+        ({LatestJobState(workAlias)} IN ({MatchedStates}) OR {InBypassLibrary(workAlias)})
+        """;
+
+    // A Work that is already Ready keeps the mark while its latest job is in any non-negative state (or it needs none).
+    private static string ContinuingPredicate(string workAlias) => $"""
+        ({LatestJobState(workAlias)} IN ({ContinuingStates}) OR {InBypassLibrary(workAlias)})
+        """;
+
+    private static string LatestJobState(string workAlias) => $"""
+        COALESCE((
             SELECT ij_m.state
             FROM identity_jobs ij_m
             INNER JOIN work_owned_assets woa_m ON woa_m.asset_id = ij_m.entity_id
             WHERE woa_m.work_id = {workAlias}.id
             ORDER BY ij_m.updated_at DESC, ij_m.created_at DESC
             LIMIT 1
-        ), '') IN ({MatchedStates})
-        OR EXISTS (
+        ), '')
+        """;
+
+    private static string InBypassLibrary(string workAlias) => $"""
+        EXISTS (
             SELECT 1
             FROM work_owned_assets woa_b
             INNER JOIN media_assets ma_b ON ma_b.id = woa_b.asset_id
             WHERE woa_b.work_id = {workAlias}.id
               AND ma_b.library_id COLLATE NOCASE IN @{BypassIdentityLibraryIdsParameter}
-        ))
+        )
         """;
 
-    // An episode must sit under a show (directly or through a season); a track must sit under an album.
+    // An episode must sit under a show, directly or through a season that itself sits under a show (a season is a
+    // parent that has a number; one whose show is gone does not count as the show). A track must sit under an album.
     // Other media types stand alone by design.
     private static string PlacedPredicate(string workAlias) => $"""
         (
@@ -121,7 +136,7 @@ public static class WorkReadinessSql
                               FROM works parent_p
                               WHERE parent_p.id = {workAlias}.parent_work_id
                                 AND (
-                                    parent_p.parent_work_id IS NULL
+                                    (parent_p.parent_work_id IS NULL AND parent_p.ordinal IS NULL)
                                     OR EXISTS (SELECT 1 FROM works root_p WHERE root_p.id = parent_p.parent_work_id)
                                 )
                           )

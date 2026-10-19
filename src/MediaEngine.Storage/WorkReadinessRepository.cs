@@ -135,12 +135,14 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         // A table that has not been seen yet only establishes its watermark; the full sweep covers history.
         var touched = new HashSet<Guid>();
 
-        if (since.Jobs is not null && string.CompareOrdinal(maxJobs, since.Jobs) > 0)
+        // Read a little below each watermark as well: a row is stamped before its write commits, so a slow write can
+        // become visible with a time that is already behind the watermark. Re-checking a Work is idempotent.
+        if (since.Jobs is not null)
         {
-            touched.UnionWith(conn.Query<Guid>(TouchedByJobsSql, new { since = since.Jobs, max = maxJobs }));
+            touched.UnionWith(conn.Query<Guid>(TouchedByJobsSql, new { since = Overlap(since.Jobs), max = maxJobs }));
         }
 
-        if (since.Reviews is not null && string.CompareOrdinal(maxReviews, since.Reviews) > 0)
+        if (since.Reviews is not null)
         {
             touched.UnionWith(conn.Query<Guid>("""
                 SELECT w.id
@@ -161,12 +163,12 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
                 INNER JOIN media_asset_coverage c ON c.asset_id = rq.entity_id
                 WHERE COALESCE(rq.resolved_at, rq.created_at) > @since
                   AND COALESCE(rq.resolved_at, rq.created_at) <= @max;
-                """, new { since = since.Reviews, max = maxReviews }));
+                """, new { since = Overlap(since.Reviews), max = maxReviews }));
         }
 
-        if (since.Artwork is not null && string.CompareOrdinal(maxArtwork, since.Artwork) > 0)
+        if (since.Artwork is not null)
         {
-            touched.UnionWith(conn.Query<Guid>(TouchedByArtworkSql, new { since = since.Artwork, max = maxArtwork }));
+            touched.UnionWith(conn.Query<Guid>(TouchedByArtworkSql, new { since = Overlap(since.Artwork), max = maxArtwork }));
         }
 
         var next = new WorkReadinessWatermark(
@@ -263,6 +265,36 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
     // Dapper expands a list parameter element by element without the Guid handler, so ids go in as BLOBs.
     private static byte[][] ToBlobs(IEnumerable<Guid> ids) => ids.Select(GuidSql.ToBlob).ToArray();
 
+    /// <summary>How far below a watermark each change look-up reads again.</summary>
+    public static readonly TimeSpan WatermarkOverlap = TimeSpan.FromSeconds(30);
+
+    // The point to read from: the watermark, or the overlap before now when that is earlier, written in the same shape as the watermark itself: each table stamps
+    // its own text format (date and time with a space, ISO with an offset, ISO ending in Z) and text compares by shape.
+    private static string Overlap(string watermark)
+    {
+        if (watermark.Length == 0
+            || !DateTimeOffset.TryParse(
+                watermark,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            return watermark;
+        }
+
+        // Rows older than the overlap can no longer arrive late, so an idle library re-reads nothing.
+        var settled = DateTimeOffset.UtcNow - WatermarkOverlap;
+        var start = parsed < settled ? parsed : settled;
+        if (!watermark.Contains('T', StringComparison.Ordinal))
+        {
+            return start.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return watermark.EndsWith('Z')
+            ? start.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture)
+            : start.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static string Newest(string? seen, string current) =>
         seen is null || string.CompareOrdinal(current, seen) > 0 ? current : seen;
 
@@ -273,19 +305,24 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         List<WorkReadinessChange> changes)
     {
         var now = DateTimeOffset.UtcNow;
+        var at = now.ToString("O");
         var computed = WorkReadinessSql.ComputedReadyPredicate("w");
+        var stillReady = WorkReadinessSql.StillReadyPredicate("w");
 
-        // Each statement is atomic, so a Work is never marked from a half-read state. A Work that stays Ready
-        // matches neither statement and keeps the time it first became Ready.
+        // Each statement is atomic, so a Work is never marked from a half-read state. A Work needs the full rule to
+        // become Ready; once Ready it only has to keep passing the "still ready" rule, so ordinary re-identification
+        // does not flicker it off. A Work that stays Ready matches neither statement and keeps its time. The first
+        // time a Work is ever Ready is recorded once in first_ready_at and never cleared; it decides what is announced.
         var becameReady = conn.Query<ChangedRow>($"""
             UPDATE works AS w
-            SET ready_at = @at
+            SET ready_at = @at,
+                first_ready_at = COALESCE(first_ready_at, @at)
             WHERE w.id IN @ids
               AND w.work_kind IN ({LeafWorkKinds})
               AND w.ready_at IS NULL
               AND {computed}
-            RETURNING id AS Id, media_type AS MediaType;
-            """, new { at = now.ToString("O"), ids = ToBlobs(batch), bypassIdentityLibraryIds = bypassIdentityLibraryIds.ToArray() }).ToList();
+            RETURNING id AS Id, media_type AS MediaType, first_ready_at AS FirstReadyAt;
+            """, new { at, ids = ToBlobs(batch), bypassIdentityLibraryIds = bypassIdentityLibraryIds.ToArray() }).ToList();
 
         var stoppedBeingReady = conn.Query<ChangedRow>($"""
             UPDATE works AS w
@@ -293,11 +330,12 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
             WHERE w.id IN @ids
               AND w.work_kind IN ({LeafWorkKinds})
               AND w.ready_at IS NOT NULL
-              AND NOT ({computed})
-            RETURNING id AS Id, media_type AS MediaType;
+              AND NOT ({stillReady})
+            RETURNING id AS Id, media_type AS MediaType, first_ready_at AS FirstReadyAt;
             """, new { ids = ToBlobs(batch), bypassIdentityLibraryIds = bypassIdentityLibraryIds.ToArray() }).ToList();
 
-        changes.AddRange(becameReady.Select(r => new WorkReadinessChange(r.Id, r.MediaType, true, now)));
+        changes.AddRange(becameReady.Select(r => new WorkReadinessChange(
+            r.Id, r.MediaType, true, now, IsFirstReady: string.Equals(r.FirstReadyAt, at, StringComparison.Ordinal))));
         changes.AddRange(stoppedBeingReady.Select(r => new WorkReadinessChange(r.Id, r.MediaType, false, now)));
     }
 
@@ -305,6 +343,7 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
     {
         public Guid Id { get; set; }
         public string MediaType { get; set; } = string.Empty;
+        public string? FirstReadyAt { get; set; }
     }
 
     private sealed class DetailsRow

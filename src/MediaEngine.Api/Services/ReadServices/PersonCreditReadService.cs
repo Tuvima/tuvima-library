@@ -37,6 +37,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         using var conn = _db.CreateConnection();
         var work = await conn.QueryFirstOrDefaultAsync<WorkIdentityRow>(
             """
+            -- readiness: credit context of one work, looked up by id
             SELECT w.id AS WorkId,
                    COALESCE(
                        NULLIF(TRIM(w.wikidata_qid), ''),

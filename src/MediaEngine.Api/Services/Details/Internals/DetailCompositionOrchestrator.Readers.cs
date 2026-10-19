@@ -51,6 +51,7 @@ internal sealed partial class DetailCompositionOrchestrator
         ct.ThrowIfCancellationRequested();
         var rawRows = conn.Query<dynamic>(new CommandDefinition(
             $"""
+            -- readiness: detail page of one item opened by id
             SELECT w.id AS Id,
                    ma.id AS AssetId,
                    CAST(w.media_type AS TEXT) AS MediaType,
@@ -304,7 +305,7 @@ internal sealed partial class DetailCompositionOrchestrator
     {
         using var conn = _db.CreateConnection();
         var json = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
-            "SELECT display_overrides_json FROM works WHERE id = @workId LIMIT 1;",
+            "-- readiness: detail page of one item opened by id\nSELECT display_overrides_json FROM works WHERE id = @workId LIMIT 1;",
             new { workId },
             cancellationToken: ct));
 
@@ -507,6 +508,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var rootValue = await conn.ExecuteScalarAsync<object?>(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             SELECT COALESCE(gp.id, p.id, w.id)
             FROM works w
             LEFT JOIN works p ON p.id = w.parent_work_id
@@ -685,6 +687,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var row = await conn.QueryFirstOrDefaultAsync(new CommandDefinition(
             """
+            -- readiness: detail page of one item opened by id
             WITH ranked_assets AS (
                 SELECT
                     w.id AS WorkId,

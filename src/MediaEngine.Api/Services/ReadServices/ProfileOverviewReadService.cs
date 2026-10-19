@@ -82,6 +82,7 @@ public sealed class ProfileOverviewReadService(
         using var conn = db.CreateConnection();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
+            -- readiness: a profile's own progress rows; they exist only for items that were played
             SELECT
                 us.asset_id,
                 w.id AS work_id,

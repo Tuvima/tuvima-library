@@ -19,6 +19,9 @@ public sealed class WorkReadinessService : BackgroundService
     // How often to look for Works whose readiness inputs changed.
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
+    // How many times a failed announcement is tried before giving up.
+    private const int MaxAnnouncementAttempts = 5;
+
     // How often to re-check every Work, to catch changes that leave no timestamp behind.
     private static readonly TimeSpan FullSweepInterval = TimeSpan.FromMinutes(10);
 
@@ -31,6 +34,9 @@ public sealed class WorkReadinessService : BackgroundService
     // First time this service saw a Work matched, placed and not in review but still waiting for artwork.
     // Only the service's single loop touches it.
     private readonly Dictionary<Guid, DateTimeOffset> _matchedAt = [];
+
+    // Works that became Ready for the first time but whose announcement failed, with the attempts made so far.
+    private readonly Dictionary<Guid, int> _pendingAnnouncements = [];
 
     private WorkReadinessWatermark _watermark = WorkReadinessWatermark.Empty;
 
@@ -116,6 +122,8 @@ public sealed class WorkReadinessService : BackgroundService
     /// <summary>One pass over the Works whose readiness inputs changed since the last pass.</summary>
     public async Task PollAsync(CancellationToken ct)
     {
+        await RetryPendingAnnouncementsAsync(ct).ConfigureAwait(false);
+
         var (workIds, next) = await _repository.FindTouchedWorkIdsAsync(_watermark, ct).ConfigureAwait(false);
         if (workIds.Count > 0)
         {
@@ -133,8 +141,23 @@ public sealed class WorkReadinessService : BackgroundService
     /// <summary>Re-checks every Work, catching inputs that carry no timestamp.</summary>
     public async Task SweepAsync(CancellationToken ct)
     {
-        var changes = await _repository.RefreshAllAsync(_bypassLibraries.GetLibraryIds(), ct).ConfigureAwait(false);
+        await RetryPendingAnnouncementsAsync(ct).ConfigureAwait(false);
+
+        var bypassLibraryIds = _bypassLibraries.GetLibraryIds();
+        var changes = await _repository.RefreshAllAsync(bypassLibraryIds, ct).ConfigureAwait(false);
         await ReportAsync(changes, ct).ConfigureAwait(false);
+
+        // Forget works that are no longer waiting for artwork (they left review, were removed, or became ready some
+        // other way), so the timing table does not grow without bound.
+        if (_matchedAt.Count > 0)
+        {
+            var stillWaiting = (await _repository.FindMatchedAwaitingArtworkAsync(_matchedAt.Keys.ToList(), bypassLibraryIds, ct)
+                .ConfigureAwait(false)).ToHashSet();
+            foreach (var workId in _matchedAt.Keys.Where(id => !stillWaiting.Contains(id)).ToList())
+            {
+                _matchedAt.Remove(workId);
+            }
+        }
     }
 
     private async Task NoteMatchedAwaitingArtworkAsync(
@@ -150,17 +173,6 @@ public sealed class WorkReadinessService : BackgroundService
 
     private async Task ReportAsync(IReadOnlyList<WorkReadinessChange> changes, CancellationToken ct)
     {
-        if (changes.Count == 0)
-        {
-            return;
-        }
-
-        var becameReady = changes.Where(change => change.IsReady).ToList();
-        var details = becameReady.Count == 0
-            ? new Dictionary<Guid, WorkReadinessDetails>()
-            : (await _repository.GetDetailsAsync(becameReady.Select(change => change.WorkId).ToList(), ct)
-                .ConfigureAwait(false)).ToDictionary(pair => pair.Key, pair => pair.Value);
-
         foreach (var change in changes)
         {
             if (!change.IsReady)
@@ -180,29 +192,94 @@ public sealed class WorkReadinessService : BackgroundService
             {
                 _logger.LogInformation("Work {WorkId} is ready ({MediaType})", change.WorkId, change.MediaType);
             }
+        }
 
-            details.TryGetValue(change.WorkId, out var detail);
-            await PublishAddedAsync(change, detail, ct).ConfigureAwait(false);
+        // A Work is announced as added once, the first time it is ever Ready; returning to Ready after a review is
+        // not announced again.
+        var firstReady = changes.Where(change => change.IsReady && change.IsFirstReady).Select(change => change.WorkId).ToList();
+        await AnnounceAsync(firstReady, ct).ConfigureAwait(false);
+    }
+
+    // Announces the given works. Anything that cannot be announced (the details look-up or the publish failed) is kept
+    // and retried on the following passes, up to a limit, so a brief failure does not lose the announcement.
+    private async Task AnnounceAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct)
+    {
+        if (workIds.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyDictionary<Guid, WorkReadinessDetails> details;
+        try
+        {
+            details = await _repository.GetDetailsAsync(workIds, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "The details of {Count} ready works could not be read; announcing them will be retried.", workIds.Count);
+            foreach (var workId in workIds)
+            {
+                Defer(workId);
+            }
+
+            return;
+        }
+
+        foreach (var workId in workIds)
+        {
+            if (!details.TryGetValue(workId, out var detail))
+            {
+                // The work is gone; there is nothing to announce.
+                _pendingAnnouncements.Remove(workId);
+                continue;
+            }
+
+            if (await PublishAddedAsync(detail, ct).ConfigureAwait(false))
+            {
+                _pendingAnnouncements.Remove(workId);
+            }
+            else
+            {
+                Defer(workId);
+            }
         }
     }
 
-    private async Task PublishAddedAsync(WorkReadinessChange change, WorkReadinessDetails? detail, CancellationToken ct)
+    private async Task RetryPendingAnnouncementsAsync(CancellationToken ct)
+    {
+        if (_pendingAnnouncements.Count > 0)
+        {
+            await AnnounceAsync(_pendingAnnouncements.Keys.ToList(), ct).ConfigureAwait(false);
+        }
+    }
+
+    private void Defer(Guid workId)
+    {
+        var attempts = _pendingAnnouncements.GetValueOrDefault(workId) + 1;
+        if (attempts >= MaxAnnouncementAttempts)
+        {
+            _pendingAnnouncements.Remove(workId);
+            _logger.LogWarning("Work {WorkId} could not be announced after {Attempts} attempts; giving up.", workId, attempts);
+            return;
+        }
+
+        _pendingAnnouncements[workId] = attempts;
+    }
+
+    private async Task<bool> PublishAddedAsync(WorkReadinessDetails detail, CancellationToken ct)
     {
         try
         {
             await _publisher.PublishAsync(
                 SignalREvents.MediaAdded,
-                new MediaAddedEvent(
-                    change.WorkId,
-                    detail?.CollectionId,
-                    detail?.MediaType ?? change.MediaType,
-                    detail?.Title ?? string.Empty,
-                    detail?.AssetId),
+                new MediaAddedEvent(detail.WorkId, detail.CollectionId, detail.MediaType, detail.Title, detail.AssetId),
                 ct).ConfigureAwait(false);
+            return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "MediaAdded event for ready work {WorkId} could not be published.", change.WorkId);
+            _logger.LogWarning(ex, "MediaAdded event for ready work {WorkId} could not be published.", detail.WorkId);
+            return false;
         }
     }
 }

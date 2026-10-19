@@ -27,6 +27,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             "w.media_type");
         var rows = await conn.QueryAsync<ResolvedMetadataRow>(new CommandDefinition(
             $"""
+            -- readiness: metadata for works the caller named by id, in the collection editor
             WITH RECURSIVE work_tree(RootWorkId, WorkId) AS (
                 SELECT w.id, w.id
                 FROM works w
@@ -130,6 +131,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<MediaTypeCountRow>(new CommandDefinition(
             """
+            -- readiness: metadata for works the caller named by id, in the collection editor
             WITH requested(WorkHex) AS (
                 SELECT UPPER(CAST(value AS TEXT))
                 FROM json_each(@WorkIdsJson)

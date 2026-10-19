@@ -306,6 +306,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             new { entityId, preferredAssetId });
 
         var lineageRow = conn.QueryFirstOrDefault<(Guid? AssetId, Guid RootParentWorkId, string MediaType)>("""
+            -- readiness: tree of one work, looked up by id
             WITH RECURSIVE work_tree(id, depth) AS (
                 SELECT w.id, 0
                 FROM works w
@@ -485,7 +486,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 """, new { assetId });
 
         var workIdentity = conn.QueryFirstOrDefault<(string? MatchLevel, string? WorkKind)>(
-            "SELECT match_level AS MatchLevel, work_kind AS WorkKind FROM works WHERE id = @entityId;",
+            "-- readiness: match level of one work, looked up by id\nSELECT match_level AS MatchLevel, work_kind AS WorkKind FROM works WHERE id = @entityId;",
             new { entityId });
         var matchLevel = workIdentity.MatchLevel ?? "work";
 
@@ -859,6 +860,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     {
         using var conn = _db.CreateConnection();
         var rows = conn.Query<(string MediaType, int Count)>("""
+            -- readiness: administrator count of the files in the library
             SELECT w.media_type AS MediaType,
                    COUNT(DISTINCT CASE WHEN LOWER(w.media_type) IN ('audiobook', 'audiobooks')
                                        THEN w.id ELSE ma.id END) AS Count

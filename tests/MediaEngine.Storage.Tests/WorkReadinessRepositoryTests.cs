@@ -384,6 +384,130 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Episode_IsNotReady_WhenItsSeasonHasLostItsShow()
+    {
+        var seasonWithoutShow = NewParent("TV", parentWorkId: null, ordinal: 1);
+        var (episodeId, assetId) = NewWork("TV", seasonWithoutShow, "child");
+        SetJob(assetId, IdentityJobState.RetailMatched);
+        SetCanonical(seasonWithoutShow, "cover_state", "present");
+
+        await _repo.RefreshAsync([episodeId], NoBypass);
+
+        Assert.Null(ReadyAt(episodeId));
+    }
+
+    [Fact]
+    public async Task ReadyWork_StaysReady_WhileItIsQueuedAgainForARematch_ButNotOnceItLandsInReview()
+    {
+        var (workId, assetId) = NewWork("Books");
+        SetJob(assetId, IdentityJobState.RetailMatched);
+        SetCanonical(assetId, "cover_state", "present");
+        await _repo.RefreshAsync([workId], NoBypass);
+        var readyAt = ReadyAt(workId);
+        Assert.NotNull(readyAt);
+
+        foreach (var state in new[] { IdentityJobState.Queued, IdentityJobState.RetailSearching, IdentityJobState.BridgeSearching, IdentityJobState.Hydrating })
+        {
+            SetJob(assetId, state, DateTimeOffset.UtcNow.AddSeconds(1));
+            Assert.Empty(await _repo.RefreshAsync([workId], NoBypass));
+            Assert.Equal(readyAt, ReadyAt(workId));
+        }
+
+        SetJob(assetId, IdentityJobState.RetailMatchedNeedsReview, DateTimeOffset.UtcNow.AddSeconds(2));
+        var changes = await _repo.RefreshAsync([workId], NoBypass);
+
+        Assert.False(Assert.Single(changes).IsReady);
+        Assert.Null(ReadyAt(workId));
+    }
+
+    [Theory]
+    [InlineData(IdentityJobState.Failed)]
+    [InlineData(IdentityJobState.RetailNoMatch)]
+    [InlineData(IdentityJobState.QidNeedsReview)]
+    public async Task ReadyWork_LeavesReady_WhenAReQueuedJobEndsInANegativeOutcome(IdentityJobState outcome)
+    {
+        var (workId, assetId) = NewWork("Books");
+        SetJob(assetId, IdentityJobState.RetailMatched);
+        SetCanonical(assetId, "cover_state", "present");
+        await _repo.RefreshAsync([workId], NoBypass);
+
+        SetJob(assetId, IdentityJobState.Queued, DateTimeOffset.UtcNow.AddSeconds(1));
+        await _repo.RefreshAsync([workId], NoBypass);
+        Assert.NotNull(ReadyAt(workId));
+
+        SetJob(assetId, outcome, DateTimeOffset.UtcNow.AddSeconds(2));
+        await _repo.RefreshAsync([workId], NoBypass);
+
+        Assert.Null(ReadyAt(workId));
+    }
+
+    [Fact]
+    public async Task ReadyWork_DoesNotNeedItsArtworkAgain_ButLeavesReadyOnAPendingReviewOrLostPlacement()
+    {
+        var showId = NewParent("TV");
+        var (episodeId, episodeAsset) = NewWork("TV", showId, "child");
+        SetJob(episodeAsset, IdentityJobState.RetailMatched);
+        SetCanonical(showId, "cover_state", "present");
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.NotNull(ReadyAt(episodeId));
+
+        Execute("DELETE FROM canonical_values WHERE entity_id = @showId", new { showId });
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.NotNull(ReadyAt(episodeId));
+
+        AddReview(episodeAsset, "LowConfidence", "Pending");
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.Null(ReadyAt(episodeId));
+
+        // Back to Ready needs the full rule again, artwork included.
+        Execute("UPDATE review_queue SET status = 'Resolved' WHERE entity_id = @episodeAsset", new { episodeAsset });
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.Null(ReadyAt(episodeId));
+        SetCanonical(showId, "cover_state", "present");
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.NotNull(ReadyAt(episodeId));
+
+        Execute("UPDATE works SET parent_work_id = NULL WHERE id = @episodeId", new { episodeId });
+        await _repo.RefreshAsync([episodeId], NoBypass);
+        Assert.Null(ReadyAt(episodeId));
+    }
+
+    [Fact]
+    public async Task OnlyTheFirstTimeAWorkIsReady_IsReportedAsFirst()
+    {
+        var (workId, assetId) = NewWork("Books");
+        SetJob(assetId, IdentityJobState.RetailMatched);
+        SetCanonical(assetId, "cover_state", "present");
+
+        var first = Assert.Single(await _repo.RefreshAsync([workId], NoBypass));
+        Assert.True(first.IsFirstReady);
+
+        SetJob(assetId, IdentityJobState.RetailMatchedNeedsReview, DateTimeOffset.UtcNow.AddSeconds(1));
+        await _repo.RefreshAsync([workId], NoBypass);
+        SetJob(assetId, IdentityJobState.RetailMatched, DateTimeOffset.UtcNow.AddSeconds(2));
+        var again = Assert.Single(await _repo.RefreshAsync([workId], NoBypass));
+
+        Assert.True(again.IsReady);
+        Assert.False(again.IsFirstReady);
+    }
+
+    [Fact]
+    public async Task FindTouched_PicksUpARowStampedBeforeTheWatermarkButCommittedAfterThePoll()
+    {
+        var (firstId, firstAsset) = NewWork("Books");
+        SetJob(firstAsset, IdentityJobState.Queued, DateTimeOffset.UtcNow);
+        var (lateId, lateAsset) = NewWork("Books");
+        var (_, watermark) = await _repo.FindTouchedWorkIdsAsync(WorkReadinessWatermark.Empty);
+
+        // Stamped five seconds ago, but only written now: it sits below the watermark.
+        SetJob(lateAsset, IdentityJobState.RetailMatched, DateTimeOffset.UtcNow.AddSeconds(-5));
+        SetCanonical(lateAsset, "cover_state", "present", DateTimeOffset.UtcNow.AddSeconds(-5));
+        var (touched, _) = await _repo.FindTouchedWorkIdsAsync(watermark);
+
+        Assert.Contains(lateId, touched);
+    }
+
+    [Fact]
     public async Task Refresh_IgnoresWorksThatAreNotLeaves()
     {
         var showId = NewParent("TV");
@@ -466,23 +590,6 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadyGroupGate_ShowsAShowOnlyWhenOneOfItsEpisodesIsReady()
-    {
-        var showId = NewParent("TV");
-        var seasonId = NewParent("TV", showId);
-        var (episodeId, assetId) = NewWork("TV", seasonId, "child");
-        SetJob(assetId, IdentityJobState.RetailMatched);
-        SetCanonical(showId, "cover_state", "present");
-
-        Assert.False(GroupIsReady(showId));
-
-        await _repo.RefreshAsync([episodeId], NoBypass);
-
-        Assert.True(GroupIsReady(showId));
-        Assert.True(GroupIsReady(seasonId));
-    }
-
-    [Fact]
     public async Task FindTouched_ReturnsTheWork_WhenItsIdentityJobChangedAfterTheWatermark()
     {
         var (workId, assetId) = NewWork("Books");
@@ -490,11 +597,9 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
         var (_, watermark) = await _repo.FindTouchedWorkIdsAsync(WorkReadinessWatermark.Empty);
 
         SetJob(assetId, IdentityJobState.RetailMatched, DateTimeOffset.UtcNow);
-        var (touched, next) = await _repo.FindTouchedWorkIdsAsync(watermark);
+        var (touched, _) = await _repo.FindTouchedWorkIdsAsync(watermark);
 
         Assert.Equal(new[] { workId }, touched);
-        var (again, _) = await _repo.FindTouchedWorkIdsAsync(next);
-        Assert.Empty(again);
     }
 
     [Fact]
@@ -531,9 +636,10 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
     [Fact]
     public async Task FindTouched_ReturnsNothing_ForAnUnchangedLibrary()
     {
+        var settled = DateTimeOffset.UtcNow.AddMinutes(-5);
         var (_, assetId) = NewWork("Books");
-        SetJob(assetId, IdentityJobState.RetailMatched);
-        SetCanonical(assetId, "cover_state", "present");
+        SetJob(assetId, IdentityJobState.RetailMatched, settled);
+        SetCanonical(assetId, "cover_state", "present", settled);
         var (first, watermark) = await _repo.FindTouchedWorkIdsAsync(WorkReadinessWatermark.Empty);
 
         var (second, _) = await _repo.FindTouchedWorkIdsAsync(watermark);
@@ -634,12 +740,12 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
     private void SetLibrary(Guid assetId, string libraryId) =>
         Execute("UPDATE media_assets SET library_id = @libraryId WHERE id = @assetId", new { libraryId, assetId });
 
-    private Guid NewParent(string mediaType, Guid? parentWorkId = null)
+    private Guid NewParent(string mediaType, Guid? parentWorkId = null, int? ordinal = null)
     {
         var workId = Guid.NewGuid();
         Execute(
-            "INSERT INTO works (id, media_type, work_kind, parent_work_id, parent_key) VALUES (@workId, @mediaType, 'parent', @parentWorkId, @key)",
-            new { workId, mediaType, parentWorkId, key = $"parent:{workId:N}" });
+            "INSERT INTO works (id, media_type, work_kind, parent_work_id, parent_key, ordinal) VALUES (@workId, @mediaType, 'parent', @parentWorkId, @key, @ordinal)",
+            new { workId, mediaType, parentWorkId, key = $"parent:{workId:N}", ordinal });
         return workId;
     }
 
@@ -686,14 +792,6 @@ public sealed class WorkReadinessRepositoryTests : IDisposable
         return conn.ExecuteScalar<int>(
             $"SELECT COUNT(*) FROM works w WHERE w.id = @workId AND {WorkReadinessSql.ReadyWorkPredicate("w")}",
             new { workId });
-    }
-
-    private bool GroupIsReady(Guid groupId)
-    {
-        using var conn = _db.CreateConnection();
-        return conn.ExecuteScalar<int>(
-            $"SELECT COUNT(*) FROM works g WHERE g.id = @groupId AND {WorkReadinessSql.ReadyGroupPredicate("g")}",
-            new { groupId }) == 1;
     }
 
     private void Execute(string sql, object parameters)

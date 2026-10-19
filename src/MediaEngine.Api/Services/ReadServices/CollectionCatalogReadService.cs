@@ -430,6 +430,7 @@ public sealed class CollectionCatalogReadService(
         {
             var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
                 """
+                -- readiness: ancestors of works whose ids come from Ready-gated reads
                 WITH RECURSIVE ancestors(WorkId, ParentId) AS (
                     SELECT w.id, w.parent_work_id
                     FROM works w
@@ -470,6 +471,7 @@ public sealed class CollectionCatalogReadService(
         {
             var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
                 """
+                -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
                 SELECT w.id AS SourceWorkId,
                        CASE
                            WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)
@@ -526,9 +528,11 @@ public sealed class CollectionCatalogReadService(
                 )
                 SELECT DISTINCT work_tree.RootWorkId AS WorkId
                 FROM work_tree
+                INNER JOIN works leaf_w ON leaf_w.id = work_tree.WorkId
                 INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
-                WHERE {visibleAssetPredicate};
+                WHERE {visibleAssetPredicate}
+                  AND {WorkReadinessSql.ReadyWorkPredicate("leaf_w")};
                 """,
                 new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
                 cancellationToken: ct)).ConfigureAwait(false);
@@ -1050,6 +1054,7 @@ public sealed class CollectionCatalogReadService(
         {
             rows.AddRange(await conn.QueryAsync<CollectionMediaMetadataRow>(new CommandDefinition(
             """
+            -- readiness: type and year of works whose ids come from Ready-gated reads
             SELECT w.media_type AS MediaType,
                    COALESCE(
                        (SELECT NULLIF(cv.value, '')
@@ -1285,6 +1290,7 @@ public sealed class CollectionCatalogReadService(
         {
             rows.AddRange(await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
             """
+            -- readiness: turns work ids into their display roots; the ids come from Ready-gated reads
             WITH RECURSIVE source_roots(SourceWorkId, RootWorkId, RootMediaType) AS (
                 SELECT DISTINCT
                        w.id AS SourceWorkId,

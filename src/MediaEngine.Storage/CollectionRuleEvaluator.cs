@@ -31,6 +31,7 @@ public sealed class CollectionRuleEvaluator
     /// parent_work_id up two levels).
     /// </summary>
     private static string EntityIdsForWork(string workAlias = "w") => $"""
+        -- readiness: expression used inside the rule query, which filters on the Ready rule
         SELECT {workAlias}.id
         UNION SELECT p.id FROM works p WHERE p.id = {workAlias}.parent_work_id
         UNION SELECT gp.id FROM works p INNER JOIN works gp ON gp.id = p.parent_work_id WHERE p.id = {workAlias}.parent_work_id
@@ -71,6 +72,7 @@ public sealed class CollectionRuleEvaluator
     /// up two levels to the topmost Work row. Used in ORDER BY clauses.
     /// </summary>
     private static string CvForWork(string keyParam) => $$"""
+        -- readiness: expression used inside the rule query, which filters on the Ready rule
         COALESCE(
             (SELECT cv.value FROM editions e_cv
              INNER JOIN media_assets ma_cv ON ma_cv.edition_id = e_cv.id
@@ -454,6 +456,7 @@ public sealed class CollectionRuleEvaluator
                 && effectiveValues[0] != "0";
             var basedOnExists = CvLookup("cv.key = 'based_on'");
             var sourceOwned = $$"""
+                -- readiness: expression used inside the rule query, which filters on the Ready rule
                 EXISTS (
                     SELECT 1
                     FROM canonical_value_arrays source_link
@@ -468,6 +471,7 @@ public sealed class CollectionRuleEvaluator
                 )
                 """;
             var adaptationOwned = $$"""
+                -- readiness: expression used inside the rule query, which filters on the Ready rule
                 NULLIF(w.wikidata_qid, '') IS NOT NULL AND EXISTS (
                     SELECT 1
                     FROM works adaptation
