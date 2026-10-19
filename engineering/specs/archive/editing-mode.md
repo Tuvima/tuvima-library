@@ -1,6 +1,6 @@
 # Spec: Editing Mode on the item page (as built)
 
-> **Status:** Built · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](archive/item-detail.md) · [Registry retirement](archive/registry-retirement.md) · [Presentation rules (public)](../../docs/product/presentation-rules.md) · [Inline media editing (public)](../../docs/architecture/inline-media-editing.md)
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-10-18 · **Related docs:** [Product overview](../../product/overview.md) · [Item Detail page](item-detail.md) · [Registry retirement](registry-retirement.md) · [Presentation rules (public)](../../../docs/product/presentation-rules.md) · [Inline media editing (public)](../../../docs/architecture/inline-media-editing.md)
 
 > This spec writes down what Editing Mode does today, after PR 223 (merged). It was written by reading the built code on `main` and comparing it with the original plan (the "unified details" plan and its U1 brief). Facts I could not check from the planning side are marked "to be confirmed by Claude Code". Shy's decisions on the gaps in section 8 were recorded on 2026-10-18 (see D14).
 
