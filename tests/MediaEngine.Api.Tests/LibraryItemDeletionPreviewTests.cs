@@ -317,6 +317,38 @@ public sealed class LibraryItemDeletionPreviewTests : IDisposable
     }
 
     [Fact]
+    public async Task ACuratedCollectionWithAPersonalMediaSource_IsListed_ButIsNotDeletedWhenItsLastTitleGoes()
+    {
+        var (dune, _) = _world.AddWork("Dune", []);
+        var collection = _world.AddCollection("Dune and holiday photos", manual: true, dune);
+        _world.AddViewSource(collection);
+
+        var preview = await PreviewAsync(dune);
+
+        var listed = Assert.Single(preview.CuratedCollections);
+        Assert.Equal(collection, listed.CollectionId);
+        Assert.Equal(1, listed.ItemsInRequest);
+        Assert.False(listed.WillBeDeleted);
+    }
+
+    [Theory]
+    [InlineData("Playlist")]
+    [InlineData("PlaylistFolder")]
+    [InlineData("System")]
+    public async Task AHandPickedPlaylistOrGrouping_IsListed_ButIsNeverDeletedWithItsLastTitle(string collectionType)
+    {
+        var (song, _) = _world.AddWork("A song", [], mediaType: "Music", workKind: "child");
+        _world.AddCollection("Road trip mix", manual: true, collectionType, song);
+
+        var preview = await PreviewAsync(song);
+
+        var listed = Assert.Single(preview.CuratedCollections);
+        Assert.Equal("Road trip mix", listed.Name);
+        Assert.Equal(1, listed.ItemsInRequest);
+        Assert.False(listed.WillBeDeleted);
+    }
+
+    [Fact]
     public async Task ACollectionHoldingOnlyTitlesOutsideTheRequest_IsNotListed()
     {
         var (dune, _) = _world.AddWork("Dune", []);

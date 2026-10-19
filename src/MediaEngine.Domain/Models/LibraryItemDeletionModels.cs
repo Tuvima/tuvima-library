@@ -14,7 +14,7 @@ public sealed record LibraryItemDeletionWork(
 
 /// <summary>A hand-picked (Manual) collection that holds at least one of the requested titles.</summary>
 /// <param name="ItemsInRequest">How many of the requested titles the collection holds.</param>
-/// <param name="WillBeDeleted">True when every title in the collection is in the request, so deleting them would leave it empty.</param>
+/// <param name="WillBeDeleted">True when the collection will be deleted with the titles: a curated (Custom, stored-member) collection with no personal-media source whose every title is in the request. Playlists and other hand-picked groupings are never deleted.</param>
 public sealed record LibraryItemDeletionCollection(Guid CollectionId, string Name, int ItemsInRequest, bool WillBeDeleted);
 
 /// <summary>What else is tied to the requested titles besides their files.</summary>

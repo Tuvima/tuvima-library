@@ -47,9 +47,7 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
         builder.Logging.ClearProviders();
         builder.Services.AddAuthentication("test")
             .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("test", _ => { });
-        builder.Services.AddAuthorization(options => options.AddPolicy(
-            AuthPolicies.Administrator,
-            policy => policy.RequireAuthenticatedUser().AddRequirements(new EffectiveAdministratorRequirement(true))));
+        builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IAuthorizationHandler, EffectiveAdministratorHandler>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver(this));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
@@ -102,7 +100,8 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
     [InlineData("member")]
     [InlineData("lockedAdmin")]
     [InlineData("serviceApplication")]
-    public async Task EveryoneWhoIsNotAnUnlockedAdministrator_GetsForbidden_AndNothingIsPreviewed(string caller)
+    [InlineData("delegatedClient")]
+    public async Task EveryoneWhoIsNotAnUnlockedAdministratorInPerson_GetsForbidden_AndNothingIsPreviewed(string caller)
     {
         var (workId, _) = _world.AddWork("Dune", []);
 
@@ -141,7 +140,7 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public void TheRoute_IsAdministratorOnly_WithNoApplicationPermission_AndIsNamed()
+    public void TheRoute_IsInPersonAdministratorOnly_WithNoApplicationPermission_AndIsNamed()
     {
         var endpoint = ((IEndpointRouteBuilder)_app).DataSources
             .SelectMany(source => source.Endpoints)
@@ -150,9 +149,13 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
 
         Assert.Equal("PreviewLibraryItemDeletion", endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName);
         Assert.Equal(["POST"], endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods);
-        var policy = Assert.Single(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());
-        Assert.Equal(AuthPolicies.Administrator, policy.Policy);
-        Assert.Empty(endpoint.Metadata.OfType<AuthorizationPolicy>());
+        var policy = Assert.Single(endpoint.Metadata.OfType<AuthorizationPolicy>());
+        var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+        Assert.True(requirement.SurfaceUnlock);
+        Assert.True(requirement.HumanOnly);
+        Assert.False(requirement.AllowHouseholdAdministrator);
+        Assert.DoesNotContain(policy.Requirements, item => item is AdministratorOrApplicationRequirement or ApplicationPermissionRequirement);
+        Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());
         Assert.Null(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
     }
 
@@ -189,6 +192,13 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
             "member" => Human(administrator: false),
             "admin" => Human(administrator: true),
             "lockedAdmin" => Human(administrator: true, session: _lockedSession),
+            // A paired app or native client acting for a signed-in, unlocked administrator.
+            "delegatedClient" => Human(administrator: true) with
+            {
+                PrincipalKind = PrincipalKind.DelegatedUserClient,
+                ApplicationId = Guid.NewGuid(),
+                ApplicationEnabled = true,
+            },
             // An application acting on its own, with no signed-in person behind it.
             "serviceApplication" => new RequestAuthority(
                 PrincipalKind.ServiceApplication, true,

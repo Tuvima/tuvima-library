@@ -47,7 +47,8 @@ public static class LibraryItemEndpoints
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.ReviewRead);
 
         // Delete from library: the first half. Works out exactly what would happen and changes nothing. Effective
-        // administrators only (surface PIN unlock included); no application permission, so apps and native clients are refused.
+        // administrators signed in at the Dashboard only (surface PIN unlock included); apps and native clients are refused,
+        // even one acting for an administrator.
         group.MapPost("/deletion-preview", async (
             LibraryItemDeletionPreviewRequest request,
             LibraryItemDeletionService deletion,
@@ -70,7 +71,7 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireEffectiveAdministrator();
+        .RequireEffectiveAdministratorInPerson();
 
         return app;
     }

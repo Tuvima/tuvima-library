@@ -156,19 +156,46 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         return assetId;
     }
 
-    public Guid AddCollection(string name, bool manual, params Guid[] workIds)
+    /// <summary>
+    /// Adds a collection. A hand-picked one is a curated collection (Custom, stored members) unless <paramref name="collectionType"/> says
+    /// otherwise, for example "Playlist".
+    /// </summary>
+    public Guid AddCollection(string name, bool manual, params Guid[] workIds) =>
+        AddCollection(name, manual, manual ? "Custom" : "Smart", workIds);
+
+    public Guid AddCollection(string name, bool manual, string collectionType, params Guid[] workIds)
     {
         var collectionId = Guid.NewGuid();
         using var connection = Database.CreateConnection();
         connection.Execute(
-            "INSERT INTO collections (id, display_name, membership_mode) VALUES (@collectionId, @name, @mode);",
-            new { collectionId, name, mode = manual ? "Manual" : "Smart" });
+            "INSERT INTO collections (id, display_name, membership_mode, collection_type, resolution) VALUES (@collectionId, @name, @mode, @collectionType, @resolution);",
+            new
+            {
+                collectionId,
+                name,
+                mode = manual ? "Manual" : "Smart",
+                collectionType,
+                resolution = manual ? "materialized" : "query",
+            });
         foreach (var workId in workIds)
         {
             AddMember(collectionId, workId);
         }
 
         return collectionId;
+    }
+
+    /// <summary>Gives a collection a personal-media source (a smart rule), which keeps it alive without any library title.</summary>
+    public void AddViewSource(Guid collectionId)
+    {
+        var owner = AddProfile("Source owner");
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using var connection = Database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO collection_view_sources (id, collection_id, owner_profile_id, source_kind, rule_version, rule_json, position, created_at, updated_at)
+            VALUES (@id, @collectionId, @owner, 'smart_rule', 1, '{}', 0, @now, @now);
+            """,
+            new { id = Guid.NewGuid(), collectionId, owner, now });
     }
 
     public void AddMember(Guid collectionId, Guid workId)

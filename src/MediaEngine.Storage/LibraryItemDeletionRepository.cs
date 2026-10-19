@@ -155,7 +155,10 @@ public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILib
                        SELECT COUNT(DISTINCT ci.work_id)
                        FROM collection_items ci
                        WHERE ci.collection_id = c.id
-                   ) AS TotalItems
+                   ) AS TotalItems,
+                   c.collection_type AS CollectionType,
+                   c.resolution AS Resolution,
+                   EXISTS (SELECT 1 FROM collection_view_sources s WHERE s.collection_id = c.id) AS HasViewSources
             FROM collections c
             WHERE c.membership_mode = 'Manual'
               AND EXISTS (
@@ -170,7 +173,13 @@ public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILib
                 row.CollectionId,
                 row.Name,
                 row.ItemsInRequest,
-                row.ItemsInRequest >= row.TotalItems))
+                // The same rule CuratedCollectionCleanup.DeleteEmpty applies once the works are gone: only a curated collection
+                // (Custom, stored members) with no personal-media source and no member left. Playlists, playlist folders and system
+                // groupings are hand-picked too, so they are listed, but they are never deleted by this.
+                row.ItemsInRequest >= row.TotalItems
+                    && string.Equals(row.CollectionType, "Custom", StringComparison.Ordinal)
+                    && string.Equals(row.Resolution, "materialized", StringComparison.Ordinal)
+                    && row.HasViewSources == 0))
             .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(collection => collection.Name, StringComparer.Ordinal)
             .ThenBy(collection => collection.CollectionId)
@@ -301,5 +310,8 @@ public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILib
         public string Name { get; init; } = string.Empty;
         public int ItemsInRequest { get; init; }
         public int TotalItems { get; init; }
+        public string? CollectionType { get; init; }
+        public string? Resolution { get; init; }
+        public long HasViewSources { get; init; }
     }
 }
