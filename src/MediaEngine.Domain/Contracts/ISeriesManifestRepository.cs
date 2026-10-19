@@ -48,9 +48,22 @@ public interface ISeriesManifestRepository
         IReadOnlyList<SeriesManifestItemRecord> items,
         CancellationToken ct = default);
 
-    Task LinkOwnedWorksAsync(
+    /// <summary>
+    /// Applies <see cref="SeriesPlacementRule"/> to every owned work these rows name, and to the works listed in the
+    /// parent collections these rows list, moving each to the shelf the rule chooses (idempotent). Works that two Series
+    /// claim equally as main sequence are taken off both and returned, so the caller can raise one Needs Review item each.
+    /// </summary>
+    Task<IReadOnlyList<AmbiguousSeriesPlacement>> LinkOwnedWorksAsync(
         Guid collectionId,
         IReadOnlyList<SeriesManifestItemRecord> items,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// The owned-work rows of several shelves' manifests in one read (no collection items, no missing rows), for readers
+    /// that order the members of many Series at once.
+    /// </summary>
+    Task<IReadOnlyList<SeriesManifestItemRecord>> GetLinkedItemsByCollectionIdsAsync(
+        IReadOnlyCollection<Guid> collectionIds,
         CancellationToken ct = default);
 
     Task<SeriesManifestViewDto?> GetViewByCollectionIdAsync(

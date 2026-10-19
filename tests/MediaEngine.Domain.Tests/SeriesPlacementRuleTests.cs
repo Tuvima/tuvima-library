@@ -101,6 +101,52 @@ public sealed class SeriesPlacementRuleTests
     }
 
     [Fact]
+    public void ATieBelowMainSequence_IsNotAmbiguous_TheSeriesTheWorkClaimsWins()
+    {
+        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
+            nameof(MediaType.Books),
+            [
+                Series(OtherSeriesShelf, "QTwo", "Books", SeriesMembershipScopeNames.Supplementary),
+                Series(BookSeriesShelf, "QOne", "Books", SeriesMembershipScopeNames.Supplementary),
+            ],
+            null,
+            ClaimedSeriesQid: "qtwo"));
+
+        Assert.Equal(SeriesPlacementKind.Placed, decision.Kind);
+        Assert.Equal(OtherSeriesShelf, decision.ShelfCollectionId);
+    }
+
+    [Fact]
+    public void ATieBelowMainSequence_WithNoClaim_PicksTheLowestQid_WhateverTheOrder()
+    {
+        SeriesManifestMembership[] memberships =
+        [
+            Series(OtherSeriesShelf, "QB", "Books", SeriesMembershipScopeNames.CollectedContent),
+            Series(BookSeriesShelf, "QA", "Books", SeriesMembershipScopeNames.CollectedContent),
+        ];
+
+        var forward = SeriesPlacementRule.Decide(new SeriesPlacementInput(nameof(MediaType.Books), memberships, null));
+        var reversed = SeriesPlacementRule.Decide(new SeriesPlacementInput(nameof(MediaType.Books), memberships.Reverse().ToArray(), null));
+
+        Assert.Equal(BookSeriesShelf, forward.ShelfCollectionId);
+        Assert.Equal(BookSeriesShelf, reversed.ShelfCollectionId);
+        Assert.Equal(SeriesPlacementKind.Placed, forward.Kind);
+    }
+
+    [Fact]
+    public void ATieAtMainSequence_StaysAmbiguous_EvenWhenOneSeriesIsClaimed()
+    {
+        var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
+            nameof(MediaType.Books),
+            [Series(BookSeriesShelf, "QOne", "Books"), Series(OtherSeriesShelf, "QTwo", "Books")],
+            null,
+            ClaimedSeriesQid: "QOne"));
+
+        Assert.Equal(SeriesPlacementKind.Ambiguous, decision.Kind);
+        Assert.Contains("main sequence", decision.Reason);
+    }
+
+    [Fact]
     public void MainSequenceMembership_BeatsASupplementaryOneInAnotherSeries()
     {
         var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(

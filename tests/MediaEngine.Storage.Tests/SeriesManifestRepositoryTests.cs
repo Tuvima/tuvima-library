@@ -260,8 +260,10 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
         Assert.Equal(73, view.MissingCount);
     }
 
-    [Fact]
-    public async Task LinkOwnedWorks_DoesNotAssignExpandedParentManifestAsLaneShelf()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LinkOwnedWorks_ABroaderSeriesThatOnlyExpandsTheWork_NeverKeepsItFromTheImmediateSeries(bool broaderFirst)
     {
         var repo = new SeriesManifestRepository(_db);
         var broadCollectionId = await CreateCollectionAsync("Q26214973", "Peter Jackson's Middle-earth film series");
@@ -269,6 +271,7 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
         var workId = await CreateWorkAsync("Q80379");
         var now = DateTimeOffset.UtcNow;
 
+        // The broader manifest reaches the film only by expanding the trilogy, so it is collected content there.
         var broadItems = new[]
         {
             Item(
@@ -282,33 +285,38 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
                 now,
                 parentCollectionQid: "Q74331",
                 parentCollectionLabel: "The Hobbit trilogy",
-                isExpandedFromCollection: true),
+                isExpandedFromCollection: true,
+                membershipScope: SeriesMembershipScopeNames.CollectedContent),
         };
-
-        // The broader manifest is stored as a parent-collection hydration, which is never a shelf for the works it lists.
-        await repo.UpsertManifestAsync(Hydration(broadCollectionId, "Q26214973", now, isParentCollection: true), broadItems);
-        await repo.LinkOwnedWorksAsync(broadCollectionId, broadItems);
-
-        Assert.Null(await GetWorkCollectionIdAsync(workId));
-
-        await AssignWorkToCollectionAsync(workId, broadCollectionId);
-
         var childItems = new[]
         {
-            Item(
-                childCollectionId,
-                "Q74331",
-                "Q80379",
-                "The Hobbit: An Unexpected Journey",
-                1,
-                "Owned",
-                workId,
-                now.AddMinutes(1)),
+            Item(childCollectionId, "Q74331", "Q80379", "The Hobbit: An Unexpected Journey", 1, "Owned", workId, now.AddMinutes(1)),
         };
 
-        await repo.UpsertManifestAsync(Hydration(childCollectionId, "Q74331", now.AddMinutes(1)), childItems);
-        await repo.LinkOwnedWorksAsync(childCollectionId, childItems);
+        async Task HydrateBroadAsync()
+        {
+            await repo.UpsertManifestAsync(Hydration(broadCollectionId, "Q26214973", now), broadItems);
+            await repo.LinkOwnedWorksAsync(broadCollectionId, broadItems);
+        }
 
+        async Task HydrateChildAsync()
+        {
+            await repo.UpsertManifestAsync(Hydration(childCollectionId, "Q74331", now.AddMinutes(1)), childItems);
+            await repo.LinkOwnedWorksAsync(childCollectionId, childItems);
+        }
+
+        if (broaderFirst)
+        {
+            await HydrateBroadAsync();
+            await HydrateChildAsync();
+        }
+        else
+        {
+            await HydrateChildAsync();
+            await HydrateBroadAsync();
+        }
+
+        // Main sequence beats collected content, so the immediate Series holds the work whichever manifest came first.
         Assert.Equal(childCollectionId, await GetWorkCollectionIdAsync(workId));
     }
 
@@ -412,13 +420,13 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
-    private static SeriesManifestHydration Hydration(Guid collectionId, string seriesQid, DateTimeOffset now, bool isParentCollection = false) => new()
+    private static SeriesManifestHydration Hydration(Guid collectionId, string seriesQid, DateTimeOffset now) => new()
     {
         SeriesQid = seriesQid,
         CollectionId = collectionId,
         SeriesLabel = "Series",
         WarningsJson = "[]",
-        ApiMetadataJson = isParentCollection ? """{"parentCollectionHydration":true}""" : "{}",
+        ApiMetadataJson = "{}",
         LastHydratedAt = now,
         CreatedAt = now,
         UpdatedAt = now,

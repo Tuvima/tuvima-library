@@ -1374,7 +1374,7 @@ Series-level cache and provenance for Wikidata series manifests. One row is stor
 | `manifest_hash` | TEXT | Hash of the fetched manifest payload. |
 | `known_item_qids_hash` | TEXT | Hash of the ordered known item QID set. |
 | `warnings_json` | TEXT | Manifest-level warnings from Wikidata modeling. |
-| `api_metadata_json` | TEXT | Request options used for the fetch. `parentCollectionHydration: true` marks a parent-collection manifest (for example Memory's Legion) that was fetched because a Series listed it; such a collection is never the shelf of the works it lists. |
+| `api_metadata_json` | TEXT | Request options used for the fetch. Whether a collection is a parent collection (for example Memory's Legion) is not stored here: it is read from the data, as a collection that another Series manifest of the same media type lists as a collection item. |
 | `last_hydrated_at` | TEXT | Last successful manifest hydration timestamp. |
 
 ### series_manifest_items

@@ -11,7 +11,6 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +38,7 @@ public sealed class CollectionAssignmentService
     private readonly IWorkRepository _workRepo;
     private readonly ILogger<CollectionAssignmentService> _logger;
     private readonly ISeriesManifestRepository? _manifestRepo;
-    private readonly StageOutcomeFactory? _outcomeFactory;
+    private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
 
     // Per-shelf semaphores serialise concurrent find-or-create calls so two
     // workers cannot race past lookup and both UpsertAsync the same ContentGroup
@@ -53,7 +52,7 @@ public sealed class CollectionAssignmentService
         ILogger<CollectionAssignmentService> logger,
         ICanonicalValueArrayRepository? arrayRepo = null,
         ISeriesManifestRepository? manifestRepo = null,
-        StageOutcomeFactory? outcomeFactory = null)
+        SeriesAmbiguityReviewer? ambiguityReviewer = null)
     {
         _collectionRepo = collectionRepo;
         _canonicalRepo = canonicalRepo;
@@ -61,7 +60,7 @@ public sealed class CollectionAssignmentService
         _workRepo = workRepo;
         _logger = logger;
         _manifestRepo = manifestRepo;
-        _outcomeFactory = outcomeFactory;
+        _ambiguityReviewer = ambiguityReviewer;
     }
 
     /// <summary>
@@ -117,7 +116,8 @@ public sealed class CollectionAssignmentService
         var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
             mediaType.ToString(),
             memberships,
-            retail?.ToIdentity()));
+            retail?.ToIdentity(),
+            ClaimedSeriesQid: retail?.Qid));
 
         if (decision.Kind == SeriesPlacementKind.Ambiguous)
         {
@@ -317,33 +317,14 @@ public sealed class CollectionAssignmentService
             await _collectionRepo.ClearWorkCollectionAsync(workId, ct).ConfigureAwait(false);
         }
 
-        var names = new List<string>();
-        foreach (var candidate in decision.Candidates)
-        {
-            var shelf = await _collectionRepo.GetByIdAsync(candidate.CollectionId, ct).ConfigureAwait(false);
-            names.Add(string.IsNullOrWhiteSpace(shelf?.DisplayName) ? candidate.SeriesQid : shelf.DisplayName);
-        }
-
-        var detail = $"Wikidata lists this {decision.Candidates.FirstOrDefault()?.MediaType ?? "work"} in more than one Series "
-            + $"({string.Join(", ", names)}) and nothing says which one it belongs to. It is not on any Series until you choose.";
+        var detail = _ambiguityReviewer is null
+            ? $"Wikidata lists this work in the main sequence of {decision.Candidates.Count} Series and nothing says which one it belongs to."
+            : await _ambiguityReviewer.RaiseAsync(workId, decision.Candidates, entityId, ct).ConfigureAwait(false);
 
         _logger.LogWarning(
             "CollectionAssignment: work {WorkId} is ambiguous between Series {Series}; leaving it unplaced",
             workId,
             string.Join(", ", decision.Candidates.Select(c => c.SeriesQid)));
-
-        if (_outcomeFactory is not null)
-        {
-            var candidatesJson = JsonSerializer.Serialize(decision.Candidates.Select((c, index) => new
-            {
-                series_qid = c.SeriesQid,
-                series_label = names[index],
-                media_type = c.MediaType,
-                membership_scope = c.Scope,
-                collection_id = c.CollectionId,
-            }));
-            await _outcomeFactory.CreateAmbiguousSeriesMembershipAsync(entityId, detail, candidatesJson, ct: ct).ConfigureAwait(false);
-        }
 
         return new CollectionAssignmentResult(
             CollectionAssignmentOutcome.SkippedAmbiguousSeries,
@@ -589,7 +570,14 @@ public sealed class CollectionAssignmentService
         };
 
         await _manifestRepo.UpsertManifestAsync(hydration, rows, ct).ConfigureAwait(false);
-        await _manifestRepo.LinkOwnedWorksAsync(collectionId, rows, ct).ConfigureAwait(false);
+        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, rows, ct).ConfigureAwait(false);
+        if (_ambiguityReviewer is not null)
+        {
+            foreach (var work in ambiguous)
+            {
+                await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>The scope the provider's manifest gives an item; main sequence when it gives none.</summary>

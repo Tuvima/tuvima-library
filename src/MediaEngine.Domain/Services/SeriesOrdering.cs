@@ -73,6 +73,12 @@ public static class SeriesOrdering
     /// </summary>
     public static double? SortValue(SeriesOrderInput input)
     {
+        if (string.Equals(input.Scope, SeriesMembershipScopeNames.Unpositioned, StringComparison.OrdinalIgnoreCase))
+        {
+            // The manifest says this member has no position, so a retail position does not number it.
+            return null;
+        }
+
         var isMainSequence = string.IsNullOrWhiteSpace(input.Scope)
             || string.Equals(input.Scope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase);
         return isMainSequence && input.ManifestOrdinal.HasValue
@@ -137,6 +143,11 @@ public static class SeriesOrdering
     /// The position text to show: the manifest's own text, else the retail Series position, else the Work's decimal
     /// position written without rounding. Null when the source gives no position at all.
     /// </summary>
+    public static string? DisplayNumber(string? scope, string? manifestRawOrdinal, string? retailSeriesPosition, double? workOrdinalSort)
+        => string.Equals(scope, SeriesMembershipScopeNames.Unpositioned, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : DisplayNumber(manifestRawOrdinal, retailSeriesPosition, workOrdinalSort);
+
     public static string? DisplayNumber(string? manifestRawOrdinal, string? retailSeriesPosition, double? workOrdinalSort)
     {
         if (!string.IsNullOrWhiteSpace(manifestRawOrdinal))

@@ -107,13 +107,11 @@ public sealed class CollectionItemRootsTests : IDisposable
 
         var rows = await GetArrayAsync(app, $"/collections/{_universe:D}/items?limit=50");
 
-        // The members carry no position and no date, so the one Series ordering ends on the title. (This used to pin the
-        // incidental order the members were aggregated in.)
         Assert.Equal(
-            [_album, _comic, _show, _movie],
+            [_movie, _show, _comic, _album],
             rows.Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(
-            ["Alpha Album", "Delta Comic", "Mike Show", "Zulu Movie"],
+            ["Zulu Movie", "Mike Show", "Delta Comic", "Alpha Album"],
             rows.Select(row => row!["title"]!.GetValue<string>()));
     }
 
@@ -127,12 +125,12 @@ public sealed class CollectionItemRootsTests : IDisposable
         var second = await GetJsonAsync(app, $"/api/v1/collections/{_universe:D}/items?limit=3&cursor={first["next_cursor"]!.GetValue<string>()}");
 
         Assert.Equal(
-            [_album, _comic, _show, _movie],
+            [_movie, _show, _comic, _album],
             all["items"]!.AsArray().Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(4, all["total_count"]!.GetValue<int>());
         Assert.Equal(3, first["items"]!.AsArray().Count);
         Assert.True(first["has_more"]!.GetValue<bool>());
-        Assert.Equal(_movie, Assert.Single(second["items"]!.AsArray())!["work_id"]!.GetValue<Guid>());
+        Assert.Equal(_album, Assert.Single(second["items"]!.AsArray())!["work_id"]!.GetValue<Guid>());
         Assert.False(second["has_more"]!.GetValue<bool>());
     }
 
@@ -161,9 +159,9 @@ public sealed class CollectionItemRootsTests : IDisposable
         var client = await GetJsonAsync(app, $"/api/v1/collections/{_mixedUniverse:D}/items?limit=50");
         var clientSummary = await GetJsonAsync(app, $"/api/v1/collections/{_mixedUniverse:D}");
 
-        Assert.Equal([_show, _mixedMovie, _otherMovie], dashboard.Select(row => row!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal([_show, _otherMovie, _mixedMovie], dashboard.Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(
-            [_show, _mixedMovie, _otherMovie],
+            [_show, _otherMovie, _mixedMovie],
             client["items"]!.AsArray().Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(3, client["total_count"]!.GetValue<int>());
         Assert.Equal(3, clientSummary["item_count"]!.GetValue<int>());
@@ -224,7 +222,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         var summary = await GetJsonAsync(app, $"/api/v1/collections/{_siblingUniverse:D}");
 
         // The PG episode brings the show once; the R episodes bring nothing, and each PG movie is its own row.
-        Guid[] expected = [_familyMovie, _kidsShow, _secondFamilyMovie];
+        Guid[] expected = [_kidsShow, _familyMovie, _secondFamilyMovie];
         Assert.Equal(expected, dashboard.Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(expected, client["items"]!.AsArray().Select(row => row!["work_id"]!.GetValue<Guid>()));
         Assert.Equal(3, client["total_count"]!.GetValue<int>());

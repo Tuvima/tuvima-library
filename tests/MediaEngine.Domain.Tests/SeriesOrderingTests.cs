@@ -86,6 +86,23 @@ public sealed class SeriesOrderingTests
     }
 
     [Fact]
+    public void AnUnpositionedMember_WithARetailPosition_StaysUnnumbered_AfterTheNumberedRun()
+    {
+        var ordered = Titles(
+        [
+            Member("unpositioned but retail 0.5", SeriesMembershipScopeNames.Unpositioned, own: 0.5),
+            Member("numbered nine", own: 9),
+            Member("numbered one", own: 1),
+        ]);
+
+        Assert.Equal(["numbered one", "numbered nine", "unpositioned but retail 0.5"], ordered);
+        Assert.Null(SeriesOrdering.SortValue(Member("x", SeriesMembershipScopeNames.Unpositioned, own: 0.5)));
+        Assert.Equal(SeriesSection.UnnumberedTail, SeriesOrdering.SectionOf(Member("x", SeriesMembershipScopeNames.Unpositioned, own: 0.5)));
+        Assert.Null(SeriesOrdering.DisplayNumber(SeriesMembershipScopeNames.Unpositioned, null, "0.5", 0.5));
+        Assert.Equal("0.5", SeriesOrdering.DisplayNumber(SeriesMembershipScopeNames.MainSequence, null, "0.5", 0.5));
+    }
+
+    [Fact]
     public void Sections_SplitTheSeriesRunFromAlsoInThisWorld()
     {
         Assert.Equal(SeriesSection.NumberedRun, SeriesOrdering.SectionOf(Member("a", own: 1)));

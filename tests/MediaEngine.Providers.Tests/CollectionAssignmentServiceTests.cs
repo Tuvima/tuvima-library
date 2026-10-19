@@ -276,8 +276,9 @@ public sealed class CollectionAssignmentServiceTests
         Assert.Contains("itemRecords,\n                manifest.SeriesQid", normalizedSource, StringComparison.Ordinal);
         Assert.Contains(".Where(item => IsCurrentWorkManifestItem(item, context))", source, StringComparison.Ordinal);
         Assert.Contains("CreateManifestRequest(parent.Qid, language)", source, StringComparison.Ordinal);
-        Assert.Contains("sourceSeriesQid: childSeriesQid", source, StringComparison.Ordinal);
-        Assert.Contains("parentCollectionHydration: true", source, StringComparison.Ordinal);
+        // A parent collection is read from the data (a Series manifest lists it as a collection item), never from a flag.
+        Assert.DoesNotContain("parentCollectionHydration", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("sourceSeriesQid", source, StringComparison.Ordinal);
 
         var candidates = WikidataSeriesManifestHydrationService.ResolveParentCollectionManifestCandidates(
         [
