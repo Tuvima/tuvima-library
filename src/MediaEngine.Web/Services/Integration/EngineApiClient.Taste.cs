@@ -21,6 +21,13 @@ public sealed partial class EngineApiClient
     public Task<bool> RemovePersonalTasteItemAsync(string group, string value, CancellationToken ct = default) =>
         DeleteAsync(
             "DELETE /api/v1/taste/items",
-            $"/api/v1/taste/items/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(value)}",
+            $"/api/v1/taste/items/{Uri.EscapeDataString(group)}/{EscapeCatchAllValue(value)}",
             ct: ct);
+
+    /// <summary>
+    /// The Engine route takes the value as a catch-all, so a value such as "rhythm and blues/soul" travels as separate path segments;
+    /// each segment is escaped on its own so a "/" in the name is never sent as an encoded slash the Engine would read literally.
+    /// </summary>
+    internal static string EscapeCatchAllValue(string value) =>
+        string.Join('/', value.Split('/').Select(Uri.EscapeDataString));
 }

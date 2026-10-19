@@ -7,6 +7,7 @@
 @inject DashboardSessionAccessor Session
 @inject IJSRuntime JS
 @inject IAppToastService Toast
+@inject ILogger<OverviewAppsPage> Logger
 @* Personal > Overview > Apps (D24): where to get the Tuvima apps, the address to type into them, and a QR code that fills that
    address in. Everyone who is signed in sees the address because it is not a secret; the QR code carries only that address,
    never a key or a sign-in, so the person still signs in as usual. *@
@@ -155,7 +156,14 @@
 
     private async Task CopyAsync(string? address)
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", address ?? string.Empty);
-        Toast.Add("Address copied.", AppSeverity.Success);
+        switch (await JS.TryCopyAsync(address ?? string.Empty, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Toast.Add("Address copied.", AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Toast.Add(ClipboardInterop.FailedMessage("the address"), AppSeverity.Warning);
+                break;
+        }
     }
 }

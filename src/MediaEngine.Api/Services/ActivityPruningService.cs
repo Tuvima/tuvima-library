@@ -72,7 +72,7 @@ public sealed class ActivityPruningService : BackgroundService
             }
 
             var maintenanceConfig = _configLoader.LoadMaintenance();
-            var schedule = maintenanceConfig.Schedules.GetValueOrDefault("activity_pruning", DefaultSchedule);
+            var schedule = maintenanceConfig.Schedules.GetValueOrDefault(ScheduledTaskKeys.ActivityPruning, DefaultSchedule);
             if (string.IsNullOrWhiteSpace(schedule))
             {
                 schedule = DefaultSchedule;

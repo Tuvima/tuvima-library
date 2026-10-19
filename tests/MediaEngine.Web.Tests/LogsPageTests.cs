@@ -620,7 +620,7 @@ public sealed class LogsPageTests : AsyncBunitContext
 
     private static ScheduledTaskDto Scheduled(
         string key, string name, string schedule,
-        string owner = "Library", string place = "Maintenance schedules (config/maintenance.json)",
+        string owner = "Library", string place = "Library maintenance schedule",
         ScheduledTaskLastRunDto? lastRun = null, DateTimeOffset? next = null, bool continuous = false) =>
         new()
         {

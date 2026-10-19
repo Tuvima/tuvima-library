@@ -3,16 +3,17 @@
 @inject IJSRuntime JS
 @inject IAppToastService Toast
 @inject NavigationManager Navigation
+@inject ILogger<InvitationShare> Logger
 
 <AppAlert Severity="AppSeverity.Success" Class="access-invitation">
     <strong>Invitation created.</strong>
     <span>Share the code, the link or the QR code. It won't be shown again.</span>
     <span>Invitation code</span>
     <code>@FormattedCode</code>
-    <AppButton Label="Copy code" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(FormattedCode, "Code copied."))" />
+    <AppButton Label="Copy code" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(FormattedCode, "Code copied.", "the code"))" />
     <span>Link</span>
     <code>@_link</code>
-    <AppButton Label="Copy link" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied."))" />
+    <AppButton Label="Copy link" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied.", "the link"))" />
     <div class="invitation-qr">@((MarkupString)_qr)</div>
     <small>Expires @ExpiresAt.ToLocalTime().ToString("g")</small>
 </AppAlert>
@@ -36,9 +37,16 @@
         _qr = QrCodeSvg.Render(_link);
     }
 
-    private async Task CopyAsync(string text, string message)
+    private async Task CopyAsync(string text, string message, string what)
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
-        Toast.Add(message, AppSeverity.Success);
+        switch (await JS.TryCopyAsync(text, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Toast.Add(message, AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Toast.Add(ClipboardInterop.FailedMessage(what), AppSeverity.Warning);
+                break;
+        }
     }
 }
