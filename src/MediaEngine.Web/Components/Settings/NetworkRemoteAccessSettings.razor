@@ -27,10 +27,6 @@
                 <RemoteAccessSettingsPanel Settings="@_settings" Status="@_status"
                                            SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
                 break;
-            case "streaming":
-                <NetworkStreamingSettingsPanel Settings="@_settings" Status="@_status"
-                                               SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
-                break;
             case "advanced":
                 <AdvancedNetworkSettingsPanel Settings="@_settings" Status="@_status"
                                               SaveRequested="SaveAsync" SettingsReplaced="ReplaceSettingsAsync"
@@ -61,7 +57,6 @@
     {
         "local" => "local",
         "remote" => "remote",
-        "streaming" => "streaming",
         "advanced" => "advanced",
         _ => "overview",
     };

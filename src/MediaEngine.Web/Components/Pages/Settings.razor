@@ -178,7 +178,7 @@ else
                                 <LocalAiSettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Plugins:
-                                <PluginSettingsTab Subsection="@_activeSubsection" />
+                                <PluginSettingsTab />
                                 break;
                             case SettingsSection.Delivery:
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
@@ -836,7 +836,13 @@ else
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => "Manage local intelligence features while keeping technical details out of the way.",
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
-        SettingsSection.Delivery => "Manage server-side playback quality, transcoding, storage, and delivery health.",
+        SettingsSection.Delivery => _activeSubsection switch
+        {
+            "hardware" => "Choose what the server uses to prepare video for playback.",
+            "optimized-copies" => "Set how optimized copies are prepared, scheduled and stored, and watch the jobs that make them.",
+            "diagnostics" => "Technical checks on playback delivery reported by the server.",
+            _ => "Set the limits and quality for streaming away from home.",
+        },
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => _activeSubsection switch
         {

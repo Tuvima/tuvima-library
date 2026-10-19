@@ -1,0 +1,40 @@
+.local-ai-runtime {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    gap: 16px;
+}
+
+.local-ai-runtime__form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.local-ai-runtime__diagnostics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.local-ai-runtime__diagnostics span {
+    display: grid;
+    gap: 4px;
+    color: var(--tl-text-muted);
+    font-size: 14px;
+}
+
+.local-ai-runtime__diagnostics strong {
+    color: var(--tl-text-primary);
+}
+
+@media (max-width: 1023px) {
+    .local-ai-runtime__diagnostics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .local-ai-runtime__form,
+    .local-ai-runtime__diagnostics {
+        grid-template-columns: 1fr;
+    }
+}

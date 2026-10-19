@@ -14,7 +14,6 @@
 .network-settings ::deep .network-panel__heading,
 .network-settings ::deep .network-panel__actions,
 .network-settings ::deep .network-card-actions,
-.network-settings ::deep .network-hardware-row,
 .network-settings ::deep .network-danger-row {
     display: flex;
     align-items: center;
@@ -57,20 +56,15 @@
 .network-settings ::deep .network-status-card__value.is-unavailable { color: var(--tl-palette-warning); }
 .network-settings ::deep .network-status-card p { min-height: 2.4em; margin: 8px 0 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.4; }
 
-.network-settings ::deep .network-facts,
-.network-settings ::deep .network-bandwidth-grid {
+.network-settings ::deep .network-facts {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0;
     margin: var(--tl-space-3, 12px) 0 0;
 }
-.network-settings ::deep .network-bandwidth-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.network-settings ::deep .network-facts > div,
-.network-settings ::deep .network-bandwidth-grid > div { display: grid; gap: 5px; padding: 12px 14px; border-bottom: 1px solid var(--tl-border-subtle); }
-.network-settings ::deep .network-facts dt,
-.network-settings ::deep .network-bandwidth-grid dt { color: var(--tl-text-muted); font-size: 0.75rem; }
-.network-settings ::deep .network-facts dd,
-.network-settings ::deep .network-bandwidth-grid dd { margin: 0; color: var(--tl-text-primary); font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
+.network-settings ::deep .network-facts > div { display: grid; gap: 5px; padding: 12px 14px; border-bottom: 1px solid var(--tl-border-subtle); }
+.network-settings ::deep .network-facts dt { color: var(--tl-text-muted); font-size: 0.75rem; }
+.network-settings ::deep .network-facts dd { margin: 0; color: var(--tl-text-primary); font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
 .network-settings ::deep .network-facts--compact { grid-template-columns: 1fr; }
 
 .network-settings ::deep .network-summary-alert { display: flex; align-items: flex-start; gap: 8px; }
@@ -97,14 +91,11 @@
 .network-settings ::deep .network-setting-row,
 .network-settings ::deep .network-setting-rows > .app-switch-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 0.8fr); align-items: center; gap: 20px; padding: 15px 0; border-bottom: 1px solid var(--tl-border-subtle); }
 .network-settings ::deep .network-setting-row > div:first-child,
-.network-settings ::deep .network-danger-row > div,
-.network-settings ::deep .network-hardware-row > div { display: grid; gap: 3px; }
+.network-settings ::deep .network-danger-row > div { display: grid; gap: 3px; }
 .network-settings ::deep .network-setting-row strong,
-.network-settings ::deep .network-danger-row strong,
-.network-settings ::deep .network-hardware-row strong { color: var(--tl-text-primary); font-size: 0.84rem; }
+.network-settings ::deep .network-danger-row strong { color: var(--tl-text-primary); font-size: 0.84rem; }
 .network-settings ::deep .network-setting-row span,
-.network-settings ::deep .network-danger-row span,
-.network-settings ::deep .network-hardware-row span { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
+.network-settings ::deep .network-danger-row span { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
 .network-settings ::deep .network-setting-row__control,
 .network-settings ::deep .network-server-name-control { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .network-settings ::deep .network-server-name-control .app-field { flex: 1; }
@@ -150,11 +141,9 @@
 @media (max-width: 600px) {
     .network-settings ::deep .network-status-grid,
     .network-settings ::deep .network-facts,
-    .network-settings ::deep .network-bandwidth-grid,
     .network-settings ::deep .network-port-dialog__fields { grid-template-columns: 1fr; }
     .network-settings ::deep .network-panel__heading,
     .network-settings ::deep .network-panel__actions,
-    .network-settings ::deep .network-hardware-row,
     .network-settings ::deep .network-danger-row { align-items: stretch; flex-direction: column; }
     .network-settings ::deep .network-advanced-card__body { padding-left: 14px; }
 }

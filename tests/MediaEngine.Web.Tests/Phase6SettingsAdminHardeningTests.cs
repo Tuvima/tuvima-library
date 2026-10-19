@@ -262,10 +262,13 @@ public sealed class Phase6SettingsAdminHardeningTests
     public void DeliveryPluginsAndLocalAi_AreTruthLabeled()
     {
         var delivery = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor");
+        var encode = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor");
         var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
         var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
-        Assert.Contains("Variant Storage", delivery, StringComparison.Ordinal);
+        // The user-facing name is "optimized copies" (the code still calls them variants).
+        Assert.Contains("Optimized copy storage", encode, StringComparison.Ordinal);
+        Assert.DoesNotContain("Variant storage", encode, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
         Assert.Contains("Install and update marketplace flows are planned", plugins, StringComparison.Ordinal);
         Assert.Contains("plugin-provided settings", plugins, StringComparison.Ordinal);
