@@ -20,8 +20,7 @@ public sealed partial class SettingsCardGuardrailTests
         ["EnrichmentTesterToolTab.razor"] = "Developer tool; the Developer tools spec replaces it.",
         ["ProviderTesterToolTab.razor"] = "Developer tool; the Developer tools spec replaces it.",
         ["MetadataPipelineStrip.razor"] = "Strip for a library detail view; no Settings page renders it.",
-        ["OverviewTab.razor"] = "Library and Ingestion page; rebuilt by the ingestion-flow packet (WP16).",
-        ["IngestionTasksTab.razor"] = "Ingestion page; rebuilt by the ingestion-flow packet (WP16).",
+        ["IngestionTasksTab.razor"] = "Live ingestion panels owned by the ingestion and readiness spec; its own panel layout stays until that spec restyles it.",
     };
 
     /// <summary>
