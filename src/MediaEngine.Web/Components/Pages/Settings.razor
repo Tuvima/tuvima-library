@@ -339,10 +339,11 @@ else
 
     // Permanent page notices cannot be dismissed. Local AI shows its notice on every sub-page while it is blocked; Network
     // shows its notice while remote access is not set up (reported by the Network page, which already reads that setting).
+    // Like the banner, neither is drawn on a phone.
     private RenderFragment LocalAiNotice => @<LocalAiBlockedNotice />;
     private RenderFragment RemoteAccessNotice => @<RemoteAccessOffNotice />;
     private bool _remoteAccessOff;
-    private RenderFragment? PageNoticeFragment => _activeSection switch
+    private RenderFragment? PageNoticeFragment => DeviceContext.IsMobile ? null : _activeSection switch
     {
         SettingsSection.LocalAi => LocalAiNotice,
         SettingsSection.Network when _remoteAccessOff => RemoteAccessNotice,

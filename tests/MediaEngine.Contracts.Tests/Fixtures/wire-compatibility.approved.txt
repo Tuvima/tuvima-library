@@ -1129,7 +1129,7 @@
   response | shape=20d0e458e6f0f3506127e304c7ef390f1a2d04183af52e01d1ddd52921705383
 
 [method] GetReviewCountAsync
-  response | shape=93c6d9f28f7116163568013f64369967efe3cb96553b6b53d0423de262dd06cd
+  response | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
 
 [method] GetReviewItemAsync
   input id | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981

@@ -29,6 +29,24 @@ public sealed class UsableAdministratorService(
         return false;
     }
 
+    public async Task<bool> HasUsableAdministratorSignInAfterAsync(AdministratorSignInLoss loss, CancellationToken ct)
+    {
+        var policy = providerConfiguration.LoadWithSecrets();
+        foreach (var account in await EnabledAdministratorsAsync(ct).ConfigureAwait(false))
+        {
+            if (loss is { AccountId: { } lostAccount, ProfileId: null } && account.Id == lostAccount)
+            {
+                continue;
+            }
+
+            if (await IsUsableAsync(policy, account, ct, loss).ConfigureAwait(false))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public async Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct)
     {
         var administrators = (await EnabledAdministratorsAsync(ct).ConfigureAwait(false)).ToArray();
@@ -65,20 +83,27 @@ public sealed class UsableAdministratorService(
         (await accounts.GetAllAsync(ct).ConfigureAwait(false))
             .Where(account => account.IsEnabled && account.IsAdministrator);
 
-    private async Task<bool> IsUsableAsync(AuthSettings policy, Account account, CancellationToken ct)
+    private async Task<bool> IsUsableAsync(
+        AuthSettings policy, Account account, CancellationToken ct, AdministratorSignInLoss? loss = null)
     {
         // Signs in on this computer without a password, whatever the sign-in policy says, so policy changes can't lock it out.
-        if (account.IsThisComputerOnly)
+        // When checking a change, it counts only while it keeps an administrator grant.
+        if (account.IsThisComputerOnly && loss is null)
         {
             return true;
         }
 
         var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
-            .Where(grant => grant.IsEnabled && grant.AdminEnabled)
+            .Where(grant => grant.IsEnabled && grant.AdminEnabled && !IsLost(loss, grant))
             .ToArray();
         if (grants.Length == 0)
         {
             return false;
+        }
+
+        if (account.IsThisComputerOnly)
+        {
+            return true;
         }
 
         if (policy.PasswordSignInEnabled &&
@@ -105,4 +130,9 @@ public sealed class UsableAdministratorService(
         }
         return false;
     }
+
+    // A grant is lost when the change names exactly that grant, or every grant to its profile.
+    private static bool IsLost(AdministratorSignInLoss? loss, AccountProfileGrant grant) => loss is { } change
+        && change.ProfileId == grant.ProfileId
+        && (change.AccountId is null || change.AccountId == grant.AccountId);
 }

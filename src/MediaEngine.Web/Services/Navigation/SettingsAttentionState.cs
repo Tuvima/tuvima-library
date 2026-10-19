@@ -81,15 +81,21 @@ public sealed class SettingsAttentionState(
     public IReadOnlyList<ToolRequirementDto> MissingTools =>
         RequiredToolsNotReady.Where(tool => tool.State != ToolRequirementStates.Downloading).ToList();
 
-    /// <summary>The local AI engine and models that are not ready; while any is, Local AI cannot work.</summary>
+    /// <summary>The id of the fast text model: the one model Local AI cannot run without.</summary>
+    public const string FastTextModelId = ToolRequirementIds.AiModelPrefix + "text_fast";
+
+    /// <summary>
+    /// What stops Local AI working: the local AI engine or the fast text model, whichever is not ready. The other models
+    /// (quality, audio, scholar, CJK) are optional extras, so their absence blocks nothing.
+    /// </summary>
     public IReadOnlyList<ToolRequirementDto> LocalAiBlockers => !IsServerAdministrator
         ? []
         : Volatile.Read(ref _tools)?.Tools
-            .Where(tool => (tool.Kind == "ai_model" || tool.Id == ToolRequirementIds.AiRuntime)
+            .Where(tool => (tool.Id == ToolRequirementIds.AiRuntime || tool.Id == FastTextModelId)
                 && tool.State != ToolRequirementStates.Ready)
             .ToList() ?? [];
 
-    /// <summary>Local AI is switched off until the tools and libraries it needs are downloaded.</summary>
+    /// <summary>Local AI is switched off until the tools it needs are downloaded.</summary>
     public bool LocalAiBlocked => LocalAiBlockers.Count > 0;
 
     /// <summary>The Needs Review line is shown: items are waiting and none of these were already dismissed.</summary>
@@ -215,16 +221,23 @@ public sealed class SettingsAttentionState(
                 return;
             }
 
-            var reviewTask = orchestrator.RefreshReviewCountAsync(ct);
+            var reviewTask = orchestrator.TryRefreshReviewCountAsync(ct);
             var toolsTask = api.GetToolRequirementsAsync(ct);
             var noticesTask = reloadDismissals || !HasDismissalsLoaded
                 ? api.GetSettingsNoticesAsync(ct)
                 : Task.FromResult<ProfileNoticesResponse?>(null);
             await Task.WhenAll(reviewTask, toolsTask, noticesTask).ConfigureAwait(false);
 
-            Volatile.Write(ref _reviewCount, await reviewTask.ConfigureAwait(false));
-            // The Engine could not be asked: keep what was last known rather than clearing a real problem.
-            if (await toolsTask.ConfigureAwait(false) is { } tools)
+            // The Engine could not be asked (or this person may not see the queue): keep what was last known rather than
+            // clearing a real problem, and never treat the failed read as "nothing needs review".
+            var reviewRead = await reviewTask.ConfigureAwait(false);
+            if (reviewRead is { } reviewCount)
+            {
+                Volatile.Write(ref _reviewCount, reviewCount);
+            }
+
+            var toolsRead = await toolsTask.ConfigureAwait(false);
+            if (toolsRead is { } tools)
             {
                 Volatile.Write(ref _tools, tools);
             }
@@ -238,7 +251,7 @@ public sealed class SettingsAttentionState(
                 }
             }
 
-            await ForgetDismissalsOfSolvedProblemsAsync(ct).ConfigureAwait(false);
+            await ForgetDismissalsOfSolvedProblemsAsync(reviewRead == 0, toolsRead is not null, ct).ConfigureAwait(false);
             Volatile.Write(ref _loaded, true);
             Changed?.Invoke();
         }
@@ -263,17 +276,18 @@ public sealed class SettingsAttentionState(
         }
     }
 
-    // When the Needs Review count reaches zero, or every Required tool works, the earlier dismissal is replaced by a
-    // "nothing was wrong" mark, so the line comes back the next time something is.
-    private async Task ForgetDismissalsOfSolvedProblemsAsync(CancellationToken ct)
+    // When the Engine reports the Needs Review count at zero, or every Required tool works, the earlier dismissal is
+    // replaced by a "nothing was wrong" mark, so the line comes back the next time something is. Only a read that
+    // succeeded in this refresh counts: a failed read must never erase what the administrator chose to dismiss.
+    private async Task ForgetDismissalsOfSolvedProblemsAsync(bool reviewReadAsZero, bool toolsReadNow, CancellationToken ct)
     {
-        if (Volatile.Read(ref _reviewCount) == 0
+        if (reviewReadAsZero
             && TryGetDismissal(ProfileNoticeKeys.NeedsReview, out var review) && review != NoReviewItemsFingerprint)
         {
             await StoreDismissalAsync(ProfileNoticeKeys.NeedsReview, NoReviewItemsFingerprint, ct).ConfigureAwait(false);
         }
 
-        if (Volatile.Read(ref _tools) is not null && RequiredToolsNotReady.Count == 0
+        if (toolsReadNow && RequiredToolsNotReady.Count == 0
             && TryGetDismissal(ProfileNoticeKeys.MissingTools, out var tools) && tools != NoMissingToolsFingerprint)
         {
             await StoreDismissalAsync(ProfileNoticeKeys.MissingTools, NoMissingToolsFingerprint, ct).ConfigureAwait(false);

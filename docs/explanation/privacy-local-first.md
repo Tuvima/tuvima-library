@@ -39,7 +39,7 @@ The words of every document, whether read from the file or recognised from a sca
 
 ## Know what can be downloaded when you ask
 
-Tuvima never downloads a helper tool or a model by itself. The only downloads are the ones below, and each starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears when a Required tool is missing). Pressing **Not now** on the banner does not download anything and the banner then stops asking about that tool.
+Tuvima never downloads a helper tool or a model by itself. The only downloads are the ones below, and each starts when an administrator presses a button under **Settings > Tools and requirements** (or **Install for me** on the banner that appears above every Settings page when a Required tool is missing). The banner's **X** does not download anything: it hides that line, and Tuvima remembers the choice for that profile (on any browser) until a different tool goes missing.
 
 | What | Where from | When |
 |---|---|---|

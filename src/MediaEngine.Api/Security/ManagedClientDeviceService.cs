@@ -19,9 +19,10 @@ public enum ManagedDeviceRevokeOutcome
 }
 
 /// <summary>
-/// Lists and revokes paired phones and TVs for the Dashboard. A server administrator sees every device; a
-/// household administrator who has unlocked their administrator PIN (when they use one) sees their own household's,
-/// except those of a server administrator or another household administrator; anyone else sees only their own account's.
+/// Lists and revokes paired phones and TVs for the Dashboard. A server administrator who has unlocked their
+/// administrator PIN (when they use one) sees every device; a household administrator who has unlocked theirs sees their
+/// own household's, except those of a server administrator or another household administrator; anyone else, including an
+/// administrator who has not unlocked yet, sees only their own account's. The same rule as the sessions list.
 /// </summary>
 public sealed class ManagedClientDeviceService(
     IClientAuthorizationRepository devices,
@@ -35,8 +36,9 @@ public sealed class ManagedClientDeviceService(
 
     public async Task<IReadOnlyList<ManagedClientDeviceDto>> ListAsync(RequestAuthority authority, CancellationToken ct = default)
     {
-        var householdScope = await HouseholdScopeAsync(authority, ct).ConfigureAwait(false);
-        var accountScope = authority.IsEffectiveAdministrator || householdScope is not null
+        var everyone = await IsUnlockedServerAdministratorAsync(authority, ct).ConfigureAwait(false);
+        var householdScope = everyone ? null : await HouseholdScopeAsync(authority, ct).ConfigureAwait(false);
+        var accountScope = everyone || householdScope is not null
             ? (Guid?)null
             : RequiredAccountId(authority);
         var rows = await devices.GetActiveDevicesAsync(accountScope, ct).ConfigureAwait(false);
@@ -106,7 +108,8 @@ public sealed class ManagedClientDeviceService(
             return ManagedDeviceRevokeOutcome.NotFound;
         }
 
-        if (!authority.IsEffectiveAdministrator && device.AccountId != RequiredAccountId(authority) &&
+        if (device.AccountId != RequiredAccountId(authority) &&
+            !await IsUnlockedServerAdministratorAsync(authority, ct).ConfigureAwait(false) &&
             !await IsManagedByHouseholdAdministratorAsync(authority, device.AccountId, ct).ConfigureAwait(false))
         {
             return ManagedDeviceRevokeOutcome.Forbidden;
@@ -120,6 +123,14 @@ public sealed class ManagedClientDeviceService(
         await notifier.NotifyDeviceRevokedAsync(deviceId, ct).ConfigureAwait(false);
         return ManagedDeviceRevokeOutcome.Revoked;
     }
+
+    /// <summary>
+    /// A server administrator whose administrator PIN is unlocked (or who uses none). Until then they are like anyone
+    /// else here: their own devices only, exactly as in the sessions list.
+    /// </summary>
+    private async Task<bool> IsUnlockedServerAdministratorAsync(RequestAuthority authority, CancellationToken ct) =>
+        authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator &&
+        (await decisions.EvaluateAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed;
 
     /// <summary>
     /// The household a household administrator is limited to, or <see langword="null"/> for everyone else. Like the

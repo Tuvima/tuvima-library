@@ -1,13 +1,19 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
 
 @* The permanent notice at the top of Network while remote access is not set up. It cannot be dismissed and lasts as
-   long as the setting stays "Not set up"; Set up opens the Remote access page. The caller decides when it applies. *@
-<SettingsNoticeBubble NoticeKey="remote-access-off"
-                      Tone="AppUiTone.Info"
-                      Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Message="Remote access is off, so the Library only works at home.">
-    <Actions>
-        <AppButton Label="Set up" Href="@SettingsNav.RouteFor(SettingsSection.Network, "remote")" Size="AppControlSize.Compact"
-                   Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" />
-    </Actions>
-</SettingsNoticeBubble>
+   long as the setting stays "Not set up"; Set up opens the Remote access page. The caller decides when it applies. Like the
+   banner, it is not drawn on a phone. *@
+@if (!DeviceContext.IsMobile)
+{
+    <SettingsNoticeBubble NoticeKey="remote-access-off"
+                          Tone="AppUiTone.Info"
+                          Icon="@AppMaterialIcons.Outlined.CloudOff"
+                          Message="Remote access is off, so the Library only works at home.">
+        <Actions>
+            <AppButton Label="Set up" Href="@SettingsNav.RouteFor(SettingsSection.Network, "remote")" Size="AppControlSize.Compact"
+                       Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" />
+        </Actions>
+    </SettingsNoticeBubble>
+}
