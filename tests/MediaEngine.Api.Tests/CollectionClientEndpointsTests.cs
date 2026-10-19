@@ -605,6 +605,34 @@ public sealed class CollectionClientEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task AMusicSeries_IsNotSplitIntoAlsoInThisWorld_LikeTheItemPage()
+    {
+        var album = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, parent_collection_id)
+                VALUES (@album, 'Series Music', 'Series', 'library', 'query', 1, @universe);
+                """,
+                new { album, universe = _universe });
+        }
+
+        AddWork("Music", "Track One", "G", album, ".flac");
+        var bonus = AddWork("Music", "Track Two", "G", album, ".flac");
+        AddManifestPlacement(album, "Q4300", "Q7002", bonus, "Supplementary");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+        var shelf = universe["shelves"]!.AsArray().Single(entry => entry!["collection_id"]!.GetValue<Guid>() == album)!;
+
+        // Only Book, Comic and Movie Series set supplementary members apart, as on the item page.
+        Assert.Equal(2, shelf["item_count"]!.GetValue<int>());
+        Assert.Equal(0, shelf["also_in_this_world_count"]!.GetValue<int>());
+        Assert.Null(shelf["also_in_this_world"]);
+    }
+
+    [Fact]
     public async Task HeroTotals_CountSeriesWorksAndFormatsTheProfileCanSee()
     {
         await using var app = await StartAsync();
@@ -744,9 +772,10 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         Assert.Equal("Q8100", child["qid"]!.GetValue<string>());
         Assert.Equal("based on", child["relationship_to_parent"]!.GetValue<string>());
 
-        // An unknown narrative root keeps its not-found text.
-        using var unknown = await app.Client.GetAsync("/api/v1/graph-actions/universe/Q999999/adaptations");
+        // A catalogue-visible QID that is no narrative root keeps the action's not-found text.
+        using var unknown = await app.Client.GetAsync("/api/v1/graph-actions/universe/Q4243/adaptations");
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Contains("Narrative root 'Q4243' not found.", await unknown.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     // Seeds ------------------------------------------------------------------------------------------------------

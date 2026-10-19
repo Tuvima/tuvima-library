@@ -261,7 +261,7 @@ public sealed partial class UniverseClientReadService(
             // The same split the item page uses: supplementary, collected and broader members are "Also in this world".
             manifestByWork.TryGetValue(row.WorkId, out var placement);
             var card = cards.FromWork(row, "collection", null);
-            if (SeriesOrdering.IsAlsoInThisWorld(placement?.MembershipScope))
+            if (SeriesOrdering.SplitsAlsoInThisWorld(kind) && SeriesOrdering.IsAlsoInThisWorld(placement?.MembershipScope))
             {
                 also.Add(card);
             }

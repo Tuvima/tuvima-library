@@ -27,12 +27,7 @@ public sealed class UniverseConnectionsReadService(
     /// <summary>Most relationships listed in the compact Adaptations.</summary>
     public const int MaxAdaptations = 50;
 
-    private static readonly HashSet<string> AdaptationTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "based_on",
-        "derivative_work",
-        "inspired_by",
-    };
+    private static readonly string[] AdaptationTypes = ["based_on", "derivative_work", "inspired_by"];
 
     /// <summary>Characters in the Universe with their real-world performers (the Universe graph's Cast action).</summary>
     public async Task<UniverseCastResponse> GetCastAsync(string qid, CancellationToken ct = default)
@@ -258,10 +253,8 @@ public sealed class UniverseConnectionsReadService(
         CancellationToken ct)
     {
         var entityQids = visibleEntities.Select(e => e.WikidataQid).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var allRels = await relationships.GetByUniverseAsync(entityQids, ct).ConfigureAwait(false);
-        return allRels
-            .Where(r => AdaptationTypes.Contains(r.RelationshipTypeValue))
-            .ToList();
+        // Only the adaptation relationship types are read; the data store filters them.
+        return await relationships.GetByUniverseAsync(entityQids, AdaptationTypes, ct).ConfigureAwait(false);
     }
 
     private static IEnumerable<UniverseAdaptationNodeDto> BuildChildren(
