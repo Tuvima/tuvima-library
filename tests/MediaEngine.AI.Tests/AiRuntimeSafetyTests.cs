@@ -210,14 +210,16 @@ public sealed class AiRuntimeSafetyTests
     }
 
     [Fact]
-    public void Validator_RejectsConflictingSharedArtifactMetadataAndUnsupportedConcurrency()
+    public void Validator_RejectsConflictingSharedArtifactMetadataAndOutOfRangePluginBudgets()
     {
         var settings = CreateSettings();
-        settings.MaxConcurrentInferences = 2;
+        settings.PluginBudget.RequestsPerHour = 0;
+        settings.PluginBudgetOverrides["tuvima.test"] = new AiPluginBudgetOverride { MaxWaitSeconds = 4000 };
         settings.Models.TextCjk.Sha256 = new string('a', 64);
         var errors = AiSettingsValidator.Validate(settings);
 
-        Assert.Contains(errors, error => error.Path == "max_concurrent_inferences");
+        Assert.Contains(errors, error => error.Path == "plugin_budget.requests_per_hour");
+        Assert.Contains(errors, error => error.Path == "plugin_budget_overrides.tuvima.test.max_wait_seconds");
         Assert.Contains(errors, error => error.Path == "models.text_cjk.sha256");
     }
 
@@ -419,7 +421,7 @@ public sealed class AiRuntimeSafetyTests
     }
 
     private static ModelLifecycleManager CreateLifecycle(AiSettings settings, ModelInventory inventory) =>
-        new(settings, inventory, new NoOpEventPublisher(), NullLogger<ModelLifecycleManager>.Instance);
+        new(settings, inventory, new FixedRuntimeStatus(textLoads: true), new NoOpEventPublisher(), NullLogger<ModelLifecycleManager>.Instance);
 
     private static string FindRepositoryFile(params string[] segments)
     {

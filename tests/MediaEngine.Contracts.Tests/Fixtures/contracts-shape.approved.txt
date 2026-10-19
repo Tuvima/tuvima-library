@@ -289,7 +289,6 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   NativeRuntimeDirectory: System.String | nullability=not-null | accessors=get,set
   IdleUnloadSeconds: System.Int32 | nullability=not-null | accessors=get,set
   InferenceTimeoutSeconds: System.Int32 | nullability=not-null | accessors=get,set
-  MaxConcurrentInferences: System.Int32 | nullability=not-null | accessors=get,set
   MinimumFreeDiskMB: System.Int32 | nullability=not-null | accessors=get,set
   ResourceProfile: System.String | nullability=not-null | accessors=get,set
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
