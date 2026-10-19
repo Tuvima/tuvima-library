@@ -31,6 +31,8 @@ public interface IIdentityRepository
     Task<AuthSession?> GetSessionByIdAsync(Guid sessionId, CancellationToken ct = default);
     Task<IReadOnlyList<AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default);
     Task TouchSessionAsync(Guid sessionId, DateTimeOffset lastSeenAt, CancellationToken ct = default);
+    /// <summary>Records the session's first use after sign-in (kept if already set) and refreshes when it was last seen.</summary>
+    Task MarkSessionFirstUsedAsync(Guid sessionId, DateTimeOffset usedAt, CancellationToken ct = default);
     /// <summary>Records that the person just proved it was them on this session.</summary>
     Task<bool> MarkSessionAuthenticatedAsync(Guid sessionId, DateTimeOffset authenticatedAt, CancellationToken ct = default);
     Task<bool> UpdateActiveProfileAsync(Guid sessionId, Guid activeProfileId, CancellationToken ct = default);

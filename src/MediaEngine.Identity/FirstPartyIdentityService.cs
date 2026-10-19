@@ -27,6 +27,8 @@ public sealed class FirstPartyIdentityService(
     public const string TwoStepIssuer = "Tuvima Library";
     private const int MaxTwoStepChallengeAttempts = 5;
     private static readonly TimeSpan TwoStepChallengeLifetime = TimeSpan.FromMinutes(5);
+    // At the sign-in limit, a session used within this window counts as in use and is the last to be ended.
+    private static readonly TimeSpan RecentlyActiveSessionWindow = TimeSpan.FromMinutes(10);
     private const string ThisComputerMethod = "ThisComputer";
     private const string ThisComputerStamp = "this_computer";
     private const int MaxFailedAttempts = 5;
@@ -358,7 +360,14 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        if (touch && now - session.LastSeenAt >= TimeSpan.FromMinutes(1))
+        if (touch && session.FirstUsedAt is null)
+        {
+            // The first use is recorded at once (past the one-minute throttle) so the sign-in limit can tell a session in use from a fresh one.
+            await identities.MarkSessionFirstUsedAsync(session.Id, now, ct).ConfigureAwait(false);
+            session.FirstUsedAt = now;
+            session.LastSeenAt = now;
+        }
+        else if (touch && now - session.LastSeenAt >= TimeSpan.FromMinutes(1))
         {
             await identities.TouchSessionAsync(session.Id, now, ct).ConfigureAwait(false);
             session.LastSeenAt = now;
@@ -1227,7 +1236,8 @@ public sealed class FirstPartyIdentityService(
             var maximumActiveSessions = Math.Clamp(policy.MaximumActiveSessions, 1, 100);
             var active = (await identities.GetSessionsAsync(account.Id, ct).ConfigureAwait(false))
                 .Where(session => session.IsActive(now))
-                .OrderBy(session => session.LastSeenAt)
+                .OrderBy(session => session.FirstUsedAt is null ? 0 : now - session.LastSeenAt >= RecentlyActiveSessionWindow ? 1 : 2)
+                .ThenBy(session => session.FirstUsedAt is null ? session.CreatedAt : session.LastSeenAt)
                 .ThenBy(session => session.CreatedAt)
                 .ToArray();
             foreach (var oldest in active.Take(Math.Max(0, active.Length - maximumActiveSessions + 1)))

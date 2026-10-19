@@ -231,6 +231,124 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SessionLimit_BurstOfFreshSignIns_DoesNotRevokeSessionInUse()
+    {
+        _policy.Settings.MaximumActiveSessions = 20;
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.NotNull(await _service.ValidateSessionAsync(bootstrap.PlaintextToken));
+        _clock.Advance(TimeSpan.FromSeconds(30));
+
+        for (var i = 0; i < 20; i++)
+        {
+            _clock.Advance(TimeSpan.FromSeconds(2));
+            var attempt = await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "correct horse battery staple", $"browser-{i + 2}", "Burst", "Dashboard");
+            Assert.True(attempt.Succeeded);
+        }
+
+        Assert.NotNull(await _service.ValidateSessionAsync(bootstrap.PlaintextToken));
+        Assert.Equal(20, (await _service.GetSessionsAsync(bootstrap.Account.Id)).Count(session => session.IsActive(_clock.GetUtcNow())));
+    }
+
+    [Fact]
+    public async Task SessionLimit_RevokesNeverUsedSessionsBeforeIdleUsedOnes()
+    {
+        _policy.Settings.MaximumActiveSessions = 2;
+        var a = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.NotNull(await _service.ValidateSessionAsync(a.PlaintextToken));
+        _clock.Advance(TimeSpan.FromMinutes(30));
+        var b = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
+        _clock.Advance(TimeSpan.FromSeconds(5));
+        var c = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-3", "Phone", "Dashboard")).IssuedSession!;
+
+        Assert.Null(await _service.ValidateSessionAsync(b.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(a.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(c.PlaintextToken));
+    }
+
+    [Fact]
+    public async Task SessionLimit_RevokesIdleUsedSessionBeforeRecentlyActiveOne()
+    {
+        _policy.Settings.MaximumActiveSessions = 2;
+        var a = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.NotNull(await _service.ValidateSessionAsync(a.PlaintextToken));
+        var b = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
+        _clock.Advance(TimeSpan.FromMinutes(29));
+        Assert.NotNull(await _service.ValidateSessionAsync(b.PlaintextToken));
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var c = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-3", "Phone", "Dashboard")).IssuedSession!;
+
+        Assert.Null(await _service.ValidateSessionAsync(a.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(b.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(c.PlaintextToken));
+    }
+
+    [Fact]
+    public async Task SessionLimit_WhenEverySessionIsRecentlyActive_RevokesLeastRecentlySeenAndStillSignsIn()
+    {
+        _policy.Settings.MaximumActiveSessions = 2;
+        var a = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        var b = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.NotNull(await _service.ValidateSessionAsync(a.PlaintextToken));
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        Assert.NotNull(await _service.ValidateSessionAsync(b.PlaintextToken));
+        _clock.Advance(TimeSpan.FromMinutes(1));
+
+        var attempt = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-3", "Phone", "Dashboard");
+
+        Assert.True(attempt.Succeeded);
+        Assert.Null(await _service.ValidateSessionAsync(a.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(b.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(attempt.IssuedSession!.PlaintextToken));
+    }
+
+    [Fact]
+    public async Task ValidateSession_FirstUseMarksSessionUsedImmediately()
+    {
+        var used = (await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard"));
+        var untouched = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard")).IssuedSession!;
+
+        Assert.Null((await _identities.GetSessionByIdAsync(used.Session.Id))!.FirstUsedAt);
+        Assert.NotNull(await _service.ValidateSessionAsync(used.PlaintextToken));
+        Assert.NotNull(await _service.ValidateSessionAsync(untouched.PlaintextToken, touch: false));
+
+        Assert.Equal(_clock.GetUtcNow(), (await _identities.GetSessionByIdAsync(used.Session.Id))!.FirstUsedAt);
+        Assert.Null((await _identities.GetSessionByIdAsync(untouched.Session.Id))!.FirstUsedAt);
+    }
+
+    [Fact]
+    public async Task ValidateSession_RejectedRequest_DoesNotMarkSessionUsed()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        var stale = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Phone", "Dashboard")).IssuedSession!;
+        var credential = (await _identities.GetAccountCredentialAsync(stale.Account.Id, AccountCredentialKind.Password))!;
+        credential.SecurityStamp = "changed-elsewhere";
+        await _identities.UpsertAccountCredentialAsync(credential);
+        Assert.Null(await _service.ValidateSessionAsync(stale.PlaintextToken));
+
+        Assert.Null((await _identities.GetSessionByIdAsync(stale.Session.Id))!.FirstUsedAt);
+    }
+
+    [Fact]
     public async Task SessionPolicy_SerializesConcurrentIssuanceAtTheConfiguredLimit()
     {
         _policy.Settings.MaximumActiveSessions = 2;
