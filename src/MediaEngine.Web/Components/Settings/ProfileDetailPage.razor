@@ -94,6 +94,13 @@
                     @* Opens the Devices page already narrowed to this person. *@
                     <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Phones, TVs and browsers" Href="@DevicesLink" />
                 </li>
+                @if (IsAdministrator)
+                {
+                    <li class="profile-detail__item">
+                        @* Opens the Activity page already narrowed to this person; the Engine logs an administrator looking at someone else's activity. *@
+                        <SettingsNavRow Key="activity" Icon="@AppMaterialIcons.Outlined.History" Title="View activity" Status="What they watched, listened to and read" Href="@ActivityLink" />
+                    </li>
+                }
             </ul>
         </SettingsSectionPanel>
         </div>
@@ -359,6 +366,9 @@
 
     // The Devices page, already narrowed to this person. Your own page omits ?profile=, like the preference links do.
     private string DevicesLink => IsSelf ? "/settings/security/devices" : $"/settings/security/devices?profile={ProfileId:D}";
+
+    // The Activity page, already narrowed to this person. Your own page omits ?scope=, because Me is the default.
+    private string ActivityLink => IsSelf ? SettingsNav.ActivityRoute : $"{SettingsNav.ActivityRoute}?scope=profile:{ProfileId:D}";
 
     // PIN protection only has something to protect when an account lets this person open administrator settings.
     private bool ShowPinProtection => IsAdministrator && _adminGrants.Count > 0;

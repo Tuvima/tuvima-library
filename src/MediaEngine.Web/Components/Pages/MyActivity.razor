@@ -1,0 +1,15 @@
+@page "/my-activity"
+@namespace MediaEngine.Web.Components.Pages
+
+<PageTitle>My activity - Tuvima Library</PageTitle>
+
+@* The Activity page outside Settings (D16): a Kids profile has no Settings, and anyone can open their own list from the profile
+   menu. It shows the signed-in person's own activity only, in the normal app layout, with no Scope and no delete. *@
+<div class="my-activity-page">
+    <header class="my-activity-page__header">
+        <h1 class="my-activity-page__title">My activity</h1>
+        <p class="my-activity-page__lead">Everything you have watched, listened to and read, and what you added to My list.</p>
+        <a class="my-activity-page__back" href="@ShellDock.MyLibraryPath">Back to My Library</a>
+    </header>
+    <ActivityPage Standalone="true" />
+</div>

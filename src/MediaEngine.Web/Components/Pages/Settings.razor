@@ -117,6 +117,10 @@ else
                                 {
                                     <OverviewAppsPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.ActivitySubsection)
+                                {
+                                    <ActivityPage Scope="@ActivityScope" />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -251,6 +255,9 @@ else
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
+
+    /// <summary>Opens the Activity page already narrowed to one person, household or everyone (for example from a person's page).</summary>
+    [SupplyParameterFromQuery(Name = "scope")] public string? ActivityScope { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
     [SupplyParameterFromQuery(Name = "profile")] public Guid? PlaybackProfileId { get; set; }
     private string? _playbackTargetName;
@@ -838,7 +845,9 @@ else
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
             ? "Install the Tuvima app on your phone or TV and connect it to this server."
-            : "You, what you have been watching, reading and listening to, and your taste.",
+            : _activeSubsection == SettingsNav.ActivitySubsection
+                ? "Everything you have watched, listened to and read, and what you added to My list."
+                : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => _activeSubsection == SettingsNav.HouseholdsSubsection
             ? "Add, rename and remove households. Each has its own people, library access and Shared Library."
             : "Add and look after the people in your household. Switch profile from the profile menu.",

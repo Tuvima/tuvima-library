@@ -93,7 +93,7 @@ public static class PersonalActivityEndpoints
                     stream => result.Value!.WriteAsync(stream, ct),
                     "text/csv; charset=utf-8",
                     result.Value!.FileName)
-                : Fail(result.Failure, result.Message);
+                : Fail(result.Failure, result.Message, result.Code);
         })
         .WithName("ExportPersonalActivityCsv")
         .WithSummary("Downloads exactly what the filters show as a CSV file. Exporting other people's activity is for a server administrator and is logged.")
@@ -153,7 +153,7 @@ public static class PersonalActivityEndpoints
                 await resolver.ResolveAsync(http, ct).ConfigureAwait(false), key, scope, ct).ConfigureAwait(false);
             if (!result.IsSuccess)
             {
-                return Fail(result.Failure, result.Message);
+                return Fail(result.Failure, result.Message, result.Code);
             }
 
             // The picture follows who may see it, so it is cached by the browser only.
@@ -171,12 +171,13 @@ public static class PersonalActivityEndpoints
     }
 
     private static IResult Respond<T>(PersonalActivityResult<T> result) =>
-        result.IsSuccess ? Results.Ok(result.Value) : Fail(result.Failure, result.Message);
+        result.IsSuccess ? Results.Ok(result.Value) : Fail(result.Failure, result.Message, result.Code);
 
-    private static IResult Fail(PersonalActivityFailure failure, string? message) => failure switch
+    private static IResult Fail(PersonalActivityFailure failure, string? message, string? code = null) => failure switch
     {
         PersonalActivityFailure.BadRequest => ApiErrors.BadRequest(message ?? "The request is not valid."),
         PersonalActivityFailure.NotFound => ApiErrors.NotFound(message ?? "Not found."),
+        _ when code is not null => ApiErrors.Forbidden(code, message ?? "You can't see that activity."),
         _ => ApiErrors.Forbidden(message ?? "You can't see that activity."),
     };
 

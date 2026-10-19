@@ -17,14 +17,25 @@ public enum PersonalActivityFailure
     NotFound,
 }
 
-/// <summary>A successful answer, or the reason it was refused and the sentence to show.</summary>
-public sealed record PersonalActivityResult<T>(T? Value, PersonalActivityFailure Failure, string? Message)
+/// <summary>
+/// A successful answer, or the reason it was refused and the sentence to show. A refusal because the administrator PIN has
+/// not been entered also carries <see cref="PersonalActivityResult{T}.UnlockRequiredCode"/>, so the Dashboard can ask for it
+/// without reading the sentence.
+/// </summary>
+public sealed record PersonalActivityResult<T>(T? Value, PersonalActivityFailure Failure, string? Message, string? Code = null)
 {
+    /// <summary>The machine-readable code of a 403 that is lifted by entering the administrator PIN.</summary>
+    public const string UnlockRequiredCode = "admin_unlock_required";
+
     public bool IsSuccess => Failure == PersonalActivityFailure.None;
 
     public static PersonalActivityResult<T> Ok(T value) => new(value, PersonalActivityFailure.None, null);
 
-    public static PersonalActivityResult<T> Fail(PersonalActivityFailure failure, string message) => new(default, failure, message);
+    public static PersonalActivityResult<T> Fail(PersonalActivityFailure failure, string message, string? code = null) =>
+        new(default, failure, message, code);
+
+    /// <summary>This refusal as the refusal of another answer, keeping its sentence and code.</summary>
+    public PersonalActivityResult<TOther> Refusal<TOther>() => PersonalActivityResult<TOther>.Fail(Failure, Message!, Code);
 }
 
 /// <summary>What the Activity page asked for. Everything is checked before any data is read.</summary>
@@ -80,7 +91,7 @@ public sealed partial class PersonalActivityReadService(
         var resolved = await ResolveAsync(authority, query, ct).ConfigureAwait(false);
         if (!resolved.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityPageDto>.Fail(resolved.Failure, resolved.Message!);
+            return resolved.Refusal<PersonalActivityPageDto>();
         }
 
         var request = resolved.Value!;
@@ -105,7 +116,7 @@ public sealed partial class PersonalActivityReadService(
         var resolved = await ResolveAsync(authority, query, ct).ConfigureAwait(false);
         if (!resolved.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityPeriodsDto>.Fail(resolved.Failure, resolved.Message!);
+            return resolved.Refusal<PersonalActivityPeriodsDto>();
         }
 
         var request = resolved.Value!;
@@ -145,21 +156,20 @@ public sealed partial class PersonalActivityReadService(
         var parsed = Parse(query);
         if (!parsed.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityExport>.Fail(parsed.Failure, parsed.Message!);
+            return parsed.Refusal<PersonalActivityExport>();
         }
 
         // Only a server administrator exports anyone else's activity. A refusal here leaves no "viewed" entry behind.
         if (!IsOwn(parsed.Value!.Scope, authority) &&
             !await scopes.CanDeletePersonalHistoryAsync(authority, ct).ConfigureAwait(false))
         {
-            return PersonalActivityResult<PersonalActivityExport>.Fail(
-                PersonalActivityFailure.Forbidden, "Only a server administrator can export other people's activity.");
+            return NotAnUnlockedAdministrator<PersonalActivityExport>(authority, "export other people's activity");
         }
 
         var resolved = await ResolveAsync(authority, query, ct).ConfigureAwait(false);
         if (!resolved.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityExport>.Fail(resolved.Failure, resolved.Message!);
+            return resolved.Refusal<PersonalActivityExport>();
         }
 
         var request = resolved.Value!;
@@ -208,7 +218,7 @@ public sealed partial class PersonalActivityReadService(
         var target = await ResolveDeletionAsync(authority, scope, ct).ConfigureAwait(false);
         if (!target.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityDeletePreviewDto>.Fail(target.Failure, target.Message!);
+            return target.Refusal<PersonalActivityDeletePreviewDto>();
         }
 
         var count = await repository.CountBeforeAsync(before, target.Value!.ProfileIds, ct).ConfigureAwait(false);
@@ -221,7 +231,7 @@ public sealed partial class PersonalActivityReadService(
         var target = await ResolveDeletionAsync(authority, scope, ct).ConfigureAwait(false);
         if (!target.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityDeleteResultDto>.Fail(target.Failure, target.Message!);
+            return target.Refusal<PersonalActivityDeleteResultDto>();
         }
 
         var deletion = target.Value!;
@@ -251,7 +261,7 @@ public sealed partial class PersonalActivityReadService(
         var parsed = ParseScope(scope);
         if (!parsed.IsSuccess)
         {
-            return PersonalActivityResult<PersonalActivityArtwork>.Fail(parsed.Failure, parsed.Message!);
+            return parsed.Refusal<PersonalActivityArtwork>();
         }
 
         var decision = await scopes.AuthorizeAsync(authority, PersonalScopeKind.Activity, parsed.Value!.Scope, ct).ConfigureAwait(false);
@@ -274,13 +284,12 @@ public sealed partial class PersonalActivityReadService(
         var parsed = ParseScope(scope);
         if (!parsed.IsSuccess)
         {
-            return PersonalActivityResult<Deletion>.Fail(parsed.Failure, parsed.Message!);
+            return parsed.Refusal<Deletion>();
         }
 
         if (!await scopes.CanDeletePersonalHistoryAsync(authority, ct).ConfigureAwait(false))
         {
-            return PersonalActivityResult<Deletion>.Fail(
-                PersonalActivityFailure.Forbidden, "Only a server administrator can delete activity history.");
+            return NotAnUnlockedAdministrator<Deletion>(authority, "delete activity history");
         }
 
         var requested = parsed.Value!;
@@ -323,7 +332,7 @@ public sealed partial class PersonalActivityReadService(
         var scope = ParseScope(query.Scope);
         if (!scope.IsSuccess)
         {
-            return PersonalActivityResult<ResolvedRequest>.Fail(scope.Failure, scope.Message!);
+            return scope.Refusal<ResolvedRequest>();
         }
 
         var kinds = new List<string>();
@@ -434,12 +443,22 @@ public sealed partial class PersonalActivityReadService(
         scope.Target == PersonalScopeTarget.Self ||
         (scope.Target == PersonalScopeTarget.Profile && scope.Id is { } id && id == authority.ActiveProfileId);
 
+    // A server administrator who has not entered their PIN is told so (with the code the Dashboard asks for the PIN on); anyone
+    // else is told this is for a server administrator.
+    private static PersonalActivityResult<T> NotAnUnlockedAdministrator<T>(RequestAuthority authority, string action) =>
+        authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator
+            ? PersonalActivityResult<T>.Fail(
+                PersonalActivityFailure.Forbidden, $"Unlock administrator access to {action}.", PersonalActivityResult<T>.UnlockRequiredCode)
+            : PersonalActivityResult<T>.Fail(
+                PersonalActivityFailure.Forbidden, $"Only a server administrator can {action}.");
+
     private static PersonalActivityResult<T> Failure<T>(PersonalScopeDecision decision) => decision.Refusal switch
     {
         PersonalScopeRefusal.UnknownTarget => PersonalActivityResult<T>.Fail(
             PersonalActivityFailure.NotFound, "That person or household was not found."),
         PersonalScopeRefusal.UnlockRequired => PersonalActivityResult<T>.Fail(
-            PersonalActivityFailure.Forbidden, "Unlock administrator access to see other people's activity."),
+            PersonalActivityFailure.Forbidden, "Unlock administrator access to see other people's activity.",
+            PersonalActivityResult<T>.UnlockRequiredCode),
         PersonalScopeRefusal.NotSignedIn => PersonalActivityResult<T>.Fail(
             PersonalActivityFailure.Forbidden, "Sign in as a person to see activity."),
         _ => PersonalActivityResult<T>.Fail(PersonalActivityFailure.Forbidden, "You can't see that activity."),

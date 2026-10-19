@@ -1,8 +1,8 @@
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;

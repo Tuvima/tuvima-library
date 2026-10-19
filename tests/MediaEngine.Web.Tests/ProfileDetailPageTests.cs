@@ -688,8 +688,45 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         var devices = Row(cut, "devices");
         Assert.Equal($"/settings/security/devices?profile={SamId:D}", devices.GetAttribute("href"));
         Assert.Equal("a", devices.TagName.ToLowerInvariant());
-        // View activity is a later packet; the page offers Devices only.
-        Assert.DoesNotContain("View activity", cut.Markup);
+    }
+
+    [Fact]
+    public void ViewActivity_ForAnAdministrator_OpensTheActivityPageNarrowedToThatPerson()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='activity']")));
+        var activity = Row(cut, "activity");
+        Assert.Equal("a", activity.TagName.ToLowerInvariant());
+        Assert.Contains("View activity", activity.TextContent, StringComparison.Ordinal);
+        Assert.Equal($"/settings/overview/activity?scope=profile:{SamId:D}", activity.GetAttribute("href"));
+    }
+
+    [Fact]
+    public void ViewActivity_OnAnAdministratorsOwnPage_OpensTheirOwnActivityWithNoScope()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false)]);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='activity']")));
+        Assert.Equal("/settings/overview/activity", Row(cut, "activity").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void ViewActivity_IsNotOfferedToAMember()
+    {
+        Setup(actions: [], navigation: []);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        Assert.Empty(cut.FindAll("[data-nav-row='activity']"));
+        Assert.DoesNotContain("View activity", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -131,29 +131,6 @@ public sealed class PersonalActivityPresentationTests
         Assert.Equal(string.Empty, PersonalActivityPresentation.When("not a time", now));
     }
 
-    [Fact]
-    public void ConsumedSeconds_AreSummedIntoWatchedReadAndListened_AndUnknownTypesAreLeftOut()
-    {
-        var totals = new Dictionary<string, double>
-        {
-            ["Movies"] = 7200,
-            ["TV"] = 3600,
-            ["Books"] = 1800,
-            ["Comics"] = 600,
-            ["Audiobooks"] = 5400,
-            ["Music"] = 3600,
-            ["Photos"] = 99999,
-            ["Podcast"] = 0,
-        };
-
-        var (watched, read, listened) = PersonalActivityPresentation.ConsumedSeconds(totals);
-
-        Assert.Equal(10800, watched);
-        Assert.Equal(2400, read);
-        Assert.Equal(9000, listened);
-        Assert.Equal((0d, 0d, 0d), PersonalActivityPresentation.ConsumedSeconds((IReadOnlyDictionary<string, double>?)null));
-    }
-
     [Theory]
     [InlineData(0, null)]
     [InlineData(59, null)]

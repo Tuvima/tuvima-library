@@ -129,7 +129,7 @@
 
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];
-    private PersonalTileIndex _index = new([], [], [], []);
+    private PersonalTileIndex _index = new([], [], []);
     // Same rule as My Library: Document items stay hidden until the View settings say this profile may see Documents.
     private bool _documentsAllowed;
     private readonly List<MediaTileViewModel> _continue = [];
@@ -363,7 +363,7 @@
 
             // Keep accessible library Collections and shared Playlists available to
             // My List resolution without promoting them into the owned shelves.
-            _index = new PersonalTileIndex(await cardsTask, [], catalog, managed);
+            _index = new PersonalTileIndex(await cardsTask, catalog, managed);
         }
         catch (Exception ex)
         {

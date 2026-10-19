@@ -1,8 +1,10 @@
 @page "/my-library"
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Activity
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Contracts.ProfileState
 @using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.MediaTiles
@@ -17,7 +19,7 @@
 <PageTitle>My Library - Tuvima Library</PageTitle>
 
 @* My Library: the personal page. One column, phones first. Profile header, Downloads (the Tuvima app only), Continue, My List,
-   History and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
+   Recent activity (a short preview of the Activity page) and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
    this profile. Each section holds a fixed-height skeleton until its turn, and sections reveal top to bottom, so content that is
    already on screen never moves. A section with nothing to show is hidden, except My List, which keeps its helper text. *@
 <div class="my-library-page">
@@ -120,15 +122,20 @@
             </div>
         }
 
-        @if (IsLoading(MyLibrarySection.History))
+        @if (IsLoading(MyLibrarySection.Activity))
         {
             @SectionSkeleton("shelf")
         }
-        else if (_historyShelf.Items.Count > 0)
+        else if (_recentActivity.Count > 0)
         {
-            <div class="my-library-slot my-library-slot--shelf">
-                <MediaTileShelf Shelf="@_historyShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
-            </div>
+            @* One list: the latest few entries here, everything on the Activity page (D16). *@
+            <section class="my-library-slot my-library-slot--activity" aria-labelledby="my-library-activity-title" data-my-library-recent-activity>
+                <div class="my-library-activity__header">
+                    <h2 id="my-library-activity-title" class="my-library-activity__title">Recent activity</h2>
+                    <a class="my-library-activity__see-all" href="@ActivityHref" data-my-library-see-all-activity>See all</a>
+                </div>
+                <RecentActivityStrip Tiles="@_recentActivity" />
+            </section>
         }
 
         @if (IsLoading(MyLibrarySection.Liked))
@@ -153,11 +160,14 @@
 </div>
 
 @code {
-    private enum MyLibrarySection { Continue, MyList, History, Liked }
+    private enum MyLibrarySection { Continue, MyList, Activity, Liked }
 
     private const int SectionCount = 4;
     private const int ShelfLimit = 12;
     private const int ContinueLimit = 24;
+
+    /// <summary>How many of the latest activity entries the preview shows; the Activity page has the rest.</summary>
+    private const int ActivityPreviewLimit = 6;
 
     /// <summary>What Downloads does on this client; the card shows only where downloads work (the Tuvima app), never in the browser.</summary>
     [Parameter] public DownloadsTabMode DownloadsMode { get; set; } = ShellDock.DownloadsMode;
@@ -172,7 +182,7 @@
     private int _loadVersion;
     private MediaTileShelfViewModel _continueShelf = EmptyShelf("continue", "Continue");
     private MediaTileShelfViewModel _myListShelf = EmptyShelf("my-list", "My List");
-    private MediaTileShelfViewModel _historyShelf = EmptyShelf("history", "History");
+    private IReadOnlyList<PersonalActivityRecentTileDto> _recentActivity = [];
     private MediaTileShelfViewModel _likedShelf = EmptyShelf("liked", "Liked");
 
     private string ProfileName => string.IsNullOrWhiteSpace(_profile?.DisplayName) ? "Profile" : _profile!.DisplayName.Trim();
@@ -180,6 +190,9 @@
     private bool ShowsSettings => ShellNavigation.ShowsSettings(IsKids);
     private bool ShowsSwitchProfile => ShellNavigation.ShowsSwitchProfile(_profileCount);
     private bool ShowsDownloads => ShellDock.ShowsDownloadsInTopBar(DownloadsMode);
+
+    // A Kids profile has no Settings, so its Activity page is the one outside Settings.
+    private string ActivityHref => IsKids ? SettingsNav.MyActivityRoute : SettingsNav.ActivityRoute;
 
     private bool IsLoading(MyLibrarySection section) => (int)section >= _committed;
 
@@ -199,7 +212,7 @@
         Array.Clear(_resolved);
         _continueShelf = EmptyShelf("continue", "Continue");
         _myListShelf = EmptyShelf("my-list", "My List");
-        _historyShelf = EmptyShelf("history", "History");
+        _recentActivity = [];
         _likedShelf = EmptyShelf("liked", "Liked");
 
         // The header and My List start first; the other reads start straight after, all in parallel.
@@ -208,7 +221,7 @@
         var savedTask = ApiClient.GetSavedItemsAsync();
         var reactionsTask = ApiClient.GetProfileReactionsAsync();
         var continueTask = ApiClient.GetDisplayContinueAsync(limit: ContinueLimit);
-        var finishedTask = ApiClient.GetDisplayContinueAsync(limit: ShelfLimit, finished: true);
+        var recentTask = ApiClient.GetPersonalActivityRecentAsync(ActivityPreviewLimit);
         var collectionsTask = LoadCollectionsAsync(headerTask);
         // Saved and liked ids resolve through the Engine's direct item lookup, not through lane pages, which stop at a fixed size.
         var savedCardsTask = LookupSavedAsync(savedTask);
@@ -232,24 +245,21 @@
             {
                 var saved = await savedTask;
                 var (catalog, managed) = await collectionsTask;
-                var index = new PersonalTileIndex(await savedCardsTask, [], catalog, managed);
+                var index = new PersonalTileIndex(await savedCardsTask, catalog, managed);
                 var documentsAllowed = await documentsTask;
                 _myListShelf = Shelf("my-list", "My List", index.Saved(saved, documentsAllowed).Take(ShelfLimit).ToList(), ForMe.MyListGridRoute);
             }),
-            RunSectionAsync(version, MyLibrarySection.History, async () =>
+            RunSectionAsync(version, MyLibrarySection.Activity, async () =>
             {
-                // The Engine returns the finished cards directly, newest first, so History is not limited by a lane page.
-                var finishedPage = await finishedTask ?? throw new InvalidOperationException("The Engine could not read the finished items.");
-                var finished = PersonalTileIndex.FlattenCards(finishedPage).ToList();
-                var index = new PersonalTileIndex([], finished, [], []);
-                var documentsAllowed = await documentsTask;
-                _historyShelf = Shelf("history", "History", index.History(documentsAllowed).Take(ShelfLimit).ToList(), null);
+                // The Engine collapses music into sessions and returns the newest entries first.
+                var recent = await recentTask ?? throw new InvalidOperationException("The Engine could not read the recent activity.");
+                _recentActivity = [.. recent.Tiles.Take(ActivityPreviewLimit)];
             }),
             RunSectionAsync(version, MyLibrarySection.Liked, async () =>
             {
                 var reactions = await reactionsTask;
                 var (catalog, managed) = await collectionsTask;
-                var index = new PersonalTileIndex(await likedCardsTask, [], catalog, managed);
+                var index = new PersonalTileIndex(await likedCardsTask, catalog, managed);
                 var documentsAllowed = await documentsTask;
                 _likedShelf = Shelf("liked", "Liked", index.Liked(reactions, documentsAllowed).Take(ShelfLimit).ToList(), "/for-me?view=liked");
             }));

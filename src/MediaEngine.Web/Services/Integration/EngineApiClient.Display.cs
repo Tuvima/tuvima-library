@@ -108,8 +108,7 @@ public sealed partial class EngineApiClient
         string? lane = null,
         string? mediaType = null,
         int? limit = null,
-        CancellationToken ct = default,
-        bool? finished = null)
+        CancellationToken ct = default)
     {
         const string endpoint = "GET /api/v1/display/continue";
         try
@@ -118,7 +117,6 @@ public sealed partial class EngineApiClient
             AddQuery(query, "lane", lane);
             AddQuery(query, "mediaType", mediaType);
             AddQuery(query, "limit", limit?.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            AddQuery(query, "finished", finished?.ToString().ToLowerInvariant());
             var url = "/api/v1/display/continue" + (query.Count == 0 ? string.Empty : "?" + string.Join("&", query));
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)

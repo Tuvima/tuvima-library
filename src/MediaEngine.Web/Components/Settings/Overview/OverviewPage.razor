@@ -42,7 +42,7 @@ else
                                Class="overview-header__edit"
                                FullWidth="@DeviceContext.IsPhone"
                                OnClick="OpenEditor" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Devices"
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Smartphone"
                                    AriaLabel="Apps"
                                    Tooltip="Apps"
                                    Href="@AppsRoute"
@@ -92,6 +92,7 @@ else
 @code {
     private ProfileViewModel? _profile;
     private ProfileOverviewViewModel? _overview;
+    private PersonalActivitySummaryDto? _summary;
     private IReadOnlyList<PersonalActivityRecentTileDto>? _recent;
     private bool _loading = true;
     private bool _editorOpen;
@@ -106,24 +107,24 @@ else
 
     private string Joined => _profile is null ? string.Empty : _profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", CultureInfo.CurrentCulture);
 
-    // In progress and Finished always show (zero is an answer). The three time counts show only when the Engine has a total for
-    // them; a count it cannot supply is left out.
+    // The counts are the person's lifetime totals from their activity record, not a sample of their latest items. In progress and
+    // Finished always show (zero is an answer). The three time counts show only when there is a total for them; a count the Engine
+    // cannot supply is left out.
     private IReadOnlyList<OverviewCount> Counts
     {
         get
         {
             var counts = new List<OverviewCount>();
-            if (_overview is null)
+            if (_summary is null)
             {
                 return counts;
             }
 
-            counts.Add(new("in-progress", DisplayFormat.FormatCount(_overview.Stats.InProgress), "In progress"));
-            counts.Add(new("finished", DisplayFormat.FormatCount(_overview.Stats.Completed), "Finished"));
-            var (watched, read, listened) = PersonalActivityPresentation.ConsumedSeconds(_overview.Stats.ConsumedSecondsByMediaType);
-            AddHours(counts, "watched", "Time watched", watched);
-            AddHours(counts, "read", "Time read", read);
-            AddHours(counts, "listened", "Time listened", listened);
+            counts.Add(new("in-progress", DisplayFormat.FormatCount(_summary.InProgressCount), "In progress"));
+            counts.Add(new("finished", DisplayFormat.FormatCount(_summary.FinishedCount), "Finished"));
+            AddHours(counts, "watched", "Time watched", _summary.WatchSeconds);
+            AddHours(counts, "read", "Time read", _summary.ReadSeconds);
+            AddHours(counts, "listened", "Time listened", _summary.ListenSeconds);
             return counts;
         }
     }
@@ -156,10 +157,13 @@ else
                 return;
             }
 
+            // The profile overview now only feeds the taste line; the counts come from the activity summary.
             var overview = Api.GetProfileOverviewAsync(_profile.Id);
+            var summary = Api.GetPersonalActivitySummaryAsync();
             var recent = Api.GetPersonalActivityRecentAsync(PersonalActivityPresentation.StripLimit);
-            await Task.WhenAll(overview, recent);
+            await Task.WhenAll(overview, summary, recent);
             _overview = await overview;
+            _summary = await summary;
             _recent = (await recent)?.Tiles;
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)

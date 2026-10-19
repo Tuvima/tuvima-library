@@ -1,0 +1,190 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Web.Services.Formatting
+@* One row of the Activity list (D27): the time, a picture, the title with its episode or artist, what happened, how long, how far,
+   how it ended, the device and (when the scope covers other people) who. A title group also says how many sessions it holds and
+   expands to them; a music session shows its covers as a collage with a Show songs button. A tap opens the item. No IP
+   address, sign-in detail, rating or like is ever shown. *@
+<li class="@RootClass"
+    data-activity-row="@Item.Id"
+    data-activity-kind="@Item.Kind"
+    data-activity-group="@(IsGroup ? "true" : null)"
+    data-activity-attempt="@(Attempt ? "true" : null)">
+    <div class="activity-row__line">
+        <span class="activity-row__time" data-activity-time>@TimeText</span>
+
+        <span class="activity-row__art" aria-hidden="true">
+            @if (ActivityListPresentation.IsMusicSession(Item) && Covers.Count > 0)
+            {
+                <span class="@("activity-row__collage activity-row__collage--" + CollageColumns)" data-activity-collage>
+                    @foreach (var cover in Covers)
+                    {
+                        <img class="activity-row__cover" src="@cover" alt="" loading="lazy" decoding="async" />
+                    }
+                </span>
+            }
+            else if (!string.IsNullOrWhiteSpace(Item.ArtworkUrl))
+            {
+                <img class="activity-row__image" src="@Item.ArtworkUrl" alt="" loading="lazy" decoding="async" />
+            }
+            else
+            {
+                <span class="activity-row__placeholder"><AppMaterialIcon Icon="@PlaceholderIcon" /></span>
+            }
+        </span>
+
+        <span class="activity-row__title">
+            @if (ActivityListPresentation.Href(Item) is { } href)
+            {
+                <a class="activity-row__link" href="@href">@ActivityListPresentation.Title(Item)</a>
+            }
+            else
+            {
+                <span class="activity-row__name">@ActivityListPresentation.Title(Item)</span>
+            }
+            @if (ActivityListPresentation.Subtitle(Item) is { } subtitle)
+            {
+                <span class="activity-row__subtitle">@subtitle</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(Item.ParentTitle) && Item.Kind == PersonalActivityKindValues.Listen)
+            {
+                <span class="activity-row__subtitle">@Item.ParentTitle</span>
+            }
+            @if (IsGroup)
+            {
+                <span class="activity-row__attempts" data-activity-attempts-summary>@ActivityListPresentation.AttemptsSentence(Item)</span>
+            }
+        </span>
+
+        <span class="activity-row__meta">
+            <span class="activity-row__what" data-activity-what>@What</span>
+            <span class="activity-row__how-long" data-activity-how-long>@ActivityListPresentation.HowLong(Item)</span>
+            <span class="activity-row__how-far" data-activity-how-far>@(IsGroup ? null : ActivityListPresentation.HowFar(Item))</span>
+            <span class="@OutcomeClass" data-activity-outcome>@OutcomeText</span>
+            <span class="activity-row__device" data-activity-device>@Item.DeviceName</span>
+            @if (ShowPerson)
+            {
+                <span class="activity-row__person" data-activity-person>@Item.Person?.Name</span>
+            }
+        </span>
+
+        <span class="activity-row__actions">
+            @if (IsGroup)
+            {
+                <AppButton Label="@(Expanded ? "Hide sessions" : $"Show {ActivityListPresentation.SessionCount(Item)}")"
+                           Size="AppControlSize.Compact"
+                           Class="activity-row__toggle"
+                           EndIcon="@(Expanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                           OnClick="OnToggle"
+                           aria-expanded="@(Expanded ? "true" : "false")"
+                           data-activity-toggle="attempts" />
+            }
+            else if (ActivityListPresentation.IsMusicSession(Item))
+            {
+                <AppButton Label="@(Expanded ? "Hide songs" : "Show songs")"
+                           Size="AppControlSize.Compact"
+                           Class="activity-row__toggle"
+                           Loading="@LoadingSongs"
+                           EndIcon="@(Expanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                           OnClick="OnToggle"
+                           aria-expanded="@(Expanded ? "true" : "false")"
+                           data-activity-toggle="songs" />
+            }
+        </span>
+    </div>
+
+    @if (Expanded && IsGroup)
+    {
+        <ol class="activity-row__children" aria-label="@($"Sessions of {ActivityListPresentation.Title(Item)}")" data-activity-attempts>
+            @foreach (var attempt in Item.Attempts!)
+            {
+                <ActivityRow Item="attempt" Attempt="true" ShowPerson="ShowPerson" @key="attempt.Id" />
+            }
+        </ol>
+    }
+    else if (Expanded && Songs is { } songs)
+    {
+        <ol class="activity-row__children activity-row__songs" aria-label="Songs in this session" data-activity-songs>
+            @if (songs.Count == 0)
+            {
+                <li class="activity-row__songs-empty">No songs were kept for this session.</li>
+            }
+            @foreach (var song in songs)
+            {
+                <li class="activity-song" data-activity-song="@song.Id" @key="song.Id">
+                    <span class="activity-song__time">@ActivityListPresentation.Time(song)</span>
+                    <span class="activity-song__title">@song.Title</span>
+                    <span class="activity-song__meta">@SongMeta(song)</span>
+                    <span class="activity-song__length">@PersonalActivityPresentation.FormatDuration(song.PlayedSeconds)</span>
+                </li>
+            }
+        </ol>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public PersonalActivityItemDto Item { get; set; } = default!;
+
+    /// <summary>True when the scope covers other people, which adds who each row belongs to.</summary>
+    [Parameter] public bool ShowPerson { get; set; }
+
+    /// <summary>True for a session inside a title group: it shows its date as well as its time and has no picture of its own.</summary>
+    [Parameter] public bool Attempt { get; set; }
+
+    /// <summary>True when the row sits under a date heading, so its time of day is enough.</summary>
+    [Parameter] public bool UnderDateHeading { get; set; }
+
+    /// <summary>True while a title group shows its sessions, or a music session its songs.</summary>
+    [Parameter] public bool Expanded { get; set; }
+
+    [Parameter] public bool LoadingSongs { get; set; }
+
+    /// <summary>The songs of a music session, once asked for.</summary>
+    [Parameter] public IReadOnlyList<PersonalActivityItemDto>? Songs { get; set; }
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+
+    private bool IsGroup => !Attempt && ActivityListPresentation.IsTitleGroup(Item);
+
+    private string RootClass => string.Join(" ", new[]
+    {
+        "activity-row",
+        Attempt ? "activity-row--attempt" : null,
+        IsGroup ? "activity-row--group" : null,
+        ActivityListPresentation.IsMusicSession(Item) ? "activity-row--session" : null,
+        ShowPerson ? "activity-row--person" : null,
+    }.Where(value => value is not null));
+
+    private string What => IsGroup
+        ? ActivityListPresentation.SessionCount(Item)
+        : ActivityListPresentation.Verb(Item.Kind);
+
+    // A row under a date heading shows the time of day; one that is not (a title group, an attempt, the flat title list) shows the date too.
+    private string TimeText => UnderDateHeading ? ActivityListPresentation.Time(Item) : ActivityListPresentation.DateAndTime(Item);
+
+    private string? OutcomeText => IsGroup
+        ? (Item.Attempts!.Any(attempt => attempt.Finished) ? "Finished" : "Stopped")
+        : ActivityListPresentation.Outcome(Item);
+
+    private string OutcomeClass => OutcomeText == "Finished"
+        ? "activity-row__outcome activity-row__outcome--finished"
+        : "activity-row__outcome";
+
+    private IReadOnlyList<string> Covers => Item.CoverUrls is null
+        ? []
+        : [.. Item.CoverUrls.Where(url => !string.IsNullOrWhiteSpace(url)).Take(9)];
+
+    // A collage is as many columns as it needs to stay square: one cover, two by two, then three by three.
+    private int CollageColumns => Covers.Count switch { <= 1 => 1, <= 4 => 2, _ => 3 };
+
+    private string PlaceholderIcon => Item.Kind switch
+    {
+        PersonalActivityKindValues.Read => AppMaterialIcons.Outlined.MenuBook,
+        PersonalActivityKindValues.Listen or PersonalActivityKindValues.MusicSession => AppMaterialIcons.Outlined.MusicNote,
+        PersonalActivityKindValues.MyList => AppMaterialIcons.Outlined.Bookmarks,
+        _ => AppMaterialIcons.Outlined.PlayArrow,
+    };
+
+    private static string SongMeta(PersonalActivityItemDto song) =>
+        string.Join(" · ", new[] { song.Subtitle, song.ParentTitle }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

@@ -7,8 +7,8 @@ using MediaEngine.Web.Services.Integration;
 namespace MediaEngine.Web.Services.MediaTiles;
 
 /// <summary>
-/// The personal pages' lookup from "an id the profile saved, liked or finished" to the tile that shows it. It is built
-/// from reads the Engine has already filtered for the active profile (the item lookup, the finished cards, the Collection
+/// The personal pages' lookup from "an id the profile saved or liked" to the tile that shows it. It is built
+/// from reads the Engine has already filtered for the active profile (the item lookup, the Collection
 /// catalogue and the Playlist list), so an item the profile may not see never gets a tile. For Me and My Library share it.
 /// </summary>
 public sealed class PersonalTileIndex
@@ -16,26 +16,17 @@ public sealed class PersonalTileIndex
     private const string DocumentKind = "Document";
 
     private readonly IReadOnlyList<MediaTileViewModel> _media;
-    private readonly IReadOnlyList<DisplayCardDto> _finished;
     private readonly IReadOnlyDictionary<Guid, CollectionManagementCatalogViewModel> _collections;
     private readonly IReadOnlyDictionary<Guid, ManagedCollectionViewModel> _playlists;
 
     public PersonalTileIndex(
         IEnumerable<DisplayCardDto> cards,
-        IEnumerable<DisplayCardDto> finished,
         IEnumerable<CollectionManagementCatalogViewModel> collectionCatalog,
         IEnumerable<ManagedCollectionViewModel> managedCollections)
     {
         _media = cards
             .GroupBy(card => card.Id)
             .Select(group => MediaTileComposerService.FromDisplayCard(group.First()))
-            .ToList();
-        // Finished items: the Engine marks a card Completed with the time the profile last touched it. Music has no finished state.
-        _finished = finished
-            .Where(card => card.ContinuationState == DisplayContinuationState.Completed && card.Progress?.LastAccessed is not null)
-            .GroupBy(card => card.Id)
-            .Select(group => group.First())
-            .OrderByDescending(card => card.Progress!.LastAccessed)
             .ToList();
         _collections = collectionCatalog.GroupBy(item => item.Id).ToDictionary(group => group.Key, group => group.First());
         _playlists = managedCollections.GroupBy(item => item.Id).ToDictionary(group => group.Key, group => group.First());
@@ -121,12 +112,6 @@ public sealed class PersonalTileIndex
             .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
             .OrderByDescending(item => item.UpdatedAt)
             .Select(FindReaction), documentsAllowed);
-
-    /// <summary>History: items the profile finished watching, reading or listening to, most recent first.</summary>
-    public IReadOnlyList<MediaTileViewModel> History(bool documentsAllowed) =>
-        Resolve(_finished
-            // The finished mark is the point of this row, so the tile carries no progress bar.
-            .Select(card => (MediaTileViewModel?)MediaTileComposerService.FromDisplayCard(card with { Progress = null })), documentsAllowed);
 
     public static IReadOnlyList<MediaTileViewModel> Visible(IEnumerable<MediaTileViewModel> tiles, bool documentsAllowed) =>
         Resolve(tiles.Select(tile => (MediaTileViewModel?)tile), documentsAllowed);
