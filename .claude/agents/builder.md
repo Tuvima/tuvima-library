@@ -22,7 +22,7 @@ Verify only your packet, from the repo root:
 - `dotnet build MediaEngine.slnx --no-restore` (0 errors, 0 warnings — every project treats warnings as errors).
 - `dotnet test tests/<Project>.Tests/<Project>.Tests.csproj --no-build --filter "FullyQualifiedName~<YourTests>"` for the tests you added or touched, plus that project's guardrail tests if you changed structure (`--filter "FullyQualifiedName~Guardrail"`).
 - If you changed wire types in `src/MediaEngine.Contracts/`, run the Contracts tests and, only if the packet says the change is intended, `pwsh -File tools/Update-ContractFixtures.ps1`.
-- If binaries are locked by a running Engine/Dashboard, report it; do not kill processes you did not start.
+- If binaries are locked by a running Engine/Dashboard, run `pwsh -File tools/Stop-WorktreeDotnet.ps1` (this checkout's processes only); if they are still locked, report it. Never kill every `dotnet.exe` or any process from another checkout.
 - After two failed attempts at the same build or test error, stop and report it with the exact error text.
 
 Never: commit, push, merge, edit the spec (including its Status), edit `CLAUDE.md` or `.claude/`, or run the full solution test suite unless the brief says so.
