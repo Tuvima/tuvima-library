@@ -62,10 +62,10 @@ public sealed partial class DisplayComposerService
             .ToList();
 
         var readyRoots = works.GroupBy(work => work.RootWorkId)
-            .Where(group => group.All(work => work.IsIdentityReady))
+            .Where(group => group.All(work => !work.IsUpdatingDetails))
             .Select(group => group.Key.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var freshCandidates = works
-            .Where(work => work.IsIdentityReady)
+            .Where(work => !work.IsUpdatingDetails)
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
             .Concat(tvShowCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))).Select(card => card with { TileTextMode = "coverOnly" }))

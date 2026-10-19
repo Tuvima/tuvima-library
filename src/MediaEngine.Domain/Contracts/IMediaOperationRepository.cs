@@ -16,6 +16,10 @@ public interface IMediaOperationRepository
     Task<IReadOnlyList<MediaOperation>> GetQueueAsync(string? queueName, int limit, CancellationToken ct = default);
     Task<IReadOnlyList<MediaOperation>> LeaseNextAsync(string workerName, IReadOnlyList<string> operationTypes, int batchSize, TimeSpan leaseDuration, CancellationToken ct = default);
     Task UpdateStageAsync(Guid id, string stage, int? progressPercent = null, CancellationToken ct = default);
+
+    /// <summary>Records which entity (for an ingestion file, its media asset) the operation is about, once that is known. The status and stage are not touched.</summary>
+    Task AttachEntityAsync(Guid id, Guid entityId, string entityKind, CancellationToken ct = default);
+
     Task HeartbeatAsync(Guid id, int? progressPercent = null, CancellationToken ct = default);
     Task MarkSucceededAsync(Guid id, string? resultSummary = null, CancellationToken ct = default);
     Task MarkNoResultAsync(Guid id, string? missingReason = null, string? resultSummary = null, CancellationToken ct = default);

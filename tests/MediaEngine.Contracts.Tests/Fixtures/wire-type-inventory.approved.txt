@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1001; api=0; web-client=77
+# scopes: contracts=1004; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3715,6 +3715,40 @@
   LastError: System.String | json=last_error | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Warning: System.String | json=warning | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"provider_id":"sample","display_name":"sample","status":"sample","last_successful_call":"2025-01-02T03:04:05+00:00","last_error":"sample","warning":"sample"}
+
+[contracts] MediaEngine.Contracts.Ingestion.IngestionQueueOutcomesDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Added: System.Int32 | json=added | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NeedsReview: System.Int32 | json=needs_review | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Failed: System.Int32 | json=failed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"added":7,"needs_review":7,"failed":7,"skipped":7}
+
+[contracts] MediaEngine.Contracts.Ingestion.IngestionQueueProgressDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesFound: System.Int32 | json=files_found | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesDone: System.Int32 | json=files_done | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesWaiting: System.Int32 | json=files_waiting | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WaitingFor: System.Collections.Generic.IReadOnlyList<System.String> | json=waiting_for | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesMoreFound: System.Int32 | json=files_more_found | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcomes: MediaEngine.Contracts.Ingestion.IngestionQueueOutcomesDto | json=outcomes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tally: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Ingestion.IngestionQueueTypeTallyDto> | json=tally | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesUnsorted: System.Int32 | json=files_unsorted | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StepsTotal: System.Int64 | json=steps_total | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StepsCompleted: System.Int64 | json=steps_completed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Progress: System.Double | json=progress | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StartedAt: System.DateTimeOffset? | json=started_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastActivityAt: System.DateTimeOffset? | json=last_activity_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EstimatedSecondsRemaining: System.Int32? | json=estimated_seconds_remaining | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UpdatedAt: System.DateTimeOffset | json=updated_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"state":"sample","files_found":7,"files_done":7,"files_waiting":7,"waiting_for":[],"files_more_found":7,"outcomes":null,"tally":[],"files_unsorted":7,"steps_total":7,"steps_completed":7,"progress":7,"started_at":"2025-01-02T03:04:05+00:00","last_activity_at":"2025-01-02T03:04:05+00:00","estimated_seconds_remaining":7,"updated_at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Ingestion.IngestionQueueTypeTallyDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Files: System.Int32 | json=files | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_type":"sample","files":7}
 
 [contracts] MediaEngine.Contracts.Ingestion.IngestionRecentDayDto
   kind=class | converter=default | number-handling=default | unmapped=default

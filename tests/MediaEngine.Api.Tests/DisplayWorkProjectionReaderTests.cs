@@ -16,6 +16,7 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();
+        ReadyWorks.TreatEveryWorkAsReady(_db);
     }
 
     [Fact]

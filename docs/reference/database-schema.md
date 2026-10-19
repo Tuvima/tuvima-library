@@ -92,10 +92,14 @@ A single title, independent of version or format.
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp |
+| `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
+| `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
 
-**Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`
+**Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
-Note: newer media library surfaces rely on a shared projection layered over work state, review queue state, identity job state, and canonical artwork flags. The `status` column remains part of the stored model, but it is no longer the only source of truth for browse visibility.
+Note: newer media library surfaces rely on a shared projection layered over work state, review queue state, identity job state, and canonical artwork flags. The `status` column remains part of the stored model, but it is no longer the only source of truth for browse visibility. Visibility is decided once, by `works.ready_at`; display queries read it through `WorkReadinessSql` and never define their own rule.
+
+The readiness service finds what changed since its last pass through two indexes added with `ready_at`: `idx_identity_jobs_updated_at` on `identity_jobs (updated_at)`, and the partial index `idx_canonical_values_artwork_scored` on `canonical_values (last_scored_at)` covering only the artwork keys `cover_state`, `cover_url` and `artwork_settled_at`. A Work's files, for the Ready rule, include the files that cover it (`work_owned_assets`). Ready is sticky: the full rule (matched, placed, artwork) is needed once, then only a negative outcome clears the mark.
 
 ### editions
 
@@ -957,7 +961,19 @@ One row per run of a recurring background task (activity log cleanup, Local AI b
 | `items_processed` | INTEGER | How many items the run handled, when that applies |
 | `message` | TEXT | Plain-English result, failure message or skip reason |
 
-**Indices:** `ix_scheduled_task_runs_task_started (task_key, started_at DESC)`. Added by upgrade step `0003_scheduled_task_runs`.
+**Indices:** `ix_scheduled_task_runs_task_started (task_key, started_at DESC)`. Added by upgrade step `0005_scheduled_task_runs`.
+### media_operations (file intake rows)
+
+The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.
+
+| Column | Type | Notes |
+|---|---|---|
+| `status` / `stage` | TEXT | Where the file is: `stage` runs `discovered`, `queued`, `hashing`, `parsing`, `scoring`, `registered`, `queued_identity`, `completed`; `status` says whether it is queued, running, retrying or finished |
+| `entity_id` / `entity_kind` | BLOB / TEXT | Set to the file's media asset id and `MediaAsset` the moment the asset is known (when it is registered, or the existing asset a duplicate or re-detected file points at). Empty before that |
+| `result_summary` | TEXT | What the file ended as when it finished, for example `duplicate` or `same_path_redetected` |
+| `created_at` | TEXT | When the file was first noticed |
+
+**Indices:** `idx_media_operations_entity` on `(entity_id)`, and for the live count `idx_media_operations_type_created` on `(operation_type, created_at)` and `idx_media_operations_type_status` on `(operation_type, status)`, so each second's look finds the files since the active period began, and the files still being worked on, without reading every intake row the Library has ever had.
 
 ### ingestion_log
 

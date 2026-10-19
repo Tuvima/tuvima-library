@@ -272,6 +272,14 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             WHERE id = @id;
             """, id, ct, new { stage, progressPercent = ClampPercent(progressPercent) });
 
+    public Task AttachEntityAsync(Guid id, Guid entityId, string entityKind, CancellationToken ct = default)
+        => Execute("""
+            UPDATE media_operations
+            SET entity_id = @entityId,
+                entity_kind = @entityKind
+            WHERE id = @id;
+            """, id, ct, new { entityId, entityKind });
+
     public Task HeartbeatAsync(Guid id, int? progressPercent = null, CancellationToken ct = default)
         => Execute("""
             UPDATE media_operations

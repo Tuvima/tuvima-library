@@ -34,8 +34,9 @@ public sealed class ImportFolderFilingTests : IDisposable
         Assert.False(File.Exists(source));
         Assert.Equal(expected, (await _h.Assets.FindByIdAsync(assetId))!.FilePathRoot);
 
-        // The file shows up in Recently Added: it is marked presented and announced as added.
-        Assert.Contains(_h.Publisher.Published, item => item.EventName == SignalREvents.MediaAdded);
+        // The file is marked presented, but "added" is announced by the readiness service once the work is ready,
+        // not when the file is filed.
+        Assert.DoesNotContain(_h.Publisher.Published, item => item.EventName == SignalREvents.MediaAdded);
         using var connection = _h.Db.Connection.CreateConnection();
         Assert.NotNull(await Dapper.SqlMapper.ExecuteScalarAsync<string>(
             connection, "SELECT presented_at FROM media_assets WHERE content_hash IS NOT NULL LIMIT 1;"));

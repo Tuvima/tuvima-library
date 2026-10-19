@@ -247,6 +247,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ct.ThrowIfCancellationRequested();
             var ownedIds = chunk.Select(GuidSql.ToBlob).ToArray();
             var rows = await conn.QueryAsync<SequenceRow>(new CommandDefinition("""
+                -- readiness: detail page of one item opened by id
                 SELECT w.id AS WorkId, art.id AS EpisodeStillAssetId,
                        art.width_px AS EpisodeStillWidthPx, art.height_px AS EpisodeStillHeightPx
                 FROM works w LEFT JOIN entity_assets art ON art.id = (
@@ -289,7 +290,7 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             ct.ThrowIfCancellationRequested();
             var rows = await conn.QueryAsync<WorkOverridesRow>(new CommandDefinition(
-                "SELECT id AS WorkId, display_overrides_json AS Json FROM works WHERE id IN @workIds;",
+                "-- readiness: detail page of one item opened by id\nSELECT id AS WorkId, display_overrides_json AS Json FROM works WHERE id IN @workIds;",
                 new { workIds = chunk.Select(GuidSql.ToBlob).ToArray() },
                 cancellationToken: ct));
             foreach (var row in rows)

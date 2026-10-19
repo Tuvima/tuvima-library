@@ -3,6 +3,7 @@ using System.Text.Json;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -54,14 +55,8 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<LibraryReconciliationService> _logger;
 
-    /// <summary>Category root folder names that should never be deleted.</summary>
-    private static readonly HashSet<string> ProtectedFolders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // .data/ contains staging, images, and database — never touch it.
-        ".data",
-        // Library category folders.
-        "Books", "Comics", "Videos", "Audio", "Other",
-    };
+    /// <summary>Tuvima's own working folder under the library root (staging, caches, images, database).</summary>
+    private const string DataFolderName = ".data";
 
     public LibraryReconciliationService(
         IMediaAssetRepository assetRepo,
@@ -309,7 +304,8 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         if (!string.IsNullOrWhiteSpace(core.LibraryRoot) && Directory.Exists(core.LibraryRoot))
         {
             // Pass 1: Empty folder pruning (bottom-up).
-            foldersCleanedCount = await PruneEmptyFoldersAsync(core.LibraryRoot, ct);
+            var libraryRoots = ConfiguredLibraryRoots(_configLoader.LoadLibraries());
+            foldersCleanedCount = PruneEmptyFolders(core.LibraryRoot, libraryRoots, _logger, ct);
 
             // Pass 2: Orphaned people cleanup.
             orphanPeopleCount = await CleanOrphanedPeopleAsync(core.LibraryRoot, ct);
@@ -319,12 +315,6 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
             // category folder (e.g., Books/library.xml) by AutoOrganizeService when a
             // shallow organization template caused collectionFolder to resolve to the category root.
             staleSidecarsCount = CleanStaleRootSidecars(core.LibraryRoot);
-
-            // Re-run empty folder pruning after people cleanup may have emptied folders.
-            if (orphanPeopleCount > 0)
-            {
-                foldersCleanedCount += await PruneEmptyFoldersAsync(core.LibraryRoot, ct);
-            }
         }
 
         sw.Stop();
@@ -445,15 +435,20 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     // ── Pass 1: Empty Folder Pruning ────────────────────────────────────────
 
     /// <summary>
-    /// Walks the Library Root tree bottom-up. Deletes any empty directory
-    /// (no files, no subdirectories). Skips the library root itself and`r`n    /// category roots (Books, Videos, etc.).
+    /// Walks the Library Root tree bottom-up and deletes any empty directory (no files, no subdirectories).
+    /// Skips the library root itself and every configured library folder (<paramref name="libraryRoots"/>,
+    /// e.g. Books, Movies, TV), and never looks inside Tuvima's own <c>.data</c> working folder: caches there
+    /// (such as <c>.data/variants/hls</c>) are created empty on purpose and other services expect them to stay.
     /// </summary>
-    private async Task<int> PruneEmptyFoldersAsync(string libraryRoot, CancellationToken ct)
+    internal static int PruneEmptyFolders(
+        string libraryRoot, IReadOnlySet<string> libraryRoots, ILogger logger, CancellationToken ct)
     {
         int cleaned = 0;
 
         // Bottom-up: process deepest directories first by sorting by depth descending.
-        var allDirs = Directory.EnumerateDirectories(libraryRoot, "*", SearchOption.AllDirectories)
+        var allDirs = Directory.EnumerateDirectories(libraryRoot)
+            .Where(dir => !string.Equals(Path.GetFileName(dir), DataFolderName, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(dir => Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories).Prepend(dir))
             .OrderByDescending(d => d.Count(c => c is '\\' or '/'))
             .ToList();
 
@@ -461,15 +456,10 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         {
             ct.ThrowIfCancellationRequested();
 
-            // Skip protected roots (one level below library root).
-            var parent = Path.GetDirectoryName(dir);
-            if (string.Equals(parent, libraryRoot, StringComparison.OrdinalIgnoreCase))
+            // A library's own folder stays even when empty; start-up would only create it again.
+            if (libraryRoots.Contains(NormalizeFolderPath(dir)))
             {
-                var folderName = Path.GetFileName(dir);
-                if (ProtectedFolders.Contains(folderName))
-                {
-                    continue;
-                }
+                continue;
             }
 
             try
@@ -478,12 +468,12 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
                 {
                     Directory.Delete(dir);
                     cleaned++;
-                    _logger.LogDebug("Pruned empty folder: {Path}", dir);
+                    logger.LogDebug("Pruned empty folder: {Path}", dir);
                 }
             }
             catch (IOException ex)
             {
-                _logger.LogDebug(ex, "Could not prune folder: {Path}", dir);
+                logger.LogDebug(ex, "Could not prune folder: {Path}", dir);
             }
         }
 
@@ -492,6 +482,21 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
 
         return cleaned;
     }
+
+    /// <summary>
+    /// The folders of every configured library source in <c>config/libraries.json</c> — the same list start-up
+    /// creates — so the empty-folder pass protects exactly the library folders that exist today.
+    /// </summary>
+    internal static IReadOnlySet<string> ConfiguredLibraryRoots(LibrariesConfiguration libraries) =>
+        libraries.Libraries
+            .SelectMany(library => library.Sources)
+            .Select(source => source.Path)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(NormalizeFolderPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static string NormalizeFolderPath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
     // ── Pass 2: Orphaned People Cleanup ─────────────────────────────────────
 

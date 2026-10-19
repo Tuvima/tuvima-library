@@ -48,7 +48,7 @@ do not apply single-column `Virtualize` to responsive variable-width flex layout
 - Primary navigation.
 - A global Search icon in the top-right action group that opens the instant cross-library search overlay without navigating away.
 - A profile-aware **My List** bookmark route backed by the saved/favorites collection.
-- A unified circular activity indicator for playback, ingestion, AI work, enrichment, and other durable operations; it becomes an idle check icon when no work is active.
+- A unified activity indicator for ingestion (the Engine's queue snapshot), AI work, enrichment, and other durable operations: blue while the Library is working, green when it is idle. Playback does not light it.
 - The account menu, including profile switching, Settings, Help, conditional sign-out, and permission-gated Needs Review count.
 - Engine connection/degraded-state messaging.
 - Universal search overlay host, including Ctrl+K, focus trapping, and focus restoration.
@@ -62,7 +62,7 @@ The current navbar centers Read, Watch, Listen, and Collections independently of
 
 The navbar brand uses the shared `assets/images/library.svg` lockup. The Dashboard project links that source file into its static web assets so the repository has one authoritative copy.
 
-The activity surface is composed by `ShellActivityState`. It merges live SignalR ingestion, AI model-download, universe-enrichment, and durable `MediaOperationChanged` updates with scoped audio/video playback state. `GET /system/activity-status` supplies a sanitized active-operation snapshot so a newly opened Dashboard does not need to wait for the next SignalR event. Operation titles and filesystem paths are intentionally excluded from that shell endpoint.
+The activity surface is composed by `ShellActivityState`. It merges the Engine's ingestion queue snapshot, AI model-download, universe-enrichment, and durable `MediaOperationChanged` updates into a blue-while-working, green-when-idle indicator; playback is tracked separately (`IsPlaybackActive`) and never lights it. `GET /system/activity-status` supplies a sanitized active-operation snapshot so a newly opened Dashboard does not need to wait for the next SignalR event. Operation titles and filesystem paths are intentionally excluded from that shell endpoint.
 
 ## Listen Playback
 
@@ -249,15 +249,15 @@ misleading. Provider display names, accents, and fallback icons are owned by
 `ProviderCatalogueService`; tile artwork selection delegates to
 `MediaTileArtworkResolver` or `MediaTileComposerService`.
 
-The live ingestion dashboard separates three responsibilities. The primary
-`IngestionLiveDashboardState` partial owns polling, subscriptions, cancellation,
-and awaited shutdown; its `Projection` partial owns snapshot-to-view-model
-calculation; and `IngestionDashboardSelectionState` preserves the selected batch
-and stage when a live snapshot replaces the current rows. The Razor component
-keeps markup separate from its code-behind. Its scoped styles live with
-`IngestionTasksTab` because the parent owns the dashboard surface and reaches the
-child through `::deep`; retired selectors should be deleted when markup is
-removed.
+The live Ingestion page shows the Engine's queue snapshot and works out no numbers of its own.
+`IngestionLiveDashboardState` owns polling, subscriptions, cancellation and awaited shutdown, and
+exposes the latest `IngestionQueueProgressDto` (`QueueProgress`) beside the presentation snapshot
+that feeds the cards below it. `IngestionQueueProgressText` is the one set of words for that
+snapshot (headline, tally, status line, estimate or elapsed time) and is shared by the page and the
+Overview. The page's only arithmetic is turning the Engine's 0 to 1 `progress` into the bar's
+percent; `IngestionQueueProgressGuardrailTests` enforces that. Scoped styles live with
+`IngestionTasksTab` because the parent owns the dashboard surface and reaches the child through
+`::deep`; retired selectors should be deleted when markup is removed.
 
 Provider-priority presentation follows the same boundary: the tab coordinates
 provider data in code-behind while `ProviderStageSelector` owns the accessible

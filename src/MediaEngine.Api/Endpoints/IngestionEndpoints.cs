@@ -59,6 +59,12 @@ public static class IngestionEndpoints
         .Produces<IngestionPresentationSnapshotDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
 
+        group.MapGet("/queue-progress", (IIngestionQueueProgressService progress) => Results.Ok(progress.Current))
+        .WithName("GetIngestionQueueProgress")
+        .WithSummary("Returns the live ingestion numbers: files found, tally by type, the bar, and the run state.")
+        .Produces<IngestionQueueProgressDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
+
         group.MapGet("/media-groups", async (
             IIngestionPresentationReadService readService,
             int? offset,

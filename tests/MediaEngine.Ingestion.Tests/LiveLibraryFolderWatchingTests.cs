@@ -68,7 +68,17 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             h, watcher, BooksProcessor(bookPath), BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))),
             logger: logger, withHashCache: true);
         await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
+
+        // The asset row is written well before the ingest finishes; a folder re-added while that ingest is still running
+        // rightly resumes it instead of skipping it, so wait for the first ingest to be done.
+        var operations = new MediaOperationRepository(h.Db.Connection);
+        await WaitUntilAsync(async () => await operations.GetLatestBySourcePathAsync(bookPath) is not null
+            && await operations.GetActiveBySourcePathAsync(bookPath) is null);
         Assert.Equal(1, await AssetCountAsync(h));
+
+        // The asset row appears before the file's intake job finishes. Re-adding the folder while that job is still open
+        // resumes the file instead of skipping it as known, so the first intake must be over before the folder is removed.
+        await WaitUntilAsync(async () => await OpenOperationCountAsync(h) == 0);
 
         run.Monitor.Publish(BuildOptions(h));
         await WaitUntilAsync(() => Task.FromResult(!watcher.IsWatching(h.AsIsDir)));
@@ -410,6 +420,13 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
     {
         using var connection = h.Db.Connection.CreateConnection();
         return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM media_assets;");
+    }
+
+    private static async Task<int> OpenOperationCountAsync(ImportFolderHarness h)
+    {
+        using var connection = h.Db.Connection.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM media_operations WHERE status IN ('pending', 'queued', 'running');");
     }
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition, TimeSpan? timeout = null)

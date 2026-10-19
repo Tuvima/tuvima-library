@@ -11,7 +11,6 @@ namespace MediaEngine.Storage.Benchmarks.Ef;
 internal sealed class DisplayWorkEfRow
 {
     public bool IsUpdatingDetails { get; set; }
-    public bool IsIdentityReady { get; set; }
     public Guid WorkId { get; set; }
     public string? LibraryId { get; set; }
     public Guid? CollectionId { get; set; }

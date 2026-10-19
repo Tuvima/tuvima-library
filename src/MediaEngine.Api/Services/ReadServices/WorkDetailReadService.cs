@@ -15,6 +15,7 @@ public sealed class WorkDetailReadService(IDatabaseConnection db) : IWorkDetailR
         workId = WorkRedirects.Resolve(connection, workId);
 
         var row = await connection.QuerySingleOrDefaultAsync<WorkDetailRow>(new CommandDefinition("""
+            -- readiness: lookup of one work by id
             SELECT id AS Id,
                    collection_id AS CollectionId,
                    parent_work_id AS ParentWorkId,

@@ -654,6 +654,9 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<IngestionQueueProgressDto?> GetIngestionQueueProgressAsync(CancellationToken ct = default)
+        => GetAsync<IngestionQueueProgressDto>("Ingestion queue progress", "ingestion/queue-progress", ct: ct);
+
     public async Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default)
     {
         var result = await GetAsync<IngestionPresentationSnapshotDto>(

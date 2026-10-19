@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Models.ViewDTOs;
 
@@ -28,6 +29,9 @@ public sealed class UniverseStateContainer : IDisposable
     private IngestionProgressEvent? _ingestionProgress;
     private DateTimeOffset? _ingestionProgressReceivedAt;
     private BatchProgressEvent? _batchProgress;
+    private IngestionQueueProgressDto? _ingestionQueueProgress;
+    private DateTimeOffset? _ingestionQueueProgressReceivedAt;
+    private EngineConnectionState _engineConnectionState = EngineConnectionState.Unknown;
     private DateTimeOffset? _batchProgressReceivedAt;
     private readonly Dictionary<Guid, LiveIngestionItemProgress> _ingestionItemProgress = new();
     private UniverseEnrichmentProgressEvent? _universeEnrichmentProgress;
@@ -77,6 +81,15 @@ public sealed class UniverseStateContainer : IDisposable
     /// Null when no batch is active.
     /// </summary>
     public BatchProgressEvent? BatchProgress => _batchProgress;
+
+    /// <summary>The latest live ingestion numbers from the Engine, shown as sent; null until the first snapshot arrives.</summary>
+    public IngestionQueueProgressDto? IngestionQueueProgress => _ingestionQueueProgress;
+
+    /// <summary>When the Dashboard last received (pushed or fetched) an ingestion snapshot; the snapshot is only trusted while this is recent.</summary>
+    public DateTimeOffset? IngestionQueueProgressReceivedAt => _ingestionQueueProgressReceivedAt;
+
+    /// <summary>The Engine connection state, kept here so the menu indicator can read it without the orchestrator.</summary>
+    public EngineConnectionState EngineConnectionState => _engineConnectionState;
     public DateTimeOffset? BatchProgressReceivedAt => _batchProgressReceivedAt;
     public IReadOnlyList<LiveIngestionItemProgress> IngestionItemProgress =>
         _ingestionItemProgress.Values
@@ -153,6 +166,9 @@ public sealed class UniverseStateContainer : IDisposable
     public event Action? OnStateChanged;
     public event Action<MediaAddedEvent>? MediaAddedReceived;
 
+    /// <summary>Raised with each live ingestion snapshot the Engine publishes (the Engine's counting, shown as-is).</summary>
+    public event Action<IngestionQueueProgressDto>? IngestionQueueProgressReceived;
+
     // ── Collection-list mutations ────────────────────────────────────────────────────
 
     /// <summary>
@@ -225,6 +241,38 @@ public sealed class UniverseStateContainer : IDisposable
         _ingestionItemProgress[ev.LogEntryId] = new LiveIngestionItemProgress(ev, DateTimeOffset.UtcNow);
         PruneIngestionItemProgress();
         NotifyStateChanged(requiresSnapshotRefresh: false, throttle: true);
+    }
+
+    /// <summary>
+    /// Called when an <c>"IngestionQueueProgress"</c> event arrives, and by the fetch on connect; hands the Engine's snapshot
+    /// on unchanged. A snapshot older than the one already held is ignored, so a slow fetch never overwrites a newer push.
+    /// </summary>
+    public void PushIngestionQueueProgress(IngestionQueueProgressDto snapshot) =>
+        PushIngestionQueueProgress(snapshot, DateTimeOffset.UtcNow);
+
+    internal void PushIngestionQueueProgress(IngestionQueueProgressDto snapshot, DateTimeOffset receivedAt)
+    {
+        if (_ingestionQueueProgress is { } current && snapshot.UpdatedAt < current.UpdatedAt)
+        {
+            return;
+        }
+
+        _ingestionQueueProgress = snapshot;
+        _ingestionQueueProgressReceivedAt = receivedAt;
+        IngestionQueueProgressReceived?.Invoke(snapshot);
+        NotifyStateChanged(requiresSnapshotRefresh: false, throttle: true);
+    }
+
+    /// <summary>Called by the orchestrator whenever the Engine connection state changes.</summary>
+    public void SetEngineConnectionState(EngineConnectionState state)
+    {
+        if (_engineConnectionState == state)
+        {
+            return;
+        }
+
+        _engineConnectionState = state;
+        NotifyStateChanged(requiresSnapshotRefresh: false);
     }
 
     /// <summary>

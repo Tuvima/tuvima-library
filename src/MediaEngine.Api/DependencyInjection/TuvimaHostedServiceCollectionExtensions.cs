@@ -37,6 +37,9 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<FolderOrganiseJobWorker>();
         services.AddHostedService<MediaFileWriteIntentDispatcher>();
         services.AddHostedService<IngestionBatchProgressHostedService>();
+        services.AddSingleton<IngestionQueueProgressService>();
+        services.AddSingleton<IIngestionQueueProgressService>(sp => sp.GetRequiredService<IngestionQueueProgressService>());
+        services.AddHostedService(sp => sp.GetRequiredService<IngestionQueueProgressService>());
         services.AddHostedService<TextTrackRefreshOperationWorker>();
         services.AddSingleton<DocumentTextReadService>();
         services.AddHostedService<DocumentTextReadOperationWorker>();
@@ -76,6 +79,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<RetailMatchHostedService>();
         services.AddHostedService<WikidataBridgeHostedService>();
         services.AddHostedService<QuickHydrationHostedService>();
+        services.AddSingleton<IIdentityBypassLibraries, ConfiguredIdentityBypassLibraries>();
+        services.AddHostedService<WorkReadinessService>();
         services.AddHostedService<MusicBrainzEnrichmentHostedService>();
         services.AddHostedService<MusicAlbumManifestHostedService>();
         services.AddHostedService<HardwareBenchmarkBackgroundService>();

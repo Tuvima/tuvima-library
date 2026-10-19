@@ -38,6 +38,7 @@ public sealed class LibraryItemProjectionTests : IDisposable
         await InsertCanonicalAsync(visibleWorkId, "cover_state", "present");
         await InsertCanonicalAsync(visibleWorkId, "cover_source", "provider");
         await InsertCanonicalAsync(visibleWorkId, "artwork_settled_at", now.ToString("O"));
+        await CreateIdentityJobAsync(visibleAssetId, IdentityJobState.Ready);
 
         var (hiddenWorkId, hiddenAssetId) = await BuildStandaloneWorkAsync("Movies");
         await InsertCanonicalAsync(hiddenAssetId, "title", "Hidden Pending Art");
@@ -49,12 +50,13 @@ public sealed class LibraryItemProjectionTests : IDisposable
         await InsertCanonicalAsync(reviewWorkId, "artwork_settled_at", now.ToString("O"));
         await CreateIdentityJobAsync(reviewAssetId, IdentityJobState.RetailMatchedNeedsReview);
 
-        var (qidNoMatchWorkId, qidNoMatchAssetId) = await BuildStandaloneWorkAsync("Music");
+        var (qidNoMatchWorkId, qidNoMatchAssetId) = await BuildStandaloneWorkAsync("Movies");
         await InsertCanonicalAsync(qidNoMatchAssetId, "title", "No Qid Yet");
         await InsertCanonicalAsync(qidNoMatchWorkId, "cover_state", "missing");
         await InsertCanonicalAsync(qidNoMatchWorkId, "cover_source", "none");
         await InsertCanonicalAsync(qidNoMatchWorkId, "artwork_settled_at", now.ToString("O"));
         await CreateIdentityJobAsync(qidNoMatchAssetId, IdentityJobState.QidNoMatch);
+        await new WorkReadinessRepository(_db).RefreshAllAsync(Array.Empty<string>());
 
         var repo = new LibraryItemRepository(_db);
 
@@ -114,6 +116,9 @@ public sealed class LibraryItemProjectionTests : IDisposable
         await InsertCanonicalAsync(workId, "cover_state", "missing");
         await InsertCanonicalAsync(workId, "cover_source", "none");
 
+        await CreateIdentityJobAsync(assetId, IdentityJobState.RetailMatched);
+        var readiness = new WorkReadinessRepository(_db);
+        await readiness.RefreshAllAsync(Array.Empty<string>());
         var repo = new LibraryItemRepository(_db);
 
         var beforePage = await repo.GetPageAsync(new LibraryItemQuery());
@@ -127,6 +132,7 @@ public sealed class LibraryItemProjectionTests : IDisposable
         Assert.Null(beforeDetail.CoverUrl);
 
         await InsertCanonicalAsync(workId, "artwork_settled_at", DateTimeOffset.UtcNow.ToString("O"));
+        await readiness.RefreshAllAsync(Array.Empty<string>());
 
         var afterPage = await repo.GetPageAsync(new LibraryItemQuery());
         var item = Assert.Single(afterPage.Items);
@@ -423,6 +429,7 @@ public sealed class LibraryItemProjectionTests : IDisposable
         await InsertCanonicalAsync(identifiedWorkId, "wikidata_qid", "Q777");
         await InsertCanonicalAsync(identifiedWorkId, "cover_state", "present");
         await InsertCanonicalAsync(identifiedWorkId, "artwork_settled_at", settledAt);
+        await CreateIdentityJobAsync(identifiedAssetId, IdentityJobState.Ready);
 
         var (provisionalWorkId, provisionalAssetId) = await BuildStandaloneWorkAsync("Movies");
         await InsertCanonicalAsync(provisionalAssetId, "title", "Provisional Item");
@@ -435,6 +442,7 @@ public sealed class LibraryItemProjectionTests : IDisposable
         await InsertCanonicalAsync(rejectedWorkId, "cover_state", "present");
         await InsertCanonicalAsync(rejectedWorkId, "artwork_settled_at", settledAt);
         await UpdateWorkCuratorStateAsync(rejectedWorkId, "rejected");
+        await new WorkReadinessRepository(_db).RefreshAllAsync(Array.Empty<string>());
 
         var repo = new LibraryItemRepository(_db);
 
