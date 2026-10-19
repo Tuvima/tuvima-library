@@ -7962,6 +7962,11 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TestPathRequest
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolInstallKinds
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolLocationRequest
+  StorageLocationId: System.String | nullability=nullable | accessors=get,init
+  RelativePath: System.String | nullability=nullable | accessors=get,init
+  ManualPath: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementDto
   Id: System.String | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init

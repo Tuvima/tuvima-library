@@ -166,7 +166,7 @@
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
             <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
-            <AppButton Label="Add"
+            <AppButton Label="@ConfirmLabel"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
                        Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
@@ -181,6 +181,7 @@
     [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Tuvima Library server.";
     [Parameter] public string SelectionMode { get; set; } = ServerFolderSelectionModes.ExistingLibrary;
+    [Parameter] public string ConfirmLabel { get; set; } = "Add";
     [Parameter] public string? CurrentSourceId { get; set; }
     [Parameter] public string? InitialPath { get; set; }
     [Parameter] public IReadOnlyCollection<string>? AllowedStorageLocationIds { get; set; }

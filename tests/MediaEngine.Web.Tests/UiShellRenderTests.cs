@@ -945,15 +945,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ModelsTab_UsesEngineBackedLifecycleActions()
+    public void ModelsTab_UsesEngineBackedProfileAndBenchmarkActions()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ModelsTab.razor"));
 
-        Assert.Contains("GetAiModelStatusesAsync", source);
-        Assert.Contains("StartAiModelDownloadAsync", source);
-        Assert.Contains("CancelAiModelDownloadAsync", source);
-        Assert.Contains("LoadAiModelAsync", source);
-        Assert.Contains("UnloadAiModelAsync", source);
         Assert.Contains("result.Problem?.ToUserMessage()", source);
         Assert.Contains("RunBenchmarkAsync", source);
         Assert.Contains("Essential · Qwen3 0.6B Q8", source);

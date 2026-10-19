@@ -179,6 +179,9 @@ else
                         case SettingsSection.Delivery:
                             <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
                             break;
+                        case SettingsSection.Tools:
+                            <ToolsRequirementsTab />
+                            break;
                         case SettingsSection.Network:
                             <NetworkRemoteAccessSettings Subsection="@_activeSubsection" />
                             break;
@@ -871,6 +874,7 @@ else
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
         SettingsSection.Devices => "Connect phones and TVs, and see everyone who is signed in.",
         SettingsSection.Delivery => "Manage server-side playback quality, transcoding, storage, and delivery health.",
+        SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => "Manage who can use Tuvima Library and how they sign in.",
         SettingsSection.Server => "Protect your Tuvima Library configuration and recover it when needed.",
         SettingsSection.Review => "Resolve items Tuvima Library could not identify confidently.",

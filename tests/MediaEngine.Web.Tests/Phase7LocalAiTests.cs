@@ -24,16 +24,31 @@ public sealed class Phase7LocalAiTests
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ModelsTab.razor");
 
-        Assert.Contains("GetAiModelStatusesAsync", source, StringComparison.Ordinal);
-        Assert.Contains("StartAiModelDownloadAsync", source, StringComparison.Ordinal);
-        Assert.Contains("CancelAiModelDownloadAsync", source, StringComparison.Ordinal);
-        Assert.Contains("LoadAiModelAsync", source, StringComparison.Ordinal);
-        Assert.Contains("UnloadAiModelAsync", source, StringComparison.Ordinal);
         Assert.Contains("RunBenchmarkAsync", source, StringComparison.Ordinal);
         Assert.Contains("InvalidateBenchmarkAsync", source, StringComparison.Ordinal);
         Assert.Contains("Qwen3 1.7B Q5", source, StringComparison.Ordinal);
         Assert.Contains("Optional Whisper feature pack", source, StringComparison.Ordinal);
         Assert.Contains("result.Problem?.ToUserMessage()", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Task.Delay", source, StringComparison.Ordinal);
+
+        // Model files, downloads and loading moved to Settings > Tools and requirements.
+        Assert.DoesNotContain("GetAiModelStatusesAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("CancelAiModelDownloadAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("LoadAiModelAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("UnloadAiModelAsync", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ToolsTab_RendersEngineModelStatusesAndLifecycleActions()
+    {
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ToolsRequirementsTab.razor");
+
+        Assert.Contains("GetToolRequirementsAsync", source, StringComparison.Ordinal);
+        Assert.Contains("GetAiModelStatusesAsync", source, StringComparison.Ordinal);
+        Assert.Contains("StartAiModelDownloadAsync", source, StringComparison.Ordinal);
+        Assert.Contains("CancelAiModelDownloadAsync", source, StringComparison.Ordinal);
+        Assert.Contains("LoadAiModelAsync", source, StringComparison.Ordinal);
+        Assert.Contains("UnloadAiModelAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Task.Delay", source, StringComparison.Ordinal);
     }
 
@@ -101,6 +116,7 @@ public sealed class Phase7LocalAiTests
         Assert.Contains("Enabled features", source, StringComparison.Ordinal);
         Assert.Contains("Media-type assistance", source, StringComparison.Ordinal);
         Assert.Contains("/settings/ai/models", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/tools", source, StringComparison.Ordinal);
         Assert.Contains("/settings/ai/vocabulary", source, StringComparison.Ordinal);
         Assert.Contains("/settings/ai/automation", source, StringComparison.Ordinal);
         Assert.Contains("OnParametersSetAsync", source, StringComparison.Ordinal);

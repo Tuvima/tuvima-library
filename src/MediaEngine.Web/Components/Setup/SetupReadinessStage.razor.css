@@ -1,0 +1,9 @@
+.setup-tool-notes {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    color: var(--tl-text-muted);
+    line-height: 1.5;
+    list-style: none;
+}

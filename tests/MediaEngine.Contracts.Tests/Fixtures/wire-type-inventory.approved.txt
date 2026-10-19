@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=997; api=0; web-client=77
+# scopes: contracts=998; api=0; web-client=77
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9363,6 +9363,12 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Path: System.String | json=path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"path":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.ToolLocationRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  StorageLocationId: System.String | json=storage_location_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RelativePath: System.String | json=relative_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ManualPath: System.String | json=manual_path | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Settings.ToolRequirementDto
   kind=class | converter=default | number-handling=default | unmapped=default

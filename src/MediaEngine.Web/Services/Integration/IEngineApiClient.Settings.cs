@@ -19,6 +19,9 @@ public partial interface IEngineApiClient
     /// <summary>Asks the Engine to look for its tools again and returns the fresh result.</summary>
     Task<ToolRequirementsDto?> CheckToolRequirementsAsync(CancellationToken ct = default);
 
+    /// <summary>Saves the folder a person chose as a tool's home and returns the fresh tools check, or the Engine's plain reason it was refused.</summary>
+    Task<ToolLocationResult> SetToolLocationAsync(string toolId, ToolLocationRequest request, CancellationToken ct = default);
+
     Task<IReadOnlyList<BackupArchiveDto>> GetBackupsAsync(CancellationToken ct = default);
 
     /// <summary>The latest data store upgrade step, or <c>null</c> when the Engine could not be asked.</summary>
@@ -393,3 +396,6 @@ public partial interface IEngineApiClient
         CancellationToken ct = default);
 
 }
+
+/// <summary>The outcome of saving a tool's location: the fresh tools check, or a short plain reason it was refused.</summary>
+public sealed record ToolLocationResult(bool Success, ToolRequirementsDto? Tools = null, string? ErrorMessage = null);
