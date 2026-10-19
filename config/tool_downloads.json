@@ -1,0 +1,38 @@
+{
+  "_comment": "The exact builds of FFmpeg and Tesseract the Library may fetch when a person presses Install for me or Download again in Settings. Nothing downloads by itself. Every address must be https on github.com and every file must match its sha256, or it is refused. The same builds as tools/Download-FFmpeg.ps1 and tools/Download-Tesseract.ps1.",
+
+  "ffmpeg": {
+    "platform": "win-x64",
+    "version": "9.0.1",
+    "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-28-17-08/ffmpeg-n9.0.1-11-ge47273f4d9-win64-gpl-9.0.zip",
+    "sha256": "DEE63142094F79F6A50CDECE65384B7793181EAB3B6DB2EC907834981BB8AB10",
+    "files": [
+      { "name": "ffmpeg.exe", "sha256": "989A60089B9B1A98896A5BD99EE793AB6841724E1B2441D5EF3E5D17DB0B0938" },
+      { "name": "ffprobe.exe", "sha256": "001D80FDDF67BC303E91C6B8ECCDF53AF29A5F87ECF3837056B391CC3DD3F7B4" }
+    ],
+    "license_names": [ "LICENSE.txt", "COPYING.GPLv3" ]
+  },
+
+  "tesseract": {
+    "platform": "win-x64",
+    "version": "5.4.0",
+    "installer": {
+      "name": "tesseract-ocr-w64-setup-5.4.0.20240606.exe",
+      "url": "https://github.com/UB-Mannheim/tesseract/releases/download/v5.4.0.20240606/tesseract-ocr-w64-setup-5.4.0.20240606.exe",
+      "sha256": "C885FFF6998E0608BA4BB8AB51436E1C6775C2BAFC2559A19B423E18678B60C9"
+    },
+    "executable_sha256": "BABB405F4366B480D02CD8FF2BAC8D497170F6C1711CE6F3D5D8BF0FB7FA6ED9",
+    "language_files": [
+      {
+        "name": "eng.traineddata",
+        "url": "https://github.com/tesseract-ocr/tessdata_fast/raw/923915d4ced2a7235221788285785a29c4a42d4a/eng.traineddata",
+        "sha256": "7D4322BD2A7749724879683FC3912CB542F19906C83BCC1A52132556427170B2"
+      },
+      {
+        "name": "osd.traineddata",
+        "url": "https://github.com/tesseract-ocr/tessdata_fast/raw/923915d4ced2a7235221788285785a29c4a42d4a/osd.traineddata",
+        "sha256": "19E9B11EE4549A15BE965B74514745FBDA70EFA791B11CFBC5D53609F86EE60A"
+      }
+    ]
+  }
+}

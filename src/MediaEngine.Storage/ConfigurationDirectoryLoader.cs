@@ -64,6 +64,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
     private const string OcrFileName = "ocr.json";
+    private const string ToolDownloadsFileName = "tool_downloads.json";
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
     private const string PipelinesFileName = "pipelines.json";
@@ -168,6 +169,15 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// <inheritdoc/>
     public void SaveOcr(OcrSettings settings) =>
         SaveFile(OcrFileName, settings);
+
+    /// <inheritdoc/>
+    public ToolDownloadSettings LoadToolDownloads()
+    {
+        var settings = LoadFile<ToolDownloadSettings>(ToolDownloadsFileName) ?? new();
+        // A downloaded program is only ever fetched from a fixed github.com address with a recorded checksum.
+        settings.RemoveDisallowedEntries();
+        return settings;
+    }
 
     /// <inheritdoc/>
     public NetworkSettings LoadNetwork() =>

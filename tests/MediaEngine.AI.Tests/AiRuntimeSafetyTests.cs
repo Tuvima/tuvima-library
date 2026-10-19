@@ -7,7 +7,9 @@ using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.AI.Llama;
 using MediaEngine.AI.Whisper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -106,6 +108,63 @@ public sealed class AiRuntimeSafetyTests
         Assert.Equal(AiModelState.Error, inventory.GetState(AiModelRole.TextFast));
         Assert.False(File.Exists(inventory.GetModelPath(AiModelRole.TextFast)));
         Assert.False(File.Exists(inventory.GetModelPath(AiModelRole.TextFast) + ".downloading"));
+    }
+
+    [Fact]
+    public async Task DownloadManager_RecordsStartedAndFinishedInTheActivityLog()
+    {
+        using var directory = new TemporaryDirectory();
+        var payload = "verified-model"u8.ToArray();
+        var settings = CreateSettings(directory.Path);
+        settings.MinimumFreeDiskMB = 256;
+        SetSharedTextMetadata(settings, sizeMb: 1, sha256: Convert.ToHexStringLower(SHA256.HashData(payload)));
+        var activity = new SpyActivity();
+        await using var manager = new ModelDownloadManager(
+            settings, CreateInventory(settings), new StubHttpClientFactory(payload), new NoOpEventPublisher(),
+            NullLogger<ModelDownloadManager>.Instance, activity);
+
+        await manager.StartDownloadAsync(AiModelRole.TextFast);
+        await manager.WaitForCompletionAsync(AiModelRole.TextFast);
+
+        Assert.Equal([SystemActionType.ToolDownloadStarted, SystemActionType.ToolDownloadFinished], activity.ActionTypes);
+        Assert.DoesNotContain(directory.Path, string.Join(' ', activity.Details), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DownloadManager_RecordsAChecksumRefusalWhenTheModelDoesNotMatch()
+    {
+        using var directory = new TemporaryDirectory();
+        var settings = CreateSettings(directory.Path);
+        settings.MinimumFreeDiskMB = 256;
+        SetSharedTextMetadata(settings, sizeMb: 1, sha256: new string('0', 64));
+        var activity = new SpyActivity();
+        await using var manager = new ModelDownloadManager(
+            settings, CreateInventory(settings), new StubHttpClientFactory("wrong-content"u8.ToArray()), new NoOpEventPublisher(),
+            NullLogger<ModelDownloadManager>.Instance, activity);
+
+        await manager.StartDownloadAsync(AiModelRole.TextFast);
+        await manager.WaitForCompletionAsync(AiModelRole.TextFast);
+
+        Assert.Equal([SystemActionType.ToolDownloadStarted, SystemActionType.ToolDownloadChecksumRefused], activity.ActionTypes);
+    }
+
+    [Fact]
+    public async Task DownloadManager_RecordsACancelledDownload()
+    {
+        using var directory = new TemporaryDirectory();
+        var settings = CreateSettings(directory.Path);
+        settings.MinimumFreeDiskMB = 256;
+        SetSharedTextMetadata(settings, sizeMb: 1, sha256: new string('0', 64));
+        var activity = new SpyActivity();
+        var http = new GatedHttpClientFactory("never-delivered"u8.ToArray());
+        await using var manager = new ModelDownloadManager(
+            settings, CreateInventory(settings), http, new NoOpEventPublisher(),
+            NullLogger<ModelDownloadManager>.Instance, activity);
+
+        await manager.StartDownloadAsync(AiModelRole.TextFast);
+        await manager.CancelDownloadAsync(AiModelRole.TextFast);
+
+        Assert.Equal([SystemActionType.ToolDownloadStarted, SystemActionType.ToolDownloadCancelled], activity.ActionTypes);
     }
 
     [Fact]
@@ -401,6 +460,50 @@ public sealed class AiRuntimeSafetyTests
                 Content = new ByteArrayContent(payload),
             });
         }
+    }
+
+    private sealed class SpyActivity : ISystemActivityRepository
+    {
+        private readonly List<SystemActivityEntry> _entries = [];
+
+        public IReadOnlyList<string> ActionTypes
+        {
+            get
+            {
+                lock (_entries)
+                {
+                    return _entries.Select(entry => entry.ActionType).ToList();
+                }
+            }
+        }
+
+        public IReadOnlyList<string> Details
+        {
+            get
+            {
+                lock (_entries)
+                {
+                    return _entries.Select(entry => entry.Detail ?? string.Empty).ToList();
+                }
+            }
+        }
+
+        public Task LogAsync(SystemActivityEntry entry, CancellationToken ct = default)
+        {
+            lock (_entries)
+            {
+                _entries.Add(entry);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<SystemActivityEntry>> GetRecentAsync(int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> PruneOlderThanAsync(int retentionDays, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<long> CountAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class GatedHttpClientFactory(byte[] payload) : IHttpClientFactory

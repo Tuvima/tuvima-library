@@ -1,0 +1,27 @@
+.tools-banner {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tools-banner__body {
+    display: grid;
+    gap: 8px;
+}
+
+.tools-banner__text {
+    color: var(--tl-text-primary);
+    line-height: 1.45;
+}
+
+.tools-banner__error {
+    color: var(--tl-text-muted);
+    line-height: 1.45;
+}
+
+.tools-banner__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+}

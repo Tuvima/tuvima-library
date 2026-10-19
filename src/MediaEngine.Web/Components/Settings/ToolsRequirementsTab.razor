@@ -37,7 +37,19 @@
             <div class="tools-requirements__list" data-testid="tools-list">
                 @foreach (var tool in Tools)
                 {
-                    <ToolRequirementRow Tool="@tool" Busy="@(_busyId is not null)" OnLocate="LocateAsync" />
+                    <ToolRequirementRow Tool="@tool" Busy="@(_busyId is not null)" OnLocate="LocateAsync"
+                                        OnInstall="InstallAsync" OnDownloadAgain="InstallAsync">
+                        <Actions>
+                            @if (tool.State == ToolRequirementStates.Downloading)
+                            {
+                                <AppButton Label="Cancel" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => CancelInstallAsync(tool))" />
+                            }
+                            @if (tool.State == ToolRequirementStates.InstallerReady)
+                            {
+                                <AppButton Label="Run installer" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_busyId is not null)" OnClick="@(() => RunInstallerAsync(tool))" />
+                            }
+                        </Actions>
+                    </ToolRequirementRow>
                 }
             </div>
         </AppCard>
@@ -84,6 +96,7 @@
     private bool _loading = true;
     private bool _checking;
     private string? _busyId;
+    private bool _awaitingInstaller;
     private string? _message;
     private AppUiTone _messageTone = AppUiTone.Info;
     private CancellationTokenSource? _poll;
@@ -192,6 +205,38 @@
         EnsurePolling();
     }
 
+    // ── Install for me, Download again, Cancel, Run installer ────────────────
+
+    private Task InstallAsync(ToolRequirementDto tool) => RunToolActionAsync(
+        tool, () => ApiClient.InstallToolAsync(tool.Id, Lifetime), $"Downloading {tool.Name}.");
+
+    private Task CancelInstallAsync(ToolRequirementDto tool) => RunToolActionAsync(
+        tool, () => ApiClient.CancelToolInstallAsync(tool.Id, Lifetime), $"The download of {tool.Name} was cancelled.");
+
+    private async Task RunInstallerAsync(ToolRequirementDto tool)
+    {
+        _awaitingInstaller = true;
+        await RunToolActionAsync(tool, () => ApiClient.RunToolInstallerAsync(tool.Id, Lifetime),
+            $"{tool.Name}'s installer was started. Finish it in the window that opened, then press Check again.");
+    }
+
+    private async Task RunToolActionAsync(ToolRequirementDto tool, Func<Task<ToolActionResult>> action, string success)
+    {
+        _busyId = tool.Id;
+        _message = null;
+        var result = await action();
+        _busyId = null;
+        if (!result.Success || result.Tools is null)
+        {
+            Say(result.ErrorMessage ?? $"That didn't work for {tool.Name}.", AppUiTone.Error);
+            return;
+        }
+
+        _tools = result.Tools;
+        Say(success, AppUiTone.Info);
+        EnsurePolling();
+    }
+
     // ── Local AI models ──────────────────────────────────────────────────────
 
     private static string RoleOf(ToolRequirementDto model) => model.Id[ToolRequirementIds.AiModelPrefix.Length..];
@@ -252,9 +297,14 @@
 
     private bool AnyDownloading => _tools?.Tools.Any(tool => tool.State == ToolRequirementStates.Downloading) == true;
 
+    // After Run installer the Tesseract row stays "installer ready" until its setup closes, so progress is read
+    // until then, but only on a page where the person started it.
+    private bool NeedsPolling => AnyDownloading
+        || (_awaitingInstaller && _tools?.Tools.Any(tool => tool.State == ToolRequirementStates.InstallerReady) == true);
+
     private void EnsurePolling()
     {
-        if (_poll is not null || !AnyDownloading || _disposed)
+        if (_poll is not null || !NeedsPolling || _disposed)
         {
             return;
         }
@@ -272,7 +322,7 @@
             {
                 await RefreshAsync();
                 await InvokeAsync(StateHasChanged);
-                if (!AnyDownloading)
+                if (!NeedsPolling)
                 {
                     break;
                 }

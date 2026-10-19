@@ -7982,6 +7982,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementDto
   CanInstall: System.Boolean | nullability=not-null | accessors=get,init
   CanDownloadAgain: System.Boolean | nullability=not-null | accessors=get,init
   DownloadPercent: System.Int32? | nullability=nullable | accessors=get,init
+  InstallDeclined: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ToolRequirementIds
 
