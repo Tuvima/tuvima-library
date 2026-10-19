@@ -1,8 +1,10 @@
 # Spec: Settings revamp (one look, one Devices page, one attention banner)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-10-19 (locked by Shy; drafted as versions 2 to 31 in the planning thread) · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [First run and prerequisites](archive/first-run-prerequisites.md) · [Profiles setup redesign](profiles-setup-redesign.md)
+> **Status:** Locked · **Version:** 1.1 · **Last updated:** 2026-10-19 (locked by Shy; drafted as versions 2 to 31 in the planning thread; v1.1 change note below) · **Related docs:** [Product overview](../product/overview.md) · [Design system](../design/design-system.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [First run and prerequisites](archive/first-run-prerequisites.md) · [Profiles setup redesign](profiles-setup-redesign.md)
 
 > Group 5 of the 2026-10-18 bug list (bugs 24, 7, 10, 9, 29 and planning item D, with bug 14 folded in as an optional last packet). Checked against the code on main. Where something is inferred, it says so. Nothing is built. The mockup that shows the new look is kept in the planning project's shared files (plans/settings-revamp/mockup.html). Bug 9 (Shy: wasted space, misaligned buttons, off-brand) is answered by the mockup.
+
+> **Change note (v1.1, 2026-10-19, approved by Shy with Developer tools spec v3):** Local AI becomes the engine room and every AI feature becomes a plugin ([Developer tools](developer-tools.md) D-Q, D-R). Local AI's sub-pages become **Status, Model and hardware, Budget and Usage**; the Features, Vocabulary and Automation sub-pages go (AI features move to the Plugins page, the vibe vocabulary into the vibe tags plugin, schedules into each plugin and Scheduled tasks). Until Developer tools WP30 is built, this spec's packets keep today's Local AI content as it is on the new frame; they do not rebuild Features, Vocabulary or Automation.
 
 ## Product walkthrough
 
@@ -109,7 +111,7 @@ Settings looks and behaves like one place. A person always knows where they are,
     - Users and Sign-in (person shield), opens on Users (accounts, roles, invitations); sub-page Sign-in Methods (password rules, extra protection, later OpenID Connect / SSO)
     - System (computer), opens on a resources summary (D39); sub-pages Tools and requirements (build), Logs (list) (D38), Backup and recovery (backup)
   - **Developer** (server, renamed from Advanced; Shy)
-    - Local AI (memory), opens on Features; sub-pages Vocabulary, Automation (D43)
+    - Local AI (memory), opens on Status; sub-pages Model and hardware, Budget, Usage (D43, as changed in v1.1)
     - Integrations (link icon), credentials and webhooks that let outside software use the Library, one page
     - Plugins (extension icon), one page (D44)
     - Developer Tools (construction), opens on Provider Tester; sub-page Enrichment Tester
@@ -128,7 +130,7 @@ Settings looks and behaves like one place. A person always knows where they are,
   - *How is video and audio sent and prepared?* **Streaming** (renamed from Playback and Delivery, Q29): Limits and Quality (concurrent remote streams, remote quality, upload capacity, moved from Network > Streaming), Hardware Acceleration (moved from Network > Streaming), Optimized Copies (scheduling, storage and active jobs, which the code calls variants), Diagnostics.
   - *Is the server healthy?* **System**: resources summary (the "Server information" from Network's Overview moves here, D39), Tools and requirements (the "Playback tools and services" status from Delivery moves here, as the first-run spec decided), Logs, Backup and recovery.
 - **D42.** **Scheduled work stays on the page it belongs to, and one list shows all of it.** Streaming's scheduling, enrichment refresh, Local AI automation, backup and the library sweeps keep their settings where they are, and the Scheduled tasks section on Tools and requirements (D22) lists every recurring task with last and next run. Reason: Maintenance; no single "schedules" dumping page.
-- **D43.** **Local AI keeps AI settings only.** Its Models and Runtime sub-page content (files and download state) moves to Tools and requirements, as the first-run spec decided; Local AI keeps Features, Vocabulary and Automation.
+- **D43.** **Local AI keeps AI settings only.** Its Models and Runtime sub-page content (files and download state) moves to Tools and requirements, as the first-run spec decided; Local AI keeps Features, Vocabulary and Automation. *(v1.1: superseded by Developer tools D-Q; Local AI becomes Status, Model and hardware, Budget and Usage, and AI features move to Plugins.)*
 - **D44.** **Plugins is not redesigned here** (planning item J, the plugin review, comes later). Its sub-pages fold into one page (Q30) so the menu is not cluttered; its content is untouched.
 - **D8.** Settings stays configuration and operational state (repo rule). Nothing in this plan adds a correction workspace.
 
