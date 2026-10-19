@@ -19,6 +19,7 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
     private readonly TokenEndpoint _engine = new();
     private readonly ControlledDelays _delays = new();
     private readonly UIOrchestratorService _orchestrator;
+    private DateTimeOffset _now = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
 
     public LiveUpdatesReconnectTests()
     {
@@ -38,6 +39,7 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
             RestartDelay = _delays.Delay,
             // Always the top of the jitter range, so the waits are predictable.
             RetryPolicy = new LiveUpdatesRetryPolicy(() => 1.0),
+            Clock = () => _now,
         };
     }
 
@@ -78,7 +80,7 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ScheduledRetry_ConnectsOnceTheEngineAcceptsAgain_ReusingTheMintedToken()
+    public async Task ScheduledRetry_ReusesAMintedTokenThatIsStillFresh()
     {
         _engine.Respond = mint => mint == 1 ? RateLimited(retryAfter: null) : Token(TimeSpan.FromMinutes(10));
 
@@ -106,15 +108,78 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RetryButton_SkipsTheWait()
+    public async Task RetryButton_SkipsTheBackoff_OnceAFewSecondsHavePassed()
+    {
+        _engine.Respond = _ => RateLimited(retryAfter: null);
+        await _orchestrator.StartSignalRAsync();
+
+        _now += TimeSpan.FromSeconds(1);
+        await _orchestrator.RetryLiveUpdatesNowAsync();
+        Assert.Equal(1, _engine.Mints);
+
+        _now += TimeSpan.FromSeconds(5);
+        await _orchestrator.RetryLiveUpdatesNowAsync();
+        Assert.Equal(2, _engine.Mints);
+        Assert.True(_orchestrator.IsLiveUpdatesRestartScheduled);
+    }
+
+    [Fact]
+    public async Task RetryButton_NeverAsksBeforeTheEnginesRetryAfter()
     {
         _engine.Respond = _ => RateLimited(TimeSpan.FromSeconds(30));
         await _orchestrator.StartSignalRAsync();
 
+        _now += TimeSpan.FromSeconds(10);
         await _orchestrator.RetryLiveUpdatesNowAsync();
+        Assert.Equal(1, _engine.Mints);
 
+        _now += TimeSpan.FromSeconds(21);
+        await _orchestrator.RetryLiveUpdatesNowAsync();
         Assert.Equal(2, _engine.Mints);
+    }
+
+    [Fact]
+    public async Task AConnectionTheEngineClosesStraightAway_KeepsBackingOff()
+    {
+        _engine.Respond = _ => RateLimited(retryAfter: null);
+        await _orchestrator.StartSignalRAsync();
+        _orchestrator.CancelScheduledRestart();
+
+        // Accepted, then closed a second later (for example a sixth tab over the per-person connection limit).
+        _orchestrator.OnLiveUpdatesConnected();
+        _now += TimeSpan.FromSeconds(1);
+        _orchestrator.OnLiveUpdatesClosed(new InvalidOperationException("session connection limit reached"));
+
+        Assert.Equal([TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4)], _delays.Requested);
+    }
+
+    [Fact]
+    public async Task AConnectionThatStayedUp_StartsItsBackoffAfreshWhenItDrops()
+    {
+        _engine.Respond = _ => RateLimited(retryAfter: null);
+        await _orchestrator.StartSignalRAsync();
+        _orchestrator.CancelScheduledRestart();
+
+        _orchestrator.OnLiveUpdatesConnected();
+        _now += TimeSpan.FromMinutes(5);
+        _orchestrator.OnLiveUpdatesClosed(null);
+
+        Assert.Equal(EngineConnectionState.LiveUpdatesDisconnected, _orchestrator.EngineConnectionState);
+        Assert.Equal([TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2)], _delays.Requested);
         Assert.True(_orchestrator.IsLiveUpdatesRestartScheduled);
+    }
+
+    [Fact]
+    public async Task ClosingTheTab_CancelsAWaitingRestart()
+    {
+        _engine.Respond = _ => RateLimited(retryAfter: null);
+        await _orchestrator.StartSignalRAsync();
+
+        await _orchestrator.DisposeAsync();
+
+        Assert.False(_orchestrator.IsLiveUpdatesRestartScheduled);
+        await _orchestrator.StartSignalRAsync();
+        Assert.Equal(1, _engine.Mints);
     }
 
     [Fact]
@@ -178,9 +243,9 @@ public sealed class LiveUpdatesReconnectTests : IAsyncDisposable
         return response;
     }
 
-    private static HttpResponseMessage Token(TimeSpan lifetime) => new(HttpStatusCode.OK)
+    private HttpResponseMessage Token(TimeSpan lifetime) => new(HttpStatusCode.OK)
     {
-        Content = JsonContent.Create(new IntercomTokenResponse("token-" + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow.Add(lifetime))),
+        Content = JsonContent.Create(new IntercomTokenResponse("token-" + Guid.NewGuid().ToString("N"), _now.Add(lifetime))),
     };
 
     private static async Task WaitUntilAsync(Func<bool> condition)

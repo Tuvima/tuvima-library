@@ -64,6 +64,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     private readonly ILogger<UIOrchestratorService> _logger;
 
     private static readonly TimeSpan IntercomTokenRenewalMargin = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan IntercomTokenMintTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan StableConnection = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan MinimumRetryGap = TimeSpan.FromSeconds(5);
 
     private readonly SemaphoreSlim _connectGate = new(1, 1);
     private readonly object _restartGate = new();
@@ -72,6 +75,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     private TimeSpan? _engineRetryAfter;
     private CancellationTokenSource? _scheduledRestart;
     private int _restartAttempt;
+    private DateTimeOffset _lastAttemptAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _notBefore = DateTimeOffset.MinValue;
+    private DateTimeOffset? _connectedAt;
     private volatile bool _disposed;
     private EngineConnectionState _engineConnectionState = EngineConnectionState.Unknown;
 
@@ -1087,9 +1093,22 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         await ConnectLiveUpdatesAsync(ct);
     }
 
-    /// <summary>The person asked to retry: cancel any scheduled restart and try straight away.</summary>
+    /// <summary>
+    /// The person asked to retry: cancel any scheduled restart and try straight away, unless the Engine asked us to
+    /// wait (Retry-After) or the last attempt was only moments ago. Every tab shares the Dashboard's address, so
+    /// repeated clicks must not spend the budget other tabs need.
+    /// </summary>
     public async Task RetryLiveUpdatesNowAsync(CancellationToken ct = default)
     {
+        var now = Clock();
+        lock (_restartGate)
+        {
+            if (now < _notBefore || now - _lastAttemptAt < MinimumRetryGap)
+            {
+                return;
+            }
+        }
+
         CancelScheduledRestart();
         await ConnectLiveUpdatesAsync(ct);
     }
@@ -1110,6 +1129,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     internal Func<TimeSpan, CancellationToken, Task> RestartDelay { get; set; } = Task.Delay;
 
     internal LiveUpdatesRetryPolicy RetryPolicy { get; set; } = new();
+
+    /// <summary>Replaced in tests to move time forward.</summary>
+    internal Func<DateTimeOffset> Clock { get; set; } = () => DateTimeOffset.UtcNow;
 
     private async Task ConnectLiveUpdatesAsync(CancellationToken ct)
     {
@@ -1135,9 +1157,15 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 return;
             }
 
+            lock (_restartGate)
+            {
+                _lastAttemptAt = Clock();
+            }
+
             if (await TryStartSignalRConnectionAsync(_hubConnection, ct))
             {
-                _restartAttempt = 0;
+                OnLiveUpdatesConnected();
+                await AfterLiveUpdatesConnectedAsync(ct);
             }
             else
             {
@@ -1154,21 +1182,61 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     private async Task<string?> GetIntercomAccessTokenAsync()
     {
         var current = _intercomToken;
-        if (current is not null && current.ExpiresAt - DateTimeOffset.UtcNow > IntercomTokenRenewalMargin)
+        if (current is not null && current.ExpiresAt - Clock() > IntercomTokenRenewalMargin)
         {
             return current.Token;
         }
 
-        var attempt = await _identityClient!.GetIntercomTokenAsync(CancellationToken.None).ConfigureAwait(false);
+        // Bounded so a hung Engine cannot hold the connect gate (and every page load behind it) for long.
+        using var timeout = new CancellationTokenSource(IntercomTokenMintTimeout);
+        var attempt = await _identityClient!.GetIntercomTokenAsync(timeout.Token).ConfigureAwait(false);
+        lock (_restartGate)
+        {
+            _engineRetryAfter = attempt.Token is null ? attempt.RetryAfter : null;
+            _notBefore = attempt.Token is null && attempt.RetryAfter is { } wait && wait > TimeSpan.Zero
+                ? Clock() + wait
+                : DateTimeOffset.MinValue;
+        }
+
         if (attempt.Token is null)
         {
-            _engineRetryAfter = attempt.RetryAfter;
             throw new IntercomTokenUnavailableException(attempt.Status, attempt.RetryAfter);
         }
 
-        _engineRetryAfter = null;
         _intercomToken = attempt.Token;
         return attempt.Token.Token;
+    }
+
+    /// <summary>A connection is up (first start, restart or automatic reconnect).</summary>
+    internal void OnLiveUpdatesConnected()
+    {
+        lock (_restartGate)
+        {
+            _connectedAt = Clock();
+        }
+    }
+
+    /// <summary>
+    /// The connection closed for good (quick reconnects ran out, or the Engine closed it). Only a connection that
+    /// stayed up earns a fresh, quick backoff: one the Engine closes straight after accepting it (for example a
+    /// person's sixth tab, over the per-session connection limit) keeps backing off instead of retrying every
+    /// couple of seconds and spending the budget every other tab shares.
+    /// </summary>
+    internal void OnLiveUpdatesClosed(Exception? ex)
+    {
+        _logger.LogWarning("Intercom closed: {Message}", ex?.Message);
+        SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
+        lock (_restartGate)
+        {
+            if (_connectedAt is { } since && Clock() - since >= StableConnection)
+            {
+                _restartAttempt = 0;
+            }
+
+            _connectedAt = null;
+        }
+
+        ScheduleRestart();
     }
 
     private void ScheduleRestart()
@@ -1223,9 +1291,14 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         {
             _logger.LogDebug(ex, "A scheduled live-updates restart stopped because the circuit closed.");
         }
+        catch (Exception ex)
+        {
+            // Nothing awaits this background task, so an unexpected failure is logged here rather than lost.
+            _logger.LogWarning(ex, "A scheduled live-updates restart failed unexpectedly.");
+        }
     }
 
-    private void CancelScheduledRestart()
+    internal void CancelScheduledRestart()
     {
         lock (_restartGate)
         {
@@ -1490,15 +1563,13 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         _hubConnection.Reconnected += connectionId =>
         {
             _logger.LogInformation("Intercom reconnected (connectionId={Id})", connectionId);
+            OnLiveUpdatesConnected();
             SetEngineConnectionState(EngineConnectionState.Online);
             return RefreshIngestionQueueProgressAsync(CancellationToken.None);
         };
         _hubConnection.Closed += ex =>
         {
-            _logger.LogWarning("Intercom closed: {Message}", ex?.Message);
-            SetEngineConnectionState(EngineConnectionState.LiveUpdatesDisconnected);
-            // Quick reconnects ran out (for example a long Engine restart); keep trying with backoff.
-            ScheduleRestart();
+            OnLiveUpdatesClosed(ex);
             return Task.CompletedTask;
         };
 
@@ -1523,12 +1594,18 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            // Non-fatal: degrade gracefully to HTTP-only mode; the caller schedules a restart.
+            // Non-fatal: degrade gracefully to HTTP-only mode. A later call can retry, and the caller schedules a restart with backoff.
             if (FindInner<IntercomTokenUnavailableException>(ex) is { } refused)
             {
                 _logger.LogWarning(
                     "Could not mint a short-lived Intercom token (Engine answered {Status}); live updates will retry.",
                     (int)refused.Status);
+            }
+            else if (FindInner<HttpRequestException>(ex) is { StatusCode: System.Net.HttpStatusCode.Unauthorized })
+            {
+                // The hub no longer accepts this token (for example the Engine restarted with new keys); mint afresh next time.
+                _intercomToken = null;
+                _logger.LogWarning("Intercom refused the live-updates token; a new one will be minted on the next attempt.");
             }
             else if (FindInner<SocketException>(ex) is { SocketErrorCode: SocketError.ConnectionRefused } socket)
             {
@@ -1545,10 +1622,22 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         }
 
         _logger.LogInformation("Intercom connected ({ConnectionId}).", connection.ConnectionId);
-        SetEngineConnectionState(EngineConnectionState.Online);
-        _state.PushServerStarted();
-        await RefreshIngestionQueueProgressAsync(ct);
         return true;
+    }
+
+    private async Task AfterLiveUpdatesConnectedAsync(CancellationToken ct)
+    {
+        try
+        {
+            SetEngineConnectionState(EngineConnectionState.Online);
+            _state.PushServerStarted();
+            await RefreshIngestionQueueProgressAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // The connection is up; a failed first read of the ingestion numbers only delays them until the next event.
+            _logger.LogWarning(ex, "Live updates connected, but the first refresh after connecting failed.");
+        }
     }
 
     private static TException? FindInner<TException>(Exception ex) where TException : Exception
