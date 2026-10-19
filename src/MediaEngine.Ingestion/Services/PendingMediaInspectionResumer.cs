@@ -19,6 +19,7 @@ public sealed class PendingMediaInspectionResumer(
     private const int PageSize = 50;
 
     private int _running;
+    private int _rerunRequested;
     private Task _pass = Task.CompletedTask;
 
     /// <summary>
@@ -32,13 +33,15 @@ public sealed class PendingMediaInspectionResumer(
             return Task.CompletedTask;
         }
 
-        // One pass at a time: a second check while a pass runs has nothing to add.
+        // One pass at a time. A check that arrives while a pass runs asks it to go round once more when it finishes,
+        // so files it had to leave waiting (the tool went away mid-pass) are not stranded until the next check.
+        Volatile.Write(ref _rerunRequested, 1);
         if (Interlocked.Exchange(ref _running, 1) == 1)
         {
             return Task.CompletedTask;
         }
 
-        _pass = Task.Run(() => RunPassAsync(ct), CancellationToken.None);
+        Volatile.Write(ref _pass, Task.Run(() => RunPassAsync(ct), CancellationToken.None));
         return Task.CompletedTask;
     }
 
@@ -47,21 +50,33 @@ public sealed class PendingMediaInspectionResumer(
 
     private async Task RunPassAsync(CancellationToken ct)
     {
-        try
+        while (true)
         {
-            await ResumeAsync(ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // The Engine is stopping; the rest stay held and resume on the next start-up check.
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Resuming the waiting media inspections stopped early; the rest stay waiting.");
-        }
-        finally
-        {
-            Volatile.Write(ref _running, 0);
+            Volatile.Write(ref _rerunRequested, 0);
+            try
+            {
+                await ResumeAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The Engine is stopping; the rest stay held and resume on the next start-up check.
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Resuming the waiting media inspections stopped early; the rest stay waiting.");
+            }
+            finally
+            {
+                Volatile.Write(ref _running, 0);
+            }
+
+            // Go round again only if a check asked for it while this pass ran and no other pass has started since.
+            if (ct.IsCancellationRequested
+                || Volatile.Read(ref _rerunRequested) == 0
+                || Interlocked.Exchange(ref _running, 1) == 1)
+            {
+                return;
+            }
         }
     }
 

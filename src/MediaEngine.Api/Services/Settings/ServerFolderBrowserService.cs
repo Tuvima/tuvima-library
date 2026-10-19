@@ -626,7 +626,7 @@ public sealed class ServerFolderBrowserService(
             if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
                 || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
             {
-                issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+                issues.Add(Issue("protected_path", "This folder holds the Library's own files and can't be used here."));
             }
 
             if (IsSystemPath(selection.Path))
@@ -651,7 +651,7 @@ public sealed class ServerFolderBrowserService(
         if (RelativeSegments(relative).Any(segment => ProtectedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase))
             || IsInsideOwnFolder(ownInsideLocation, selection.Path))
         {
-            issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+            issues.Add(Issue("protected_path", "This folder holds the Library's own files and can't be used here."));
         }
     }
 
@@ -661,7 +661,7 @@ public sealed class ServerFolderBrowserService(
         if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
             || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
         {
-            issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+            issues.Add(Issue("protected_path", "This folder holds the Library's own files and can't be used here."));
         }
     }
 

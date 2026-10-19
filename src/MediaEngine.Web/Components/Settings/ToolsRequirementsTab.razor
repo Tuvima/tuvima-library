@@ -88,6 +88,10 @@
     private AppUiTone _messageTone = AppUiTone.Info;
     private CancellationTokenSource? _poll;
     private readonly CancellationTokenSource _lifetime = new();
+    private bool _disposed;
+
+    // Work that resumes after the page has gone must not touch the disposed source; it gets an already-cancelled token.
+    private CancellationToken Lifetime => _disposed ? new CancellationToken(canceled: true) : _lifetime.Token;
 
     private IReadOnlyList<ToolRequirementDto> Tools =>
         _tools?.Tools.Where(tool => tool.Kind == "tool").ToList() ?? [];
@@ -111,13 +115,18 @@
 
     private async Task RefreshAsync()
     {
-        _tools = await ApiClient.GetToolRequirementsAsync(_lifetime.Token);
+        if (_disposed)
+        {
+            return;
+        }
+
+        _tools = await ApiClient.GetToolRequirementsAsync(Lifetime);
         await LoadModelStatusesAsync();
     }
 
     private async Task LoadModelStatusesAsync()
     {
-        var statuses = await Orchestrator.GetAiModelStatusesAsync(_lifetime.Token);
+        var statuses = await Orchestrator.GetAiModelStatusesAsync(Lifetime);
         _modelStatuses = statuses.ToDictionary(status => status.Role, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -125,7 +134,7 @@
     {
         _checking = true;
         _message = null;
-        var fresh = await ApiClient.CheckToolRequirementsAsync(_lifetime.Token);
+        var fresh = await ApiClient.CheckToolRequirementsAsync(Lifetime);
         if (fresh is null)
         {
             Say("The Library could not check the tools. Check that the server is online, then try again.", AppUiTone.Error);
@@ -161,7 +170,7 @@
         _busyId = tool.Id;
         _message = null;
         var result = await ApiClient.SetToolLocationAsync(
-            tool.Id, new ToolLocationRequest(selected.StorageLocationId, selected.RelativePath, null), _lifetime.Token);
+            tool.Id, new ToolLocationRequest(selected.StorageLocationId, selected.RelativePath, null), Lifetime);
         _busyId = null;
         if (!result.Success || result.Tools is null)
         {
@@ -204,7 +213,7 @@
     private async Task DownloadModelAsync(ToolRequirementDto model)
     {
         _busyId = model.Id;
-        var result = await Orchestrator.StartAiModelDownloadAsync(RoleOf(model), _lifetime.Token);
+        var result = await Orchestrator.StartAiModelDownloadAsync(RoleOf(model), Lifetime);
         _busyId = null;
         await AfterModelActionAsync(result, $"The download of {model.Name} could not start.", $"Downloading {model.Name}.");
     }
@@ -215,9 +224,9 @@
         var role = RoleOf(model);
         var result = action switch
         {
-            ModelAction.Cancel => await Orchestrator.CancelAiModelDownloadAsync(role, _lifetime.Token),
-            ModelAction.Load => await Orchestrator.LoadAiModelAsync(role, _lifetime.Token),
-            _ => await Orchestrator.UnloadAiModelAsync(role, _lifetime.Token),
+            ModelAction.Cancel => await Orchestrator.CancelAiModelDownloadAsync(role, Lifetime),
+            ModelAction.Load => await Orchestrator.LoadAiModelAsync(role, Lifetime),
+            _ => await Orchestrator.UnloadAiModelAsync(role, Lifetime),
         };
         _busyId = null;
         await AfterModelActionAsync(result, $"{action} did not work for {model.Name}.", $"{action} requested for {model.Name}.");
@@ -245,12 +254,12 @@
 
     private void EnsurePolling()
     {
-        if (_poll is not null || !AnyDownloading || _lifetime.IsCancellationRequested)
+        if (_poll is not null || !AnyDownloading || _disposed)
         {
             return;
         }
 
-        _poll = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _poll = CancellationTokenSource.CreateLinkedTokenSource(Lifetime);
         _ = PollWhileDownloadingAsync(_poll);
     }
 
@@ -296,6 +305,7 @@
 
     public void Dispose()
     {
+        _disposed = true;
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
