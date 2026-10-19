@@ -470,15 +470,15 @@ public sealed class OverviewPageTests : AsyncBunitContext
         int completed = 0,
         Dictionary<string, double>? consumed = null,
         TasteProfileDto? taste = null) => new()
-    {
-        Stats = new ProfileOverviewStatsViewModel
         {
-            InProgress = inProgress,
-            Completed = completed,
-            ConsumedSecondsByMediaType = consumed ?? [],
-        },
-        Taste = taste,
-    };
+            Stats = new ProfileOverviewStatsViewModel
+            {
+                InProgress = inProgress,
+                Completed = completed,
+                ConsumedSecondsByMediaType = consumed ?? [],
+            },
+            Taste = taste,
+        };
 
     /// <summary>A separate context for the phone, because each test context holds one device.</summary>
     private sealed class PhoneContext : AsyncBunitContext
