@@ -645,6 +645,56 @@ public static class AccountEndpoints
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
 
+        // Households: a server administrator lists, adds, renames and removes them; a household administrator only
+        // lists their own. Removing is refused (409) while any person or sign-in belongs to the household.
+        access.MapGet("/households", async (HttpContext http, IRequestAuthorityResolver resolver,
+            [FromServices] HouseholdManagementService service, CancellationToken ct) => await ExecuteAsync(async () =>
+            Results.Ok((await service.ListAsync(await resolver.ResolveAsync(http, ct), ct)).Select(MapHousehold).ToList())))
+            .RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersRead)
+            .WithName("ListHouseholds").Produces<IReadOnlyList<HouseholdResponse>>();
+
+        access.MapPost("/households", async (CreateHouseholdRequest request, HttpContext http,
+            IRequestAuthorityResolver resolver, [FromServices] HouseholdManagementService service,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            var created = await service.CreateAsync(await resolver.ResolveAsync(http, ct), request.Name, ct);
+            return Results.Created($"/access/households/{created.Household.Id:D}", MapHousehold(created));
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("CreateHousehold").Produces<HouseholdResponse>(StatusCodes.Status201Created);
+
+        access.MapPut("/households/{householdId:guid}", async (Guid householdId, RenameHouseholdRequest request,
+            HttpContext http, IRequestAuthorityResolver resolver, [FromServices] HouseholdManagementService service,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            return Results.Ok(MapHousehold(
+                await service.RenameAsync(await resolver.ResolveAsync(http, ct), householdId, request.Name, ct)));
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("RenameHousehold").Produces<HouseholdResponse>();
+
+        access.MapDelete("/households/{householdId:guid}", async (Guid householdId, HttpContext http,
+            IRequestAuthorityResolver resolver, [FromServices] HouseholdManagementService service,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await service.DeleteAsync(await resolver.ResolveAsync(http, ct), householdId, ct);
+            return Results.NoContent();
+        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("DeleteHousehold").Produces(StatusCodes.Status204NoContent);
+
         access.MapPost("/households/{householdId:guid}/people", async (Guid householdId,
             AddHouseholdPersonRequest request, HttpContext http, IRequestAuthorityResolver resolver,
             IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
@@ -788,6 +838,10 @@ public static class AccountEndpoints
             ? authority.AccountHouseholdId
             : null;
     }
+
+    private static HouseholdResponse MapHousehold(HouseholdSummary summary) =>
+        new(summary.Household.Id, summary.Household.Name, summary.ProfileCount, summary.AccountCount,
+            summary.Household.CreatedAt);
 
     private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> operation)
     {
