@@ -4,6 +4,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Http;
 
 namespace MediaEngine.Api.Tests;
@@ -19,7 +20,13 @@ internal sealed class ApprovalTestKit : IDisposable
     private readonly string _path = Path.Combine(Path.GetTempPath(), $"approvals-{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _database;
 
-    public ApprovalTestKit()
+    /// <param name="applications">The application store the service reads; a real one over the temp store when omitted.</param>
+    /// <param name="permissions">The permission catalogue the service names permissions from; the real one when omitted.</param>
+    /// <param name="records">The record store the service writes; the real one over the temp store when omitted.</param>
+    public ApprovalTestKit(
+        IApplicationRepository? applications = null,
+        IPermissionRegistry? permissions = null,
+        IApprovalRecordRepository? records = null)
     {
         DapperConfiguration.Configure();
         _database = new(_path);
@@ -28,7 +35,7 @@ internal sealed class ApprovalTestKit : IDisposable
         Records = new(_database);
         Clock = new();
         var profiles = new StubProfiles(AccountProfile());
-        Service = new(Records, profiles, new ApplicationRepository(_database), new PermissionRegistry(), Clock);
+        Service = new(records ?? Records, profiles, applications ?? new ApplicationRepository(_database), permissions ?? new PermissionRegistry(), Clock);
         Authority = new(PrincipalKind.Human, true, AccountId, ProfileId);
         Resolver = new FixedResolver(Authority);
     }

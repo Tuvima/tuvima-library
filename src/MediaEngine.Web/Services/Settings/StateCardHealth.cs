@@ -50,6 +50,9 @@ public static class StateCardHealth
     /// <summary>Where Local AI work happens; Local AI never sends data out.</summary>
     public const string RunsOnThisMachine = "Runs on this machine";
 
+    /// <summary>What a plugin that stopped running because its permissions changed says on its card.</summary>
+    public const string NeedsApprovalMessage = "Needs approval: its permissions changed";
+
     private const string RunFailed = "failed";
 
     /// <summary>What the Local AI engine card says it is allowed to do.</summary>
@@ -64,6 +67,12 @@ public static class StateCardHealth
     public static StateCardHealthResult ForPlugin(PluginSummaryResponse plugin, PluginHealthResponse? health, ScheduledTaskLastRunDto? latestRun)
     {
         ArgumentNullException.ThrowIfNull(plugin);
+        if (plugin.NeedsApproval)
+        {
+            // Switched on before, but what it may do has changed, so it is not running until it is approved again.
+            return new(HealthWord.NeedsAttention, NeedsApprovalMessage);
+        }
+
         if (!plugin.Enabled)
         {
             return new(HealthWord.Off);

@@ -1581,7 +1581,7 @@ public sealed partial class EngineApiClient
             }
 
             // 409 approval_required: a feature was switched on that the person has not seen yet; nothing was saved.
-            if (await ApprovalResponses.TryReadAsync(response, ct) is { } approval)
+            if (await ApprovalResponses.TryReadAsync(response, _logger, ct) is { } approval)
             {
                 return new AiConfigSaveResult(false, approval);
             }

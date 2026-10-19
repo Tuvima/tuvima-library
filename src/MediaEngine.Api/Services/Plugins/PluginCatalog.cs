@@ -28,6 +28,7 @@ public sealed class PluginCatalog
 
     private readonly IReadOnlyList<ITuvimaPlugin> _builtInPlugins;
     private readonly PluginSettingsService _settingsService;
+    private readonly IPluginApprovalCheck _approvals;
     private readonly ILogger<PluginCatalog> _logger;
     private readonly string _pluginRoot;
     private readonly string _libraryVersion;
@@ -40,8 +41,9 @@ public sealed class PluginCatalog
         IEnumerable<ITuvimaPlugin> builtInPlugins,
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
+        IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger)
-        : this(builtInPlugins, settingsService, configurationLoader, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
+        : this(builtInPlugins, settingsService, configurationLoader, approvals, logger, LibraryVersion.Current, PluginCompatibility.CurrentRid)
     {
     }
 
@@ -51,12 +53,14 @@ public sealed class PluginCatalog
         IEnumerable<ITuvimaPlugin> builtInPlugins,
         PluginSettingsService settingsService,
         IConfigurationLoader configurationLoader,
+        IPluginApprovalCheck approvals,
         ILogger<PluginCatalog> logger,
         string libraryVersion,
         string platform)
     {
         _builtInPlugins = builtInPlugins.ToList();
         _settingsService = settingsService;
+        _approvals = approvals;
         _logger = logger;
         _libraryVersion = libraryVersion;
         _platform = platform;
@@ -267,7 +271,10 @@ public sealed class PluginCatalog
 
     /// <summary>
     /// Builds the registration and works out whether the plugin fits this Library and machine. The saved
-    /// on/off flag is only reported as on when the plugin is also compatible; the saved file is never rewritten.
+    /// on/off flag is only reported as on when the plugin is also compatible and an administrator has approved its
+    /// current statement (what it may do and where its data goes); the saved file is never rewritten. A plugin that was
+    /// switched on but whose statement is no longer covered (a changed manifest, one edited on disk) is loaded but not
+    /// running, and is flagged <see cref="PluginRegistration.NeedsApproval"/> until it is switched on again.
     /// </summary>
     private PluginRegistration CreateRegistration(
         PluginManifest manifest,
@@ -284,9 +291,16 @@ public sealed class PluginCatalog
         // (private) plugin, even if it says it is official. Signature checks for verified plugins come in WP19.
         var trust = isBuiltIn ? PluginTrustLevel.Official : PluginTrustLevel.Private;
 
+        var switchedOn = config.Enabled && compatibility.IsCompatible;
+        var approved = !switchedOn || _approvals.IsCovered(manifest, trust);
+        if (!approved)
+        {
+            _logger.LogWarning("Plugin {PluginId} is switched on but needs approval again: what it may do has changed", manifest.Id);
+        }
+
         return new PluginRegistration(
             manifest,
-            config.Enabled && compatibility.IsCompatible,
+            switchedOn && approved,
             isBuiltIn,
             capabilities,
             config.Settings,
@@ -294,7 +308,8 @@ public sealed class PluginCatalog
             settingsSchema,
             manifestPath,
             trust,
-            compatibility);
+            compatibility,
+            NeedsApproval: switchedOn && !approved);
     }
 
     private PluginRegistration LoadFailure(PluginManifest? manifest, string message, string manifestPath) =>
@@ -561,7 +576,8 @@ public sealed record PluginRegistration(
     JsonElement? SettingsSchema,
     string? ManifestPath,
     PluginTrustLevel Trust,
-    PluginCompatibilityResult Compatibility);
+    PluginCompatibilityResult Compatibility,
+    bool NeedsApproval = false);
 
 /// <summary>Switching a plugin on was refused; <see cref="Exception.Message"/> is the plain-English reason.</summary>
 public sealed class PluginCannotBeEnabledException(string pluginId, string problem) : InvalidOperationException(problem)

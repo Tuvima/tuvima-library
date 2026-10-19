@@ -325,10 +325,16 @@
                 }
                 else if (hasExcludedPermissions)
                 {
-                    var cleaned = await Identity.ReplaceApplicationPermissionsResultAsync(
-                        _editing.Id,
-                        new(permissionIds));
+                    var editingId = _editing.Id;
+                    var cleaned = await ConfirmedAsync(hash => Identity.ReplaceApplicationPermissionsResultAsync(
+                        editingId,
+                        new(permissionIds, hash)));
                     if (!Current(generation)) return;
+                    if (cleaned is null)
+                    {
+                        _error = NotConfirmedMessage;
+                        return;
+                    }
                     if (!cleaned.Succeeded || cleaned.Value is null)
                     {
                         _error = FailureMessage(cleaned.Failure);
@@ -336,7 +342,18 @@
                     }
                 }
 
-                result = await Identity.UpdateApplicationResultAsync(_editing.Id, new(_name.Trim(), NullIfWhiteSpace(_description), _type, _enabled, _administrator));
+                var updatingId = _editing.Id;
+                var updated = await ConfirmedAsync(hash => Identity.UpdateApplicationResultAsync(
+                    updatingId,
+                    new(_name.Trim(), NullIfWhiteSpace(_description), _type, _enabled, _administrator, hash)));
+                if (!Current(generation)) return;
+                if (updated is null)
+                {
+                    _error = NotConfirmedMessage;
+                    await ReloadEditing(generation);
+                    return;
+                }
+                result = updated;
             }
             if (!Current(generation)) return;
             if (!result.Succeeded || result.Value is null) { _error = FailureMessage(result.Failure); return; }
@@ -346,8 +363,15 @@
             _editing = saved;
             if (!wasNew)
             {
-                var permissions = await Identity.ReplaceApplicationPermissionsResultAsync(saved.Id, new(permissionIds));
+                var savedId = saved.Id;
+                var permissions = await ConfirmedAsync(hash => Identity.ReplaceApplicationPermissionsResultAsync(savedId, new(permissionIds, hash)));
                 if (!Current(generation)) return;
+                if (permissions is null)
+                {
+                    _error = $"Application details were saved, but the new permissions were not applied. {NotConfirmedMessage}";
+                    await ReloadEditing(generation);
+                    return;
+                }
                 if (!permissions.Succeeded || permissions.Value is null)
                 {
                     _error = $"Application details were saved, but permissions were not. {FailureMessage(permissions.Failure)}";
@@ -375,6 +399,25 @@
             _notice = $"{saved.Name} was {(wasNew ? "created" : "saved")}.";
         }
         finally { End(generation); }
+    }
+
+    private const string NotConfirmedMessage = "The change to what its keys can do was not confirmed, so it was not saved.";
+
+    // Runs one save step. When the Engine asks the person to see what the integration's keys will be able to do first (more
+    // permissions, or switching it back on while it holds keys), the dialog is shown and the step repeats carrying the
+    // confirmed hash. Null means the person cancelled, so nothing more is sent.
+    private async Task<DashboardAccessMutationResult<ApplicationResponse>?> ConfirmedAsync(
+        Func<string?, Task<DashboardAccessMutationResult<ApplicationResponse>>> step)
+    {
+        var result = await step(null);
+        if (result.Failure != DashboardAccessMutationFailure.ApprovalRequired || result.Approval is not { } approval)
+            return result;
+
+        var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+        if (hashes is null)
+            return null;
+
+        return await step(hashes.Values.First());
     }
 
     private async Task IssueCredential()

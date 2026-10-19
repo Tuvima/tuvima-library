@@ -151,6 +151,45 @@ public sealed class ApprovalStatementBuilderTests
     }
 
     [Fact]
+    public void AiFeatureHash_IgnoresTheModelDownloadNote_SoDownloadingTheModelLaterDoesNotAskAgain()
+    {
+        var ready = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: true);
+        var notReady = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
+
+        Assert.Equal(["May download an AI model to this machine first"], notReady.Notes);
+        Assert.Equal(ApprovalStatementBuilder.Hash(ready), ApprovalStatementBuilder.Hash(notReady));
+        Assert.Equal(["May download an AI model to this machine first"], ApprovalStatementBuilder.ToPreview("ai_feature", "smart_labeling", notReady).Notes);
+    }
+
+    [Fact]
+    public void ApplicationStatement_SaysWhatItsKeysCanDo_AndHowManyExistingKeysItReaches()
+    {
+        var statement = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read events", "Read the library"], activeKeyCount: 2);
+        var single = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read the library"], activeKeyCount: 1);
+        var none = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read the library"], activeKeyCount: 0);
+
+        Assert.Equal("Keys for Home Assistant", statement.Title);
+        Assert.Equal("Integration", statement.KindLabel);
+        Assert.Equal(["Its keys can: Read events, Read the library"], statement.CanDo);
+        Assert.True(statement.SendsDataOut);
+        Assert.Equal("the software that holds its keys", statement.SendsDataTo);
+        Assert.Equal(["Applies to 2 existing keys"], statement.Notes);
+        Assert.Equal(["Applies to 1 existing key"], single.Notes);
+        Assert.Equal(["Applies to 0 existing keys"], none.Notes);
+    }
+
+    [Fact]
+    public void ApplicationHash_DoesNotDependOnTheOrderPermissionsAreGivenIn_ButChangesWhenOneIsAdded()
+    {
+        var one = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["x", "y"], 1));
+        var reordered = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["y", "x"], 1));
+        var added = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["x", "y", "z"], 1));
+
+        Assert.Equal(one, reordered);
+        Assert.NotEqual(one, added);
+    }
+
+    [Fact]
     public void CredentialStatement_ListsThePermissionsByTheirNamesAndTheExpiry()
     {
         var expiring = ApprovalStatementBuilder.ForCredential(

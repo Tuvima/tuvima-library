@@ -181,6 +181,88 @@ public sealed class ApprovalEnforcementTests : IDisposable
         Assert.False(catalog.Get(PluginId)!.Enabled);
     }
 
+    [Fact]
+    public async Task APluginThatIsOn_WhoseManifestGainsAPermission_IsNotRunningUntilItIsApprovedAgain()
+    {
+        var catalog = Catalog(["media.read"]);
+        var original = _kit.Service.PreviewPlugin(catalog.Get(PluginId)!);
+        await Enable(catalog, original.StatementHash);
+        Assert.True(catalog.Get(PluginId)!.Enabled);
+
+        // The same plugin, still switched on in its saved settings, now asks for the internet as well.
+        var widened = Catalog(["media.read", "network.http"]);
+
+        var registration = widened.Get(PluginId)!;
+        Assert.False(registration.Enabled);
+        Assert.True(registration.NeedsApproval);
+        Assert.Empty(widened.GetEnabledSegmentDetectors());
+        var dto = PluginEndpoints.ToDto(registration);
+        Assert.False(dto.Enabled);
+        Assert.True(dto.NeedsApproval);
+
+        var (status, body) = await Execute(await Enable(widened, null));
+        Assert.Equal(409, status);
+        Assert.Contains("Connects to the internet", body, StringComparison.Ordinal);
+
+        var newHash = _kit.Service.PreviewPlugin(widened.Get(PluginId)!).StatementHash;
+        Assert.Equal(200, (await Execute(await Enable(widened, newHash))).Status);
+        Assert.True(widened.Get(PluginId)!.Enabled);
+        Assert.False(widened.Get(PluginId)!.NeedsApproval);
+        Assert.Equal(2, (await _kit.Records.ListAsync("plugin", PluginId)).Count);
+    }
+
+    [Fact]
+    public async Task AnApprovedPlugin_WhoseManifestIsSavedUnchanged_KeepsRunning()
+    {
+        var pluginRoot = Path.Combine(_root, "library", ".data", "plugins", "sample-plugin");
+        var catalog = FilePluginCatalog(pluginRoot, ["media.read"]);
+        var hash = _kit.Service.PreviewPlugin(catalog.Get(FilePluginId)!).StatementHash;
+        Assert.Equal(200, (await Execute(await PluginEndpoints.EnablePlugin(
+            FilePluginId, new PluginEnableRequest { ApprovalHash = hash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default))).Status);
+
+        catalog.SaveManifestJson(FilePluginId, catalog.GetManifestJson(FilePluginId));
+
+        Assert.True(catalog.Get(FilePluginId)!.Enabled);
+        Assert.False(catalog.Get(FilePluginId)!.NeedsApproval);
+    }
+
+    [Fact]
+    public async Task SavingAManifestThatAddsAPermission_StopsTheRunningPlugin_UntilItIsApprovedAgain()
+    {
+        var pluginRoot = Path.Combine(_root, "library", ".data", "plugins", "sample-plugin");
+        var catalog = FilePluginCatalog(pluginRoot, ["media.read"]);
+        var hash = _kit.Service.PreviewPlugin(catalog.Get(FilePluginId)!).StatementHash;
+        await PluginEndpoints.EnablePlugin(FilePluginId, new PluginEnableRequest { ApprovalHash = hash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default);
+        Assert.True(catalog.Get(FilePluginId)!.Enabled);
+
+        var manifest = JsonSerializer.Deserialize<PluginManifest>(catalog.GetManifestJson(FilePluginId))!;
+        catalog.SaveManifestJson(FilePluginId, JsonSerializer.Serialize(manifest with { Permissions = ["media.read", "network.http"] }));
+
+        var registration = catalog.Get(FilePluginId)!;
+        Assert.False(registration.Enabled);
+        Assert.True(registration.NeedsApproval);
+
+        var newHash = _kit.Service.PreviewPlugin(registration).StatementHash;
+        await PluginEndpoints.EnablePlugin(FilePluginId, new PluginEnableRequest { ApprovalHash = newHash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default);
+        Assert.True(catalog.Get(FilePluginId)!.Enabled);
+    }
+
+    [Fact]
+    public async Task AManifestEditedOnDisk_ThenReloaded_IsNotRunningUntilItIsApprovedAgain()
+    {
+        var pluginRoot = Path.Combine(_root, "library", ".data", "plugins", "sample-plugin");
+        var catalog = FilePluginCatalog(pluginRoot, ["media.read"]);
+        var hash = _kit.Service.PreviewPlugin(catalog.Get(FilePluginId)!).StatementHash;
+        await PluginEndpoints.EnablePlugin(FilePluginId, new PluginEnableRequest { ApprovalHash = hash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default);
+        Assert.True(catalog.Get(FilePluginId)!.Enabled);
+
+        File.WriteAllText(Path.Combine(pluginRoot, "plugin.json"), PluginJson(["media.read", "process.execute"]));
+        catalog.Reload();
+
+        Assert.False(catalog.Get(FilePluginId)!.Enabled);
+        Assert.True(catalog.Get(FilePluginId)!.NeedsApproval);
+    }
+
     // ── Local AI features ────────────────────────────────────────────────────
 
     [Fact]
@@ -220,17 +302,73 @@ public sealed class ApprovalEnforcementTests : IDisposable
     }
 
     [Fact]
-    public async Task SavingAiConfig_TheHashMustMatchTheModelState_SoADownloadNoteIsNotSkipped()
+    public async Task SavingAiConfig_WhenTheModelIsNotDownloaded_ShowsTheDownloadNote_ButTheNoteIsNotWhatIsConfirmed()
     {
         var (store, _) = AiStore();
-        var request = ConfigWith(store, ("vibe_tags", true));
-        request.Approvals["vibe_tags"] = _kit.Service.PreviewAiFeature("vibe_tags", modelReady: true).StatementHash;
+        var withoutHash = ConfigWith(store, ("vibe_tags", true));
 
-        var (status, body) = await Execute(await SaveAi(store, request, false));
+        var (status, body) = await Execute(await SaveAi(store, withoutHash, false));
 
         Assert.Equal(409, status);
         Assert.Contains("May download an AI model to this machine first", body, StringComparison.Ordinal);
         Assert.False(store.Current.Features.VibeTags);
+
+        // Confirming while the model was ready covers it while the model is not, and the other way round: the download
+        // happening later never asks again.
+        var ready = _kit.Service.PreviewAiFeature("vibe_tags", modelReady: true);
+        var notReady = _kit.Service.PreviewAiFeature("vibe_tags", modelReady: false);
+        Assert.Equal(ready.StatementHash, notReady.StatementHash);
+        Assert.DoesNotContain(ready.Notes, note => note.Contains("download", StringComparison.Ordinal));
+        Assert.Contains(notReady.Notes, note => note.Contains("download", StringComparison.Ordinal));
+        var withHash = ConfigWith(store, ("vibe_tags", true));
+        withHash.Approvals["vibe_tags"] = ready.StatementHash;
+        Assert.Equal(200, (await Execute(await SaveAi(store, withHash, false))).Status);
+        Assert.True(store.Current.Features.VibeTags);
+        var record = Assert.Single(await _kit.Service.ListAsync("ai_feature", "vibe_tags", default));
+        Assert.Equal(ready.StatementHash, record.StatementHash);
+    }
+
+    [Fact]
+    public async Task SavingAiConfig_AFeatureSwitchedOnByChangingTheLetterCaseOfItsKey_StillNeedsApproval()
+    {
+        var (store, _) = AiStore();
+        var request = FromWire("""{"features":{"SMART_LABELING":true,"Vibe_Tags":true}}""");
+
+        var (status, body) = await Execute(await SaveAi(store, request, true));
+
+        Assert.Equal(409, status);
+        var required = JsonSerializer.Deserialize<ApprovalRequiredResponse>(body)!;
+        Assert.Equal(["smart_labeling", "vibe_tags"], required.Approvals.Select(a => a.ItemId).ToArray());
+        Assert.False(store.Current.Features.SmartLabeling);
+        Assert.False(store.Current.Features.VibeTags);
+        Assert.Empty(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
+    }
+
+    [Fact]
+    public async Task SavingAiConfig_TheSameFeatureTwiceInDifferentLetterCase_IsABadRequest_AndSavesNothing()
+    {
+        var (store, _) = AiStore();
+        var request = FromWire("""{"features":{"smart_labeling":false,"SMART_LABELING":true}}""");
+
+        var (status, _) = await Execute(await SaveAi(store, request, true));
+
+        Assert.Equal(400, status);
+        Assert.False(store.Current.Features.SmartLabeling);
+        Assert.Empty(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
+    }
+
+    [Fact]
+    public async Task SavingAiConfig_AMixedCaseFeatureKeyWithAMixedCaseApproval_IsSavedAndRecordedUnderTheCanonicalKey()
+    {
+        var (store, _) = AiStore();
+        var hash = _kit.Service.PreviewAiFeature("smart_labeling", true).StatementHash;
+        var request = FromWire($$$"""{"features":{"Smart_Labeling":true},"approvals":{"SMART_LABELING":"{{{hash}}}"}}""");
+
+        var (status, _) = await Execute(await SaveAi(store, request, true));
+
+        Assert.Equal(200, status);
+        Assert.True(store.Current.Features.SmartLabeling);
+        Assert.Single(await _kit.Records.ListAsync("ai_feature", "smart_labeling"));
     }
 
     [Fact]
@@ -457,12 +595,46 @@ public sealed class ApprovalEnforcementTests : IDisposable
             [new TestPlugin(manifest)],
             new PluginSettingsService(_loader),
             _loader,
+            new PluginApprovalCheck(_kit.Records, NullLogger<PluginApprovalCheck>.Instance),
             NullLogger<PluginCatalog>.Instance);
         return catalog;
     }
 
+    private const string FilePluginId = "tuvima.test.approval-file";
+
+    // A plugin loaded from a plugin.json under the library's plugin folder, so its manifest can be edited and saved.
+    private PluginCatalog FilePluginCatalog(string pluginRoot, IReadOnlyList<string> permissions)
+    {
+        Directory.CreateDirectory(pluginRoot);
+        var testAssemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        File.Copy(testAssemblyPath, Path.Combine(pluginRoot, Path.GetFileName(testAssemblyPath)), overwrite: true);
+        File.WriteAllText(Path.Combine(pluginRoot, "plugin.json"), PluginJson(permissions));
+        return new PluginCatalog(
+            [],
+            new PluginSettingsService(_loader),
+            _loader,
+            new PluginApprovalCheck(_kit.Records, NullLogger<PluginApprovalCheck>.Instance),
+            NullLogger<PluginCatalog>.Instance);
+    }
+
+    private static string PluginJson(IReadOnlyList<string> permissions) => $$"""
+        {
+          "id": "{{FilePluginId}}",
+          "name": "File approval test",
+          "version": "1.0.0",
+          "description": "Loaded from plugin.json.",
+          "entry_assembly": "MediaEngine.Api.Tests.dll",
+          "entry_type": "MediaEngine.Api.Tests.PluginCatalogTests+DynamicTestPlugin",
+          "permissions": [{{string.Join(", ", permissions.Select(permission => $"\"{permission}\""))}}]
+        }
+        """;
+
     private async Task<IResult> Enable(PluginCatalog catalog, string? hash) => await PluginEndpoints.EnablePlugin(
         PluginId, hash is null ? null : new PluginEnableRequest { ApprovalHash = hash }, _kit.Http(), catalog, _kit.Service, _kit.Resolver, default);
+
+    // The request as the Engine receives it: parsed from JSON, so key letter case is exactly what the caller wrote.
+    private static MediaEngine.Contracts.Ai.AiConfigDto FromWire(string json) =>
+        JsonSerializer.Deserialize<MediaEngine.Contracts.Ai.AiConfigDto>(json)!;
 
     private (AiConfigurationService Store, AiSettings Settings) AiStore()
     {

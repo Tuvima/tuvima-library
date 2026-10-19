@@ -81,21 +81,11 @@ public static class ApplicationEndpoints
             .Produces<ApplicationResponse>()
             .ProducesValidationProblem();
 
-        group.MapPut("/{applicationId:guid}", async (
-            Guid applicationId,
-            UpdateApplicationRequest request,
-            HttpContext context,
-            IRequestAuthorityResolver authorityResolver,
-            ApplicationAdministrationService service,
-            CancellationToken ct) =>
-            await ExecuteAsync(
-                context,
-                authorityResolver,
-                (authority, token) => service.UpdateApplicationAsync(authority, applicationId, request, token),
-                ct))
+        group.MapPut("/{applicationId:guid}", UpdateApplicationAsync)
             .WithName("UpdateApplication")
-            .WithSummary("Update Application identity, type, enabled state, or administrator capability.")
+            .WithSummary("Update Application identity, type, enabled state, or administrator capability. Switching an Application back on while it holds live keys, or giving its keys more permissions, needs its approval hash (409 approval_required otherwise).")
             .Produces<ApplicationResponse>()
+            .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -115,21 +105,11 @@ public static class ApplicationEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        group.MapPut("/{applicationId:guid}/permissions", async (
-            Guid applicationId,
-            SetApplicationPermissionsRequest request,
-            HttpContext context,
-            IRequestAuthorityResolver authorityResolver,
-            ApplicationAdministrationService service,
-            CancellationToken ct) =>
-            await ExecuteAsync(
-                context,
-                authorityResolver,
-                (authority, token) => service.ReplacePermissionsAsync(authority, applicationId, request, token),
-                ct))
+        group.MapPut("/{applicationId:guid}/permissions", SetPermissionsAsync)
             .WithName("SetApplicationPermissions")
-            .WithSummary("Replace an Application's permission grants.")
+            .WithSummary("Replace an Application's permission grants. Adding permissions needs the approval hash (409 approval_required otherwise); removing them needs nothing.")
             .Produces<ApplicationResponse>()
+            .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -224,6 +204,7 @@ public static class ApplicationEndpoints
         IRequestAuthorityResolver authorityResolver,
         ApplicationAdministrationService service,
         [FromServices] ApprovalService approvals,
+        ILoggerFactory loggers,
         CancellationToken ct)
     {
         try
@@ -239,26 +220,156 @@ public static class ApplicationEndpoints
             }
 
             var issued = await service.IssueCredentialAsync(authority, applicationId, request, ct).ConfigureAwait(false);
-            var recorded = false;
-            try
-            {
-                var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
-                await approvals.RecordAsync(preview!, ApprovalKinds.ApplicationCredential, issued.Credential.Id.ToString("D"), actor, ct).ConfigureAwait(false);
-                recorded = true;
-            }
-            finally
-            {
-                if (!recorded)
-                {
-                    await service.RevokeCredentialAsync(authority, applicationId, issued.Credential.Id, CancellationToken.None).ConfigureAwait(false);
-                }
-            }
-
+            await RecordOrUndoAsync(
+                approvals,
+                authority,
+                preview!,
+                ApprovalKinds.ApplicationCredential,
+                issued.Credential.Id.ToString("D"),
+                undo: () => service.RevokeCredentialAsync(authority, applicationId, issued.Credential.Id, CancellationToken.None),
+                loggers.CreateLogger(typeof(ApplicationEndpoints).FullName!),
+                ct).ConfigureAwait(false);
             return Results.Ok(issued);
         }
         catch (ApplicationAdministrationException exception)
         {
             return MapError(exception);
+        }
+    }
+
+    /// <summary>
+    /// Replaces an integration's permissions. Giving its existing keys more permissions needs the approval hash of the
+    /// statement the person saw; taking permissions away needs nothing. The approval is recorded under the application's
+    /// id once the change is saved; if the record cannot be written the change is put back, so no widening exists without
+    /// a record.
+    /// </summary>
+    internal static async Task<IResult> SetPermissionsAsync(
+        Guid applicationId,
+        SetApplicationPermissionsRequest request,
+        HttpContext context,
+        IRequestAuthorityResolver authorityResolver,
+        ApplicationAdministrationService service,
+        [FromServices] ApprovalService approvals,
+        ILoggerFactory loggers,
+        CancellationToken ct)
+    {
+        try
+        {
+            var authority = await authorityResolver.ResolveAsync(context, ct).ConfigureAwait(false);
+            // Reading the application also proves the caller may manage applications, and that it exists.
+            var before = await service.GetApplicationAsync(authority, applicationId, ct).ConfigureAwait(false);
+            var preview = approvals.PreviewApplicationPermissions(before, request.PermissionIds);
+            if (preview is not null && !ApprovalService.HashMatches(request.ApprovalHash, preview.StatementHash))
+            {
+                return ApiErrors.ApprovalRequired([preview]);
+            }
+
+            var updated = await service.ReplacePermissionsAsync(authority, applicationId, request, ct).ConfigureAwait(false);
+            if (preview is not null)
+            {
+                await RecordOrUndoAsync(
+                    approvals,
+                    authority,
+                    preview,
+                    ApprovalKinds.Application,
+                    applicationId.ToString("D"),
+                    undo: () => service.ReplacePermissionsAsync(authority, applicationId, new SetApplicationPermissionsRequest(before.PermissionIds), CancellationToken.None),
+                    loggers.CreateLogger(typeof(ApplicationEndpoints).FullName!),
+                    ct).ConfigureAwait(false);
+            }
+
+            return Results.Ok(updated);
+        }
+        catch (ApplicationAdministrationException exception)
+        {
+            return MapError(exception);
+        }
+    }
+
+    /// <summary>
+    /// Updates an integration. Switching it back on while it holds live keys, or giving its keys more permissions (for
+    /// example by making it an administrator), needs the approval hash; disabling it or narrowing it needs nothing. Recorded
+    /// under the application's id, and put back if the record cannot be written.
+    /// </summary>
+    internal static async Task<IResult> UpdateApplicationAsync(
+        Guid applicationId,
+        UpdateApplicationRequest request,
+        HttpContext context,
+        IRequestAuthorityResolver authorityResolver,
+        ApplicationAdministrationService service,
+        [FromServices] ApprovalService approvals,
+        ILoggerFactory loggers,
+        CancellationToken ct)
+    {
+        try
+        {
+            var authority = await authorityResolver.ResolveAsync(context, ct).ConfigureAwait(false);
+            var before = await service.GetApplicationAsync(authority, applicationId, ct).ConfigureAwait(false);
+            var preview = await approvals.PreviewApplicationUpdateAsync(before, request, ct).ConfigureAwait(false);
+            if (preview is not null && !ApprovalService.HashMatches(request.ApprovalHash, preview.StatementHash))
+            {
+                return ApiErrors.ApprovalRequired([preview]);
+            }
+
+            var updated = await service.UpdateApplicationAsync(authority, applicationId, request, ct).ConfigureAwait(false);
+            if (preview is not null)
+            {
+                var restore = new UpdateApplicationRequest(
+                    before.Name, before.Description, before.ApplicationType, before.IsEnabled, before.IsAdministrator);
+                await RecordOrUndoAsync(
+                    approvals,
+                    authority,
+                    preview,
+                    ApprovalKinds.Application,
+                    applicationId.ToString("D"),
+                    undo: () => service.UpdateApplicationAsync(authority, applicationId, restore, CancellationToken.None),
+                    loggers.CreateLogger(typeof(ApplicationEndpoints).FullName!),
+                    ct).ConfigureAwait(false);
+            }
+
+            return Results.Ok(updated);
+        }
+        catch (ApplicationAdministrationException exception)
+        {
+            return MapError(exception);
+        }
+    }
+
+    /// <summary>
+    /// Writes the approval record for a change that has just been made. If the record cannot be written, the change is
+    /// undone so nothing stays switched on without a record; if the undo fails too, that is logged (the application and
+    /// the change only, never a key) and the original failure is the one that reaches the caller.
+    /// </summary>
+    private static async Task RecordOrUndoAsync(
+        ApprovalService approvals,
+        RequestAuthority authority,
+        ApprovalPreviewResponse preview,
+        string itemKind,
+        string itemId,
+        Func<Task> undo,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
+            await approvals.RecordAsync(preview, itemKind, itemId, actor, ct).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            try
+            {
+                await undo().ConfigureAwait(false);
+            }
+            catch (Exception undoFailure)
+            {
+                logger.LogError(
+                    undoFailure,
+                    "The {ItemKind} change for {ItemId} could not be put back after its approval record failed to save",
+                    itemKind, itemId);
+            }
+
+            throw;
         }
     }
 

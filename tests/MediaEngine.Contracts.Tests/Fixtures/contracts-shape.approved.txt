@@ -1385,6 +1385,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApp
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApplicationPermissionsRequest
   PermissionIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceBackupProfileRequest
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -1462,6 +1463,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   ApplicationType: MediaEngine.Contracts.Authentication.ApplicationTypeDto | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
+  ApprovalHash: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UpdateManagedAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
@@ -6582,6 +6584,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   Description: System.String | nullability=not-null | accessors=get,set
   Enabled: System.Boolean | nullability=not-null | accessors=get,set
   IsBuiltIn: System.Boolean | nullability=not-null | accessors=get,init
+  NeedsApproval: System.Boolean | nullability=not-null | accessors=get,set
   LoadError: System.String | nullability=nullable | accessors=get,set
   Kind: System.String | nullability=not-null | accessors=get,set
   TrustLevel: System.String | nullability=not-null | accessors=get,set

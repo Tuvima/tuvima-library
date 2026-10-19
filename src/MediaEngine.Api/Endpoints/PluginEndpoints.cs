@@ -252,6 +252,7 @@ internal static class PluginEndpoints
         string pluginId,
         PluginCatalog catalog,
         [FromServices] IConfigSecretsStore secrets,
+        ILoggerFactory loggers,
         CancellationToken ct)
     {
         var plugin = catalog.Get(pluginId);
@@ -260,17 +261,29 @@ internal static class PluginEndpoints
             return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
         }
 
-        var configured = plugin.Manifest.Secrets.Count == 0
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : (await secrets.ListNamesAsync(SecretOwner.Plugin(plugin.Manifest.Id), ct).ConfigureAwait(false))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return Results.Ok(plugin.Manifest.Secrets.Select(secret => new PluginSecretStatusResponse
+        if (!TryPluginSecretOwner(plugin, out var owner, out var badId))
         {
-            Name = secret.Name,
-            Label = secret.Label,
-            Description = secret.Description,
-            Configured = configured.Contains(secret.Name),
-        }).ToList());
+            return badId!;
+        }
+
+        try
+        {
+            var configured = plugin.Manifest.Secrets.Count == 0
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : (await secrets.ListNamesAsync(owner, ct).ConfigureAwait(false))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return Results.Ok(plugin.Manifest.Secrets.Select(secret => new PluginSecretStatusResponse
+            {
+                Name = secret.Name,
+                Label = secret.Label,
+                Description = secret.Description,
+                Configured = configured.Contains(secret.Name),
+            }).ToList());
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
+        {
+            return PluginSecretsUnavailable(plugin.Manifest.Id, ex, loggers);
+        }
     }
 
     internal static async Task<IResult> SetPluginSecretAsync(
@@ -305,10 +318,23 @@ internal static class PluginEndpoints
             return ApiErrors.BadRequest($"The value can be at most {MaximumSecretValueLength:N0} characters.");
         }
 
-        await secrets.SetAsync(
-            SecretOwner.Plugin(plugin.Manifest.Id),
-            new Dictionary<string, string> { [declared.Name] = request.Value },
-            ct).ConfigureAwait(false);
+        if (!TryPluginSecretOwner(plugin, out var owner, out var badId))
+        {
+            return badId!;
+        }
+
+        try
+        {
+            await secrets.SetAsync(
+                owner,
+                new Dictionary<string, string> { [declared.Name] = request.Value },
+                ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
+        {
+            return PluginSecretsUnavailable(plugin.Manifest.Id, ex, loggers);
+        }
+
         // Owner and secret name only; the value is never logged.
         loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogInformation(
             "Plugin secret {SecretName} was set for plugin {PluginId}", declared.Name, plugin.Manifest.Id);
@@ -329,10 +355,48 @@ internal static class PluginEndpoints
             return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
         }
 
-        await secrets.RemoveAsync(SecretOwner.Plugin(plugin.Manifest.Id), name, ct).ConfigureAwait(false);
+        if (!TryPluginSecretOwner(plugin, out var owner, out var badId))
+        {
+            return badId!;
+        }
+
+        try
+        {
+            await secrets.RemoveAsync(owner, name, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
+        {
+            return PluginSecretsUnavailable(plugin.Manifest.Id, ex, loggers);
+        }
+
         loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogInformation(
             "Plugin secret {SecretName} was removed for plugin {PluginId}", name, plugin.Manifest.Id);
         return Results.NoContent();
+    }
+
+    // A plugin id the secrets store cannot turn into a file name (anything outside lowercase letters, digits, '-', '_', '.').
+    private static bool TryPluginSecretOwner(PluginRegistration plugin, out SecretOwner owner, out IResult? problem)
+    {
+        try
+        {
+            owner = SecretOwner.Plugin(plugin.Manifest.Id);
+            problem = null;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            owner = default;
+            problem = ApiErrors.BadRequest("This plugin's id cannot be used to keep keys and logins. Ask the plugin's author for a fixed version.");
+            return false;
+        }
+    }
+
+    // The secrets file is unreadable or damaged. Plugin id and error type only; never a value.
+    private static IResult PluginSecretsUnavailable(string pluginId, Exception ex, ILoggerFactory loggers)
+    {
+        loggers.CreateLogger(typeof(PluginEndpoints).FullName!).LogWarning(
+            "Secrets for plugin {PluginId} could not be read or saved ({ErrorType})", pluginId, ex.GetType().Name);
+        return ApiErrors.Conflict("This plugin's keys and logins could not be read or saved. Check that the server's config folder is readable and writable, then try again.");
     }
 
     private static async Task RemoveAllPluginSecretsAsync(string pluginId, IConfigSecretsStore secrets, CancellationToken ct)
@@ -452,6 +516,7 @@ internal static class PluginEndpoints
         Description = registration.Manifest.Description,
         Enabled = registration.Enabled,
         IsBuiltIn = registration.IsBuiltIn,
+        NeedsApproval = registration.NeedsApproval,
         LoadError = registration.LoadError,
         Kind = PluginKindName(registration.Manifest.Kind),
         TrustLevel = PluginTrustName(registration.Trust),
