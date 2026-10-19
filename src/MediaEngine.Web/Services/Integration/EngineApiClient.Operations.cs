@@ -642,12 +642,8 @@ public sealed partial class EngineApiClient
             switch (response.StatusCode)
             {
                 case HttpStatusCode.Forbidden:
-                    var (code, detail) = await ReadProblemAsync(response, ct);
                     return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>.Failed(
-                        string.Equals(code, ActivityUnlockRequiredCode, StringComparison.Ordinal)
-                            ? LibraryItemDeletionOutcomeStatus.UnlockRequired
-                            : LibraryItemDeletionOutcomeStatus.Forbidden,
-                        detail);
+                        LibraryItemDeletionOutcomeStatus.Forbidden, (await ReadProblemAsync(response, ct)).Detail);
                 case HttpStatusCode.NotFound:
                     return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>.Failed(
                         LibraryItemDeletionOutcomeStatus.NotFound, (await ReadProblemAsync(response, ct)).Detail);

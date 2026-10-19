@@ -68,6 +68,29 @@ public sealed class RouteAuthorizationGuardrailTests
             Assert.Single(applicationOnly.Requirements.OfType<ApplicationPermissionRequirement>()).Permission);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InPersonAdministratorRoutes_RequireSurfaceUnlockAndAHumanCaller(bool grouped)
+    {
+        await using var app = BuildApplication();
+        if (grouped)
+        {
+            app.MapGroup("/in-person").RequireEffectiveAdministratorInPerson().MapPost("/", () => "ok");
+        }
+        else
+        {
+            app.MapPost("/in-person", () => "ok").RequireEffectiveAdministratorInPerson();
+        }
+
+        var policy = RequiredPolicy(Find(app, "/in-person"));
+        var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+        Assert.True(requirement.SurfaceUnlock);
+        Assert.True(requirement.HumanOnly);
+        Assert.False(requirement.AllowHouseholdAdministrator);
+        Assert.DoesNotContain(policy.Requirements, item => item is AdministratorOrApplicationRequirement or ApplicationPermissionRequirement);
+    }
+
     private static AuthorizationPolicy RequiredPolicy(RouteEndpoint endpoint)
     {
         Assert.Null(endpoint.Metadata.GetMetadata<IAllowAnonymous>());

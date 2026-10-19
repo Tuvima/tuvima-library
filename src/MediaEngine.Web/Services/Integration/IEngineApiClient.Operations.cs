@@ -100,7 +100,7 @@ public partial interface IEngineApiClient
 
     /// <summary>
     /// POST /library/items/deletion-preview - what deleting these titles would do (files, hand-picked collections, progress, space freed)
-    /// and a fingerprint of that plan. Changes nothing. The outcome tells 200, 400, 403 (with or without the PIN-unlock code), 404 and unreachable apart.
+    /// and a fingerprint of that plan. Changes nothing. The outcome tells 200, 400, 403 (not an administrator, or the administrator PIN is locked), 404 and unreachable apart.
     /// </summary>
     Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemDeletionPreviewAsync(
         IReadOnlyList<Guid> workIds, CancellationToken ct = default);

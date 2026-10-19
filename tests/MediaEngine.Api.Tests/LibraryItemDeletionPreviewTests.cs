@@ -251,6 +251,55 @@ public sealed class LibraryItemDeletionPreviewTests : IDisposable
     }
 
     [Fact]
+    public async Task SidecarsSharedWithAMediaFileOfTheSameNameThatStays_AreNotListed()
+    {
+        var requested = _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mkv"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mp4"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.en.srt"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.nfo"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie-poster.jpg"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "poster.jpg"));
+        var (workId, _) = _world.AddWork("Movie", [requested]);
+        _world.AddWork("Movie, another cut", [Path.Combine(_world.Managed, "Movie", "Movie.mp4")]);
+
+        var preview = await PreviewAsync(workId);
+
+        Assert.Equal("Movie.mkv", Assert.Single(preview.Files).FileName);
+    }
+
+    [Fact]
+    public async Task SidecarsSharedByTwoMediaFilesOfTheSameName_AreListedWhenBothAreRequested()
+    {
+        var mkv = _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mkv"));
+        var mp4 = _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mp4"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.en.srt"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.nfo"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie-poster.jpg"));
+        var (first, _) = _world.AddWork("Movie", [mkv]);
+        var (second, _) = _world.AddWork("Movie, another cut", [mp4]);
+
+        var preview = await PreviewAsync(first, second);
+
+        Assert.Equal(
+            ["Movie-poster.jpg", "Movie.en.srt", "Movie.mkv", "Movie.mp4", "Movie.nfo"],
+            preview.Files.Select(file => file.FileName).Order(StringComparer.Ordinal));
+        Assert.All(preview.Files, file => Assert.Equal(LibraryItemDeletionOutcomes.Delete, file.Outcome));
+    }
+
+    [Fact]
+    public async Task SidecarsSharedWithASameNameFileThatIsNotInTheLibraryAtAll_AreNotListed()
+    {
+        var requested = _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mkv"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.mp4"));
+        _world.WriteFile(_world.Managed, Path.Combine("Movie", "Movie.en.srt"));
+        var (workId, _) = _world.AddWork("Movie", [requested]);
+
+        var preview = await PreviewAsync(workId);
+
+        Assert.Equal("Movie.mkv", Assert.Single(preview.Files).FileName);
+    }
+
+    [Fact]
     public async Task TheSidecarsOfAFileThatStays_AreNotListed()
     {
         var media = _world.WriteFile(_world.AsIs, "Dune.mkv");
@@ -495,6 +544,8 @@ public sealed class LibraryItemDeletionPreviewTests : IDisposable
         var result = await _world.Service.PreviewAsync([catalog]);
 
         Assert.Equal(LibraryItemDeletionRefusalKind.Validation, result.Refusal!.Kind);
+        Assert.Equal("This title isn't in your library as a file, so there's nothing to delete.", result.Refusal.Message);
+        Assert.Equal([catalog], result.Refusal.WorkIds);
     }
 
     [Fact]

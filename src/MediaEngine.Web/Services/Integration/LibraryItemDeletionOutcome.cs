@@ -6,10 +6,7 @@ public enum LibraryItemDeletionOutcomeStatus
     /// <summary>The Engine answered.</summary>
     Ok,
 
-    /// <summary>The Engine would answer once the administrator PIN has been entered.</summary>
-    UnlockRequired,
-
-    /// <summary>The Engine refused: the signed-in person is not an administrator.</summary>
+    /// <summary>The Engine refused: the signed-in person is not an administrator, or their administrator PIN is locked.</summary>
     Forbidden,
 
     /// <summary>One or more of the titles are no longer in the library.</summary>

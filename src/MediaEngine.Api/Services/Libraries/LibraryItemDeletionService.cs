@@ -90,6 +90,7 @@ public sealed class LibraryItemDeletionService(
     public const string MissingReason = "This file is no longer on disk.";
     public const string UsedElsewhereReason = "Another item in your library uses this same file.";
     private const string GroupRefusal = "Only individual titles can be deleted.";
+    private const string CatalogOnlyRefusal = "This title isn't in your library as a file, so there's nothing to delete.";
     private const string LabelSeparator = " › ";
 
     private static readonly StringComparer PathComparer =
@@ -132,13 +133,19 @@ public sealed class LibraryItemDeletionService(
             return Refused(LibraryItemDeletionRefusalKind.NotFound, "Some of these items are not in your library.", unknown);
         }
 
-        var notDeletable = found
-            .Where(work => string.Equals(work.WorkKind, "parent", StringComparison.OrdinalIgnoreCase) || work.IsCatalogOnly)
+        var groups = found
+            .Where(work => string.Equals(work.WorkKind, "parent", StringComparison.OrdinalIgnoreCase))
             .Select(work => work.WorkId)
             .ToList();
-        if (notDeletable.Count > 0)
+        if (groups.Count > 0)
         {
-            return Refused(LibraryItemDeletionRefusalKind.Validation, GroupRefusal, notDeletable);
+            return Refused(LibraryItemDeletionRefusalKind.Validation, GroupRefusal, groups);
+        }
+
+        var catalogOnly = found.Where(work => work.IsCatalogOnly).Select(work => work.WorkId).ToList();
+        if (catalogOnly.Count > 0)
+        {
+            return Refused(LibraryItemDeletionRefusalKind.Validation, CatalogOnlyRefusal, catalogOnly);
         }
 
         // Keep the order the caller asked for so the preview reads the same way every time.
@@ -189,6 +196,14 @@ public sealed class LibraryItemDeletionService(
         {
             ct.ThrowIfCancellationRequested();
             var folder = Path.GetDirectoryName(row.Asset.FilePath);
+
+            // Sidecars are matched by base name only, so a media file with the same name but another extension (Movie.mkv beside
+            // Movie.mp4) shares them. They go only when every such file is going too.
+            if (AnotherMediaFileWithTheSameNameStays(row.Asset.FilePath, mediaExtensions, deletedMediaPaths))
+            {
+                continue;
+            }
+
             var includeFolderLevel = !string.IsNullOrEmpty(folder)
                 && EveryMediaFileInFolderIsBeingDeleted(folder, mediaExtensions, deletedMediaPaths);
             var sidecars = SidecarFiles.Find(row.Asset.FilePath, mediaExtensions)
@@ -338,6 +353,44 @@ public sealed class LibraryItemDeletionService(
             ? LibraryItemDeletionOutcomes.KeepAsIs
             : LibraryItemDeletionOutcomes.KeepProtected;
         return new Decision(outcome, verdict.Reason ?? "The safety check refused to delete this file.", size, resolved, policy);
+    }
+
+    /// <summary>
+    /// True when the folder holds another media file with the same base name (any media extension) that is not being deleted.
+    /// Fails closed: a folder that cannot be listed counts as true, so no sidecar is listed.
+    /// </summary>
+    private static bool AnotherMediaFileWithTheSameNameStays(
+        string mediaPath,
+        IReadOnlySet<string> mediaExtensions,
+        IReadOnlySet<string> deletedMediaPaths)
+    {
+        var folder = Path.GetDirectoryName(mediaPath);
+        var stem = Path.GetFileNameWithoutExtension(mediaPath);
+        if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(stem))
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(folder))
+            {
+                if (mediaExtensions.Contains(Path.GetExtension(file))
+                    && string.Equals(Path.GetFileNameWithoutExtension(file), stem, StringComparison.OrdinalIgnoreCase)
+                    && !deletedMediaPaths.Contains(NormalizePath(file)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed fails closed: its sidecars are left alone.
+            _ = ex;
+            return true;
+        }
     }
 
     private static bool EveryMediaFileInFolderIsBeingDeleted(
