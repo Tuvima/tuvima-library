@@ -156,7 +156,7 @@ Treat stale references to old all-in-one workspace components, retired CSS prefi
   cross through explicit boundary mappers; Dashboard-only wrappers may add
   presentation state but must not mirror or redefine the JSON contract.
 - The only frozen wire exception is the exact Dashboard-local
-  `LoreDeltaDiscoveredEvent` and `UniverseEnrichmentProgressEvent` SignalR pair.
+  `UniverseEnrichmentProgressEvent` SignalR payload.
   Universe HTTP DTOs are not exempt, and the exception must not gain types or
   fields.
 - Preserve contract `[JsonPropertyName]` values, casing, defaults, nullability,

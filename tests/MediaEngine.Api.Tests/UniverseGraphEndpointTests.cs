@@ -31,7 +31,7 @@ public sealed class UniverseGraphEndpointTests
         var source = File.ReadAllText(GetRepoFilePath(
             @"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
         var start = source.IndexOf("group.MapGet(\"/universe/{qid}/graph\"", StringComparison.Ordinal);
-        var end = source.IndexOf("group.MapPost(\"/universe/entity/{qid}/deep-enrich\"", start, StringComparison.Ordinal);
+        var end = source.IndexOf("group.MapGet(\"/universe/{qid}/paths\"", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
 
         var graphRoute = source[start..end];
@@ -69,7 +69,7 @@ public sealed class UniverseGraphEndpointTests
         var source = File.ReadAllText(GetRepoFilePath(
             @"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
         var start = source.IndexOf("group.MapGet(\"/universe/{qid}/graph\"", StringComparison.Ordinal);
-        var end = source.IndexOf("group.MapPost(\"/universe/entity/{qid}/deep-enrich\"", start, StringComparison.Ordinal);
+        var end = source.IndexOf("group.MapGet(\"/universe/{qid}/paths\"", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
 
         var graphRoute = source[start..end];

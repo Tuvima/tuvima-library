@@ -94,21 +94,6 @@ public sealed class HydrationSettings
     public int WikipediaDescriptionMaxChars { get; set; } = 1000;
 
     /// <summary>
-    /// Minimum confidence for manual or provider-driven universe title search
-    /// matches when a current flow explicitly requests title search.
-    /// </summary>
-    [JsonPropertyName("universe_title_search_auto_accept")]
-    public double UniverseTitleSearchAutoAccept { get; set; } = 0.80;
-
-    /// <summary>
-    /// Debounce interval in seconds for universe.xml writes after fictional
-    /// entity enrichment. During a burst of enrichments for the same universe,
-    /// the writer waits this long after the last enrichment before writing.
-    /// </summary>
-    [JsonPropertyName("universe_xml_write_debounce_seconds")]
-    public int UniverseXmlWriteDebounceSeconds { get; set; } = 5;
-
-    /// <summary>
     /// Maximum depth for recursive fictional entity relationship population.
     /// Target entities are created but NOT enriched beyond this depth.
     /// </summary>
@@ -124,14 +109,6 @@ public sealed class HydrationSettings
     /// </summary>
     [JsonPropertyName("post_hydration_organize_threshold")]
     public double PostHydrationOrganizeThreshold { get; set; } = 0.70;
-
-    /// <summary>
-    /// Minimum number of distinct works required for a universe folder to be
-    /// created.  Standalone works (e.g. The Martian) with fewer than this many
-    /// linked works will not generate a <c>.universe/</c> folder.
-    /// </summary>
-    [JsonPropertyName("minimum_universe_work_count")]
-    public int MinimumUniverseWorkCount { get; set; } = 2;
 
     /// <summary>
     /// Collection relationship types that can promote lane shelves into a
@@ -307,18 +284,6 @@ public sealed class HydrationSettings
     /// <summary>Maximum depth for lineage traversal (2 = grandparents/grandchildren).</summary>
     [JsonPropertyName("lineage_depth")]
     public int LineageDepth { get; set; } = 2;
-
-    /// <summary>When <c>true</c>, the Lore Delta check runs on Chronicle Explorer page load.</summary>
-    [JsonPropertyName("lore_delta_check_on_explorer_open")]
-    public bool LoreDeltaCheckOnExplorerOpen { get; set; } = true;
-
-    /// <summary>When <c>true</c>, Canon Discrepancy detection runs during Stage 1 hydration.</summary>
-    [JsonPropertyName("canon_discrepancy_detection")]
-    public bool CanonDiscrepancyDetection { get; set; } = true;
-
-    /// <summary>When <c>true</c>, era-correct actor resolution uses temporal qualifiers on performer edges.</summary>
-    [JsonPropertyName("era_actor_resolution")]
-    public bool EraActorResolution { get; set; } = true;
 
     // ── Stage 3: Universe Enrichment (Background Service) ──────────────
 

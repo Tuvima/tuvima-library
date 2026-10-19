@@ -11,13 +11,6 @@ public interface ILibraryCurationReadService
         IReadOnlyCollection<Guid> entityIds,
         IReadOnlyCollection<string> fieldKeys,
         CancellationToken ct = default);
-
-    Task<IReadOnlyList<UniverseCandidateReadModel>> GetUniverseCandidatesAsync(CancellationToken ct = default);
-    Task<Guid?> FindOwnedAssetIdForWorkAsync(Guid workId, CancellationToken ct = default);
-    Task<IReadOnlyDictionary<Guid, string>> GetBestUniverseCandidateQidsAsync(
-        IReadOnlyCollection<Guid> workIds,
-        CancellationToken ct = default);
-    Task<IReadOnlyList<UnlinkedWorkDto>> GetUniverseUnlinkedAsync(CancellationToken ct = default);
 }
 
 public interface ILibraryOverviewReadService

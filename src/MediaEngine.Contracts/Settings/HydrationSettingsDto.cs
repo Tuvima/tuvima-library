@@ -37,20 +37,11 @@ public sealed class HydrationSettingsDto
     [JsonPropertyName("wikipedia_description_max_chars")]
     public int WikipediaDescriptionMaxChars { get; set; } = 1000;
 
-    [JsonPropertyName("universe_title_search_auto_accept")]
-    public double UniverseTitleSearchAutoAccept { get; set; } = 0.80;
-
-    [JsonPropertyName("universe_xml_write_debounce_seconds")]
-    public int UniverseXmlWriteDebounceSeconds { get; set; } = 5;
-
     [JsonPropertyName("fictional_entity_enrichment_depth")]
     public int FictionalEntityEnrichmentDepth { get; set; } = 2;
 
     [JsonPropertyName("post_hydration_organize_threshold")]
     public double PostHydrationOrganizeThreshold { get; set; } = 0.70;
-
-    [JsonPropertyName("minimum_universe_work_count")]
-    public int MinimumUniverseWorkCount { get; set; } = 2;
 
     [JsonPropertyName("collection_rollup_relationship_types")]
     public List<string> CollectionRollupRelationshipTypes { get; set; } =
@@ -125,15 +116,6 @@ public sealed class HydrationSettingsDto
 
     [JsonPropertyName("lineage_depth")]
     public int LineageDepth { get; set; } = 2;
-
-    [JsonPropertyName("lore_delta_check_on_explorer_open")]
-    public bool LoreDeltaCheckOnExplorerOpen { get; set; } = true;
-
-    [JsonPropertyName("canon_discrepancy_detection")]
-    public bool CanonDiscrepancyDetection { get; set; } = true;
-
-    [JsonPropertyName("era_actor_resolution")]
-    public bool EraActorResolution { get; set; } = true;
 
     [JsonPropertyName("stage3_enabled")]
     public bool Stage3Enabled { get; set; } = true;

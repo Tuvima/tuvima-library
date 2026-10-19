@@ -1,0 +1,551 @@
+using Dapper;
+using MediaEngine.Domain.Activity;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.TestSupport;
+
+namespace MediaEngine.Storage.Tests;
+
+/// <summary>
+/// Each person's own activity record: snapshots that outlive the item, the music session rule, grouping by title,
+/// filters, the date rail, and deleting history by hand. Real temp SQLite.
+/// </summary>
+public sealed class PersonalActivityRepositoryTests : IDisposable
+{
+    private readonly string _path = Path.Combine(Path.GetTempPath(), $"tuvima-personal-activity-{Guid.NewGuid():N}.db");
+    private readonly DatabaseConnection _database;
+    private readonly PersonalActivityRepository _repository;
+    private readonly DateTimeOffset _start = new(2026, 9, 9, 12, 0, 0, TimeSpan.Zero);
+
+    public PersonalActivityRepositoryTests()
+    {
+        DapperConfiguration.Configure();
+        _database = new DatabaseConnection(_path);
+        _database.InitializeSchema();
+        _database.RunStartupChecks();
+        _repository = new PersonalActivityRepository(_database);
+    }
+
+    public void Dispose()
+    {
+        _database.Dispose();
+        TestTemp.ReleaseSqlitePool(_path);
+        foreach (var file in new[] { _path, _path + "-wal", _path + "-shm" })
+        {
+            if (File.Exists(file))
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    // ----- Writing -----
+
+    [Fact]
+    public async Task AddingTheSamePlaybackSessionTwice_KeepsOneRow()
+    {
+        var person = SeedProfile("Alex");
+        var session = Guid.NewGuid();
+
+        Assert.True(await AddWatchAsync(person, session, "Tremors", _start));
+        Assert.False(await AddWatchAsync(person, session, "Tremors", _start));
+
+        var item = Assert.Single((await Items(person)).Items);
+        Assert.Equal("Tremors", Assert.Single(item.Entries).Title);
+    }
+
+    [Fact]
+    public async Task UpdatingProgress_OnlyEverMovesForward()
+    {
+        var person = SeedProfile("Alex");
+        var session = Guid.NewGuid();
+        await AddWatchAsync(person, session, "Tremors", _start, played: 60, percent: 40);
+
+        await _repository.UpdateProgressAsync(session, new PersonalActivityProgress(_start.AddMinutes(10), 600, 55, false));
+        await _repository.UpdateProgressAsync(session, new PersonalActivityProgress(_start.AddMinutes(5), 300, 20, false));
+        var middle = Assert.Single(Assert.Single((await Items(person)).Items).Entries);
+        Assert.Equal(600, middle.PlayedSeconds);
+        Assert.Equal(55, middle.ProgressPct);
+        Assert.Equal(_start.AddMinutes(10), middle.EndedAt);
+        Assert.False(middle.Finished);
+
+        await _repository.UpdateProgressAsync(session, new PersonalActivityProgress(_start.AddMinutes(20), 1200, 100, true));
+        await _repository.UpdateProgressAsync(session, new PersonalActivityProgress(_start.AddMinutes(21), 1200, 30, false));
+        var done = Assert.Single(Assert.Single((await Items(person)).Items).Entries);
+        Assert.True(done.Finished);
+        Assert.Equal(100, done.ProgressPct);
+    }
+
+    [Fact]
+    public async Task AnEntry_KeepsItsSnapshotAfterTheAssetAndTheWorkAreDeleted()
+    {
+        var person = SeedProfile("Alex");
+        var (work, asset) = SeedWork("Movies");
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork("a".PadRight(64, 'a'), [1, 2, 3], "image/jpeg", 160, 240));
+        await _repository.AddPlaybackAsync(person, PersonalActivityKinds.Watch, false, Guid.NewGuid(), _start,
+            new PersonalActivityDevice("Living room TV", "television"),
+            new PersonalActivitySnapshot("Movies", "Tremors", "Directed cut", null, 1990, work, asset, "a".PadRight(64, 'a')),
+            new PersonalActivityProgress(_start.AddMinutes(96), 5760, 100, true));
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM media_assets WHERE id = @asset;", new { asset });
+            connection.Execute("DELETE FROM editions WHERE work_id = @work;", new { work });
+            connection.Execute("DELETE FROM works WHERE id = @work;", new { work });
+        }
+
+        var entry = Assert.Single(Assert.Single((await Items(person)).Items).Entries);
+        Assert.Equal("Tremors", entry.Title);
+        Assert.Equal("Directed cut", entry.Subtitle);
+        Assert.Equal(1990, entry.Year);
+        Assert.Equal(work, entry.WorkId);
+        Assert.Equal("a".PadRight(64, 'a'), entry.ArtworkKey);
+        var picture = await _repository.GetArtworkAsync(entry.ArtworkKey!);
+        Assert.Equal([1, 2, 3], picture!.Image);
+    }
+
+    [Fact]
+    public async Task AddingToMyList_CreatesAnEntry_AndRemovingItFromMyListKeepsIt()
+    {
+        var person = SeedProfile("Alex");
+        var (work, _) = SeedWork("Movies");
+        var saved = new ProfileStateRepository(_database);
+        await saved.SaveItemAsync(person, MediaEngine.Domain.Enums.ProfileEntityKind.Movie, work);
+        await _repository.AddMyListAsync(person, _start,
+            new PersonalActivitySnapshot("Movies", "Tremors", null, null, 1990, work, null, null));
+
+        await saved.RemoveSavedItemAsync(person, MediaEngine.Domain.Enums.ProfileEntityKind.Movie, work);
+
+        var entry = Assert.Single(Assert.Single((await Items(person)).Items).Entries);
+        Assert.Equal(PersonalActivityKinds.MyList, entry.Kind);
+        Assert.Equal("Tremors", entry.Title);
+    }
+
+    [Fact]
+    public async Task DeletingAPerson_RemovesTheirActivityAndNobodyElses()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start);
+        await AddWatchAsync(bea, Guid.NewGuid(), "Dune", _start);
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("DELETE FROM profiles WHERE id = @alex;", new { alex });
+        }
+
+        Assert.Empty((await Items(alex)).Items);
+        Assert.Single((await Items(bea)).Items);
+    }
+
+    // ----- Music sessions -----
+
+    [Fact]
+    public async Task FiftySongsWithinThirtyMinutesOfEachOther_AreOneMusicSession()
+    {
+        var person = SeedProfile("Alex");
+        for (var song = 0; song < 50; song++)
+        {
+            await AddSongAsync(person, $"Song {song}", $"Album {song % 12}", _start.AddMinutes(song * 4));
+        }
+
+        var item = Assert.Single((await Items(person)).Items);
+        Assert.True(item.IsMusicSession);
+        Assert.Equal(50, item.Entries.Count);
+        Assert.Equal("Song 0", item.Entries[0].Title);
+        Assert.Equal("Song 49", item.Entries[^1].Title);
+    }
+
+    [Fact]
+    public async Task AGapOfThirtyOneMinutesBetweenSongs_StartsANewMusicSession()
+    {
+        var person = SeedProfile("Alex");
+        await AddSongAsync(person, "One", "Album", _start, playedSeconds: 180);
+        await AddSongAsync(person, "Two", "Album", _start.AddMinutes(5), playedSeconds: 200);
+        // Thirty-one minutes after "Two" stopped playing.
+        await AddSongAsync(person, "Three", "Album", _start.AddMinutes(5).AddSeconds(200).AddMinutes(31), playedSeconds: 180);
+
+        var items = (await Items(person)).Items;
+
+        Assert.Equal(2, items.Count);
+        Assert.Equal(["Three"], items[0].Entries.Select(entry => entry.Title));
+        Assert.Equal(["One", "Two"], items[1].Entries.Select(entry => entry.Title));
+    }
+
+    [Fact]
+    public async Task AMovieBetweenSongs_EndsTheMusicSession()
+    {
+        var person = SeedProfile("Alex");
+        await AddSongAsync(person, "One", "Album", _start);
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start.AddMinutes(5));
+        await AddSongAsync(person, "Two", "Album", _start.AddMinutes(10));
+
+        var items = (await Items(person)).Items;
+
+        Assert.Equal(3, items.Count);
+        Assert.All(items, item => Assert.Single(item.Entries));
+        Assert.Equal(2, items.Count(item => item.IsMusicSession));
+    }
+
+    [Fact]
+    public async Task AddingToMyListBetweenSongs_DoesNotEndTheMusicSession()
+    {
+        var person = SeedProfile("Alex");
+        await AddSongAsync(person, "One", "Album", _start);
+        await _repository.AddMyListAsync(person, _start.AddMinutes(2),
+            new PersonalActivitySnapshot("Movies", "Tremors", null, null, 1990, Guid.NewGuid(), null, null));
+        await AddSongAsync(person, "Two", "Album", _start.AddMinutes(4));
+
+        var music = Assert.Single((await Items(person)).Items, item => item.IsMusicSession);
+
+        Assert.Equal(2, music.Entries.Count);
+    }
+
+    [Fact]
+    public async Task TwoPeopleListeningAtOnce_HaveTheirOwnMusicSessions()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        await AddSongAsync(alex, "One", "Album", _start);
+        await AddSongAsync(bea, "Uno", "Album", _start.AddMinutes(1));
+        await AddSongAsync(alex, "Two", "Album", _start.AddMinutes(2));
+
+        Assert.Equal(2, Assert.Single((await Items(alex)).Items).Entries.Count);
+        Assert.Single(Assert.Single((await Items(bea)).Items).Entries);
+    }
+
+    // ----- Grouping, search, filters -----
+
+    [Fact]
+    public async Task GroupingByTitle_ReturnsOneGroupWithEveryAttemptInOrder()
+    {
+        var person = SeedProfile("Alex");
+        var (work, _) = SeedWork("Movies");
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start, work: work, percent: 31, played: 1800);
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start.AddDays(3), work: work, percent: 43, played: 720);
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start.AddDays(7), work: work, percent: 100, played: 5760, finished: true);
+        await AddWatchAsync(person, Guid.NewGuid(), "Dune", _start.AddDays(8));
+
+        var page = await _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = Ids(person), Query = "Tremors" }, PersonalActivityGrouping.Title, null, 50);
+
+        var group = Assert.Single(page.Items);
+        Assert.True(group.IsTitleGroup);
+        Assert.Equal([31d, 43d, 100d], group.Entries.Select(entry => entry.ProgressPct!.Value));
+        Assert.Equal(3, group.Entries.Count);
+    }
+
+    [Fact]
+    public async Task GroupingByTitle_KeepsTwoPeoplesWatchesOfTheSameTitleApart()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        var (work, _) = SeedWork("Movies");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start, work: work);
+        await AddWatchAsync(bea, Guid.NewGuid(), "Tremors", _start.AddDays(1), work: work);
+
+        var page = await _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = Ids(alex, bea) }, PersonalActivityGrouping.Title, null, 50);
+
+        Assert.Equal(2, page.Items.Count);
+    }
+
+    [Fact]
+    public async Task GroupingByTitle_GroupsADeletedItemByItsTitle()
+    {
+        var person = SeedProfile("Alex");
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start, withoutWork: true);
+        await AddWatchAsync(person, Guid.NewGuid(), "tremors", _start.AddDays(1), withoutWork: true);
+
+        var page = await _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = Ids(person) }, PersonalActivityGrouping.Title, null, 50);
+
+        Assert.Equal(2, Assert.Single(page.Items).Entries.Count);
+    }
+
+    [Fact]
+    public async Task FiltersNarrowByKindOutcomeDeviceDatesAndText()
+    {
+        var person = SeedProfile("Alex");
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start, finished: true, device: "Living room TV");
+        await AddWatchAsync(person, Guid.NewGuid(), "Dune", _start.AddDays(2), finished: false, device: "Phone");
+        await AddSongAsync(person, "Wish You Were Here", "Wish You Were Here", _start.AddDays(4));
+        await _repository.AddMyListAsync(person, _start.AddDays(5),
+            new PersonalActivitySnapshot("Books", "Hyperion", "Dan Simmons", null, 1989, Guid.NewGuid(), null, null));
+
+        Assert.Equal(["Hyperion"], await Titles(new PersonalActivityFilter { Kinds = [PersonalActivityKinds.MyList] }, person));
+        Assert.Equal(["Tremors"], await Titles(new PersonalActivityFilter { Finished = true }, person));
+        Assert.Equal(["Dune"], await Titles(new PersonalActivityFilter { Finished = false, Kinds = [PersonalActivityKinds.Watch] }, person));
+        Assert.Equal(["Dune"], await Titles(new PersonalActivityFilter { Device = "phone" }, person));
+        Assert.Equal(["Dune"], await Titles(new PersonalActivityFilter { From = _start.AddDays(1), To = _start.AddDays(3) }, person));
+        Assert.Equal(["Hyperion"], await Titles(new PersonalActivityFilter { Query = "simmons" }, person));
+        Assert.Equal(["Music"], await Titles(new PersonalActivityFilter { Query = "were here" }, person, collapse: true));
+    }
+
+    [Fact]
+    public async Task SearchingForPercentOrUnderscoreTextMatchesThemLiterally()
+    {
+        var person = SeedProfile("Alex");
+        await AddWatchAsync(person, Guid.NewGuid(), "100% True", _start);
+        await AddWatchAsync(person, Guid.NewGuid(), "Dune", _start.AddDays(1));
+
+        Assert.Equal(["100% True"], await Titles(new PersonalActivityFilter { Query = "100%" }, person));
+        Assert.Empty(await Titles(new PersonalActivityFilter { Query = "D_ne" }, person));
+    }
+
+    [Fact]
+    public async Task SearchingByPersonName_OnlyMatchesWhenAskedToSearchPeople()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start);
+        await AddWatchAsync(bea, Guid.NewGuid(), "Dune", _start.AddDays(1));
+        var both = Ids(alex, bea);
+
+        var without = await _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = both, Query = "bea" }, PersonalActivityGrouping.None, null, 50);
+        var with = await _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = both, Query = "bea", SearchPeople = true }, PersonalActivityGrouping.None, null, 50);
+
+        Assert.Empty(without.Items);
+        var found = Assert.Single(Assert.Single(with.Items).Entries);
+        Assert.Equal("Bea", found.PersonName);
+    }
+
+    [Fact]
+    public async Task EveryoneIsNullProfilesAndAnEmptySetIsNobody()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start);
+        await AddWatchAsync(bea, Guid.NewGuid(), "Dune", _start.AddDays(1));
+
+        var everyone = await _repository.GetItemsAsync(new PersonalActivityFilter { ProfileIds = null }, PersonalActivityGrouping.None, null, 50);
+        var nobody = await _repository.GetItemsAsync(new PersonalActivityFilter { ProfileIds = new HashSet<Guid>() }, PersonalActivityGrouping.None, null, 50);
+
+        Assert.Equal(2, everyone.Items.Count);
+        Assert.Empty(nobody.Items);
+    }
+
+    [Fact]
+    public async Task Paging_WalksEveryItemOnceNewestFirstAndNeverSplitsAMusicSession()
+    {
+        var person = SeedProfile("Alex");
+        for (var day = 0; day < 5; day++)
+        {
+            await AddWatchAsync(person, Guid.NewGuid(), $"Film {day}", _start.AddDays(day * 2));
+        }
+
+        await AddSongAsync(person, "One", "Album", _start.AddDays(3));
+        await AddSongAsync(person, "Two", "Album", _start.AddDays(3).AddMinutes(4));
+        var seen = new List<string>();
+        string? cursor = null;
+        do
+        {
+            var page = await _repository.GetItemsAsync(
+                new PersonalActivityFilter { ProfileIds = Ids(person) }, PersonalActivityGrouping.None, cursor, 2);
+            seen.AddRange(page.Items.Select(item => item.IsMusicSession ? "Music:" + item.Entries.Count : item.Entries[0].Title));
+            cursor = page.NextCursor;
+        }
+        while (cursor is not null);
+
+        Assert.Equal(["Film 4", "Film 3", "Film 2", "Music:2", "Film 1", "Film 0"], seen);
+    }
+
+    [Fact]
+    public async Task Paging_WithAnInvalidCursor_IsRefusedAsABadArgument()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _repository.GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = null }, PersonalActivityGrouping.None, "not-a-cursor", 10));
+    }
+
+    [Fact]
+    public async Task EntriesOneByOne_ExpandMusicSessionsIntoTheirSongs()
+    {
+        var person = SeedProfile("Alex");
+        await AddSongAsync(person, "One", "Album", _start);
+        await AddSongAsync(person, "Two", "Album", _start.AddMinutes(4));
+        await AddWatchAsync(person, Guid.NewGuid(), "Tremors", _start.AddDays(1));
+
+        var (entries, next) = await _repository.GetEntriesAsync(new PersonalActivityFilter { ProfileIds = Ids(person) }, null, 10);
+
+        Assert.Equal(["Tremors", "Two", "One"], entries.Select(entry => entry.Title));
+        Assert.Null(next);
+    }
+
+    // ----- The date rail -----
+
+    [Fact]
+    public async Task Periods_CountItemsPerYearAndMonthAndFollowTheFilters()
+    {
+        var person = SeedProfile("Alex");
+        await AddWatchAsync(person, Guid.NewGuid(), "A", new DateTimeOffset(2024, 3, 5, 10, 0, 0, TimeSpan.Zero));
+        await AddWatchAsync(person, Guid.NewGuid(), "B", new DateTimeOffset(2024, 3, 20, 10, 0, 0, TimeSpan.Zero));
+        await AddWatchAsync(person, Guid.NewGuid(), "C", new DateTimeOffset(2025, 12, 31, 23, 59, 0, TimeSpan.Zero));
+        await _repository.AddMyListAsync(person, new DateTimeOffset(2025, 12, 1, 8, 0, 0, TimeSpan.Zero),
+            new PersonalActivitySnapshot("Books", "D", null, null, null, Guid.NewGuid(), null, null));
+
+        var all = await _repository.GetPeriodsAsync(new PersonalActivityFilter { ProfileIds = Ids(person) }, PersonalActivityGrouping.None);
+        var onlyMyList = await _repository.GetPeriodsAsync(
+            new PersonalActivityFilter { ProfileIds = Ids(person), Kinds = [PersonalActivityKinds.MyList] }, PersonalActivityGrouping.None);
+
+        Assert.Equal([new PersonalActivityPeriodCount(2025, 12, 2), new PersonalActivityPeriodCount(2024, 3, 2)], all);
+        Assert.Equal([new PersonalActivityPeriodCount(2025, 12, 1)], onlyMyList);
+    }
+
+    // ----- Deleting history -----
+
+    [Fact]
+    public async Task NothingDeletesActivityAutomatically()
+    {
+        var person = SeedProfile("Alex");
+        await AddWatchAsync(person, Guid.NewGuid(), "Ancient", new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        // A restart runs the startup checks again; nothing there prunes history.
+        using var restarted = new DatabaseConnection(_path);
+        restarted.InitializeSchema();
+        restarted.RunStartupChecks();
+        var page = await new PersonalActivityRepository(restarted).GetItemsAsync(
+            new PersonalActivityFilter { ProfileIds = Ids(person) }, PersonalActivityGrouping.None, null, 10);
+
+        Assert.Single(page.Items);
+    }
+
+    [Fact]
+    public async Task PreviewAndDelete_CountAndRemoveOnlyEntriesBeforeTheDateInTheScope()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        var cutoff = _start.AddDays(10);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old Alex", _start);
+        await AddWatchAsync(alex, Guid.NewGuid(), "New Alex", cutoff.AddDays(1));
+        await AddWatchAsync(bea, Guid.NewGuid(), "Old Bea", _start);
+
+        Assert.Equal(1, await _repository.CountBeforeAsync(cutoff, Ids(alex)));
+        Assert.Equal(2, await _repository.CountBeforeAsync(cutoff, null));
+        Assert.Equal(0, await _repository.CountBeforeAsync(cutoff, new HashSet<Guid>()));
+
+        Assert.Equal(1, await _repository.DeleteBeforeAsync(cutoff, Ids(alex)));
+
+        Assert.Equal(["New Alex"], await Titles(new PersonalActivityFilter(), alex));
+        Assert.Equal(["Old Bea"], await Titles(new PersonalActivityFilter(), bea));
+    }
+
+    [Fact]
+    public async Task Delete_RemovesPicturesNothingUsesAnyMore_AndKeepsTheOnesStillUsed()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        var shared = new string('b', 64);
+        var onlyOld = new string('c', 64);
+        foreach (var key in new[] { shared, onlyOld })
+        {
+            await _repository.SaveArtworkAsync(new PersonalActivityArtwork(key, [9], "image/jpeg", 10, 10));
+        }
+
+        await AddWatchAsync(alex, Guid.NewGuid(), "Old", _start, artwork: shared);
+        await AddWatchAsync(alex, Guid.NewGuid(), "Older", _start.AddDays(1), artwork: onlyOld);
+        await AddWatchAsync(bea, Guid.NewGuid(), "New", _start.AddDays(30), artwork: shared);
+
+        await _repository.DeleteBeforeAsync(_start.AddDays(10), null);
+
+        Assert.True(await _repository.HasArtworkAsync(shared));
+        Assert.False(await _repository.HasArtworkAsync(onlyOld));
+    }
+
+    [Fact]
+    public async Task ArtworkIsOnlyUsedByThePeopleWhoseEntriesCarryIt()
+    {
+        var alex = SeedProfile("Alex");
+        var bea = SeedProfile("Bea");
+        var key = new string('d', 64);
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork(key, [9], "image/jpeg", 10, 10));
+        await AddWatchAsync(alex, Guid.NewGuid(), "Tremors", _start, artwork: key);
+
+        Assert.True(await _repository.IsArtworkUsedAsync(key, Ids(alex)));
+        Assert.True(await _repository.IsArtworkUsedAsync(key, null));
+        Assert.False(await _repository.IsArtworkUsedAsync(key, Ids(bea)));
+        Assert.False(await _repository.IsArtworkUsedAsync(key, new HashSet<Guid>()));
+    }
+
+    [Fact]
+    public async Task SavingTheSameArtworkTwice_KeepsTheFirstCopy()
+    {
+        var key = new string('e', 64);
+
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork(key, [1], "image/jpeg", 10, 10));
+        await _repository.SaveArtworkAsync(new PersonalActivityArtwork(key, [2, 2], "image/webp", 20, 20));
+
+        var kept = await _repository.GetArtworkAsync(key);
+        Assert.Equal([1], kept!.Image);
+        Assert.Equal("image/jpeg", kept.ContentType);
+    }
+
+    // ----- Helpers -----
+
+    private async Task<PersonalActivityItemPage> Items(Guid person) => await _repository.GetItemsAsync(
+        new PersonalActivityFilter { ProfileIds = Ids(person) }, PersonalActivityGrouping.None, null, 100);
+
+    private async Task<IReadOnlyList<string>> Titles(PersonalActivityFilter filter, Guid person, bool collapse = false)
+    {
+        var page = await _repository.GetItemsAsync(
+            filter with { ProfileIds = Ids(person) }, PersonalActivityGrouping.None, null, 100);
+        return page.Items.Select(item => collapse && item.IsMusicSession ? "Music" : item.Entries[0].Title).ToList();
+    }
+
+    private static HashSet<Guid> Ids(params Guid[] people) => [.. people];
+
+    private Task<bool> AddWatchAsync(
+        Guid person,
+        Guid session,
+        string title,
+        DateTimeOffset at,
+        Guid? work = null,
+        double? percent = 10,
+        long played = 600,
+        bool finished = false,
+        string? device = "Dashboard",
+        string? artwork = null,
+        bool withoutWork = false) => _repository.AddPlaybackAsync(
+            person, PersonalActivityKinds.Watch, false, session, at, new PersonalActivityDevice(device, "web"),
+            new PersonalActivitySnapshot("Movies", title, null, null, 2000, withoutWork ? null : work ?? Guid.NewGuid(), Guid.NewGuid(), artwork),
+            new PersonalActivityProgress(at.AddSeconds(played), played, percent, finished));
+
+    private Task<bool> AddSongAsync(Guid person, string title, string album, DateTimeOffset at, long playedSeconds = 200) =>
+        _repository.AddPlaybackAsync(
+            person, PersonalActivityKinds.Listen, true, Guid.NewGuid(), at, new PersonalActivityDevice("Car", "automotive"),
+            new PersonalActivitySnapshot("Music", title, "Pink Floyd", album, 1975, Guid.NewGuid(), Guid.NewGuid(), null),
+            new PersonalActivityProgress(at.AddSeconds(playedSeconds), playedSeconds, 100, false));
+
+    private Guid SeedProfile(string name)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO profiles (id, display_name, created_at) VALUES (@id, @name, @now);",
+            new { id, name, now = _start.ToString("O") });
+        return id;
+    }
+
+    private (Guid Work, Guid Asset) SeedWork(string mediaType)
+    {
+        var work = Guid.NewGuid();
+        var edition = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works(id,media_type,work_kind,is_catalog_only,ownership) VALUES(@work,@mediaType,'standalone',0,'Owned');
+            INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+            INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,library_id) VALUES(@asset,@edition,@hash,@path,@library);
+            """, new
+        {
+            work,
+            edition,
+            asset,
+            mediaType,
+            hash = asset.ToString("N"),
+            path = $"C:/fixtures/{asset:N}.media",
+            library = Guid.NewGuid().ToString("D"),
+        });
+        return (work, asset);
+    }
+}

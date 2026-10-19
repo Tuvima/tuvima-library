@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0007 profile_notice_dismissals).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0008 personal_activity).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1644,6 +1644,38 @@ CREATE TABLE person_roles (
     PRIMARY KEY (person_id, role)
 );
 
+CREATE TABLE personal_activity (
+    id                   BLOB NOT NULL PRIMARY KEY,
+    profile_id           BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind                 TEXT NOT NULL CHECK (kind IN ('watch', 'listen', 'read', 'my_list')),
+    telemetry_session_id BLOB UNIQUE,         -- the playback session this row follows; makes repeated writes idempotent (no foreign key)
+    music_session_id     BLOB,                -- shared by the songs of one music session (30 minutes of quiet or a different activity ends it)
+    started_at           TEXT NOT NULL,       -- ISO 8601 UTC
+    ended_at             TEXT,                -- ISO 8601 UTC; the last time the session was seen while it is still open
+    played_seconds       INTEGER NOT NULL DEFAULT 0,
+    progress_pct         REAL,                -- the furthest point reached, 0 to 100
+    finished             INTEGER NOT NULL DEFAULT 0 CHECK (finished IN (0, 1)),
+    device_name          TEXT,
+    device_kind          TEXT,
+    work_id              BLOB,                -- snapshot: no foreign key, must survive deletion
+    asset_id             BLOB,                -- snapshot: no foreign key, must survive deletion
+    media_type           TEXT NOT NULL,
+    title                TEXT NOT NULL,
+    subtitle             TEXT,                -- episode label ("S2 E4 - Name"), author or artist
+    parent_title         TEXT,                -- album
+    year                 INTEGER,
+    artwork_key          TEXT                 -- personal_activity_artwork.key (no foreign key)
+);
+
+CREATE TABLE personal_activity_artwork (
+    key          TEXT NOT NULL PRIMARY KEY,   -- stable hash of the source cover
+    image        BLOB NOT NULL,
+    content_type TEXT NOT NULL,
+    width        INTEGER,
+    height       INTEGER,
+    created_at   TEXT NOT NULL
+);
+
 CREATE TABLE personal_status_commands (
     id BLOB PRIMARY KEY,
     profile_id BLOB NOT NULL,
@@ -2912,6 +2944,14 @@ CREATE INDEX idx_person_media_links_asset_role_person
 
 CREATE INDEX idx_person_media_links_person
     ON person_media_links(person_id);
+
+CREATE INDEX idx_personal_activity_music_session ON personal_activity(music_session_id);
+
+CREATE INDEX idx_personal_activity_profile_started ON personal_activity(profile_id, started_at DESC);
+
+CREATE INDEX idx_personal_activity_profile_work ON personal_activity(profile_id, work_id);
+
+CREATE INDEX idx_personal_activity_started ON personal_activity(started_at);
 
 CREATE INDEX idx_persons_name
     ON persons (name);

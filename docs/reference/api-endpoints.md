@@ -175,8 +175,8 @@ direct-response routes.
 types. Engine endpoints map internal projections explicitly into those
 contracts, and the Dashboard may add presentation wrappers without redefining
 the JSON payload. The only frozen exception is the exact Universe/Chronicle
-SignalR pair `LoreDeltaDiscoveredEvent` and
-`UniverseEnrichmentProgressEvent`; Universe HTTP responses are not exempt.
+SignalR payload `UniverseEnrichmentProgressEvent`; Universe HTTP responses are
+not exempt.
 
 The canonical contracts intentionally include fields that existed on only one
 side of the former API/Dashboard mirror boundary. Notable examples are
@@ -490,16 +490,13 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/universes` | All narrative roots (Universes) in the library | Required |
-| GET | `/universe/{qid}` | Universe detail - Series, People, and asset counts | Required |
-| GET | `/universe/{qid}/health` | Health score - completeness, enrichment freshness, missing metadata indicators | Required |
+| GET | `/universe/{qid}` | Universe summary: label, level, and counts of the entities (all, characters, locations, organizations) and relationships visible to the caller | Required |
 | GET | `/universe/{qid}/graph` | Graph data in Cytoscape.js format for the Chronicle Explorer visualization | Required |
 | GET | `/universe/{qid}/paths` | Find shortest paths between two entities within the universe graph | Required |
 | GET | `/universe/{qid}/family-tree` | Character family tree rooted at a specified character entity | Required |
-| GET | `/universe/{qid}/cross-media` | Entities that appear across more than one media type within the universe | Required |
 | GET | `/universe/{qid}/cast` | Characters with their linked performers, including era-correct actor data | Required |
 | GET | `/universe/{qid}/adaptations` | Adaptation chain - all works derived from or adapted into each other | Required |
 | GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass | Required |
-| POST | `/universe/entity/{qid}/deep-enrich` | On-demand deep enrichment of a character/entity and its immediate neighbors | Effective administrator or precise Application permission |
 
 ---
 
@@ -701,8 +698,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/library/portraits/{portraitId}` | Stream one character portrait image (used by Cast and person credits) | Required |
-| GET | `/library/assets/{entityId}` | Shared assets for an entity (Cover Art, Headshot, Banner, Logo, Backdrop) | Required |
-| POST | `/library/enrichment/universe/trigger` | Trigger universe enrichment for a specific QID | Effective administrator or precise Application permission |
+| POST | `/library/enrichment/universe/trigger` | Queue a universe enrichment sweep (takes no QID) | Effective administrator or precise Application permission |
 
 ---
 
@@ -713,8 +709,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | Intercom | `/intercom` | Server -> Client | Real-time push events: ingestion progress, enrichment completion, `MediaOperationChanged`, `CapabilityStateChanged`, pipeline state changes, and review queue updates. Authentication required. Server-push only - clients do not send messages to the collection. |
 
 SignalR payloads use `MediaEngine.Contracts.Realtime` except for the exact
-frozen `LoreDeltaDiscoveredEvent` and `UniverseEnrichmentProgressEvent`
-Universe/Chronicle pair. New events and new payload fields are not covered by
+frozen Universe/Chronicle `UniverseEnrichmentProgressEvent`. New events and new payload fields are not covered by
 that exception.
 
 ---
@@ -820,5 +815,12 @@ These routes belong to the Access replacement under final integration. Inbound c
 | GET | `/api/v1/playback/history` | Durable scoped playback history |
 | GET | `/api/v1/analytics/playback` | Scoped playback totals |
 | GET | `/api/v1/analytics/users`, `/libraries`, `/devices` | Aggregation only after scope filtering |
+| GET | `/api/v1/activity` | A person's own activity record (watched, listened, read, added to My list), newest first, cursor-paged (`limit` up to 200, `next_cursor`). Query: `scope` (`me`, the default, `profile:{id}`, `household:{id}` or `everyone`; the Engine refuses with `403` what the caller may not see and `404` for an unknown person or household), `q` (title, subtitle, album and device; also the person's name when the scope includes others), `kind` (repeat or comma-separate `watch`, `listen`, `read`, `my_list`), `from`/`to`, `outcome` (`finished` or `not_finished`), `device`, `group=title` (one group per work with its attempts and totals) and `expand=songs`. Consecutive songs less than 30 minutes apart, with no other activity by that person between them, come back as one `music_session` item (song and album counts, up to nine random album covers, the songs with `expand=songs`). Each entry has its own snapshot of the item, so deleted items still show. Rows carry `person` only when the scope includes others. No IP addresses or sign-in details. A paired app gets its own person only. Opening a scope that includes others writes `activity.viewed_others` once per 30 minutes per actor and scope. Needs `progress.read` |
+| GET | `/api/v1/activity/periods` | Counts per year and month (UTC) under the same scope and filters, for the date rail |
+| GET | `/api/v1/activity/recent?limit=20` | The caller's own latest activity for the Overview strip, music collapsed into sessions; each tile has a natural `shape` (`portrait` for books and comics, `landscape` for episodes and movies, `square` for music and audiobooks) |
+| GET | `/api/v1/activity/export.csv` | The same filters as a CSV file of exactly the matching entries. Signed-in people only. A scope that includes others needs an effective server administrator (`403` otherwise) and writes `activity.exported_others` every time |
+| GET | `/api/v1/activity/delete-preview?before=&scope=` | How many entries before the date would be deleted. Server administrator only (unlocked when they use an administrator PIN); `403` for everyone else |
+| DELETE | `/api/v1/activity?before=&scope=` | Deletes the entries that started before the date in the scope, and the small pictures nothing uses any more, then writes `activity.history_deleted` with the scope, date and count. Server administrator only. This is the only way activity history is deleted; nothing prunes it |
+| GET | `/api/v1/activity/artwork/{key}?scope=` | The small cover copy kept with an entry (`Cache-Control: private`). `404` unless the caller may see at least one entry that uses it |
 
 Telemetry read operations have separate registered permissions; cross-session control remains unavailable. Delivery mode and transformed media properties remain unknown without trustworthy observed stream facts. Webhook retries use the same signed envelope and stable delivery identity; receivers must handle repeated deliveries idempotently. A replay gap requires a fresh authorized snapshot before resuming the stream.

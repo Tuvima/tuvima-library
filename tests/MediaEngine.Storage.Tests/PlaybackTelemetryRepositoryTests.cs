@@ -107,7 +107,7 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task StaleClosureUsesLastObservationAndRetentionNeverDeletesActiveRows()
+    public async Task StaleClosureUsesLastObservationAndKeepsBothTheClosedAndTheActiveRows()
     {
         var old = Seed("Movies");
         var active = Seed("Movies");
@@ -117,11 +117,10 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
         var closed = Assert.Single(await _repository.CloseStaleAsync(_start.AddMinutes(2)));
         Assert.Equal(PlaybackCompletionReasons.Stale, closed.Session.CompletionReason);
         Assert.Equal(_start, closed.Session.EndedAt);
-        Assert.Equal(1, await _repository.DeleteHistoryBeforeAsync(_start.AddDays(1)));
 
         var all = new PlaybackTelemetryReadScope(true, true, null, null, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet());
         Assert.Single((await _repository.GetActiveAsync(all, 10, null)).Items);
-        Assert.Empty((await _repository.GetHistoryAsync(all, null, null, 10, null)).Items);
+        Assert.Equal(closed.Session.Id, Assert.Single((await _repository.GetHistoryAsync(all, null, null, 10, null)).Items).Id);
     }
 
     [Fact]

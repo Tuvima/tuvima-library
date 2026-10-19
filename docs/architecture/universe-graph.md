@@ -161,7 +161,7 @@ Relationships carry `StartTime` and `EndTime` (nullable ISO 8601 strings) source
 
 ### Lore Delta Detection
 
-`ILoreDeltaService` batch-fetches current Wikidata revision IDs via `wbgetentities?props=info` and compares them against the stored `WikidataRevisionId` on each `FictionalEntity`. Changed entities are reported as `LoreDeltaResult` records. When changes are detected, a `LoreDeltaDiscoveredEvent` is broadcast via SignalR and a banner appears in the Chronicle Explorer.
+`ILoreDeltaService` batch-fetches current Wikidata revision IDs via `wbgetentities?props=info` and compares them against the stored `WikidataRevisionId` on each `FictionalEntity`. Changed entities are reported as `LoreDeltaResult` records. The check runs when the Chronicle Explorer page loads (`GET /universe/{qid}/lore-delta`); when it reports changes, the Explorer shows a banner. The Engine does not push a live notification for lore changes.
 
 ### Era-Correct Actor Resolution
 
@@ -213,8 +213,13 @@ Stage 3 universe enrichment runs plugin lore after the core Wikidata enhancer pa
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/universes` | List all narrative roots with entity counts |
-| GET | `/universe/{qid}` | Universe detail: entities, relationships, metadata |
-| GET | `/universe/{qid}/graph` | Cytoscape.js-ready JSON; supports `?type=`, `?work=`, `?ego=`, `?timeline_year=`, and `?include_supplemental_lore=true` filters |
+| GET | `/universe/{qid}` | Universe summary: label, level, and counts of the entities (all, characters, locations, organizations) and relationships visible to the caller |
+| GET | `/api/v1/universe/{qid}` | Paired-app Universe page: the Universe's name, item count and member shelves from the Collections catalogue (not the narrative-root graph), limited to what the paired profile may see |
+| GET | `/universe/{qid}/graph` | Cytoscape.js-ready JSON; supports `?types=`, `?work=`, `?center=` with `?depth=` (ego network), `?timeline_year=`, and `?include_supplemental_lore=true` filters |
+| GET | `/universe/{qid}/paths` | Paths between two entities (`?from=`, `?to=`, optional `?maxHops=`, default 4) |
+| GET | `/universe/{qid}/family-tree` | Family tree for one character (`?character=`, optional `?generations=`, default 3) |
+| GET | `/universe/{qid}/cast` | Characters with their real-world performers |
+| GET | `/universe/{qid}/adaptations` | Adaptation tree built from based-on, derivative-work and inspired-by relationships |
 | GET | `/universe/{qid}/lore-delta` | Check for Wikidata revisions newer than stored |
 | GET | `/universe/{qid}/lore-sources` | Admin list of plugin lore sources for the universe |
 | POST | `/universe/{qid}/lore-sources/discover` | Ask enabled lore plugins to suggest source candidates |
@@ -222,6 +227,8 @@ Stage 3 universe enrichment runs plugin lore after the core Wikidata enhancer pa
 | POST | `/universe/{qid}/lore-sources/{sourceId}/approve` | Approve a source for plugin enrichment |
 | POST | `/universe/{qid}/lore-sources/{sourceId}/reject` | Reject a source |
 | POST | `/universe/{qid}/lore/enrich` | Import approved plugin lore for the universe |
+| POST | `/library/enrichment/universe/trigger` | Queue a universe enrichment sweep (takes no QID) |
+| GET | `/library/portraits/{portraitId}` | Stream one character portrait image (cast credits link to it) |
 | GET | `/metadata/{entityId}/canon-discrepancies` | Compare edition against master work |
 
 ---
@@ -255,11 +262,8 @@ sources remain supplemental and appear in Sources with their plugin and URL.
 | Key | Default | Purpose |
 |---|---|---|
 | `fetch_temporal_qualifiers` | true | Include P580/P582 in Data Extension requests |
-| `batch_query_size` | 50 | Max entities per batch Data Extension call |
+| `batch_sparql_size` | 50 | Max entities per batch Data Extension call |
 | `lineage_depth` | 2 | Maximum relationship traversal depth |
-| `lore_delta_check_on_explorer_open` | true | Auto-check for Wikidata changes when Chronicle Explorer loads |
-| `canon_discrepancy_detection` | true | Enable edition vs. master work comparison |
-| `era_actor_resolution` | true | Enable temporal actor resolution |
 
 ---
 

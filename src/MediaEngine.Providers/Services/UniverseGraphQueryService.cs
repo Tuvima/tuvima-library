@@ -59,14 +59,6 @@ public sealed class UniverseGraphQueryService : IUniverseGraphQueryService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<string>> FindCrossMediaEntitiesAsync(
-        string universeQid, CancellationToken ct = default)
-    {
-        var graph = await GetOrLoadGraphAsync(universeQid, ct).ConfigureAwait(false);
-        return graph.FindCrossMediaEntities(minWorks: 2);
-    }
-
-    /// <inheritdoc/>
     public void InvalidateCache(string universeQid)
     {
         if (_graphCache.TryRemove(universeQid, out _))

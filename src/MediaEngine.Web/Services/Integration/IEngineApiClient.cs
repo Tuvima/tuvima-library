@@ -54,10 +54,7 @@ public partial interface IEngineApiClient
     /// <summary>POST /metadata/{entityId}/reclassify — reclassify a media asset to a different media type.</summary>
     Task<bool> ReclassifyMediaTypeAsync(Guid entityId, string mediaType, CancellationToken ct = default);
 
-    // ── Universe health + character data (/universe, /library/characters, /library/persons) ──
-
-    /// <summary>GET /universe/{qid}/health — health score for a fictional universe.</summary>
-    Task<UniverseHealthDto?> GetUniverseHealthAsync(string qid, CancellationToken ct = default);
+    // ── Character data (/universe, /library/characters, /library/persons) ──
 
     /// <summary>GET /works/{id}/cast — actor and character credits for a single work.</summary>
     Task<List<CastCreditDto>> GetWorkCastAsync(Guid workId, CancellationToken ct = default);
@@ -163,12 +160,4 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/wikidata-match - replace, clear, reject, or mark Wikidata missing.</summary>
     Task<ItemCanonicalApplyResponseDto?> ReplaceWikidataMatchAsync(
         Guid entityId, ReplaceWikidataMatchRequestDto request, CancellationToken ct = default);
-
-    // ── Universe Alignment ──
-
-    /// <summary>GET /library/universe-candidates - works with universe QIDs but no collection assignment.</summary>
-    Task<List<UniverseCandidateViewModel>> GetUniverseCandidatesAsync(CancellationToken ct = default);
-
-    /// <summary>GET /library/universe-unlinked - works with QID but no universe properties.</summary>
-    Task<List<UnlinkedWorkViewModel>> GetUniverseUnlinkedAsync(CancellationToken ct = default);
 }

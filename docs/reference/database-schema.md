@@ -1307,6 +1307,33 @@ Ordered log of all database writes, used for debugging and rollback analysis.
 | `new_values` | TEXT | JSON snapshot after change. NULL for DELETE. |
 | `created_at` | TEXT | Timestamp |
 
+### personal_activity
+
+Each person's own record of what they watched, listened to and read, and what they added to My list (Settings > Personal > Activity). Added by upgrade step `0008_personal_activity`. Every row keeps a **snapshot** of the item as it was at the time, so history still reads correctly after the media file or the work is deleted; for that reason `work_id` and `asset_id` have no foreign keys. Rows are **kept forever**: nothing prunes them, and only a server administrator removes history, by hand (**Delete history...**, which is logged). Photos and the View area are never recorded.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key. |
+| `profile_id` | BLOB | The person; deleting the profile removes their rows. |
+| `kind` | TEXT | `watch`, `listen`, `read` or `my_list`. |
+| `telemetry_session_id` | BLOB | The `playback_telemetry_sessions.id` this row follows (unique, no foreign key); makes repeated writes idempotent. NULL for `my_list`. |
+| `music_session_id` | BLOB | Shared by the songs of one music session: songs less than 30 minutes apart with no other activity by the person in between. NULL for everything else. |
+| `started_at`, `ended_at` | TEXT | UTC. `ended_at` is the last time the session was seen while it is still open. |
+| `played_seconds` | INTEGER | Time actually played or read. |
+| `progress_pct` | REAL | Furthest point reached, 0 to 100. NULL when the duration is unknown or for `my_list`. |
+| `finished` | INTEGER | 1 when the session completed or reached 99.5%. |
+| `device_name`, `device_kind` | TEXT | The paired device (`web`, `mobile`, `television`, `automotive`) or the browser client. |
+| `work_id`, `asset_id` | BLOB | Snapshot: the work and file at the time. No foreign keys. |
+| `media_type` | TEXT | `Movies`, `TV`, `Books`, `Comics`, `Audiobooks` or `Music`. |
+| `title`, `subtitle`, `parent_title`, `year` | TEXT, TEXT, TEXT, INTEGER | Snapshot of the item's current canonical values: the title (the show for an episode), the episode label (season and episode, then its name), the author or the artist, the album, the year. |
+| `artwork_key` | TEXT | The `personal_activity_artwork.key` of the small cover copy. No foreign key. |
+
+**Indexes:** `(profile_id, started_at DESC)`, `(profile_id, work_id)`, `(started_at)`, `(music_session_id)`.
+
+### personal_activity_artwork
+
+The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
+
 ## Related
 
 - [Engine API Reference](api-endpoints.md)

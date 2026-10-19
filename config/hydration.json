@@ -10,11 +10,8 @@
   "max_qid_candidates": 5,
   "skip_wikipedia_without_qid": true,
   "wikipedia_description_max_chars": 1000,
-  "universe_title_search_auto_accept": 0.80,
   "post_hydration_organize_threshold": 0.70,
-  "universe_xml_write_debounce_seconds": 5,
   "fictional_entity_enrichment_depth": 2,
-  "minimum_universe_work_count": 2,
   "collection_rollup_relationship_types": ["series", "franchise", "fictional_universe", "based_on"],
 
   "two_pass_enabled": false,
@@ -28,9 +25,6 @@
   "fetch_temporal_qualifiers": true,
   "batch_sparql_size": 50,
   "lineage_depth": 2,
-  "lore_delta_check_on_explorer_open": true,
-  "canon_discrepancy_detection": true,
-  "era_actor_resolution": true,
 
   "retail_auto_accept_threshold": 0.90,
   "retail_ambiguous_threshold": 0.65,
