@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
-| [Spec: Settings revamp (one look, one menu, one attention banner)](specs/settings-revamp.md) | Locked (v1, 2026-10-19) |
+| [Spec: Settings revamp (one look, one menu, one attention banner)](specs/settings-revamp.md) | In progress (v1, 2026-10-19) |
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | Locked (v4, 2026-10-19) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | Locked (v2, 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |

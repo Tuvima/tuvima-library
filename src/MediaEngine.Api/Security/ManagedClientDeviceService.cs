@@ -19,24 +19,29 @@ public enum ManagedDeviceRevokeOutcome
 }
 
 /// <summary>
-/// Lists and revokes paired phones and TVs for the Dashboard. An administrator sees every device; anyone
-/// else sees only their own account's.
+/// Lists and revokes paired phones and TVs for the Dashboard. A server administrator sees every device; a
+/// household administrator who has unlocked their administrator PIN (when they use one) sees their own household's,
+/// except those of a server administrator or another household administrator; anyone else sees only their own account's.
 /// </summary>
 public sealed class ManagedClientDeviceService(
     IClientAuthorizationRepository devices,
     IAccountRepository accounts,
     IProfileRepository profiles,
     IDeviceRevocationNotifier notifier,
+    IAccountAccessDecisionService decisions,
     TimeProvider timeProvider)
 {
     public const string RevokedReason = "user_revoked";
 
     public async Task<IReadOnlyList<ManagedClientDeviceDto>> ListAsync(RequestAuthority authority, CancellationToken ct = default)
     {
-        var accountScope = authority.IsEffectiveAdministrator ? (Guid?)null : RequiredAccountId(authority);
+        var householdScope = await HouseholdScopeAsync(authority, ct).ConfigureAwait(false);
+        var accountScope = authority.IsEffectiveAdministrator || householdScope is not null
+            ? (Guid?)null
+            : RequiredAccountId(authority);
         var rows = await devices.GetActiveDevicesAsync(accountScope, ct).ConfigureAwait(false);
         var accountNames = new Dictionary<Guid, string>();
-        var accountHouseholds = new Dictionary<Guid, Guid?>();
+        var accountRecords = new Dictionary<Guid, Account?>();
         var profileNames = new Dictionary<Guid, string>();
         var result = new List<ManagedClientDeviceDto>(rows.Count);
         foreach (var device in rows)
@@ -46,7 +51,13 @@ public sealed class ManagedClientDeviceService(
                 var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
                 accountName = account is null ? "Unknown account" : string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
                 accountNames[device.AccountId] = accountName;
-                accountHouseholds[device.AccountId] = account?.HouseholdId;
+                accountRecords[device.AccountId] = account;
+            }
+
+            // A household administrator reaches only the devices of ordinary sign-ins in their own household.
+            if (householdScope is { } household && !InScope(household, authority, accountRecords[device.AccountId]))
+            {
+                continue;
             }
 
             if (!profileNames.TryGetValue(device.ProfileId, out var profileName))
@@ -79,7 +90,7 @@ public sealed class ManagedClientDeviceService(
                 PairedAt = device.CreatedAt,
                 LastSeenAt = device.LastSeenAt,
                 BackupProfileId = device.BackupProfileId,
-                HouseholdId = accountHouseholds[device.AccountId],
+                HouseholdId = accountRecords[device.AccountId]?.HouseholdId,
                 BacksUpTo = backupName,
             });
         }
@@ -95,7 +106,8 @@ public sealed class ManagedClientDeviceService(
             return ManagedDeviceRevokeOutcome.NotFound;
         }
 
-        if (!authority.IsEffectiveAdministrator && device.AccountId != RequiredAccountId(authority))
+        if (!authority.IsEffectiveAdministrator && device.AccountId != RequiredAccountId(authority) &&
+            !await IsManagedByHouseholdAdministratorAsync(authority, device.AccountId, ct).ConfigureAwait(false))
         {
             return ManagedDeviceRevokeOutcome.Forbidden;
         }
@@ -108,6 +120,26 @@ public sealed class ManagedClientDeviceService(
         await notifier.NotifyDeviceRevokedAsync(deviceId, ct).ConfigureAwait(false);
         return ManagedDeviceRevokeOutcome.Revoked;
     }
+
+    /// <summary>
+    /// The household a household administrator is limited to, or <see langword="null"/> for everyone else. Like the
+    /// sessions list, it needs the administrator PIN unlocked when the person uses one; until then they see only their own.
+    /// </summary>
+    private async Task<Guid?> HouseholdScopeAsync(RequestAuthority authority, CancellationToken ct) =>
+        authority.PrincipalKind == PrincipalKind.Human && !authority.IsEffectiveAdministrator &&
+        authority.AccountHouseholdId is { } household &&
+        (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, ct).ConfigureAwait(false)).IsAllowed
+            ? household
+            : null;
+
+    private async Task<bool> IsManagedByHouseholdAdministratorAsync(RequestAuthority authority, Guid accountId, CancellationToken ct) =>
+        await HouseholdScopeAsync(authority, ct).ConfigureAwait(false) is { } household &&
+        InScope(household, authority, await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false));
+
+    /// <summary>The same rule as the sessions list: another administrator's sign-in is not a household administrator's to manage.</summary>
+    private static bool InScope(Guid household, RequestAuthority actor, Account? account) =>
+        account is not null && account.HouseholdId == household &&
+        (account.Id == actor.AccountId || !(account.IsAdministrator || account.HouseholdAdmin));
 
     private static Guid RequiredAccountId(RequestAuthority authority) =>
         authority.AccountId ?? throw new UnauthorizedAccessException();

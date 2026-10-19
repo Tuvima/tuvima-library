@@ -98,6 +98,17 @@
                         }
                     </div>
                 }
+                @if (FixedColumnTree)
+                {
+                    <div class="media-section-shell__tree">
+                        @foreach (var item in group.Items)
+                        {
+                            @RenderTreeNode(item, 0)
+                        }
+                    </div>
+                }
+                else
+                {
                 @foreach (var item in group.Items)
                 {
                     if (HasChildren(item))
@@ -370,6 +381,7 @@
                         </a>
                     }
                 }
+                }
             </section>
         }
         <LibraryStorageSummary Area="@CapacityArea" />
@@ -393,6 +405,14 @@
     [Parameter] public Func<MediaSectionNavigationManageEvent, Task<bool>>? OnNavigationItemDelete { get; set; }
     [Parameter] public Func<MediaSectionNavigationReorderEvent, Task<bool>>? OnNavigationItemReorder { get; set; }
     [Parameter] public bool ShowMobileNavigation { get; set; } = true;
+
+    /// <summary>
+    /// Draws the rail as one fixed-column tree: every row, parent or not, has a chevron slot (blank for a leaf), an icon,
+    /// a label and a badge slot, and children indent by one fixed step, so icons and labels at one level share a left
+    /// edge. Rows can be shaded by <see cref="MediaSectionNavigationItem.Attention"/>. Off by default: the library
+    /// browse shells keep their own rows.
+    /// </summary>
+    [Parameter] public bool FixedColumnTree { get; set; }
     private string CapacityArea => Title.Trim().ToLowerInvariant() switch
     {
         "photos" or "view" => "view",
@@ -568,6 +588,12 @@
 
     private void ExpandActiveBranch()
     {
+        if (FixedColumnTree)
+        {
+            ExpandActiveTreePath();
+            return;
+        }
+
         var activeBranch = NavigationGroups
             .SelectMany(group => group.Items)
             .FirstOrDefault(item => HasChildren(item) && IsActive(item));
@@ -583,6 +609,173 @@
 
         _expandedRoutes.Add(activeBranch.Route);
     }
+
+    private List<MediaSectionNavigationItem>? FindTreePath(Func<MediaSectionNavigationItem, bool> predicate)
+    {
+        foreach (var group in NavigationGroups)
+        {
+            var path = FindTreePath(group.Items, predicate);
+            if (path is not null)
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static List<MediaSectionNavigationItem>? FindTreePath(
+        IEnumerable<MediaSectionNavigationItem> items, Func<MediaSectionNavigationItem, bool> predicate)
+    {
+        foreach (var item in items)
+        {
+            if (predicate(item))
+            {
+                return [item];
+            }
+
+            if (item.Children is { Count: > 0 } && FindTreePath(item.Children, predicate) is { } below)
+            {
+                below.Insert(0, item);
+                return below;
+            }
+        }
+
+        return null;
+    }
+
+    // Opens the row and every row above it. With accordion navigation everything else folds, so one branch is open per level.
+    private void ExpandTreeNode(MediaSectionNavigationItem item)
+    {
+        var path = FindTreePath(candidate => string.Equals(candidate.Route, item.Route, StringComparison.OrdinalIgnoreCase))
+                   ?? [item];
+        if (AccordionNavigation)
+        {
+            _expandedRoutes.Clear();
+        }
+
+        foreach (var node in path.Where(HasChildren))
+        {
+            _expandedRoutes.Add(node.Route);
+        }
+    }
+
+    private void ToggleTreeNode(MediaSectionNavigationItem item)
+    {
+        if (_expandedRoutes.Remove(item.Route))
+        {
+            foreach (var descendant in Flatten(item.Children ?? []))
+            {
+                _expandedRoutes.Remove(descendant.Route);
+            }
+
+            return;
+        }
+
+        ExpandTreeNode(item);
+    }
+
+    private void NavigateTreeNode(MediaSectionNavigationItem item)
+    {
+        ExpandTreeNode(item);
+        if (!IsOwnRouteActive(item, forceExact: true))
+        {
+            Nav.NavigateTo(item.Route);
+        }
+    }
+
+    private void ExpandActiveTreePath()
+    {
+        var path = FindTreePath(candidate => IsOwnRouteActive(candidate, forceExact: true));
+        if (path is null)
+        {
+            return;
+        }
+
+        if (AccordionNavigation)
+        {
+            _expandedRoutes.Clear();
+        }
+
+        foreach (var node in path.Where(HasChildren))
+        {
+            _expandedRoutes.Add(node.Route);
+        }
+    }
+
+    private bool IsTreeRowCurrent(MediaSectionNavigationItem item) =>
+        HasChildren(item) ? IsParentRouteCurrent(item) : IsOwnRouteActive(item);
+
+    private string TreeRowClass(MediaSectionNavigationItem item)
+    {
+        var current = IsTreeRowCurrent(item);
+        return string.Join(' ', new[]
+        {
+            "media-section-shell__tree-row",
+            current ? "is-active" : IsActive(item) ? "is-branch-active" : null,
+            item.EffectiveAttention switch
+            {
+                MediaSectionAttentionLevel.Waiting => "is-attention-waiting",
+                MediaSectionAttentionLevel.Blocked => "is-attention-blocked",
+                _ => null,
+            },
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private static string? TreeAttentionLabel(MediaSectionNavigationItem item) =>
+        item.EffectiveAttention == MediaSectionAttentionLevel.Blocked && !string.IsNullOrWhiteSpace(item.AttentionLabel)
+            ? item.AttentionLabel
+            : null;
+
+    private RenderFragment RenderTreeNode(MediaSectionNavigationItem item, int depth) => @<div class="media-section-shell__tree-node" @key="item.Route">
+        <div class="@TreeRowClass(item)" data-tree-depth="@depth">
+            <span class="media-section-shell__tree-chevron-slot">
+                @if (HasChildren(item))
+                {
+                    <AppIconButton Icon="@(IsExpanded(item) ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                                   Size="AppControlSize.Compact"
+                                   Class="media-section-shell__tree-chevron"
+                                   AriaLabel="@(IsExpanded(item) ? $"Collapse {item.Label}" : $"Expand {item.Label}")"
+                                   aria-expanded="@(IsExpanded(item) ? "true" : "false")"
+                                   aria-controls="@ChildrenId(item)"
+                                   OnClick="@(() => ToggleTreeNode(item))" />
+                }
+            </span>
+            <a id="@ItemId(item)"
+               href="@item.Route"
+               class="media-section-shell__tree-link"
+               aria-current="@(IsTreeRowCurrent(item) ? "page" : null)"
+               @onclick="@(() => NavigateTreeNode(item))"
+               @onclick:preventDefault="@HasChildren(item)">
+                <span class="media-section-shell__tree-icon"><AppMaterialIcon Icon="@item.Icon" Size="AppSize.Small" aria-hidden="true" /></span>
+                <span class="media-section-shell__tree-label">@item.Label</span>
+                <span class="media-section-shell__tree-badge">
+                    @if (!string.IsNullOrWhiteSpace(item.Meta))
+                    {
+                        <span class="media-section-shell__rail-meta @(item.MetaIsNotification ? "media-section-shell__rail-meta--notification" : null)"
+                              aria-label="@item.MetaAriaLabel">@item.Meta</span>
+                    }
+                    else if (TreeAttentionLabel(item) is { } attentionLabel)
+                    {
+                        <span class="media-section-shell__tree-attention-label">@attentionLabel</span>
+                    }
+                    @if (item.AttentionDot)
+                    {
+                        <span class="media-section-shell__attention-dot" aria-hidden="true"></span>
+                    }
+                </span>
+            </a>
+        </div>
+        @if (HasChildren(item) && IsExpanded(item))
+        {
+            <div id="@ChildrenId(item)" class="media-section-shell__tree-children" role="group" aria-label="@($"{item.Label} subsections")">
+                @foreach (var child in item.Children!)
+                {
+                    @RenderTreeNode(child, depth + 1)
+                }
+            </div>
+        }
+    </div>;
 
     private static IEnumerable<MediaSectionNavigationItem> Flatten(IEnumerable<MediaSectionNavigationItem> items)
     {

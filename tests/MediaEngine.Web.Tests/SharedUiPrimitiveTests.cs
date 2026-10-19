@@ -309,24 +309,6 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsSubsectionNav_RendersCanonicalLinksAndActiveState()
-    {
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/metadata/ingestion-flow");
-
-        var cut = Render<SettingsSubsectionNav>(parameters => parameters
-            .Add(component => component.Section, SettingsSection.Providers)
-            .Add(component => component.ActiveSubsection, "ingestion-flow")
-            .Add(component => component.AriaLabel, "Metadata sections"));
-
-        Assert.Equal(2, cut.FindAll("a.settings-subsection-nav__item").Count);
-        var active = cut.Find("a[href='/settings/metadata/ingestion-flow']");
-        Assert.Equal("page", active.GetAttribute("aria-current"));
-        Assert.Null(active.GetAttribute("aria-selected"));
-        Assert.Null(active.GetAttribute("role"));
-        Assert.Contains("is-active", active.ClassList);
-    }
-
-    [Fact]
     public void SettingsAdvancedLinkRow_RendersOneSemanticDestination()
     {
         var cut = Render<SettingsAdvancedLinkRow>(parameters => parameters

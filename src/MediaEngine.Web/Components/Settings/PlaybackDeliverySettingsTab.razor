@@ -96,29 +96,6 @@
                         }
                     </SettingsSectionPanel>
                 </div>
-
-                @if (!DeviceContext.IsMobile)
-                {
-                <SettingsSectionPanel Title="Advanced"
-                                      Description="Scheduling, storage, job history, and technical checks."
-                                      Icon="@AppMaterialIcons.Outlined.Tune">
-                    <SettingsAdvancedLinkRow Title="Scheduling"
-                                             Description="Choose when prepared variants may be generated."
-                                             Href="/settings/delivery/scheduling"
-                                             ActionLabel="Manage" />
-                    <SettingsAdvancedLinkRow Title="Variant storage"
-                                             Description="Manage cache location, limit, retention, and cleanup."
-                                             Href="/settings/delivery/storage"
-                                             ActionLabel="Manage" />
-                    <SettingsAdvancedLinkRow Title="Active jobs"
-                                             Description="View current and queued encode work."
-                                             Href="/settings/delivery/active-jobs"
-                                             ActionLabel="View" />
-                    <SettingsAdvancedLinkRow Title="Diagnostics"
-                                             Description="Inspect playback tools and Engine warnings."
-                                             Href="/settings/delivery/diagnostics" />
-                </SettingsSectionPanel>
-                }
             }
             break;
     }

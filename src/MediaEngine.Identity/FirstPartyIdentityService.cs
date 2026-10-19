@@ -851,13 +851,15 @@ public sealed class FirstPartyIdentityService(
     {
         var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
         var preferred = await identities.GetDeviceProfilePreferenceAsync(accountId, session.DeviceId, ct).ConfigureAwait(false);
-        return preferred is { } id && await accounts.HasProfileAccessAsync(accountId, id, ct).ConfigureAwait(false) ? id : null;
+        return preferred is { } id && await accounts.HasProfileAccessAsync(accountId, id, ct).ConfigureAwait(false) &&
+            await MayUseInHouseholdAsync(accountId, id, ct).ConfigureAwait(false) ? id : null;
     }
 
     public async Task SetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, Guid profileId, CancellationToken ct = default)
     {
         var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
-        if (!await accounts.HasProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false))
+        if (!await accounts.HasProfileAccessAsync(accountId, profileId, ct).ConfigureAwait(false) ||
+            !await MayUseInHouseholdAsync(accountId, profileId, ct).ConfigureAwait(false))
         {
             throw new UnauthorizedAccessException("This account cannot use that profile.");
         }
@@ -901,6 +903,12 @@ public sealed class FirstPartyIdentityService(
         }
 
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
+        // Beyond the grant, a member or household administrator switches only inside their own household.
+        if (!current.Account.MaySwitchInto(target.HouseholdId))
+        {
+            throw new UnauthorizedAccessException("This account cannot use that profile.");
+        }
+
         // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
         // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
         await VerifyProfilePinAsync(target.Id, pin, true, ct).ConfigureAwait(false);
@@ -1155,7 +1163,8 @@ public sealed class FirstPartyIdentityService(
         }
 
         var preferredId = await identities.GetDeviceProfilePreferenceAsync(accountId, Sanitize(deviceId, 100, "unknown"), ct).ConfigureAwait(false);
-        if (preferredId is { } id && granted.Contains(id) && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } preferred)
+        if (preferredId is { } id && granted.Contains(id) && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } preferred &&
+            await MayUseInHouseholdAsync(accountId, id, ct).ConfigureAwait(false))
         {
             var hasPin = await identities.GetCredentialAsync(id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null;
             return hasPin ? (fallback, true, true) : (preferred, false, false);
@@ -1174,11 +1183,37 @@ public sealed class FirstPartyIdentityService(
         }
     }
 
+    /// <summary>
+    /// The default profile, or the first granted one. Anyone but a server administrator starts only in a person of their
+    /// own household, so a grant that reaches further is never a starting profile.
+    /// </summary>
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)
     {
-        var id = await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false) ?? (await accounts.GetProfileIdsAsync(accountId, ct).ConfigureAwait(false)).FirstOrDefault();
-        return id != Guid.Empty && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } profile ? profile : throw new InvalidOperationException("The account has no available profile.");
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        var candidates = new List<Guid>();
+        if (await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false) is { } defaultId)
+        {
+            candidates.Add(defaultId);
+        }
+
+        candidates.AddRange(await accounts.GetProfileIdsAsync(accountId, ct).ConfigureAwait(false));
+        foreach (var id in candidates.Where(candidate => candidate != Guid.Empty))
+        {
+            if (await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } profile &&
+                (account is null || account.MaySwitchInto(profile.HouseholdId)))
+            {
+                return profile;
+            }
+        }
+
+        throw new InvalidOperationException("The account has no available profile.");
     }
+
+    /// <summary>Whether the account may use the person under the household rule (a server administrator is not limited by it).</summary>
+    private async Task<bool> MayUseInHouseholdAsync(Guid accountId, Guid profileId, CancellationToken ct) =>
+        await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { } account &&
+        await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is { } profile &&
+        account.MaySwitchInto(profile.HouseholdId);
 
     private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {

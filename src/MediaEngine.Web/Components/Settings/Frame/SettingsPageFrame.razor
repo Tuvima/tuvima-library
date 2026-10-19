@@ -1,0 +1,69 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Shared.Shell
+
+@* The one frame every Settings page sits in: administrator notices, breadcrumb, title and one-line description,
+   an optional permanent page notice, optional in-page tabs, then the page content. Everything shares one left
+   edge and one width, so pages never set their own outer width, margin or padding. *@
+<div class="settings-frame" data-settings-frame>
+    @if (Notices is not null)
+    {
+        <div class="settings-frame__notices" data-settings-frame-slot="notices">@Notices</div>
+    }
+
+    <div class="settings-frame__header" data-settings-frame-slot="header">
+        <AppBreadcrumbs Class="settings-breadcrumbs">
+            @for (var index = 0; index < Breadcrumbs.Count; index++)
+            {
+                var breadcrumb = Breadcrumbs[index];
+                if (index > 0)
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" aria-hidden="true" />
+                }
+                @if (!string.IsNullOrWhiteSpace(breadcrumb.Href))
+                {
+                    <a href="@breadcrumb.Href">@breadcrumb.Label</a>
+                }
+                else
+                {
+                    <span aria-current="page" title="@breadcrumb.Label">@breadcrumb.Label</span>
+                }
+            }
+        </AppBreadcrumbs>
+
+        <SidebarPageHeader Eyebrow="@Eyebrow" Title="@Title" Subtitle="@Description" />
+    </div>
+
+    @if (PageNotice is not null)
+    {
+        <div class="settings-frame__page-notice" data-settings-frame-slot="page-notice">@PageNotice</div>
+    }
+
+    @if (Tabs is not null)
+    {
+        <div class="settings-frame__tabs" data-settings-frame-slot="tabs">@Tabs</div>
+    }
+
+    <div class="settings-frame__content" data-settings-frame-slot="content">@ChildContent</div>
+</div>
+
+@code {
+    /// <summary>Administrator attention lines drawn above the breadcrumb. Nothing is drawn when null.</summary>
+    [Parameter] public RenderFragment? Notices { get; set; }
+
+    [Parameter] public IReadOnlyList<SettingsBreadcrumb> Breadcrumbs { get; set; } = [];
+
+    [Parameter] public string? Eyebrow { get; set; }
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>One line under the title.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>A permanent notice for this page that cannot be dismissed while the problem lasts. Nothing is drawn when null.</summary>
+    [Parameter] public RenderFragment? PageNotice { get; set; }
+
+    /// <summary>Tabs for sections inside this one page. Nothing is drawn when null.</summary>
+    [Parameter] public RenderFragment? Tabs { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

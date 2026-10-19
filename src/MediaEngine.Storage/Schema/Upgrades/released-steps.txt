@@ -2,3 +2,5 @@
 # A step that has been merged to main must never change. Maintained by: pwsh -File tools/Update-SchemaSnapshot.ps1
 0001 baseline 072279fb32cf53dd0b5a7a22fbbe37a11c4838374b2bf0cbd976e612558cc69e
 0002 media_inspection_holds f6c382ca88e8a5364134794744c459dd02feec147ab7b0fa3d30c96a83fb26c4
+0003 account_notice_dismissals 17e3803d443bcafa1b79182bf532107f5552e31cd701f2794793dd774bd12653
+0004 shared_library_removable_when_empty 9e36ffd381b16057cc5036c519d6852eb1b80507e8828016e3f3b5a50e0d3630
