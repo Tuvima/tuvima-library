@@ -4,6 +4,11 @@
   "description": null,
   "group_type": "universe",
   "item_count": 4,
+  "series_count": 2,
+  "media_types": [
+    "Movie",
+    "Book"
+  ],
   "shelves": [
     {
       "collection_id": "6f0c2a3e-0000-0000-0000-000000000001",
@@ -222,7 +227,9 @@
           }
         ],
         "seeAllRoute": "/api/v1/display/groups/6f0c2a3e-0000-0000-0000-000000000001"
-      }
+      },
+      "also_in_this_world": null,
+      "also_in_this_world_count": 0
     },
     {
       "collection_id": "6f0c2a3e-0000-0000-0000-000000000006",
@@ -441,7 +448,33 @@
           }
         ],
         "seeAllRoute": "/api/v1/display/groups/6f0c2a3e-0000-0000-0000-000000000006"
-      }
+      },
+      "also_in_this_world": null,
+      "also_in_this_world_count": 0
+    }
+  ],
+  "cast": [
+    {
+      "person_id": "6f0c2a3e-0000-0000-0000-000000000011",
+      "name": "Ann Actor",
+      "headshot_url": null,
+      "characters": [
+        {
+          "qid": "Q8200",
+          "label": "Hero"
+        }
+      ],
+      "work_count": 2
+    }
+  ],
+  "adaptations": [
+    {
+      "qid": "Q8100",
+      "label": "The Film",
+      "media_type": "Object",
+      "relationship": "based on",
+      "source_qid": "Q8101",
+      "source_label": "The Novel"
     }
   ]
 }

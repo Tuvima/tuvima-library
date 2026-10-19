@@ -557,6 +557,198 @@ public sealed class CollectionClientEndpointsTests : IDisposable
             "universe");
     }
 
+    [Fact]
+    public async Task UniverseTheProfileCannotSee_IsStillNotFound()
+    {
+        // The adult Universe has its own cast and adaptation relationship; a limited profile must still get the plain not-found.
+        var grownUp = AddWork("Movies", "Grown-up Three", "R", _adultUniverse, ".mkv");
+        SetWorkQid(grownUp, "Q9001");
+        var entity = AddEntity("Q5000", "Q9100", "Grown-up Hero", "Character");
+        LinkEntity(entity, "Q9001");
+        var person = AddPerson("Grown-up Actor");
+        AddPerformance(person, entity, "Q9001");
+        SetContentLimit("PG");
+        await using var app = await StartAsync();
+
+        var hidden = await SnapshotAsync(app, "/api/v1/universe/Q5000");
+        var unknown = await SnapshotAsync(app, "/api/v1/universe/Q999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, hidden.Status);
+        Assert.Equal(unknown, hidden);
+        Assert.DoesNotContain("Grown-up Actor", hidden.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SupplementaryMembers_AreListedUnderAlsoInThisWorld_NotInTheNumberedRun()
+    {
+        var extra = AddWork("Movies", "Alpha Extra", "PG", _alpha, ".mkv");
+        AddManifestPlacement(_alpha, "Q4243", "Q7001", extra, "Supplementary");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+        var shelves = universe["shelves"]!.AsArray();
+        var alpha = shelves.Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _alpha)!;
+
+        Assert.Equal(3, alpha["item_count"]!.GetValue<int>());
+        Assert.Equal(
+            ["Alpha One", "Alpha Three", "Alpha Two"],
+            alpha["shelf"]!["items"]!.AsArray().Select(card => card!["title"]!.GetValue<string>()).Order());
+        Assert.Equal(1, alpha["also_in_this_world_count"]!.GetValue<int>());
+        var also = alpha["also_in_this_world"]!;
+        Assert.Equal("Also in this world", also["title"]!.GetValue<string>());
+        Assert.Equal(["Alpha Extra"], also["items"]!.AsArray().Select(card => card!["title"]!.GetValue<string>()));
+        // Every other shelf has no Also row, and the Universe counts each item once.
+        var beta = shelves.Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _beta)!;
+        Assert.Null(beta["also_in_this_world"]);
+        Assert.Equal(0, beta["also_in_this_world_count"]!.GetValue<int>());
+        Assert.Equal(8, universe["item_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task HeroTotals_CountSeriesWorksAndFormatsTheProfileCanSee()
+    {
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+
+        Assert.Equal(3, universe["series_count"]!.GetValue<int>());
+        Assert.Equal(7, universe["item_count"]!.GetValue<int>());
+        Assert.Equal(["Book", "Movie"], universe["media_types"]!.AsArray().Select(kind => kind!.GetValue<string>()).Order());
+
+        // A G-rated limit hides every Alpha item (PG and R), so the whole Series drops out of the totals.
+        SetContentLimit("G");
+        var limited = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+
+        Assert.Equal(2, limited["series_count"]!.GetValue<int>());
+        Assert.Equal(3, limited["item_count"]!.GetValue<int>());
+        Assert.Equal(["Book", "Movie"], limited["media_types"]!.AsArray().Select(kind => kind!.GetValue<string>()).Order());
+    }
+
+    [Fact]
+    public async Task Cast_IsOnePersonPerRow_WithTheCharactersTheyPlay()
+    {
+        var (first, second, _) = SeedCast();
+        await using var app = await StartAsync();
+
+        var cast = (await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}"))["cast"]!.AsArray();
+
+        // Ann plays two characters across three works and is listed once, ahead of the one-work cast in name order.
+        Assert.Equal(
+            ["Ann Actor", "Bob Actor", "Carl Actor", "Dan Actor"],
+            cast.Select(member => member!["name"]!.GetValue<string>()));
+        var ann = cast[0]!;
+        Assert.Equal(first, ann["person_id"]!.GetValue<Guid>());
+        Assert.Equal(["Hero", "Villain"], ann["characters"]!.AsArray().Select(character => character!["label"]!.GetValue<string>()));
+        Assert.Equal(["Q8200", "Q8201"], ann["characters"]!.AsArray().Select(character => character!["qid"]!.GetValue<string>()));
+        Assert.Equal(3, ann["work_count"]!.GetValue<int>());
+        Assert.Equal(second, cast[1]!["person_id"]!.GetValue<Guid>());
+        Assert.Equal(["Villain"], cast[1]!["characters"]!.AsArray().Select(character => character!["label"]!.GetValue<string>()));
+        Assert.Equal(1, cast[1]!["work_count"]!.GetValue<int>());
+        Assert.Equal(
+            ["characters", "headshot_url", "name", "person_id", "work_count"],
+            ((JsonObject)ann).Select(pair => pair.Key).Order());
+    }
+
+    [Fact]
+    public async Task Cast_OmitsCreditsFromWorksTheProfileCannotSee()
+    {
+        SeedCast();
+        SetContentLimit("PG");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+        var cast = universe["cast"]!.AsArray();
+
+        // Carl and Dan only appear in the R-rated work, so they are gone; Ann's count no longer includes it.
+        Assert.DoesNotContain("Carl Actor", universe.ToJsonString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Dan Actor", universe.ToJsonString(), StringComparison.Ordinal);
+        var ann = cast.Single(member => member!["name"]!.GetValue<string>() == "Ann Actor")!;
+        Assert.Equal(2, ann["work_count"]!.GetValue<int>());
+        Assert.DoesNotContain("Hidden Villain", universe.ToJsonString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Adaptations_AreEmpty_WhenNoAdaptationRelationshipExists()
+    {
+        SeedCast();
+        // A relationship that is not an adaptation, between two visible things.
+        AddRelationship("Q8100", "member_of", "Q8101");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+
+        Assert.Empty(universe["adaptations"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task Adaptations_ListEachRealAdaptationEdge_BetweenThingsTheProfileCanSee()
+    {
+        SeedCast();
+        AddRelationship("Q8100", "based_on", "Q8101");
+        AddRelationship("Q8100", "inspired_by", "Q8102");
+        await using var app = await StartAsync();
+
+        var rows = (await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}"))["adaptations"]!.AsArray();
+
+        Assert.Equal(2, rows.Count);
+        var basedOn = rows.Single(row => row!["relationship"]!.GetValue<string>() == "based on")!;
+        Assert.Equal("Q8100", basedOn["qid"]!.GetValue<string>());
+        Assert.Equal("The Film", basedOn["label"]!.GetValue<string>());
+        Assert.Equal("Object", basedOn["media_type"]!.GetValue<string>());
+        Assert.Equal("Q8101", basedOn["source_qid"]!.GetValue<string>());
+        Assert.Equal("The Novel", basedOn["source_label"]!.GetValue<string>());
+        Assert.Equal("inspired by", rows.Single(row => row!["source_qid"]!.GetValue<string>() == "Q8102")!["relationship"]!.GetValue<string>());
+
+        // An edge to something only the R-rated work shows is not listed for a limited profile.
+        SetContentLimit("PG");
+        var limited = (await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}"))["adaptations"]!.AsArray();
+        Assert.Equal(["Q8101"], limited.Select(row => row!["source_qid"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task OldCastAndAdaptationActions_ReturnTheSameShapeAsBefore()
+    {
+        SeedCast();
+        AddRelationship("Q8100", "based_on", "Q8101");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO narrative_roots (qid, label, level, created_at) VALUES (@qid, 'Test Universe', 'Universe', '2026-01-01 00:00:00');",
+                new { qid = UniverseQid });
+        }
+
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var cast = await GetJsonAsync(app, $"/api/v1/graph-actions/universe/{UniverseQid}/cast");
+        Assert.Equal(["characters", "universe_qid"], cast.Select(pair => pair.Key).Order());
+        Assert.Equal(UniverseQid, cast["universe_qid"]!.GetValue<string>());
+        var hero = cast["characters"]!.AsArray().Single(character => character!["qid"]!.GetValue<string>() == "Q8200")!;
+        Assert.Equal(["description", "image", "label", "performers", "qid"], ((JsonObject)hero).Select(pair => pair.Key).Order());
+        Assert.Equal("Hero", hero["label"]!.GetValue<string>());
+        // The old action still lists every performer of a visible character, with the work each credit names.
+        var performers = hero["performers"]!.AsArray();
+        Assert.Equal(["Ann Actor", "Ann Actor", "Ann Actor", "Carl Actor"], performers.Select(row => row!["name"]!.GetValue<string>()).Order());
+        Assert.Equal(
+            ["headshot_url", "name", "person_id", "work_qid", "year"],
+            ((JsonObject)performers[0]!).Select(pair => pair.Key).Order());
+
+        var tree = await GetJsonAsync(app, $"/api/v1/graph-actions/universe/{UniverseQid}/adaptations");
+        Assert.Equal(["universe_qid", "works"], tree.Select(pair => pair.Key).Order());
+        var root = tree["works"]!.AsArray().Single()!;
+        Assert.Equal(
+            ["children", "cover_image", "label", "media_type", "qid", "relationship_to_parent", "year"],
+            ((JsonObject)root).Select(pair => pair.Key).Order());
+        Assert.Equal("Q8101", root["qid"]!.GetValue<string>());
+        Assert.Null(root["relationship_to_parent"]);
+        var child = root["children"]!.AsArray().Single()!;
+        Assert.Equal("Q8100", child["qid"]!.GetValue<string>());
+        Assert.Equal("based on", child["relationship_to_parent"]!.GetValue<string>());
+
+        // An unknown narrative root keeps its not-found text.
+        using var unknown = await app.Client.GetAsync("/api/v1/graph-actions/universe/Q999999/adaptations");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
 
     private void SeedLibrary()
@@ -696,6 +888,118 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         return work;
     }
 
+    /// <summary>
+    /// Two visible works (QW1, QW2) and one R-rated work (QW3) in Series Alpha. Hero (QW1, QW2, QW3), Villain (QW1) and
+    /// Hidden Villain (QW3 only) are characters. Ann plays Hero in QW1/QW2/QW3 and Villain in QW1; Bob plays Villain in QW1;
+    /// Carl plays Hero only in QW3; Dan plays Hidden Villain in QW3. Q8100 "The Film", Q8101 "The Novel" and Q8102
+    /// "The Short" are things seen in QW1 (Q8102 only in QW3).
+    /// </summary>
+    private (Guid Ann, Guid Bob, Guid Carl) SeedCast()
+    {
+        var one = AddWork("Movies", "Cast One", "PG", _alpha, ".mkv");
+        var two = AddWork("Movies", "Cast Two", "PG", _alpha, ".mkv");
+        var hiddenWork = AddWork("Movies", "Cast Three", "R", _alpha, ".mkv");
+        SetWorkQid(one, "QW1");
+        SetWorkQid(two, "QW2");
+        SetWorkQid(hiddenWork, "QW3");
+
+        var hero = AddEntity(UniverseQid, "Q8200", "Hero", "Character");
+        var villain = AddEntity(UniverseQid, "Q8201", "Villain", "Character");
+        var hiddenVillain = AddEntity(UniverseQid, "Q8202", "Hidden Villain", "Character");
+        LinkEntity(hero, "QW1");
+        LinkEntity(hero, "QW2");
+        LinkEntity(hero, "QW3");
+        LinkEntity(villain, "QW1");
+        LinkEntity(hiddenVillain, "QW3");
+        LinkEntity(AddEntity(UniverseQid, "Q8100", "The Film", "Object"), "QW1");
+        LinkEntity(AddEntity(UniverseQid, "Q8101", "The Novel", "Object"), "QW1");
+        LinkEntity(AddEntity(UniverseQid, "Q8102", "The Short", "Object"), "QW3");
+
+        var ann = AddPerson("Ann Actor");
+        var bob = AddPerson("Bob Actor");
+        var carl = AddPerson("Carl Actor");
+        var dan = AddPerson("Dan Actor");
+        AddPerformance(ann, hero, "QW1");
+        AddPerformance(ann, hero, "QW2");
+        AddPerformance(ann, hero, "QW3");
+        AddPerformance(ann, villain, "QW1");
+        AddPerformance(bob, villain, "QW1");
+        AddPerformance(carl, hero, "QW3");
+        AddPerformance(dan, hiddenVillain, "QW3");
+        return (ann, bob, carl);
+    }
+
+    private void SetWorkQid(Guid work, string qid)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("UPDATE works SET wikidata_qid = @qid WHERE id = @work;", new { qid, work });
+    }
+
+    private Guid AddEntity(string universeQid, string qid, string label, string subType)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO fictional_entities (id, wikidata_qid, label, entity_sub_type, fictional_universe_qid, created_at)
+            VALUES (@id, @qid, @label, @subType, @universeQid, '2026-01-01 00:00:00');
+            """,
+            new { id, qid, label, subType, universeQid });
+        return id;
+    }
+
+    private void LinkEntity(Guid entity, string workQid)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO fictional_entity_work_links (id, appearance_key, entity_id, work_qid)
+            VALUES (@id, @key, @entity, @workQid);
+            """,
+            new { id = Guid.NewGuid(), key = $"{entity:N}:{workQid}", entity, workQid });
+    }
+
+    private Guid AddPerson(string name)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO persons (id, name, created_at) VALUES (@id, @name, '2026-01-01 00:00:00');",
+            new { id, name });
+        return id;
+    }
+
+    private void AddPerformance(Guid person, Guid entity, string workQid)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO character_performer_links (person_id, fictional_entity_id, work_qid) VALUES (@person, @entity, @workQid);",
+            new { person, entity, workQid });
+    }
+
+    private void AddRelationship(string subjectQid, string type, string objectQid)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO entity_relationships (id, statement_key, subject_qid, relationship_type, object_qid, discovered_at)
+            VALUES (@id, @key, @subjectQid, @type, @objectQid, '2026-01-01 00:00:00');
+            """,
+            new { id = Guid.NewGuid(), key = $"{subjectQid}|{type}|{objectQid}", subjectQid, type, objectQid });
+    }
+
+    private void AddManifestPlacement(Guid collection, string seriesQid, string itemQid, Guid work, string scope)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO series_manifest_items
+                (id, collection_id, series_qid, item_qid, order_source, linked_work_id, last_hydrated_at, membership_scope, ownership_state)
+            VALUES (@id, @collection, @seriesQid, @itemQid, 'test', @work, CURRENT_TIMESTAMP, @scope, 'Owned');
+            """,
+            new { id = Guid.NewGuid(), collection, seriesQid, itemQid, work, scope });
+    }
+
     private void CreateAccount()
     {
         var accounts = new AccountRepository(_database);
@@ -790,7 +1094,7 @@ public sealed class CollectionClientEndpointsTests : IDisposable
 
     // Host -------------------------------------------------------------------------------------------------------
 
-    private async Task<TestApplication> StartAsync()
+    private async Task<TestApplication> StartAsync(bool mapGraphActions = false)
     {
         var authority = new RequestAuthority(
             PrincipalKind.DelegatedUserClient,
@@ -832,11 +1136,26 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
         builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>
             provider.GetRequiredService<AuthorizedDisplayProjectionReadService>());
+        builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
+        builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
+        builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
+        builder.Services.AddScoped<UniverseConnectionsReadService>();
+        // The other graph actions are mapped too when asked, so they need to bind; the Cast and Adaptations actions never resolve these.
+        builder.Services.AddSingleton<IUniverseGraphQueryService>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<IEraActorResolverService>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<ILoreDeltaService>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<IPluginLoreRepository>(_ => throw new NotSupportedException());
         builder.Services.AddScoped<UniverseClientReadService>();
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapCollectionClientEndpoints();
+        if (mapGraphActions)
+        {
+            // The older Universe graph actions behind a test-only prefix, to prove their answers did not change.
+            app.MapGroup("/api/v1/graph-actions").MapUniverseGraphEndpoints();
+        }
+
         await app.StartAsync();
         var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
         return new TestApplication(app, new Uri(addresses!.Addresses.Single()));
