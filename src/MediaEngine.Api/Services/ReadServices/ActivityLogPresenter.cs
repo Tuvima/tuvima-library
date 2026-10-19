@@ -10,7 +10,7 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// <summary>
 /// Turns one stored activity row into the plain words the Activity log shows. The Dashboard shows these words as they are,
 /// so every kind of event is worded here and nowhere else. It only ever uses text the writer already put in the row's
-/// name, detail or reason; it never repeats raw error text.
+/// name, detail or reason (writers keep those plain); the error text some writers keep in the change data is never shown.
 /// </summary>
 public static partial class ActivityLogPresenter
 {
@@ -51,7 +51,7 @@ public static partial class ActivityLogPresenter
             case SystemActionType.PersonalMediaAdded:
                 dto.Title = FirstText(entry.CollectionName) ?? "Personal media";
                 dto.Detail = FirstText(entry.Detail);
-                dto.MediaType = "Photos";
+                dto.MediaType = changes.Number("photos") is 0 && changes.Number("videos") > 0 ? "Videos" : "Photos";
                 dto.Count = changes.Number("count");
                 break;
 

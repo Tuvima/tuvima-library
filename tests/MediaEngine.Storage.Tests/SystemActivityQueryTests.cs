@@ -56,17 +56,18 @@ public sealed class SystemActivityQueryTests : IDisposable
     }
 
     [Fact]
-    public async Task Query_SearchesTitleDetailAndChangeText_IgnoringCase()
+    public async Task Query_SearchesTitleAndDetailOnly_IgnoringCase()
     {
         await Log(SystemActionType.MediaAdded, "Dune Messiah");
         await Log(SystemActionType.MediaAdded, "Other", detail: "Added from the DUNE shelf");
-        await Log(SystemActionType.MediaAdded, "Third", changesJson: "{\"source_file\":\"dune.epub\"}");
+        await Log(SystemActionType.MediaAdded, "Hidden", changesJson: "{\"source_file\":\"dune.epub\"}");
         await Log(SystemActionType.MediaAdded, "Unrelated");
 
         var (items, total) = await _repo.QueryAsync([SystemActionType.MediaAdded], "dUnE", 0, 50);
 
-        Assert.Equal(3, total);
-        Assert.DoesNotContain(items, item => item.CollectionName == "Unrelated");
+        // The stored change data is never shown, so it never makes a row match.
+        Assert.Equal(2, total);
+        Assert.DoesNotContain(items, item => item.CollectionName is "Unrelated" or "Hidden");
     }
 
     [Fact]

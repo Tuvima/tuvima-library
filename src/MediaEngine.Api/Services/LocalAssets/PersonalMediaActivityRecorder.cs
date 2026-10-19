@@ -35,17 +35,23 @@ public sealed class PersonalMediaActivityRecorder : BackgroundService
     }
 
     /// <summary>Counts one new photo or personal video for a library.</summary>
-    public void Record(Guid libraryId, string libraryName, bool isVideo)
+    public void Record(Guid libraryId, string libraryName, bool isVideo) =>
+        Record(libraryId, () => libraryName, isVideo);
+
+    /// <summary>
+    /// Counts one new photo or personal video for a library. The name is looked up only when a new count starts, so
+    /// adding thousands of photos reads it once.
+    /// </summary>
+    public void Record(Guid libraryId, Func<string> libraryName, bool isVideo)
     {
         lock (_gate)
         {
             if (!_pending.TryGetValue(libraryId, out var pending))
             {
-                pending = new Pending();
+                pending = new Pending { LibraryName = libraryName() };
                 _pending[libraryId] = pending;
             }
 
-            pending.LibraryName = libraryName;
             pending.LastAddedAt = _time.GetUtcNow();
             if (isVideo)
             {

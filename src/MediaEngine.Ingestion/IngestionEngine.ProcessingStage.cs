@@ -464,6 +464,7 @@ public sealed partial class IngestionEngine
             {
                 ActionType = Domain.Constants.SystemActionType.MediaFailed,
                 EntityType = "MediaAsset",
+                CollectionName = Path.GetFileName(candidate.Path),
                 ChangesJson = failedJson,
                 Detail = $"Failed — {Path.GetFileName(candidate.Path)}: {result.CorruptReason}",
                 IngestionRunId = ingestionRunId,

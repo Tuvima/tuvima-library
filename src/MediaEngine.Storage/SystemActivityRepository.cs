@@ -297,8 +297,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
             parameters.Add("q", "%" + EscapeLike(search.Trim()) + "%");
             searchClause = """
                   AND  (collection_name LIKE @q ESCAPE '\'
-                        OR detail LIKE @q ESCAPE '\'
-                        OR changes_json LIKE @q ESCAPE '\')
+                        OR detail LIKE @q ESCAPE '\')
                 """;
         }
 

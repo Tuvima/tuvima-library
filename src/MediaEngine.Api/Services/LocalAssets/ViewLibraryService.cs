@@ -398,7 +398,7 @@ public sealed class ViewLibraryService(
             && group.Primary.Type.MediaKind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
         {
             // Photos and personal videos reach the Activity log as one count per library, never one row per file.
-            activityRecorder.Record(space.LibraryId, LibraryDisplayName(space), group.Primary.Type.MediaKind == LocalAssetMediaKinds.Video);
+            activityRecorder.Record(space.LibraryId, () => LibraryDisplayName(space), group.Primary.Type.MediaKind == LocalAssetMediaKinds.Video);
         }
 
         if (upserted.ItemAdded && rulesQueue is not null && group.Primary.Type.MediaKind == LocalAssetMediaKinds.Document)

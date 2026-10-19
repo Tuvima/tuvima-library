@@ -107,15 +107,17 @@ public sealed class ActivityLogPresenterTests
     }
 
     [Fact]
-    public void MediaFailed_NeverRepeatsTheRawExceptionTextKeptInTheChanges()
+    public void MediaFailed_FromAnUnexpectedError_ShowsThePlainLine_NotTheErrorKeptInTheChanges()
     {
+        // As written by IngestionEngine.RecordUnhandledCandidateFailureAsync.
         var dto = Present(
             SystemActionType.MediaFailed,
-            detail: "The file could not be read.",
-            changes: """{"source_file":"a.epub","error_type":"IOException","message":"Sharing violation at C:\\secret\\a.epub"}""");
+            name: "a.epub",
+            detail: "Something went wrong while reading this file. The technical log has the details.",
+            changes: """{"source_path":"C:\\secret\\a.epub","source_file":"a.epub","error_type":"IOException","message":"Sharing violation at C:\\secret\\a.epub"}""");
 
         Assert.Equal("a.epub", dto.Title);
-        Assert.Equal("The file could not be read.", dto.Detail);
+        Assert.Equal("Something went wrong while reading this file. The technical log has the details.", dto.Detail);
         Assert.DoesNotContain("secret", dto.Detail ?? string.Empty, StringComparison.Ordinal);
     }
 

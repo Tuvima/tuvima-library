@@ -30,7 +30,7 @@
 
 .activity-log__time {
     color: var(--tl-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     font-variant-numeric: tabular-nums;
     line-height: 1.5rem;
 }
@@ -92,14 +92,14 @@
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
-    font-size: 12px;
+    font-size: var(--tl-font-size-caption);
     line-height: 1.25rem;
 }
 
 .activity-log__detail {
     margin: 2px 0 0;
     color: var(--tl-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     overflow-wrap: anywhere;
 }
 
@@ -125,7 +125,7 @@
 
 .activity-log__pager-summary {
     color: var(--tl-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     font-variant-numeric: tabular-nums;
 }
 

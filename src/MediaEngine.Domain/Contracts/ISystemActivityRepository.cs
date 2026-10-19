@@ -64,8 +64,8 @@ public interface ISystemActivityRepository
 
     /// <summary>
     /// Returns one page of entries whose action type is in <paramref name="actionTypes"/>, newest first, with the total
-    /// number of matching entries. A non-blank <paramref name="search"/> keeps only entries whose name, detail or change
-    /// text contains it (case-insensitive, matched literally). Used by the Activity log.
+    /// number of matching entries. A non-blank <paramref name="search"/> keeps only entries whose name or detail (the words the
+    /// Activity log shows) contains it (case-insensitive, matched literally). Used by the Activity log.
     /// </summary>
     Task<(IReadOnlyList<SystemActivityEntry> Items, int Total)> QueryAsync(
         IReadOnlyList<string> actionTypes,

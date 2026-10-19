@@ -117,10 +117,12 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
             return;
         }
 
-        // Smooth streaming follows FFmpeg; while FFmpeg itself is not ready its own entry already says so.
-        var ffmpegReady = current.Tools.Any(tool => tool.Id == ToolRequirementIds.Ffmpeg && tool.State == ToolRequirementStates.Ready);
+        // Smooth streaming follows FFmpeg: while FFmpeg is not ready, or has only just come back, FFmpeg's own entry says it.
+        static bool FfmpegReady(ToolRequirementsDto? result) =>
+            result is null || result.Tools.Any(tool => tool.Id == ToolRequirementIds.Ffmpeg && tool.State == ToolRequirementStates.Ready);
+        var followFfmpeg = FfmpegReady(current) && FfmpegReady(previous);
         foreach (var row in current.Tools.Where(tool => tool.Kind != "ai_model"
-            && (ffmpegReady || tool.Id != ToolRequirementIds.AdaptiveStreaming)))
+            && (followFfmpeg || tool.Id != ToolRequirementIds.AdaptiveStreaming)))
         {
             var isBad = row.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem;
             string? actionType = null;
