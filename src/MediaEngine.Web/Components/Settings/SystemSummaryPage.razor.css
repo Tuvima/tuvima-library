@@ -1,0 +1,52 @@
+.system-summary {
+    display: grid;
+    gap: var(--tl-space-4, 16px);
+}
+
+.system-summary__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--tl-space-3, 12px);
+    margin: 0;
+}
+
+.system-summary__fact {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.system-summary__fact dt {
+    color: var(--tl-text-secondary);
+    font-size: 0.85rem;
+}
+
+.system-summary__fact dd {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.system-summary__meters,
+.system-summary__drives {
+    display: grid;
+    gap: var(--tl-space-4, 16px);
+}
+
+.system-summary__drive {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+}
+
+.system-summary__drive-name {
+    font-weight: var(--tl-font-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.system-summary__drive-holds,
+.system-summary__note {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+}

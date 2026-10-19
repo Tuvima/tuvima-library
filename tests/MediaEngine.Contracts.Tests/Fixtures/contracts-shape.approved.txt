@@ -7987,6 +7987,24 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsCatalogEnt
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SettingsSavedResponse
   saved: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SystemDriveDto
+  Root: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  TotalBytes: System.Int64 | nullability=not-null | accessors=get,set
+  FreeBytes: System.Int64 | nullability=not-null | accessors=get,set
+  HoldsLibrary: System.Boolean | nullability=not-null | accessors=get,set
+  HoldsDataStore: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.SystemResourcesDto
+  EngineVersion: System.String | nullability=not-null | accessors=get,set
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  UptimeSeconds: System.Int64 | nullability=not-null | accessors=get,set
+  ProcessorPercent: System.Double | nullability=not-null | accessors=get,set
+  MemoryUsedMb: System.Int64 | nullability=not-null | accessors=get,set
+  MemoryTotalMb: System.Int64 | nullability=not-null | accessors=get,set
+  Drives: System.Collections.Generic.List<MediaEngine.Contracts.Settings.SystemDriveDto> | nullability=not-null | accessors=get,set
+  DataStoreSizeBytes: System.Int64? | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.TestPathRequest
   Path: System.String | nullability=not-null | accessors=get,init
 

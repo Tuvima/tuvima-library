@@ -197,6 +197,7 @@ compatibility versions.
 | GET | `/system/status` | Service health, version, uptime | None |
 | GET | `/system/activity-status` | Sanitized leased/running durable operations used to seed the Dashboard navbar activity indicator; excludes media titles and filesystem paths | Required |
 | GET | `/system/watcher-status` | File watcher diagnostic - shows monitored folders and last event | Required |
+| GET | `/system/resources` | Local reading for the Settings System summary: Engine version, start time and uptime (`engine_version`, `started_at`, `uptime_seconds`), Engine processor use as a percent of the machine and memory in use and available in MB (`processor_percent`, `memory_used_mb`, `memory_total_mb`), and `drives` (root, label, total and free bytes, and whether each holds the library and/or the data store; a drive holding both appears once) plus `data_store_size_bytes`. Nothing leaves the machine. | Administrator |
 | GET | `/system/data-store-version` | Latest upgrade step applied to the data store (`step_number`, `step_name`, `applied_at`); step 0 with no date means none is recorded yet. Shown as a read-only line in Settings. | Administrator |
 | POST | `/maintenance/sweep-orphan-assets` | Scan `.data/assets/` for managed files with no database reference and remove them. | Administrator |
 | POST | `/maintenance/storage/run` | Run storage maintenance on demand. Supports `dryRun`, cache retention, image retention, and claim compaction batch query parameters. | Administrator |

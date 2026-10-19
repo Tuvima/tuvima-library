@@ -208,6 +208,9 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/system/activity-status", HttpMethods.Get)
             .RequiresHumanOrApplicationPermission(ApplicationPermissionIds.SystemActivityRead);
 
+        inventory.Require("/system/resources", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.SystemStatusRead);
+
         inventory.Require("/system/data-store-version", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.BackupRead);
 
@@ -312,6 +315,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<HardwareBenchmarkService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not benchmark hardware."));
         builder.Services.AddSingleton<ResourceMonitorService>(_ => throw new InvalidOperationException(
+            "Endpoint inventory must not sample machine resources."));
+        builder.Services.AddSingleton<SystemResourcesService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not sample machine resources."));
         builder.Services.AddSingleton<ModelInventory>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not initialize the AI model inventory."));

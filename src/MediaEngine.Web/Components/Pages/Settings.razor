@@ -137,7 +137,7 @@ else
                                 }
                                 break;
                             case SettingsSection.AdminOverview:
-                                <OverviewTab ReviewCount="Attention.ReviewCount" Subsection="@_activeSubsection" />
+                                <SystemSummaryPage />
                                 break;
                             case SettingsSection.Preferences:
                                 <PreferencesSummaryPage />
@@ -828,7 +828,7 @@ else
         SettingsSection.Security => _activeSubsection == "devices"
             ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
             : "Password, email and extra protection.",
-        SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",
+        SettingsSection.AdminOverview => "How this server is doing: its version, processor, memory and storage.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "Configure how Tuvima Library discovers, processes, retries, and adds media to your library.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
