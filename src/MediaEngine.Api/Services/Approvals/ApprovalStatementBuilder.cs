@@ -45,6 +45,7 @@ internal static class ApprovalStatementBuilder
     public const string WebhookKindLabel = "Webhook";
 
     private const string UsesLocalAi = "Uses Local AI";
+    private const string RunsAs = "Runs as";
     private const string KeepsOwnKeysAndLogins = "Keeps its own keys and logins";
     private const string RunsWithLocalAi = "Runs on this machine with Local AI";
     private const string ModelMayDownload = "May download an AI model to this machine first";
@@ -65,6 +66,14 @@ internal static class ApprovalStatementBuilder
         ["ai.infer"] = UsesLocalAi,
         ["storage.plugin"] = "Keeps its own data",
         ["secrets.plugin"] = KeepsOwnKeysAndLogins,
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["text_fast"] = "write text (quick)",
+        ["text_quality"] = "write text (careful)",
+        ["text_scholar"] = "write text (long)",
+        ["text_cjk"] = "write text (careful, Chinese, Japanese, Korean)",
     };
 
     private static readonly IReadOnlyDictionary<string, string[]> FeatureWords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -94,8 +103,10 @@ internal static class ApprovalStatementBuilder
         PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
 
     /// <summary>
-    /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), once for Local AI use,
-    /// and, when it declares keys or logins, which ones by label. Duplicate lines are shown once.
+    /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), per Local AI ability it
+    /// asks for ("Uses Local AI: write text (quick)", sorted), when it declares keys or logins which ones by label, and how
+    /// it runs ("Runs as: separate program"). Duplicate lines are shown once. Every line is part of the fingerprint, so a
+    /// plugin that asks for another AI ability, or runs another way, is asked about again.
     /// </summary>
     public static IReadOnlyList<string> PluginAllowedTo(PluginManifest manifest)
     {
@@ -114,10 +125,10 @@ internal static class ApprovalStatementBuilder
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
-        if (manifest.AiPermissions.Count > 0)
-        {
-            lines.Add(UsesLocalAi);
-        }
+        lines.AddRange(manifest.AiPermissions
+            .Select(permission => $"{UsesLocalAi}: {AiRoleName(permission.Role)}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal));
 
         if (declaresSecrets)
         {
@@ -127,8 +138,21 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
+        lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
     }
+
+    // A role the Library has no words for is shown by its id, so it still reads as a distinct line.
+    private static string AiRoleName(string role) => AiRoleNames.TryGetValue(role, out var name) ? name : role;
+
+    private static string PluginKindName(PluginKind kind) => kind switch
+    {
+        PluginKind.Official => "Official built-in",
+        PluginKind.Declarative => "JSON-only plugin",
+        PluginKind.Service => "separate program",
+        PluginKind.Sandboxed => "sandboxed plugin",
+        _ => kind.ToString(),
+    };
 
     /// <summary>"the internet" when the plugin can reach the internet; otherwise null (nothing leaves this machine).</summary>
     public static string? PluginSendsDataTo(PluginManifest manifest)

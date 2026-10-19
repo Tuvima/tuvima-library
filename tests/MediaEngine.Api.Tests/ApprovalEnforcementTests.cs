@@ -212,6 +212,45 @@ public sealed class ApprovalEnforcementTests : IDisposable
     }
 
     [Fact]
+    public async Task APluginThatIsOn_WhoseManifestGainsALocalAiAbility_IsNotRunningUntilItIsApprovedAgain()
+    {
+        PluginManifest Manifest(params string[] roles) => new()
+        {
+            Id = PluginId,
+            Name = "Approval test plugin",
+            Permissions = ["media.read", "ai.infer"],
+            AiPermissions = roles.Select(role => new PluginAiPermission { Role = role }).ToList(),
+        };
+
+        var before = Catalog(Manifest("text_fast"));
+        await Enable(before, _kit.Service.PreviewPlugin(before.Get(PluginId)!).StatementHash);
+        Assert.True(before.Get(PluginId)!.Enabled);
+
+        // The same plugin, still switched on in its saved settings, now also asks to write careful text.
+        var widened = Catalog(Manifest("text_fast", "text_quality"));
+
+        var registration = widened.Get(PluginId)!;
+        Assert.False(registration.Enabled);
+        Assert.True(registration.NeedsApproval);
+        var (status, body) = await Execute(await Enable(widened, null));
+        Assert.Equal(409, status);
+        Assert.Contains("Uses Local AI: write text (careful)", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task APluginApprovedToRunOneWay_IsNotCoveredWhenItsManifestSaysItRunsAnotherWay()
+    {
+        var catalog = Catalog(["media.read"]);
+        await Enable(catalog, _kit.Service.PreviewPlugin(catalog.Get(PluginId)!).StatementHash);
+        var check = new PluginApprovalCheck(_kit.Records, NullLogger<PluginApprovalCheck>.Instance);
+        var official = new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = ["media.read"] };
+
+        Assert.True(check.IsCovered(official, PluginTrustLevel.Official));
+        Assert.False(check.IsCovered(official with { Kind = PluginKind.Service }, PluginTrustLevel.Official));
+        Assert.False(check.IsCovered(official with { Kind = PluginKind.Sandboxed }, PluginTrustLevel.Official));
+    }
+
+    [Fact]
     public async Task AnApprovedPlugin_WhoseManifestIsSavedUnchanged_KeepsRunning()
     {
         var pluginRoot = Path.Combine(_root, "library", ".data", "plugins", "sample-plugin");
@@ -588,9 +627,11 @@ public sealed class ApprovalEnforcementTests : IDisposable
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private PluginCatalog Catalog(IReadOnlyList<string> permissions)
+    private PluginCatalog Catalog(IReadOnlyList<string> permissions) =>
+        Catalog(new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions });
+
+    private PluginCatalog Catalog(PluginManifest manifest)
     {
-        var manifest = new PluginManifest { Id = PluginId, Name = "Approval test plugin", Permissions = permissions };
         var catalog = new PluginCatalog(
             [new TestPlugin(manifest)],
             new PluginSettingsService(_loader),

@@ -220,10 +220,23 @@ public static class ApplicationEndpoints
             }
 
             var issued = await service.IssueCredentialAsync(authority, applicationId, request, ct).ConfigureAwait(false);
+            if (preview is null)
+            {
+                // The integration was switched on between the read above and the issue, so nobody has seen what this key
+                // can do. Look at it as it is now: without the matching hash the key is revoked again and the person is asked.
+                var current = await service.GetApplicationAsync(authority, applicationId, ct).ConfigureAwait(false);
+                preview = approvals.PreviewCredential(current, request.ExpiresAt);
+                if (!ApprovalService.HashMatches(request.ApprovalHash, preview.StatementHash))
+                {
+                    await service.RevokeCredentialAsync(authority, applicationId, issued.Credential.Id, CancellationToken.None).ConfigureAwait(false);
+                    return ApiErrors.ApprovalRequired([preview]);
+                }
+            }
+
             await RecordOrUndoAsync(
                 approvals,
                 authority,
-                preview!,
+                preview,
                 ApprovalKinds.ApplicationCredential,
                 issued.Credential.Id.ToString("D"),
                 undo: () => service.RevokeCredentialAsync(authority, applicationId, issued.Credential.Id, CancellationToken.None),
