@@ -63,6 +63,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Progress | `GET/PUT /api/v1/progress/{assetId}`, `GET /recent`, `GET /journey` | `progress.read` / `progress.write` |
 | Queues | `GET /api/v1/player/state`, mutations under `/api/v1/player/queue` | `queue.read` / `queue.write` |
 | Playback session | `/api/v1/player/command`, `/heartbeat`, `/session/takeover` | `playback.write` or `progress.write` |
+| Companion | `GET /api/v1/companion/devices`, `GET /session`, `PUT /session/follow`, `PUT /session/manual`, `DELETE /session` (see [Companion](#companion)) | `queue.read` / `progress.write` |
 | Playback decision | `GET /api/v1/playback/{assetId}/manifest` | `playback.read` |
 | Cast session | `POST /api/v1/playback/{assetId}/cast` with `{"receiver":"google-cast-default"}`. A paired app only (a signed-in Dashboard session or an Application is refused `403`); answers `status` `ready` (with `mediaPath`, `contentType`, `posterPath`, `textTracks`, `expiresAt`), `preparing` (the title is being converted; ask again, no link is issued yet) or `unavailable` (with a plain `message`). The answer carries a secret link and is never cached (`Cache-Control: private, no-store`). Rate-limited to 20 per minute per device | `playback.read`, plus the catalogue's own limits for that title (a Kids limit applies) |
 | Cast receiver routes | `GET`/`HEAD`/`OPTIONS /cast/v1/{grant}/media`, `/hls/{packageId}/{**path}`, `/text/{trackId}`, `/poster`. Anonymous on purpose: a TV cannot send a token, so the signed `{grant}` in the path is the credential and the Engine re-checks all of it on every request. One title only, read only, byte ranges supported; `403` for any grant that no longer holds. The Engine answers these only on this computer; the Dashboard relays them for the home network | the cast grant (see [Security](../architecture/security.md)) |
@@ -701,6 +702,22 @@ manifest, resume data, tracks/subtitles/chapters, audiobook history and
 bookmarks, chapter-title provenance, offline variants, diagnostics, and user
 playback settings. Text-track contracts retain source and normalized formats,
 timing mode, ownership/preference/export flags, confidence, and URL.
+
+---
+
+## Companion
+
+A second device on the same profile (for example a phone) can follow where another of that person's devices is playing, or hold a position set by hand ("episode 3", "chapter 12"). Each device's live state is written from its own `POST /player/heartbeat` calls into a record separate from the shared player, so two devices playing on one profile never overwrite each other. Only the caller's own profile is ever visible: the profile and the companion's own device id come from the caller's token, a different `profileId` is refused with `404`, and there is no administrator bypass. Every item is checked against the caller's catalogue scope; a device playing something the caller cannot see is left out, and a work outside the caller's scope is refused with `404`. Nothing leaves the machine.
+
+| Method | Path | Description | Scope |
+|---|---|---|---|
+| GET | `/companion/devices` | The caller's devices that are playing or paused right now, newest first. Each carries its device id, name (the paired device's name when known), client, state, position, duration, work and asset ids and the playing item | `queue.read` |
+| GET | `/companion/session` | This device's choice: `mode` is `none`, `follow` or `manual`. When following, `followed` holds that device's latest state, or is null with `isFollowedDeviceLive` false when it is not live | `queue.read` |
+| PUT | `/companion/session/follow` | Body `{ "deviceId": "..." }`. Follow one of the caller's own devices (one that has reported playback for the profile, or one of its paired devices); any other id is `404` | `progress.write` |
+| PUT | `/companion/session/manual` | Body `{ "workId": "...", "chapterIndex": 12, "positionSeconds": 30 }`. Hold a position set by hand; a negative chapter or position is `400` | `progress.write` |
+| DELETE | `/companion/session` | Stop following and clear any manual position. `204` | `progress.write` |
+
+A device is **live** when its last heartbeat was playing or paused and arrived within 45 seconds (the same window that keeps the shared player live). A replayed offline heartbeat never counts, a stopped or finished player is ended and not live. Clients should poll `/companion/session` about every 10 seconds while following; a followed device's position is at most one heartbeat (10 to 15 seconds) old.
 
 ---
 
