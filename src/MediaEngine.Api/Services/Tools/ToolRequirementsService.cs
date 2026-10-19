@@ -243,7 +243,7 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         rows.Add(Row(
             ToolRequirementIds.AiRuntime, "Local AI engine", "tool", ToolRequirementLevels.Optional,
             _probe.AiRuntimeLoads() ? ToolRequirementStates.Ready : ToolRequirementStates.Problem,
-            Copy.AiRuntimeEffect, Copy.BundledProblemReason("The local AI engine"), Copy.ReinstallFix, null, canLocate: false));
+            Copy.AiRuntimeEffect, Copy.BundledProblemReason("The local AI engine"), Copy.AiRuntimeFix(installKind), null, canLocate: false));
 
         // ── AI models ────────────────────────────────────────────────────────
         _probe.RefreshModelFiles();
@@ -453,6 +453,11 @@ public sealed partial class ToolRequirementsService : IToolRequirementsService
         public const string AiRuntimeEffect = "Local AI features are off.";
 
         public const string ReinstallFix = "Reinstall the Library.";
+
+        // A run from source has no bundled local AI engine; it is provisioned with the developer script instead.
+        public static string AiRuntimeFix(string installKind) => installKind == ToolInstallKinds.Source
+            ? "Install the local AI engine with the Install-AiRuntime script in the tools folder, then press Check again."
+            : ReinstallFix;
         public const string DownloadFix = "Download it to turn these features on.";
         public const string DownloadAgainFix = "Download it again.";
         public const string NeedsFfmpegFirst = "It needs FFmpeg first.";

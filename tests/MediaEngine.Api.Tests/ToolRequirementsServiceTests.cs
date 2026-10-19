@@ -317,6 +317,19 @@ public sealed class ToolRequirementsServiceTests
     }
 
     [Fact]
+    public async Task ABrokenLocalAiEngine_PointsSourceRunsAtTheInstallScript_AndInstallsAtAReinstall()
+    {
+        _probe.AiLoads = false;
+
+        var source = await Service().CheckAsync(CancellationToken.None);
+        _environment["TUVIMA_INSTALL_KIND"] = "windows_installer";
+        var installed = await Service().CheckAsync(CancellationToken.None);
+
+        Assert.Contains("Install-AiRuntime script", Row(source, ToolRequirementIds.AiRuntime).Fix, StringComparison.Ordinal);
+        Assert.Equal("Reinstall the Library.", Row(installed, ToolRequirementIds.AiRuntime).Fix);
+    }
+
+    [Fact]
     public async Task NothingInTheResultMentionsTuvimaOrAFilePath()
     {
         _ffmpeg.Available = false;
