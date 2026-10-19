@@ -352,6 +352,7 @@ builder.Services.AddScoped<RecentViewAssetAdapter>();
 builder.Services.AddScoped<SavedItemService>();
 builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
+builder.Services.AddSingleton(dashboardConfig.LoadAppStoreLinks());
 builder.Services.AddScoped<PlaybackSessionController>();
 builder.Services.AddScoped<AudiobookBookmarkActionService>(services =>
 {
@@ -520,6 +521,24 @@ app.MapGet("/engine-folder-log/{operationId:guid}", async (Guid operationId, Htt
     ctx.Response.StatusCode = (int)response.StatusCode;
     CopyResponseHeaders(response, ctx.Response);
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).RequireAuthorization();
+
+// The small pictures kept with a person's activity are private to them, so the Engine is asked as the signed-in person.
+app.MapGet("/engine-activity-artwork/{key}", async (string key, string? scope, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    if (!PersonalActivityArtworkPath.IsValidKey(key))
+    {
+        return Results.NotFound();
+    }
+
+    var path = PersonalActivityArtworkPath.EnginePath(key)
+        + (string.IsNullOrWhiteSpace(scope) ? string.Empty : "?scope=" + Uri.EscapeDataString(scope));
+    using var request = new HttpRequestMessage(HttpMethod.Get, path);
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+    return Results.Empty;
 }).RequireAuthorization();
 
 app.MapMethods(

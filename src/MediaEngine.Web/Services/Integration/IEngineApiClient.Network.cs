@@ -7,6 +7,9 @@ public partial interface IEngineApiClient
     Task<NetworkSettingsDto?> GetNetworkSettingsAsync(CancellationToken ct = default);
     Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default);
     Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default);
+
+    /// <summary>GET /network/app-addresses - the address to type into a Tuvima app, for any signed-in person.</summary>
+    Task<NetworkAppAddressesDto?> GetNetworkAppAddressesAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestLocalNetworkAsync(CancellationToken ct = default);
     Task<NetworkTestResultDto?> TestRemoteNetworkAsync(CancellationToken ct = default);
     Task<NetworkBandwidthStatusDto?> TestNetworkBandwidthAsync(CancellationToken ct = default);

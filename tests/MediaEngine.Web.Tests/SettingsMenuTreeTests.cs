@@ -47,7 +47,13 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         Assert.Equal("/settings/preferences", Flatten(groups).Single(row => row.Label == "Preferences").Route);
         Assert.Equal("/settings/ai", Flatten(groups).Single(row => row.Label == "Local AI").Route);
-        Assert.DoesNotContain(Flatten(groups), row => row.Label is "Overview" or "Users" or "Features" or "Providers");
+        Assert.DoesNotContain(Flatten(groups), row => row.Label is "Users" or "Features" or "Providers");
+
+        // The only Overview is the person's own, first in Personal; the retired System Overview is gone.
+        var overview = Assert.Single(Flatten(groups), row => row.Label == "Overview");
+        Assert.Equal("/settings/overview", overview.Route);
+        Assert.Empty(overview.Children ?? []);
+        Assert.Equal("Overview", groups[0].Items[0].Label);
     }
 
     [Fact]

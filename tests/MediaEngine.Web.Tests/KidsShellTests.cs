@@ -28,9 +28,20 @@ public sealed class KidsShellTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("a[href='/settings']"));
         Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
+        Assert.Empty(cut.FindAll("a[href^='/settings/overview']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/recently-added']"));
         Assert.NotEmpty(cut.FindAll(".kids-badge"));
         Assert.NotEmpty(cut.FindAll(".top-nav-account-menu__signout"));
+    }
+
+    [Fact]
+    public void KidsProfile_HasMyActivityOnItsOwnPage_AndNoMyProfile()
+    {
+        var cut = RenderOpenMenu(kids: true, canReview: false);
+
+        var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
+        Assert.Contains(items, item => item.Href == "/my-activity" && item.Text == "My activity");
+        Assert.DoesNotContain(items, item => item.Text == "My profile");
     }
 
     [Fact]
@@ -39,8 +50,21 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = RenderOpenMenu(kids: false, canReview: true);
 
         Assert.NotEmpty(cut.FindAll("a[href='/settings']"));
-        Assert.NotEmpty(cut.FindAll("a[href='/settings/profiles']"));
+        Assert.NotEmpty(cut.FindAll("a[href='/settings/overview']"));
+        Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
         Assert.Empty(cut.FindAll(".kids-badge"));
+    }
+
+    [Fact]
+    public void AdultProfile_HasMyProfileAndMyActivity_InsteadOfProfileSettings()
+    {
+        var cut = RenderOpenMenu(kids: false, canReview: false);
+
+        var items = cut.FindAll("a[role=menuitem]").Select(link => (Href: link.GetAttribute("href"), Text: link.TextContent.Trim())).ToList();
+        Assert.Contains(items, item => item.Href == "/settings/overview" && item.Text == "My profile");
+        Assert.Contains(items, item => item.Href == "/settings/overview/activity" && item.Text == "My activity");
+        Assert.DoesNotContain(items, item => item.Text == "Profile settings");
+        Assert.DoesNotContain(items, item => item.Text == "Manage profiles");
     }
 
     [Fact]

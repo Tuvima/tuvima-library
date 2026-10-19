@@ -605,6 +605,7 @@ presentation types must not narrow that payload.
 | GET | `/settings/providers` | Provider configuration status - enabled state, last health check, rate limit info | Required |
 | GET | `/settings/server-general` | Core server settings (name, language preferences, country) | Required |
 | PUT | `/settings/server-general` | Update core server settings | Administrator |
+| GET | `/network/app-addresses` | The two addresses a person types into a Tuvima app: `at_home` (the detected home-network address with the Dashboard port, or `null`) and `away_from_home` (the outside origin once a secure outside path is set up, otherwise `null`). Any signed-in person may read it, because the address is not a secret; it carries nothing else from the network settings or status (the Apps page under Personal > Overview shows it with a QR code of that one address). `/network/status` stays administrator-only | Required |
 | POST | `/settings/organization-template/preview` | Validate an organization template and return a sample preview without saving | Administrator |
 | PUT | `/settings/organization-template` | Save the organization template after validation | Administrator |
 

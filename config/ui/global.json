@@ -43,5 +43,10 @@
       "tab_bar_layout": "horizontal",
       "tab_content_layout": "full"
     }
+  },
+  "app_store_links": {
+    "app_store": "",
+    "google_play": "",
+    "roku": ""
   }
 }

@@ -124,6 +124,21 @@ public sealed class NetworkStatusService
     public string? GetOutsideAddress() =>
         OutsideAddressFor(_configuration.LoadNetwork(), _runtime.GetRemoteProvider("tailscale"));
 
+    /// <summary>
+    /// The two addresses a person types into a Tuvima app: the home network address and, once a way in from the internet is chosen,
+    /// the outside origin. Safe for any signed-in person; it carries nothing else from the network settings.
+    /// </summary>
+    public NetworkAppAddressesDto GetAppAddresses()
+    {
+        var settings = _configuration.LoadNetwork();
+        var selected = SelectPreferredAddress(settings, _environment.GetUsableAddresses(settings.Local.Ipv6Enabled).ToList());
+        return new NetworkAppAddressesDto
+        {
+            AtHome = selected is null ? null : NetworkDiagnosticsService.FormatAddress(selected.Address, settings.Local.Port),
+            AwayFromHome = OutsideAddressFor(settings, _runtime.GetRemoteProvider("tailscale")),
+        };
+    }
+
     internal static string? OutsideAddressFor(NetworkSettings settings, RemoteProviderSnapshot? tailscale) =>
         settings.Remote.HasOutsidePath
             ? PublicAddress.ToOrigin(ExternalAddressFor(settings, tailscale))

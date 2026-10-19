@@ -392,7 +392,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("ReviewSelected", accountSource);
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
-        Assert.Contains("href=\"/settings/profiles\"", accountSource);
+        Assert.Contains("href=\"@MyProfileHref\"", accountSource);
+        Assert.Contains("MyProfileHref = \"/settings/overview\"", accountSource);
+        Assert.Contains("ManageProfilesHref = \"/settings/profiles\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.
         Assert.Contains("ProfilePickerRoute.Path", accountSource);
         Assert.DoesNotContain("Switch profile?", accountSource);
@@ -726,7 +728,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsPage_RendersProfilesWithoutAdminOverviewContent()
+    public void SettingsPage_OpensThePersonalOverview_WithoutAdminOverviewContent()
     {
         var cut = Render(builder =>
         {
@@ -742,8 +744,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            // The bare /settings address opens Profiles for an administrator: the people list, not a card of the open profile's stats.
-            Assert.NotEmpty(cut.FindAll(".profiles-tab"));
+            // The bare /settings address opens the person's own Overview (even for an administrator), not the people list or a card of stats.
+            Assert.NotEmpty(cut.FindAll("[data-settings-overview]"));
+            Assert.Empty(cut.FindAll(".profiles-tab"));
             Assert.Empty(cut.FindAll(".profiles-tab__card"));
             Assert.Empty(cut.FindAll(".profiles-tab__stats"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
@@ -761,6 +764,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
     [Theory]
     [InlineData("/settings", null)]
+    [InlineData("/settings/overview", "overview")]
+    [InlineData("/settings/overview/apps", "overview")]
     [InlineData("/settings/playback", "playback")]
     [InlineData("/settings/profiles", "profiles")]
     public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
@@ -785,6 +790,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("http://localhost/", navigation.Uri));
         Assert.Empty(cut.FindAll(".settings-shell-content"));
         Assert.Empty(cut.FindAll(".profiles-tab__card"));
+        Assert.Empty(cut.FindAll("[data-settings-overview]"));
+        Assert.Empty(cut.FindAll("[data-settings-overview-apps]"));
         Assert.Empty(cut.FindAll(".settings-playback-page"));
     }
 

@@ -23,7 +23,8 @@ public sealed class ProfileEditorSheetTests
         Action? closed = null,
         bool canDelete = true,
         bool saving = false,
-        string? error = null)
+        string? error = null,
+        bool selfEdit = false)
     {
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         return ctx.Render<ProfileEditorSheet>(parameters => parameters
@@ -32,6 +33,7 @@ public sealed class ProfileEditorSheetTests
             .Add(p => p.CanDelete, canDelete)
             .Add(p => p.Saving, saving)
             .Add(p => p.Error, error)
+            .Add(p => p.SelfEdit, selfEdit)
             .Add(p => p.OnSave, EventCallback.Factory.Create<ProfileEditorResult>(Owner, result => saved?.Invoke(result)))
             .Add(p => p.OnDelete, EventCallback.Factory.Create<bool>(Owner, keepPhotos => deleted?.Invoke(keepPhotos)))
             .Add(p => p.OnClose, EventCallback.Factory.Create(Owner, () => closed?.Invoke())));
@@ -394,6 +396,42 @@ public sealed class ProfileEditorSheetTests
             .Add(p => p.Icon, "nope"));
 
         Assert.Contains(">M<", cut.Markup);
+    }
+
+    [Fact]
+    public void SelfEdit_OffersOnlyTheNameAndThePicture_NotKidsLimitPinOrDelete()
+    {
+        using var ctx = new BunitContext();
+        var cut = Render(ctx, Existing(hasPin: true), selfEdit: true, canDelete: true);
+
+        Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
+        Assert.NotEmpty(cut.FindAll(".profile-editor__name"));
+        Assert.Empty(cut.FindAll(".profile-editor__settings"));
+        Assert.DoesNotContain("Kids profile", cut.Markup);
+        Assert.DoesNotContain("What can", cut.Markup);
+        Assert.DoesNotContain("PIN", cut.Markup);
+        Assert.Empty(cut.FindAll(".profile-editor__delete"));
+    }
+
+    [Fact]
+    public void SelfEdit_PicksAColourOrAPhoto_ButNotAnIcon()
+    {
+        using var ctx = new BunitContext();
+        var cut = Render(ctx, Existing(), selfEdit: true);
+        OpenPicker(cut);
+
+        Assert.Equal(["Colour", "Photo"], cut.FindAll("[aria-label='Avatar type'] button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public void NormalEdit_StillOffersTheIconTab_KidsLimitAndPin()
+    {
+        using var ctx = new BunitContext();
+        var cut = Render(ctx, Existing());
+        OpenPicker(cut);
+
+        Assert.Equal(["Colour", "Icon", "Photo"], cut.FindAll("[aria-label='Avatar type'] button").Select(button => button.TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".profile-editor__settings"));
     }
 
     [Fact]

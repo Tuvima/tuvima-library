@@ -1,0 +1,160 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject AppStoreLinks StoreLinks
+@inject DashboardSessionAccessor Session
+@inject IJSRuntime JS
+@inject IAppToastService Toast
+@* Personal > Overview > Apps (D24): where to get the Tuvima apps, the address to type into them, and a QR code that fills that
+   address in. Everyone who is signed in sees the address because it is not a secret; the QR code carries only that address,
+   never a key or a sign-in, so the person still signs in as usual. *@
+<div class="overview-apps" data-settings-overview-apps>
+    <SettingsSectionPanel Title="Get the app"
+                          Icon="@AppMaterialIcons.Outlined.Devices"
+                          Description="Install Tuvima on your phone or TV.">
+        @if (Stores.Count > 0)
+        {
+            <ul class="overview-apps__stores" role="list" data-apps-stores>
+                @foreach (var store in Stores)
+                {
+                    <li>
+                        <AppButton Label="@store.Label"
+                                   Href="@store.Url"
+                                   Target="_blank"
+                                   EndIcon="@AppMaterialIcons.Outlined.OpenInNew"
+                                   data-apps-store="@store.Key" />
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="overview-apps__note" data-apps-stores-empty>The Tuvima apps will be linked here once they are published.</p>
+        }
+    </SettingsSectionPanel>
+
+    <SettingsSectionPanel Title="Server address"
+                          Icon="@AppMaterialIcons.Outlined.Language"
+                          Description="Enter this in the app when it asks for your server.">
+        @if (_loading)
+        {
+            <AppSkeleton Width="100%" Height="96px" />
+        }
+        else if (_addresses is null)
+        {
+            <AppErrorState Title="The server address is unavailable"
+                           Message="Start the Engine or try again."
+                           Compact="true"
+                           Retry="@(() => LoadAsync())" />
+        }
+        else
+        {
+            <dl class="overview-apps__facts">
+                <div class="overview-apps__fact" data-apps-address="at-home">
+                    <dt>At home</dt>
+                    <dd class="overview-apps__value">@(AtHome ?? "Not detected yet")</dd>
+                    @if (AtHome is not null)
+                    {
+                        <AppButton Label="Copy"
+                                   Size="AppControlSize.Compact"
+                                   StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                                   OnClick="@(() => CopyAsync(AtHome))" />
+                    }
+                </div>
+                @if (AwayFromHome is not null)
+                {
+                    <div class="overview-apps__fact" data-apps-address="away-from-home">
+                        <dt>Away from home</dt>
+                        <dd class="overview-apps__value">@AwayFromHome</dd>
+                        <AppButton Label="Copy"
+                                   Size="AppControlSize.Compact"
+                                   StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                                   OnClick="@(() => CopyAsync(AwayFromHome))" />
+                    </div>
+                }
+            </dl>
+
+            @if (AwayFromHome is null)
+            {
+                <p class="overview-apps__note" data-apps-no-outside-address>
+                    @if (CanSetUpRemoteAccess)
+                    {
+                        <text>Want the apps to work away from home too? <a href="/settings/network/remote">Set a secure outside address in Remote Access</a>.</text>
+                    }
+                    else
+                    {
+                        <text>The apps work at home. To use them away from home, ask the server administrator to set up a secure outside address.</text>
+                    }
+                </p>
+            }
+
+            @if (QrPayload is not null)
+            {
+                <div class="overview-apps__qr-block">
+                    <div class="overview-apps__qr" data-qr-payload="@QrPayload">@((MarkupString)QrCodeSvg.Render(QrPayload))</div>
+                    <div class="overview-apps__qr-copy">
+                        <strong>@QrLabel</strong>
+                        <p class="overview-apps__note">Scan with the Tuvima app on your phone to fill in the server, then sign in as usual.</p>
+                    </div>
+                </div>
+            }
+        }
+    </SettingsSectionPanel>
+</div>
+
+@code {
+    private NetworkAppAddressesDto? _addresses;
+    private bool _loading = true;
+
+    private sealed record StoreSlot(string Key, string Label, string Url);
+
+    // A store shows only once it has a real web link; a blank or odd value in the configuration is left out.
+    private IReadOnlyList<StoreSlot> Stores
+    {
+        get
+        {
+            var slots = new List<StoreSlot>();
+            Add(slots, "app-store", "App Store", StoreLinks.AppStore);
+            Add(slots, "google-play", "Google Play", StoreLinks.GooglePlay);
+            Add(slots, "roku", "Roku Channel Store", StoreLinks.Roku);
+            return slots;
+        }
+    }
+
+    private static void Add(List<StoreSlot> slots, string key, string label, string? url)
+    {
+        if (Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        {
+            slots.Add(new StoreSlot(key, label, uri.AbsoluteUri));
+        }
+    }
+
+    private string? AtHome => string.IsNullOrWhiteSpace(_addresses?.AtHome) ? null : _addresses!.AtHome;
+
+    private string? AwayFromHome => string.IsNullOrWhiteSpace(_addresses?.AwayFromHome) ? null : _addresses!.AwayFromHome;
+
+    // The QR code holds one address and nothing else: the outside address once it is set up, otherwise the one at home.
+    private string? QrPayload => AwayFromHome ?? AtHome;
+
+    private string QrLabel => AwayFromHome is not null ? "Scan to use the outside address" : "Scan to use the address at home";
+
+    // Only a server administrator can open the Remote Access page, so only they are sent there.
+    private bool CanSetUpRemoteAccess => Session.HasNavigation("settings.administration");
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _addresses = await Api.GetNetworkAppAddressesAsync();
+        _loading = false;
+    }
+
+    private async Task CopyAsync(string? address)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", address ?? string.Empty);
+        Toast.Add("Address copied.", AppSeverity.Success);
+    }
+}

@@ -522,6 +522,7 @@ Global UI defaults applied to all devices and users unless overridden.
 | `accent_color` | string | `"#8B5CF6"` - fixed purple product chrome accent. EPUB reader highlight colors are configured separately. |
 | `poster_aspect_ratio` | string | `"2:3"` - standard cover art card ratio. |
 | `default_view_mode` | string | `"list"` or `"grid"`. Default media library view mode. |
+| `app_store_links` | object | Where each Tuvima app can be installed: `app_store`, `google_play` and `roku`, each a web address. All three ship blank; the Apps page (Settings > Personal > Overview > Apps) shows a store button only once its link is a real `http` or `https` address. |
 
 ### config/ui/devices/*.json
 
