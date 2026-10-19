@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -88,18 +89,27 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default)
+    public async Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default)
     {
         try
         {
             var encoded = Uri.EscapeDataString(pluginId);
-            using var response = await _http.PostAsJsonAsync($"/plugins/{encoded}/{(enabled ? "enable" : "disable")}", new { }, ct);
+            using var response = await _http.PostAsJsonAsync(
+                $"/plugins/{encoded}/{(enabled ? "enable" : "disable")}",
+                new PluginEnableRequest { ApprovalHash = enabled ? approvalHash : null },
+                ct);
             if (response.IsSuccessStatusCode)
             {
                 return PluginActionResult.Success;
             }
 
-            // 409: the Engine refused to switch the plugin on and says why in plain English (problem detail).
+            // 409 can mean the Engine wants the person to see what the plugin can do first (approval required), or that it
+            // refused to switch the plugin on and says why in plain English (problem detail).
+            if (await ApprovalResponses.TryReadAsync(response, ct) is { } approval)
+            {
+                return PluginActionResult.ApprovalRequired(approval);
+            }
+
             return PluginActionResult.Failure(response.StatusCode == System.Net.HttpStatusCode.Conflict
                 ? await ReadProblemDetailAsync(response, ct)
                 : null);

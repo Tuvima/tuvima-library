@@ -1,9 +1,12 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Security;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -153,24 +156,14 @@ public static class ApplicationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        group.MapPost("/{applicationId:guid}/credentials", async (
-            Guid applicationId,
-            CreateApplicationCredentialRequest request,
-            HttpContext context,
-            IRequestAuthorityResolver authorityResolver,
-            ApplicationAdministrationService service,
-            CancellationToken ct) =>
-            await ExecuteAsync(
-                context,
-                authorityResolver,
-                (authority, token) => service.IssueCredentialAsync(authority, applicationId, request, token),
-                ct))
+        group.MapPost("/{applicationId:guid}/credentials", IssueCredentialAsync)
             .RequireSecuredAccount()
             .WithName("IssueApplicationCredential")
-            .WithSummary("Issue a one-time plaintext credential for an enabled Application.")
+            .WithSummary("Issue a one-time plaintext credential for an enabled Application. Every key needs its approval hash (409 approval_required otherwise).")
             .Produces<ApplicationCredentialIssuedResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapPost("/{applicationId:guid}/credentials/{credentialId:guid}/rotate", async (
@@ -217,6 +210,56 @@ public static class ApplicationEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return app;
+    }
+
+    /// <summary>
+    /// Issues a key. Every key is new, so every key needs the person to have seen what it can do: the body must carry the
+    /// current statement's hash. The approval is recorded under the new credential's id once it exists; if the record cannot
+    /// be written the key is revoked again, so no key exists without a record.
+    /// </summary>
+    internal static async Task<IResult> IssueCredentialAsync(
+        Guid applicationId,
+        CreateApplicationCredentialRequest request,
+        HttpContext context,
+        IRequestAuthorityResolver authorityResolver,
+        ApplicationAdministrationService service,
+        [FromServices] ApprovalService approvals,
+        CancellationToken ct)
+    {
+        try
+        {
+            var authority = await authorityResolver.ResolveAsync(context, ct).ConfigureAwait(false);
+            // Reading the application also proves the caller may manage applications, and that it exists.
+            var application = await service.GetApplicationAsync(authority, applicationId, ct).ConfigureAwait(false);
+            // A disabled application is refused by the issue call itself with its own conflict, so it is not asked about.
+            var preview = application.IsEnabled ? approvals.PreviewCredential(application, request.ExpiresAt) : null;
+            if (preview is not null && !ApprovalService.HashMatches(request.ApprovalHash, preview.StatementHash))
+            {
+                return ApiErrors.ApprovalRequired([preview]);
+            }
+
+            var issued = await service.IssueCredentialAsync(authority, applicationId, request, ct).ConfigureAwait(false);
+            var recorded = false;
+            try
+            {
+                var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
+                await approvals.RecordAsync(preview!, ApprovalKinds.ApplicationCredential, issued.Credential.Id.ToString("D"), actor, ct).ConfigureAwait(false);
+                recorded = true;
+            }
+            finally
+            {
+                if (!recorded)
+                {
+                    await service.RevokeCredentialAsync(authority, applicationId, issued.Credential.Id, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+
+            return Results.Ok(issued);
+        }
+        catch (ApplicationAdministrationException exception)
+        {
+            return MapError(exception);
+        }
     }
 
     private static async Task<IResult> ExecuteAsync<T>(

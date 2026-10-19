@@ -134,6 +134,7 @@ public sealed class EngineCompositionValidationTests
         services.AddPluginApplicationServices();
         services.AddApplicationEvents();
         services.AddApplicationWebhooks();
+        services.AddTuvimaApprovals();
         services.AddTuvimaHostedServices();
         services.AddTuvimaToolRequirements();
 

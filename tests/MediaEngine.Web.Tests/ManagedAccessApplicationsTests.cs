@@ -4,6 +4,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -90,6 +91,99 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
             Assert.Empty(cut.FindAll("button[aria-label='Close application drawer']"));
         });
+    }
+
+    [Fact]
+    public void IssuingAKey_ShowsTheApprovalDialog_AndIssuesOnlyAfterIssueKeyCarryingTheHash()
+    {
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        ButtonNamed(cut, "Generate credential").Click();
+
+        dialogs.WaitForAssertion(() =>
+        {
+            Assert.Contains("Issue this key?", dialogs.Markup);
+            Assert.Contains("Reads your library", dialogs.Markup);
+            Assert.Contains("Yes, to receiver.example", dialogs.Markup);
+        });
+        Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Issue key").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
+        var posts = _handler.Requests.Where(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/credentials", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, posts.Count);
+        Assert.Null(JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(posts[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-credential", JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(posts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void IssuingAKey_Cancel_IssuesNoKeyAndSendsNoSecondRequest()
+    {
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        ButtonNamed(cut, "Generate credential").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Issue this key?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Issue this key?", dialogs.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path.EndsWith("/credentials", StringComparison.Ordinal));
+        Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+    }
+
+    [Fact]
+    public void SavingAWebhook_ShowsTheApprovalDialog_AndSavesWithSaveCarryingTheHash()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.Automation;
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
+        ButtonNamed(cut, "Add webhook").Click();
+        var editor = cut.WaitForElement(".application-webhook-editor");
+        editor.QuerySelector("input[type='text']")!.Input("https://receiver.example/events");
+        editor.QuerySelector(".application-webhook-events input[type='checkbox']")!.Change(true);
+        ButtonNamed(cut, "Save webhook").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Save this webhook?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup));
+        var posts = _handler.Requests.Where(request => request.Method == HttpMethod.Post
+            && request.Path == $"/access/applications/{_handler.ApplicationId:D}/webhooks").ToList();
+        Assert.Equal(2, posts.Count);
+        Assert.Equal("hash-webhook", JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(posts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void SavingAWebhook_Cancel_SavesNothingAndKeepsTheFormOpen()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.Automation;
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
+        ButtonNamed(cut, "Add webhook").Click();
+        var editor = cut.WaitForElement(".application-webhook-editor");
+        editor.QuerySelector("input[type='text']")!.Input("https://receiver.example/events");
+        editor.QuerySelector(".application-webhook-events input[type='checkbox']")!.Change(true);
+        ButtonNamed(cut, "Save webhook").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Save this webhook?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Save this webhook?", dialogs.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post
+            && request.Path == $"/access/applications/{_handler.ApplicationId:D}/webhooks");
+        Assert.NotEmpty(cut.FindAll(".application-webhook-editor"));
+        Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup);
     }
 
     [Fact]
@@ -477,6 +571,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         public TaskCompletionSource? SecondWebhookLoadStarted { get; set; }
         public bool FirstWebhookLoadFails { get; set; }
         public bool IgnoreWebhookRotateCancellation { get; set; }
+
+        /// <summary>When set, issuing a key and saving a webhook answer 409 approval_required until the request carries the hash.</summary>
+        public bool RequireApprovalHash { get; set; }
         public IReadOnlyList<RequestRecord> Requests
         {
             get
@@ -558,6 +655,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             {
                 EnsureWebhook();
                 return Json(_webhooks);
+            }
+            if (RequireApprovalHash
+                && (request.Method == HttpMethod.Post && path.EndsWith("/webhooks", StringComparison.Ordinal)
+                    || request.Method == HttpMethod.Put && path.EndsWith($"/webhooks/{WebhookId:D}", StringComparison.Ordinal))
+                && JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(body, JsonOptions)!.ApprovalHash is null)
+            {
+                return ApprovalRequired("webhook", "Webhook to receiver.example", "hash-webhook");
             }
             if (request.Method == HttpMethod.Post && path.EndsWith("/webhooks", StringComparison.Ordinal))
             {
@@ -647,6 +751,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Post && path.EndsWith("/credentials", StringComparison.Ordinal))
             {
+                if (RequireApprovalHash && JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(body, JsonOptions)!.ApprovalHash is null)
+                {
+                    return ApprovalRequired("application_credential", "Key for Living room", "hash-credential");
+                }
+
                 CredentialStarted?.TrySetResult();
                 if (CredentialGate is not null)
                 {
@@ -659,6 +768,24 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
+
+        private static HttpResponseMessage ApprovalRequired(string kind, string title, string hash) => Json(
+            new MediaEngine.Contracts.Approvals.ApprovalRequiredResponse
+            {
+                Approvals =
+                [
+                    new MediaEngine.Contracts.Approvals.ApprovalPreviewResponse
+                    {
+                        Kind = kind,
+                        Title = title,
+                        CanDo = ["Reads your library"],
+                        SendsDataOut = true,
+                        SendsDataTo = "receiver.example",
+                        StatementHash = hash,
+                    },
+                ],
+            },
+            HttpStatusCode.Conflict);
 
         private void EnsureWebhook()
         {

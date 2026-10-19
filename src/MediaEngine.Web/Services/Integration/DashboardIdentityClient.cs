@@ -1036,6 +1036,12 @@ public sealed class DashboardIdentityClient(
 
     private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
+        if (await ApprovalResponses.TryReadAsync(response, ct).ConfigureAwait(false) is { } approval)
+        {
+            return DashboardAccessMutationResult<T>.FailureResult(
+                DashboardAccessMutationFailure.ApprovalRequired, response.StatusCode, approval: approval);
+        }
+
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)
@@ -1046,6 +1052,12 @@ public sealed class DashboardIdentityClient(
 
     private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
+        if (await ApprovalResponses.TryReadAsync(response, ct).ConfigureAwait(false) is { } approval)
+        {
+            return DashboardAccessMutationResult.FailureResult(
+                DashboardAccessMutationFailure.ApprovalRequired, response.StatusCode, approval: approval);
+        }
+
         var failure = await ClassifyFailureAsync(response, ct).ConfigureAwait(false);
         var fields = failure == DashboardAccessMutationFailure.Validation
             ? await ReadValidationFieldNamesAsync(response, ct).ConfigureAwait(false)

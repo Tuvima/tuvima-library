@@ -1,7 +1,9 @@
 using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Plugins;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Authorization;
@@ -61,8 +63,9 @@ internal static class PluginEndpoints
 
         group.MapPost("/{pluginId}/enable", EnablePlugin)
         .WithName("EnablePlugin")
+        .WithSummary("Switch a plugin on. Needs the plugin's current approval statement to have been confirmed (409 approval_required otherwise).")
         .Produces<PluginEnabledResponse>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status409Conflict)
+        .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         group.MapPost("/{pluginId}/disable", (string pluginId, PluginCatalog catalog) =>
@@ -374,8 +377,43 @@ internal static class PluginEndpoints
         }
     }
 
-    internal static IResult EnablePlugin(string pluginId, PluginCatalog catalog)
+    /// <summary>
+    /// Switches a plugin on. Nothing switches on until an administrator has seen what the plugin can do (the approval rule):
+    /// with a record for the plugin's current statement it is enabled straight away; otherwise the body must carry that
+    /// statement's hash (the person confirmed it), which is recorded first. Anything else is an approval-required 409.
+    /// A plugin that cannot work here keeps its own plain-English 409 and is never asked about.
+    /// </summary>
+    internal static async Task<IResult> EnablePlugin(
+        string pluginId,
+        [FromBody] PluginEnableRequest? request,
+        HttpContext http,
+        PluginCatalog catalog,
+        [FromServices] ApprovalService approvals,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
     {
+        var registration = catalog.Get(pluginId);
+        if (registration is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        if (registration.Compatibility.IsCompatible)
+        {
+            var preview = approvals.PreviewPlugin(registration);
+            if (!await approvals.IsCoveredAsync(ApprovalKinds.Plugin, registration.Manifest.Id, preview.StatementHash, ct).ConfigureAwait(false))
+            {
+                if (!ApprovalService.HashMatches(request?.ApprovalHash, preview.StatementHash))
+                {
+                    return ApiErrors.ApprovalRequired([preview]);
+                }
+
+                var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+                var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
+                await approvals.RecordAsync(preview, ApprovalKinds.Plugin, registration.Manifest.Id, actor, ct).ConfigureAwait(false);
+            }
+        }
+
         try
         {
             catalog.SetEnabled(pluginId, true);
@@ -451,6 +489,8 @@ internal static class PluginEndpoints
             Schedule = permission.Schedule,
             ResourceClass = permission.ResourceClass,
         }).ToList(),
+        AllowedTo = ApprovalStatementBuilder.PluginAllowedTo(registration.Manifest).ToList(),
+        SendsDataTo = ApprovalStatementBuilder.PluginSendsDataTo(registration.Manifest),
         DeclaredSecrets = registration.Manifest.Secrets.Count,
         ConfiguredSecrets = configuredSecrets,
         Settings = registration.Settings.ToDictionary(

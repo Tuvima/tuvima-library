@@ -79,7 +79,8 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     {
         _plugins =
         [
-            Plugin("a.official", "Alpha", enabled: true, trust: "official", permissions: ["media.read", "network.http"]),
+            Plugin("a.official", "Alpha", enabled: true, trust: "official", permissions: ["media.read", "network.http"],
+                allowedTo: ["Reads your media files", "Connects to the internet"], sendsDataTo: "the internet"),
             Plugin("b.community", "Beta", enabled: false, trust: "community"),
         ];
 
@@ -327,7 +328,9 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         bool enabled,
         string trust = "private",
         string? loadError = null,
-        List<string>? permissions = null) =>
+        List<string>? permissions = null,
+        List<string>? allowedTo = null,
+        string? sendsDataTo = null) =>
         new()
         {
             Id = id,
@@ -337,6 +340,8 @@ public sealed class StateCardPagesTests : AsyncBunitContext
             TrustLevel = trust,
             LoadError = loadError,
             Permissions = permissions ?? [],
+            AllowedTo = allowedTo ?? [],
+            SendsDataTo = sendsDataTo,
         };
 
     private void SignInAdministrator()

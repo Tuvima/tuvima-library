@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Settings
 @inject DashboardIdentityClient Identity
+@inject ApprovalFlow Approvals
 @inject DashboardSessionAccessor Session
 @inject DeviceContextService DeviceContext
 @implements IDisposable
@@ -382,8 +384,19 @@
         {
             ClearMessages();
             _plaintext = null;
-            var result = await Identity.IssueApplicationCredentialResultAsync(_editing.Id, new(_credentialName.Trim(), null));
+            var applicationId = _editing.Id;
+            var request = new CreateApplicationCredentialRequest(_credentialName.Trim(), null);
+            var result = await Identity.IssueApplicationCredentialResultAsync(applicationId, request);
             if (!Current(generation)) return;
+            if (result.Failure == DashboardAccessMutationFailure.ApprovalRequired && result.Approval is { } approval)
+            {
+                // Every key is new, so the person sees what it can do first. Cancel issues nothing.
+                var hashes = await Approvals.ConfirmAsync(approval.Approvals);
+                if (!Current(generation)) return;
+                if (hashes is null) return;
+                result = await Identity.IssueApplicationCredentialResultAsync(applicationId, request with { ApprovalHash = hashes.Values.First() });
+                if (!Current(generation)) return;
+            }
             if (result.Succeeded && result.Value is not null) { _plaintext = result.Value.PlaintextCredential; _credentialName = "Credential"; await ReloadEditing(generation); }
             else _error = FailureMessage(result.Failure);
         }

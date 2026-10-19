@@ -1,0 +1,119 @@
+using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
+using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
+
+namespace MediaEngine.Web.Services.Settings;
+
+/// <summary>How saving the Local AI configuration ended once any approvals were asked about.</summary>
+public enum AiSaveOutcome
+{
+    Saved,
+    Failed,
+
+    /// <summary>The person closed an approval dialog; nothing was saved and the switches are back to their saved values.</summary>
+    Cancelled,
+}
+
+/// <summary>
+/// The Dashboard half of the approval rule (Developer tools spec D-C). When the Engine answers an action with an
+/// approval-required 409, this shows one dialog per preview, in order, in the Engine's own words. If every one is
+/// confirmed the caller repeats the action carrying the hashes; if any is cancelled the caller stops and leaves everything
+/// as it was.
+/// </summary>
+public sealed class ApprovalFlow(IAppDialogService dialogs)
+{
+    private const int MaxRounds = 3;
+
+    private static readonly AppDialogOptions DialogOptions = new()
+    {
+        MaxWidth = AppMaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true,
+        BackdropClick = true,
+        Sheet = AppDialogSheetMode.Phone,
+    };
+
+    /// <summary>The words on the dialog's heading for one preview.</summary>
+    public static string Heading(ApprovalPreviewResponse preview)
+    {
+        ArgumentNullException.ThrowIfNull(preview);
+        return preview.Kind switch
+        {
+            ApprovalKinds.ApplicationCredential => "Issue this key?",
+            ApprovalKinds.Webhook => "Save this webhook?",
+            _ => $"Turn on {preview.Title}?",
+        };
+    }
+
+    /// <summary>
+    /// Shows each preview in order. Returns the confirmed statement hash for each item (keyed by the preview's item id), or
+    /// null as soon as the person cancels any one of them.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string>?> ConfirmAsync(IReadOnlyList<ApprovalPreviewResponse> previews)
+    {
+        ArgumentNullException.ThrowIfNull(previews);
+        var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var preview in previews)
+        {
+            var parameters = new AppDialogParameters<ApprovalDialog>();
+            parameters.Add(dialog => dialog.Preview, preview);
+            var reference = await dialogs.ShowAsync<ApprovalDialog>(Heading(preview), parameters, DialogOptions);
+            var result = await reference.Result;
+            if (result is not { Canceled: false, Data: true })
+            {
+                return null;
+            }
+
+            hashes[preview.ItemId] = preview.StatementHash;
+        }
+
+        return hashes;
+    }
+
+    /// <summary>
+    /// Saves the Local AI configuration. A feature switched on that the person has not seen yet comes back as an approval
+    /// request; each is confirmed and the save repeated with the hashes. When anything is cancelled, nothing is saved and
+    /// those features go back to off, their saved value (an approval is only asked for when a feature was off).
+    /// </summary>
+    public async Task<AiSaveOutcome> SaveAiConfigAsync(UIOrchestratorService orchestrator, AiConfigDto config)
+    {
+        ArgumentNullException.ThrowIfNull(orchestrator);
+        ArgumentNullException.ThrowIfNull(config);
+        config.Approvals.Clear();
+        try
+        {
+            for (var round = 0; round < MaxRounds; round++)
+            {
+                var result = await orchestrator.SaveAiConfigWithApprovalAsync(config);
+                if (result.Approval is null)
+                {
+                    return result.Saved ? AiSaveOutcome.Saved : AiSaveOutcome.Failed;
+                }
+
+                var hashes = await ConfirmAsync(result.Approval.Approvals);
+                if (hashes is null)
+                {
+                    foreach (var preview in result.Approval.Approvals)
+                    {
+                        config.Features[preview.ItemId] = false;
+                    }
+
+                    return AiSaveOutcome.Cancelled;
+                }
+
+                foreach (var (itemId, hash) in hashes)
+                {
+                    config.Approvals[itemId] = hash;
+                }
+            }
+
+            return AiSaveOutcome.Failed;
+        }
+        finally
+        {
+            config.Approvals.Clear();
+        }
+    }
+}

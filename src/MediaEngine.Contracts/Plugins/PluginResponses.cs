@@ -114,6 +114,14 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("configured_secrets")]
     public int ConfiguredSecrets { get; set; }
 
+    /// <summary>What the plugin is allowed to do, in plain words written by the Engine (one line per permission, tool, AI use and secret).</summary>
+    [JsonPropertyName("allowed_to")]
+    public List<string> AllowedTo { get; set; } = [];
+
+    /// <summary>Where the plugin can send data (for example "the internet"), or null when nothing leaves this machine.</summary>
+    [JsonPropertyName("sends_data_to")]
+    public string? SendsDataTo { get; set; }
+
     [JsonPropertyName("settings")]
     public Dictionary<string, JsonElement> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);

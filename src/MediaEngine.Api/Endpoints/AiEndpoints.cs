@@ -1,13 +1,17 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -185,35 +189,18 @@ internal static class AiEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiManage);
 
         // ── GET /ai/config ───────────────────────────────────────────────────
-        group.MapGet("/config", (
-            AiConfigurationService configurationStore) =>
-        {
-            return Results.Ok(AiContractMapper.ToContract(configurationStore.Current));
-        })
+        group.MapGet("/config", GetAiConfig)
         .WithName("GetAiConfig")
         .WithSummary("Returns the current AI configuration (config/ai.json).")
         .Produces<AiConfigDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiManage);
 
         // ── PUT /ai/config ───────────────────────────────────────────────────
-        group.MapPut("/config", (
-            AiConfigDto request,
-            AiConfigurationService configurationStore) =>
-        {
-            var settings = AiContractMapper.ToSettings(request);
-            var errors = configurationStore.Save(settings);
-            if (errors.Count > 0)
-            {
-                return Results.ValidationProblem(errors
-                    .GroupBy(error => error.Path)
-                    .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
-            }
-
-            return Results.Ok(new AiSettingsSavedResponse(true));
-        })
+        group.MapPut("/config", SaveAiConfigAsync)
         .WithName("SaveAiConfig")
-        .WithSummary("Saves updated AI configuration to config/ai.json.")
+        .WithSummary("Saves updated AI configuration to config/ai.json. A feature switched from off to on needs its approval hash in 'approvals' (409 approval_required otherwise, nothing saved).")
         .Produces<AiSettingsSavedResponse>(StatusCodes.Status200OK)
+        .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.AiManage);
 
         // ── GET /ai/profile ──────────────────────────────────────────────────
@@ -294,6 +281,88 @@ internal static class AiEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRead);
 
         return group;
+    }
+
+    /// <summary>The saved configuration, with the Engine's plain words for what each feature may do.</summary>
+    internal static IResult GetAiConfig(AiConfigurationService configurationStore)
+    {
+        var config = AiContractMapper.ToContract(configurationStore.Current);
+        foreach (var feature in config.Features.Keys)
+        {
+            config.FeatureInfo[feature] = new AiFeatureInfoDto
+            {
+                AllowedTo = ApprovalStatementBuilder.AiFeatureAllowedTo(feature).ToList(),
+                SendsDataTo = ApprovalStatementBuilder.AiFeatureSendsDataTo(feature),
+            };
+        }
+
+        return Results.Ok(config);
+    }
+
+    /// <summary>
+    /// Saves the AI configuration. The approval rule: a feature switched from off to on needs its current statement
+    /// confirmed (the hash in <see cref="AiConfigDto.Approvals"/>) or already recorded. Every such feature is listed in one
+    /// 409 and nothing is saved until all of them are covered; confirmed approvals are recorded before the save.
+    /// </summary>
+    internal static async Task<IResult> SaveAiConfigAsync(
+        AiConfigDto request,
+        HttpContext http,
+        AiConfigurationService configurationStore,
+        IModelDownloadManager downloads,
+        [FromServices] ApprovalService approvals,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        var wasOn = AiContractMapper.ToContract(configurationStore.Current).Features;
+        var confirmed = new List<ApprovalPreviewResponse>();
+        var missing = new List<ApprovalPreviewResponse>();
+        var switchedOn = request.Features
+            .Where(pair => pair.Value && wasOn.TryGetValue(pair.Key, out var before) && !before)
+            .Select(pair => pair.Key)
+            .Order(StringComparer.Ordinal);
+        foreach (var feature in switchedOn)
+        {
+            var preview = approvals.PreviewAiFeature(feature, ApprovalService.IsFeatureModelReady(downloads));
+            if (await approvals.IsCoveredAsync(ApprovalKinds.AiFeature, feature, preview.StatementHash, ct).ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            if (request.Approvals?.TryGetValue(feature, out var suppliedHash) == true && ApprovalService.HashMatches(suppliedHash, preview.StatementHash))
+            {
+                confirmed.Add(preview);
+            }
+            else
+            {
+                missing.Add(preview);
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            return ApiErrors.ApprovalRequired(missing);
+        }
+
+        if (confirmed.Count > 0)
+        {
+            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+            var actor = await approvals.ResolveActorAsync(authority, ct).ConfigureAwait(false);
+            foreach (var preview in confirmed)
+            {
+                await approvals.RecordAsync(preview, ApprovalKinds.AiFeature, preview.ItemId, actor, ct).ConfigureAwait(false);
+            }
+        }
+
+        var settings = AiContractMapper.ToSettings(request);
+        var errors = configurationStore.Save(settings);
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(errors
+                .GroupBy(error => error.Path)
+                .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray()));
+        }
+
+        return Results.Ok(new AiSettingsSavedResponse(true));
     }
 
     private static bool TryParseModelRole(string value, out AiModelRole role)

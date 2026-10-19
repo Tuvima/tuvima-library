@@ -506,6 +506,7 @@ builder.Services.AddTuvimaScheduledTasks();
 builder.Services.AddPluginApplicationServices();
 builder.Services.AddApplicationEvents();
 builder.Services.AddApplicationWebhooks();
+builder.Services.AddTuvimaApprovals();
 builder.Services.AddTuvimaHostedServices();
 builder.Services.AddTuvimaToolRequirements();
 
