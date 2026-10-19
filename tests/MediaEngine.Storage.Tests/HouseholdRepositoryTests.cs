@@ -59,13 +59,46 @@ public sealed class HouseholdRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AHouseholdWithAnEmptySharedLibraryRow_IsKeptUntilTheDataStoreLetsTheRowGo()
+    public async Task AHouseholdWhoseSharedLibraryHoldsNoPhotos_IsRemovedTogetherWithThatEmptyLibrary()
     {
         var shared = await new ViewSharedLibraryRepository(_database).GetAsync();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO view_sources (id, scope_kind, library_id, source_type, name, source_key, storage_mode, relative_path, created_at, updated_at)
+                VALUES (@id, 'shared', @library, 'folder', 'Shared folder', 'shared-folder', 'managed', 'Shared', @now, @now);
+                """, new { id = Guid.NewGuid(), library = shared.LibraryId, now = _now.ToString("O") });
+        }
 
-        Assert.Equal(HouseholdDeleteOutcome.HoldsSharedLibrary, await _households.DeleteWhenEmptyAsync(shared.HouseholdId));
+        Assert.Equal(HouseholdDeleteOutcome.Deleted, await _households.DeleteWhenEmptyAsync(shared.HouseholdId));
 
-        Assert.NotNull(await _households.GetByIdAsync(shared.HouseholdId));
+        Assert.Null(await _households.GetByIdAsync(shared.HouseholdId));
+        using var check = _database.CreateConnection();
+        Assert.Equal(0, check.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM view_shared_library WHERE household_id = @id;", new { id = shared.HouseholdId }));
+        Assert.Equal(0, check.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM view_sources WHERE library_id = @library;", new { library = shared.LibraryId }));
+    }
+
+    [Fact]
+    public async Task TheDataStore_StillRefusesToDeleteASharedLibraryThatHoldsItems_ButLetsAnEmptyOneGo()
+    {
+        var full = await new ViewSharedLibraryRepository(_database).GetAsync();
+        var emptyHousehold = await _households.CreateAsync("Empty", _now);
+        await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(emptyHousehold.Id);
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+            VALUES (@id, 'shared', @library, 'image', 'beach.jpg', 'image/jpeg', @now, @now);
+            """, new { id = Guid.NewGuid(), library = full.LibraryId, now = _now.ToString("O") });
+
+        var refusal = Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => connection.Execute(
+            "DELETE FROM view_shared_library WHERE household_id = @id;", new { id = full.HouseholdId }));
+
+        Assert.Contains("cannot be deleted", refusal.Message);
+        Assert.Equal(1, connection.Execute("DELETE FROM view_shared_library WHERE household_id = @id;", new { id = emptyHousehold.Id }));
+        Assert.Equal(1, connection.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM view_shared_library WHERE library_id = @library;", new { library = full.LibraryId }));
     }
 
     [Fact]

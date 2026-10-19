@@ -18,9 +18,4 @@ public enum HouseholdDeleteOutcome
 
     /// <summary>The household's Shared Library in View still holds shared photos or videos.</summary>
     HoldsSharedItems,
-
-    /// <summary>
-    /// The household has an empty Shared Library row in View, which the data store does not yet let go of.
-    /// </summary>
-    HoldsSharedLibrary,
 }

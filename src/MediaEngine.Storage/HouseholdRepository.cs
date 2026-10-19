@@ -156,18 +156,21 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
                 return HouseholdDeleteOutcome.NotEmpty;
             }
 
-            // The household's Shared Library in View keeps the household while it holds shared photos. The data store
-            // does not yet allow removing even an empty Shared Library row (trg_view_shared_library_delete), so an empty
-            // one still keeps the household until a data-store step relaxes that trigger.
+            // The household's Shared Library in View keeps the household while it holds shared photos. An empty one is
+            // only a shell, so it goes with the household in this same step.
             var sharedLibraryId = conn.ExecuteScalar<Guid?>(
                 "SELECT library_id FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
             if (sharedLibraryId is { } libraryId)
             {
-                return conn.ExecuteScalar<int>(
+                if (conn.ExecuteScalar<int>(
                         "SELECT EXISTS (SELECT 1 FROM local_items WHERE scope_kind = 'shared' AND library_id = @libraryId);",
-                        new { libraryId }, tx) == 1
-                    ? HouseholdDeleteOutcome.HoldsSharedItems
-                    : HouseholdDeleteOutcome.HoldsSharedLibrary;
+                        new { libraryId }, tx) == 1)
+                {
+                    return HouseholdDeleteOutcome.HoldsSharedItems;
+                }
+
+                conn.Execute("DELETE FROM view_sources WHERE scope_kind = 'shared' AND library_id = @libraryId;", new { libraryId }, tx);
+                conn.Execute("DELETE FROM view_shared_library WHERE household_id = @householdId;", new { householdId }, tx);
             }
 
             return conn.Execute("DELETE FROM households WHERE id = @householdId;", new { householdId }, tx) > 0

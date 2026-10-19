@@ -566,6 +566,19 @@ public sealed class PermissionsGroundworkTests
         Assert.Empty(world.AuditRows("household.deleted"));
     }
 
+    [Fact]
+    public async Task AHouseholdWhoseSharedLibraryIsEmpty_IsRemovedAndAudited()
+    {
+        await using var world = await World.CreateAsync();
+        var empty = await world.Management.CreateAsync(world.ServerAdmin, "Empty shared");
+        await new ViewSharedLibraryRepository(world.Database).EnsureForHouseholdAsync(empty.Household.Id);
+
+        await world.Management.DeleteAsync(world.ServerAdmin, empty.Household.Id);
+
+        Assert.Null(await world.Households.GetByIdAsync(empty.Household.Id));
+        Assert.Equal(empty.Household.Id.ToString("D"), Assert.Single(world.AuditRows("household.deleted")).SubjectId);
+    }
+
     // ----- Paired apps -----
 
     [Fact]

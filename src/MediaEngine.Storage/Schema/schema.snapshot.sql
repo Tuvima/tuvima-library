@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0003 account_notice_dismissals).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0004 shared_library_removable_when_empty).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -3329,7 +3329,8 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal S
 
 CREATE TRIGGER trg_view_shared_library_delete
 BEFORE DELETE ON view_shared_library
-BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
+WHEN EXISTS (SELECT 1 FROM local_items WHERE scope_kind='shared' AND library_id=OLD.library_id)
+BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted while it holds items'); END;
 
 CREATE TRIGGER trg_view_shared_library_identity_immutable
 BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
