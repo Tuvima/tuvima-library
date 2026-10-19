@@ -91,9 +91,9 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/search` | `SearchPage` | Global search |
 | `/view`, `/view/*` (artwork, contributions, documents, folders, galleries, people, places) | `View*Page` | Personal and shared View library |
 | `/downloads` | `DownloadsPage` | Explains downloads live in the Tuvima app |
-| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review lives in `/settings/recently-added` (opened from Library and Ingestion's "View all"); `/settings/review` redirects there |
+| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review is its own page at `/settings/review` (`NeedsReviewPageContent`, server administrators only, off the menu, opened from the administrator banner); Recently Added is `/settings/recently-added` (opened from a Needs Review row's "Find in recent history" and the old `/operations` links; Library and Ingestion's "View all" opens the Activity log) and holds no review list; the old `?review=expanded` link redirects to `/settings/review` |
 | `/engine-activity-artwork/{key}`, `/engine-activity-export` | `Program.cs` minimal endpoints | Stream the signed-in person's private activity pictures and CSV export from the Engine with that person's own sign-in (never the service credential) |
-| `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion`, `/settings/recently-added`, or for `activity`/`timeline` the Activity log at `/settings/system/logs?tab=events`) |
+| `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion`, `/settings/recently-added`, `/settings/review` for `needs-review`, or for `activity`/`timeline` the Activity log at `/settings/system/logs?tab=events`) |
 | `/design-system/components` | `DesignSystemPreview` | Component preview |
 | `/not-found`, `/Error` | `NotFound`, `Error` | Error pages |
 

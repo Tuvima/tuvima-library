@@ -3143,6 +3143,10 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionOrganiz
   LastOrganizationRun: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   MusicBehavior: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPersonalMediaProgressDto
+  Photos: System.Int32 | nullability=not-null | accessors=get,set
+  Videos: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPipelineStageDto
   Key: System.String | nullability=not-null | accessors=get,set
   Label: System.String | nullability=not-null | accessors=get,set
@@ -3169,6 +3173,7 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionPresent
   CurrentMediaTotal: System.Int32 | nullability=not-null | accessors=get,set
   Attention: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionAttentionItemDto> | nullability=not-null | accessors=get,set
   RecentDays: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionRecentDayDto> | nullability=not-null | accessors=get,set
+  PersonalMediaInProgress: MediaEngine.Contracts.Ingestion.IngestionPersonalMediaProgressDto | nullability=not-null | accessors=get,set
   GeneratedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionProgressGateDto
@@ -3235,6 +3240,7 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionQueueTy
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionRecentDayDto
   Date: System.DateOnly | nullability=not-null | accessors=get,set
   TotalCount: System.Int32 | nullability=not-null | accessors=get,set
+  TypeCounts: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionTypeCountDto> | nullability=not-null | accessors=get,set
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionRetryWaitDto
@@ -3296,6 +3302,10 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionStagePr
   LastUpdatedTime: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   IsStale: System.Boolean | nullability=not-null | accessors=get,set
   DetailItems: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.IngestionStageDetailItemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionTypeCountDto
+  MediaType: System.String | nullability=not-null | accessors=get,set
+  Count: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.LibraryScanResponse
   CollectionsUpserted: System.Int32 | nullability=not-null | accessors=get,init

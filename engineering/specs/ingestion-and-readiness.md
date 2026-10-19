@@ -1,6 +1,6 @@
 # Spec: The live ingestion page and when items appear
 
-> **Status:** In progress (WP1, WP2, WP3, WP5, WP9 and WP12 built) · **Version:** 4 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites](archive/first-run-prerequisites.md) (Built; this spec builds on its "waiting, not failed" rule and does not redo it)
+> **Status:** In progress (WP1, WP2, WP3, WP4, WP5, WP6, WP9 and WP12 built) · **Version:** 4 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [First run and prerequisites](archive/first-run-prerequisites.md) (Built; this spec builds on its "waiting, not failed" rule and does not redo it)
 
 > **Change note (v4, 2026-10-19, approved by Shy with the Settings revamp spec):** the Overview, the live ingestion page and the Activity log are no longer three menu entries. Under [Settings revamp](archive/settings-revamp.md) (D37, D38) Library and Ingestion opens on one summary page that shows library counts and live ingestion together with the recent activity and recently added, with no separate Live ingestion sub-page and no Local AI setup banner on it, and the Activity log is merged into a single Logs page under System > Logs. Everything else in this spec (when items appear, Ready, the Now panel and Added summary, counts) is unchanged.
 

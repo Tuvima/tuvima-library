@@ -64,6 +64,26 @@ public sealed class PersonalMediaActivityRecorder : BackgroundService
         }
     }
 
+    /// <summary>
+    /// The photos and personal videos counted so far in every library but not yet written to the Activity log, summed.
+    /// The live ingestion page shows these as counts ("2,300 photos in progress"), never as file rows.
+    /// </summary>
+    public (int Photos, int Videos) GetInProgress()
+    {
+        lock (_gate)
+        {
+            var photos = 0;
+            var videos = 0;
+            foreach (var pending in _pending.Values)
+            {
+                photos += pending.Photos;
+                videos += pending.Videos;
+            }
+
+            return (photos, videos);
+        }
+    }
+
     /// <summary>Writes the library's counts as one row and starts counting again. Writes nothing when nothing was counted.</summary>
     public async Task FlushAsync(Guid libraryId, CancellationToken ct = default)
     {
