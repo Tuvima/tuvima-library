@@ -70,6 +70,10 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
         Assert.Equal(1, await AssetCountAsync(h));
 
+        // The asset row appears before the file's intake job finishes. Re-adding the folder while that job is still open
+        // resumes the file instead of skipping it as known, so the first intake must be over before the folder is removed.
+        await WaitUntilAsync(async () => await OpenOperationCountAsync(h) == 0);
+
         run.Monitor.Publish(BuildOptions(h));
         await WaitUntilAsync(() => Task.FromResult(!watcher.IsWatching(h.AsIsDir)));
         var logLinesBefore = logger.Messages.Count;
@@ -410,6 +414,13 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
     {
         using var connection = h.Db.Connection.CreateConnection();
         return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM media_assets;");
+    }
+
+    private static async Task<int> OpenOperationCountAsync(ImportFolderHarness h)
+    {
+        using var connection = h.Db.Connection.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM media_operations WHERE status IN ('pending', 'queued', 'running');");
     }
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition, TimeSpan? timeout = null)
