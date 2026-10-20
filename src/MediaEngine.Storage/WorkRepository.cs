@@ -828,7 +828,8 @@ public sealed class WorkRepository : IWorkRepository
     public Task WriteExternalIdentifiersAsync(
         Guid workId,
         IReadOnlyDictionary<string, string> identifiers,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool overwrite = false)
     {
         ct.ThrowIfCancellationRequested();
         if (identifiers.Count == 0)
@@ -872,7 +873,7 @@ public sealed class WorkRepository : IWorkRepository
 
                 foreach (var kv in identifiers)
                 {
-                    if (!merged.ContainsKey(kv.Key))
+                    if (overwrite || !merged.ContainsKey(kv.Key))
                     {
                         merged[kv.Key] = kv.Value;
                     }
