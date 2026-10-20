@@ -49,6 +49,11 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
 
         MergeLedger = new FolderOrganiseLogRepository(Database);
         Excluded = new ExcludedSourceFileRepository(Database);
+        ExcludedFilter = new ExcludedSourceFileFilter(
+            new LibraryFolderResolver(new StaticMonitor(_options)),
+            Excluded,
+            new AssetHasher(),
+            NullLogger<ExcludedSourceFileFilter>.Instance);
         Activity = new SystemActivityRepository(Database);
         DataRoot = Path.Combine(Root, "data");
         AssetPaths = new AssetPathService(Path.Combine(Root, "library"), dataRoot: DataRoot);
@@ -64,6 +69,7 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
             wrapGate is null ? gate : wrapGate(gate),
             new FixedExtensionCatalog(),
             Excluded,
+            ExcludedFilter,
             new WorkHierarchyMaintenanceService(Database),
             Activity,
             Events,
@@ -120,6 +126,7 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
     public DatabaseConnection Database { get; }
     public FolderOrganiseLogRepository MergeLedger { get; }
     public ExcludedSourceFileRepository Excluded { get; }
+    public ExcludedSourceFileFilter ExcludedFilter { get; }
     public SystemActivityRepository Activity { get; }
     public AssetPathService AssetPaths { get; }
     public string DataRoot { get; }

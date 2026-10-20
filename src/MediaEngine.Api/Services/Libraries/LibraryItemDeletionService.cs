@@ -95,6 +95,7 @@ public sealed partial class LibraryItemDeletionService(
     ISourceMutationPolicyGate gate,
     IMediaTypeExtensionCatalog extensions,
     IExcludedSourceFileRepository excludedFiles,
+    IExcludedSourceFileFilter excludedFileFilter,
     WorkHierarchyMaintenanceService hierarchy,
     ISystemActivityRepository activity,
     IEventPublisher events,
