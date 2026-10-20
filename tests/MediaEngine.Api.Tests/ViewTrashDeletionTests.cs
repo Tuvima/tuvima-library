@@ -39,7 +39,7 @@ namespace MediaEngine.Api.Tests;
 /// and real folders. Nothing here deletes anything: personal files cannot be downloaded again, so every test also checks the
 /// files are still on disk.
 /// </summary>
-public sealed class ViewTrashDeletionTests : IAsyncLifetime
+public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-view-trash-{Guid.NewGuid():N}");
     private readonly ActorBox _actor = new();
@@ -50,6 +50,7 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
     private ViewProfileRepository _policies = null!;
     private ViewStorageService _storage = null!;
     private ConfigurationDirectoryLoader _configuration = null!;
+    private AssetPathService _assetPaths = null!;
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -105,8 +106,13 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         builder.Services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
-        builder.Services.AddSingleton(new ViewThumbnailService(
-            new AssetPathService(Path.Combine(_root, "thumbnails")), NullLogger<ViewThumbnailService>.Instance));
+        _assetPaths = new AssetPathService(Path.Combine(_root, "thumbnails"));
+        builder.Services.AddSingleton(new ViewThumbnailService(_assetPaths, NullLogger<ViewThumbnailService>.Instance));
+        builder.Services.AddSingleton(_assetPaths);
+        builder.Services.AddSingleton<IViewTrashPurgeRepository, ViewTrashPurgeRepository>();
+        builder.Services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
+        builder.Services.AddSingleton<ViewTrashRecoveryService>();
+        builder.Services.AddScoped<ViewTrashDeletionService>();
         builder.Services.AddScoped<ViewFolderService>();
         builder.Services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         builder.Services.AddSingleton<ISourceMutationPolicyGate, SourceMutationPolicyGate>();

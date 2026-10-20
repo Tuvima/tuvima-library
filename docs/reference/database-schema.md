@@ -95,7 +95,7 @@ A single title, independent of version or format.
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
 
-| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, a series' positions) with **Add anyway** and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry clears it, and only a Match does: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it, and the old membership correction refuses it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0020_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, a series' positions) with **Add anyway** and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry clears it, and only a Match does: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it, and the old membership correction refuses it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0021_placement_unmatched`. |
 
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
@@ -113,7 +113,7 @@ A specific version of a Work (e.g., "4K HDR Blu-ray Remux", "First Edition Hardc
 | `work_id` | BLOB | FK -> `works.id` |
 | `title` | TEXT | Edition label |
 | `created_at` | TEXT | Timestamp |
-| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0020_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0021_placement_unmatched`. |
 
 ### media_assets
 
@@ -419,6 +419,31 @@ Library transfer. It stores source and destination manifests and one of
 `planned`, `transferring`, `completed`, `cleanup_pending`, or `failed`.
 Shared membership is published only after every destination member verifies;
 managed-source deletion happens afterward and can remain cleanup-pending.
+
+`item_id` on both `view_shared_contribution_items` and `view_shared_transfers` is
+optional and clears itself (`ON DELETE SET NULL`) when the personal item is removed
+by Empty Trash, so a finished, failed, declined or cancelled contribution keeps its
+history row with no item link (upgrade step 0019). Work still in flight (a pending
+contribution, an accepted item that is waiting, copying or cleaning up, or a transfer
+that is planned, copying or cleaning up) never reaches that point: Empty Trash skips
+the item first. The `contribution_item_id` link from a transfer to its contribution
+item is unaffected.
+
+**Empty Trash and the data store.** Emptying a person's Trash removes each item's
+`local_items` row inside one transaction. Its cascades clear `local_item_metadata`,
+`local_item_files`, `local_item_tag_links`, `local_item_annotations`,
+`local_item_search_keys` (a delete trigger clears the search text),
+`doc_item_details`, `doc_field_values`, `doc_item_field_sources`,
+`view_gallery_items` and `device_photo_downloads`; a Gallery whose cover was the
+item has `cover_item_id` set to NULL (`view_galleries` rows themselves are never
+removed). The same transaction then deletes the item's `local_file_sources` rows
+for files that were removed from disk (or were already gone), and any `local_files`
+row left with no item link and no remaining place. Items that share a file on disk
+are removed together in one transaction. Before that, the files are parked in a
+hidden `.tuvima-staging/<item id>/` folder inside the owner's profile folder, with a
+`manifest.json`, so a failure puts every file back; View scans and the folder watcher
+ignore that folder, and a startup (and after-each-Empty-Trash) sweep puts parked files
+back when their item still exists or deletes them when it does not.
 
 ### Galleries
 
@@ -1368,12 +1393,12 @@ The Activity log's store: one row per thing the Library did (added media, Needs 
 |---|---|---|
 | `id` | INTEGER | Auto-increment primary key |
 | `occurred_at` | TEXT | UTC timestamp |
-| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`, `PersonalTrashEmptied`) |
 | `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
 | `entity_id` | BLOB | Related entity, when there is one |
 | `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
 | `profile_id` | BLOB | The profile that caused it, when a person did |
-| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, photo and video counts, or for `PersonalTrashEmptied` the item count, bytes freed and skipped count: never a file name or title) |
 | `detail` | TEXT | The plain explanation under the headline |
 
 **Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0018).

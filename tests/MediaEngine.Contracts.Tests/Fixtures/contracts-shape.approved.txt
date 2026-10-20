@@ -4224,6 +4224,14 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimeline
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimelineIndexDto
   Buckets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTimelineBucketDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyConflictDto
+  Message: System.String | nullability=not-null | accessors=get,init
+  Preview: MediaEngine.Contracts.LocalAssets.ViewTrashEmptyPreviewDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyFailureDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyPreviewDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto> | nullability=not-null | accessors=get,init
   Galleries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto> | nullability=not-null | accessors=get,init
@@ -4236,6 +4244,15 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmp
   BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
   HasCompound: System.Boolean | nullability=not-null | accessors=get,init
   Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyRequestDto
+  Fingerprint: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyResultDto
+  DeletedCount: System.Int32 | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  SkippedCount: System.Int32 | nullability=not-null | accessors=get,init
+  Failed: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashEmptyFailureDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashOutcomes
 
