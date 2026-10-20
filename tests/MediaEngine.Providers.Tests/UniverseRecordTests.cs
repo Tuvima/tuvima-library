@@ -108,6 +108,47 @@ public sealed class UniverseRecordTests : IDisposable
         Assert.Equal(Expanse, (await _narrativeRoots.ResolveAsync(_works["Leviathan Wakes"].WorkId))!.Qid);
     }
 
+    [Fact]
+    public async Task BooksNamingAFictionalUniverse_BringTheirAdaptationIntoIt_EvenWhenTheAdaptationCameFirst()
+    {
+        const string ExpanseUniverse = "Q900";
+        const string Holden = "Q500";
+        AddBook("Leviathan Wakes", "Books");
+        AddBook("Leviathan Wakes (audiobook)", "Audiobooks");
+        AddTvAdaptation("The Expanse (TV)");
+        foreach (var title in new[] { "Leviathan Wakes", "Leviathan Wakes (audiobook)" })
+        {
+            // Wikidata stores P1434 as a multi-valued field. One value is really a character of the book (a data slip
+            // the Universe rule must ignore); the real fictional universe is the other one.
+            AddArray(title, "fictional_universe", ("James Holden", Holden), ("The Expanse universe", ExpanseUniverse));
+            AddArray(title, "characters", ("James Holden", Holden));
+        }
+
+        await AssignAsync("The Expanse (TV)", "Leviathan Wakes", "Leviathan Wakes (audiobook)");
+
+        var universe = Assert.Single(await _collections.GetByTypeAsync("Universe"));
+        Assert.Equal(ExpanseUniverse, universe.UniverseQid);
+        var television = (await _collections.FindSeriesShelfAsync(ExpanseTv, "TV"))!;
+        Assert.Equal(ExpanseUniverse, television.UniverseQid);
+        Assert.Equal(universe.Id, television.ParentCollectionId);
+        Assert.Equal(3, (await _collections.GetChildCollectionsAsync(universe.Id)).Count);
+        foreach (var (workId, _) in _works.Values)
+        {
+            Assert.Equal(ExpanseUniverse, (await _narrativeRoots.ResolveAsync(workId))!.Qid);
+        }
+    }
+
+    private void AddArray(string title, string key, params (string Value, string Qid)[] entries)
+    {
+        using var conn = _db.CreateConnection();
+        for (var ordinal = 0; ordinal < entries.Length; ordinal++)
+        {
+            conn.Execute(
+                "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@workId, @key, @ordinal, @value, @qid);",
+                new { workId = _works[title].WorkId, key, ordinal, value = entries[ordinal].Value, qid = entries[ordinal].Qid });
+        }
+    }
+
     private async Task AssertOneUniverseAsync()
     {
         var universes = await _collections.GetByTypeAsync("Universe");

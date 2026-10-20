@@ -945,19 +945,74 @@ public sealed class CollectionAssignmentService
             return;
         }
 
-        await MergeArrayBackedRelationshipHintsForEntityAsync(lookup, canonicalEntityId, ct).ConfigureAwait(false);
+        var arraysByEntity = new List<IReadOnlyDictionary<string, IReadOnlyList<CanonicalArrayEntry>>>
+        {
+            await _arrayRepo.GetAllByEntityAsync(canonicalEntityId, ct).ConfigureAwait(false),
+        };
         if (sourceEntityId != canonicalEntityId)
         {
-            await MergeArrayBackedRelationshipHintsForEntityAsync(lookup, sourceEntityId, ct).ConfigureAwait(false);
+            arraysByEntity.Add(await _arrayRepo.GetAllByEntityAsync(sourceEntityId, ct).ConfigureAwait(false));
+        }
+
+        // A "fictional universe" or "franchise" value that is one of the work's own characters, places, events or objects
+        // is not a Universe. The Work-level narrative root applies the same guard (UniverseIdentityRule), so the shelf and
+        // the graph never pick different Universes for the same works.
+        var fictionalMembers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var arrays in arraysByEntity)
+        {
+            foreach (var key in FictionalMemberKeys)
+            {
+                if (!arrays.TryGetValue(key, out var entries))
+                {
+                    continue;
+                }
+
+                foreach (var qid in entries.Select(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)).OfType<string>())
+                {
+                    fictionalMembers.Add(qid);
+                }
+            }
+        }
+
+        foreach (var arrays in arraysByEntity)
+        {
+            MergeArrayBackedRelationshipHintsForEntity(lookup, arrays, fictionalMembers);
+        }
+
+        if (TryGetQid(lookup, "franchise", out var franchiseQid, out _) && fictionalMembers.Contains(franchiseQid))
+        {
+            lookup.Remove("franchise");
+            lookup.Remove("franchise_qid");
         }
     }
 
-    private async Task MergeArrayBackedRelationshipHintsForEntityAsync(
+    private static readonly string[] FictionalMemberKeys =
+    [
+        MetadataFieldConstants.Characters,
+        MetadataFieldConstants.NarrativeLocation,
+        MetadataFieldConstants.NarrativeEvent,
+        MetadataFieldConstants.NarrativeObject,
+    ];
+
+    private static void MergeArrayBackedRelationshipHintsForEntity(
         Dictionary<string, string> lookup,
-        Guid entityId,
-        CancellationToken ct)
+        IReadOnlyDictionary<string, IReadOnlyList<CanonicalArrayEntry>> arrays,
+        HashSet<string> fictionalMembers)
     {
-        var arrays = await _arrayRepo!.GetAllByEntityAsync(entityId, ct).ConfigureAwait(false);
+        // Fictional universe (P1434) is multi-valued, so it lives only in the arrays. The shelf records the same value the
+        // Universe rule would choose: the lowest QID that is not one of the work's own fictional members.
+        if (arrays.TryGetValue("fictional_universe", out var universeEntries))
+        {
+            var universe = universeEntries
+                .Where(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid) is { } qid && !fictionalMembers.Contains(qid))
+                .OrderBy(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)!, Comparer<string>.Create(UniverseIdentityRule.CompareQids))
+                .FirstOrDefault();
+            if (universe is not null)
+            {
+                AddArrayHint(lookup, "fictional_universe", universe);
+            }
+        }
+
         if (arrays.TryGetValue("based_on", out var basedOnEntries))
         {
             AddFirstQidArrayHint(lookup, "based_on", basedOnEntries);
