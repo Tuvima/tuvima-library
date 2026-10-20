@@ -38,6 +38,9 @@ internal static class ApprovalStatementBuilder
     /// <summary>Where an integration's existing keys are described, since the Engine cannot know the software.</summary>
     public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
 
+    /// <summary>The warning shown wherever a plugin Tuvima has not checked is offered (the plugin directory and its install approval).</summary>
+    public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access.";
+
     public const string PluginKindLabel = "Plugin";
     public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
@@ -183,6 +186,30 @@ internal static class ApprovalStatementBuilder
             sendsTo is not null,
             sendsTo,
             [TrustNote(trust), UnsandboxedNote]);
+    }
+
+    /// <summary>
+    /// What a person is shown before installing a plugin from the plugin directory, built only from what the list declares.
+    /// A plugin Tuvima has not checked gets the plain warning on top of the usual notes.
+    /// </summary>
+    public static ApprovalStatement ForDirectoryEntry(PluginManifest manifest, PluginTrustLevel trust)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var sendsTo = PluginSendsDataTo(manifest);
+        var notes = new List<string> { TrustNote(trust) };
+        if (trust is not (PluginTrustLevel.Official or PluginTrustLevel.Verified))
+        {
+            notes.Add(NotVerifiedWarning);
+        }
+
+        notes.Add(UnsandboxedNote);
+        return new ApprovalStatement(
+            string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name,
+            PluginKindLabel,
+            PluginAllowedTo(manifest),
+            sendsTo is not null,
+            sendsTo,
+            notes);
     }
 
     /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>

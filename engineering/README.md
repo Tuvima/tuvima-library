@@ -312,7 +312,7 @@ Published pages are listed in `website/publication.json`; status comes from each
 | Page | Status |
 |---|---|
 | [Build a Plugin](../docs/guides/building-a-plugin.md) | current |
-| [Approved Plugin Catalog](../docs/reference/plugin-catalog.md) | current |
+| [Plugin directory format](../docs/reference/plugin-catalog.md) | current |
 | [How to Add a New Metadata Provider](../docs/guides/adding-a-provider.md) | current |
 | [Provider onboarding contracts](../docs/architecture/provider-onboarding.md) | current |
 | [How to Write a New File Format Processor](../docs/guides/writing-a-processor.md) | current |
