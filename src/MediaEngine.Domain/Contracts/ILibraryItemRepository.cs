@@ -33,9 +33,9 @@ public interface ILibraryItemRepository
 
     /// <summary>
     /// Returns counts for the four calculated lifecycle states (Identified, InReview, Provisional, Rejected)
-    /// plus a per-trigger breakdown within InReview. Optionally scoped to a single batch.
+    /// plus a per-trigger breakdown within InReview.
     /// </summary>
-    Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(Guid? batchId = null, CancellationToken ct = default);
+    Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Returns a dictionary of media type counts for owned media assets.

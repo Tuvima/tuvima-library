@@ -738,44 +738,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    /// <inheritdoc/>
-    public async Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(
-        int limit = 20, CancellationToken ct = default)
-    {
-        try
-        {
-            var result = await _http.GetFromJsonAsync<List<IngestionBatchResponse>>(
-                $"ingestion/batches?limit={limit}", ct).ConfigureAwait(false);
-            return result ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch ingestion batches");
-            return [];
-        }
-    }
-
-    /// <inheritdoc/>
-    public Task<List<IngestionOperationsBatchDto>?> GetIngestionNotificationStatusAsync(CancellationToken ct = default) =>
-        GetAsync<List<IngestionOperationsBatchDto>>("Ingestion notifications", "ingestion/notification-status", ct: ct);
-
-    public async Task<IngestionOperationsSnapshotDto?> GetIngestionOperationsSnapshotAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<IngestionOperationsSnapshotDto>(
-                "ingestion/operations", ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch ingestion operations snapshot");
-            LastError = ex.Message;
-            return null;
-        }
-    }
-
     public Task<IngestionQueueProgressDto?> GetIngestionQueueProgressAsync(CancellationToken ct = default)
         => GetAsync<IngestionQueueProgressDto>("Ingestion queue progress", "ingestion/queue-progress", ct: ct);
 
@@ -840,56 +802,26 @@ public sealed partial class EngineApiClient
         return GetPresentationPageAsync($"ingestion/recent-additions?{string.Join('&', values)}", ct);
     }
 
-    public async Task<IngestionMediaGroupDto?> GetIngestionMediaGroupAsync(Guid batchId, Guid groupId, CancellationToken ct = default)
+    public async Task<IngestionMediaGroupDto?> GetIngestionMediaGroupAsync(Guid groupId, CancellationToken ct = default)
     {
         var result = await GetAsync<IngestionMediaGroupDto>(
             "Ingestion media group",
-            $"ingestion/batches/{batchId:D}/media-groups/{groupId:D}",
+            $"ingestion/media-groups/{groupId:D}",
             ct: ct).ConfigureAwait(false);
         NormalizePresentationUrl(result);
         return result;
     }
 
     public Task<PagedResponse<IngestionMediaChildDto>?> GetIngestionMediaChildrenAsync(
-        Guid batchId, Guid groupId, int offset = 0, int limit = 50, CancellationToken ct = default)
+        Guid groupId, int offset = 0, int limit = 50, CancellationToken ct = default)
         => GetAsync<PagedResponse<IngestionMediaChildDto>>(
             "Ingestion media children",
-            $"ingestion/batches/{batchId:D}/media-groups/{groupId:D}/children?offset={Math.Max(0, offset)}&limit={Math.Clamp(limit, 1, 250)}",
+            $"ingestion/media-groups/{groupId:D}/children?offset={Math.Max(0, offset)}&limit={Math.Clamp(limit, 1, 250)}",
             ct: ct);
 
     public async Task<ActivityHistorySummaryDto?> GetActivityHistorySummaryAsync(CancellationToken ct = default)
         => await GetAsync<ActivityHistorySummaryDto>(
             "Activity history summary", "activity/summary", ct: ct).ConfigureAwait(false);
-
-    public async Task<ActivityBatchPresentationDto?> GetActivityBatchPresentationAsync(Guid batchId, CancellationToken ct = default)
-    {
-        var result = await GetAsync<ActivityBatchPresentationDto>(
-            "Activity batch presentation",
-            $"activity/batches/{batchId:D}/presentation",
-            ct: ct).ConfigureAwait(false);
-        NormalizePresentationUrls(result?.AddedPreview);
-        return result;
-    }
-
-    public Task<PagedResponse<IngestionMediaGroupDto>?> GetActivityBatchMediaGroupsAsync(
-        Guid batchId,
-        int offset = 0,
-        int limit = 50,
-        string? search = null,
-        string? lane = null,
-        string? sort = null,
-        CancellationToken ct = default)
-    {
-        var query = new Dictionary<string, string?>
-        {
-            ["offset"] = Math.Max(0, offset).ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["limit"] = Math.Clamp(limit, 1, 100).ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["search"] = string.IsNullOrWhiteSpace(search) ? null : search.Trim(),
-            ["lane"] = string.IsNullOrWhiteSpace(lane) || lane.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : lane,
-            ["sort"] = sort?.Equals("oldest", StringComparison.OrdinalIgnoreCase) == true ? "oldest" : null,
-        };
-        return GetPresentationPageAsync(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString($"activity/batches/{batchId:D}/media-groups", query), ct);
-    }
 
     private async Task<PagedResponse<IngestionMediaGroupDto>?> GetPresentationPageAsync(string path, CancellationToken ct)
     {
@@ -1008,59 +940,6 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "Failed to cancel media operation {Id}", id);
             return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<IngestionBatchResponse?> GetIngestionBatchByIdAsync(
-        Guid id, CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<IngestionBatchResponse>(
-                $"ingestion/batches/{id}", ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch batch {Id}", id);
-            return null;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<PagedResponse<IngestionBatchItemResponse>?> GetIngestionBatchItemsAsync(
-        Guid id, int offset = 0, int limit = 100, CancellationToken ct = default)
-    {
-        try
-        {
-            var safeOffset = Math.Max(0, offset);
-            var safeLimit = Math.Clamp(limit <= 0 ? 100 : limit, 1, 500);
-            return await _http.GetFromJsonAsync<PagedResponse<IngestionBatchItemResponse>>(
-                $"ingestion/batches/{id:D}/items?offset={safeOffset}&limit={safeLimit}", ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch batch items for {Id}", id);
-            return null;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<int> GetBatchAttentionCountAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var result = await _http.GetFromJsonAsync<BatchAttentionCountResponse>(
-                "ingestion/batches/attention-count", ct).ConfigureAwait(false);
-            return result?.count ?? 0;
-        }
-        catch (OperationCanceledException) { return 0; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to fetch batch attention count");
-            return 0;
         }
     }
 

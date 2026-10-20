@@ -25,7 +25,6 @@ public sealed class QuickHydrationWorker
     private readonly CollectionFinalizationService _collectionFinalization;
     private readonly ILogger<QuickHydrationWorker> _logger;
     private readonly PostPipelineService _postPipeline;
-    private readonly BatchProgressService? _batchProgress;
     private readonly ICanonicalValueRepository _canonicalRepo;
     private readonly ICollectionRepository _collectionRepo;
     private readonly IUniverseEnrichmentScheduler _universeEnrichment;
@@ -50,7 +49,6 @@ public sealed class QuickHydrationWorker
         IUniverseEnrichmentScheduler universeEnrichment,
         IConfigurationLoader configLoader,
         ILogger<QuickHydrationWorker> logger,
-        BatchProgressService? batchProgress = null,
         IPipelineExecutionSnapshotProvider? configurationSnapshots = null)
     {
         _jobRepo = jobRepo;
@@ -63,7 +61,6 @@ public sealed class QuickHydrationWorker
         _configLoader = configLoader;
         _configurationSnapshots = configurationSnapshots;
         _logger = logger;
-        _batchProgress = batchProgress;
     }
 
     /// <summary>
@@ -92,18 +89,6 @@ public sealed class QuickHydrationWorker
             async (job, jobCt) =>
                 await ProcessLeasedJobAsync(job, executionSnapshot, jobCt).ConfigureAwait(false))
             .ConfigureAwait(false);
-
-        if (_batchProgress is not null)
-        {
-            foreach (var runId in jobs
-                         .Select(j => j.IngestionRunId)
-                         .Where(id => id.HasValue)
-                         .Select(id => id!.Value)
-                         .Distinct())
-            {
-                await _batchProgress.EmitProgressAsync(runId, isFinal: false, ct).ConfigureAwait(false);
-            }
-        }
 
         return jobs.Count;
     }
@@ -175,7 +160,6 @@ public sealed class QuickHydrationWorker
     internal async Task ProcessJobAsync(IdentityJob job, CancellationToken ct)
     {
         await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.Hydrating, ct: ct);
-        await EmitBatchProgressAsync(job.IngestionRunId, ct).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(job.ResolvedQid))
         {
@@ -204,30 +188,26 @@ public sealed class QuickHydrationWorker
             job.EntityId);
 
         await _enrichment.RunQuickPassAsync(job.EntityId, job.ResolvedQid, ct);
-        await EmitBatchProgressAsync(job.IngestionRunId, ct).ConfigureAwait(false);
 
         // Finalize browse grouping after enrichment populates canonical values,
         // before PostPipeline gates organization and Stage 3 batching.
         await _collectionFinalization.FinalizeAsync(
             job.EntityId,
             CollectionFinalizationReason.QuickHydration,
-            job.IngestionRunId,
             ct).ConfigureAwait(false);
 
         await _postPipeline.EvaluateAndOrganizeAsync(
-            job.EntityId, job.Id, job.ResolvedQid, job.IngestionRunId, ct);
+            job.EntityId, job.Id, job.ResolvedQid, ct);
 
         var refreshedCanonicals = await _canonicalRepo.GetByEntityAsync(job.EntityId, ct).ConfigureAwait(false);
         var batchKey = await BuildUniverseBatchKeyAsync(job.EntityId, job.ResolvedQid, job.MediaType, refreshedCanonicals, ct)
             .ConfigureAwait(false);
 
         await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.UniverseEnriching, ct: ct);
-        await EmitBatchProgressAsync(job.IngestionRunId, ct).ConfigureAwait(false);
         await _universeEnrichment.QueueInlineAsync(
             new UniverseEnrichmentRequest(
                 job.Id,
                 job.EntityId,
-                job.IngestionRunId,
                 job.ResolvedQid,
                 job.MediaType,
                 batchKey,
@@ -241,16 +221,6 @@ public sealed class QuickHydrationWorker
             job.ResolvedQid,
             job.MediaType,
             job.EntityId);
-    }
-
-    private async Task EmitBatchProgressAsync(Guid? ingestionRunId, CancellationToken ct)
-    {
-        if (_batchProgress is null || !ingestionRunId.HasValue)
-        {
-            return;
-        }
-
-        await _batchProgress.EmitProgressAsync(ingestionRunId.Value, isFinal: false, ct).ConfigureAwait(false);
     }
 
     private async Task<string> BuildUniverseBatchKeyAsync(

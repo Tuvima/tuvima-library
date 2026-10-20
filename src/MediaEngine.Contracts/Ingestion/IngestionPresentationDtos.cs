@@ -4,9 +4,6 @@ namespace MediaEngine.Contracts.Ingestion;
 
 public sealed class IngestionPresentationSnapshotDto
 {
-    [JsonPropertyName("batch_progress")]
-    public MediaEngine.Contracts.Realtime.BatchProgressEvent? BatchProgress { get; set; }
-
     [JsonPropertyName("is_running")]
     public bool IsRunning { get; set; }
 
@@ -86,9 +83,6 @@ public sealed class IngestionMediaGroupDto
     [JsonPropertyName("group_id")]
     public Guid GroupId { get; set; }
 
-    [JsonPropertyName("batch_id")]
-    public Guid BatchId { get; set; }
-
     [JsonPropertyName("work_id")]
     public Guid? WorkId { get; set; }
 
@@ -140,7 +134,7 @@ public sealed class IngestionMediaGroupDto
     [JsonPropertyName("child_completed")]
     public int ChildCompleted { get; set; }
 
-    /// <summary>Distinct physical assets represented by this batch group, not a provider catalogue total.</summary>
+    /// <summary>Distinct physical assets represented by this group, not a provider catalogue total.</summary>
     [JsonPropertyName("file_count")]
     public int FileCount { get; set; }
 
@@ -287,9 +281,6 @@ public sealed class IngestionPersonalMediaProgressDto
 
 public sealed class ActivityHistorySummaryDto
 {
-    [JsonPropertyName("completed_runs_this_week")]
-    public int CompletedRunsThisWeek { get; set; }
-
     [JsonPropertyName("items_added_today")]
     public int ItemsAddedToday { get; set; }
 
@@ -298,67 +289,4 @@ public sealed class ActivityHistorySummaryDto
 
     [JsonPropertyName("last_activity_at")]
     public DateTimeOffset? LastActivityAt { get; set; }
-
-    [JsonPropertyName("last_files_processed")]
-    public int? LastFilesProcessed { get; set; }
-
-    [JsonPropertyName("last_groups_added")]
-    public int? LastGroupsAdded { get; set; }
-}
-
-public sealed class ActivityBatchPresentationDto
-{
-    [JsonPropertyName("batch_id")]
-    public Guid BatchId { get; set; }
-
-    [JsonPropertyName("display_name")]
-    public string DisplayName { get; set; } = "Library update";
-
-    [JsonPropertyName("summary")]
-    public string Summary { get; set; } = "This run completed.";
-
-    [JsonPropertyName("files_processed")]
-    public int? FilesProcessed { get; set; }
-
-    [JsonPropertyName("groups_added")]
-    public int? GroupsAdded { get; set; }
-
-    [JsonPropertyName("people_updated")]
-    public int? PeopleUpdated { get; set; }
-
-    [JsonPropertyName("artwork_added")]
-    public int? ArtworkAdded { get; set; }
-
-    [JsonPropertyName("text_tracks_added")]
-    public int? TextTracksAdded { get; set; }
-
-    [JsonPropertyName("items_needing_follow_up")]
-    public int? ItemsNeedingFollowUp { get; set; }
-
-    [JsonPropertyName("added_preview")]
-    public List<IngestionMediaGroupDto> AddedPreview { get; set; } = [];
-
-    [JsonPropertyName("added_total")]
-    public int AddedTotal { get; set; }
-
-    [JsonPropertyName("follow_up")]
-    public List<IngestionAttentionItemDto> FollowUp { get; set; } = [];
-
-    [JsonPropertyName("timeline")]
-    public List<ActivityBatchMilestoneDto> Timeline { get; set; } = [];
-}
-
-public sealed class ActivityBatchMilestoneDto
-{
-    [JsonPropertyName("label")]
-    public string Label { get; set; } = "Processing";
-
-    [JsonPropertyName("state")]
-    public string State { get; set; } = "complete";
-
-    [JsonPropertyName("detail")]
-    public string? Detail { get; set; }
-
-    [JsonPropertyName("occurred_at")]
-    public DateTimeOffset? OccurredAt { get; set; }
 }

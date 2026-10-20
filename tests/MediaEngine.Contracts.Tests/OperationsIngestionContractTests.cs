@@ -7,70 +7,6 @@ namespace MediaEngine.Contracts.Tests;
 public sealed class OperationsIngestionContractTests
 {
     [Fact]
-    public void IngestionOperationJob_CountUnit_RoundTripsThroughSharedContract()
-    {
-        const string json =
-            """
-            {
-              "active_jobs": [
-                {
-                  "job_id": "11111111-2222-3333-4444-555555555555",
-                  "count_unit": "albums"
-                }
-              ]
-            }
-            """;
-
-        var snapshot = JsonSerializer.Deserialize<IngestionOperationsSnapshotDto>(
-            json,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-        var job = Assert.Single(Assert.IsType<List<IngestionOperationsJobDto>>(snapshot!.ActiveJobs));
-        Assert.Equal("albums", job.CountUnit);
-
-        var roundTrip = JsonSerializer.Serialize(
-            snapshot,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        using var document = JsonDocument.Parse(roundTrip);
-        Assert.Equal(
-            "albums",
-            document.RootElement
-                .GetProperty("active_jobs")[0]
-                .GetProperty("count_unit")
-                .GetString());
-    }
-
-    [Fact]
-    public void RecentIdentityJobs_RoundTripThroughSharedContract()
-    {
-        var jobId = Guid.Parse("11111111-2222-3333-4444-555555555555");
-        var snapshot = new IngestionOperationsSnapshotDto
-        {
-            RecentIdentityJobs =
-            [
-                new IngestionOperationsJobDto
-                {
-                    JobId = jobId,
-                    JobType = "Item enrichment",
-                    CurrentItem = "The Marshall Mathers LP",
-                    CurrentStage = "Full enrichment complete",
-                    Status = "completed",
-                },
-            ],
-        };
-
-        var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        var roundTrip = JsonSerializer.Deserialize<IngestionOperationsSnapshotDto>(
-            json,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-        var job = Assert.Single(roundTrip!.RecentIdentityJobs);
-        Assert.Equal(jobId, job.JobId);
-        Assert.Equal("The Marshall Mathers LP", job.CurrentItem);
-        Assert.Equal("completed", job.Status);
-    }
-
-    [Fact]
     public void ActivityContracts_DoNotLeakDashboardRouteOrRelativeTimeHelpers()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -82,15 +18,21 @@ public sealed class OperationsIngestionContractTests
                 ActionType = "MediaAdded",
             },
             options);
-        var personJson = JsonSerializer.Serialize(
-            new ActivityPersonAuditDto
-            {
-                PersonId = Guid.Parse("11111111-2222-3333-4444-555555555555"),
-                PersonName = "Example Person",
-            },
-            options);
 
         Assert.DoesNotContain("relativeTime", entryJson, StringComparison.Ordinal);
-        Assert.DoesNotContain("personUrl", personJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IngestionContracts_CarryNoBatchOrRunIdentifier()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        var groupJson = JsonSerializer.Serialize(new IngestionMediaGroupDto { GroupId = Guid.NewGuid() }, options);
+        var snapshotJson = JsonSerializer.Serialize(new IngestionPresentationSnapshotDto(), options);
+        var entryJson = JsonSerializer.Serialize(new ActivityEntryResponse(), options);
+
+        Assert.DoesNotContain("batch", groupJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("batch", snapshotJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("run_id", entryJson, StringComparison.OrdinalIgnoreCase);
     }
 }

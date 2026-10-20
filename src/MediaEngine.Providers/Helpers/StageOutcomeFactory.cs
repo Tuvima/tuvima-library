@@ -23,7 +23,6 @@ public sealed class StageOutcomeFactory
     private readonly ISystemActivityRepository _activityRepo;
     private readonly IEventPublisher _eventPublisher;
     private readonly ICanonicalValueRepository _canonicalRepo;
-    private readonly IIngestionBatchArtifactRepository? _artifactRepo;
     private readonly ILogger<StageOutcomeFactory> _logger;
 
     public StageOutcomeFactory(
@@ -32,7 +31,6 @@ public sealed class StageOutcomeFactory
         IEventPublisher eventPublisher,
         ICanonicalValueRepository canonicalRepo,
         ILogger<StageOutcomeFactory> logger,
-        IIngestionBatchArtifactRepository? artifactRepo = null,
         IMediaAssetRepository? assets = null,
         IConfigurationLoader? configuration = null)
     {
@@ -42,7 +40,6 @@ public sealed class StageOutcomeFactory
         _activityRepo = activityRepo;
         _eventPublisher = eventPublisher;
         _canonicalRepo = canonicalRepo;
-        _artifactRepo = artifactRepo;
         _logger = logger;
     }
 
@@ -52,15 +49,11 @@ public sealed class StageOutcomeFactory
     /// </summary>
     /// <param name="entityId">The entity that failed retail matching.</param>
     /// <param name="mediaType">The media type label used in the detail message.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
-    /// <param name="onBatchAdjust">Optional callback to shift batch counters (receives the ingestion run ID).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public async Task<Guid?> CreateRetailFailedAsync(
         Guid entityId,
         string mediaType,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         // A missing catalogue match does not make a confidently classified linked file unusable.
@@ -81,7 +74,6 @@ public sealed class StageOutcomeFactory
                     ActionType = "LocalMetadataRetained",
                     EntityId = entityId,
                     EntityType = "MediaAsset",
-                    IngestionRunId = ingestionRunId,
                     Detail = "Local media remains available; no provider match was found. Metadata is incomplete.",
                 }, ct);
                 return null;
@@ -92,8 +84,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.RetailMatchFailed,
             0.0,
             $"Retail identification failed for this {mediaType} \u2014 no provider returned a match",
-            ingestionRunId,
-            onBatchAdjust,
             ct);
     }
 
@@ -107,8 +97,6 @@ public sealed class StageOutcomeFactory
     public async Task<Guid?> CreateMovieMatchedAsTvAsync(
         Guid entityId,
         MovieTvSuggestionDto suggestion,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(suggestion);
@@ -128,8 +116,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.MovieMatchedAsTv,
             0.0,
             DescribeMovieTvSuggestion(suggestion),
-            ingestionRunId,
-            onBatchAdjust,
             ct,
             candidatesJson: JsonSerializer.Serialize(new[] { suggestion })).ConfigureAwait(false);
     }
@@ -165,16 +151,12 @@ public sealed class StageOutcomeFactory
     /// <param name="entityId">The entity with an ambiguous retail match.</param>
     /// <param name="mediaType">The media type label used in the detail message.</param>
     /// <param name="score">The retail match confidence score.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
-    /// <param name="onBatchAdjust">Optional callback to shift batch counters.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public Task<Guid?> CreateRetailAmbiguousAsync(
         Guid entityId,
         string mediaType,
         double score,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         return CreateProvisionalAsync(
@@ -182,7 +164,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.RetailMatchAmbiguous,
             score,
             $"Retail match found with confidence {score:P0} \u2014 needs confirmation",
-            ingestionRunId,
             ct);
     }
 
@@ -192,15 +173,11 @@ public sealed class StageOutcomeFactory
     /// </summary>
     /// <param name="entityId">The entity that failed Wikidata bridge resolution.</param>
     /// <param name="detail">Human-readable detail explaining the failure.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
-    /// <param name="onBatchAdjust">Optional callback to shift batch counters.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public Task<Guid?> CreateWikidataBridgeFailedAsync(
         Guid entityId,
         string detail,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         return CreateCoreAsync(
@@ -208,8 +185,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.WikidataBridgeFailed,
             0.0,
             detail,
-            ingestionRunId,
-            onBatchAdjust,
             ct);
     }
 
@@ -219,15 +194,11 @@ public sealed class StageOutcomeFactory
     /// </summary>
     /// <param name="entityId">The entity with ambiguous QID candidates.</param>
     /// <param name="candidatesJson">Serialized JSON array of QID candidates.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
-    /// <param name="onBatchAdjust">Optional callback to shift batch counters.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public async Task<Guid?> CreateMultipleQidMatchesAsync(
         Guid entityId,
         string candidatesJson,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         // Dedup check.
@@ -259,11 +230,7 @@ public sealed class StageOutcomeFactory
         _logger.LogInformation(
             "Pipeline: entity {EntityId} sent to review \u2014 trigger={Trigger}",
             entityId, ReviewTrigger.MultipleQidMatches);
-
-        onBatchAdjust?.Invoke(ingestionRunId);
-
-        await LogActivityAndPublishAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
-        await RecordReviewArtifactAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
+        await LogActivityAndPublishAsync(entry, ct).ConfigureAwait(false);
 
         return entry.Id;
     }
@@ -276,8 +243,6 @@ public sealed class StageOutcomeFactory
     public Task<Guid?> CreatePlaceholderTitleAsync(
         Guid entityId,
         string? title,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         return CreateCoreAsync(
@@ -285,8 +250,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.PlaceholderTitle,
             0.0,
             $"Title \"{title ?? "(blank)"}\" appears to be a placeholder with no ISBN, ASIN, or QID",
-            ingestionRunId,
-            onBatchAdjust,
             ct);
     }
 
@@ -296,15 +259,11 @@ public sealed class StageOutcomeFactory
     /// </summary>
     /// <param name="entityId">The low-confidence entity.</param>
     /// <param name="confidence">The entity's overall confidence score.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
-    /// <param name="onBatchAdjust">Optional callback to shift batch counters.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public Task<Guid?> CreateLowConfidenceAsync(
         Guid entityId,
         double confidence,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
     {
         return CreateCoreAsync(
@@ -312,8 +271,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.LowConfidence,
             confidence,
             $"Overall confidence {confidence:P0} below auto-accept threshold",
-            ingestionRunId,
-            onBatchAdjust,
             ct);
     }
 
@@ -323,13 +280,11 @@ public sealed class StageOutcomeFactory
     /// </summary>
     /// <param name="entityId">The media asset that could not be read.</param>
     /// <param name="detail">Plain-language detail shown to the person.</param>
-    /// <param name="ingestionRunId">Optional ingestion run for activity correlation.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The review entry ID, or <c>null</c> if a duplicate pending review already exists.</returns>
     public Task<Guid?> CreateMediaInspectionFailedAsync(
         Guid entityId,
         string detail,
-        Guid? ingestionRunId = null,
         CancellationToken ct = default)
     {
         return CreateCoreAsync(
@@ -337,8 +292,6 @@ public sealed class StageOutcomeFactory
             ReviewTrigger.MediaInspectionFailed,
             0.0,
             detail,
-            ingestionRunId,
-            onBatchAdjust: null,
             ct);
     }
 
@@ -346,7 +299,7 @@ public sealed class StageOutcomeFactory
 
     /// <summary>
     /// Creates a hidden review row while automation is still allowed to resolve
-    /// the entity. Hidden rows do not emit activity, SignalR, batch artifacts, or
+    /// the entity. Hidden rows do not emit activity, SignalR, or
     /// review badges.
     /// </summary>
     public Task<Guid?> CreateProvisionalAsync(
@@ -354,7 +307,6 @@ public sealed class StageOutcomeFactory
         string trigger,
         double? confidence,
         string detail,
-        Guid? ingestionRunId = null,
         CancellationToken ct = default,
         string entityType = "MediaAsset",
         string? candidatesJson = null)
@@ -363,8 +315,6 @@ public sealed class StageOutcomeFactory
             trigger,
             confidence,
             detail,
-            ingestionRunId,
-            onBatchAdjust: null,
             ct,
             reviewReady: false,
             entityType,
@@ -376,7 +326,6 @@ public sealed class StageOutcomeFactory
     /// </summary>
     public async Task<IReadOnlyList<ReviewQueueEntry>> PromoteProvisionalAsync(
         Guid entityId,
-        Guid? ingestionRunId = null,
         CancellationToken ct = default)
     {
         var promoted = await _reviewRepo.PromotePendingReadyByEntityAsync(entityId, ct)
@@ -384,8 +333,7 @@ public sealed class StageOutcomeFactory
 
         foreach (var entry in promoted)
         {
-            await LogActivityAndPublishAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
-            await RecordReviewArtifactAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
+            await LogActivityAndPublishAsync(entry, ct).ConfigureAwait(false);
         }
 
         return promoted;
@@ -401,16 +349,12 @@ public sealed class StageOutcomeFactory
         Guid entityId,
         string detail,
         string candidatesJson,
-        Guid? ingestionRunId = null,
-        Action<Guid?>? onBatchAdjust = null,
         CancellationToken ct = default)
         => CreateCoreAsync(
             entityId,
             ReviewTrigger.AmbiguousSeriesMembership,
             0.0,
             detail,
-            ingestionRunId,
-            onBatchAdjust,
             ct,
             candidatesJson: candidatesJson);
 
@@ -422,8 +366,6 @@ public sealed class StageOutcomeFactory
         string trigger,
         double? confidence,
         string detail,
-        Guid? ingestionRunId,
-        Action<Guid?>? onBatchAdjust,
         CancellationToken ct,
         bool reviewReady = true,
         string entityType = "MediaAsset",
@@ -486,11 +428,7 @@ public sealed class StageOutcomeFactory
         _logger.LogInformation(
             "Pipeline: entity {EntityId} sent to review \u2014 trigger={Trigger}, confidence={Score:P0}",
             entityId, trigger, confidence);
-
-        onBatchAdjust?.Invoke(ingestionRunId);
-
-        await LogActivityAndPublishAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
-        await RecordReviewArtifactAsync(entry, ingestionRunId, ct).ConfigureAwait(false);
+        await LogActivityAndPublishAsync(entry, ct).ConfigureAwait(false);
 
         return entry.Id;
     }
@@ -501,7 +439,6 @@ public sealed class StageOutcomeFactory
     /// </summary>
     private async Task LogActivityAndPublishAsync(
         ReviewQueueEntry entry,
-        Guid? ingestionRunId,
         CancellationToken ct)
     {
         // Resolve the title first: it names the entry in the Activity log and fills the SignalR event payload.
@@ -524,41 +461,11 @@ public sealed class StageOutcomeFactory
             CollectionName = titleText,
             EntityId = entry.EntityId,
             Detail = $"Review item created: {entry.Trigger}",
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         await _eventPublisher.PublishAsync(
             SignalREvents.ReviewItemCreated,
             new ReviewItemCreatedEvent(entry.Id, entry.EntityId, entry.Trigger, titleText),
-            ct).ConfigureAwait(false);
-    }
-
-    private async Task RecordReviewArtifactAsync(
-        ReviewQueueEntry entry,
-        Guid? ingestionRunId,
-        CancellationToken ct)
-    {
-        if (_artifactRepo is null)
-        {
-            return;
-        }
-
-        await _artifactRepo.RecordAsync(
-            ingestionRunId,
-            "review_item",
-            entry.Id,
-            entry.EntityId,
-            entry.EntityType,
-            "created",
-            entry.Trigger,
-            providerId: null,
-            source: "review_queue",
-            detailJson: JsonSerializer.Serialize(new
-            {
-                trigger = entry.Trigger,
-                confidence = entry.ConfidenceScore,
-                detail = entry.Detail,
-            }),
             ct).ConfigureAwait(false);
     }
 }

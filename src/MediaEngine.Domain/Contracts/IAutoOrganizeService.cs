@@ -17,5 +17,5 @@ public interface IAutoOrganizeService
     /// from the staging directory into the library. No-op if the asset is
     /// already in the library or if configuration is incomplete.
     /// </summary>
-    Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default, Guid? ingestionRunId = null);
+    Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default);
 }

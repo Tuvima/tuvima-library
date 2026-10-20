@@ -169,7 +169,6 @@ public static class TimelineEndpoints
         ScoreCoverArt = source.ScoreCoverArt,
         ScoreComposite = source.ScoreComposite,
         OccurredAt = source.OccurredAt,
-        IngestionRunId = source.IngestionRunId,
         Detail = source.Detail,
     };
 

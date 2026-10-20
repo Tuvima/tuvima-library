@@ -5,7 +5,6 @@ public sealed class MediaOperationEvent
     public Guid Id { get; init; } = Guid.NewGuid();
     public Guid OperationId { get; init; }
     public Guid? EntityId { get; init; }
-    public Guid? BatchId { get; init; }
     public string EventType { get; init; } = "";
     public string? OldStatus { get; init; }
     public string? NewStatus { get; init; }

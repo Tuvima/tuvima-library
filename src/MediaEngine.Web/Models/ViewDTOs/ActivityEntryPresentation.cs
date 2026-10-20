@@ -62,7 +62,4 @@ public static class ActivityEntryPresentation
             _ => $"{(int)elapsed.TotalDays}d ago",
         };
     }
-
-    public static string GetPersonUrl(this ActivityPersonAuditDto person) =>
-        $"/details/person/{person.PersonId:D}";
 }

@@ -435,18 +435,6 @@ internal class EngineApiClientStub : DispatchProxy
                 CpuPressure = 10,
             });
 
-        _handlers[nameof(IEngineApiClient.GetIngestionOperationsSnapshotAsync)] =
-            _ => Task.FromResult<IngestionOperationsSnapshotDto?>(new IngestionOperationsSnapshotDto
-            {
-                Summary = new IngestionOperationsSummaryDto
-                {
-                    EngineStatus = "Online",
-                    HealthLabel = "Ready",
-                    LastSuccessfulScanTime = null,
-                },
-                GeneratedAt = DateTimeOffset.UtcNow,
-            });
-
         _handlers[nameof(IEngineApiClient.GetMediaOperationsAsync)] =
             _ => Task.FromResult<IReadOnlyList<OperationDto>>([]);
         _handlers[nameof(IEngineApiClient.GetMediaOperationAsync)] =
@@ -457,44 +445,6 @@ internal class EngineApiClientStub : DispatchProxy
             _ => Task.FromResult(true);
         _handlers[nameof(IEngineApiClient.CancelMediaOperationAsync)] =
             _ => Task.FromResult(true);
-        _handlers[nameof(IEngineApiClient.GetIngestionBatchItemsAsync)] =
-            _ => Task.FromResult<PagedResponse<IngestionBatchItemResponse>?>(new PagedResponse<IngestionBatchItemResponse>(
-                [],
-                Offset: 0,
-                Limit: 100,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchesAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityBatchSummaryDto>?>(new PagedResponse<ActivityBatchSummaryDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchAsync)] =
-            _ => Task.FromResult<ActivityBatchSummaryDto?>(null);
-        _handlers[nameof(IEngineApiClient.GetActivityBatchGroupsAsync)] =
-            _ => Task.FromResult(new List<ActivityMediaTypeGroupDto>());
-        _handlers[nameof(IEngineApiClient.GetActivityBatchInsightsAsync)] =
-            _ => Task.FromResult<ActivityBatchInsightsDto?>(new ActivityBatchInsightsDto());
-        _handlers[nameof(IEngineApiClient.GetActivityBatchItemsAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityBatchItemDto>?>(new PagedResponse<ActivityBatchItemDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchEventsAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityTechnicalEventDto>?>(new PagedResponse<ActivityTechnicalEventDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchItemDetailAsync)] =
-            _ => Task.FromResult<ActivityBatchItemDetailDto?>(null);
-        _handlers[nameof(IEngineApiClient.GetActivityPeopleAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityPersonAuditDto>?>(new PagedResponse<ActivityPersonAuditDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
         _handlers[nameof(IEngineApiClient.GetAssetCapabilitiesAsync)] =
             _ => Task.FromResult<IReadOnlyList<CapabilityStateDto>>([]);
         _handlers[nameof(IEngineApiClient.GetCapabilitySummaryAsync)] =

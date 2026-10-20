@@ -18,7 +18,6 @@ public sealed record OperationDto
     [JsonPropertyName("operation_kind")] public string OperationKind { get; set; } = "";
     [JsonPropertyName("entity_id")] public Guid? EntityId { get; set; }
     [JsonPropertyName("entity_kind")] public string? EntityKind { get; set; }
-    [JsonPropertyName("batch_id")] public Guid? BatchId { get; set; }
     [JsonPropertyName("source_path")] public string? SourcePath { get; set; }
     [JsonPropertyName("capability_id")] public string? CapabilityId { get; set; }
     [JsonPropertyName("capability_version")] public string? CapabilityVersion { get; set; }
@@ -54,7 +53,6 @@ public sealed record OperationEventDto
     [JsonPropertyName("id")] public Guid Id { get; set; }
     [JsonPropertyName("operation_id")] public Guid OperationId { get; set; }
     [JsonPropertyName("entity_id")] public Guid? EntityId { get; set; }
-    [JsonPropertyName("batch_id")] public Guid? BatchId { get; set; }
     [JsonPropertyName("event_type")] public string EventType { get; set; } = "";
     [JsonPropertyName("old_status")] public string? OldStatus { get; set; }
     [JsonPropertyName("new_status")] public string? NewStatus { get; set; }

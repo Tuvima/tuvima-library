@@ -212,28 +212,27 @@
 
         if (_selectedItem is not null && Dashboard.Presentation is not null)
         {
-            var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.BatchId == _selectedItem.BatchId && item.GroupId == _selectedItem.GroupId);
+            var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.GroupId == _selectedItem.GroupId);
             if (updated is not null)
             {
                 _selectedItem = updated;
                 _ = OpenOrUpdateContextAsync();
             }
             else if (!_drawerRefreshInFlight)
-                _ = RefreshPinnedDrawerAsync(_selectedItem.BatchId, _selectedItem.GroupId, _drawerRevision);
+                _ = RefreshPinnedDrawerAsync(_selectedItem.GroupId, _drawerRevision);
         }
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private async Task RefreshPinnedDrawerAsync(Guid batchId, Guid groupId, int revision)
+    private async Task RefreshPinnedDrawerAsync(Guid groupId, int revision)
     {
         _drawerRefreshInFlight = true;
         try
         {
-            var updated = await Api.GetIngestionMediaGroupAsync(batchId, groupId);
+            var updated = await Api.GetIngestionMediaGroupAsync(groupId);
             if (updated is not null
                 && revision == _drawerRevision
                 && _selectedItem is not null
-                && _selectedItem.BatchId == batchId
                 && _selectedItem.GroupId == groupId)
             {
                 _selectedItem = updated;

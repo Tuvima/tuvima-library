@@ -88,7 +88,7 @@ public sealed class UiArchitectureGuardrailTests
         {
             ["Details"] = "GetDetailPageAsync",
             ["Display"] = "GetDisplayHomeAsync",
-            ["Operations"] = "GetIngestionOperationsSnapshotAsync",
+            ["Operations"] = "GetIngestionQueueProgressAsync",
             ["People"] = "GetPersonsAsync",
             ["Playback"] = "GetPlaybackManifestAsync",
             ["SearchMisc"] = "SearchWorksAsync",

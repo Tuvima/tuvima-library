@@ -556,7 +556,6 @@ public sealed class LibraryItemDeletionRepository(
         "DELETE FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids);",
         "DELETE FROM entity_artwork_links WHERE entity_id IN (SELECT id FROM deletion_ids);",
         "DELETE FROM ingestion_log WHERE media_asset_id IN (SELECT id FROM deletion_assets);",
-        "DELETE FROM ingestion_batch_artifacts WHERE artifact_id IN (SELECT id FROM deletion_ids) OR parent_entity_id IN (SELECT id FROM deletion_ids);",
         "DELETE FROM search_index WHERE entity_id IN (SELECT id FROM deletion_works);",
         "DELETE FROM profile_saved_items WHERE entity_id IN (SELECT id FROM deletion_ids);",
         "DELETE FROM profile_reactions WHERE entity_id IN (SELECT id FROM deletion_ids);",

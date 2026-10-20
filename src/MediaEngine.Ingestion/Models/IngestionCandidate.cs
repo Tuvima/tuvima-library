@@ -66,12 +66,6 @@ public sealed class IngestionCandidate
     /// </summary>
     public double CategoryConfidencePrior { get; set; }
 
-    /// <summary>
-    /// Optional batch identifier linking this candidate to an ingestion batch.
-    /// Propagated from <see cref="FileEvent.BatchId"/>.
-    /// </summary>
-    public Guid? BatchId { get; init; }
-
     /// <summary>Stable direct-intake routing and actor context.</summary>
     public IntakeContext? Intake { get; set; }
 
@@ -87,7 +81,6 @@ public sealed class IngestionCandidate
         EventType = evt.EventType,
         DetectedAt = evt.OccurredAt,
         ReadyAt = DateTimeOffset.UtcNow,
-        BatchId = evt.BatchId,
         Intake = evt.Intake,
     };
 
@@ -101,7 +94,6 @@ public sealed class IngestionCandidate
         ReadyAt = DateTimeOffset.UtcNow,
         IsFailed = true,
         FailureReason = reason,
-        BatchId = evt.BatchId,
         Intake = evt.Intake,
     };
 }

@@ -706,7 +706,7 @@ public sealed partial class RetailMatchWorker
                 ct).ConfigureAwait(false);
             await _timeline.RecordRetailMatchedAsync(
                 job.EntityId, bestCandidate.ProviderName,
-                allCandidates.Count, job.IngestionRunId, ct);
+                allCandidates.Count, ct);
 
             _logger.LogInformation(
                 "Retail match found for entity {EntityId}: '{Title}' from {Provider} (score: {Score:F2})",
@@ -715,7 +715,7 @@ public sealed partial class RetailMatchWorker
             try
             {
                 await _postPipeline.EvaluateAndOrganizeAsync(
-                    job.EntityId, job.Id, wikidataQid: null, job.IngestionRunId, ct)
+                    job.EntityId, job.Id, wikidataQid: null, ct)
                     .ConfigureAwait(false);
                 if (_coverArtWorker is not null)
                 {
@@ -736,10 +736,10 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.SetSelectedCandidateAsync(job.Id, bestCandidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
             await _outcomeFactory.CreateRetailAmbiguousAsync(
-                job.EntityId, job.MediaType, bestScore, job.IngestionRunId, null, ct);
+                job.EntityId, job.MediaType, bestScore, ct);
             await _timeline.RecordRetailMatchedAsync(
                 job.EntityId, bestCandidate.ProviderName,
-                allCandidates.Count, job.IngestionRunId, ct);
+                allCandidates.Count, ct);
 
             _logger.LogInformation(
                 "Retail match ambiguous for entity {EntityId}: '{Title}' (score: {Score:F2})",
@@ -795,21 +795,21 @@ public sealed partial class RetailMatchWorker
             if (placeholderTitle)
             {
                 await _outcomeFactory.CreatePlaceholderTitleAsync(
-                    job.EntityId, titleHint, job.IngestionRunId, null, ct);
+                    job.EntityId, titleHint, ct);
             }
             else if (tvSuggestion is not null)
             {
                 await _outcomeFactory.CreateMovieMatchedAsTvAsync(
-                    job.EntityId, tvSuggestion, job.IngestionRunId, null, ct);
+                    job.EntityId, tvSuggestion, ct);
             }
             else
             {
                 await _outcomeFactory.CreateRetailFailedAsync(
-                    job.EntityId, job.MediaType, job.IngestionRunId, null, ct);
+                    job.EntityId, job.MediaType, ct);
             }
 
             await _timeline.RecordRetailNoMatchAsync(
-                job.EntityId, titleHint ?? "(unknown)", job.IngestionRunId, ct);
+                job.EntityId, titleHint ?? "(unknown)", ct);
 
             _logger.LogInformation(
                 "No retail match for entity {EntityId} — {CandidateCount} candidates evaluated, best score: {Score:F2}",

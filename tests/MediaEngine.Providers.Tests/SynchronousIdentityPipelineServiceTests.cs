@@ -98,7 +98,6 @@ public sealed class SynchronousIdentityPipelineServiceTests
             IReadOnlyList<IdentityJobState> states,
             int batchSize,
             TimeSpan leaseDuration,
-            IReadOnlyList<string>? excludeRunIds = null,
             CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<IdentityJob>>([]);
 
@@ -125,12 +124,6 @@ public sealed class SynchronousIdentityPipelineServiceTests
 
         public Task<IReadOnlyList<IdentityJob>> GetByStateAsync(IdentityJobState state, int limit, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyList<IdentityJob>>([]);
-
-        public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-
-        public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 
         public Task ReleaseLeaseAsync(Guid jobId, CancellationToken ct = default) =>
             Task.CompletedTask;

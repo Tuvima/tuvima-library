@@ -126,7 +126,6 @@ public sealed class ActivityLogEndpointTests : IDisposable
         // The other Activity actions are mapped in the same group; naming their services lets the group be built,
         // and these tests never call them.
         builder.Services.AddSingleton<IIngestionPresentationReadService>(_ => null!);
-        builder.Services.AddSingleton<IActivityBatchReadService>(_ => null!);
         builder.Services.AddSingleton<IPersonRepository>(_ => null!);
         builder.Services.AddSingleton<IQidLabelRepository>(_ => null!);
         builder.Services.AddSingleton<IConfigurationLoader>(_ => null!);

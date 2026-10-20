@@ -65,17 +65,17 @@ public sealed class WriteBackService : IWriteBackOutcomeService
     }
 
     /// <inheritdoc/>
-    public async Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null) =>
-        _ = await WriteMetadataWithOutcomeAsync(assetId, trigger, ct, ingestionRunId);
+    public async Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default) =>
+        _ = await WriteMetadataWithOutcomeAsync(assetId, trigger, ct);
 
     public Task<WriteBackOutcome> WriteMetadataWithOutcomeAsync(Guid assetId, string trigger,
-        CancellationToken ct = default, Guid? ingestionRunId = null) =>
+        CancellationToken ct = default) =>
         _concurrency.RunAsync(
             EnrichmentWorkKind.WriteBack,
-            token => WriteMetadataCoreAsync(assetId, trigger, token, ingestionRunId),
+            token => WriteMetadataCoreAsync(assetId, trigger, token),
             ct);
 
-    private async Task<WriteBackOutcome> WriteMetadataCoreAsync(Guid assetId, string trigger, CancellationToken ct, Guid? ingestionRunId)
+    private async Task<WriteBackOutcome> WriteMetadataCoreAsync(Guid assetId, string trigger, CancellationToken ct)
     {
         // Load write-back configuration.
         var config = _configLoader.LoadConfig<WriteBackConfiguration>("", "writeback")
@@ -261,7 +261,6 @@ public sealed class WriteBackService : IWriteBackOutcomeService
                 Detail = $"Write-back ({trigger}): {tags.Count} field(s) "
                     + (readback.IsVerified ? "verified by physical read-back" : "attempted; physical read-back unverified")
                     + $" on {Path.GetFileName(asset.FilePathRoot)}.",
-                IngestionRunId = ingestionRunId,
             }, ct);
             return readback.IsVerified
                 ? WriteBackOutcome.Verified()
