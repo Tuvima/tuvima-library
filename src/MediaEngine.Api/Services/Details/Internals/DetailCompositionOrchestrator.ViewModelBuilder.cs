@@ -1183,7 +1183,7 @@ internal sealed partial class DetailCompositionOrchestrator
             return DetailEntityType.TvEpisode;
         }
 
-        if (mediaType.Contains("movie", StringComparison.OrdinalIgnoreCase))
+        if (mediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) || mediaType.StartsWith("video", StringComparison.OrdinalIgnoreCase))
         {
             return DetailEntityType.Movie;
         }

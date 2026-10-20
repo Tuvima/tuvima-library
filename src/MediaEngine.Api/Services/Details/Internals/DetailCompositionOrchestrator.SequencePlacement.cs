@@ -242,7 +242,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     @mediaFilter = 'Other'
                  OR (@mediaFilter = 'Read' AND w.media_type IN ('Books', 'Book', 'Ebook', 'Comics', 'Comic'))
                  OR (@mediaFilter = 'Listen' AND w.media_type IN ('Audiobooks', 'Audiobook', 'Audio'))
-                 OR (@mediaFilter = 'Watch' AND w.media_type IN ('Movies', 'Movie', 'TV', 'Television'))
+                 OR (@mediaFilter = 'Watch' AND w.media_type IN ('Movies', 'Movie', 'TV', 'Television', 'Videos'))
                  OR (@mediaFilter = 'Music' AND w.media_type IN ('Music', 'MusicAlbum'))
               )
             GROUP BY w.id

@@ -60,6 +60,9 @@ public sealed class DisplayShelfBuilder
         AddShelf(shelves, "tv-shows", "TV Shows", "Shows built from the episodes you own",
             tvShowCards.Take(take).ToList(), DisplayGridCatalog.RouteFor("watch", "tv-shows"));
 
+        AddShelf(shelves, "videos", "Videos", "Downloads, courses and clips from your library",
+            _cards.BuildVideoCards(works, progressByWork).Take(take).ToList(), DisplayGridCatalog.RouteFor("watch", "videos"));
+
         if (groupShelf.Enabled)
         {
             AddShelf(shelves, groupShelf.Key, groupShelf.Title, groupShelf.Subtitle,

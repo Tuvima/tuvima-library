@@ -25,7 +25,7 @@ public static class NextEpisodesPlanner
     {
         var episodes = works
             .Where(work => work.AssetId != Guid.Empty
-                && DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV"
+                && DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is "TV" or "Video"
                 && (work.RootWorkId == Guid.Empty ? work.WorkId : work.RootWorkId) == showId)
             .DistinctBy(work => work.WorkId)
             .ToDictionary(work => work.WorkId.ToString("D"));

@@ -88,6 +88,12 @@ public sealed class VideoLibraryReader : IVideoLibraryReader
             Add(MetadataFieldConstants.VideoSection, placement.SectionTitle, 0.98);
             Add(MetadataFieldConstants.VideoSectionIndex, placement.SectionIndex?.ToString(CultureInfo.InvariantCulture), 0.98);
             Add(MetadataFieldConstants.VideoEpisodeIndex, placement.EpisodeIndex.ToString(CultureInfo.InvariantCulture), 0.98);
+
+            // The same position under the names the Watch pages already understand, so Resume, Up Next and the episode
+            // list work unchanged. A series without sections is a single group, number 1.
+            Add(MetadataFieldConstants.ShowName, placement.SeriesTitle, 0.98);
+            Add(MetadataFieldConstants.SeasonNumber, (placement.SectionIndex ?? 1).ToString(CultureInfo.InvariantCulture), 0.98);
+            Add(MetadataFieldConstants.EpisodeNumber, placement.EpisodeIndex.ToString(CultureInfo.InvariantCulture), 0.98);
         }
 
         return new ProcessorResult

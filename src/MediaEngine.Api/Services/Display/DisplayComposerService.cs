@@ -295,6 +295,27 @@ public sealed partial class DisplayComposerService
             };
         }
 
+        if (string.Equals(grouping, "videos", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Videos", StringComparison.OrdinalIgnoreCase))
+        {
+            var videoCards = _cards.BuildVideoCards(filteredWorks, progressByWork);
+            var pagedVideoCards = videoCards
+                .Skip(Math.Max(0, offset))
+                .Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200))
+                .ToList();
+            return new DisplayPageDto(
+                Key: "browse-watch-videos",
+                Title: "Videos",
+                Subtitle: "Series and videos from your library",
+                Hero: pagedVideoCards.FirstOrDefault() is { } videoHero ? DisplayCardBuilder.ToHero(videoHero, "Videos") : null,
+                Shelves: includeCatalog ? [] : [new DisplayShelfDto("results", "Videos", null, pagedVideoCards, null)],
+                Catalog: includeCatalog ? pagedVideoCards : [])
+            {
+                TotalCount = videoCards.Count,
+                Facets = facets,
+            };
+        }
+
         if (ShouldReturnTvShowGroups(normalizedLane, mediaType, grouping))
         {
             var showCards = _cards.BuildTvShowCards(filteredWorks, progressByWork);

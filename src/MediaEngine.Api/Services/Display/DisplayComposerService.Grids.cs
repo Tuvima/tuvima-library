@@ -16,7 +16,7 @@ public sealed partial class DisplayComposerService
 
     private static readonly string[] TypeOrder =
     [
-        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
+        DisplayGridValues.TypeMovie, DisplayGridValues.TypeTv, DisplayGridValues.TypeVideo, DisplayGridValues.TypeBook, DisplayGridValues.TypeComic,
         DisplayGridValues.TypeAudiobook, DisplayGridValues.TypeMusic, DisplayGridValues.TypeCollection,
     ];
 
@@ -216,6 +216,9 @@ public sealed partial class DisplayComposerService
             case DisplayGridSource.WatchTvShows:
                 cards = [.. _cards.BuildTvShowCards(works.Where(work => DisplayMediaRules.IsWatchKind(work.MediaType)).ToList(), progressByWork)
                     .Select(card => new GridCard(card, false))];
+                break;
+            case DisplayGridSource.WatchVideos:
+                cards = [.. _cards.BuildVideoCards(works, progressByWork).Select(card => new GridCard(card, false))];
                 break;
             case DisplayGridSource.WatchMovies:
                 cards = [.. works
@@ -556,6 +559,7 @@ public sealed partial class DisplayComposerService
     {
         "Movie" => DisplayGridValues.TypeMovie,
         "TV" => DisplayGridValues.TypeTv,
+        "Video" => DisplayGridValues.TypeVideo,
         "Book" => DisplayGridValues.TypeBook,
         "Comic" => DisplayGridValues.TypeComic,
         "Audiobook" => DisplayGridValues.TypeAudiobook,
@@ -567,6 +571,7 @@ public sealed partial class DisplayComposerService
     {
         DisplayGridValues.TypeMovie => "Movies",
         DisplayGridValues.TypeTv => "TV shows",
+        DisplayGridValues.TypeVideo => "Videos",
         DisplayGridValues.TypeBook => "Books",
         DisplayGridValues.TypeComic => "Comics",
         DisplayGridValues.TypeAudiobook => "Audiobooks",

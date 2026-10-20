@@ -7,7 +7,3 @@
     margin: 0;
     color: var(--tl-text-muted);
 }
-
-.add-folder-place ::deep .add-folder-place__card--suggested {
-    border-color: var(--tl-accent-primary);
-}
