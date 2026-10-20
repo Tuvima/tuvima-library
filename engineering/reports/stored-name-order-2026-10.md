@@ -202,3 +202,13 @@ Not recommended now: the second silent `catch { }` in the same endpoints file (`
 - Nothing was run. Which names coexist, and the colour flip at start-up, come from reading the writers, the scope rules and the startup repair.
 - Whether any existing test library already holds single-value `artist` or `author` rows from older data was not checked; pre-release resets make this moot.
 - The artist panel's behaviour depends on how multi-artist credits are split into the list (one entry per artist, or one joined entry); either way the picked name can be someone other than the artist the panel is for.
+
+### Outcome of the addendum
+
+Shy approved recommendations 6–9 on October 20, 2026, with titles always using their poster's colours. Built on branch `claude/competent-lichterman-531caa`:
+
+- Title colours: only a main picture (cover, season poster, episode still, headshot, character portrait) writes `artwork_*_hex` and `dominant_color` (`ArtworkCanonicalHelper`). Backgrounds and logos keep only their own set, so neither choosing one nor the start-up repair re-tints a title. Existing libraries correct themselves at the next Engine start.
+- Browse colours and the artist panel's picked name use a fixed order (`CollectionBrowseReadService`).
+- The artist panel looks the person up by the artist it is for, with the picked name as a fallback, and logs a failed lookup.
+- Matching suggestions read artists and authors from the list table (album artist before artist, author before creator, publisher no longer used as an author). The editor's moves and track relocation store album artists and series authors as lists. Renaming an album or series without changing its credit keeps the whole list and its Wikidata links.
+- Not changed, now a follow-up: three readers took an editor-made album's or series' credit from the old single value and now find nothing for those, exactly as they already did for ingested ones. They are the group detail's creator (`CollectionEndpoints.cs`, `ParentCv("author") ?? ParentCv("artist")`) and the editor's root artist (`MetadataEndpoints.cs`, two places, which fall back to the author or title). Reading them from the list table would fix ingested and editor-made records alike.
