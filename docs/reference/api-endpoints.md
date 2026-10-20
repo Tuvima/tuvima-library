@@ -792,7 +792,7 @@ Available in development environments only. These endpoints are removed in produ
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/dev/reset-and-seed` | Preserve application configuration, reset catalogued library state, create selected Standard or Stress fixtures, and queue normal ingestion. |
+| POST | `/dev/reset-and-seed` | Preserve application configuration, reset catalogued library state, create selected Standard or Stress fixtures, and queue normal ingestion. `409` with nothing deleted when the library folder overlaps a source folder, or a background worker or data store writer does not let go within 20 seconds (the message names it); the other reset actions behave the same way. |
 | POST | `/dev/reset-library-data` | Clear catalogued media and derived state without deleting source media or application configuration. |
 | POST | `/dev/factory-reset` | Clear the development database and generated state without deleting configured source media. |
 | POST | `/dev/seed-library` | Seed the library with 22 EPUB test cases covering edge cases (pen names, foreign languages, series grouping, multi-author) |

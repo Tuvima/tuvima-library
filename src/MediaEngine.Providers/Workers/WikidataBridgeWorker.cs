@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
@@ -58,6 +59,12 @@ public sealed partial class WikidataBridgeWorker
     private readonly IRetailMatchScoringService? _retailMatchScoring;
     private readonly IImageEnrichmentService? _imageEnrichment;
     private readonly ILogger<WikidataBridgeWorker> _logger;
+
+    /// <summary>
+    /// Series-level answers for comic issues, shared by every issue of the same run so the answer never depends on which
+    /// issue reached Wikidata first or which issues shared a batch. Only found answers are kept.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, WikidataResolveResult> _comicSeriesRollups = new(StringComparer.Ordinal);
 
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(60);
 
