@@ -292,6 +292,35 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AppSwitchRow_WhenTheOwnerKeepsItOff_TheSwitchGoesBackOff()
+    {
+        var asked = new List<bool>();
+        var cut = Render<AppSwitchRow>(parameters => parameters
+            .Add(component => component.AriaLabel, "Fandom Lore")
+            .Add(component => component.Value, false)
+            .Add(component => component.ValueChanged, (bool value) => asked.Add(value)));
+
+        cut.Find("input[type='checkbox']").Change(true);
+
+        Assert.Equal([true], asked);
+        Assert.False(cut.Find("input[type='checkbox']").HasAttribute("checked"));
+    }
+
+    [Fact]
+    public void AppSwitchRow_WhenTheOwnerAccepts_TheSwitchStaysOn()
+    {
+        var cut = Render<AppSwitchRow>(parameters => parameters
+            .Add(component => component.AriaLabel, "Fandom Lore")
+            .Add(component => component.Value, false));
+        cut.Render(parameters => parameters.Add(component => component.ValueChanged, (bool value) =>
+            cut.Render(next => next.Add(component => component.Value, value))));
+
+        cut.Find("input[type='checkbox']").Change(true);
+
+        Assert.True(cut.Find("input[type='checkbox']").HasAttribute("checked"));
+    }
+
+    [Fact]
     public void AppSegmentedControl_UsesPressedButtonsForFilterSemantics()
     {
         var cut = Render<AppSegmentedControl>(parameters => parameters
