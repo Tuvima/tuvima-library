@@ -68,6 +68,19 @@ public sealed class IngestionPresentationSnapshotDto
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+/// <summary>The keys that appear in <see cref="IngestionMediaGroupDto.WaitingFor"/>.</summary>
+public static class IngestionWaitingForKeys
+{
+    /// <summary>Not matched to a real title yet.</summary>
+    public const string Matching = "matching";
+
+    /// <summary>A TV episode not yet under its show, or a track not yet on its album.</summary>
+    public const string Placing = "placing";
+
+    /// <summary>Artwork is neither present nor settled.</summary>
+    public const string Artwork = "artwork";
+}
+
 public sealed class IngestionMediaGroupDto
 {
     [JsonPropertyName("group_id")]
@@ -99,6 +112,14 @@ public sealed class IngestionMediaGroupDto
 
     [JsonPropertyName("status_label")]
     public string StatusLabel { get; set; } = "Adding";
+
+    /// <summary>
+    /// For a row that is still being added: the Ready conditions it is still missing, in the fixed order matching,
+    /// placing, artwork (see <see cref="IngestionWaitingForKeys"/>). Empty when the row is Ready, in review, failed or
+    /// waiting for media tools.
+    /// </summary>
+    [JsonPropertyName("waiting_for")]
+    public List<string> WaitingFor { get; set; } = [];
 
     /// <summary>
     /// Progress through the applicable, durable ingestion gates for this recognizable

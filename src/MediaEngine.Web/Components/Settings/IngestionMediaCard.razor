@@ -39,10 +39,14 @@
     private string? DisplaySubtitle => string.IsNullOrWhiteSpace(Item.Subtitle)
         || Item.Subtitle == Item.MediaType || Item.Subtitle == FriendlyType(Item.MediaType)
             ? null : Item.Subtitle;
-    private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel;
+    // A row that is still being added says what it is waiting for (matching, its show or album, artwork) when the
+    // Engine reports it; the same words are used in the Status column, its tooltip, the open button's name and the drawer.
+    private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : ReadinessWaitingText.StatusFor(Item);
 
     // The Step column names the gate the item is working through; an item with none left says its status.
-    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel) ? ActivityLabel : Item.CurrentGateLabel;
+    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
+        ? (Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel)
+        : Item.CurrentGateLabel;
     private string ActivityIcon => Item.Availability switch
     {
         "ready" => AppMaterialIcons.Outlined.CheckCircle,
@@ -65,7 +69,9 @@
             + (Item.FileCount > 0 && Item.ChildUnit != "files" ? $" · {FileLabel}" : string.Empty)
         : Item.FileCount > 0 ? FileLabel : null;
     private string FileLabel => $"{Item.FileCount:N0} {(Item.FileCount == 1 ? "file" : "files")}";
-    private string OpenAriaLabel => $"Open ingestion details for {Item.Title}. {Item.CurrentGateLabel ?? ActivityLabel}.";
+    private string OpenAriaLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
+        ? $"Open ingestion details for {Item.Title}. {ActivityLabel}."
+        : $"Open ingestion details for {Item.Title}. {Item.CurrentGateLabel}. {ActivityLabel}.";
 
     private string DisplayChildUnit(int count) => count == 1 && Item.ChildUnit!.EndsWith('s')
         ? Item.ChildUnit[..^1]
