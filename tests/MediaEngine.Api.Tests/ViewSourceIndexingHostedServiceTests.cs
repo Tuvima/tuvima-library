@@ -130,7 +130,7 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
     [Fact]
     public async Task FilesInTheHiddenTrashStagingFolderAreNeverDispatchedForIndexing()
     {
-        var root = Directory.CreateDirectory(Path.Combine(_root, "staging-events")).FullName;
+        var root = Directory.CreateDirectory(Path.Combine(_root, "Profiles", "staging-events")).FullName;
         AddSource(Guid.NewGuid(), root, true);
         var factory = new FakeWatcherFactory();
         var indexer = new RecordingIndexer();

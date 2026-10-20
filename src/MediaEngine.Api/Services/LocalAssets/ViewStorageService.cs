@@ -22,7 +22,10 @@ public sealed class ViewStorageService(
     /// </summary>
     public const string StagingFolderName = ".tuvima-staging";
 
-    /// <summary>True when any step of the path is the hidden staging folder, so scans and watchers can skip it.</summary>
+    /// <summary>
+    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), so scans and
+    /// watchers can skip it. A folder that merely has the same name somewhere else is an ordinary folder.
+    /// </summary>
     public static bool IsInsideStagingFolder(string path)
     {
         if (string.IsNullOrEmpty(path))
@@ -30,8 +33,17 @@ public sealed class ViewStorageService(
             return false;
         }
 
-        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
-            .Any(segment => string.Equals(segment, StagingFolderName, PathComparison));
+        var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 2; index < segments.Length; index++)
+        {
+            if (string.Equals(segments[index], StagingFolderName, PathComparison)
+                && string.Equals(segments[index - 2], "Profiles", PathComparison))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public string GetRootPath() => GetRootPath(requireWrite: true);

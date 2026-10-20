@@ -15,6 +15,7 @@ public sealed class ViewTrashPurgeRepository(IDatabaseConnection database) : IVi
     public Task<ViewTrashPurgeResult> PurgeItemsAsync(IReadOnlyList<ViewTrashPurgeRequest> requests, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(requests);
+        var groupIds = requests.Select(request => request.ItemId).ToHashSet();
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -65,6 +66,23 @@ public sealed class ViewTrashPurgeRepository(IDatabaseConnection database) : IVi
                 if (places.Any(place => !request.PlannedSourceRowIds.Contains(place)))
                 {
                     return new ViewTrashPurgeResult(ViewTrashPurgeOutcome.ChangedSincePlanned, request.ItemId);
+                }
+
+                // A file about to leave the disk must not have been picked up by an item outside this group since the plan was made
+                // (the same file record in the same library is the same file on disk). The planner decided "shared" with the same rule.
+                foreach (var fileId in request.DeleteFileIds)
+                {
+                    var users = connection.Query<Guid>(new CommandDefinition("""
+                        SELECT DISTINCT other.id
+                          FROM local_items me
+                          JOIN local_item_files oif ON oif.file_id = @fileId
+                          JOIN local_items other ON other.id = oif.item_id AND other.library_id = me.library_id
+                         WHERE me.id = @ItemId;
+                        """, new { request.ItemId, fileId }, transaction, cancellationToken: token));
+                    if (users.Any(user => !groupIds.Contains(user)))
+                    {
+                        return new ViewTrashPurgeResult(ViewTrashPurgeOutcome.ChangedSincePlanned, request.ItemId);
+                    }
                 }
 
                 checkedItems.Add((request, fileIds, places));

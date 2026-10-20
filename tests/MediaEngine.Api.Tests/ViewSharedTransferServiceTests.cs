@@ -644,6 +644,47 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task ContributionHistory_StaysVisible_WithAPlainPlaceholder_AfterItsItemWasRemoved_EvenForAReviewerWithoutDocuments()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        async Task<Guid> IndexAsync(string name, byte[] bytes) =>
+            (await fixture.Library.IndexPathAsync(marySpace.LibraryId, fixture.WriteManagedFor(marySpace, name, bytes)))!.ItemId;
+        var tax = await IndexAsync("Tax return 2025.txt", [1, 2, 3]);
+        var letter = await IndexAsync("Lawyer letter.txt", [4, 5, 6]);
+        var beach = await IndexAsync("Beach day.jpg", [7, 8, 9]);
+        var sunset = await IndexAsync("Sunset walk.jpg", [10, 11, 12]);
+        var mary = fixture.Person(maryId);
+        var documentsOnly = await SubmitManyAsync(fixture, mary, "documents", tax);
+        var removed = await SubmitManyAsync(fixture, mary, "removed", beach);
+        var mixed = await SubmitManyAsync(fixture, mary, "mixed", sunset, letter);
+        var admin = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+
+        // The photo's owner empties their Trash: the item row is gone and the history link clears.
+        fixture.RemoveItem(beach);
+
+        var withDocuments = await fixture.Contributions.ListAsync(admin, "review", null, 0, 20);
+        var shown = withDocuments.Items.Single(contribution => contribution.Id == removed.Id);
+        var line = Assert.Single(shown.Items);
+        Assert.Equal("Removed item", line.Title);
+        Assert.Equal(Guid.Empty, line.ItemId);
+        Assert.DoesNotContain("Beach", System.Text.Json.JsonSerializer.Serialize(shown), StringComparison.OrdinalIgnoreCase);
+
+        await fixture.Policies.SavePolicyAsync(
+            (await fixture.Policies.GetPolicyAsync(fixture.ProfileId)) with { DocumentsEnabled = false });
+        var withoutDocuments = await fixture.Contributions.ListAsync(admin, "review", null, 0, 20);
+
+        // Still listed and still opens; the documents-only one stays hidden and the mixed one still shows only its photo.
+        Assert.Contains(withoutDocuments.Items, contribution => contribution.Id == removed.Id);
+        Assert.DoesNotContain(withoutDocuments.Items, contribution => contribution.Id == documentsOnly.Id);
+        Assert.Equal(sunset, Assert.Single(withoutDocuments.Items.Single(contribution => contribution.Id == mixed.Id).Items).ItemId);
+        var opened = await fixture.Contributions.GetRequiredAsync(admin, removed.Id, true);
+        Assert.Equal("Removed item", Assert.Single(opened.Items).Title);
+    }
+
+    [Fact]
     public async Task AReviewerWithoutDocumentsNeverSeesADocumentInAContribution()
     {
         using var fixture = new Fixture();
@@ -946,6 +987,13 @@ public sealed class ViewSharedTransferServiceTests
                 INSERT INTO view_shared_contribution_events (id, contribution_id, actor_name, event_type, detail, occurred_at)
                 VALUES (@id, @contributionId, 'Tuvima Library', @eventType, @detail, @now);
                 """, new { id = Guid.NewGuid(), contributionId, eventType, detail, now = DateTimeOffset.UtcNow });
+        }
+
+        /// <summary>Removes an item's row the way Empty Trash does; its history links clear instead of blocking it.</summary>
+        public void RemoveItem(Guid itemId)
+        {
+            using var connection = _database.CreateConnection();
+            connection.Execute("DELETE FROM local_items WHERE id = @itemId;", new { itemId });
         }
 
         public Guid FileIdForPath(string path)

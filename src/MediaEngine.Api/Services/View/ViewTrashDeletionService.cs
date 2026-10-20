@@ -51,8 +51,11 @@ public sealed class ViewTrashDeletionService(
     ViewTrashRecoveryService recovery,
     AssetPathService assetPaths,
     ISystemActivityRepository activity,
-    ILogger<ViewTrashDeletionService> logger)
+    ILogger<ViewTrashDeletionService> logger,
+    IViewTrashFileMover? fileMover = null)
 {
+    private readonly IViewTrashFileMover _mover = fileMover ?? new FileSystemViewTrashFileMover();
+
     public const string ChangedMessage = "Something changed since you opened this. Here's the updated list.";
     public const string FileChangedReason = "This file changed since you opened this.";
     public const string FileInUseReason = "Couldn't delete: the file is in use.";
@@ -60,6 +63,7 @@ public sealed class ViewTrashDeletionService(
     public const string NotPreparedReason = "Couldn't delete: the files couldn't be set aside safely.";
     public const string RecordsFailedReason = "Couldn't delete: the item couldn't be removed from the library. Its files were left where they were.";
     public const string SharedFileHeldReason = "Couldn't delete: it shares a file with an item that couldn't be deleted.";
+    public const string UnexpectedReason = "Couldn't delete: something went wrong, so it was left in Trash.";
     public const string RestoredMeanwhileReason = "It was restored from Trash, so it was left alone.";
 
     /// <summary>
@@ -115,7 +119,7 @@ public sealed class ViewTrashDeletionService(
         {
             var outcomes = context is null
                 ? group.ToDictionary(item => item.ItemId, _ => ItemOutcome.Failed(ViewTrashDeletionPlanner.StorageUnavailableReason))
-                : await RemoveGroupAsync(plan, group, context, ct).ConfigureAwait(false);
+                : await RemoveGroupGuardedAsync(plan, group, context, ct).ConfigureAwait(false);
             foreach (var item in group)
             {
                 var outcome = outcomes[item.ItemId];
@@ -195,6 +199,38 @@ public sealed class ViewTrashDeletionService(
             .ToList();
     }
 
+    /// <summary>
+    /// Runs one group and never lets an unexpected failure stop the others or the activity entry for what was already removed. Whatever
+    /// state the group was left in, the sweep that follows settles its files: items that still exist get their files put back, items
+    /// that are gone get their parked files deleted.
+    /// </summary>
+    private async Task<Dictionary<Guid, ItemOutcome>> RemoveGroupGuardedAsync(
+        ViewTrashPlan plan, IReadOnlyList<ViewTrashPlannedItem> group, Context context, CancellationToken ct)
+    {
+        try
+        {
+            return await RemoveGroupAsync(plan, group, context, ct).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (IsRecoverable(exception))
+        {
+            logger.LogError(exception, "Emptying a Trash stopped on an unexpected error for one item; the rest continue");
+            var outcomes = new Dictionary<Guid, ItemOutcome>(group.Count);
+            foreach (var item in group)
+            {
+                // If the item's records did go before the error, it is gone from Trash and counts as deleted.
+                var stillThere = await purge.ItemExistsAsync(item.ItemId, CancellationToken.None).ConfigureAwait(false);
+                outcomes[item.ItemId] = stillThere
+                    ? ItemOutcome.Failed(UnexpectedReason)
+                    : ItemOutcome.Deleted(item.Files.Where(file => file.Action == ViewTrashFileAction.Delete).Sum(file => file.Bytes));
+            }
+
+            return outcomes;
+        }
+    }
+
+    private static bool IsRecoverable(Exception exception) =>
+        exception is not (OperationCanceledException or OutOfMemoryException or StackOverflowException or AccessViolationException);
+
     private async Task<Dictionary<Guid, ItemOutcome>> RemoveGroupAsync(
         ViewTrashPlan plan, IReadOnlyList<ViewTrashPlannedItem> group, Context context, CancellationToken ct)
     {
@@ -242,7 +278,8 @@ public sealed class ViewTrashDeletionService(
             plan.OwnerProfileId,
             item.Files.Select(file => file.SourceRowId).Distinct().ToList(),
             item.Files.Where(file => file.Action is ViewTrashFileAction.Delete or ViewTrashFileAction.AlreadyGone)
-                .Select(file => file.SourceRowId).Distinct().ToList())).ToList();
+                .Select(file => file.SourceRowId).Distinct().ToList(),
+            item.Files.Where(file => file.Action == ViewTrashFileAction.Delete).Select(file => file.FileId).Distinct().ToList())).ToList();
         ViewTrashPurgeResult purged;
         try
         {
@@ -353,9 +390,18 @@ public sealed class ViewTrashDeletionService(
             .ToList();
         var built = new ViewTrashManifest(itemId, entries);
         var moved = new List<ViewTrashManifestEntry>();
+
+        // A staging folder that is already there belongs to an earlier, unfinished removal. It is never reused or overwritten; the
+        // recovery sweep settles it, and this item stays in Trash until then.
+        if (Directory.Exists(itemFolder))
+        {
+            logger.LogWarning("An item's Trash staging folder already exists, so the item was left in Trash for the recovery sweep");
+            return NotPreparedReason;
+        }
+
         try
         {
-            Directory.CreateDirectory(itemFolder);
+            ViewTrashStaging.CreateItemFolder(itemFolder, logger);
             // The folder must be a plain folder inside the profile folder, not a link someone put there.
             if (!ViewStorageService.TryResolveContainedPath(context.ProfileRoot, itemFolder, out var folder, out _)
                 || !string.Equals(folder.Path, Path.GetFullPath(itemFolder).TrimEnd(Path.DirectorySeparatorChar), PathComparison))
@@ -368,12 +414,13 @@ public sealed class ViewTrashDeletionService(
             ViewTrashStaging.WriteManifest(itemFolder, built);
             foreach (var entry in entries)
             {
-                File.Move(entry.Original, Path.Combine(itemFolder, entry.Staged));
+                _mover.Move(entry.Original, Path.Combine(itemFolder, entry.Staged));
                 moved.Add(entry);
             }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (IsRecoverable(exception))
         {
+            // Any failure while parking (a file in use, no permission, or something unexpected) puts every moved file back at once.
             logger.LogWarning(exception, "Empty Trash could not set an item's files aside; they are being put back");
             var back = ViewTrashStaging.MoveBack(context.ProfileRoot, itemFolder, new ViewTrashManifest(itemId, moved), logger);
             if (back)
@@ -381,7 +428,12 @@ public sealed class ViewTrashDeletionService(
                 ViewTrashStaging.RemoveItemFolder(itemFolder, logger);
             }
 
-            return exception is UnauthorizedAccessException ? FileNotAllowedReason : FileInUseReason;
+            return exception switch
+            {
+                UnauthorizedAccessException => FileNotAllowedReason,
+                IOException => FileInUseReason,
+                _ => NotPreparedReason,
+            };
         }
 
         manifest = built;
