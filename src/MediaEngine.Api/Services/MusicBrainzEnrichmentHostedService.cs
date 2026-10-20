@@ -279,9 +279,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
 
         // The album's tracks report its release; the per-album lock and the claims as written keep the
         // album's bridge ids on the release the album agreed on (SharedParentIdentity).
-        using (lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
-            ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
-            : null)
+        using (await SharedParentIdentity.AcquireForLineageAsync(lineage, ct).ConfigureAwait(false))
         {
             var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
                 candidate.AssetId,

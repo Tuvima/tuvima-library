@@ -73,26 +73,26 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             );
             """;
         var parameters = new
-            {
-                job.Id,
-                job.EntityId,
-                job.EntityType,
-                job.MediaType,
-                job.IngestionRunId,
-                job.State,
-                job.Pass,
-                job.AttemptCount,
-                job.PoisonAttemptCount,
-                job.LastOutcomeCategory,
-                job.LeaseOwner,
-                LeaseExpiresAt = job.LeaseExpiresAt?.ToString("O"),
-                job.SelectedCandidateId,
-                job.ResolvedQid,
-                job.LastError,
-                NextRetryAt = job.NextRetryAt?.ToString("O"),
-                CreatedAt = job.CreatedAt.ToString("O"),
-                UpdatedAt = job.UpdatedAt.ToString("O"),
-            };
+        {
+            job.Id,
+            job.EntityId,
+            job.EntityType,
+            job.MediaType,
+            job.IngestionRunId,
+            job.State,
+            job.Pass,
+            job.AttemptCount,
+            job.PoisonAttemptCount,
+            job.LastOutcomeCategory,
+            job.LeaseOwner,
+            LeaseExpiresAt = job.LeaseExpiresAt?.ToString("O"),
+            job.SelectedCandidateId,
+            job.ResolvedQid,
+            job.LastError,
+            NextRetryAt = job.NextRetryAt?.ToString("O"),
+            CreatedAt = job.CreatedAt.ToString("O"),
+            UpdatedAt = job.UpdatedAt.ToString("O"),
+        };
         return _db.ExecuteWriteAsync((conn, tx, innerCt) => conn.Execute(sql, parameters, tx), ct);
     }
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
@@ -23,7 +24,6 @@ public static class SharedParentIdentity
     private static readonly HashSet<string> PersonIdentityKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         BridgeIdKeys.AppleArtistId,
-        BridgeIdKeys.MusicBrainzId,
         BridgeIdKeys.MusicBrainzArtistId,
         BridgeIdKeys.TmdbPersonId,
         BridgeIdKeys.TvdbPersonId,
@@ -60,11 +60,24 @@ public static class SharedParentIdentity
     }
 
     /// <summary>
+    /// <see cref="AcquireAsync"/> for the lineage's shared parent; null (nothing to hold) when the asset has no
+    /// parent of its own (a standalone movie or book).
+    /// </summary>
+    public static async Task<IDisposable?> AcquireForLineageAsync(WorkLineage? lineage, CancellationToken ct) =>
+        lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
+            ? await AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
+            : null;
+
+    /// <summary>
     /// Compares an incoming parent-scope report with the same provider's current claims on the parent.
     /// A report is one observation set (or, for claims stored without one, one claim time); its identity is its
     /// container bridge-id claims.
     /// </summary>
-    /// <param name="incomingIsUserDecision">The incoming report is the user's own choice (decided by user_manual).</param>
+    /// <param name="incomingIsUserDecision">
+    /// The incoming report is the user's own choice (decided by user_manual). The editor's rematch writes its claims
+    /// itself (stale ids removed first), so today this protects only callers that persist a user decision through
+    /// <see cref="ScoringHelper"/>.
+    /// </param>
     public static Decision Decide(
         IReadOnlyList<ProviderClaim> incomingParentClaims,
         IReadOnlyList<MetadataClaim> existingProviderClaims,

@@ -1211,38 +1211,43 @@ public static class ItemCanonicalEndpoints
                         .Where(pair => group.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
                         .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase)))
                 .ToList();
-            hierarchyImpact = await hierarchyAlignment.ApplyRetailIdentityAsync(
-                alignmentEntityId,
-                hierarchyRequest ?? new MembershipPreviewRequest(null, null, null, null),
-                new HierarchyIdentityMutation(
-                    claims.Select(claim => new HierarchyClaimMutation(
-                        claim.EntityId,
-                        claim.ProviderId,
-                        claim.DecisionSourceProviderId ?? WellKnownProviders.UserManual,
-                        claim.ClaimKey,
-                        claim.ClaimValue,
-                        claim.Confidence,
-                        claim.IsUserLocked,
-                        claim.ClaimedAt)).ToList(),
-                    canonicals.Select(value => new HierarchyCanonicalMutation(
-                        value.EntityId,
-                        value.Key,
-                        value.Value,
-                        value.WinningProviderId,
-                        value.NeedsReview,
-                        value.LastScoredAt)).ToList(),
-                    bridgeEntries.Select(entry => new HierarchyBridgeIdMutation(
-                        entry.EntityId,
-                        entry.IdType,
-                        entry.IdValue,
-                        entry.ProviderId ?? string.Empty,
-                        entry.CreatedAt)).ToList(),
-                    staleBridgeKeys.Select(key => new HierarchyIdentityArtifactMutation(
-                        ResolvePolicyScopedTarget(context.AssetId, lineage, policy, key), key)).ToList(),
-                    externalIdentifierMutations,
-                    request.ExpectedIdentityRevision,
-                    identityTarget),
-                ct);
+            // A sibling track's retail job compares with the album's stored reports under this lock; taking it here
+            // keeps the user's choice from landing between that job's read and its write (SharedParentIdentity).
+            using (await SharedParentIdentity.AcquireForLineageAsync(lineage, ct))
+            {
+                hierarchyImpact = await hierarchyAlignment.ApplyRetailIdentityAsync(
+                    alignmentEntityId,
+                    hierarchyRequest ?? new MembershipPreviewRequest(null, null, null, null),
+                    new HierarchyIdentityMutation(
+                        claims.Select(claim => new HierarchyClaimMutation(
+                            claim.EntityId,
+                            claim.ProviderId,
+                            claim.DecisionSourceProviderId ?? WellKnownProviders.UserManual,
+                            claim.ClaimKey,
+                            claim.ClaimValue,
+                            claim.Confidence,
+                            claim.IsUserLocked,
+                            claim.ClaimedAt)).ToList(),
+                        canonicals.Select(value => new HierarchyCanonicalMutation(
+                            value.EntityId,
+                            value.Key,
+                            value.Value,
+                            value.WinningProviderId,
+                            value.NeedsReview,
+                            value.LastScoredAt)).ToList(),
+                        bridgeEntries.Select(entry => new HierarchyBridgeIdMutation(
+                            entry.EntityId,
+                            entry.IdType,
+                            entry.IdValue,
+                            entry.ProviderId ?? string.Empty,
+                            entry.CreatedAt)).ToList(),
+                        staleBridgeKeys.Select(key => new HierarchyIdentityArtifactMutation(
+                            ResolvePolicyScopedTarget(context.AssetId, lineage, policy, key), key)).ToList(),
+                        externalIdentifierMutations,
+                        request.ExpectedIdentityRevision,
+                        identityTarget),
+                    ct);
+            }
             if (hierarchyImpact is { CanApply: false }
                 && string.Equals(hierarchyImpact.Action, "conflict", StringComparison.OrdinalIgnoreCase))
             {

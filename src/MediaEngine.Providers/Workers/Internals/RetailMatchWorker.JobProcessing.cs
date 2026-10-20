@@ -490,9 +490,7 @@ public sealed partial class RetailMatchWorker
                     // Siblings (an album's tracks) report their shared parent's identity in parallel jobs:
                     // comparing with the stored reports and writing claims, bridge ids and external
                     // identifiers happen under one per-parent lock, so the agreed identity is what lands.
-                    using var parentLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
-                        ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
-                        : null;
+                    using var parentLock = await SharedParentIdentity.AcquireForLineageAsync(lineage, ct).ConfigureAwait(false);
 
                     // Phase 3c: pass lineage so parent-scope claims mirror
                     // onto the parent Work (book series → series Work,
@@ -1044,9 +1042,7 @@ public sealed partial class RetailMatchWorker
         WorkLineage? lineage,
         CancellationToken ct)
     {
-        using var parentLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
-            ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
-            : null;
+        using var parentLock = await SharedParentIdentity.AcquireForLineageAsync(lineage, ct).ConfigureAwait(false);
 
         var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
             entityId, claims, providerId, lineage,
