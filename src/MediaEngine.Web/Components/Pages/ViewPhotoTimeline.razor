@@ -32,6 +32,10 @@
                     @TileFace(item)
                 </AppNativeButton>
                 }
+                @if (NoteFor(item) is { Length: > 0 } note)
+                {
+                    <small class="view-tile__note" role="note">@note</small>
+                }
             </article>
         }
         </div></section>
@@ -59,6 +63,9 @@
     [Parameter] public EventCallback<IReadOnlyCollection<Guid>> OnSelectDateGroup { get; set; }
     [Parameter] public EventCallback<Guid> OnDragStarted { get; set; }
     [Parameter] public EventCallback OnDragEnded { get; set; }
+
+    /// <summary>A short note drawn over a tile ("Couldn't delete: the file is in use"); null or empty for none.</summary>
+    [Parameter] public Func<LocalAssetDto, string?> NoteFor { get; set; } = _ => null;
     private IEnumerable<IGrouping<DateTimeOffset, LocalAssetDto>> Months => Items.OrderByDescending(Date).GroupBy(i => StartOfMonth(Date(i)));
     private static IEnumerable<IGrouping<DateTimeOffset, LocalAssetDto>> Days(IEnumerable<LocalAssetDto> month) => month.GroupBy(i => StartOfDay(Date(i))).OrderByDescending(g => g.Key);
     private static DateTimeOffset Date(LocalAssetDto item) => item.CapturedAt ?? item.CreatedAt;

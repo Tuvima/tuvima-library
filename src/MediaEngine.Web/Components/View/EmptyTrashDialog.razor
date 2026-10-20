@@ -1,0 +1,219 @@
+@namespace MediaEngine.Web.Components.View
+@using MediaEngine.Contracts.LocalAssets
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+
+@* The one confirmation for emptying Trash. It asks the Engine what would happen, shows the summary (counts by kind, the Galleries the
+   items leave, what stays in Trash and why) and deletes exactly that summary. Cancel has the focus when it opens (the autofocus
+   attribute is honoured by the native dialog), and Escape cancels. The caller shows the toast. Nothing here is a disk path. *@
+<AppDialogShell Title="@EmptyTrashText.Heading" Size="Medium">
+    <ChildContent>
+        <div class="empty-trash">
+            @if (_state == DialogState.Loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@EmptyTrashText.Checking" />
+            }
+            else if (_state == DialogState.Failed)
+            {
+                <AppAlert Tone="AppUiTone.Error">@_failure</AppAlert>
+            }
+            else if (_preview is not null)
+            {
+                @if (_notice is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Class="empty-trash__notice">@_notice</AppAlert>
+                }
+
+                @if (_preview.DeleteCount > 0)
+                {
+                    <p class="empty-trash__lead"><strong>@EmptyTrashText.DeleteLead(_preview.DeleteCount)</strong> @EmptyTrashText.KindsLine(_preview)</p>
+
+                    @if (Galleries.Count > 0)
+                    {
+                        <section class="empty-trash__section" aria-label="Galleries">
+                            <h3>Galleries</h3>
+                            <p>
+                                @GalleriesLead@for (var i = 0; i < ShownGalleries.Count; i++)
+                                {
+                                    var gallery = ShownGalleries[i];
+                                    <strong>@gallery.Name</strong>@(i < ShownGalleries.Count - 1 ? ", " : string.Empty)
+                                }
+                                @if (HiddenGalleryCount > 0)
+                                {
+                                    <text>, </text><span class="empty-trash__more"><AppButton Label="@($"and {HiddenGalleryCount} more")" ButtonStyle="AppButtonStyle.Text" OnClick="ExpandGalleries" /></span>
+                                }.
+                                They'll be taken out for good.
+                            </p>
+                        </section>
+                    }
+                }
+                else
+                {
+                    <p class="empty-trash__lead"><strong>@(_preview.Skipped.Count > 0 ? EmptyTrashText.NothingToDelete : EmptyTrashText.TrashIsEmpty)</strong></p>
+                }
+
+                @if (_preview.Skipped.Count > 0)
+                {
+                    <section class="empty-trash__section" aria-label="Skipped">
+                        <h3>Skipped</h3>
+                        @foreach (var skipped in _preview.Skipped)
+                        {
+                            <p class="empty-trash__skipped" data-reason="@skipped.ReasonCode">@EmptyTrashText.SkippedLine(skipped)</p>
+                        }
+                    </section>
+                }
+
+                @if (_preview.DeleteCount > 0)
+                {
+                    @if (_preview.HasCompound)
+                    {
+                        <p class="empty-trash__compound">@EmptyTrashText.CompoundLine</p>
+                    }
+
+                    <p class="empty-trash__footer-line">@EmptyTrashText.NoOtherCopy</p>
+                }
+
+                @if (_state == DialogState.Deleting)
+                {
+                    @* The Engine answers once, when it is done, so there is no count to show: an honest "Deleting…" rather than an invented one. *@
+                    <div class="empty-trash__progress" role="status" aria-live="polite">
+                        <span>@EmptyTrashText.Deleting</span>
+                        <AppProgressBar Color="AppColor.Primary" Indeterminate="true" />
+                    </div>
+                }
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @if (CanDelete)
+        {
+            @* Cancel is the first button and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. *@
+            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
+            <AppButton Label="@(_state == DialogState.Deleting ? EmptyTrashText.Deleting : EmptyTrashText.ConfirmLabel(_preview!.DeleteCount))"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Error"
+                       Loading="@(_state == DialogState.Deleting)"
+                       Disabled="@(_state == DialogState.Deleting)"
+                       OnClick="ConfirmAsync" />
+        }
+        else
+        {
+            <AppButton Label="@(_state == DialogState.Loading ? "Cancel" : "Close")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" OnClick="CancelAsync" />
+            @if (_state == DialogState.Failed && _canRetry)
+            {
+                <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
+            }
+        }
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private enum DialogState { Loading, Ready, Deleting, Failed }
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    private DialogState _state = DialogState.Loading;
+    private ViewTrashEmptyPreviewDto? _preview;
+    private string? _notice;
+    private string? _failure;
+    private bool _canRetry;
+    private bool _galleriesExpanded;
+    private IDisposable? _closeGuard;
+
+    // Only a summary with something to delete can be confirmed; every other state offers Close alone (plus Try again when it helps).
+    private bool CanDelete => _state is DialogState.Ready or DialogState.Deleting && _preview is { DeleteCount: > 0 };
+
+    private IReadOnlyList<ViewTrashPreviewGalleryDto> Galleries => _preview is null ? [] : EmptyTrashText.SortedGalleries(_preview);
+
+    // "14 of these were in 3 of your Galleries: " / "1 of these was in your Gallery ". The count is of distinct items, so an item in two Galleries counts once.
+    private string GalleriesLead => EmptyTrashText.GalleriesLead(_preview?.GalleryItemCount ?? 0, Galleries.Count);
+
+    private IReadOnlyList<ViewTrashPreviewGalleryDto> ShownGalleries =>
+        _galleriesExpanded ? Galleries : Galleries.Take(EmptyTrashText.ShownBeforeMore).ToList();
+
+    private int HiddenGalleryCount => _galleriesExpanded ? 0 : Math.Max(0, Galleries.Count - EmptyTrashText.ShownBeforeMore);
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Escape, the backdrop and Cancel all end up here: nothing may close the dialog while the Engine is deleting.
+        _closeGuard = Dialog.RegisterCloseGuard(() => Task.FromResult(_state != DialogState.Deleting));
+        await LoadPreviewAsync();
+    }
+
+    public void Dispose() => _closeGuard?.Dispose();
+
+    private void ExpandGalleries() => _galleriesExpanded = true;
+
+    private Task CancelAsync() => Dialog.CancelAsync();
+
+    private async Task LoadPreviewAsync()
+    {
+        _state = DialogState.Loading;
+        _notice = null;
+        _failure = null;
+        StateHasChanged();
+
+        var outcome = await ApiClient.GetViewTrashEmptyPreviewAsync();
+        if (outcome.IsOk)
+        {
+            _preview = outcome.Value;
+            _galleriesExpanded = false;
+            _state = DialogState.Ready;
+            return;
+        }
+
+        Fail(outcome.Status, outcome.Message, loadingPreview: true);
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (_preview is null || _state != DialogState.Ready || _preview.DeleteCount == 0)
+        {
+            return;
+        }
+
+        _state = DialogState.Deleting;
+        StateHasChanged();
+
+        var outcome = await ApiClient.EmptyViewTrashAsync(_preview.Fingerprint);
+        if (outcome.IsOk)
+        {
+            _state = DialogState.Ready;
+            await Dialog.CloseAsync(AppDialogResult.Ok(outcome.Value!));
+            return;
+        }
+
+        if (outcome.Status == ViewTrashOutcomeStatus.Conflict)
+        {
+            // Nothing was deleted: show what is true now and let the person decide again.
+            _state = DialogState.Ready;
+            if (outcome.FreshPreview is not null)
+            {
+                _preview = outcome.FreshPreview;
+                _notice = EmptyTrashText.Changed;
+                _galleriesExpanded = false;
+                return;
+            }
+
+            await LoadPreviewAsync();
+            _notice ??= EmptyTrashText.Changed;
+            return;
+        }
+
+        Fail(outcome.Status, outcome.Message);
+    }
+
+    private void Fail(ViewTrashOutcomeStatus status, string? message, bool loadingPreview = false)
+    {
+        // Unavailable never reached the Engine, so asking again is safe (and shows a fresh summary to confirm). An Unconfirmed answer to
+        // the delete may have deleted something, so it is never offered a blind retry; the preview is only a read, so there it can be.
+        _canRetry = status == ViewTrashOutcomeStatus.Unavailable || (loadingPreview && status == ViewTrashOutcomeStatus.Unconfirmed);
+        _failure = status switch
+        {
+            ViewTrashOutcomeStatus.Unavailable => EmptyTrashText.Unavailable,
+            ViewTrashOutcomeStatus.Unconfirmed => EmptyTrashText.Unconfirmed,
+            _ => string.IsNullOrWhiteSpace(message) ? EmptyTrashText.Forbidden : message,
+        };
+        _state = DialogState.Failed;
+    }
+}

@@ -4156,6 +4156,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmp
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyPreviewDto
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto> | nullability=not-null | accessors=get,init
   Galleries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto> | nullability=not-null | accessors=get,init
+  GalleryItemCount: System.Int32 | nullability=not-null | accessors=get,init
   DeleteCount: System.Int32 | nullability=not-null | accessors=get,init
   PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
   VideoCount: System.Int32 | nullability=not-null | accessors=get,init

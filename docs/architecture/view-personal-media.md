@@ -102,10 +102,15 @@ original profile's other private assets remain unavailable.
 ## Asset states
 
 Favorite, Hidden, Archive, and Trash are logical states. Archive removes an
-asset from the normal Photos timeline. Trash is recoverable and records when the
-asset was trashed. Neither operation mutates an original file. Permanent file
-deletion is a separate explicit operation governed by source containment,
-management mode, access mode, and filesystem mutation policy.
+asset from the normal Photos timeline. Trash is reversible: Restore puts the
+asset back where it was, and the time it was trashed is kept. Moving an asset to
+Trash never mutates an original file. An asset with any file in a linked
+(read-only) folder cannot be moved to Trash at all, because those folders are for
+looking at; its `can_trash` flag is false and the Dashboard hides the button.
+Empty Trash is the only permanent removal of a personal file. It is owner-only,
+runs from a computer, and removes everything in the owner's Trash after a fresh
+confirmation of the exact summary. The safety rules are under Filesystem and
+lifecycle safety below.
 
 ## Timeline and search
 
@@ -228,6 +233,14 @@ A Gallery is a lightweight profile-owned personal-media container.
   the viewer's authorized asset scope. It does not accept manual membership.
 
 Gallery removal never removes an asset. Gallery deletion never deletes media.
+
+While an asset is in Trash it leaves every Manual Gallery: it is missing from the
+Gallery's items, counts and cover, and it cannot be chosen as a cover. Its place in
+the Gallery is kept, so Restore brings it back. A Gallery whose cover is in Trash
+reads as having no cover and falls back to its newest photo, as it does when the
+cover is removed. Empty Trash removes the emptied items from every Manual Gallery
+they were in. It never deletes a Gallery, so a Gallery left with nothing in it
+stays. Smart Galleries and Collections simply stop showing the removed items.
 Sharing is Private or selected-profile access; authorization is re-evaluated for
 details, counts, cover previews, and every returned asset.
 
@@ -366,6 +379,45 @@ still require runtime and visual evidence before release.
   not collapse profiles or Personal Spaces into shared ownership.
 - Favorite, Hidden, Archive, Trash, Restore, Gallery membership, and Gallery
   deletion modify SQLite state only. They do not mutate originals.
+- **Empty Trash** is the only operation that deletes personal files, and it only
+  ever empties the whole Trash of the signed-in person's own Personal Space. It is
+  refused for everyone else (Shared View and Gallery-share viewers, administrators,
+  paired apps and service applications) and for anything but a signed-in person at
+  the Dashboard. Nothing is deleted until the person confirms a summary the Engine
+  produced (items by kind, space freed, Galleries affected, items that stay and
+  why). The request must send back that summary's fingerprint; if the Trash has
+  changed, the Engine answers 409 with the new summary and deletes nothing.
+- Before anything is removed, every file is checked again. Its path is followed
+  through every link and the real file must lie inside the owner's own profile
+  folder in the managed View root, and the shared source-file safety gate
+  (`SourceMutationPolicyGate`) must allow the delete. Linked (read-only) sources are
+  never deleted. A file that another item still uses on disk is kept, unless that item
+  is removed too; the same content at a different path does not count as sharing.
+- **All or nothing per item.** An item's files go together (a Live Photo's video,
+  RAW, JPEG and XMP, an original and its edited version). They are first moved into
+  a hidden `.tuvima-staging` folder in the owner's profile folder, with a manifest.
+  Only after the item's records are removed in one transaction are the parked files
+  deleted, followed by the item's thumbnails and previews. If anything fails first,
+  every file is moved back and the item stays in Trash with the reason. A recovery
+  sweep at startup and after each Empty Trash puts parked files back for an item
+  that still exists, and deletes them for one that is gone. Scans and the folder
+  watcher ignore the staging folder. Items that share a file on disk are removed as
+  one group, so none is left in Trash with its file already gone.
+- **Items that stay in Trash.** An item is skipped, with a reason, when a file is in
+  a linked read-only folder; when it is waiting to be added to the Shared Library or
+  is being copied there (that work protects the item, and an item already added keeps
+  its contribution history, which no longer links to it); or when the safety gate or
+  the folder check refuses a file. Shared Library items never appear in a Trash and
+  cannot be moved to Trash.
+- **Records.** Removing an item deletes its `local_items` row in one transaction. The
+  cascades clear its metadata, file links, tags, document fields, Gallery memberships,
+  annotations, search entries and phone download entries; its `local_file_sources`
+  rows for removed files go too, and so does any file record left with no link.
+  Thumbnails and previews are deleted from the derived cache. Galleries are never
+  removed.
+- **Activity.** Each Empty Trash that removes something writes one activity entry for
+  the owner: the item count, the space freed and the number skipped. It holds no file
+  names, titles or thumbnails.
 - Existing/read-only sources remain immutable. Shared Library contribution copies them and
   retains the external original. Managed promotion requires an owned item,
   verifies destination containment beneath Shared, and requires an explicit
