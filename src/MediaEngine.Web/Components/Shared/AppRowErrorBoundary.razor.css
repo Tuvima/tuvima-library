@@ -1,0 +1,34 @@
+/* The default fallback row: compact, the height of a normal list row, and quiet. */
+.app-row-error {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+    min-height: 3.25rem;
+    padding: .35rem .75rem;
+    color: var(--tl-palette-text-secondary);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.app-row-error__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: var(--tl-palette-warning);
+}
+
+.app-row-error__copy {
+    display: grid;
+    min-width: 0;
+}
+
+.app-row-error__copy strong {
+    color: var(--tl-text-primary);
+    font-size: .84rem;
+}
+
+.app-row-error__copy small {
+    overflow: hidden;
+    font-size: .77rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

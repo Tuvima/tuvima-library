@@ -20,6 +20,21 @@ public sealed class PipelineConfigurationTests
     }
 
     [Fact]
+    public void RepositoryProviders_LoadInFileNameOrder_OnEveryOperatingSystem()
+    {
+        var configDirectory = Path.GetDirectoryName(FindRepoFile("config", "pipelines.json"))!;
+        using var loader = new ConfigurationDirectoryLoader(configDirectory);
+
+        var loaded = loader.LoadAllProviders().Select(provider => provider.Name).ToList();
+        var expected = Directory.EnumerateFiles(Path.Combine(configDirectory, "providers"), "*.json")
+            .Order(StringComparer.Ordinal)
+            .Select(file => JsonDocument.Parse(File.ReadAllText(file)).RootElement.GetProperty("name").GetString() ?? string.Empty)
+            .ToList();
+
+        Assert.Equal(expected, loaded);
+    }
+
+    [Fact]
     public void MediaPipelines_PreferWikidataDescriptionsBeforeRetailFallbacks()
     {
         var configPath = FindRepoFile("config", "pipelines.json");

@@ -74,45 +74,53 @@ public partial interface IEngineApiClient
         CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/lore-delta — check which entities have changed on Wikidata since last enrichment.</summary>
-    Task<IReadOnlyList<LoreDeltaResultDto>> CheckLoreDeltaAsync(
+    Task<IReadOnlyList<UniverseLoreDeltaResponse>> CheckLoreDeltaAsync(
         string qid, CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/lore-sources - admin review list for plugin lore sources.</summary>
-    Task<IReadOnlyList<UniverseLoreSourceViewModel>> GetUniverseLoreSourcesAsync(
+    Task<IReadOnlyList<UniverseLoreSourceResponse>> GetUniverseLoreSourcesAsync(
         string qid, CancellationToken ct = default);
 
     /// <summary>POST /universe/{qid}/lore-sources/discover - find source candidates through lore plugins.</summary>
-    Task<IReadOnlyList<UniverseLoreSourceViewModel>> DiscoverUniverseLoreSourcesAsync(
+    Task<IReadOnlyList<UniverseLoreSourceResponse>> DiscoverUniverseLoreSourcesAsync(
         string qid, CancellationToken ct = default);
 
     /// <summary>POST /universe/{qid}/lore-sources/manual - add a plugin lore source for admin approval.</summary>
-    Task<UniverseLoreSourceViewModel?> AddUniverseLoreSourceAsync(
+    Task<UniverseLoreSourceResponse?> AddUniverseLoreSourceAsync(
         string qid, UniverseLoreManualSourceRequest request, CancellationToken ct = default);
 
     /// <summary>POST /universe/{qid}/lore-sources/{sourceId}/approve - approve a plugin lore source.</summary>
-    Task<IReadOnlyList<UniverseLoreSourceViewModel>> ApproveUniverseLoreSourceAsync(
+    Task<IReadOnlyList<UniverseLoreSourceResponse>> ApproveUniverseLoreSourceAsync(
         string qid, Guid sourceId, CancellationToken ct = default);
 
     /// <summary>POST /universe/{qid}/lore-sources/{sourceId}/reject - reject a plugin lore source.</summary>
-    Task<IReadOnlyList<UniverseLoreSourceViewModel>> RejectUniverseLoreSourceAsync(
+    Task<IReadOnlyList<UniverseLoreSourceResponse>> RejectUniverseLoreSourceAsync(
         string qid, Guid sourceId, CancellationToken ct = default);
 
     /// <summary>POST /universe/{qid}/lore/enrich - import approved plugin lore for this universe.</summary>
-    Task<UniverseLoreEnrichmentSummaryViewModel?> EnrichUniverseLoreAsync(
+    Task<UniverseLoreEnrichResponse?> EnrichUniverseLoreAsync(
         string qid, CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/cast — characters with their real-world performers.</summary>
     Task<UniverseCastResponse?> GetUniverseCastAsync(string qid, CancellationToken ct = default);
 
+    /// <summary>
+    /// GET /universe/{qid}/also-appears-in — where else a character, place, organisation (<paramref name="entityQid"/>) or
+    /// person (<paramref name="personId"/>) shows up across the Library. Give exactly one of the two. A 404 (unknown, or nothing the
+    /// profile may see) is an empty result; null means a real failure.
+    /// </summary>
+    Task<EntityAppearancesDto?> GetEntityAppearancesAsync(
+        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default);
+
     /// <summary>GET /universe/{qid}/adaptations — adaptation chain (based_on/derivative_work/inspired_by).</summary>
-    Task<UniverseAdaptationsResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default);
+    Task<UniverseAdaptationTreeResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/paths?from=X&amp;to=Y — find shortest paths between two entities.</summary>
     Task<UniversePathsResponse?> FindPathsAsync(
         string qid, string fromQid, string toQid, int maxHops = 4, CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/family-tree?character=X — family tree rooted at a character.</summary>
-    Task<FamilyTreeResponse?> GetFamilyTreeAsync(
+    Task<UniverseFamilyTreeResponse?> GetFamilyTreeAsync(
         string qid, string characterQid, int generations = 3, CancellationToken ct = default);
 
     // ── Search (/search) ──────────────────────────────────────────────────

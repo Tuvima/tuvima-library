@@ -87,7 +87,7 @@ if (args.Length >= 4 && args[0] == "--compare-baseline")
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
 if (!processInstanceLease.IsAcquired)
 {
-    Console.WriteLine("Tuvima Library Engine is already running; the duplicate launch will exit without replacing it.");
+    Console.WriteLine("Library Engine is already running; the duplicate launch will exit without replacing it.");
     Environment.ExitCode = 73;
     return;
 }
@@ -221,7 +221,7 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new() { Title = "Tuvima Library API", Version = "v1" });
+    options.SwaggerDoc("v1", new() { Title = "Library API", Version = "v1" });
     options.CustomSchemaIds(type => (type.FullName ?? type.Name).Replace('+', '.'));
 });
 
@@ -289,7 +289,7 @@ catch (ConfigValidationException ex)
 {
     Log.Fatal(
         ex,
-        "Invalid Tuvima Library configuration: {ConfigFile} failed {SchemaName}",
+        "Invalid Library configuration: {ConfigFile} failed {SchemaName}",
         ex.FilePath,
         ex.SchemaName);
     throw;
@@ -613,7 +613,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Tuvima Library API v1"));
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Library API v1"));
 }
 
 // -- Endpoint registration -----------------------------------------------------
@@ -626,12 +626,12 @@ try
 }
 catch (IOException ex) when (StartupFailureClassifier.IsAddressAlreadyInUse(ex))
 {
-    Log.Error(ex, "Tuvima Library Engine could not start because one of its configured addresses is already in use");
-    Console.Error.WriteLine("Tuvima Library Engine could not start because ports 61494/61495 are already in use. Stop the process using those ports, then start Tuvima again.");
+    Log.Error(ex, "Library Engine could not start because one of its configured addresses is already in use");
+    Console.Error.WriteLine("Library Engine could not start because ports 61494/61495 are already in use. Stop the process using those ports, then start Library again.");
     Environment.ExitCode = 98;
 }
 catch (Exception exception) when (StartupFailureClassifier.FindPathAccessDenied(exception) is { } denied)
 {
-    Log.Error("Tuvima Library Engine could not start because a configured path is not accessible: {AccessFailure}", denied.Message);
+    Log.Error("Library Engine could not start because a configured path is not accessible: {AccessFailure}", denied.Message);
     Environment.ExitCode = 77;
 }

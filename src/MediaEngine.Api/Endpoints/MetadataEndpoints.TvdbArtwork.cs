@@ -36,14 +36,14 @@ public static partial class MetadataEndpoints
     }
 
     private static async Task<IReadOnlyList<(string Role, string AssetType, ProviderArtworkCandidate Candidate)>>
-        DiscoverTvdbArtworkAsync(EditorScopeResolution scope, string tvdbId, TvdbRetailClient tvdb,
+        DiscoverTvdbArtworkAsync(EditorScopeResolution scope, string tvdbId, ProviderApiClient tvdb,
             CancellationToken ct)
     {
         JsonNode? detail = scope.ScopeId switch
         {
-            "series" => await tvdb.GetSeriesAsync(tvdbId, ct),
-            "season" => await tvdb.GetSeasonAsync(tvdbId, ct),
-            "episode" => await tvdb.GetEpisodeAsync(tvdbId, ct),
+            "series" => await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", tvdbId)), ct),
+            "season" => await tvdb.GetAsync("tvdb", "season_extended", ProviderApiClient.Args(("id", tvdbId)), ct),
+            "episode" => await tvdb.GetAsync("tvdb", "episode_extended", ProviderApiClient.Args(("id", tvdbId)), ct),
             _ => null,
         };
         if (detail is null)
@@ -62,7 +62,7 @@ public static partial class MetadataEndpoints
         }
 
         var typeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var types = await tvdb.GetArtworkTypesAsync(ct);
+        var types = await tvdb.GetAsync("tvdb", "artwork_types", null, ct);
         if (types is JsonArray typeArray)
         {
             foreach (var type in typeArray.Where(value => value is not null))

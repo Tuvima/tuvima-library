@@ -53,7 +53,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Settings/` | Settings pages inside the shared `Frame/SettingsPageFrame` (breadcrumb, title, attention notices, page notice, tabs, content) and the one menu tree (`SettingsNav.MenuGroups`, built by `Services/Navigation/SettingsMenuBuilder`): Personal (Overview with Activity, Taste and the off-menu Apps; Profiles with Households; Preferences; Security with Devices), Server (Library and Ingestion, Network and Remote Access, Streaming), Manage (Users and Sign-in, System with Tools, Logs, Backup), Developer (Local AI, Integrations, Plugins, Developer Tools). Register sections in `SettingsNav` |
 | `Setup/` | First-run setup stages |
 | `Shared/` | First-party `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppTable`, `AppDialog`, `AppSelect`, `AppTooltip`, …), `Playback*` control primitives, `TuvimaArtworkStack` |
-| `Universe/` | Universe surface components |
+| `Universe/` | Universe surface components: the `/universe/{qid}` page pieces (`UniverseHero`, `UniverseSeriesShelf`, `UniverseConnections`, `UniverseCastList`, `UniverseAdaptationsList`, `UniversePageText`) and the explorer panels |
 | `View/` | Places map and timeline pieces |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |
 
@@ -81,19 +81,21 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/listen/player-popup` | `ListenPlayerPopupPage` | Detached listen window |
 | `/details/{EntityType}/{Id:guid}` | `UnifiedDetailPage` | The one detail page for every entity type (`Components/Details/`); TV episodes open via their show with `?episode=` |
 | `/collections`, `/collections/{Section}` | `Collections` | Collections and universes |
-| `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer |
+| `/universe/{Qid}` | `UniversePage` | A Universe: hero, each Series in order (with missing entries when the profile shows them), standalone works, Connections (Cast, Adaptations) and, for desktop administrators, Edit in the Editing Mode drawer. Pieces in `Components/Universe/`, state in `UniversePageState`, one Engine read (`/universe/{qid}/overview`) |
+| `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer (desktop; paths and family tree) |
 | `/my-library` | `MyLibrary` | The personal page (Continue, My List, Recent activity preview, Liked; Downloads in the app); the phone dock's My Library tab |
 | `/my-activity` | `MyActivity` | The signed-in person's own Activity page outside Settings (Kids profiles and quick access); same component as Settings > Overview > Activity, own scope only |
 | `/for-me` | `ForMe` | Personal shelves and See All grids |
+| `/all/{Lane}/{ShelfKey}` | `ShelfGridPage` | View all: the full list behind a shelf as a grid, with a remembered sort and the filters the Engine returns; sort and filters live in the query string (replaced, never pushed); loads 48 at a time through `wwwroot/js/load-more-observer.js` with a Load more button always under the grid |
 | `/who` | `ProfilePickerPage` | Profile picker |
 | `/setup` | `SetupPage` | First-run setup |
 | `/recently-added` | `RecentlyAddedPage` | Recently added |
 | `/search` | `SearchPage` | Global search |
 | `/view`, `/view/*` (artwork, contributions, documents, folders, galleries, people, places) | `View*Page` | Personal and shared View library |
-| `/downloads` | `DownloadsPage` | Explains downloads live in the Tuvima app |
-| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review lives in `/settings/recently-added` (opened from Library and Ingestion's "View all"); `/settings/review` redirects there |
+| `/downloads` | `DownloadsPage` | Explains downloads live in the Library app |
+| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell; lands on Overview. Needs Review is its own page at `/settings/review` (`NeedsReviewPageContent`, server administrators only, off the menu, opened from the administrator banner); Recently Added is `/settings/recently-added` (opened from a Needs Review row's "Find in recent history" and the old `/operations` links; Library and Ingestion's "View all" opens the Activity log) and holds no review list; the old `?review=expanded` link redirects to `/settings/review` |
 | `/engine-activity-artwork/{key}`, `/engine-activity-export` | `Program.cs` minimal endpoints | Stream the signed-in person's private activity pictures and CSV export from the Engine with that person's own sign-in (never the service credential) |
-| `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion`, `/settings/recently-added`, or for `activity`/`timeline` the Activity log at `/settings/system/logs?tab=events`) |
+| `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion`, `/settings/recently-added`, `/settings/review` for `needs-review`, or for `activity`/`timeline` the Activity log at `/settings/system/logs?tab=events`) |
 | `/design-system/components` | `DesignSystemPreview` | Component preview |
 | `/not-found`, `/Error` | `NotFound`, `Error` | Error pages |
 

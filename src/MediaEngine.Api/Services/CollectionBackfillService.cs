@@ -113,6 +113,7 @@ public sealed class CollectionBackfillService
                         break;
                     case CollectionAssignmentOutcome.SkippedNoWork:
                     case CollectionAssignmentOutcome.SkippedNoShelfIdentity:
+                    case CollectionAssignmentOutcome.SkippedAmbiguousSeries:
                         skipped++;
                         break;
                     case CollectionAssignmentOutcome.Failed:

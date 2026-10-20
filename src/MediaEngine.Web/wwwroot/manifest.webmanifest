@@ -1,6 +1,6 @@
 {
-  "name": "Tuvima Library",
-  "short_name": "Tuvima",
+  "name": "Library",
+  "short_name": "Library",
   "description": "Browse, read, watch and listen to your local media library.",
   "id": "/",
   "start_url": "/",

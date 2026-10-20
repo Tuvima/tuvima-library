@@ -1,0 +1,68 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Activity
+@using MediaEngine.Contracts.Ingestion
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Formatting
+
+@* A short summary of what was fully added, by type, one line a day. Each count opens the Activity log on its Added filter. *@
+<section class="ingestion-added" aria-labelledby="ingestion-added-title">
+    <header>
+        <h2 id="ingestion-added-title">Added</h2>
+        <AppButton Href="@LogRoute" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+    </header>
+    @if (Days.Count == 0)
+    {
+        <p class="ingestion-added__empty">Nothing added in the last @WindowDays days</p>
+    }
+    else
+    {
+        <ul class="ingestion-added__list">
+            @foreach (var day in Days)
+            {
+                <AppRowErrorBoundary @key="day.Date" ItemTitle="@IngestionNowText.DayLabel(day.Date, Today)" ResetKey="@day">
+                    <ChildContent>
+                        <li>
+                            <strong>@IngestionNowText.DayLabel(day.Date, Today):</strong>
+                            @foreach (var (count, position) in Counts(day))
+                            {
+                                <text>@(position == 0 ? " " : ", ")<a href="@LogRoute">@count</a></text>
+                            }
+                        </li>
+                    </ChildContent>
+                    <ErrorContent>
+                        <li data-testid="row-error"><strong>@IngestionNowText.DayLabel(day.Date, Today):</strong> @AppRowErrorBoundary.Headline</li>
+                    </ErrorContent>
+                </AppRowErrorBoundary>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    /// <summary>How many days the Engine's recent-days window covers by default.</summary>
+    private const int WindowDays = 3;
+
+    [Parameter, EditorRequired] public IReadOnlyList<IngestionRecentDayDto> Days { get; set; } = [];
+
+    /// <summary>Today's date; left empty it is read from the clock. Set by tests.</summary>
+    [Parameter] public DateOnly? TodayOverride { get; set; }
+
+    private DateOnly Today => TodayOverride ?? DateOnly.FromDateTime(DateTime.Now);
+
+    private static string LogRoute => SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added);
+
+    // "212 movies", "140 episodes": the Engine's counts for the day, largest first.
+    private static IEnumerable<(string Text, int Position)> Counts(IngestionRecentDayDto day)
+    {
+        var parts = day.TypeCounts
+            .Where(type => type.Count > 0)
+            .Select(type => $"{DisplayFormat.FormatCount(type.Count)} {IngestionNowText.AddedNoun(type.MediaType, type.Count)}")
+            .ToList();
+        if (parts.Count == 0)
+        {
+            parts.Add($"{DisplayFormat.FormatCount(day.TotalCount)} {(day.TotalCount == 1 ? "item" : "items")}");
+        }
+
+        return parts.Select((text, index) => (text, index));
+    }
+}

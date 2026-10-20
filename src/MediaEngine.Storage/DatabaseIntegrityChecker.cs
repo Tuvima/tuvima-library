@@ -78,7 +78,7 @@ internal sealed class DatabaseIntegrityChecker
 
     internal static DatabaseWriteAccessException ReadOnlyDatabase(string databasePath, SqliteException exception) =>
         new(
-            $"Tuvima Library cannot start because the SQLite database '{Path.GetFullPath(databasePath)}' is read-only. " +
-            "Give the Engine process write access to the database file and its parent directory, then start Tuvima again.",
+            $"Library cannot start because the SQLite database '{Path.GetFullPath(databasePath)}' is read-only. " +
+            "Give the Engine process write access to the database file and its parent directory, then start Library again.",
             exception);
 }

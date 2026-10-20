@@ -8,8 +8,9 @@ internal static class ApprovalResponses
 {
     /// <summary>
     /// The approval-required body of a 409, or null when the response is not one (another kind of conflict, or no body).
+    /// A body that looks like one but cannot be read is logged (the error type only, never the body) and counts as not one.
     /// </summary>
-    public static async Task<ApprovalRequiredResponse?> TryReadAsync(HttpResponseMessage response, CancellationToken ct)
+    public static async Task<ApprovalRequiredResponse?> TryReadAsync(HttpResponseMessage response, ILogger? logger, CancellationToken ct)
     {
         if (response.StatusCode != System.Net.HttpStatusCode.Conflict)
         {
@@ -28,18 +29,24 @@ internal static class ApprovalResponses
             var body = JsonSerializer.Deserialize<ApprovalRequiredResponse>(raw);
             return body is { Error: ApprovalErrorCodes.ApprovalRequired, Approvals.Count: > 0 } ? body : null;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return null;
+            return Unreadable(logger, ex);
         }
-        catch (NotSupportedException)
+        catch (NotSupportedException ex)
         {
-            return null;
+            return Unreadable(logger, ex);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            return null;
+            return Unreadable(logger, ex);
         }
+    }
+
+    private static ApprovalRequiredResponse? Unreadable(ILogger? logger, Exception ex)
+    {
+        logger?.LogWarning("The Engine's approval-required reply could not be read ({ErrorType})", ex.GetType().Name);
+        return null;
     }
 }
 

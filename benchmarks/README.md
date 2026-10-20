@@ -83,11 +83,17 @@ Created through the production path (`new DatabaseConnection(path)`, `Initialize
 
 Media types: 30% Books, 20% Movies, 25% TV episodes (20 per show), 15% Music tracks (12 per album), 6% Audiobooks, 4% Comics. Credits are not a table: the display projection derives them from `canonical_value_arrays` and claims, so persons are referenced by name. `search_index` is not populated; none of the five queries touches it.
 
-Seed time on the reference desktop: about 16 s for `full`, under 1 s for `small` and `projection`. Audiobooks carry an explicit original publication year (an identified audiobook normally has one); without it Q4 evaluates a correlated sub-select over the whole credits view for each audiobook.
+Every work is marked Ready (`works.ready_at`), as in a fully processed library: Home, detail and the library list show only Ready works, so without it Home and detail return no rows and look fast.
+
+Seed time on the reference desktop: about 16 s for `full`, under 1 s for `small` and `projection`.
+
+**Audiobooks (since 2026-10-20).** Half of the audiobooks carry their own original publication year (an identified audiobook normally has one). The other half have none, so the display and library list reads borrow the year of the book with the same title and the same author (`MediaDateSql.RelatedBookOriginalYear`), a look-up that reads the whole credits view once per such audiobook. Of the audiobooks without a year, half match a book by title and author (the audiobook's asset and work title are the book's title in upper case with spaces around it, so only `LOWER(TRIM(...))` makes them equal; its `author` credit is the book's author), a quarter match a book's title but have a different author, and a quarter match nothing. At `projection` scale that is 240 audiobooks, 120 without a year, 60 of them matching a book by title and author. **Numbers measured before 2026-10-20 used audiobooks that all had their own year**, so they never exercised this look-up and are not comparable with new ones.
 
 ## Sizing: why Q4 and Q5 do not run at 100,000 works
 
-Measured with `probe` (production Dapper code only, single runs, reference desktop: AMD Ryzen 7 9800X3D, 16 logical cores, other processes running; treat as orders of magnitude):
+Measured with `probe` (production Dapper code only, single runs, reference desktop: AMD Ryzen 7 9800X3D, 16 logical cores, other processes running; treat as orders of magnitude).
+
+**Since 2026-10-19 (library list speed spec):** Q4 no longer grows faster than the library. At 4,000 works, all Ready, `probe --repeat 3` measured Q4 no filter 0.9-1.0 s, Q4 `Movies` 0.29-0.38 s and Q5 Home 6.9-7.6 s. The cause was seven credit look-ups that read every credit of a kind for each item (see `engineering/reports/slow-reads-2026-10.md`); guardrails in `tests/MediaEngine.Performance.Tests/LibraryListGuardrailTests.cs` keep it fixed. Q5 is the subject of the next speed spec. The table below is the earlier measurement, taken before the fix and before Home and detail showed only Ready works:
 
 | Leaf works | Q1 | Q2 | Q3 (first / deep page) | Q4 no filter | Q4 `Movies` | Q5 Home |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -96,7 +102,7 @@ Measured with `probe` (production Dapper code only, single runs, reference deskt
 | 16,000 | 0.07-0.2 s | 0.015-0.04 s | 0.13-0.57 s | 270-470 s | 19-22 s | 16-21 s |
 | 100,000 | 0.08 s | 0.02 s | 2.6-6.5 s | stopped unfinished after 15+ min | not run | 352 s |
 
-Q4 (library items page) and Q5 (Home projection) grow faster than the library: 8x the works (2k to 16k) cost roughly 25-45x for Q4 without a filter. I did not establish why; `explain --query q4` prints SQLite's plan (a materialised credits view and dozens of correlated sub-selects). It is the product's own SQL and both stacks run it identically, so the comparison stays valid, but the benchmark's fixed job (3 warm-up + 15 iterations per variant) would need hours at 100,000 works.
+Before the fix, Q4 (library items page) and Q5 (Home projection) grew faster than the library: 8x the works (2k to 16k) cost roughly 25-45x for Q4 without a filter. The Q4 cause was found later (above); `explain --query q4` prints SQLite's plan (a materialised credits view and dozens of correlated sub-selects). It is the product's own SQL and both stacks run it identically, so the comparison stays valid, but the benchmark's fixed job (3 warm-up + 15 iterations per variant) would need hours at 100,000 works.
 
 **Recommended run** (about 30 minutes of benchmarking plus a few minutes for `concurrency`, estimated from the table):
 
@@ -131,6 +137,33 @@ $RUN clean --db $T/small.db                                 # deletes the db, -w
 ```
 
 Other commands: `probe --db <path> [--ef] [--repeat n] [--only Q1,Q4]` times each query once (sizing aid, not a measurement); `explain --db <path> --query q4|q5` prints SQLite's query plan for a heavy read.
+
+### Before-and-after snapshot (`snapshot` and `compare`)
+
+For speed work that must not change what the product shows (spec `engineering/specs/home-and-detail-speed.md`, D6). `snapshot` calls **production code only** and writes every field of every row it returns to one text file; `compare` checks two such files. Run `snapshot` on the unchanged code to get the "before" file, and again after each change.
+
+```bash
+$RUN snapshot --db $T/projection.db --out $T/before.txt          # all sections
+$RUN snapshot --db $T/projection.db --out $T/part.txt --only home,detail   # only sections whose name starts with one of these
+$RUN compare --before $T/before.txt --after $T/after.txt         # prints "compare passed" and exits 0, or lists differences and exits 1
+```
+
+Keep the snapshot files outside the repository (for example `.tmp/`); they are not committed. `snapshot` prints the time of each section to the console (not to the file). The sections can be slow on the `projection` file before the audiobook year look-up is fixed (the library list and "all works" read run the quadratic look-up).
+
+| Section | Production call |
+|---|---|
+| `home` | `DisplayWorkProjectionReader.LoadAsync(ct, 1000)` (Home's limit) |
+| `all-works` | `LoadAsync(ct)` with no limit; sorted by `WorkId`, `LibraryId`, `AssetId` (its order is not part of the contract) |
+| `recent` | `LoadAsync(ct, groups: new DisplayRecentGroupFilter(rootIds, workIds), lean: true)` for 5 TV show roots, 5 album roots and 10 standalone works |
+| `detail:<label>` | `LoadAsync(ct, detailId: id)` for a `book`, an `audiobook-own-year`, an `audiobook-borrowed-year` (no year of its own, matches a book by title and author), a `tv-episode`, a `music-track`, a `movie`, `series-mates` (a work whose series has other works) and a `person` (first by name with at least three credited items). The chosen id is in the section header. |
+| `tv-skeleton` | the internal `LoadTvEpisodeSkeletonAsync` (read by reflection, as Q5 reads `BuildSql`) for the 5 sampled shows |
+| `library-list` | `LibraryItemRepository.GetPageAsync(new LibraryItemQuery(Limit: 5000, IncludeAll: true))`; the first line is `total=<n>` |
+| `library-detail:<label>` | `LibraryItemRepository.GetDetailAsync(id)` for the same sampled works as `book`, `audiobook-own-year`, `audiobook-borrowed-year`, `tv-episode`, `music-track`, `movie` |
+
+The ids are chosen by SQL over the seeded file (ordered by id, then picked by a fixed stride), so the same seeded file always gives the same samples. Each section starts with `## <name>`, has one line per row, and the file ends with `sha256=<hex>` of everything above it. A row is every public readable property of the row type in declaration order as `name=value`, separated by ` | `: invariant culture, dates as `o`, Guids as `N`, `null` as `<null>`, collections as `[a, b]`, nested objects as `{name=value; ...}`, newlines as `
+`.
+
+**Order and ties (spec D7).** Rows keep the order the reader returned, except that consecutive rows with the same `CreatedAt` are sorted by `WorkId`, `LibraryId`, `AssetId` inside their group before writing, because the data store returns tied rows in whatever order its plan produces. `compare` reports, per section, either "identical" or the first 20 differing lines (as the fields that differ) and the counts of rows only in the before file and only in the after file. For `home` it also recognises the one allowed difference: when the rows that differ are all rows whose `CreatedAt` equals the last row's `CreatedAt` (they tie at the 1,000-row cut-off, so which of them made the cut may change), they are listed as "tie at cut-off" and the section still passes. A row present in both files under the same identity with a changed value is always a difference.
 
 * Stop a running Engine or Dashboard first if binaries are locked; do not kill other `dotnet` processes.
 * `bench` takes any BenchmarkDotNet argument. A quick smoke test: `bench --db <small> --job dry --filter "*LightQuery*"`. The fixed jobs of the Feed and Projection classes still apply on top of `--job dry`; add `--iterationCount 1 --warmupCount 1` to shorten them.

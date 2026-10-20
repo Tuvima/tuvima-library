@@ -699,8 +699,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 6), minmax(5.8rem, 7.3rem))", styles);
         Assert.Contains("grid-template-columns: repeat(var(--series-count, 7), minmax(7.2rem, 9.2rem))", styles);
         Assert.Contains("scrollbar-width: none", styles);
-        Assert.Contains("AreCanonicallyAdjacent(previousItem, item)", source);
-        Assert.Contains("CanonicalSequencePosition", source);
+        // Connectors follow the Engine's order only: no position is parsed out of a label in the browser.
+        Assert.Contains("AreAdjacentInEngineOrder(previousItem, item)", source);
+        Assert.DoesNotContain("CanonicalSequencePosition", source);
+        Assert.DoesNotContain("Regex.Match(label", source);
+        Assert.Contains("Also in this world", source);
         Assert.DoesNotContain("HasExpandableEpisodeDescription", source);
         Assert.DoesNotContain("ToggleEpisodeDescription", source);
         Assert.DoesNotContain("_expandedEpisodeDescriptions", source);

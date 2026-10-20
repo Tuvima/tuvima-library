@@ -1,23 +1,35 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
 
-<div class="ingestion-facets" aria-label="Enrichment status">
-    @foreach (var facet in Facets.Where(facet => !facet.State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase)))
+@* Always five slots in the same order (artwork, text, people, links, lyrics or subtitles) so nothing shifts between rows.
+   A symbol the Engine reports as notApplicable (it does not apply to the item's type) is a dim dash in the same slot; one that
+   applies but has not started is a pending symbol. The tooltip and the accessible name are the same words. *@
+<div class="ingestion-facets" role="group" aria-label="Enrichment status">
+    @foreach (var facet in Facets)
     {
         <span class="ingestion-facets__slot">
-            <AppTooltip Text="@facet.State.Label" Placement="AppPlacement.Top">
-                <span class="ingestion-facet is-@facet.State.State.ToLowerInvariant()" aria-label="@facet.State.Label">
-                    <AppMaterialIcon Icon="@facet.Icon" />
-                    @if (facet.State.State.Equals("active", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <span class="ingestion-facet__spinner" aria-hidden="true"></span>
-                    }
-                    else
-                    {
-                        <AppMaterialIcon Icon="@StateIcon(facet.State.State)" Class="ingestion-facet__state" aria-hidden="true" />
-                    }
-                </span>
-            </AppTooltip>
+            @if (facet.DoesNotApply)
+            {
+                <AppTooltip Text="@DoesNotApplyLabel" Placement="AppPlacement.Top">
+                    <span class="ingestion-facet is-none" role="img" aria-label="@DoesNotApplyLabel"><span aria-hidden="true">&ndash;</span></span>
+                </AppTooltip>
+            }
+            else
+            {
+                <AppTooltip Text="@facet.Label" Placement="AppPlacement.Top">
+                    <span class="ingestion-facet is-@facet.State.State.ToLowerInvariant()" role="img" aria-label="@facet.Label">
+                        <AppMaterialIcon Icon="@facet.Icon" aria-hidden="true" />
+                        @if (facet.State.State.Equals("active", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="ingestion-facet__spinner" aria-hidden="true"></span>
+                        }
+                        else if (!facet.State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <AppMaterialIcon Icon="@StateIcon(facet.State.State)" Class="ingestion-facet__state" aria-hidden="true" />
+                        }
+                    </span>
+                </AppTooltip>
+            }
         </span>
     }
 </div>
@@ -25,13 +37,35 @@
 @code {
     [Parameter, EditorRequired] public IngestionMediaGroupDto Item { get; set; } = new();
 
-    private IReadOnlyList<(string Icon, IngestionFacetStateDto State)> Facets =>
+    private sealed record Facet(string Name, string Icon, IngestionFacetStateDto State)
+    {
+        public bool DoesNotApply => State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase);
+        public string Label => string.IsNullOrWhiteSpace(State.Label) ? Name : State.Label;
+    }
+
+    private string DoesNotApplyLabel => $"Doesn't apply to {PluralType(Item.MediaType)}";
+
+    // The type as a plural noun for the dash's tooltip: "Doesn't apply to books".
+    private static string PluralType(string mediaType) => mediaType switch
+    {
+        "Books" => "books",
+        "Audiobooks" => "audiobooks",
+        "Comics" => "comics",
+        "Movies" => "movies",
+        "TV" => "TV shows",
+        "Music" => "music",
+        _ => IngestionMediaCard.FriendlyType(mediaType).ToLowerInvariant(),
+    };
+
+    private IReadOnlyList<Facet> Facets =>
     [
-        (AppMaterialIcons.Outlined.Image, Item.Artwork),
-        (AppMaterialIcons.Outlined.Description, Item.Metadata),
-        (AppMaterialIcons.Outlined.Groups, Item.People),
-        (AppMaterialIcons.Outlined.AccountTree, Item.Relationships),
-        (Item.MediaType == "Music" ? AppMaterialIcons.Outlined.Lyrics : AppMaterialIcons.Outlined.ClosedCaption, Item.TextTracks),
+        new("Artwork", AppMaterialIcons.Outlined.Image, Item.Artwork),
+        new("Text", AppMaterialIcons.Outlined.Description, Item.Metadata),
+        new("People", AppMaterialIcons.Outlined.Groups, Item.People),
+        new("Links", AppMaterialIcons.Outlined.AccountTree, Item.Relationships),
+        new(Item.MediaType == "Music" ? "Lyrics" : "Subtitles",
+            Item.MediaType == "Music" ? AppMaterialIcons.Outlined.Lyrics : AppMaterialIcons.Outlined.ClosedCaption,
+            Item.TextTracks),
     ];
 
     private static string StateIcon(string state) => state.ToLowerInvariant() switch

@@ -1,0 +1,18 @@
+== requests ==
+GET https://comicvine.gamespot.com/api/search/?query=Akira%20Vol.%201&resources=issue&limit=10&format=json
+GET https://comicvine.gamespot.com/api/search/?query=Akira&resources=volume&limit=25&format=json
+GET https://comicvine.gamespot.com/api/search/?query=Akira&resources=volume&limit=25&format=json
+GET https://comicvine.gamespot.com/api/issues/?filter=volume:555,issue_number:1&format=json
+GET https://comicvine.gamespot.com/api/volume/4050-555/?format=json
+GET https://comicvine.gamespot.com/api/issues/?filter=volume:555&field_list=id%2Cissue_number%2Cname%2Ccover_date%2Csite_detail_url%2Cvolume&limit=100&offset=0&format=json
+== claims ==
+title=Akira@0.7
+issue_title=Akira@0.95
+sequence_total=6@0.9
+sequence_total_scope=MainSequence@0.9
+comic_vine_volume_id=555@0.95
+series=Akira@0.9
+issue_number=1@0.72
+series_position=1@0.72
+series_start_year=1982@0.85
+publisher=Kodansha@0.8

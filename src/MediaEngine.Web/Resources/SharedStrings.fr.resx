@@ -168,16 +168,16 @@
     <value>Rubriques</value>
   </data>
   <data name="Downloads_NativeAppTitle" xml:space="preserve">
-    <value>Les téléchargements se font dans l’app Tuvima</value>
+    <value>Les téléchargements se font dans l’app Library</value>
   </data>
   <data name="Downloads_NativeAppMessage" xml:space="preserve">
-    <value>Téléchargez films, séries, livres et musique dans l’app Tuvima pour en profiter hors connexion.</value>
+    <value>Téléchargez films, séries, livres et musique dans l’app Library pour en profiter hors connexion.</value>
   </data>
   <data name="TopBar_SignedInAs" xml:space="preserve">
     <value>Connecté en tant que</value>
   </data>
   <data name="TopBar_ServiceUnavailable" xml:space="preserve">
-    <value>Tuvima est temporairement indisponible.</value>
+    <value>Library est temporairement indisponible.</value>
   </data>
   <data name="TopBar_LiveUpdatesConnected" xml:space="preserve">
     <value>Mises à jour en direct connectées</value>
@@ -488,9 +488,6 @@
   <data name="Schedule_ItemsEnriched" xml:space="preserve">
     <value>éléments enrichis</value>
   </data>
-  <data name="Schedule_ItemsPending" xml:space="preserve">
-    <value>éléments en attente - traités en lots en arrière-plan</value>
-  </data>
   <data name="Schedule_AllItemsEnriched" xml:space="preserve">
     <value>Tous les éléments enrichis</value>
   </data>
@@ -785,7 +782,7 @@
     <value>Utilisateurs &amp; Profils</value>
   </data>
   <data name="Users_PageDescription" xml:space="preserve">
-    <value>Gérez les profils ayant accès à cette instance de Tuvima Library. Le profil racine (Propriétaire) ne peut pas être supprimé.</value>
+    <value>Gérez les profils ayant accès à cette instance de Library. Le profil racine (Propriétaire) ne peut pas être supprimé.</value>
   </data>
   <data name="Users_NewProfile" xml:space="preserve">
     <value>Nouveau profil</value>
@@ -1275,9 +1272,6 @@
   <data name="Wikidata_Stage3Schedule" xml:space="preserve">
     <value>Planification</value>
   </data>
-  <data name="Wikidata_Stage3BatchSize" xml:space="preserve">
-    <value>Taille du lot</value>
-  </data>
   <data name="Wikidata_Stage3BatchSizeHelper" xml:space="preserve">
     <value>Nombre maximum d'œuvres traitées par balayage.</value>
   </data>
@@ -1359,7 +1353,7 @@
     <value>Skip to main content</value>
   </data>
   <data name="TopBar_ServiceDegradedBanner" xml:space="preserve">
-    <value>Certains services Tuvima sont temporairement indisponibles.</value>
+    <value>Certains services Library sont temporairement indisponibles.</value>
   </data>
   <data name="Listen_MiniPlayerTitle" xml:space="preserve">
     <value>Mini Player</value>

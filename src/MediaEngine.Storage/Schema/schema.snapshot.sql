@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0012 approval_records).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0017 approval_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -244,8 +244,8 @@ CREATE TABLE applications (
 
 CREATE TABLE approval_records (
     id                          BLOB NOT NULL PRIMARY KEY,
-    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application_credential | webhook
-    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id or webhook id
+    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application | application_credential | webhook
+    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id, application id or webhook id
     statement_hash              TEXT NOT NULL,   -- SHA-256, lower-case hex, of the canonical statement
     statement_json              TEXT NOT NULL,   -- the statement as shown (title, can-do lines, data out, notes); never a secret value
     approved_by_account_id      BLOB NULL,       -- the account that confirmed; NULL when an application confirmed
@@ -573,7 +573,21 @@ CREATE TABLE collections (
     wikidata_qid      TEXT,
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT);
+, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT);
+
+CREATE TABLE companion_sessions (
+    profile_id              BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    companion_device_id     TEXT NOT NULL,
+    mode                    TEXT NOT NULL CHECK (mode IN ('follow','manual')),
+    followed_device_id      TEXT,
+    manual_work_id          BLOB REFERENCES works(id) ON DELETE CASCADE,
+    manual_chapter_index    INTEGER CHECK (manual_chapter_index IS NULL OR manual_chapter_index >= 0),
+    manual_position_seconds REAL CHECK (manual_position_seconds IS NULL OR manual_position_seconds >= 0),
+    updated_at              TEXT NOT NULL,
+    PRIMARY KEY (profile_id, companion_device_id),
+    CHECK ((mode = 'follow' AND followed_device_id IS NOT NULL AND manual_work_id IS NULL)
+        OR (mode = 'manual' AND manual_work_id IS NOT NULL AND followed_device_id IS NULL))
+);
 
 CREATE TABLE consumption_history (
     id BLOB PRIMARY KEY,
@@ -936,6 +950,22 @@ CREATE TABLE entity_relationships (
     discovered_at           TEXT NOT NULL,
     start_time              TEXT,
     end_time                TEXT
+);
+
+CREATE TABLE excluded_source_files (
+    id                     BLOB NOT NULL PRIMARY KEY,
+    library_id             TEXT NOT NULL,
+    source_id              TEXT NOT NULL,
+    relative_path          TEXT NOT NULL,
+    content_hash           TEXT,                -- SHA-256 hex of the deleted title's media asset
+    file_size              INTEGER,
+    last_write_utc         TEXT,                -- ISO 8601 UTC
+    title                  TEXT,
+    excluded_at            TEXT NOT NULL,       -- ISO 8601 UTC
+    excluded_by_account_id BLOB,
+    excluded_by_name       TEXT,
+    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed')),
+    UNIQUE (source_id, relative_path)
 );
 
 CREATE TABLE fictional_entities (
@@ -1786,6 +1816,20 @@ CREATE TABLE playback_telemetry_sessions (
         OR (ended_at IS NOT NULL AND completion_reason IS NOT NULL AND state IN('stopped','completed')))
 );
 
+CREATE TABLE player_device_states (
+    profile_id        BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    device_id         TEXT NOT NULL,
+    client            TEXT NOT NULL,
+    player_session_id BLOB,
+    asset_id          BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    work_id           BLOB REFERENCES works(id) ON DELETE SET NULL,
+    playback_state    TEXT NOT NULL CHECK (playback_state IN ('playing','paused','ended')),
+    position_seconds  REAL NOT NULL DEFAULT 0 CHECK (position_seconds >= 0),
+    duration_seconds  REAL CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+    updated_at        TEXT NOT NULL,
+    PRIMARY KEY (profile_id, device_id)
+);
+
 CREATE TABLE player_queue_items (
     id               BLOB NOT NULL PRIMARY KEY,
     profile_id       BLOB NOT NULL REFERENCES player_sessions(profile_id) ON DELETE CASCADE,
@@ -1914,6 +1958,14 @@ CREATE TABLE profile_credentials (
     updated_at           TEXT NOT NULL,
     last_used_at         TEXT,
     UNIQUE(profile_id, credential_kind)
+);
+
+CREATE TABLE profile_grid_preferences (
+    profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
+    sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
+    updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, grid_key)
 );
 
 CREATE TABLE profile_notice_dismissals (
@@ -2164,8 +2216,8 @@ CREATE TABLE search_results_cache (
     searched_at  TEXT NOT NULL
 );
 
-CREATE TABLE series_manifest_hydrations (
-    series_qid            TEXT PRIMARY KEY,
+CREATE TABLE "series_manifest_hydrations" (
+    series_qid            TEXT NOT NULL,
     collection_id         BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     series_label          TEXT,
     manifest_source       TEXT NOT NULL DEFAULT 'Tuvima.Wikidata',
@@ -2176,7 +2228,8 @@ CREATE TABLE series_manifest_hydrations (
     api_metadata_json     TEXT NOT NULL DEFAULT '{}',
     last_hydrated_at      TEXT NOT NULL,
     created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (collection_id, series_qid)
 );
 
 CREATE TABLE series_manifest_items (
@@ -2659,9 +2712,6 @@ CREATE INDEX idx_canonical_value_arrays_key_value_entity
 CREATE INDEX idx_canonical_values_artwork_scored ON canonical_values (last_scored_at)
     WHERE key IN ('cover_state', 'cover_url', 'artwork_settled_at');
 
-CREATE INDEX idx_canonical_values_entity_key
-    ON canonical_values(entity_id, key);
-
 CREATE INDEX idx_canonical_values_key_value_entity
     ON canonical_values(key, value, entity_id);
 
@@ -2706,6 +2756,8 @@ CREATE INDEX idx_collections_collection_type ON collections(collection_type);
 CREATE INDEX idx_collections_resolution ON collections(resolution);
 
 CREATE INDEX idx_collections_rule_hash ON collections(rule_hash);
+
+CREATE INDEX idx_collections_series_identity ON collections(wikidata_qid, media_type);
 
 CREATE INDEX idx_cva_key_qid
     ON canonical_value_arrays(key, value_qid);
@@ -2791,6 +2843,8 @@ CREATE INDEX idx_events_occurred ON entity_events(occurred_at);
 CREATE INDEX idx_events_provider ON entity_events(provider_id);
 
 CREATE INDEX idx_events_type ON entity_events(event_type);
+
+CREATE INDEX idx_excluded_source_files_library ON excluded_source_files(library_id);
 
 CREATE INDEX idx_fewl_entity_work
     ON fictional_entity_work_links (entity_id, work_qid);
@@ -3059,8 +3113,7 @@ CREATE INDEX idx_review_queue_status
 CREATE INDEX idx_review_queue_status_entity_ready
     ON review_queue(status, entity_id, review_ready_at);
 
-CREATE INDEX idx_series_manifest_hydrations_collection
-    ON series_manifest_hydrations(collection_id);
+CREATE INDEX idx_series_manifest_hydrations_series_qid ON series_manifest_hydrations(series_qid);
 
 CREATE INDEX idx_series_manifest_items_collection
     ON series_manifest_items(collection_id);

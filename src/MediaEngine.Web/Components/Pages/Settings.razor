@@ -200,10 +200,13 @@ else
                                 <LibrariesTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Ingestion:
-                                <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
+                                <IngestionTasksTab View="@IngestionView" />
                                 break;
                             case SettingsSection.RecentlyAdded:
-                                <RecentlyAddedPageContent ReviewState="@ReviewState" InitialSearch="@RecentSearch" />
+                                <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
+                                break;
+                            case SettingsSection.Review:
+                                <NeedsReviewPageContent InitialSearch="@RecentSearch" />
                                 break;
                             case SettingsSection.DevHarness:
                                 @RenderInternalTool(
@@ -269,8 +272,6 @@ else
         }
     }
     [SupplyParameterFromQuery(Name = "view")] public string? IngestionView { get; set; }
-    [SupplyParameterFromQuery(Name = "itemId")] public Guid? IngestionItemId { get; set; }
-    [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? LogsTab { get; set; }
     [SupplyParameterFromQuery(Name = "filter")] public string? LogsFilter { get; set; }
@@ -312,9 +313,6 @@ else
     private bool _thisComputerOnly;
     private bool ShowSecurityAttentionDot => _thisComputerOnly && !Notices.IsDismissed(AccountNoticeKeys.SecureAccount);
     private void OnNoticesChanged() => _ = InvokeAsync(StateHasChanged);
-    private Guid? _loadedBreadcrumbBatchId;
-    private string? _batchBreadcrumbLabel;
-    private int _breadcrumbLoadRevision;
     private SettingsMenuContext MenuContext => new(
         CanManageAdministration,
         CanManageHousehold,
@@ -339,12 +337,12 @@ else
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
     private string BrowserTitle => IsProfileDetailRoute
-        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
+        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Tuvima Library"
+        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Library"
         : CurrentLocation?.Parent is { } parent
-        ? $"{GetHeroTitle()} - {parent.Label} - Tuvima Library"
-        : $"{GetHeroTitle()} - Tuvima Library";
+        ? $"{GetHeroTitle()} - {parent.Label} - Library"
+        : $"{GetHeroTitle()} - Library";
     private bool ShouldDeferForRoleResolution =>
         SettingsNav.GetItem(_activeSection).AdminOnly
         && !_profileRoleLoaded;
@@ -452,7 +450,6 @@ else
         }
 
         _scrollToTopPending = true;
-        await LoadBatchBreadcrumbAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -588,14 +585,22 @@ else
 
         if (!_legacyRedirectIssued
             && Section is not null
-            && (Section.Equals("review", StringComparison.OrdinalIgnoreCase)
-                || Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
+            && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
                 || Section.Equals("timeline", StringComparison.OrdinalIgnoreCase)))
         {
             _legacyRedirectIssued = true;
-            Nav.NavigateTo(Section.Equals("review", StringComparison.OrdinalIgnoreCase)
-                ? "/settings/recently-added?review=expanded"
-                : "/settings/recently-added", replace: true);
+            Nav.NavigateTo("/settings/recently-added", replace: true);
+            return;
+        }
+
+        // Needs Review has its own page now; the old Recently Added link that opened its collapsed block lands there.
+        if (!_legacyRedirectIssued
+            && Section is not null
+            && Section.Equals("recently-added", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(ReviewState, "expanded", StringComparison.OrdinalIgnoreCase))
+        {
+            _legacyRedirectIssued = true;
+            Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Review), replace: true);
             return;
         }
 
@@ -830,36 +835,6 @@ else
         return breadcrumbs;
     }
 
-    private async Task LoadBatchBreadcrumbAsync()
-    {
-        if (_activeSection != SettingsSection.Ingestion || IngestionRunId is not { } batchId)
-        {
-            _loadedBreadcrumbBatchId = null;
-            _batchBreadcrumbLabel = null;
-            return;
-        }
-
-        if (_loadedBreadcrumbBatchId == batchId)
-            return;
-
-        var revision = ++_breadcrumbLoadRevision;
-        _loadedBreadcrumbBatchId = batchId;
-        _batchBreadcrumbLabel = "Selected batch";
-        try
-        {
-            var batch = await Orchestrator.GetActivityBatchAsync(batchId);
-            if (revision != _breadcrumbLoadRevision || batch is null)
-                return;
-
-            var started = batch.StartedAt.ToLocalTime();
-            _batchBreadcrumbLabel = $"{IngestionBatchDisplay.Title(batch)} · {started:MMM d, yyyy, h:mm tt}";
-        }
-        catch
-        {
-            // The detail view owns its unavailable state; retain a stable breadcrumb fallback.
-        }
-    }
-
     private string GetDetailBreadcrumbLabel() => _activeSection switch
     {
         SettingsSection.Providers => Detail!.ToUpperInvariant(),
@@ -882,7 +857,7 @@ else
     private string GetSectionDescription(SettingsSection section) => section switch
     {
         SettingsSection.Overview => _activeSubsection == SettingsNav.AppsSubsection
-            ? "Install the Tuvima app on your phone or TV and connect it to this server."
+            ? "Install the Library app on your phone or TV and connect it to this server."
             : _activeSubsection == SettingsNav.ActivitySubsection
                 ? "Everything you have watched, listened to and read, and what you added to My list."
             : _activeSubsection == SettingsNav.TasteSubsection
@@ -896,7 +871,7 @@ else
         SettingsSection.Listening => "How you listen.",
         SettingsSection.Reading => "How you read.",
         SettingsSection.Security => _activeSubsection == "devices"
-            ? "The phones, TVs and browsers signed in to Tuvima, and who they belong to."
+            ? "The phones, TVs and browsers signed in to Library, and who they belong to."
             : "Password, email and extra protection.",
         SettingsSection.AdminOverview => _activeSubsection == SettingsNav.LogsSubsection
             ? "What the Library did, the Engine's technical log, and how long logs are kept."
@@ -904,7 +879,7 @@ else
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
-        SettingsSection.Network => "Manage how devices reach Tuvima Library at home and away without exposing unnecessary technical detail.",
+        SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Development builds only: reset, seed or rescan the test library.",
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
@@ -925,12 +900,12 @@ else
         SettingsSection.Tools => "See the tools and downloads the Library relies on, what each one affects, and fix anything that is missing.",
         SettingsSection.Access => _activeSubsection switch
         {
-            "applications" => "Credentials and webhooks that let other software use Tuvima Library.",
+            "applications" => "Credentials and webhooks that let other software use Library.",
             "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
             _ => "Accounts, roles and invitations: who can sign in and what they can use.",
         },
-        SettingsSection.Server => "Protect your Tuvima Library configuration and recover it when needed.",
-        SettingsSection.Review => "Resolve items Tuvima Library could not identify confidently.",
+        SettingsSection.Server => "Protect your Library configuration and recover it when needed.",
+        SettingsSection.Review => "Resolve items Library could not identify confidently.",
         SettingsSection.ProviderTester => "Try a search against each metadata provider and see what comes back.",
         // Temporary: the Enrichment Tester is removed at beta (Developer tools spec, section 4).
         SettingsSection.EnrichmentTester => "Development builds only: run one item through enrichment step by step.",

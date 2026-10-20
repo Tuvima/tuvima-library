@@ -38,19 +38,20 @@ public static class ReviewIssuePresentationBuilder
 
     private static string Summary(ReviewItemViewModel item, string media, string fallback) => item.Trigger switch
     {
-        "RetailMatchFailed" => $"Tuvima Library searched the configured providers but couldn't confirm a reliable match for this {media}, so it wasn't linked automatically.",
-        "RetailMatchAmbiguous" => $"Tuvima Library found more than one possible match for this {media} and couldn't safely choose between them.",
+        "RetailMatchFailed" => $"Library searched the configured providers but couldn't confirm a reliable match for this {media}, so it wasn't linked automatically.",
+        "RetailMatchAmbiguous" => $"Library found more than one possible match for this {media} and couldn't safely choose between them.",
         "MovieMatchedAsTv" => "No movie matched this file, but TMDB lists a TV series with the same title and year. It stays in Movies with its file details until you decide.",
-        "FromMerge" => $"This {media} came from a folder merge, but Tuvima Library could not name it yet. It was put in the From merge folder and is waiting for you to confirm what it is.",
-        "NameCollision" => $"While Tuvima Library organised this folder, another file already had the standard name for this {media}. Neither was overwritten; this one kept a numbered name.",
-        "PlaceholderTitle" => $"Tuvima Library could not find enough identifying information in this {media} to search for it reliably.",
-        "StagedUnidentifiable" => $"Tuvima Library could not determine a reliable identity for this {media}, so it stopped before organizing it.",
-        "MissingQid" or "WikidataBridgeFailed" => $"The retail edition was identified, but Tuvima Library couldn't determine the shared canonical identity for this {media}.",
-        "MultipleQidMatches" => $"Tuvima Library found several possible canonical identities for this {media} and needs you to choose the correct one.",
-        "MetadataConflict" => $"Tuvima Library found conflicting metadata for this {media} and could not safely choose which value to keep.",
-        "AmbiguousMediaType" or "RootWatchFolder" => "Tuvima Library could not confidently decide which part of the library this file belongs in.",
-        "WritebackFailed" => "Tuvima Library identified this item, but could not save the updated metadata to its physical file.",
+        "FromMerge" => $"This {media} came from a folder merge, but Library could not name it yet. It was put in the From merge folder and is waiting for you to confirm what it is.",
+        "NameCollision" => $"While Library organised this folder, another file already had the standard name for this {media}. Neither was overwritten; this one kept a numbered name.",
+        "PlaceholderTitle" => $"Library could not find enough identifying information in this {media} to search for it reliably.",
+        "StagedUnidentifiable" => $"Library could not determine a reliable identity for this {media}, so it stopped before organizing it.",
+        "MissingQid" or "WikidataBridgeFailed" => $"The retail edition was identified, but Library couldn't determine the shared canonical identity for this {media}.",
+        "MultipleQidMatches" => $"Library found several possible canonical identities for this {media} and needs you to choose the correct one.",
+        "MetadataConflict" => $"Library found conflicting metadata for this {media} and could not safely choose which value to keep.",
+        "AmbiguousMediaType" or "RootWatchFolder" => "Library could not confidently decide which part of the library this file belongs in.",
+        "WritebackFailed" => "Library identified this item, but could not save the updated metadata to its physical file.",
         "MediaInspectionFailed" => $"This {media} couldn't be read. It may be damaged or incomplete.",
+        "AmbiguousSeriesMembership" => $"Wikidata lists this {media} in the main sequence of more than one Series and nothing separates them, so Library did not guess. It is not on any Series for now.",
         _ => fallback,
     };
 
@@ -69,6 +70,7 @@ public static class ReviewIssuePresentationBuilder
         "AmbiguousMediaType" or "RootWatchFolder" => "The correct media type could not be determined",
         "WritebackFailed" => "Updated metadata could not be written to the file",
         "MediaInspectionFailed" => "The file couldn't be read",
+        "AmbiguousSeriesMembership" => "More than one Series claims this",
         _ => ReviewIssueClassifier.Classify(item.Trigger).Explanation,
     };
 
@@ -90,6 +92,7 @@ public static class ReviewIssuePresentationBuilder
             "WritebackFailed" => new[] { "The metadata write operation failed after the configured retry attempts." },
             "MediaInspectionFailed" => new[] { "The media tool is working, but it could not read this file's details." },
             "LanguageMismatch" => new[] { "The embedded language conflicts with the configured library language." },
+            "AmbiguousSeriesMembership" => new[] { "Two Series of the same kind of media both list it in their main sequence, and neither is more specific." },
             _ => new[] { $"The ingestion pipeline could not safely complete the decision for this {media}." },
         };
 
@@ -126,14 +129,15 @@ public static class ReviewIssuePresentationBuilder
         "RetailMatchFailed" => $"Search for the correct retail record. Adding {IdentityHints(item.MediaType)} may improve the results.",
         "RetailMatchAmbiguous" => $"Compare the possible matches using {IdentityHints(item.MediaType)} and choose the record that represents this {media}.",
         "MovieMatchedAsTv" => "Choose Move to TV to file it under the TV show as a special, Search again to look for a different match, or Keep as unmatched film.",
-        "FromMerge" => "Confirm what this is (search for the right match, or add the missing details). Once it is confirmed, Tuvima Library names it and files it in the target folder.",
+        "FromMerge" => "Confirm what this is (search for the right match, or add the missing details). Once it is confirmed, Library names it and files it in the target folder.",
         "NameCollision" => "Check whether these are two different versions (for example a theatrical and an extended cut) or one is a wrong match, then rename or fix the match.",
-        "PlaceholderTitle" or "StagedUnidentifiable" => $"Add the missing {IdentityHints(item.MediaType)} so Tuvima Library can search again.",
+        "PlaceholderTitle" or "StagedUnidentifiable" => $"Add the missing {IdentityHints(item.MediaType)} so Library can search again.",
         "MissingQid" or "WikidataBridgeFailed" or "MultipleQidMatches" => "Search for the shared work or person identity while keeping the confirmed retail edition unchanged.",
-        "MetadataConflict" => $"Compare the conflicting values using {IdentityHints(item.MediaType)} and choose which information Tuvima Library should keep.",
-        "AmbiguousMediaType" or "RootWatchFolder" => "Choose the correct media type so Tuvima Library can continue with the appropriate matching workflow.",
+        "MetadataConflict" => $"Compare the conflicting values using {IdentityHints(item.MediaType)} and choose which information Library should keep.",
+        "AmbiguousMediaType" or "RootWatchFolder" => "Choose the correct media type so Library can continue with the appropriate matching workflow.",
         "WritebackFailed" => "Check that the file is available and writable, then retry saving its metadata.",
         "MediaInspectionFailed" => "Check that the file plays on your computer. If it is damaged, replace it with a good copy.",
+        "AmbiguousSeriesMembership" => $"Open this {media} and use Matching to choose the Series it belongs to. Until then it is not on either Series.",
         _ => "Open the focused review to inspect the available evidence and make the missing decision.",
     };
 
@@ -200,7 +204,9 @@ public static class ReviewIssuePresentationBuilder
             "duration_sec" => numeric,
             _ => 0,
         };
-        if (seconds <= 0)
+        // A detected value that is not a real length of time (NaN, infinity, or more than a TimeSpan can hold) is shown as
+        // detected; TimeSpan.FromSeconds throws on those and one bad fact must not stop the whole Needs Review page.
+        if (seconds <= 0 || !double.IsFinite(seconds) || seconds >= TimeSpan.MaxValue.TotalSeconds)
         {
             return value;
         }

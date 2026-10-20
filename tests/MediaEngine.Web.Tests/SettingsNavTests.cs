@@ -408,9 +408,9 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void EveryPage_ExceptNeedsReview_HasARowInTheGroupItsDefinitionNames()
+    public void EveryPage_IncludingTheOffMenuOnes_ResolvesToTheGroupItsDefinitionNames()
     {
-        foreach (var item in SettingsNav.AllItems.Where(item => item.Value != SettingsSection.Review))
+        foreach (var item in SettingsNav.AllItems)
         {
             var location = SettingsNav.FindMenuLocation(item.Value);
             Assert.NotNull(location);
@@ -418,7 +418,8 @@ public sealed class SettingsNavTests
             Assert.Equal(item.Label, location.Node.Label);
         }
 
-        Assert.Null(SettingsNav.FindMenuLocation(SettingsSection.Review));
+        // Needs Review is off the menu, so it resolves through its parent: Server, Library and Ingestion, Needs Review.
+        Assert.Equal(["Library and Ingestion", "Needs Review"], SettingsNav.FindMenuLocation(SettingsSection.Review)!.Trail.Select(node => node.Label));
     }
 
     [Fact]
@@ -687,7 +688,7 @@ public sealed class SettingsNavTests
         Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("- Profiles - Tuvima Library", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Profiles - Library", settingsSource, StringComparison.Ordinal);
         // A non-id subsection still goes through the normal lookup, which only knows Households for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);

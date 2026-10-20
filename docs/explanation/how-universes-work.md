@@ -19,6 +19,14 @@ Book, movie, and audiobook series normally need at least two distinct owned work
 
 Local or provider metadata can establish a shelf even when Wikidata cannot resolve an identity. A useful lane group does not require a broader universe.
 
+### How a Series is told apart, numbered and ordered
+
+A Series is identified by its Wikidata Series plus its kind of media. The Expanse novels, the Expanse audiobooks and the Expanse TV show are three separate Series, never merged, even though they share a name. When there is no Wikidata identity, the Series falls back to the retail name for that kind of media.
+
+Each Series shows its own numbering, and decimal positions are kept as the source gives them (1, 1.5, 2). Only the main sequence is numbered and counted in "x of y". Novellas, short fiction and other collected or companion works that Wikidata lists for the same world appear in a separate **Also in this world** row under the Series, never inside the numbered run. Works with no position stay in the Series after the numbered run, unnumbered.
+
+The shelf, the item page and the apps all use the same order: Wikidata's position first, then the position the work carries itself, then its date, then its title. A work is placed in one Series by one rule, so reprocessing the library never moves a sibling to a different shelf. If Wikidata puts a work in the main sequence of two different Series and nothing tells them apart, the work waits in **Needs Review** instead of being guessed into one.
+
 ## Understand broader Collections
 
 Automatic Collections need trusted shared series, franchise, or universe evidence. They connect at least two distinct lower-level groups, or a trusted series containing distinct owned titles across multiple lanes.
@@ -26,6 +34,12 @@ Automatic Collections need trusted shared series, franchise, or universe evidenc
 Owning several Matrix films creates a Watch series shelf. It does not also create a top-level collection just to repeat that shelf. Related Middle-earth book and movie shelves can support a broader collection when trusted relationships connect them.
 
 Several formats of the same work remain variants. An ebook and audiobook alone do not create a collection, nor do same-title formats become separate owned story installments.
+
+## Find and read a Universe
+
+A Universe is the larger world several of your Series belong to. Open **Collections** and choose the **Universes** group, search for it by name, or follow the quiet "Part of the … Universe" line on a title that belongs to one (it appears when you own two or more Series, or two or more formats, in that Universe).
+
+The Universe page shows its name and how much of it you own, then each Series in order with "Also in this world" underneath, any standalone works, and a Connections section listing the people who appear across formats and what was adapted from what. Entries you do not own can be shown as dashed "Not in library" placeholders in their place if you chose to see missing entries for that Series; otherwise only a quiet count is shown. While the Library is still learning about a Universe the page says so and shows how far it has got, rather than inventing connections. On a computer, Connections links to the explorer for paths between characters and the family tree.
 
 ## Build your own collections separately
 

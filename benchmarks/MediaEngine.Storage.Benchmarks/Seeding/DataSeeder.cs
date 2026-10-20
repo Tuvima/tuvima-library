@@ -118,7 +118,18 @@ internal static class DataSeeder
             {
                 connection.Execute(ArtworkSql, new { artwork }, transaction, commandTimeout: 0);
                 connection.Execute(ReviewAndJobsSql, null, transaction, commandTimeout: 0);
-                connection.Execute("DROP TABLE seed_owner; DROP TABLE seed_leaf;", null, transaction);
+                connection.Execute("DROP TABLE seed_audio_match; DROP TABLE seed_owner; DROP TABLE seed_leaf;", null, transaction);
+            });
+
+            RunStep(connection, timer, "mark every work Ready", transaction =>
+            {
+                // Home, detail and the library list show only Ready works. A fully processed real library has every work
+                // Ready, so the seed matches it; without this Home and detail return no rows and look fast.
+                connection.Execute(
+                    "UPDATE works SET ready_at = '2026-01-01T00:00:00Z' WHERE ready_at IS NULL;",
+                    null,
+                    transaction,
+                    commandTimeout: 0);
             });
         }
 
@@ -298,6 +309,21 @@ internal static class DataSeeder
             is_parent INTEGER NOT NULL);
         INSERT INTO seed_owner SELECT work_id, seq, media_type, 0 FROM seed_leaf WHERE parent_id IS NULL;
         INSERT INTO seed_owner SELECT parent_id, MIN(seq), media_type, 1 FROM seed_leaf WHERE parent_id IS NOT NULL GROUP BY parent_id;
+
+        -- Audiobook classes (cls = dense audiobook index % 8). 0-3 (half) keep their own original year. 4-5 (a quarter of all)
+        -- have no year, a book's title (case and spacing differ) and that book's author. 6 (an eighth) has no year and a book's
+        -- title but a different author. 7 (an eighth) has no year and matches nothing. book_seq is the book a class 4-6
+        -- audiobook is paired with, spread over all books with a fixed stride. See the comment on CanonicalValuesSql.
+        CREATE TEMP TABLE seed_audio_match (
+            audio_seq INTEGER PRIMARY KEY,
+            cls INTEGER NOT NULL,
+            book_seq INTEGER NOT NULL);
+        WITH a AS (SELECT seq, ROW_NUMBER() OVER (ORDER BY seq) - 1 AS ai FROM seed_leaf WHERE media_type = 'Audiobooks'),
+        bk AS (SELECT seq, ROW_NUMBER() OVER (ORDER BY seq) - 1 AS bi FROM seed_leaf WHERE media_type = 'Books'),
+        nb AS (SELECT COUNT(*) AS n FROM bk)
+        INSERT INTO seed_audio_match (audio_seq, cls, book_seq)
+        SELECT a.seq, a.ai % 8, bk.seq
+        FROM a CROSS JOIN nb INNER JOIN bk ON bk.bi = (a.ai * 7) % nb.n;
         """;
 
     private static readonly string WorksSql = $"""
@@ -336,13 +362,19 @@ internal static class DataSeeder
         FROM seed_leaf;
         """;
 
-    // Audiobooks carry an explicit original publication year, as an identified audiobook normally does (retail or Wikidata
-    // match). Without one, the Q4 projection evaluates a correlated sub-select over the whole primary_person_media_credits
-    // view for that audiobook (visible in 'explain --query q4'). This is a realism choice; it does not make Q4 scale
-    // linearly (README, "Sizing").
+    // Audiobooks: half carry their own original publication year (an identified audiobook normally does, from a retail or
+    // Wikidata match). The other half have none (since 2026-10-20; before that every audiobook had a year, so numbers measured
+    // earlier never exercised the look-up below). Without a year the display and library list reads borrow the year of the
+    // book with the same title and the same author (MediaDateSql.RelatedBookOriginalYear): of the audiobooks without a year,
+    // half match a book by title (case and surrounding spaces differ) and by author, a quarter match a book's title but have a
+    // different author, and a quarter match nothing. That look-up reads the whole credits view per such audiobook (visible in
+    // 'explain --query q4'). Classes are in seed_audio_match.
     private static readonly string CanonicalValuesSql = $"""
         INSERT INTO canonical_values (entity_id, key, value, last_scored_at, winning_provider_id)
-        SELECT asset_id, 'title', media_type || ' Title ' || seq, {Ts("seq * 7 % 730", "seq * 131 % 86400")}, @localProcessor FROM seed_leaf
+        SELECT asset_id, 'title',
+               CASE WHEN cls BETWEEN 4 AND 6 THEN '  ' || UPPER('Books Title ' || book_seq) || ' ' ELSE media_type || ' Title ' || seq END,
+               {Ts("seq * 7 % 730", "seq * 131 % 86400")}, @localProcessor
+        FROM seed_leaf LEFT JOIN seed_audio_match ON audio_seq = seq
         UNION ALL SELECT asset_id, 'file_name', 'Item ' || seq || ext, {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf
         UNION ALL SELECT asset_id, 'cover_state', 'present', {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE seq % 12 != 5
         UNION ALL SELECT asset_id, 'release_year', CAST(1950 + (seq * 31 % 75) AS TEXT), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf
@@ -352,14 +384,19 @@ internal static class DataSeeder
                   FROM seed_leaf WHERE media_type IN ('Audiobooks', 'Music', 'Movies', 'TV')
         UNION ALL SELECT asset_id, 'wikidata_qid', 'Q' || (1000 + seq * 3), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE seq % 10 < 7
         UNION ALL SELECT asset_id, 'original_publication_year', CAST(1950 + (seq * 31 % 75) AS TEXT), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL
-                  FROM seed_leaf WHERE media_type = 'Audiobooks'
+                  FROM seed_leaf WHERE media_type = 'Audiobooks' AND seq IN (SELECT audio_seq FROM seed_audio_match WHERE cls < 4)
         UNION ALL SELECT asset_id, 'episode_title', 'Episode ' || (rank_in_type % 20 + 1), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE media_type = 'TV'
         UNION ALL SELECT asset_id, 'season_number', CAST(rank_in_type % 20 / 10 + 1 AS TEXT), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE media_type = 'TV'
         UNION ALL SELECT asset_id, 'episode_number', CAST(rank_in_type % 10 + 1 AS TEXT), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE media_type = 'TV'
         UNION ALL SELECT asset_id, 'track_number', CAST(rank_in_type % 12 + 1 AS TEXT), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_leaf WHERE media_type = 'Music';
 
         INSERT INTO canonical_values (entity_id, key, value, last_scored_at, winning_provider_id)
-        SELECT owner_id, 'title', CASE WHEN is_parent = 1 THEN media_type || ' Show or Album ' || seq ELSE media_type || ' Work ' || seq END, {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_owner
+        SELECT owner_id, 'title',
+               CASE WHEN is_parent = 1 THEN media_type || ' Show or Album ' || seq
+                    WHEN cls BETWEEN 4 AND 6 THEN '  ' || UPPER('Books Title ' || book_seq) || ' '
+                    ELSE media_type || ' Work ' || seq END,
+               {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL
+        FROM seed_owner LEFT JOIN seed_audio_match ON audio_seq = seq AND is_parent = 0
         UNION ALL SELECT owner_id, 'description', 'A long-form description of item ' || seq || ' used to give the text columns realistic width.', {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_owner
         UNION ALL SELECT owner_id, 'short_description', 'Short description ' || seq, {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_owner
         UNION ALL SELECT owner_id, 'series', 'Series ' || (seq % 900), {Ts("seq * 7 % 730", "seq * 131 % 86400")}, NULL FROM seed_owner WHERE media_type = 'Books' AND seq % 4 = 0
@@ -372,7 +409,9 @@ internal static class DataSeeder
     private static readonly string CanonicalArraysSql = $"""
         INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
         SELECT owner_id, 'genre', 0, 'Genre ' || (seq % 40) FROM seed_owner
-        UNION ALL SELECT owner_id, 'author', 0, 'Person ' || (1 + (seq * 13) % @persons) FROM seed_owner WHERE media_type IN ('Books', 'Comics', 'Audiobooks')
+        UNION ALL SELECT owner_id, 'author', 0, 'Person ' || (1 + (COALESCE(CASE WHEN cls IN (4, 5) THEN book_seq END, seq) * 13) % @persons)
+                  FROM seed_owner LEFT JOIN seed_audio_match ON audio_seq = seq AND is_parent = 0
+                  WHERE media_type IN ('Books', 'Comics', 'Audiobooks')
         UNION ALL SELECT owner_id, 'author', 1, 'Person ' || (1 + (seq * 17) % @persons) FROM seed_owner WHERE media_type = 'Comics' AND seq % 3 = 0
         UNION ALL SELECT owner_id, 'narrator', 0, 'Person ' || (1 + (seq * 19) % @persons) FROM seed_owner WHERE media_type = 'Audiobooks'
         UNION ALL SELECT owner_id, 'director', 0, 'Person ' || (1 + (seq * 13) % @persons) FROM seed_owner WHERE media_type = 'Movies'

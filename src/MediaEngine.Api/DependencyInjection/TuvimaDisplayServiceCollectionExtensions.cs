@@ -21,6 +21,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<IByteStreamer, ByteStreamer>();
         services.AddApiReadServices();
         services.AddSingleton<ILibraryItemCurationRepository, LibraryItemCurationRepository>();
+        services.AddSingleton<ILibraryItemDeletionRepository, LibraryItemDeletionRepository>();
         services.AddSingleton<IMetadataEditorRepository, MetadataEditorRepository>();
         services.AddSingleton<IItemCanonicalRepository, ItemCanonicalRepository>();
         services.AddSingleton<AlbumTrackManifestService>();
@@ -34,6 +35,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddScoped<IDisplayProjectionReadService>(services =>
             services.GetRequiredService<AuthorizedDisplayProjectionReadService>());
         services.AddSingleton<DisplayWorkProjectionReader>();
+        services.AddSingleton<DisplayVisibleWorkReader>();
         services.AddScoped<ContributorShelfReadService>();
         services.AddSingleton<DisplayJourneyProjectionReader>();
         services.AddSingleton<DisplayFavoriteProjectionReader>();
@@ -41,6 +43,8 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayLaneGroupPolicy>();
         services.AddSingleton<DisplayCardBuilder>();
         services.AddSingleton<DisplayShelfBuilder>();
+        services.AddSingleton<DisplayFormatReader>();
+        services.AddSingleton<DisplayGridPersonalReader>();
         services.AddScoped<DisplayComposerService>();
         services.AddScoped<RecentCatalogueReadService>();
         services.AddScoped<DisplayRecentComposerService>();

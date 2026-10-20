@@ -274,6 +274,23 @@ public sealed class MappedEndpointInventoryTests
             !endpoint.AllowsAnonymousEndpoint && !endpoint.HasExplicitAuthorization);
     }
 
+    [Fact]
+    public async Task DeleteFromLibrary_HasOneInPersonAdministratorDeleteRoute_AndTheOldBatchDeleteIsGone()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        // The old batch delete (and its unsafe file removal) is gone for good; the preview-and-confirm pair replaces it.
+        Assert.DoesNotContain(inventory.Endpoints, endpoint =>
+            endpoint.Pattern.Equals("/library/items/batch/delete", StringComparison.OrdinalIgnoreCase));
+        var delete = inventory.Require("/library/items/delete", "POST");
+        Assert.Equal("DeleteLibraryItems", delete.Name);
+        var policy = Assert.Single(delete.Policies);
+        var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+        Assert.True(requirement.HumanOnly);
+        Assert.True(requirement.SurfaceUnlock);
+    }
+
     private static WebApplication BuildEndpointOnlyApplication()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -289,7 +306,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<IEventPublisher, SignalREventPublisher>();
         builder.Services.AddHttpClient();
         builder.Services.AddMemoryCache();
-        builder.Services.AddSingleton<TvdbRetailClient>(_ => throw new InvalidOperationException(
+        builder.Services.AddSingleton<ProviderApiClient>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not contact TheTVDB."));
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddTuvimaStorage();

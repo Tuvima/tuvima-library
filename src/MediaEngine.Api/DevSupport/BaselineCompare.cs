@@ -308,6 +308,8 @@ public static class BaselineComparer
             : $"**Result: {comparison.Differences.Count} difference(s).**");
         text.AppendLine();
 
+        AppendNotRecorded(text, "Before", before);
+        AppendNotRecorded(text, "After", after);
         AppendCounts(text, before, after);
         AppendDifferences(text, comparison);
         AppendTimings(text, comparison);
@@ -417,6 +419,29 @@ public static class BaselineComparer
         foreach (var delta in beyond.OrderByDescending(t => Math.Abs(t.Ratio)).Take(40))
         {
             text.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| `{delta.Subject}` | {delta.Before:0.0} | {delta.After:0.0} | {delta.Ratio:+0%;-0%;0%} |"));
+        }
+
+        text.AppendLine();
+    }
+
+    /// <summary>
+    /// A replay answers requests its recording never saw with "not found". They are listed in full, never hidden:
+    /// differences on the same items usually come from our code asking for something different.
+    /// </summary>
+    private static void AppendNotRecorded(StringBuilder text, string side, BaselineRecord record)
+    {
+        if (record.Metadata.ProviderAnswersNotRecorded.Count == 0)
+        {
+            return;
+        }
+
+        text.AppendLine($"## {side}: requests not in the recording ({record.Metadata.ProviderAnswersNotRecorded.Count})");
+        text.AppendLine();
+        text.AppendLine("Each was answered \"not found\". Differences on the same items usually come from our code asking for something different.");
+        text.AppendLine();
+        foreach (var request in record.Metadata.ProviderAnswersNotRecorded)
+        {
+            text.AppendLine($"- `{request}`");
         }
 
         text.AppendLine();

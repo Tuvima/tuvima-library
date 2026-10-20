@@ -98,6 +98,21 @@ public partial interface IEngineApiClient
     /// <summary>GET /library/items/{entityId}/history - processing history timeline.</summary>
     Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetItemHistoryWithStatusAsync(Guid entityId, CancellationToken ct = default);
 
+    /// <summary>
+    /// POST /library/items/deletion-preview - what deleting these titles would do (files, hand-picked collections, progress, space freed)
+    /// and a fingerprint of that plan. Changes nothing. The outcome tells 200, 400, 403 (not an administrator, or the administrator PIN is locked), 404 and unreachable apart.
+    /// </summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemDeletionPreviewAsync(
+        IReadOnlyList<Guid> workIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// POST /library/items/delete - deletes the titles the person confirmed, sending back the preview's fingerprint. The outcome tells
+    /// 200 (with what was deleted), 400, 403 (not an administrator, or the administrator PIN is locked), 404, 409 (the plan changed:
+    /// nothing was deleted, <see cref="LibraryItemDeletionOutcome{T}.FreshPreview"/> holds the updated one) and unreachable apart.
+    /// </summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
+        IReadOnlyList<Guid> workIds, string fingerprint, CancellationToken ct = default);
+
     /// <summary>GET /ingestion/batches — recent ingestion batches.</summary>
     Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(
         int limit = 20, CancellationToken ct = default);

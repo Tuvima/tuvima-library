@@ -63,8 +63,10 @@ public sealed class CollectionAssignmentServiceTests
         Assert.DoesNotContain("TryGetQid(lookup, \"franchise\"", resolveSource, StringComparison.Ordinal);
         Assert.DoesNotContain("TryGetQid(lookup, \"fictional_universe\"", resolveSource, StringComparison.Ordinal);
         Assert.Contains("multiple shelves share them", source, StringComparison.Ordinal);
-        Assert.Contains("FindShelfCollectionAsync(shelf", source, StringComparison.Ordinal);
-        Assert.Contains("reassigning", source, StringComparison.Ordinal);
+        Assert.Contains("FindShelfCollectionAsync(retail", source, StringComparison.Ordinal);
+        // The old "broader collection ... reassigning" branch moved a work on any shelf mismatch; the one placement rule decides now.
+        Assert.Contains("SeriesPlacementRule.Decide(", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("reassigning", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,7 +75,7 @@ public sealed class CollectionAssignmentServiceTests
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionAssignmentService.cs"));
 
         Assert.Contains("Task<CollectionAssignmentResult> AssignAsync", source, StringComparison.Ordinal);
-        Assert.Contains("AssignWorkToCollectionAsync(workId.Value, collection.Id, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("AssignWorkToCollectionAsync(workId, collection.Id, ct)", source, StringComparison.Ordinal);
         Assert.Contains("internal sealed record ShelfIdentity", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Models/ShelfIdentity.cs")), StringComparison.Ordinal);
         Assert.Contains("FindByRuleHashAsync(shelf.ProviderKey", source, StringComparison.Ordinal);
         Assert.Contains("collection.RuleHash, shelf.ProviderKey", source, StringComparison.Ordinal);
@@ -83,7 +85,7 @@ public sealed class CollectionAssignmentServiceTests
         Assert.Contains("comicvine:volume:{comicVineVolumeId}", source, StringComparison.Ordinal);
         Assert.DoesNotContain("comicvine:series:{comicVineId}", source, StringComparison.Ordinal);
         Assert.DoesNotContain("keeping existing Wikidata movie shelf", source, StringComparison.Ordinal);
-        Assert.Contains("UpgradeCollectionIdentityAsync(existingCollection, shelf", source, StringComparison.Ordinal);
+        Assert.Contains("UpgradeCollectionIdentityAsync(collection, retail", source, StringComparison.Ordinal);
         Assert.Contains("WikidataQid = shelf.Qid", source, StringComparison.Ordinal);
         Assert.Contains("RuleHash = shelf.ProviderKey", source, StringComparison.Ordinal);
     }
@@ -119,14 +121,13 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void TmdbAdapter_AddsMovieCollectionClaimsForWatchShelves()
     {
-        var adapter = ReadAdapterSource("ConfigDrivenAdapter");
+        // The collection claims are declared in the provider file, not coded in the adapter.
         var config = File.ReadAllText(GetRepoFilePath(@"config/providers/tmdb.json"));
 
-        Assert.Contains("AddTmdbMovieCollectionClaims", adapter, StringComparison.Ordinal);
-        Assert.Contains("belongs_to_collection", adapter, StringComparison.Ordinal);
-        Assert.Contains("\"tmdb_collection_id\"", config, StringComparison.Ordinal);
-        Assert.Contains("\"tmdb_collection_name\"", config, StringComparison.Ordinal);
-        Assert.Contains("MetadataFieldConstants.Series", adapter, StringComparison.Ordinal);
+        Assert.Contains("\"belongs_to_collection.id\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"tmdb_collection_id\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"tmdb_collection_name\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"series\"", config, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -274,8 +275,9 @@ public sealed class CollectionAssignmentServiceTests
         Assert.Contains("itemRecords,\n                manifest.SeriesQid", normalizedSource, StringComparison.Ordinal);
         Assert.Contains(".Where(item => IsCurrentWorkManifestItem(item, context))", source, StringComparison.Ordinal);
         Assert.Contains("CreateManifestRequest(parent.Qid, language)", source, StringComparison.Ordinal);
-        Assert.Contains("sourceSeriesQid: childSeriesQid", source, StringComparison.Ordinal);
-        Assert.Contains("parentCollectionHydration: true", source, StringComparison.Ordinal);
+        // A parent collection is read from the data (a Series manifest lists it as a collection item), never from a flag.
+        Assert.DoesNotContain("parentCollectionHydration", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("sourceSeriesQid", source, StringComparison.Ordinal);
 
         var candidates = WikidataSeriesManifestHydrationService.ResolveParentCollectionManifestCandidates(
         [

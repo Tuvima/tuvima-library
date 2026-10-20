@@ -1,0 +1,155 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Ingestion
+@implements IDisposable
+
+@if (Active || _window.Rows.Count > 0 || PersonalLine is not null)
+{
+    <section class="ingestion-now" aria-labelledby="ingestion-now-title">
+        <header>
+            <h2 id="ingestion-now-title">Now</h2>
+            @if (HeaderLine is { } line)
+            {
+                <p><i class="ingestion-now__live-dot" aria-hidden="true"></i>@line</p>
+            }
+        </header>
+
+        @if (PersonalLine is { } personal)
+        {
+            <p class="ingestion-now__personal">@personal</p>
+        }
+
+        @if (_window.Rows.Count > 0)
+        {
+            <div class="ingestion-now__table" role="table" aria-label="Items being added now">
+                <div class="ingestion-now__head" role="row">
+                    <span role="columnheader">Title</span>
+                    <span role="columnheader">Type</span>
+                    <span role="columnheader">Step</span>
+                    <span role="columnheader">Status</span>
+                    <span role="columnheader">Details</span>
+                </div>
+                <div role="rowgroup">
+                    @foreach (var item in _window.Rows)
+                    {
+                        @* One row that cannot be drawn becomes a "couldn't be shown" row in the same grid, never a blank page. *@
+                        <AppRowErrorBoundary @key="item.GroupId" ItemTitle="@item.Title" ResetKey="@RowKey(item)">
+                            <ChildContent>
+                                <IngestionMediaCard Item="item" OnOpen="OnOpen" />
+                            </ChildContent>
+                            <ErrorContent>
+                                <div class="ingestion-now__row-error" role="row" data-testid="row-error" data-group-id="@item.GroupId">
+                                    <span role="cell" aria-colspan="5">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" aria-hidden="true" />
+                                        <span><strong>@AppRowErrorBoundary.Headline</strong><small title="@IngestionMediaCard.DisplayTitleFor(item.Title)">@IngestionMediaCard.DisplayTitleFor(item.Title)</small></span>
+                                    </span>
+                                </div>
+                            </ErrorContent>
+                        </AppRowErrorBoundary>
+                    }
+                </div>
+            </div>
+        }
+        else if (Active && PersonalLine is null)
+        {
+            <div class="ingestion-grouping-state"><span class="ingestion-grouping-state__spin"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /></span><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>True while the Library is adding media. The panel stays visible a moment longer while rows are still within their minimum time.</summary>
+    [Parameter] public bool Active { get; set; }
+
+    /// <summary>The Engine's in-flight items, most recently active first.</summary>
+    [Parameter] public IReadOnlyList<IngestionMediaGroupDto> Items { get; set; } = [];
+
+    /// <summary>How many items the Engine says are being worked on in all (the panel shows only a few of them).</summary>
+    [Parameter] public int Total { get; set; }
+
+    /// <summary>Photos and personal videos being taken in. Shown as one count line, never as rows.</summary>
+    [Parameter] public IngestionPersonalMediaProgressDto? PersonalMedia { get; set; }
+
+    [Parameter] public EventCallback<IngestionMediaGroupDto> OnOpen { get; set; }
+
+    [Parameter] public TimeProvider? Clock { get; set; }
+
+    private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
+
+    private IngestionNowWindow _window = null!;
+    private Timer? _timer;
+    private bool _disposed;
+
+    // A failed row is tried again when the Engine reports a change to it.
+    private static object RowKey(IngestionMediaGroupDto item) =>
+        (item.GroupId, item.UpdatedAt, item.Availability, item.StatusLabel, item.CurrentGateKey);
+
+    private string? PersonalLine => IngestionNowText.PersonalMediaLine(PersonalMedia);
+
+    private string? HeaderLine => Total > 0
+        ? IngestionNowText.CountLine(Total)
+        : _window.Rows.Count > 0 ? "Finishing the last items" : null;
+
+    protected override void OnInitialized() => _window = new IngestionNowWindow(Clock);
+
+    protected override void OnParametersSet()
+    {
+        _window.Update(Items);
+        EnsureTimer();
+    }
+
+    // About once a second while a row is only being held for its minimum time or an item is waiting for a place.
+    private void EnsureTimer()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_window.NeedsTick)
+        {
+            _timer ??= new Timer(_ => OnTick(), null, TickInterval, TickInterval);
+        }
+        else
+        {
+            StopTimer();
+        }
+    }
+
+    private void OnTick()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_window.Tick())
+            {
+                StateHasChanged();
+            }
+
+            if (!_window.NeedsTick)
+            {
+                StopTimer();
+            }
+        });
+    }
+
+    private void StopTimer()
+    {
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        StopTimer();
+    }
+}

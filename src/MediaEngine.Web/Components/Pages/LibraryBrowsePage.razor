@@ -12,7 +12,7 @@
 @inject IAppToastService Snackbar
 @implements IDisposable
 
-<PageTitle>Tuvima Library</PageTitle>
+<PageTitle>Library</PageTitle>
 
 @if (_loading) { <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="home-discovery-loading tl-sp-mb-4" Rounded="false" /> }
 @if (!_loading || _hasLoadedOnce)
@@ -24,10 +24,10 @@
     @if (_librariesConfigured)
     {
         <div class="home-discovery-empty">
-            <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
+            <img src="/images/tuvima-icon.svg" alt="Library" class="home-discovery-empty-icon" />
             <h2 class="home-discovery-empty-title">Your library is being prepared</h2>
             <p class="home-discovery-empty-subtitle">
-                Tuvima is finding and matching your media. Items appear here as they're ready.
+                Library is finding and matching your media. Items appear here as they're ready.
             </p>
             <div class="home-discovery-empty-actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -43,10 +43,10 @@
     else
     {
     <div class="home-discovery-empty">
-        <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
+        <img src="/images/tuvima-icon.svg" alt="Library" class="home-discovery-empty-icon" />
         <h2 class="home-discovery-empty-title">Your library is empty</h2>
         <p class="home-discovery-empty-subtitle">
-            Point Tuvima at the folders where your books, films, shows and music live. It will find them, identify them and lay them out here.
+            Point Library at the folders where your books, films, shows and music live. It will find them, identify them and lay them out here.
         </p>
 
         <div class="home-discovery-empty-actions">
@@ -157,6 +157,7 @@
         State.OnStateChanged += OnStateChanged;
         State.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         ProgressChanges.Changed += OnProgressChanged;
         Playback.Changed += OnPlaybackChanged;
         _observedPlayback = (Playback.CurrentItem?.AssetId, Playback.IsPlaying, Playback.IsDismissed);
@@ -342,6 +343,8 @@
         QueueRefresh(HomeRefreshReason.Profile);
     }
     private void OnMediaAdded(MediaAddedEvent ev) => QueueRefresh(HomeRefreshReason.MediaAdded);
+    // Titles deleted from the library leave every shelf, Continue and Recently Added included, like a new title arrives: one debounced reload.
+    private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent ev) => QueueRefresh(HomeRefreshReason.MediaAdded);
     private void QueueRefresh(HomeRefreshReason reason, TimeSpan? delay = null)
     {
         if (!_disposed) _ = InvokeAsync(() => ScheduleRefresh(reason, delay));
@@ -383,6 +386,7 @@
         State.OnStateChanged -= OnStateChanged;
         State.MediaAddedReceived -= OnMediaAdded;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         ProgressChanges.Changed -= OnProgressChanged;
         Playback.Changed -= OnPlaybackChanged;
         _stateReloadCts?.Cancel();

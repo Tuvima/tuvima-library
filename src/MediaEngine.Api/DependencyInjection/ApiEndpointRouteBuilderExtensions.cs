@@ -37,6 +37,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapViewClientEndpoints();
         app.MapPlaybackEndpoints();
         app.MapPlayerEndpoints();
+        app.MapCompanionEndpoints();
         app.MapPlaybackTelemetryEndpoints();
         app.MapPlaybackSegmentEndpoints();
         app.MapReadEndpoints();
@@ -67,15 +68,18 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapPersonalTasteEndpoints();
         app.MapLogEndpoints();
         app.MapDisplayEndpoints();
+        app.MapDisplayGridPreferenceEndpoints();
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();
         app.MapUniverseGraphEndpoints();
+        app.MapUniverseAppearanceEndpoints();
         app.MapSharedEntityEditorEndpoints();
         app.MapUniverseLoreEndpoints();
         app.MapCharacterEndpoints();
         app.MapCanonEndpoints();
         app.MapDeferredEnrichmentEndpoints();
         app.MapLibraryItemEndpoints();
+        app.MapExcludedFileEndpoints();
         app.MapItemCanonicalEndpoints();
         app.MapTimelineEndpoints();
         app.MapSearchEndpoints();

@@ -187,7 +187,7 @@ sealed interface PairingPollResult {
 class TuvimaHttpException(
     val statusCode: Int,
     val responseBody: String,
-) : RuntimeException("Tuvima request failed with HTTP $statusCode")
+) : RuntimeException("Library request failed with HTTP $statusCode")
 
 internal fun JSONObject.optionalString(name: String): String? =
     if (isNull(name)) null else optString(name).takeIf { it.isNotBlank() }

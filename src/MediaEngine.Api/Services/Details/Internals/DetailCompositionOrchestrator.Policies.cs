@@ -119,12 +119,12 @@ internal sealed partial class DetailCompositionOrchestrator
             ? DetailEntityType.TvShow
             : MapMediaTypeToEntityType(credit.MediaType);
 
-    private static string CreditDisplayId(PersonLibraryCreditDto credit)
+    internal static string CreditDisplayId(PersonLibraryCreditDto credit)
         => MapCreditToEntityType(credit) == DetailEntityType.TvShow && credit.CollectionId.HasValue
             ? credit.CollectionId.Value.ToString("D")
             : credit.WorkId.ToString("D");
 
-    private static string BuildCreditRoute(PersonLibraryCreditDto credit)
+    internal static string BuildCreditRoute(PersonLibraryCreditDto credit)
     {
         var entityType = MapCreditToEntityType(credit);
         if (entityType == DetailEntityType.TvShow && credit.CollectionId.HasValue)

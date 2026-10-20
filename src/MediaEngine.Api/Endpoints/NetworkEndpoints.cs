@@ -50,7 +50,7 @@ public static class NetworkEndpoints
             }
             if (proposed.Local.Port != current.Local.Port)
             {
-                return ApiErrors.Conflict("Use the Change Port action so Tuvima can check the new port before saving it.");
+                return ApiErrors.Conflict("Use the Change Port action so Library can check the new port before saving it.");
             }
 
             try
@@ -83,7 +83,7 @@ public static class NetworkEndpoints
         // from the network settings or status is returned.
         network.MapGet("/app-addresses", (NetworkStatusService status) => Results.Ok(status.GetAppAddresses()))
             .WithName("GetNetworkAppAddresses")
-            .WithSummary("Return the address to type into a Tuvima app at home and, when set up, away from home, for any signed-in person.")
+            .WithSummary("Return the address to type into a Library app at home and, when set up, away from home, for any signed-in person.")
             .Produces<NetworkAppAddressesDto>()
         .RequireHumanSelfService();
 
@@ -177,7 +177,7 @@ public static class NetworkEndpoints
         })
         .RequireSecuredAccount()
         .WithName("RenewNetworkRouterMapping")
-        .WithSummary("Renew or recreate the Tuvima-owned router mapping now.")
+        .WithSummary("Renew or recreate the Library-owned router mapping now.")
         .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 

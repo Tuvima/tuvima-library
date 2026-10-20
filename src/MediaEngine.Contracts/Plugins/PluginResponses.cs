@@ -65,6 +65,13 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("is_built_in")]
     public bool IsBuiltIn { get; init; }
 
+    /// <summary>
+    /// True when the plugin was switched on but is not running because what it may do changed since it was approved (a
+    /// manifest gained a permission). <see cref="Enabled"/> is false; switching it on asks for approval again.
+    /// </summary>
+    [JsonPropertyName("needs_approval")]
+    public bool NeedsApproval { get; set; }
+
     [JsonPropertyName("load_error")]
     public string? LoadError { get; set; }
 

@@ -8,17 +8,18 @@
 
 @if (Item is not null)
 {
-    <div class="ingestion-drawer" role="region" aria-labelledby="ingestion-drawer-title" @onkeydown="OnKeyDown">
+    <div class="ingestion-drawer" role="region" aria-label="@($"Ingestion details for {IngestionMediaCard.DisplayTitleFor(Item.Title)}")" @onkeydown="OnKeyDown">
             <aside class="ingestion-drawer__surface">
                 <header>
                     <span><AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
                     <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="Close ingestion details" OnClick="@(_ => Close.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                 </header>
 
+                <AppRowErrorBoundary ItemTitle="@IngestionMediaCard.DisplayTitleFor(Item.Title)" ResetKey="@Item">
                 <div class="ingestion-drawer__body">
                     <section class="ingestion-drawer__identity">
                         <span class="ingestion-drawer__cover"><AppMediaArtwork ImageUrl="@Item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(Item.MediaType)" /></span>
-                        <div><h2 id="ingestion-drawer-title">@Item.Title</h2><p>@Item.Subtitle</p><small>@IngestionMediaCard.FriendlyType(Item.MediaType)</small></div>
+                        <div><h2 id="ingestion-drawer-title">@IngestionMediaCard.DisplayTitleFor(Item.Title)</h2><p>@Item.Subtitle</p><small>@IngestionMediaCard.FriendlyType(Item.MediaType)</small></div>
                     </section>
 
                     <section class="ingestion-drawer__progress" aria-label="Addition progress">
@@ -30,7 +31,7 @@
                                 {
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.HourglassTop" aria-hidden="true" />
                                 }
-                                @Item.StatusLabel
+                                @ReadinessWaitingText.StatusFor(Item)
                             </span>
                         }
                     </section>
@@ -76,9 +77,9 @@
                         </section>
                     }
                 </div>
+                </AppRowErrorBoundary>
 
                 <footer>
-                    <AppButton Href="@($"/settings/ingestion?runId={Item.BatchId:D}&view=all")" Label="View batch" StartIcon="@AppMaterialIcons.Outlined.ReceiptLong" />
                     @if (!string.IsNullOrWhiteSpace(Item.DetailRoute))
                     {
                         <AppButton Href="@Item.DetailRoute" Label="Open item" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
@@ -167,7 +168,7 @@
         {
             if (IsCurrentLoad(version, ct))
             {
-                Logger.LogWarning(ex, "Could not load ingestion child details for batch {BatchId} and group {GroupId}.", item.BatchId, item.GroupId);
+                Logger.LogWarning(ex, "Could not load ingestion child details for group {GroupId}.", item.GroupId);
                 _children = [];
                 _childrenError = "Child details could not be loaded. Try again.";
             }
@@ -203,7 +204,10 @@
         ["Relationships"] = Item.Relationships,
     };
 
-    private string ProgressLabel => Item?.ChildUnit is null ? Item?.StatusLabel ?? "Adding" : $"{Item.ChildCompleted:N0} {DisplayChildUnit(Item.ChildUnit, Item.ChildCompleted)} added";
+    // Without children the headline only says whether it is in the library yet; the status line under it says what it waits for.
+    private string ProgressLabel => Item?.ChildUnit is null
+        ? Item?.Availability.Equals("ready", StringComparison.OrdinalIgnoreCase) == true ? "Ready to browse" : "Adding"
+        : $"{Item.ChildCompleted:N0} {DisplayChildUnit(Item.ChildUnit, Item.ChildCompleted)} added";
     private string ChildHeading => $"{CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Item!.ChildUnit!)} ({Item.ChildCompleted:N0})";
     private static string DisplayChildUnit(string unit, int count) => count == 1 && unit.EndsWith('s') ? unit[..^1] : unit;
     private static string StateCopy(string state) => state.ToLowerInvariant() switch { "complete" => "Complete", "active" => "In progress…", "attention" => "Waiting to retry", "failed" => "Failed", _ => "Queued" };

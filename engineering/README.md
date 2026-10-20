@@ -23,20 +23,24 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Delete from library](specs/delete-from-library.md) | Locked (v5, 2026-10-17) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
-| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1, WP9 and WP12 built) |
-| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
-| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0, U-WP1 started 2026-10-19) |
-| [Spec: Profiles and setup (as built)](specs/profiles-setup-redesign.md) | Built (not yet archived) |
-| [Spec: Editing Mode on the item page (as built)](specs/editing-mode.md) | Built (v1, 2026-10-18; not yet archived) |
+| [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1 to WP10 and WP12 built; WP8 awaits the log line) |
+| [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 built 2026-10-20) |
+| [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5, U-WP7, U-WP10, U-WP12 built 2026-10-20) |
+| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Locked (v2, 2026-10-20) |
+| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v25, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
+| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
+| [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; Home, detail and the audiobook year look-up done in the Home and detail speed spec) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
+| [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
+| [Spec: Profiles and setup (as built)](specs/archive/profiles-setup-redesign.md) | Built (v2, archived 2026-10-19) |
 | [Spec: First run and prerequisites](specs/archive/first-run-prerequisites.md) | Built (v1, archived 2026-10-18) |
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/archive/first-run-ingestion-fixes.md) | Built (archived 2026-10-17) |
 | [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
 | [Spec: Item Detail page](specs/archive/item-detail.md) | Built (v5, archived 2026-10-17) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/archive/registry-retirement.md) | Built (v5, archived 2026-10-17) |
+| [Spec: Delete from library](specs/archive/delete-from-library.md) | Built (v5, archived 2026-10-20) |
 | [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/archive/data-store-upgrade-scripts.md) | Built (v2, archived 2026-10-18) |
 
@@ -45,6 +49,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Doc | Status |
 |---|---|
 | [Codex handoff: remaining build work (2026-10-17, refreshed)](handoffs/2026-10-17-codex.md) | Current |
+| [Handoff: finish the outstanding work, end to end (2026-10-19)](handoffs/2026-10-19-finish-outstanding-work.md) | Current |
 | [Handoff: Dapper vs Entity Framework benchmark](handoffs/2026-10-17-ef-vs-dapper-benchmark.md) | Done — Shy chose to stay on Dapper (2026-10-17) |
 
 ## Architecture decisions
@@ -77,6 +82,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
+| [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
 
 ## History (pre-2026-10-17 engineering records)
 

@@ -333,7 +333,7 @@ public sealed class PluginCompatibilityTests
     public void CurrentMachineAndLibraryVersion_AreUsableByTheShippedPlugins()
     {
         using var fixture = new Fixture(LibraryVersionForTests(), PluginCompatibility.CurrentRid);
-        var catalog = new PluginCatalog(ShippedPlugins(), fixture.Settings, fixture.Loader, NullLogger<PluginCatalog>.Instance);
+        var catalog = new PluginCatalog(ShippedPlugins(), fixture.Settings, fixture.Loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
 
         Assert.All(catalog.List(), registration =>
             Assert.True(registration.Compatibility.IsCompatible, $"{registration.Manifest.Id}: {registration.Compatibility.Problem}"));
@@ -431,7 +431,7 @@ public sealed class PluginCompatibilityTests
         public PluginCatalog CreateCatalog(string libraryVersion, string platform, PluginManifest? builtIn = null, IEnumerable<ITuvimaPlugin>? builtIns = null)
         {
             var plugins = builtIns ?? (builtIn is null ? [] : [new SegmentTestPlugin(builtIn)]);
-            return new PluginCatalog(plugins, Settings, Loader, NullLogger<PluginCatalog>.Instance, libraryVersion, platform);
+            return new PluginCatalog(plugins, Settings, Loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance, libraryVersion, platform);
         }
 
         public bool SavedEnabledFlag(string pluginId) =>

@@ -313,12 +313,21 @@ internal static class AiEndpoints
         [FromServices] IRequestAuthorityResolver authorityResolver,
         CancellationToken ct)
     {
+        // The same feature written in two letter cases is ambiguous (which one wins depends on the order), so it is refused.
+        if (request.Features.Keys.GroupBy(key => key, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1))
+        {
+            return ApiErrors.BadRequest("A feature appears more than once with different letter case.");
+        }
+
+        // "Switched on" is judged on the canonical feature keys, using the same reading (case-insensitive) that the save
+        // itself applies, so changing the letter case of a key cannot switch a feature on without its approval.
+        var settings = AiContractMapper.ToSettings(request);
         var wasOn = AiContractMapper.ToContract(configurationStore.Current).Features;
+        var willBeOn = AiContractMapper.ToContract(settings).Features;
         var confirmed = new List<ApprovalPreviewResponse>();
         var missing = new List<ApprovalPreviewResponse>();
-        var switchedOn = request.Features
-            .Where(pair => pair.Value && wasOn.TryGetValue(pair.Key, out var before) && !before)
-            .Select(pair => pair.Key)
+        var switchedOn = wasOn.Keys
+            .Where(key => willBeOn.TryGetValue(key, out var after) && after && !wasOn[key])
             .Order(StringComparer.Ordinal);
         foreach (var feature in switchedOn)
         {
@@ -328,7 +337,8 @@ internal static class AiEndpoints
                 continue;
             }
 
-            if (request.Approvals?.TryGetValue(feature, out var suppliedHash) == true && ApprovalService.HashMatches(suppliedHash, preview.StatementHash))
+            if (request.Approvals?.Any(pair => string.Equals(pair.Key, feature, StringComparison.OrdinalIgnoreCase)
+                    && ApprovalService.HashMatches(pair.Value, preview.StatementHash)) == true)
             {
                 confirmed.Add(preview);
             }
@@ -353,7 +363,6 @@ internal static class AiEndpoints
             }
         }
 
-        var settings = AiContractMapper.ToSettings(request);
         var errors = configurationStore.Save(settings);
         if (errors.Count > 0)
         {

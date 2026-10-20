@@ -71,6 +71,22 @@ public sealed class ApprovalContractTests
     }
 
     [Fact]
+    public void WideningAnIntegrationsKeys_AcceptsTheHashUnderApprovalHash_AndAPluginReportsNeedsApproval()
+    {
+        var permissions = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>("""{"permission_ids":["library.read"],"approval_hash":"h4"}""")!;
+        var update = JsonSerializer.Deserialize<UpdateApplicationRequest>(
+            """{"name":"N","description":null,"application_type":"ServerIntegration","is_enabled":true,"is_administrator":false,"approval_hash":"h5"}""")!;
+        var withoutHash = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>("""{"permission_ids":[]}""")!;
+        var plugin = JsonSerializer.Serialize(new MediaEngine.Contracts.Plugins.PluginSummaryResponse { NeedsApproval = true });
+
+        Assert.Equal("h4", permissions.ApprovalHash);
+        Assert.Equal("h5", update.ApprovalHash);
+        Assert.Null(withoutHash.ApprovalHash);
+        Assert.Contains("\"needs_approval\":true", plugin, StringComparison.Ordinal);
+        Assert.Equal("application", ApprovalKinds.Application);
+    }
+
+    [Fact]
     public void PreviewRequest_RoundTripsAWebhookAndACredential()
     {
         var request = new ApprovalPreviewRequest

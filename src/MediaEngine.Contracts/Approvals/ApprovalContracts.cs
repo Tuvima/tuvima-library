@@ -8,6 +8,9 @@ public static class ApprovalKinds
     public const string Plugin = "plugin";
     public const string AiFeature = "ai_feature";
     public const string ApplicationCredential = "application_credential";
+
+    /// <summary>An integration's existing keys gaining permissions, or the integration being switched back on while it holds keys. The item id is the application id.</summary>
+    public const string Application = "application";
     public const string Webhook = "webhook";
 }
 

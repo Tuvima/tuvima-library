@@ -1037,9 +1037,9 @@ public sealed class DashboardIdentityClient(
         }
     }
 
-    private static async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
+    private async Task<DashboardAccessMutationResult<T>> ReadMutationFailureAsync<T>(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
-        if (await ApprovalResponses.TryReadAsync(response, ct).ConfigureAwait(false) is { } approval)
+        if (await ApprovalResponses.TryReadAsync(response, logger, ct).ConfigureAwait(false) is { } approval)
         {
             return DashboardAccessMutationResult<T>.FailureResult(
                 DashboardAccessMutationFailure.ApprovalRequired, response.StatusCode, approval: approval);
@@ -1053,9 +1053,9 @@ public sealed class DashboardIdentityClient(
         return DashboardAccessMutationResult<T>.FailureResult(failure, response.StatusCode, fields, message);
     }
 
-    private static async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
+    private async Task<DashboardAccessMutationResult> ReadMutationFailureAsync(HttpResponseMessage response, CancellationToken ct, bool includeMessage = false)
     {
-        if (await ApprovalResponses.TryReadAsync(response, ct).ConfigureAwait(false) is { } approval)
+        if (await ApprovalResponses.TryReadAsync(response, logger, ct).ConfigureAwait(false) is { } approval)
         {
             return DashboardAccessMutationResult.FailureResult(
                 DashboardAccessMutationFailure.ApprovalRequired, response.StatusCode, approval: approval);

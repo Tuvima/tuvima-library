@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress · **Version:** 4 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -186,6 +186,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Depends on:** none (can run with U-WP1).
 - **Size:** Standard.
 - **Done when:** the explorer renders unchanged and a guardrail test shows no Dashboard JSON copy of these shapes.
+- **Status:** Built (2026-10-19, branch `claude/universe-wave2-int`).
 
 ### U-WP3 — Fix Series identity, scope and ordering (bug 23)
 - **What it does:** group by ID plus media type; read membership scope; keep decimals; one ordering rule shared by shelf and item page; "Also in this world" row.
@@ -193,6 +194,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Depends on:** U-WP0 (Expanse data check, below).
 - **Size:** Complex.
 - **Done when:** a test library with Expanse novels, novellas and TV shows three separate Series, numbered correctly, decimals intact, shelf and item page agreeing.
+- **Status:** Built (2026-10-19, branch `claude/universe-wave2-int`; data store upgrade step 0012). Existing libraries need a data store reset and re-ingest (section 7): shelves made before this step have no media type, so they are not reused and can be left behind beside the new ones.
 
 ### U-WP0 — Confirm the real Expanse mix-up
 - **What it does:** read-only check on Shy's actual data to confirm which of the code paths in section 0 causes bug 23 (so U-WP3 fixes the real cause, not a guess).
@@ -211,6 +213,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `ChronicleExplorer.razor` and `Components/Universe/*`, `Collections.razor`, `CollectionsPage.razor`, `ShellNavigation.cs`, item detail hero.
 - **Depends on:** U-WP2, U-WP3. **Size:** Complex.
 - **Done when:** from Collections you can open a Universe, see Series in order, open Connections, and every empty state renders at phone, tablet, desktop and TV widths (visual checks per `src/MediaEngine.Web/CLAUDE.md`).
+- **Status:** Built (2026-10-20, branch `claude/universe-wp5-page`). Page at `/universe/{qid}` reads one Engine action (`/universe/{qid}/overview`) built on the same read as the helper apps. Works linked straight to a Universe (no Series) show as Standalone and count toward the totals and the "Part of" format test, reading "Series or formats in it" literally. The "show missing" rule now lives in one shared place used by the page and the Series panel. Edit Universe opens in today's `EditingDrawer`; when the Details overlay and page-based Editing Mode spec (Locked v2, D3 "no drawer anywhere") replaces the drawer with its banner and section slot (its WP3), the Universe page's Edit moves with it.
 
 ### U-WP6 — Evidence-backed Connections (Cast, Adaptations, Characters per Q2)
 - **Depends on:** U-WP5, Q2. **Size:** Complex.
@@ -221,6 +224,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `CollectionClientEndpoints.cs`, `UniverseClientReadService.cs`, Contracts v1 types and tests.
 - **Depends on:** U-WP3. **Size:** Standard.
 - **Done when:** a profile that can't see the Universe gets "not found" and one that can gets the new sections; Contracts tests pass.
+- **Status:** Built (2026-10-20, PR 289). For U-WP8: a Series whose only visible items are "Also in this world" members returns an empty numbered run, and the run shelf's see-all route may list Also members too.
 
 ### U-WP8 — Helper app screens (Android, Apple, TV web, Roku)
 - **Depends on:** U-WP7. **Size:** Standard (one packet per client, at most two at a time).
@@ -236,6 +240,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `FictionalEntityRepository.cs`, `UniverseGraphQueryService.cs`, `SharedEntityEditorEndpoints.cs` appearance logic, Universe page components, Contracts.
 - **Depends on:** U-WP5. **Size:** Standard.
 - **Done when:** with an HBO Lanterns-style series and a comic that share a character QID in a test library, the character page lists both.
+- **Status:** Built (2026-10-20, PR 294). Per Shy there is no character page: the "Also appears in" panel opens from the Universe page's Cast rows (and later from the Characters list, U-WP6).
 
 ### U-WP11 — Character appearance data and spoiler rules
 - **What it does:** read the two unused Wikidata character properties; add "first seen at" (episode/chapter) where sources give it; one spoiler rule used by every surface.
@@ -248,6 +253,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Files likely touched:** `PlayerService.cs`, `PlayerEndpoints.cs`, player_sessions schema, Contracts v1, tests.
 - **Depends on:** none. **Size:** Complex.
 - **Done when:** two devices on one profile no longer overwrite each other and a phone reads the chosen one within about one heartbeat.
+- **Status:** Built (2026-10-20, PR 286; data store upgrade step 0013). The shared player and its queue are unchanged; each device now keeps its own live state beside it, and `/api/v1/companion` lets a phone follow one device of its own profile or hold a manual position.
 
 ### U-WP13 — Phone companion screen (Dashboard first, then native apps)
 - **Depends on:** U-WP10, U-WP11, U-WP12. **Size:** Complex.
@@ -305,6 +311,8 @@ Before Claude Code starts the first packet, and again before each wave:
 ## 7. Risks and open questions
 
 **Answers (Shy, 2026-10-19): Q1 to Q15 all go with the recommendation (★); Q2 chose (b).** Q7 detail: delete the High-confidence items now; delete deep-enrich, candidate accept/reject, character portraits and the asset action; keep `/universes` one release then remove.
+
+**Further decisions (Shy, 2026-10-19, while building U-WP5 and U-WP10):** Edit Universe reuses the existing Universe editor, shown in-line beside the Universe page in the same side drawer Editing Mode uses (not a pop-up), desktop administrators only. "Also appears in" is a panel on the Universe page, not a character page.
 
 **Landing alongside the locked Developer tools spec:** see section 6A. That spec (`engineering/specs/developer-tools.md`, Locked v2, 2026-10-19) owns the plugin platform and the shared state card, approval rule, health words and run records; this spec defines no plugin mechanics.
 

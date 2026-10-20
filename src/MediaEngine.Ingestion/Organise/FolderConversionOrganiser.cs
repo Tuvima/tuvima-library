@@ -139,7 +139,7 @@ public sealed class FolderConversionOrganiser
                     return new OrganiseDecision(OrganiseDecisionKind.Move, Target: target);
                 case FileIdentityResult.Unproven:
                     _logger.LogWarning(
-                        "Left {Current} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file (it may be in use, or the drive does not support the check)",
+                        "Left {Current} alone: it differs from {Target} only in letter case and Library could not prove they are the same file (it may be in use, or the drive does not support the check)",
                         current, target);
                     return new OrganiseDecision(OrganiseDecisionKind.Skip, Reason: CaseSafeRename.UnprovenReason);
             }
@@ -186,7 +186,7 @@ public sealed class FolderConversionOrganiser
         if (canonicals.Count == 0)
         {
             return new StandardName(null, new OrganiseDecision(
-                OrganiseDecisionKind.Skip, Reason: "Not identified yet. Tuvima names it once it has been identified."));
+                OrganiseDecisionKind.Skip, Reason: "Not identified yet. Library names it once it has been identified."));
         }
 
         var metadata = canonicals.ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);

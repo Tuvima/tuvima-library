@@ -12,13 +12,16 @@ namespace MediaEngine.Api.Services.Approvals;
 /// What a person is shown before something is switched on: a title, what it can do, and whether anything leaves the
 /// machine. The Engine writes every word here so the Dashboard, applications and the approval record all agree.
 /// </summary>
+/// <param name="Notes">Every note shown to the person.</param>
+/// <param name="UnhashedNotes">Notes that are shown (and are part of <paramref name="Notes"/>) but describe a passing condition, so they are left out of the fingerprint and a change in them does not ask again.</param>
 internal sealed record ApprovalStatement(
     string Title,
     string KindLabel,
     IReadOnlyList<string> CanDo,
     bool SendsDataOut,
     string? SendsDataTo,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    IReadOnlyList<string>? UnhashedNotes = null);
 
 /// <summary>
 /// Builds <see cref="ApprovalStatement"/>s and their fingerprint. Pure: no storage, no clock, no secrets. A statement
@@ -32,12 +35,17 @@ internal static class ApprovalStatementBuilder
     /// <summary>Where a credential's holder is described in words, since the Engine cannot know the software.</summary>
     public const string TheSoftwareHoldingTheKey = "the software that holds this key";
 
+    /// <summary>Where an integration's existing keys are described, since the Engine cannot know the software.</summary>
+    public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
+
     public const string PluginKindLabel = "Plugin";
     public const string AiFeatureKindLabel = "Local AI feature";
     public const string CredentialKindLabel = "Application key";
+    public const string ApplicationKindLabel = "Integration";
     public const string WebhookKindLabel = "Webhook";
 
     private const string UsesLocalAi = "Uses Local AI";
+    private const string RunsAs = "Runs as";
     private const string KeepsOwnKeysAndLogins = "Keeps its own keys and logins";
     private const string RunsWithLocalAi = "Runs on this machine with Local AI";
     private const string ModelMayDownload = "May download an AI model to this machine first";
@@ -58,6 +66,14 @@ internal static class ApprovalStatementBuilder
         ["ai.infer"] = UsesLocalAi,
         ["storage.plugin"] = "Keeps its own data",
         ["secrets.plugin"] = KeepsOwnKeysAndLogins,
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["text_fast"] = "write text (quick)",
+        ["text_quality"] = "write text (careful)",
+        ["text_scholar"] = "write text (long)",
+        ["text_cjk"] = "write text (careful, Chinese, Japanese, Korean)",
     };
 
     private static readonly IReadOnlyDictionary<string, string[]> FeatureWords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -87,8 +103,10 @@ internal static class ApprovalStatementBuilder
         PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
 
     /// <summary>
-    /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), once for Local AI use,
-    /// and, when it declares keys or logins, which ones by label. Duplicate lines are shown once.
+    /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), per Local AI ability it
+    /// asks for ("Uses Local AI: write text (quick)", sorted), when it declares keys or logins which ones by label, and how
+    /// it runs ("Runs as: separate program"). Duplicate lines are shown once. Every line is part of the fingerprint, so a
+    /// plugin that asks for another AI ability, or runs another way, is asked about again.
     /// </summary>
     public static IReadOnlyList<string> PluginAllowedTo(PluginManifest manifest)
     {
@@ -107,10 +125,10 @@ internal static class ApprovalStatementBuilder
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
-        if (manifest.AiPermissions.Count > 0)
-        {
-            lines.Add(UsesLocalAi);
-        }
+        lines.AddRange(manifest.AiPermissions
+            .Select(permission => $"{UsesLocalAi}: {AiRoleName(permission.Role)}")
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal));
 
         if (declaresSecrets)
         {
@@ -120,8 +138,21 @@ internal static class ApprovalStatementBuilder
             lines.Add($"{KeepsOwnKeysAndLogins}: {string.Join(", ", labels)}");
         }
 
+        lines.Add($"{RunsAs}: {PluginKindName(manifest.Kind)}");
         return lines.Distinct(StringComparer.Ordinal).ToList();
     }
+
+    // A role the Library has no words for is shown by its id, so it still reads as a distinct line.
+    private static string AiRoleName(string role) => AiRoleNames.TryGetValue(role, out var name) ? name : role;
+
+    private static string PluginKindName(PluginKind kind) => kind switch
+    {
+        PluginKind.Official => "Official built-in",
+        PluginKind.Declarative => "JSON-only plugin",
+        PluginKind.Service => "separate program",
+        PluginKind.Sandboxed => "sandboxed plugin",
+        _ => kind.ToString(),
+    };
 
     /// <summary>"the internet" when the plugin can reach the internet; otherwise null (nothing leaves this machine).</summary>
     public static string? PluginSendsDataTo(PluginManifest manifest)
@@ -159,6 +190,7 @@ internal static class ApprovalStatementBuilder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(featureKey);
         var canDo = AiFeatureAllowedTo(featureKey).Append(RunsWithLocalAi).ToList();
+        // The download note is shown but not fingerprinted: downloading the model later must not ask again.
         IReadOnlyList<string> notes = modelReady ? [] : [ModelMayDownload];
         return new ApprovalStatement(
             FeatureTitles.TryGetValue(featureKey, out var title) ? title : featureKey,
@@ -166,7 +198,8 @@ internal static class ApprovalStatementBuilder
             canDo,
             SendsDataOut: false,
             SendsDataTo: null,
-            notes);
+            notes,
+            UnhashedNotes: notes);
     }
 
     /// <param name="permissionNames">The human-readable name of each permission the application holds.</param>
@@ -184,6 +217,25 @@ internal static class ApprovalStatementBuilder
             SendsDataOut: true,
             SendsDataTo: TheSoftwareHoldingTheKey,
             ["Anyone with this key can do the above until it is revoked."]);
+    }
+
+    /// <summary>
+    /// An integration whose existing keys gain permissions, or that is switched back on while it holds keys. The permission
+    /// names are sorted so the same set always gives the same fingerprint.
+    /// </summary>
+    /// <param name="permissionNames">The human-readable name of every permission the integration's keys will hold.</param>
+    /// <param name="activeKeyCount">How many keys are live now and would be affected.</param>
+    public static ApprovalStatement ForApplication(string applicationName, IEnumerable<string> permissionNames, int activeKeyCount)
+    {
+        ArgumentNullException.ThrowIfNull(permissionNames);
+        var names = permissionNames.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        return new ApprovalStatement(
+            $"Keys for {applicationName}",
+            ApplicationKindLabel,
+            [$"Its keys can: {string.Join(", ", names)}"],
+            SendsDataOut: true,
+            SendsDataTo: TheSoftwareHoldingItsKeys,
+            [activeKeyCount == 1 ? "Applies to 1 existing key" : $"Applies to {activeKeyCount.ToString(CultureInfo.InvariantCulture)} existing keys"]);
     }
 
     /// <summary>The receiver is shown by host only (no path or query), so nothing in the address that could be a secret is recorded.</summary>
@@ -214,7 +266,7 @@ internal static class ApprovalStatementBuilder
             statement.CanDo.ToArray(),
             statement.SendsDataOut,
             statement.SendsDataTo,
-            statement.Notes.ToArray());
+            statement.Notes.Where(note => statement.UnhashedNotes?.Contains(note, StringComparer.Ordinal) != true).ToArray());
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical, CanonicalJson)));
         return Convert.ToHexStringLower(bytes);
     }

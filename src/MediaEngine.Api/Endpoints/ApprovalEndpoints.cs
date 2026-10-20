@@ -121,7 +121,7 @@ internal static class ApprovalEndpoints
             return ApiErrors.BadRequest("Give both kind and item_id.");
         }
 
-        if (kind is not (ApprovalKinds.Plugin or ApprovalKinds.AiFeature or ApprovalKinds.ApplicationCredential or ApprovalKinds.Webhook))
+        if (kind is not (ApprovalKinds.Plugin or ApprovalKinds.AiFeature or ApprovalKinds.ApplicationCredential or ApprovalKinds.Application or ApprovalKinds.Webhook))
         {
             return ApiErrors.BadRequest($"Unknown kind '{kind}'.");
         }

@@ -12,7 +12,7 @@
         <div class="library-advanced__row">
             <div>
                 <strong>When the same file arrives twice</strong>
-                <small>Tuvima compares file contents, so renamed copies count as the same file.</small>
+                <small>Library compares file contents, so renamed copies count as the same file.</small>
             </div>
             <AppSegmentedControl Options="DuplicateOptions"
                                  Value="@DuplicatePolicy"
@@ -21,7 +21,7 @@
                                  Disabled="@(ReadOnly || Busy)" />
         </div>
         <AppSwitchRow Label="Embed artwork in files"
-                      Description="Puts cover art inside the files Tuvima writes tags to. Available while at least one type has tags switched on."
+                      Description="Puts cover art inside the files Library writes tags to. Available while at least one type has tags switched on."
                       Value="@(_artwork?.ArtworkEnabled ?? false)"
                       ValueChanged="SetArtworkAsync"
                       Disabled="@(ReadOnly || Busy || _savingArtwork || !AnyTagsOn)" />
@@ -55,7 +55,7 @@
 
     private static readonly IReadOnlyList<AppSelectOption> NamingOptions =
     [
-        new("tuvima_standard", "Tuvima standard"),
+        new("tuvima_standard", "Library standard"),
         new("keep_original_names", "Keep original names"),
         new("custom", "Custom template"),
     ];
@@ -163,13 +163,13 @@
                 <div class="library-advanced__example"><span>Example</span><code>@ExampleFor(type, selected)</code></div>
                 @if (hasManaged)
                 {
-                    <p class="library-advanced__note">A change applies to files Tuvima adds from now on.</p>
+                    <p class="library-advanced__note">A change applies to files Library adds from now on.</p>
                 }
             </section>
             <section aria-label="@($"{type.Label} tags")">
                 <h4>Tags</h4>
                 <AppSwitchRow Label="Update tags inside files"
-                              Description="Tuvima writes title, people, artwork and other fields into files in managed folders where the file type allows it (MP3, M4A/M4B, FLAC, MP4/MKV, EPUB; PDF and CBZ are never changed). A backup copy is kept while writing. Files it cannot write are left as they are."
+                              Description="Library writes title, people, artwork and other fields into files in managed folders where the file type allows it (MP3, M4A/M4B, FLAC, MP4/MKV, EPUB; PDF and CBZ are never changed). A backup copy is kept while writing. Files it cannot write are left as they are."
                               Value="@policy.WriteTags"
                               ValueChanged="@(value => SetTagsAsync(type, value))"
                               Disabled="@(ReadOnly || Busy)" />
@@ -223,7 +223,7 @@
         _drafts[type.Key] = template;
         if (string.IsNullOrWhiteSpace(template))
         {
-            _draftErrors[type.Key] = "Enter a template, for example the Tuvima standard one.";
+            _draftErrors[type.Key] = "Enter a template, for example the Library standard one.";
             _draftExamples[type.Key] = null;
             return;
         }

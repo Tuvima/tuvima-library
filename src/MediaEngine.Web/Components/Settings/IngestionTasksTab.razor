@@ -4,7 +4,6 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Shared
-@using Microsoft.AspNetCore.WebUtilities
 @inject IngestionLiveDashboardState Dashboard
 @inject NavigationManager Nav
 @inject IEngineApiClient Api
@@ -13,101 +12,86 @@
 @implements IAsyncDisposable
 
 <div class="tl-page ingestion-operations">
-    @if (IsHistoricalBatchView && _runId is { } batchId)
+    <LibrarySummary RefreshToken="_summaryRefresh" />
+
+    <AppPanel Class="@StatusPanelClass"
+              aria-live="polite"
+              aria-busy="@(IsBusy ? "true" : "false")">
+        <div class="ingestion-status__main">
+            @if (Dashboard.IsEngineUnreachable)
+            {
+                <div class="ingestion-status__header">
+                    <h2>The Library's engine isn't responding</h2>
+                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
+                </div>
+                @if (Queue is { } lastKnown)
+                {
+                    <div class="ingestion-status__stale">
+                        <p class="ingestion-status__line">@IngestionQueueProgressText.Headline(lastKnown)</p>
+                        @QueueDetails(lastKnown)
+                    </div>
+                }
+            }
+            else if (Queue is not { } queue)
+            {
+                <div class="ingestion-status__header">
+                    <AppSkeleton Class="ingestion-status__skeleton-heading" Width="11rem" Height="1.4rem" />
+                    <div class="ingestion-status__menu"><IngestionScanAction /></div>
+                </div>
+                <AppSkeleton Class="ingestion-status__skeleton-tally" Width="22rem" Height=".9rem" />
+                <AppSkeleton Class="ingestion-status__skeleton-bar" Width="100%" Height=".4rem" />
+            }
+            else
+            {
+                <div class="ingestion-status__header">
+                    <h2>@if (IngestionQueueProgressText.IsIdle(queue)) { <i class="ingestion-status__dot" aria-hidden="true"></i> }@IngestionQueueProgressText.Headline(queue)</h2>
+                    <div class="ingestion-status__menu"><IngestionScanAction /></div>
+                </div>
+                @QueueDetails(queue)
+            }
+        </div>
+    </AppPanel>
+
+    @if (Dashboard.Presentation is null)
     {
-        <IngestionMediaPagedView Mode="batch" BatchId="batchId" OnOpen="OpenDrawer" />
+        if (!Dashboard.IsLoading && !Dashboard.IsEngineUnreachable)
+        {
+            <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
+        }
     }
     else
     {
-        <LibrarySummary RefreshToken="_summaryRefresh" />
-
-        <AppPanel Class="@StatusPanelClass"
-                  aria-live="polite"
-                  aria-busy="@(IsBusy ? "true" : "false")">
-            <div class="ingestion-status__main">
-                @if (Dashboard.IsEngineUnreachable)
-                {
-                    <div class="ingestion-status__header">
-                        <h2>The Library's engine isn't responding</h2>
-                        <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
-                    </div>
-                    @if (Queue is { } lastKnown)
-                    {
-                        <div class="ingestion-status__stale">
-                            <p class="ingestion-status__line">@IngestionQueueProgressText.Headline(lastKnown)</p>
-                            @QueueDetails(lastKnown)
-                        </div>
-                    }
-                }
-                else if (Queue is not { } queue)
-                {
-                    <div class="ingestion-status__header">
-                        <AppSkeleton Class="ingestion-status__skeleton-heading" Width="11rem" Height="1.4rem" />
-                        <div class="ingestion-status__menu"><IngestionScanAction /></div>
-                    </div>
-                    <AppSkeleton Class="ingestion-status__skeleton-tally" Width="22rem" Height=".9rem" />
-                    <AppSkeleton Class="ingestion-status__skeleton-bar" Width="100%" Height=".4rem" />
-                }
-                else
-                {
-                    <div class="ingestion-status__header">
-                        <h2>@if (IngestionQueueProgressText.IsIdle(queue)) { <i class="ingestion-status__dot" aria-hidden="true"></i> }@IngestionQueueProgressText.Headline(queue)</h2>
-                        <div class="ingestion-status__menu"><IngestionScanAction /></div>
-                    </div>
-                    @QueueDetails(queue)
-                }
-            </div>
-        </AppPanel>
-
-        @if (Dashboard.Presentation is null)
+        if (Model.Attention.Count > 0)
         {
-            if (!Dashboard.IsLoading && !Dashboard.IsEngineUnreachable)
-            {
-                <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
-            }
-        }
-        else
-        {
-            if (Model.Attention.Count > 0)
-            {
-                <AppPanel Class="tl-card ingestion-attention">
-                    <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
-                    @foreach (var item in Model.Attention)
+            <AppPanel Class="tl-card ingestion-attention">
+                <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
+                @foreach (var item in Model.Attention)
+                {
+                    if (string.IsNullOrWhiteSpace(item.Route))
                     {
-                        <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
-                    }
-                </AppPanel>
-            }
-
-            if (Model.IsRunning)
-            {
-                <section class="ingestion-section" aria-labelledby="being-added-title">
-                    <header><div><h2 id="being-added-title">Being added now</h2><p><i class="ingestion-live-dot" aria-hidden="true"></i>@Model.CurrentMediaTotal.ToString("N0") items currently being processed</p></div>@if (Model.CurrentMediaTotal > Model.CurrentMedia.Count) { <AppButton Href="@SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added)" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" /> }</header>
-                    @if (Model.CurrentMedia.Count > 0)
-                    {
-                        <div class="ingestion-media-list">
-                            @foreach (var item in Model.CurrentMedia)
-                            {
-                                <IngestionMediaCard Item="item" DisplayMode="list" OnOpen="OpenDrawer" @key="(item.BatchId, item.GroupId)" />
-                            }
-                        </div>
+                        <div class="ingestion-attention__item"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span></div>
                     }
                     else
                     {
-                        <div class="ingestion-grouping-state"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
+                        <a href="@item.Route"><AppMaterialIcon Icon="@AttentionIcon(item.Kind)" /><span><strong>@item.Label</strong><small>@item.Description</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></a>
                     }
-                </section>
-            }
-
-            <IngestionRecentlyAddedPreview Days="Model.RecentDays" />
+                }
+            </AppPanel>
         }
+
+        <IngestionNowPanel Active="Model.IsRunning"
+                           Items="Model.CurrentMedia"
+                           Total="Model.CurrentMediaTotal"
+                           PersonalMedia="Model.PersonalMediaInProgress"
+                           OnOpen="OpenDrawer" />
+
+        <IngestionAddedSummary Days="Model.RecentDays" />
     }
 </div>
 
 @code {
+    /// <summary>Only the retired <c>view=all</c> address uses this: it opens the Activity log's Added filter instead.</summary>
     [Parameter] public string? View { get; set; }
-    [Parameter] public Guid? RunId { get; set; }
-    [Parameter] public Guid? ItemId { get; set; }
     private IngestionMediaGroupDto? _selectedItem;
     private int _drawerWidth = 340;
     private Guid? _contextLeaseId;
@@ -123,11 +107,7 @@
     private bool _wasWorking;
     private bool _drawerRefreshInFlight;
     private int _drawerRevision;
-    private string? _view;
-    private Guid? _runId;
-    private Guid? _requestedItemId;
     private IngestionPresentationSnapshotDto Model => Dashboard.Presentation!;
-    private bool IsHistoricalBatchView => _view == "all" && _runId.HasValue;
     private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
     private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
     private string StatusPanelClass
@@ -195,20 +175,12 @@
         await Dashboard.InitializeAsync();
     }
 
-    protected override async Task OnParametersSetAsync()
-    {
-        ResolveQuery();
-        await LoadRequestedItemAsync();
-    }
+    protected override void OnParametersSet() => ResolveQuery();
 
     private void ResolveQuery()
     {
-        _view = View?.ToLowerInvariant();
-        _runId = RunId;
-        _requestedItemId = ItemId;
-
-        // The old paged list of what is being added right now is the Activity log's Added filter; only a run's batch view stays here.
-        if (_view == "all" && !_runId.HasValue)
+        // The old list of everything being added is the Activity log's Added filter.
+        if (string.Equals(View, "all", StringComparison.OrdinalIgnoreCase))
         {
             Nav.NavigateTo(SettingsNav.ActivityLogRoute(ActivityLogCategoryValues.Added), replace: true);
         }
@@ -218,31 +190,16 @@
     {
         _drawerRevision++;
         _selectedItem = item;
-        if (IsHistoricalBatchView)
-        {
-            _requestedItemId = item.GroupId;
-            Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
-            {
-                ["itemId"] = item.GroupId,
-            }));
-        }
         await OpenOrUpdateContextAsync();
     }
 
-    private async Task CloseDrawer()
+    private Task CloseDrawer()
     {
         _drawerRevision++;
         _selectedItem = null;
-        _requestedItemId = null;
-        if (IsHistoricalBatchView)
-        {
-            Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
-            {
-                ["itemId"] = null,
-            }), replace: true);
-        }
         if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);
         _contextLeaseId = null;
+        return Task.CompletedTask;
     }
 
     private void OnDashboardChanged()
@@ -253,7 +210,7 @@
         if (_wasWorking && !working && Queue is not null) _summaryRefresh++;
         _wasWorking = working;
 
-        if (_selectedItem is not null && Dashboard.Presentation is not null && !IsHistoricalBatchView)
+        if (_selectedItem is not null && Dashboard.Presentation is not null)
         {
             var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.BatchId == _selectedItem.BatchId && item.GroupId == _selectedItem.GroupId);
             if (updated is not null)
@@ -265,24 +222,6 @@
                 _ = RefreshPinnedDrawerAsync(_selectedItem.BatchId, _selectedItem.GroupId, _drawerRevision);
         }
         _ = InvokeAsync(StateHasChanged);
-    }
-
-    private async Task LoadRequestedItemAsync()
-    {
-        var revision = ++_drawerRevision;
-        if (_runId is not { } runId || _requestedItemId is not { } itemId)
-        {
-            if (_requestedItemId is null)
-                _selectedItem = null;
-            return;
-        }
-
-        var item = await Api.GetIngestionMediaGroupAsync(runId, itemId);
-        if (revision == _drawerRevision && _runId == runId && _requestedItemId == itemId)
-        {
-            _selectedItem = item;
-            await OpenOrUpdateContextAsync();
-        }
     }
 
     private async Task RefreshPinnedDrawerAsync(Guid batchId, Guid groupId, int revision)
@@ -345,9 +284,6 @@
         _contextLeaseId = null;
         _drawerRevision++;
         _selectedItem = null;
-        _requestedItemId = null;
-        if (IsHistoricalBatchView)
-            Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?> { ["itemId"] = null }), replace: true);
         await InvokeAsync(StateHasChanged);
     }
 

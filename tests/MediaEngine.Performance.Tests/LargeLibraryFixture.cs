@@ -87,8 +87,9 @@ public sealed class LargeLibraryFixture : IDisposable
             SELECT value, randomblob(16), randomblob(16), randomblob(16), randomblob(16)
             FROM sequence;
 
-            INSERT INTO works (id, media_type, work_kind)
-            SELECT work_id, 'Movies', 'standalone'
+            -- Every seeded movie is Ready: "added" is the moment a work first became Ready (spec D9).
+            INSERT INTO works (id, media_type, work_kind, ready_at, first_ready_at)
+            SELECT work_id, 'Movies', 'standalone', @occurredAt, @occurredAt
             FROM performance_ingestion_seed;
 
             INSERT INTO editions (id, work_id, format_label)

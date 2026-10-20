@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+
+@* "Title — Based on Source": one line per adaptation relationship the Library records between things in this Universe. *@
+<ul class="universe-adaptations" aria-label="Adaptations">
+    @foreach (var adaptation in Adaptations)
+    {
+        <li class="universe-adaptations__item" @key="adaptation.Qid">
+            <span class="universe-adaptations__line">@UniversePageText.AdaptationLine(adaptation)</span>
+            @if (!string.IsNullOrWhiteSpace(adaptation.MediaType))
+            {
+                <span class="universe-adaptations__kind">@adaptation.MediaType</span>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<UniverseClientAdaptationDto> Adaptations { get; set; } = [];
+}

@@ -61,6 +61,8 @@ fields that were previously split across API and Dashboard mirrors.
 
 `DisplayProjectionRepository` owns database reads for display projections. It should keep SQL and visibility filtering out of page composition.
 
+`DisplayWorkProjectionReader` builds the work rows for Home, detail, recent pages and the all-works read in one statement. It picks the rows first (`chosen`), then reads every stored value for just those rows in one pass (`value_pivot`, `array_pivot`) and builds credits only for them (`PersonCreditSql.ScopedCreditsCte`, which returns exactly the `primary_person_media_credits` view rows for a given set of files). A person's detail first finds that person's files in a separate small statement. The audiobook "borrow the matching book's year" rule is worked out once per read (`MediaDateSql.RelatedBookOriginalYearCte`). Callers that only need to know which works the request may see use `LoadVisibleWorkIdsAsync`, a light read with the same visibility and profile rules, instead of building every display row. Guardrails in `tests/MediaEngine.Performance.Tests` keep these reads proportional to the library.
+
 `DisplayCardBuilder` owns card, fact, badge, artwork, progress, and action construction. Hero facts should flow from the source card so spotlight and tile metadata stay consistent.
 
 ### Detail composition

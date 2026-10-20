@@ -93,7 +93,7 @@ public sealed class ServerFolderBrowserServiceTests
         {
             var exception = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
                 new BrowseServerFoldersRequest { StorageLocationId = id }));
-            Assert.Equal("This folder belongs to Tuvima and cannot be browsed.", exception.Message);
+            Assert.Equal("This folder belongs to Library and cannot be browsed.", exception.Message);
         }
     }
 
@@ -132,7 +132,7 @@ public sealed class ServerFolderBrowserServiceTests
         {
             var refused = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
                 new BrowseServerFoldersRequest { StorageLocationId = locationId, RelativePath = relative }));
-            Assert.Equal("This folder belongs to Tuvima and cannot be browsed.", refused.Message);
+            Assert.Equal("This folder belongs to Library and cannot be browsed.", refused.Message);
         }
     }
 

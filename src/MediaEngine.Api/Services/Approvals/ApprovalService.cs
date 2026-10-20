@@ -63,6 +63,61 @@ internal sealed class ApprovalService(
         return ApprovalStatementBuilder.ToPreview(ApprovalKinds.ApplicationCredential, application.Id.ToString("D"), statement);
     }
 
+    /// <summary>
+    /// What to show before an integration's existing keys gain permissions. Null when the change adds none, so nothing is
+    /// asked. A non-administrator integration's keys hold exactly <paramref name="requested"/>; an administrator integration
+    /// already holds every available permission, so a change to its stored grants widens nothing.
+    /// </summary>
+    public ApprovalPreviewResponse? PreviewApplicationPermissions(ApplicationResponse before, IReadOnlyList<string>? requested)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        if (requested is null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<string> after = before.IsAdministrator ? before.PermissionIds : requested.Distinct(StringComparer.Ordinal).ToList();
+        return after.Except(before.PermissionIds, StringComparer.Ordinal).Any() ? PreviewApplication(before, after) : null;
+    }
+
+    /// <summary>
+    /// What to show before an integration is updated, or null when nothing is asked: asked when the update adds permissions
+    /// to its keys (for example by making it an administrator) or switches it back on while it still holds live keys.
+    /// </summary>
+    public async Task<ApprovalPreviewResponse?> PreviewApplicationUpdateAsync(
+        ApplicationResponse before,
+        UpdateApplicationRequest request,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(request);
+        // A type the Engine does not know is refused by the update itself.
+        if (!Enum.TryParse<ApplicationType>(request.ApplicationType.ToString(), out var type))
+        {
+            return null;
+        }
+
+        IReadOnlyList<string> after = request.IsAdministrator
+            ? permissions.GetAvailableFor(type).Select(definition => definition.Id.Value).ToList()
+            : (await applications.GetApplicationPermissionsAsync(before.Id, ct).ConfigureAwait(false)).Select(id => id.Value).ToList();
+        var widens = after.Except(before.PermissionIds, StringComparer.Ordinal).Any();
+        var switchesOnKeys = !before.IsEnabled && request.IsEnabled && ActiveKeyCount(before) > 0;
+        return widens || switchesOnKeys ? PreviewApplication(before, after) : null;
+    }
+
+    private ApprovalPreviewResponse PreviewApplication(ApplicationResponse application, IReadOnlyList<string> permissionIds)
+    {
+        var statement = ApprovalStatementBuilder.ForApplication(application.Name, permissionIds.Select(PermissionName), ActiveKeyCount(application));
+        return ApprovalStatementBuilder.ToPreview(ApprovalKinds.Application, application.Id.ToString("D"), statement);
+    }
+
+    // Keys that can still be used: not revoked and not past their expiry.
+    private int ActiveKeyCount(ApplicationResponse application)
+    {
+        var now = clock.GetUtcNow();
+        return application.Credentials.Count(key => key.RevokedAt is null && (key.ExpiresAt is null || key.ExpiresAt > now));
+    }
+
     /// <param name="itemId">The webhook's id, or empty for one that does not exist yet.</param>
     public ApprovalPreviewResponse PreviewWebhook(Uri receiver, IEnumerable<string> eventTypes, bool allowLocalNetwork, string itemId)
     {

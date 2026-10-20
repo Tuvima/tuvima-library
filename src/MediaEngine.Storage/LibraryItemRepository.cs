@@ -95,11 +95,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             _ => "ORDER BY fd.created_at DESC, fd.title ASC",
         };
 
-        using var countCmd = conn.CreateCommand();
-        countCmd.CommandText = sql + $"SELECT COUNT(*) FROM full_data fd {whereClause};";
-        AddParameters(countCmd, query);
-        var totalCount = Convert.ToInt32(countCmd.ExecuteScalar() ?? 0);
-
+        // The total rides on every row of the page, so the projection is built once and the total always matches the page.
         using var dataCmd = conn.CreateCommand();
         dataCmd.CommandText = sql + $"""
             SELECT
@@ -150,7 +146,8 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 fd.is_ready_for_library,
                 fd.artwork_state,
                 fd.artwork_source,
-                fd.artwork_settled_at
+                fd.artwork_settled_at,
+                COUNT(*) OVER () AS total_count
             FROM full_data fd
             {whereClause}
             {orderBy}
@@ -161,60 +158,74 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         dataCmd.Parameters.AddWithValue("@offset", query.Offset);
 
         var items = new List<LibraryCatalogItem>();
-        using var reader = dataCmd.ExecuteReader();
-        while (reader.Read())
+        var totalCount = 0;
+        using (var reader = dataCmd.ExecuteReader())
         {
-            items.Add(new LibraryCatalogItem
+            while (reader.Read())
             {
-                EntityId = GuidSql.FromDb(reader.GetValue(0)),
-                Title = reader.GetString(1),
-                Year = reader.IsDBNull(2) ? null : reader.GetString(2),
-                MediaType = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                CoverUrl = reader.IsDBNull(4) ? null : reader.GetString(4),
-                BackgroundUrl = reader.IsDBNull(5) ? null : reader.GetString(5),
-                BannerUrl = reader.IsDBNull(6) ? null : reader.GetString(6),
-                MatchSource = reader.IsDBNull(7) ? null : GuidSql.ToText(reader.GetValue(7)),
-                Confidence = reader.IsDBNull(8) ? 0.0 : reader.GetDouble(8),
-                Status = reader.IsDBNull(9) ? "Confirmed" : reader.GetString(9),
-                HasDuplicate = !reader.IsDBNull(10) && reader.GetInt32(10) == 1,
-                ReviewItemId = reader.IsDBNull(11) ? null : GuidSql.FromDb(reader.GetValue(11)),
-                ReviewTrigger = reader.IsDBNull(12) ? null : reader.GetString(12),
-                HasUserLocks = !reader.IsDBNull(13) && reader.GetInt32(13) == 1,
-                FileName = reader.IsDBNull(14) ? null : reader.GetString(14),
-                Author = reader.IsDBNull(15) ? null : reader.GetString(15),
-                FilePath = reader.IsDBNull(16) ? null : reader.GetString(16),
-                WikidataStatus = reader.IsDBNull(17) ? null : reader.GetString(17),
-                WikidataMatch = reader.IsDBNull(18) ? "none" : reader.GetString(18),
-                RetailMatch = reader.IsDBNull(19) ? "none" : reader.GetString(19),
-                WikidataQid = reader.IsDBNull(20) ? null : reader.GetString(20),
-                HeroUrl = reader.IsDBNull(21) ? null : reader.GetString(21),
-                CreatedAt = reader.IsDBNull(22) ? DateTimeOffset.MinValue : ParseDateTimeOffset(reader.GetString(22)) ?? DateTimeOffset.MinValue,
-                Director = reader.IsDBNull(23) ? null : reader.GetString(23),
-                Artist = reader.IsDBNull(24) ? null : reader.GetString(24),
-                RetailMatchDetail = reader.IsDBNull(25) ? null : reader.GetString(25),
-                Series = reader.IsDBNull(26) ? null : reader.GetString(26),
-                SeriesPosition = reader.IsDBNull(27) ? null : reader.GetString(27),
-                Narrator = reader.IsDBNull(28) ? null : reader.GetString(28),
-                Genre = reader.IsDBNull(29) ? null : reader.GetString(29),
-                Runtime = reader.IsDBNull(30) ? null : reader.GetString(30),
-                Rating = reader.IsDBNull(31) ? null : reader.GetString(31),
-                Album = reader.IsDBNull(32) ? null : reader.GetString(32),
-                TrackNumber = reader.IsDBNull(33) ? null : reader.GetString(33),
-                SeasonNumber = reader.IsDBNull(34) ? null : reader.GetString(34),
-                EpisodeNumber = reader.IsDBNull(35) ? null : reader.GetString(35),
-                ShowName = reader.IsDBNull(36) ? null : reader.GetString(36),
-                Duration = reader.IsDBNull(37) ? null : reader.GetString(37),
-                EpisodeTitle = reader.IsDBNull(38) ? null : reader.GetString(38),
-                Network = reader.IsDBNull(39) ? null : reader.GetString(39),
-                TopCast = reader.IsDBNull(40) ? null : reader.GetString(40),
-                QidResolutionMethod = reader.IsDBNull(41) ? null : reader.GetString(41),
-                PipelineStep = reader.IsDBNull(42) ? "Retail" : reader.GetString(42),
-                LibraryVisibility = reader.IsDBNull(43) ? "hidden" : reader.GetString(43),
-                IsReadyForLibrary = !reader.IsDBNull(44) && reader.GetInt32(44) == 1,
-                ArtworkState = reader.IsDBNull(45) ? "pending" : reader.GetString(45),
-                ArtworkSource = reader.IsDBNull(46) ? null : reader.GetString(46),
-                ArtworkSettledAt = reader.IsDBNull(47) ? null : ParseDateTimeOffset(reader.GetString(47)),
-            });
+                totalCount = reader.GetInt32(48);
+                items.Add(new LibraryCatalogItem
+                {
+                    EntityId = GuidSql.FromDb(reader.GetValue(0)),
+                    Title = reader.GetString(1),
+                    Year = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    MediaType = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                    CoverUrl = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    BackgroundUrl = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    BannerUrl = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    MatchSource = reader.IsDBNull(7) ? null : GuidSql.ToText(reader.GetValue(7)),
+                    Confidence = reader.IsDBNull(8) ? 0.0 : reader.GetDouble(8),
+                    Status = reader.IsDBNull(9) ? "Confirmed" : reader.GetString(9),
+                    HasDuplicate = !reader.IsDBNull(10) && reader.GetInt32(10) == 1,
+                    ReviewItemId = reader.IsDBNull(11) ? null : GuidSql.FromDb(reader.GetValue(11)),
+                    ReviewTrigger = reader.IsDBNull(12) ? null : reader.GetString(12),
+                    HasUserLocks = !reader.IsDBNull(13) && reader.GetInt32(13) == 1,
+                    FileName = reader.IsDBNull(14) ? null : reader.GetString(14),
+                    Author = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    FilePath = reader.IsDBNull(16) ? null : reader.GetString(16),
+                    WikidataStatus = reader.IsDBNull(17) ? null : reader.GetString(17),
+                    WikidataMatch = reader.IsDBNull(18) ? "none" : reader.GetString(18),
+                    RetailMatch = reader.IsDBNull(19) ? "none" : reader.GetString(19),
+                    WikidataQid = reader.IsDBNull(20) ? null : reader.GetString(20),
+                    HeroUrl = reader.IsDBNull(21) ? null : reader.GetString(21),
+                    CreatedAt = reader.IsDBNull(22) ? DateTimeOffset.MinValue : ParseDateTimeOffset(reader.GetString(22)) ?? DateTimeOffset.MinValue,
+                    Director = reader.IsDBNull(23) ? null : reader.GetString(23),
+                    Artist = reader.IsDBNull(24) ? null : reader.GetString(24),
+                    RetailMatchDetail = reader.IsDBNull(25) ? null : reader.GetString(25),
+                    Series = reader.IsDBNull(26) ? null : reader.GetString(26),
+                    SeriesPosition = reader.IsDBNull(27) ? null : reader.GetString(27),
+                    Narrator = reader.IsDBNull(28) ? null : reader.GetString(28),
+                    Genre = reader.IsDBNull(29) ? null : reader.GetString(29),
+                    Runtime = reader.IsDBNull(30) ? null : reader.GetString(30),
+                    Rating = reader.IsDBNull(31) ? null : reader.GetString(31),
+                    Album = reader.IsDBNull(32) ? null : reader.GetString(32),
+                    TrackNumber = reader.IsDBNull(33) ? null : reader.GetString(33),
+                    SeasonNumber = reader.IsDBNull(34) ? null : reader.GetString(34),
+                    EpisodeNumber = reader.IsDBNull(35) ? null : reader.GetString(35),
+                    ShowName = reader.IsDBNull(36) ? null : reader.GetString(36),
+                    Duration = reader.IsDBNull(37) ? null : reader.GetString(37),
+                    EpisodeTitle = reader.IsDBNull(38) ? null : reader.GetString(38),
+                    Network = reader.IsDBNull(39) ? null : reader.GetString(39),
+                    TopCast = reader.IsDBNull(40) ? null : reader.GetString(40),
+                    QidResolutionMethod = reader.IsDBNull(41) ? null : reader.GetString(41),
+                    PipelineStep = reader.IsDBNull(42) ? "Retail" : reader.GetString(42),
+                    LibraryVisibility = reader.IsDBNull(43) ? "hidden" : reader.GetString(43),
+                    IsReadyForLibrary = !reader.IsDBNull(44) && reader.GetInt32(44) == 1,
+                    ArtworkState = reader.IsDBNull(45) ? "pending" : reader.GetString(45),
+                    ArtworkSource = reader.IsDBNull(46) ? null : reader.GetString(46),
+                    ArtworkSettledAt = reader.IsDBNull(47) ? null : ParseDateTimeOffset(reader.GetString(47)),
+                });
+            }
+        }
+
+        if (items.Count == 0 && (query.Offset > 0 || query.Limit == 0))
+        {
+            // A page past the end (or a count-only request) has no rows to carry the total, so count separately. Only these
+            // rare cases pay twice.
+            using var countCmd = conn.CreateCommand();
+            countCmd.CommandText = sql + $"SELECT COUNT(*) FROM full_data fd {whereClause};";
+            AddParameters(countCmd, query);
+            totalCount = Convert.ToInt32(countCmd.ExecuteScalar() ?? 0);
         }
 
         return Task.FromResult(new LibraryItemsPage(items, totalCount, query.Offset + items.Count < totalCount));
@@ -649,9 +660,12 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             && explicitOriginalYear is null
             && assetId.HasValue)
         {
-            var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("@workId", "@assetId");
+            var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+                "related_book_year",
+                "SELECT @workId AS work_id, @assetId AS asset_id",
+                "rby_");
             relatedBookYear = conn.QueryFirstOrDefault<string?>(
-                $"SELECT {relatedBookYearSql};",
+                $"WITH {relatedBookYearCte} SELECT year FROM related_book_year;",
                 new { workId = entityId, assetId }) ?? string.Empty;
         }
 
@@ -886,7 +900,18 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         var explicitWorkYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "wcv.key", "wcv.value");
         var explicitAssetYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "acv.key", "acv.value");
         var primaryAssetIdSql = "(SELECT year_asset.asset_id FROM primary_asset_data year_asset WHERE year_asset.work_id = w.id)";
-        var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("w.id", primaryAssetIdSql);
+        // The borrowed audiobook year is worked out once for all audiobooks (set-based), not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the year look-up only; the projection filters the rows it returns
+            SELECT audiobook_pad.work_id, audiobook_pad.asset_id
+            FROM primary_asset_data audiobook_pad
+            INNER JOIN works audiobook_work ON audiobook_work.id = audiobook_pad.work_id
+            WHERE LOWER(audiobook_work.media_type) LIKE '%audio%'
+            """,
+            "rby_");
+        var relatedBookYearSql = MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", primaryAssetIdSql);
 
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
@@ -909,6 +934,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM ranked_primary_assets
                 WHERE asset_rank=1
             ),
+            {relatedBookYearCte},
             root_work_data AS (
                 SELECT
                     w.id AS work_id,
@@ -1054,17 +1080,13 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             FROM (
                                 SELECT COUNT(DISTINCT cva0.value) AS total
                                 FROM canonical_value_arrays cva0
-                                LEFT JOIN works pw0 ON pw0.id = w.parent_work_id
-                                LEFT JOIN works gpw0 ON gpw0.id = pw0.parent_work_id
-                                WHERE cva0.entity_id = COALESCE(gpw0.id, pw0.id, w.id)
+                                WHERE cva0.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                                   AND cva0.key = 'author'
                             ) cnt
                             LEFT JOIN (
                                 SELECT DISTINCT cva1.value
                                 FROM canonical_value_arrays cva1
-                                LEFT JOIN works pw1 ON pw1.id = w.parent_work_id
-                                LEFT JOIN works gpw1 ON gpw1.id = pw1.parent_work_id
-                                WHERE cva1.entity_id = COALESCE(gpw1.id, pw1.id, w.id)
+                                WHERE cva1.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                                   AND cva1.key = 'author'
                                 ORDER BY cva1.ordinal
                                 LIMIT 1
@@ -1072,9 +1094,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             LEFT JOIN (
                                 SELECT DISTINCT cva2.value
                                 FROM canonical_value_arrays cva2
-                                LEFT JOIN works pw2 ON pw2.id = w.parent_work_id
-                                LEFT JOIN works gpw2 ON gpw2.id = pw2.parent_work_id
-                                WHERE cva2.entity_id = COALESCE(gpw2.id, pw2.id, w.id)
+                                WHERE cva2.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                                   AND cva2.key = 'author'
                                 ORDER BY cva2.ordinal
                                 LIMIT 1 OFFSET 1
@@ -1082,11 +1102,13 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             WHERE cnt.total >= 1
                         )
                     ) AS author,
+                    -- Each credit look-up resolves its one target id first (the show or album, or the main file) so the
+                    -- (entity_id, key) index applies. Finding the target through a join instead reads every credit of
+                    -- that key in the library for each work, which grows with the square of the library.
                     (
                         SELECT value
                         FROM canonical_value_arrays cva_artist
-                        INNER JOIN root_work_data rwd_artist ON rwd_artist.root_work_id = cva_artist.entity_id
-                        WHERE rwd_artist.work_id = w.id
+                        WHERE cva_artist.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                           AND cva_artist.key IN ('album_artist', 'artist', 'performer')
                         ORDER BY CASE cva_artist.key WHEN 'album_artist' THEN 0 WHEN 'artist' THEN 1 ELSE 2 END,
                                  cva_artist.ordinal
@@ -1096,8 +1118,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                     (
                         SELECT value
                         FROM canonical_value_arrays cva_narrator
-                        INNER JOIN root_work_data rwd_narrator ON rwd_narrator.root_work_id = cva_narrator.entity_id
-                        WHERE rwd_narrator.work_id = w.id
+                        WHERE cva_narrator.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                           AND cva_narrator.key = 'narrator'
                         ORDER BY cva_narrator.ordinal
                         LIMIT 1
@@ -1107,8 +1128,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                         FROM (
                             SELECT cva_genre.value
                             FROM canonical_value_arrays cva_genre
-                            INNER JOIN root_work_data rwd_genre ON rwd_genre.root_work_id = cva_genre.entity_id
-                            WHERE rwd_genre.work_id = w.id
+                            WHERE cva_genre.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                               AND cva_genre.key = 'genre'
                             ORDER BY cva_genre.ordinal
                         )
@@ -1131,9 +1151,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                         FROM (
                             SELECT cva.value
                             FROM canonical_value_arrays cva
-                            LEFT JOIN works pw ON pw.id = w.parent_work_id
-                            LEFT JOIN works gpw ON gpw.id = pw.parent_work_id
-                            WHERE cva.entity_id = COALESCE(gpw.id, pw.id, w.id)
+                            WHERE cva.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                               AND cva.key = 'cast_member'
                             ORDER BY cva.ordinal
                             LIMIT 3
@@ -1145,8 +1163,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             FROM (
                                 SELECT cva_director.value
                                 FROM canonical_value_arrays cva_director
-                                INNER JOIN root_work_data rwd_director ON rwd_director.root_work_id = cva_director.entity_id
-                                WHERE rwd_director.work_id = w.id
+                                WHERE cva_director.entity_id = (SELECT r.root_work_id FROM root_work_data r WHERE r.work_id = w.id)
                                   AND cva_director.key = 'director'
                                 ORDER BY cva_director.ordinal
                             )
@@ -1156,8 +1173,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                             FROM (
                                 SELECT cva_director_asset.value
                                 FROM canonical_value_arrays cva_director_asset
-                                INNER JOIN primary_asset_data pad_director ON pad_director.asset_id = cva_director_asset.entity_id
-                                WHERE pad_director.work_id = w.id
+                                WHERE cva_director_asset.entity_id = (SELECT pad.asset_id FROM primary_asset_data pad WHERE pad.work_id = w.id)
                                   AND cva_director_asset.key = 'director'
                                 ORDER BY cva_director_asset.ordinal
                             )

@@ -1,11 +1,13 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
+using static MediaEngine.Api.Services.ReadServices.UniverseConnectionsReadService;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -116,6 +118,27 @@ public static class UniverseGraphEndpoints
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
 
+        // GET /universe/{qid}/overview — the one read behind the Dashboard's Universe page.
+        group.MapGet("/universe/{qid}/overview", async (
+            string qid,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniversePageReadService pages,
+            CancellationToken ct) =>
+        {
+            var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
+            var page = await pages.LoadAsync(qid, profile, ct);
+            return page is null
+                ? ApiErrors.NotFound(CollectionClientEndpoints.NotFoundDetail)
+                : Results.Ok(page);
+        })
+        .WithName("GetUniverseOverview")
+        .WithSummary("Returns one Universe's page: shelves, standalone works, missing entries, enrichment state and graph size, limited to what the active profile may see.")
+        .Produces<UniversePageDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
+        .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
+
         // GET /universe/{qid}/lore-delta — check for Wikidata revision changes.
         group.MapGet("/universe/{qid}/lore-delta", async (
             string qid,
@@ -123,9 +146,9 @@ public static class UniverseGraphEndpoints
             CancellationToken ct) =>
         {
             var results = await loreDeltaService.CheckForUpdatesAsync(qid, ct);
-            return Results.Ok(results);
+            return Results.Ok(results.Select(MapLoreDelta).ToList());
         })
-        .Produces<IReadOnlyList<LoreDeltaResult>>(StatusCodes.Status200OK)
+        .Produces<IReadOnlyList<UniverseLoreDeltaResponse>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataEnrichmentRead)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.MetadataEnrichmentRead);
 
@@ -375,53 +398,9 @@ public static class UniverseGraphEndpoints
         // GET /universe/{qid}/cast — characters with their real-world performers.
         group.MapGet("/universe/{qid}/cast", async (
             string qid,
-            IFictionalEntityRepository entityRepo,
-            IPersonRepository personRepo,
-            IDisplayProjectionReadService display,
+            UniverseConnectionsReadService connections,
             CancellationToken ct) =>
-        {
-            // Load all Character-type entities in this universe.
-            var visibleWorkQids = await LoadVisibleWorkQidsAsync(display, ct);
-            var allEntities = (await LoadVisibleUniverseScopeAsync(
-                qid, entityRepo, visibleWorkQids, ct)).Entities;
-            var characters = allEntities.Where(e =>
-                string.Equals(e.EntitySubType, "Character", StringComparison.OrdinalIgnoreCase)).ToList();
-
-            if (characters.Count == 0)
-            {
-                return Results.Ok(new UniverseCastResponse(universe_qid: qid, characters: Array.Empty<UniverseCastCharacterDto>()));
-            }
-
-            var allPerformerRows = await personRepo.GetCharacterPerformersAsync(
-                characters.Select(character => character.Id),
-                ct);
-
-            // Group performers by entity UUID for O(1) lookup.
-            var performersByEntity = allPerformerRows
-                .GroupBy(performer => performer.FictionalEntityId)
-                .ToDictionary(grouping => grouping.Key, grouping => grouping.ToList());
-
-            var castList = characters.Select(character =>
-            {
-                performersByEntity.TryGetValue(character.Id, out var performers);
-                return new UniverseCastCharacterDto(
-                    qid: character.WikidataQid,
-                    label: character.Label,
-                    image: character.ImageUrl,
-                    description: character.Description,
-                    performers: (performers ?? []).Select(p => new UniverseCastPerformerDto(
-                        person_id: p.PersonId,
-                        name: p.PerformerName,
-                        headshot_url: ApiImageUrls.BuildPersonHeadshotUrl(
-                            p.PersonId,
-                            p.LocalHeadshotPath,
-                            p.HeadshotUrl),
-                        work_qid: p.WorkQid,
-                        year: (int?)null)));
-            }).ToList();
-
-            return Results.Ok(new UniverseCastResponse(universe_qid: qid, characters: castList));
-        })
+            Results.Ok(await connections.GetCastAsync(qid, ct)))
         .Produces<UniverseCastResponse>(StatusCodes.Status200OK)
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
@@ -429,101 +408,13 @@ public static class UniverseGraphEndpoints
         // GET /universe/{qid}/adaptations — adaptation chain (based_on/derivative_work).
         group.MapGet("/universe/{qid}/adaptations", async (
             string qid,
-            IFictionalEntityRepository entityRepo,
-            IEntityRelationshipRepository relRepo,
-            INarrativeRootRepository rootRepo,
-            IDisplayProjectionReadService display,
+            UniverseConnectionsReadService connections,
             CancellationToken ct) =>
         {
-            var root = await rootRepo.FindByQidAsync(qid, ct);
-            if (root is null)
-            {
-                return ApiErrors.NotFound($"Narrative root '{qid}' not found.");
-            }
-
-            // Load all entities and adaptation-type relationships.
-            var visibleWorkQids = await LoadVisibleWorkQidsAsync(display, ct);
-            var allEntities = (await LoadVisibleUniverseScopeAsync(
-                qid, entityRepo, visibleWorkQids, ct)).Entities;
-            var entityQids = allEntities.Select(e => e.WikidataQid).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var allRels = await relRepo.GetByUniverseAsync(entityQids, ct);
-            var adaptationTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                { "based_on", "derivative_work", "inspired_by" };
-
-            var adaptationRels = allRels
-                .Where(r => adaptationTypes.Contains(r.RelationshipTypeValue))
-                .ToList();
-
-            // Build a lookup by entity QID → work metadata from entities table.
-            // Works (not fictional entities) are tracked separately; fall back to entity data.
-            var entityByQid = allEntities.ToDictionary(
-                e => e.WikidataQid, e => e, StringComparer.OrdinalIgnoreCase);
-
-            // Identify root works (sources that appear only as subjects, never as objects of based_on).
-            var childQids = adaptationRels
-                .Select(r => r.SubjectQid)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var rootWorkQids = adaptationRels
-                .Select(r => r.ObjectQid)
-                .Where(q => !childQids.Contains(q))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            // If no adaptation relationships exist, return all works as flat roots.
-            if (!adaptationRels.Any())
-            {
-                var flatWorks = allEntities.Select(e => new UniverseAdaptationNodeDto(
-                    qid: e.WikidataQid,
-                    label: e.Label,
-                    year: (int?)null,
-                    media_type: e.EntitySubType,
-                    cover_image: e.ImageUrl,
-                    relationship_to_parent: (string?)null,
-                    children: Array.Empty<UniverseAdaptationNodeDto>())).ToList();
-                return Results.Ok(new UniverseAdaptationTreeResponse(universe_qid: qid, works: flatWorks));
-            }
-
-            // Build tree recursively.
-            static IEnumerable<UniverseAdaptationNodeDto> BuildChildren(
-                string parentQid,
-                IReadOnlyList<MediaEngine.Domain.Entities.EntityRelationship> rels,
-                IReadOnlyDictionary<string, MediaEngine.Domain.Entities.FictionalEntity> byQid,
-                int depth)
-            {
-                if (depth > 6)
-                {
-                    yield break; // Guard against cycles.
-                }
-
-                foreach (var rel in rels.Where(r =>
-                    string.Equals(r.ObjectQid, parentQid, StringComparison.OrdinalIgnoreCase)))
-                {
-                    byQid.TryGetValue(rel.SubjectQid, out var child);
-                    yield return new UniverseAdaptationNodeDto(
-                        qid: rel.SubjectQid,
-                        label: child?.Label ?? rel.SubjectQid,
-                        year: (int?)null,
-                        media_type: child?.EntitySubType ?? "Unknown",
-                        cover_image: child?.ImageUrl,
-                        relationship_to_parent: FormatEdgeLabel(rel.RelationshipTypeValue),
-                        children: BuildChildren(rel.SubjectQid, rels, byQid, depth + 1).ToList());
-                }
-            }
-
-            var tree = rootWorkQids.Select(rootQid =>
-            {
-                entityByQid.TryGetValue(rootQid, out var entity);
-                return new UniverseAdaptationNodeDto(
-                    qid: rootQid,
-                    label: entity?.Label ?? rootQid,
-                    year: (int?)null,
-                    media_type: entity?.EntitySubType ?? "Unknown",
-                    cover_image: entity?.ImageUrl,
-                    relationship_to_parent: (string?)null,
-                    children: BuildChildren(rootQid, adaptationRels, entityByQid, 1).ToList());
-            }).ToList();
-
-            return Results.Ok(new UniverseAdaptationTreeResponse(universe_qid: qid, works: tree));
+            var tree = await connections.GetAdaptationTreeAsync(qid, ct);
+            return tree is null
+                ? ApiErrors.NotFound($"Narrative root '{qid}' not found.")
+                : Results.Ok(tree);
         })
         .Produces<UniverseAdaptationTreeResponse>(StatusCodes.Status200OK)
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
@@ -531,15 +422,6 @@ public static class UniverseGraphEndpoints
 
         return app;
     }
-
-    private static async Task<HashSet<string>> LoadVisibleWorkQidsAsync(
-        IDisplayProjectionReadService display,
-        CancellationToken ct) =>
-        (await display.LoadWorksAsync(ct))
-            .Select(work => work.IdentityQid)
-            .Where(qid => !string.IsNullOrWhiteSpace(qid))
-            .Select(qid => qid!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static async Task<HashSet<string>> LoadVisibleEntityQidsAsync(
         string universeQid,
@@ -554,37 +436,6 @@ public static class UniverseGraphEndpoints
         .Entities
         .Select(entity => entity.WikidataQid)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-    private static async Task<VisibleUniverseScope> LoadVisibleUniverseScopeAsync(
-        string universeQid,
-        IFictionalEntityRepository entityRepo,
-        IReadOnlySet<string> visibleWorkQids,
-        CancellationToken ct)
-    {
-        var allEntities = await entityRepo.GetByUniverseAsync(universeQid, ct);
-        var allLinks = await entityRepo.GetWorkLinksAsync(
-            allEntities.Select(entity => entity.Id), ct);
-        var visibleLinks = allLinks
-            .Where(link => visibleWorkQids.Contains(link.WorkQid))
-            .ToList();
-        return new VisibleUniverseScope(
-            FilterVisibleEntities(allEntities, visibleLinks),
-            visibleLinks.ToLookup(link => link.FictionalEntityId));
-    }
-
-    internal static IReadOnlyList<FictionalEntity> FilterVisibleEntities(
-        IReadOnlyList<FictionalEntity> entities,
-        IReadOnlyList<FictionalEntityWorkLink> visibleLinks)
-    {
-        var visibleEntityIds = visibleLinks
-            .Select(link => link.FictionalEntityId)
-            .ToHashSet();
-        return entities.Where(entity => visibleEntityIds.Contains(entity.Id)).ToList();
-    }
-
-    private sealed record VisibleUniverseScope(
-        IReadOnlyList<FictionalEntity> Entities,
-        ILookup<Guid, FictionalEntityWorkLink> WorkLinks);
 
     private static async Task AppendSupplementalLoreAsync(
         string universeQid,
@@ -715,34 +566,10 @@ public static class UniverseGraphEndpoints
     private static string BuildSupplementalNodeId(Guid sourceId, string externalKey) =>
         $"plugin:{sourceId:N}:{Uri.EscapeDataString(externalKey)}";
 
-    /// <summary>
-    /// Converts a relationship type constant (e.g. "father") to a human-readable
-    /// edge label (e.g. "parent of"). Used in the graph JSON for Cytoscape.js display.
-    /// </summary>
-    private static string FormatEdgeLabel(string relType) => relType switch
-    {
-        "father" => "father of",
-        "mother" => "mother of",
-        "spouse" => "spouse of",
-        "sibling" => "sibling of",
-        "child" => "child of",
-        "opponent" => "opponent of",
-        "student_of" => "student of",
-        "member_of" => "member of",
-        "residence" => "resides in",
-        "located_in" => "located in",
-        "part_of" => "part of",
-        "head_of" => "head of",
-        "parent_organization" => "parent org of",
-        "has_parts" => "has parts",
-        "creator" => "created by",
-        "performer" => "performed by",
-        "same_as" => "same as",
-        "significant_person" => "significant to",
-        "affiliation" => "affiliated with",
-        "based_on" => "based on",
-        "derivative_work" => "derivative of",
-        "inspired_by" => "inspired by",
-        _ => relType.Replace('_', ' '),
-    };
+    internal static UniverseLoreDeltaResponse MapLoreDelta(LoreDeltaResult result) => new(
+        entity_qid: result.EntityQid,
+        label: result.Label,
+        cached_revision: result.CachedRevision,
+        current_revision: result.CurrentRevision,
+        has_changed: result.HasChanged);
 }

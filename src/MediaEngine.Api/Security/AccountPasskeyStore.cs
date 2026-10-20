@@ -18,7 +18,7 @@ public sealed class AccountPasskeyStore(IAccountRepository accounts, IDatabaseCo
     public Task SetNormalizedUserNameAsync(Account user, string? normalizedName, CancellationToken ct) => Task.CompletedTask;
     public async Task<IdentityResult> CreateAsync(Account user, CancellationToken ct) { await accounts.InsertAsync(user, ct); return IdentityResult.Success; }
     public async Task<IdentityResult> UpdateAsync(Account user, CancellationToken ct) => await accounts.UpdateAsync(user, ct) ? IdentityResult.Success : IdentityResult.Failed(new IdentityError { Description = "Account was not found." });
-    public Task<IdentityResult> DeleteAsync(Account user, CancellationToken ct) => Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "Account deletion is managed by Tuvima." }));
+    public Task<IdentityResult> DeleteAsync(Account user, CancellationToken ct) => Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "Account deletion is managed by Library." }));
     public async Task<Account?> FindByIdAsync(string userId, CancellationToken ct) => Guid.TryParse(userId, out var id) ? await accounts.GetByIdAsync(id, ct) : null;
     public Task<Account?> FindByNameAsync(string normalizedUserName, CancellationToken ct) => accounts.GetByNormalizedEmailAsync(normalizedUserName, ct);
 

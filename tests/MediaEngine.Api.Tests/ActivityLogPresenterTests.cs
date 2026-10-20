@@ -255,6 +255,20 @@ public sealed class ActivityLogPresenterTests
     }
 
     [Fact]
+    public void ADeletedTitle_ReadsAsDeleted_WithWhoAndHowMuchInTheDetail()
+    {
+        var entry = Present(
+            SystemActionType.MediaRemoved,
+            name: "\"Dune\"",
+            detail: "Shy deleted \"Dune\" from the library: 2 files deleted from disk (61.4 GB freed).",
+            changes: "{\"titles\":1,\"files_deleted\":2}");
+
+        Assert.Equal("Deleted \"Dune\"", entry.Title);
+        Assert.Equal("Shy deleted \"Dune\" from the library: 2 files deleted from disk (61.4 GB freed).", entry.Detail);
+        Assert.Equal(ActivityLogCategoryValues.System, entry.Category);
+    }
+
+    [Fact]
     public void AKindThatIsNotShown_HasNoEntry()
     {
         var entry = new SystemActivityEntry { ActionType = SystemActionType.FileHashed, OccurredAt = DateTimeOffset.UtcNow };
@@ -270,6 +284,7 @@ public sealed class ActivityLogPresenterTests
     [InlineData(SystemActionType.MediaFailed, ActivityLogCategoryValues.Failed)]
     [InlineData(SystemActionType.FileQuarantined, ActivityLogCategoryValues.Failed)]
     [InlineData(SystemActionType.ArtworkWritebackFailed, ActivityLogCategoryValues.Failed)]
+    [InlineData(SystemActionType.MediaRemoved, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ToolMissing, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ProviderRecovered, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ReconciliationCompleted, ActivityLogCategoryValues.System)]

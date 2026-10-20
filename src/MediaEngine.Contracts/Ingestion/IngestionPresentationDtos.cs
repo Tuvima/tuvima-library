@@ -58,8 +58,27 @@ public sealed class IngestionPresentationSnapshotDto
     [JsonPropertyName("recent_days")]
     public List<IngestionRecentDayDto> RecentDays { get; set; } = [];
 
+    /// <summary>
+    /// Photos and personal videos being taken in right now. Shown as counts only; they never become rows in the Now panel.
+    /// </summary>
+    [JsonPropertyName("personal_media_in_progress")]
+    public IngestionPersonalMediaProgressDto PersonalMediaInProgress { get; set; } = new();
+
     [JsonPropertyName("generated_at")]
     public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>The keys that appear in <see cref="IngestionMediaGroupDto.WaitingFor"/>.</summary>
+public static class IngestionWaitingForKeys
+{
+    /// <summary>Not matched to a real title yet.</summary>
+    public const string Matching = "matching";
+
+    /// <summary>A TV episode not yet under its show, or a track not yet on its album.</summary>
+    public const string Placing = "placing";
+
+    /// <summary>Artwork is neither present nor settled.</summary>
+    public const string Artwork = "artwork";
 }
 
 public sealed class IngestionMediaGroupDto
@@ -93,6 +112,14 @@ public sealed class IngestionMediaGroupDto
 
     [JsonPropertyName("status_label")]
     public string StatusLabel { get; set; } = "Adding";
+
+    /// <summary>
+    /// For a row that is still being added: the Ready conditions it is still missing, in the fixed order matching,
+    /// placing, artwork (see <see cref="IngestionWaitingForKeys"/>). Empty when the row is Ready, in review, failed or
+    /// waiting for media tools.
+    /// </summary>
+    [JsonPropertyName("waiting_for")]
+    public List<string> WaitingFor { get; set; } = [];
 
     /// <summary>
     /// Progress through the applicable, durable ingestion gates for this recognizable
@@ -229,8 +256,33 @@ public sealed class IngestionRecentDayDto
     [JsonPropertyName("total_count")]
     public int TotalCount { get; set; }
 
+    /// <summary>
+    /// What was fully added that day, by media type, counted over every item of the day (not only <see cref="Items"/>).
+    /// The unit is the leaf item of the type: movies, episodes, songs, books, audiobooks, comic issues. Largest first.
+    /// </summary>
+    [JsonPropertyName("type_counts")]
+    public List<IngestionTypeCountDto> TypeCounts { get; set; } = [];
+
     [JsonPropertyName("items")]
     public List<IngestionMediaGroupDto> Items { get; set; } = [];
+}
+
+public sealed class IngestionTypeCountDto
+{
+    [JsonPropertyName("media_type")]
+    public string MediaType { get; set; } = "Unknown";
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+}
+
+public sealed class IngestionPersonalMediaProgressDto
+{
+    [JsonPropertyName("photos")]
+    public int Photos { get; set; }
+
+    [JsonPropertyName("videos")]
+    public int Videos { get; set; }
 }
 
 public sealed class ActivityHistorySummaryDto

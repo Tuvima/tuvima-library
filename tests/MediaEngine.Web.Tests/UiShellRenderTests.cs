@@ -386,7 +386,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("@if (CanViewReview)", accountSource);
         Assert.Contains("TopBar_NeedsReview", accountSource);
         Assert.Contains("ShowSignOut", accountSource);
-        Assert.Contains("href=\"/settings/recently-added?review=expanded\"", accountSource);
+        Assert.Contains("href=\"/settings/review\"", accountSource);
         Assert.Contains("href=\"/settings\"", accountSource);
         Assert.DoesNotContain("<MudMenu", accountSource);
         Assert.DoesNotContain("SettingsSelected", accountSource);
@@ -798,11 +798,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LegacySettingsReviewPage_RedirectsToRecentlyAddedReviewSection()
+    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPageInSource()
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
-        Assert.Contains("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
-        Assert.Contains("Section.Equals(\"review\"", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.RouteFor(SettingsSection.Review)", source, StringComparison.Ordinal);
+        Assert.Contains("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1096,11 +1097,14 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("Dune Universe", cut.Markup);
             Assert.Contains("Middle-earth", cut.Markup);
             Assert.Contains("Weekend Picks", cut.Markup);
+            // A Universe with a Wikidata identity opens its own page; one without keeps the generic collection page.
+            Assert.Contains("href=\"/universe/Q4242\"", cut.Markup);
+            Assert.Contains("href=\"/details/collection/10000000-0000-0000-0000-000000000002\"", cut.Markup);
             Assert.Contains(">Automatic<", cut.Markup);
             Assert.Contains(">Curated<", cut.Markup);
             Assert.Contains(">Shelves<", cut.Markup);
             Assert.Contains(">People<", cut.Markup);
-            Assert.Contains("Broader worlds Tuvima Library found by connecting trusted relationships", cut.Markup);
+            Assert.Contains("Broader worlds Library found by connecting trusted relationships", cut.Markup);
             Assert.DoesNotContain(">Playlists<", cut.Markup);
             Assert.DoesNotContain("CROSS-MEDIA COLLECTIONS", cut.Markup);
             Assert.DoesNotContain("WATCH COLLECTIONS", cut.Markup);
@@ -1878,10 +1882,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DownloadsPage_SaysDownloadsLiveInTheTuvimaApp()
+    public void DownloadsPage_SaysDownloadsLiveInTheLibraryApp()
     {
         var cut = Render<DownloadsPage>();
-        Assert.Contains("Downloads live in the Tuvima app", cut.Markup);
+        Assert.Contains("Downloads live in the Library app", cut.Markup);
     }
 
     [Fact]

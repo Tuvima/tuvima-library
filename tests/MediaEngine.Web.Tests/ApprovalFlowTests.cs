@@ -36,6 +36,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     private bool _pluginNeedsApproval = true;
     private AiConfigDto _aiConfig = new();
     private Dictionary<string, bool> _savedFeatures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _needsNoApproval = new(StringComparer.OrdinalIgnoreCase);
 
     public ApprovalFlowTests()
     {
@@ -65,7 +66,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
                     .Where(pair => pair.Value && !_savedFeatures.GetValueOrDefault(pair.Key))
                     .Select(pair => pair.Key)
                     .Order(StringComparer.Ordinal)
-                    .Where(key => !config.Approvals.ContainsKey(key))
+                    .Where(key => !_needsNoApproval.Contains(key) && !config.Approvals.ContainsKey(key))
                     .ToList();
                 if (needed.Count > 0)
                 {
@@ -254,6 +255,44 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AiSave_Cancel_ReloadsTheSavedConfig_SoEveryUnsavedSwitchGoesBack_EvenOneThatNeededNoApproval()
+    {
+        _aiConfig = AllFeaturesOff();
+        _needsNoApproval.Add("type_logic");
+        var dialogs = Render<AppDialogHost>();
+        var cut = await RenderLocalAiAsync();
+        TurnOn(cut, 0);
+        TurnOn(cut, 1);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save features").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Smart labeling?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Nothing was turned on", cut.Markup));
+        Assert.Single(_aiSaves);
+        Assert.All(cut.FindAll("[data-state-card=plugin]"), card => Assert.Equal("off", card.GetAttribute("data-health")));
+        Assert.All(cut.FindAll("[data-state-card=plugin] input[role=switch]"), toggle => Assert.False(toggle.HasAttribute("checked")));
+    }
+
+    [Fact]
+    public void APluginThatNeedsApprovalAgain_ShowsNeedsAttentionWithTheReason_AndTurnOnAsksForApproval()
+    {
+        _plugins = [Plugin(enabled: false) with { NeedsApproval = true }];
+        var dialogs = Render<AppDialogHost>();
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
+
+        var card = cut.Find("[data-state-card=plugin]");
+        Assert.Equal("needsattention", card.GetAttribute("data-health"));
+        Assert.Contains("Needs approval: its permissions changed", card.TextContent, StringComparison.Ordinal);
+        Assert.False(cut.Find("[data-state-card=plugin] input[role=switch]").HasAttribute("checked"));
+
+        cut.Find("[data-state-card=plugin] input[role=switch]").Change(true);
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Turn on Alpha?", dialogs.Markup));
+    }
+
+    [Fact]
     public async Task AiFeatureCards_ShowTheEnginesWords()
     {
         _aiConfig = AllFeaturesOff();
@@ -271,6 +310,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     [InlineData("ai_feature", "Turn on")]
     [InlineData("application_credential", "Issue key")]
     [InlineData("webhook", "Save")]
+    [InlineData("application", "Allow")]
     public void TheDialog_ShowsTheEnginesWordsAndTheRightButtonForEachKind(string kind, string confirm)
     {
         var preview = new ApprovalPreviewResponse

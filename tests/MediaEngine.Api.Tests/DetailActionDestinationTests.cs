@@ -27,7 +27,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
         "edit", "edit-media", "my-list",
-        "reaction-dislike", "reaction-like", "reaction-love", "details",
+        "reaction-dislike", "reaction-like", "reaction-love", "details", "delete-from-library",
     ];
 
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_detail_actions_{Guid.NewGuid():N}.db");
@@ -125,6 +125,65 @@ public sealed class DetailActionDestinationTests : IDisposable
         {
             Assert.DoesNotContain(page.PrimaryActions, action => action.Key == "open");
         }
+    }
+
+    [Fact]
+    public async Task AUniverseDetailPage_OpensTheUniversePage_NotTheTimeline()
+    {
+        var page = await _composer.BuildAuthorizedAsync(
+            DetailEntityType.Universe,
+            SeedUniverse("Q4242"),
+            DetailPresentationContext.Default,
+            CancellationToken.None,
+            null,
+            Profile.SeedProfileId,
+            new DetailActionAuthorizationContext(CanManageMetadata: true));
+
+        var open = Assert.Single(page!.PrimaryActions);
+        Assert.Equal("Open Universe", open.Label);
+        Assert.Equal("/universe/Q4242", open.Route);
+    }
+
+    [Fact]
+    public async Task AWorkPage_LinksToItsUniverse_OnlyWhenTheRequestsResolverAnswersWithALink()
+    {
+        var work = SeedOwnedWork("Arrival", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'fictional_universe_qid', 'Q4242', CURRENT_TIMESTAMP);",
+                new { work });
+        }
+
+        var asked = new List<string>();
+        UniverseLinkResolver linking = (qid, _) =>
+        {
+            asked.Add(qid);
+            return Task.FromResult<UniverseLinkViewModel?>(new UniverseLinkViewModel { Qid = qid, Name = "Dune" });
+        };
+        UniverseLinkResolver notEnough = (_, _) => Task.FromResult<UniverseLinkViewModel?>(null);
+
+        async Task<DetailPageViewModel> ComposeAsync(UniverseLinkResolver? resolver) => (await _composer.BuildAuthorizedAsync(
+            DetailEntityType.Movie,
+            work,
+            DetailPresentationContext.Default,
+            CancellationToken.None,
+            null,
+            Profile.SeedProfileId,
+            new DetailActionAuthorizationContext(CanManageMetadata: true),
+            universeLinks: resolver))!;
+
+        var linked = await ComposeAsync(linking);
+        Assert.Equal("Q4242", linked.UniverseLink!.Qid);
+        Assert.Equal("Dune", linked.UniverseLink.Name);
+        Assert.Equal(["Q4242"], asked);
+        // The Universe is a quiet line under the title, never a tab of the item page.
+        Assert.DoesNotContain(linked.Tabs, tab =>
+            tab.Key.Contains("universe", StringComparison.OrdinalIgnoreCase)
+            || tab.Label.Contains("universe", StringComparison.OrdinalIgnoreCase));
+        // The resolver said the Library does not hold enough of the Universe, and a request with no resolver asks nothing.
+        Assert.Null((await ComposeAsync(notEnough)).UniverseLink);
+        Assert.Null((await ComposeAsync(null)).UniverseLink);
     }
 
     [Fact]

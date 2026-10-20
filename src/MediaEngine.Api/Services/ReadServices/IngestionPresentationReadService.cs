@@ -17,17 +17,30 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private static readonly string[] ActiveStatuses =
         ["pending", "queued", "leased", "running", "processing", "active", "retry_waiting", "failed_retryable", "interrupted"];
 
+    /// <summary>
+    /// Enough in-flight rows for the Dashboard's Now panel (at most 10 shown) to rotate from, ordered most recently active first.
+    /// </summary>
+    public const int DefaultCurrentLimit = 12;
+
     private readonly IDatabaseConnection _db;
     private readonly MediaEngine.Providers.Services.BatchProgressService? _progress;
+    private readonly MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? _personalMedia;
+    private readonly IIdentityBypassLibraries? _bypassLibraries;
 
-    public IngestionPresentationReadService(IDatabaseConnection db, MediaEngine.Providers.Services.BatchProgressService? progress = null)
+    public IngestionPresentationReadService(
+        IDatabaseConnection db,
+        MediaEngine.Providers.Services.BatchProgressService? progress = null,
+        MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? personalMedia = null,
+        IIdentityBypassLibraries? bypassLibraries = null)
     {
         _db = db;
         _progress = progress;
+        _personalMedia = personalMedia;
+        _bypassLibraries = bypassLibraries;
     }
 
     public async Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
-        int currentLimit = 8,
+        int currentLimit = DefaultCurrentLimit,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
         CancellationToken ct = default)
@@ -57,7 +70,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = reviewCount,
                 Label = $"{reviewCount:N0} {Pluralize("title", reviewCount)} need review",
                 Description = "Missing or uncertain metadata",
-                Route = "/settings/recently-added?review=expanded",
+                Route = "/settings/review",
             });
         }
 
@@ -68,8 +81,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "provider",
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
-                Description = "Tuvima will retry automatically",
-                Route = batchFacts.BatchId is { } batchId ? $"/settings/ingestion?runId={batchId:D}&view=all" : "/settings/ingestion",
+                Description = "Library will retry automatically",
+                // Shown on the page it would link to, so it is information, not a link.
+                Route = null,
             });
         }
 
@@ -81,7 +95,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = operationFacts.TextTrackWaiting,
                 Label = $"{operationFacts.TextTrackWaiting:N0} lyrics or subtitles in queue",
                 Description = "Fetching from providers",
-                Route = batchFacts.BatchId is { } batchId ? $"/settings/ingestion?runId={batchId:D}&view=all" : "/settings/ingestion",
+                Route = null,
             });
         }
 
@@ -107,8 +121,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             CurrentMediaTotal = currentPage.TotalCount ?? current.Count,
             Attention = attention,
             RecentDays = recentDays,
+            PersonalMediaInProgress = ReadPersonalMediaInProgress(),
             GeneratedAt = DateTimeOffset.UtcNow,
         };
+    }
+
+    private IngestionPersonalMediaProgressDto ReadPersonalMediaInProgress()
+    {
+        var (photos, videos) = _personalMedia?.GetInProgress() ?? (0, 0);
+        return new IngestionPersonalMediaProgressDto { Photos = photos, Videos = videos };
     }
 
     public async Task<PagedResponse<IngestionMediaGroupDto>> GetCurrentMediaAsync(
@@ -174,7 +195,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                     SequenceLabel = BuildSequenceLabel(row),
                     Status = row.ReviewCount > 0
                         ? "review"
-                        : row.PresentedAt.HasValue ? "complete" : FriendlyOperationState(row.OperationStatus),
+                        : row.IsReady ? "complete" : FriendlyOperationState(row.OperationStatus),
                     DurationLabel = FormatChildDuration(row.MediaType, row.DurationLabel),
                 };
             })
@@ -264,7 +285,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "review",
                 Count = batch.ReviewCount,
                 Label = $"{batch.ReviewCount:N0} {Pluralize("item", batch.ReviewCount)} need review",
-                Route = "/settings/recently-added?review=expanded",
+                Route = "/settings/review",
             });
         }
         if (batch.FailureCount > 0)
@@ -447,8 +468,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        var keys = (await conn.QueryAsync<RecentDayGroupKeyRow>(new CommandDefinition($"""
-            WITH latest_logs AS (
+        var dayScopeCtes = $"""
+            latest_logs AS (
                 SELECT *
                 FROM (
                     SELECT il.*,
@@ -477,7 +498,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 SELECT ll.ingestion_run_id AS BatchId,
                        {PresentationGroupSql} AS GroupId,
                        MIN({AddedAtSql}) AS AddedAt,
-                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at)) AS UpdatedAt
+                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at)) AS UpdatedAt,
+                       MAX({NormalizedMediaTypeSql}) AS MediaTypeRaw,
+                       COUNT(DISTINCT w.id) AS LeafCount
                 FROM latest_logs ll
                 JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
@@ -497,9 +520,14 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 SELECT BatchId,
                        GroupId,
                        UpdatedAt,
+                       MediaTypeRaw,
+                       LeafCount,
                        DATE(AddedAt, 'localtime') AS LocalDate
                 FROM scoped
-            ),
+            )
+            """;
+        var keys = (await conn.QueryAsync<RecentDayGroupKeyRow>(new CommandDefinition($"""
+            WITH {dayScopeCtes},
             ranked AS (
                 SELECT BatchId,
                        GroupId,
@@ -515,6 +543,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             WHERE DayRank <= @dayLimit AND GroupRank <= @itemLimit
             ORDER BY LocalDate DESC, GroupRank;
             """, new { dayLimit, itemLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+
+        // Per-type counts cover every group of the day, not just the capped preview above, so the Added summary is complete.
+        var typeRows = (await conn.QueryAsync<RecentDayTypeCountRow>(new CommandDefinition($"""
+            WITH {dayScopeCtes}
+            SELECT LocalDate, MediaTypeRaw, SUM(LeafCount) AS ItemCount
+            FROM dated
+            WHERE LocalDate IS NOT NULL
+              AND LocalDate IN (SELECT DISTINCT LocalDate FROM dated WHERE LocalDate IS NOT NULL ORDER BY LocalDate DESC LIMIT @dayLimit)
+            GROUP BY LocalDate, MediaTypeRaw;
+            """, new { dayLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+        var typeCountsByDay = typeRows
+            .GroupBy(row => row.LocalDate, StringComparer.Ordinal)
+            .ToDictionary(
+                day => day.Key,
+                day => day
+                    .GroupBy(row => NormalizeMediaType(row.MediaTypeRaw), StringComparer.Ordinal)
+                    .Select(type => new IngestionTypeCountDto { MediaType = type.Key, Count = type.Sum(row => row.ItemCount) })
+                    .OrderByDescending(type => type.Count)
+                    .ThenBy(type => type.MediaType, StringComparer.Ordinal)
+                    .ToList(),
+                StringComparer.Ordinal);
 
         if (keys.Count == 0)
         {
@@ -537,6 +586,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             {
                 Date = DateOnly.ParseExact(day.Key, "yyyy-MM-dd", CultureInfo.InvariantCulture),
                 TotalCount = day.First().TotalCount,
+                TypeCounts = typeCountsByDay.GetValueOrDefault(day.Key) ?? [],
                 Items = day
                     .OrderBy(key => key.GroupRank)
                     .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
@@ -1110,13 +1160,17 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id) AND key IN ('issue_number','series_position') LIMIT 1) AS IssueNumber,
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id,p.id) AND key = 'audiobook_part_count' LIMIT 1) AS AudiobookPartCount,
                 (SELECT value FROM canonical_values WHERE entity_id IN (ll.media_asset_id,w.id) AND key IN ('duration','runtime') LIMIT 1) AS DurationLabel,
-                {IdentityReadySql} AS IdentityReady,
+                CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} THEN 1 ELSE 0 END AS IsReady,
+                CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} OR {WorkReadinessSql.MatchedPredicate("w")} THEN 1 ELSE 0 END AS IsMatched,
+                CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} OR {WorkReadinessSql.PlacedPredicate("w")} THEN 1 ELSE 0 END AS IsPlaced,
+                CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} OR {WorkReadinessSql.ArtworkPresentOrSettledPredicate("w")} THEN 1 ELSE 0 END AS HasSettledArtwork,
                 (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
                  ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1) AS IdentityState,
                 ll.status AS LogStatus,
                 lfo.status AS OperationStatus,
                 lfo.stage AS OperationStage,
                 ma.presented_at AS PresentedAt,
+                w.first_ready_at AS FirstReadyAt,
                 ll.created_at AS AddedAt,
                 COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) AS UpdatedAt,
                 (SELECT COUNT(*) FROM review_queue rq WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id) AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL) AS ReviewCount,
@@ -1153,7 +1207,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
               {where}
               {selectedGroups}
             ORDER BY COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) DESC;
-            """, new { batchId, batchIdHexes, groupIdHexes }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+            """, new
+        {
+            batchId,
+            batchIdHexes,
+            groupIdHexes,
+            bypassIdentityLibraryIds = (_bypassLibraries?.GetLibraryIds() ?? []).ToArray(),
+        }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
         return rows;
     }
 
@@ -1211,7 +1271,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
         var scopedOps = operations.Where(operation => operation.BatchId == batchId && operation.EntityId is { } id && memberIds.Contains(id)).ToList();
         var completed = rows
-            .Where(row => row.IdentityReady)
+            .Where(row => row.IsReady)
             .Select(row => row.WorkId)
             .Distinct()
             .Count();
@@ -1220,13 +1280,16 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var terminalFailure = scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")
                               || rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered");
         var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
-        var intakeComplete = rows.All(row => row.IdentityReady);
+        var intakeComplete = rows.All(row => row.IsReady);
         // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
         var waitingForTools = rows.Any(row => row.InspectionHoldCount > 0);
         var availability = needsReview ? "review"
             : terminalFailure ? "failed"
             : waitingForTools ? "waiting_for_tools"
             : intakeComplete ? hasBackgroundWork ? "finishing" : "ready" : "adding";
+
+        // Only a row that is still being added says what it waits for; review, failed, waiting-for-tools and Ready rows do not.
+        var waitingFor = availability == "adding" ? WaitingFor(rows) : [];
 
         var progressGates = BuildProgressGates(availability, scopedOps, rows, cover.HasValue);
         var completedGates = progressGates.Count(gate => gate.State == "complete");
@@ -1244,6 +1307,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             CoverUrl = cover is { } coverId ? $"/stream/artwork/{coverId:D}" : null,
             Availability = availability,
             StatusLabel = GroupStatus(availability, scopedOps),
+            WaitingFor = waitingFor,
             ProgressPercent = progressGates.Count == 0
                 ? null
                 : (int)Math.Round(completedGates * 100d / progressGates.Count, MidpointRounding.AwayFromZero),
@@ -1255,14 +1319,42 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ChildExpected = null,
             ChildUnit = ChildUnit(mediaType, rows),
             DetailRoute = DetailRoute(mediaType, groupId),
-            People = Facet("People", "people", scopedOps, rows.Any(row => row.PeopleCount > 0), applies: true),
-            Artwork = Facet("Artwork", "artwork", scopedOps, cover.HasValue, applies: true),
-            Metadata = Facet("Metadata", "metadata", scopedOps, intakeComplete, applies: true),
-            Relationships = Facet("Relationships", "relationship", scopedOps, false, applies: true),
-            TextTracks = Facet(mediaType == "Music" ? "Lyrics" : "Subtitles", "text", scopedOps, rows.Any(row => row.TextTrackCount > 0), applies: mediaType is "Music" or "Movies" or "TV"),
-            AddedAt = rows.Min(row => row.PresentedAt ?? row.AddedAt),
+            People = Facet("People", "people", scopedOps, rows.Any(row => row.PeopleCount > 0), applies: true, settled: availability == "ready"),
+            Artwork = Facet("Artwork", "artwork", scopedOps, cover.HasValue, applies: true, settled: availability == "ready"),
+            Metadata = Facet("Metadata", "metadata", scopedOps, intakeComplete, applies: true, settled: availability == "ready"),
+            Relationships = Facet("Relationships", "relationship", scopedOps, false, applies: true, settled: availability == "ready"),
+            TextTracks = Facet(mediaType == "Music" ? "Lyrics" : "Subtitles", "text", scopedOps, rows.Any(row => row.TextTrackCount > 0), applies: mediaType is "Music" or "Movies" or "TV", settled: availability == "ready"),
+            // "Added" is the moment the group first became Ready (D9), the same time the Added summary and the
+            // Recently Added filters use; a group not Ready yet keeps the time its files arrived.
+            AddedAt = rows.Any(row => row.FirstReadyAt.HasValue)
+                ? rows.Where(row => row.FirstReadyAt.HasValue).Min(row => row.FirstReadyAt!.Value)
+                : rows.Min(row => row.PresentedAt ?? row.AddedAt),
             UpdatedAt = scopedOps.Select(operation => operation.UpdatedAt).Append(rows.Max(row => row.UpdatedAt)).Max(),
         };
+    }
+
+    // The Ready conditions still missing on any not-Ready Work the row covers, in the fixed order matching, placing,
+    // artwork. The conditions come from WorkReadinessSql, the one definition the Ready rule itself uses.
+    private static List<string> WaitingFor(IReadOnlyList<MediaPresentationRow> rows)
+    {
+        var notReady = rows.Where(row => !row.IsReady).ToList();
+        var waiting = new List<string>(3);
+        if (notReady.Any(row => !row.IsMatched))
+        {
+            waiting.Add(IngestionWaitingForKeys.Matching);
+        }
+
+        if (notReady.Any(row => !row.IsPlaced))
+        {
+            waiting.Add(IngestionWaitingForKeys.Placing);
+        }
+
+        if (notReady.Any(row => !row.HasSettledArtwork))
+        {
+            waiting.Add(IngestionWaitingForKeys.Artwork);
+        }
+
+        return waiting;
     }
 
     private static List<IngestionProgressGateDto> BuildProgressGates(
@@ -1444,7 +1536,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         string facet,
         IReadOnlyList<PresentationOperationRow> operations,
         bool hasResult,
-        bool applies)
+        bool applies,
+        bool settled = false)
     {
         if (!applies)
         {
@@ -1454,9 +1547,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var matching = operations.Where(operation => OperationFacet(operation) == facet).ToList();
         if (matching.Count == 0)
         {
-            return hasResult
-                ? new IngestionFacetStateDto { State = "complete", Label = $"{label} complete" }
-                : IngestionFacetStateDto.NotApplicable(label);
+            if (hasResult)
+            {
+                return new IngestionFacetStateDto { State = "complete", Label = $"{label} complete" };
+            }
+
+            // A Ready row has nothing more queued for this symbol: it is settled with nothing found, not "queued".
+            return settled
+                ? new IngestionFacetStateDto { State = "complete", Label = $"No {label.ToLowerInvariant()} found" }
+                : new IngestionFacetStateDto { State = "pending", Label = $"{label} {FacetStateLabel("pending")}" };
         }
         var state = matching.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")
             ? "failed"
@@ -1472,7 +1571,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         if (facet == "artwork" && !hasResult && state == "pending"
             && matching.All(operation => IsTerminalSuccess(operation.Status, operation.Status)))
         {
-            return IngestionFacetStateDto.NotApplicable("No artwork found");
+            // The search finished without a cover. That is a settled outcome (artwork settled counts toward Ready), not
+            // "does not apply".
+            return new IngestionFacetStateDto { State = "complete", Label = "No artwork found" };
         }
 
         return new IngestionFacetStateDto { State = state, Label = $"{label} {FacetStateLabel(state)}" };
@@ -1678,7 +1779,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                        w.id AS WorkId,
                        p.id AS ParentWorkId,
                        gp.id AS RootWorkId,
-                       CASE WHEN {IdentityReadySql}
+                       CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")}
                             THEN 1 ELSE 0 END AS IntakeComplete,
                        CASE WHEN LOWER(COALESCE(lfo.status, '')) IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS RowFailed,
                        CASE WHEN EXISTS (
@@ -2198,17 +2299,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         WHERE identity_edition.work_id = w.id
         """;
 
-    private static readonly string IdentityReadySql = $"""
-        (EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job WHERE job.state IN ('Ready','ReadyWithoutUniverse'))
-         AND NOT EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job WHERE job.state NOT IN ('Ready','ReadyWithoutUniverse'))
-         OR (NOT EXISTS ({WorkIdentityJobsSql})
-             AND LOWER(COALESCE(ll.status, '')) IN ('complete','completed','succeeded','ready','readywithoutuniverse','registered')))
-        """;
-
-    private static readonly string AddedAtSql = $"""
-        CASE WHEN {IdentityReadySql} THEN COALESCE(
-            (SELECT MAX(job.updated_at) FROM ({WorkIdentityJobsSql}) job), ma.presented_at) END
-        """;
+    // "Added" means the moment the Work first became Ready (works.first_ready_at), the one Ready rule's own timestamp.
+    private const string AddedAtSql = "w.first_ready_at";
 
     private static readonly string AdditionBatchPredicate = $"""
         {AddedAtSql} IS NOT NULL
@@ -2284,12 +2376,16 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public string? IssueNumber { get; set; }
         public string? AudiobookPartCount { get; set; }
         public string? DurationLabel { get; set; }
-        public bool IdentityReady { get; set; }
+        public bool IsReady { get; set; }
+        public bool IsMatched { get; set; }
+        public bool IsPlaced { get; set; }
+        public bool HasSettledArtwork { get; set; }
         public string? IdentityState { get; set; }
         public string? LogStatus { get; set; }
         public string? OperationStatus { get; set; }
         public string? OperationStage { get; set; }
         public DateTimeOffset? PresentedAt { get; set; }
+        public DateTimeOffset? FirstReadyAt { get; set; }
         public DateTimeOffset AddedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public int ReviewCount { get; set; }
@@ -2304,6 +2400,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public Guid BatchId { get; set; }
         public Guid GroupId { get; set; }
         public int TotalCount { get; set; }
+    }
+
+    private sealed class RecentDayTypeCountRow
+    {
+        public string LocalDate { get; set; } = "";
+        public string? MediaTypeRaw { get; set; }
+        public int ItemCount { get; set; }
     }
 
     private sealed class RecentDayGroupKeyRow

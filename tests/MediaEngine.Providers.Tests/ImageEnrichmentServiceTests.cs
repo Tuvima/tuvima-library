@@ -10,6 +10,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
+using MediaEngine.Providers.Tests.ProviderRecording;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -74,14 +75,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     [Fact]
     public async Task RefreshTvdbEpisode_StoresStillOnOwnedEpisodeWithBoundedRenditions()
     {
-        _configLoader.SaveProvider(new StorageProviderConfiguration
-        {
-            Name = "tvdb",
-            Enabled = true,
-            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
-            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
-            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
-        });
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
         var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:show", null, null);
         var episode = await _works.InsertChildAsync(MediaType.TV, show, 1);
         var paths = new List<string>();
@@ -99,7 +93,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
                 _ => new HttpResponseMessage(HttpStatusCode.NotFound),
             };
         });
-        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var client = new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
         var service = new ImageEnrichmentService(
             _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
             new StubFictionalEntityRepository(), new StubPersonRepository(),
@@ -125,14 +119,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     [Fact]
     public async Task RefreshTvdbSeason_StoresManagedArtworkWithoutReplacingUserChoice()
     {
-        _configLoader.SaveProvider(new StorageProviderConfiguration
-        {
-            Name = "tvdb",
-            Enabled = true,
-            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
-            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
-            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
-        });
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
         var season = await SeedStandaloneAssetAsync(MediaType.TV, "TV", "TV", "Season.mkv");
         var chosen = new EntityAsset
         {
@@ -155,7 +142,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
             "/v4/seasons/99/extended" => JsonResponse("""{"data":{"id":99,"artworks":[{"type":1,"image":"https://artworks.thetvdb.com/season-poster.png"},{"type":2,"image":"https://artworks.thetvdb.com/season-background.png"}]}}"""),
             _ => ImageResponse(image),
         });
-        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var client = new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
         var service = new ImageEnrichmentService(
             _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
             new StubFictionalEntityRepository(), new StubPersonRepository(),
@@ -253,14 +240,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     private async Task<(ImageEnrichmentService Service, Guid Show, (Guid WorkId, Guid AssetId) First, (Guid WorkId, Guid AssetId) Second)>
         SeedTvdbShowWithTwoEpisodesAsync(CountdownEvent? showLookupGate = null)
     {
-        _configLoader.SaveProvider(new StorageProviderConfiguration
-        {
-            Name = "tvdb",
-            Enabled = true,
-            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
-            HttpClient = new StorageHttpClientConfig { ApiKey = "installation-key" },
-            RateLimit = new ProviderRateLimitConfiguration { RequestsPerSecond = 100, Burst = 100, MaxConcurrency = 2 },
-        });
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
         var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:shared-show", null, null);
         await SeedCanonicalsAsync(show,
             ("media_type", "TV"),
@@ -286,7 +266,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
             "/v4/episodes/112/extended" => JsonResponse("""{"data":{"id":112,"seriesId":99,"image":"https://artworks.thetvdb.com/still-2.png"}}"""),
             _ => ImageResponse(image),
         });
-        var client = new TvdbRetailClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var client = new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
         var service = new ImageEnrichmentService(
             _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
             new StubFictionalEntityRepository(), new StubPersonRepository(),
@@ -988,6 +968,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     private sealed class StubFictionalEntityRepository : IFictionalEntityRepository
     {
         public Task<FictionalEntity?> FindByQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<FictionalEntity?>(null);
+        public Task<IReadOnlySet<string>> GetLinkedWorkQidsAsync(IEnumerable<string> workQids, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task<IReadOnlySet<Guid>> GetUniverseEnrichedEntityIdsAsync(IEnumerable<Guid> entityIds, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
         public Task<IReadOnlyList<FictionalEntity>> FindByQidsAsync(IEnumerable<string> qids, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<FictionalEntity>>([]);
         public Task<FictionalEntity?> FindByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<FictionalEntity?>(null);
         public Task<IReadOnlyList<FictionalEntity>> GetByUniverseAsync(string universeQid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<FictionalEntity>>([]);

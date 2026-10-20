@@ -435,6 +435,33 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 | `cache_ttl_hours` | int | How long provider responses are cached in `provider_response_cache`. |
 | `preferred_bridge_ids` | object | Per-media-type ordered bridge identifiers preferred by this provider. Stage 2 uses this to order bridge resolution, so music tries MusicBrainz IDs before Apple IDs. |
 
+### Provider file sections
+
+A provider file can describe everything the Library does with that provider, so a REST + JSON provider needs no new code. The sections below are all optional and sit beside the common fields. The shipped files are the worked examples: `tvdb.json` (sign-in, named endpoints, flows), `tmdb.json` (follow-up lookups), `comicvine.json` (ranking, result rules, sequence manifest) and `subdl.json` / `lrclib.json` (text tracks). The editor schema is `config/schemas/providers/provider.schema.json`.
+
+A file is checked when it loads and when it is saved. A property the Library does not know, a path that is not allowed, or a rule that does not fit its kind is rejected with its place in the file (for example `auth.login.token_path`), and the file is not used.
+
+| Section | Field names | What it does |
+|---|---|---|
+| `auth` (sign in, then a token) | `login.method` (`POST` only), `login.path` (starts with `/`), `login.body`, `login.token_path`, `login.lifetime_days`, `login.refresh_early_minutes`, `deliver.header`, `deliver.format`, `retry_on_unauthorized` (0 or 1) | One JSON sign-in request returns a token. `login.body` values are exactly one credential, `{api_key}`, `{pin}`, `{username}`, `{password}`, `{client_key}` or `{access_token}`, or plain text; `{pin?}` leaves the property out when that credential is blank. The token is kept in memory for `lifetime_days`, renewed `refresh_early_minutes` before it expires, and sent as `deliver.header` / `deliver.format` (`Bearer {token}`). A 401 signs in again and repeats the request once when `retry_on_unauthorized` is 1. Needs `api.allowed_hosts`. |
+| `api` (named endpoints) | `allowed_hosts`, `data_path`, `cache_minutes`, `cache_max_entries`, `endpoints.{name}.path`, `.args`, `.defaults`, `.cache_minutes`, `.paging` (`start`, `max_pages`, `items_path`, `next_path`) | The API the sign-in and other parts of the Library call. `endpoints['api']` must be HTTPS on the default port, without credentials, on one of `allowed_hosts`, or no request is made. Argument kinds are `digits`, `alpha3`, `text` and `one_of:a,b,c`; a trailing `?` makes one optional, and a `[/{lang}]` segment is dropped when its argument is not given. |
+| `follow_ups` (extra lookups) | `name`, `media_types`, `inputs`, `url`, `cache.store` (`response_cache` or `memory`), `cache.key`, `on_error` (`log_and_continue` or `propagate`), `add`, `required_paths`, `rules` | After a search strategy matched a result, one more request whose URL is built from `inputs` (each a list of sources tried in order: `claim:{key}`, `result:{path}`, `parent:{path}`, `request:{field}`, `hint:{key}`; a name ending `?` is optional) and whose answer becomes claims through `rules`. The URL may use `{base_url}`, `{api_key}` and `{locale}`; it is skipped when it needs a key that is not set. A `lookup` rule nests another follow-up. |
+| `result_rules` and `search_strategies[].claim_rules` | `name`, `media_types`, `add`, `rules`; `drop`, `drop_non_english_text`, `derive` | Claim rules that plain `field_mappings` cannot express: creators listed with free-text roles (`role.map`), lists joined into one value, claims dropped or derived from the request. Rule kinds include `priority_pick`, `items`, `lookup` and `sequence`; `claim_key`, `json_path` / `json_paths`, `confidence`, `transform`, `template` and `join` shape one claim. `add` is `always`, `if_missing_key` or `if_missing_value` (default). |
+| `candidate_ranking` (tie order) | `name`, `media_types`, `facts`, `require_facts`, `candidates` (`match`, `fields`, `score`, `identity`), `preferred_run`, `enrich_when_multiple`, `final_terms`, `order` | How one result is picked from a list when plain title matching cannot tell near-identical results apart. `facts` read values from the request; each candidate must pass `match`, earns a `score` from weighted terms (year bands, title overlap, counts), and `order` breaks ties as `field:desc` / `field:asc` (`score` is always available). |
+| `sequence_manifest` | `enabled`, `url_template`, `fields`, `page_size`, `max_pages`, `container_kind`, `expected_total_kind` | Reads the whole list of members of a series from the provider, page by page, so a missing issue can be shown as a named gap. |
+| `text_track` (subtitles and lyrics) | `kind` (`Subtitles` or `Lyrics`), `noun`, `api.allowed_hosts`, `api.accept`, `http.allow_auto_redirect`, `http.max_response_buffer_bytes`, `language.aliases`, `language.unknown`, `search`, `download`, `errors`, `messages` | Used with `"adapter_type": "text_track"`: one built-in adapter searches and downloads for any subtitle or lyrics provider that declares its requests, item paths, scoring and error codes here. `download.mode` is `payload` (the text came with the search) or `fetch` (downloaded from a link, only from `download.allowed_hosts`, only under `path_prefix`, up to `max_bytes`, with limits on archives). When `requires_api_key` is true, `endpoints['api']` must be an HTTPS address on the default port with no credentials and `api.allowed_hosts` must list at least its host, so the key only reaches that host; redirects elsewhere are refused. |
+
+### Provider and plugin secrets
+
+Keys, PINs, passwords and tokens never go in a committed file. One config-folder store holds them, kept apart from the data store, so they survive a data store reset and are left out of backups (`config/secrets/` is gitignored):
+
+| Owner | File | Content |
+|---|---|---|
+| A provider | `config/secrets/{provider}.json` (the provider's `name`) | A flat JSON object of strings: `api_key`, `api_key_override`, `client_key`, `access_token`, `pin`, `username`, `password`. They are laid over the provider's file when it loads, so a blank `api_key` in the provider file can still have a working key here. |
+| A plugin | `config/secrets/plugins/{id}.json` (the plugin id) | A flat JSON object of the names the plugin declared in `secrets`. A plugin reads only its own values. |
+
+Names are lower-case letters, digits, `-`, `_` and `.`. The Dashboard writes these files when a key is saved; a safe connection check never echoes the value.
+
 ---
 
 ## Tools and requirements (environment)

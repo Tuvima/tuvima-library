@@ -39,7 +39,7 @@ public sealed class ApprovalStatementBuilderTests
     }
 
     [Fact]
-    public void PluginStatement_ListsEachPermissionToolAndAiUseInPlainWords()
+    public void PluginStatement_ListsEachPermissionToolAiAbilityAndHowItRunsInPlainWords()
     {
         var manifest = new PluginManifest
         {
@@ -63,22 +63,86 @@ public sealed class ApprovalStatementBuilderTests
                 "odd.id",
                 "Needs FFmpeg",
                 "Needs somethingelse",
+                "Uses Local AI: write text (careful)",
+                "Uses Local AI: write text (quick)",
+                "Runs as: Official built-in",
             ],
             statement.CanDo);
     }
 
+    [Theory]
+    [InlineData("text_fast", "Uses Local AI: write text (quick)")]
+    [InlineData("text_quality", "Uses Local AI: write text (careful)")]
+    [InlineData("text_scholar", "Uses Local AI: write text (long)")]
+    [InlineData("text_cjk", "Uses Local AI: write text (careful, Chinese, Japanese, Korean)")]
+    [InlineData("future_role", "Uses Local AI: future_role")]
+    public void PluginStatement_NamesEachLocalAiAbilityItAsksFor_AndAnUnknownRoleByItsId(string role, string line)
+    {
+        var manifest = new PluginManifest { Id = "p", Name = "P", AiPermissions = [new PluginAiPermission { Role = role }] };
+
+        Assert.Equal([line, "Runs as: Official built-in"], ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official).CanDo);
+    }
+
     [Fact]
-    public void PluginStatement_ShowsLocalAiOnce_EvenWithSeveralRolesAndThePermission()
+    public void PluginStatement_ListsEachLocalAiAbilityOnceAndSorted_WhateverOrderTheManifestGivesThem()
     {
         var manifest = new PluginManifest
         {
             Id = "p",
             Name = "P",
-            Permissions = ["ai.infer"],
-            AiPermissions = [new PluginAiPermission { Role = "a" }, new PluginAiPermission { Role = "b" }],
+            AiPermissions =
+            [
+                new PluginAiPermission { Role = "text_scholar" },
+                new PluginAiPermission { Role = "text_fast" },
+                new PluginAiPermission { Role = "text_scholar", MaxTokens = 9 },
+            ],
         };
 
-        Assert.Single(ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Private).CanDo);
+        var statement = ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official);
+
+        Assert.Equal(
+            ["Uses Local AI: write text (long)", "Uses Local AI: write text (quick)", "Runs as: Official built-in"],
+            statement.CanDo);
+    }
+
+    [Fact]
+    public void PluginHash_ChangesWhenAnotherLocalAiAbilityIsAdded_ButNotWhenTheyAreReordered()
+    {
+        PluginManifest With(params string[] roles) => new()
+        {
+            Id = "p",
+            Name = "P",
+            AiPermissions = roles.Select(role => new PluginAiPermission { Role = role }).ToList(),
+        };
+
+        string HashOf(PluginManifest manifest) =>
+            ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Official));
+
+        Assert.NotEqual(HashOf(With("text_fast")), HashOf(With("text_fast", "text_quality")));
+        Assert.Equal(HashOf(With("text_fast", "text_quality")), HashOf(With("text_quality", "text_fast")));
+    }
+
+    [Theory]
+    [InlineData(PluginKind.Official, "Runs as: Official built-in")]
+    [InlineData(PluginKind.Declarative, "Runs as: JSON-only plugin")]
+    [InlineData(PluginKind.Service, "Runs as: separate program")]
+    [InlineData(PluginKind.Sandboxed, "Runs as: sandboxed plugin")]
+    [InlineData((PluginKind)99, "Runs as: 99")]
+    public void PluginStatement_SaysHowThePluginRuns(PluginKind kind, string line)
+    {
+        var statement = ApprovalStatementBuilder.ForPlugin(new PluginManifest { Id = "p", Name = "P", Kind = kind }, PluginTrustLevel.Official);
+
+        Assert.Equal([line], statement.CanDo);
+    }
+
+    [Fact]
+    public void PluginHash_ChangesWhenThePluginRunsAnotherWay()
+    {
+        string HashOf(PluginKind kind) => ApprovalStatementBuilder.Hash(
+            ApprovalStatementBuilder.ForPlugin(new PluginManifest { Id = "p", Name = "P", Kind = kind }, PluginTrustLevel.Official));
+
+        Assert.NotEqual(HashOf(PluginKind.Official), HashOf(PluginKind.Service));
+        Assert.NotEqual(HashOf(PluginKind.Declarative), HashOf(PluginKind.Sandboxed));
     }
 
     [Fact]
@@ -98,7 +162,7 @@ public sealed class ApprovalStatementBuilderTests
 
         var statement = ApprovalStatementBuilder.ForPlugin(manifest, PluginTrustLevel.Community);
 
-        Assert.Equal(["Keeps its own keys and logins: API token, Account login"], statement.CanDo);
+        Assert.Equal(["Keeps its own keys and logins: API token, Account login", "Runs as: Official built-in"], statement.CanDo);
     }
 
     [Theory]
@@ -148,6 +212,45 @@ public sealed class ApprovalStatementBuilderTests
         var statement = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
 
         Assert.Equal(["May download an AI model to this machine first"], statement.Notes);
+    }
+
+    [Fact]
+    public void AiFeatureHash_IgnoresTheModelDownloadNote_SoDownloadingTheModelLaterDoesNotAskAgain()
+    {
+        var ready = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: true);
+        var notReady = ApprovalStatementBuilder.ForAiFeature("smart_labeling", modelReady: false);
+
+        Assert.Equal(["May download an AI model to this machine first"], notReady.Notes);
+        Assert.Equal(ApprovalStatementBuilder.Hash(ready), ApprovalStatementBuilder.Hash(notReady));
+        Assert.Equal(["May download an AI model to this machine first"], ApprovalStatementBuilder.ToPreview("ai_feature", "smart_labeling", notReady).Notes);
+    }
+
+    [Fact]
+    public void ApplicationStatement_SaysWhatItsKeysCanDo_AndHowManyExistingKeysItReaches()
+    {
+        var statement = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read events", "Read the library"], activeKeyCount: 2);
+        var single = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read the library"], activeKeyCount: 1);
+        var none = ApprovalStatementBuilder.ForApplication("Home Assistant", ["Read the library"], activeKeyCount: 0);
+
+        Assert.Equal("Keys for Home Assistant", statement.Title);
+        Assert.Equal("Integration", statement.KindLabel);
+        Assert.Equal(["Its keys can: Read events, Read the library"], statement.CanDo);
+        Assert.True(statement.SendsDataOut);
+        Assert.Equal("the software that holds its keys", statement.SendsDataTo);
+        Assert.Equal(["Applies to 2 existing keys"], statement.Notes);
+        Assert.Equal(["Applies to 1 existing key"], single.Notes);
+        Assert.Equal(["Applies to 0 existing keys"], none.Notes);
+    }
+
+    [Fact]
+    public void ApplicationHash_DoesNotDependOnTheOrderPermissionsAreGivenIn_ButChangesWhenOneIsAdded()
+    {
+        var one = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["x", "y"], 1));
+        var reordered = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["y", "x"], 1));
+        var added = ApprovalStatementBuilder.Hash(ApprovalStatementBuilder.ForApplication("A", ["x", "y", "z"], 1));
+
+        Assert.Equal(one, reordered);
+        Assert.NotEqual(one, added);
     }
 
     [Fact]

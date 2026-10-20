@@ -499,7 +499,7 @@ public sealed class ProviderAnswer
 
 /// <summary>
 /// Sits outermost on every Engine HTTP client while a baseline run asks for it. Recording passes each request to the
-/// network and saves the answer; replaying answers from the saved folder and returns 503 for anything never recorded.
+/// network and saves the answer; replaying answers from the saved folder and returns 404 for anything never recorded.
 /// Requests to this machine (loopback) always pass through.
 /// </summary>
 public sealed class ProviderAnswerHandler(ProviderAnswerStore store) : DelegatingHandler
@@ -521,9 +521,10 @@ public sealed class ProviderAnswerHandler(ProviderAnswerStore store) : Delegatin
         var key = store.KeyFor(request.Method, uri, body);
         if (store.Mode == ProviderAnswerMode.Replay)
         {
-            // A miss answers "not found", never "unavailable": the Library waits for an unavailable provider, so a
-            // replay that missed would never settle. The miss is listed, and the comparison shows what it changed.
             return store.Replay(key, request)
+                // Not found, not "unavailable": a 503 marks the provider down and the Engine waits for it forever,
+                // while a 404 is a definite "no such answer" that ends in the normal no-match path the same way every
+                // time. The miss is still listed in the run's not-recorded file and in the comparison report.
                 ?? new HttpResponseMessage(HttpStatusCode.NotFound)
                 {
                     RequestMessage = request,

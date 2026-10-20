@@ -23,19 +23,10 @@
         var target = current.AbsolutePath.ToLowerInvariant() switch
         {
             "/operations/ingestion" => "/settings/ingestion",
-            "/operations/needs-review" => "/settings/recently-added",
+            "/operations/needs-review" => "/settings/review",
             _ => "/settings/recently-added",
         };
 
-        var query = current.Query;
-        if (current.AbsolutePath.Equals("/operations/needs-review", StringComparison.OrdinalIgnoreCase)
-            && !query.Contains("review=", StringComparison.OrdinalIgnoreCase))
-        {
-            query = string.IsNullOrWhiteSpace(query)
-                ? "?review=expanded"
-                : $"{query}&review=expanded";
-        }
-
-        Nav.NavigateTo($"{target}{query}", replace: true);
+        Nav.NavigateTo($"{target}{current.Query}", replace: true);
     }
 }

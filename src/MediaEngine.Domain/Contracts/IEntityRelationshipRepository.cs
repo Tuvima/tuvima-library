@@ -44,6 +44,15 @@ public interface IEntityRelationshipRepository
     Task<IReadOnlyList<EntityRelationship>> GetByUniverseAsync(
         IReadOnlyCollection<string> entityQids, CancellationToken ct = default);
 
+    /// <summary>
+    /// Return the edges of the given relationship types where both subject and object belong to the supplied QIDs.
+    /// Only those types are read from the data store.
+    /// </summary>
+    Task<IReadOnlyList<EntityRelationship>> GetByUniverseAsync(
+        IReadOnlyCollection<string> entityQids,
+        IReadOnlyCollection<string> relationshipTypes,
+        CancellationToken ct = default);
+
     /// <summary>Return facts carrying the supplied normalized qualifier value.</summary>
     Task<IReadOnlyList<EntityRelationship>> GetByQualifierAsync(
         string qualifierType,

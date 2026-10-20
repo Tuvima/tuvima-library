@@ -22,6 +22,9 @@ Add a REST/JSON metadata source through provider configuration, or identify when
 - `config/providers`
 - `src/MediaEngine.Providers/Adapters/ConfigDrivenAdapter.cs`
 - `src/MediaEngine.Api/DependencyInjection/TuvimaProviderServiceCollectionExtensions.cs`
+- `src/MediaEngine.Providers/Providers/TextTrackProviderAdapter.cs`
+- `src/MediaEngine.Providers/Services/ProviderApiClient.cs`
+- `config/schemas/providers/provider.schema.json`
 
 This guide explains how to wire a new REST/JSON metadata source into the Tuvima Library
 enrichment pipeline. For standard providers that return JSON from a public HTTP endpoint,
@@ -331,6 +334,100 @@ genuinely returns localized titles and descriptions (e.g. TMDB, Apple API).
 
 ---
 
+## Step 2b - Beyond search and field mappings: the declarative blocks
+
+The five providers Tuvima ships (TheTVDB, TMDB, Comic Vine, SubDL, LRCLIB) are plain provider
+files; no code is named after any of them. What they need beyond a search URL and field mappings is
+written with the blocks below, so a provider of the same kind is added by a file alone. The Engine
+checks every block when the file loads: an unknown property or a wrong shape fails the load with the
+path of the mistake, and `config/schemas/providers/provider.schema.json` documents all of them.
+
+### Sign in first, then call named endpoints (`auth`, `api`)
+
+Use these when the provider hands out a short-lived token after a login request. The token is kept in
+memory only, renewed `refresh_early_minutes` before it expires, requested by one caller at a time, and
+requested again once if a call is refused with 401. A removed key stops access at once, cached
+answers included.
+
+Each value in `login.body` is either exactly one credential placeholder (`"{api_key}"`, or `"{pin?}"`
+when the credential is optional) or plain text with no braces; mixed text such as `"key-{api_key}"` fails
+the load. When an administrator has set an API key override for the provider, `{api_key}` uses it in
+place of the project key, as it does for every other provider.
+
+```json
+"auth": {
+  "login": { "path": "/login", "body": { "apikey": "{api_key}", "pin": "{pin?}" },
+             "token_path": "data.token", "lifetime_days": 25, "refresh_early_minutes": 1 },
+  "deliver": { "header": "Authorization", "format": "Bearer {token}" }
+},
+"api": {
+  "allowed_hosts": ["api4.example.test"], "data_path": "data", "cache_minutes": 60,
+  "endpoints": {
+    "series_extended": { "path": "/series/{id}/extended", "args": { "id": "digits" } },
+    "series_episodes": { "path": "/series/{id}/episodes/{season_type}[/{lang}]?page={page}",
+      "args": { "id": "digits", "season_type": "one_of:default,official", "lang": "alpha3?" },
+      "defaults": { "season_type": "default" },
+      "paging": { "start": 0, "max_pages": 100, "items_path": "data.episodes", "next_path": "links.next" } }
+  }
+}
+```
+
+`{pin?}` leaves the key out of the body when the credential is blank. Argument kinds are `digits`,
+`alpha3`, `text` and `one_of:a,b`; a trailing `?` makes the argument optional, and `[ ... ]` in a path is
+dropped when its argument is missing. `endpoints.api` must be HTTPS, on the default port, and on one of
+`api.allowed_hosts`. Other parts of the Library call an endpoint through `ProviderApiClient.GetAsync(provider, endpoint, args)`.
+
+### Extra lookups after a match (`follow_ups`)
+
+A follow-up is one more request whose URL is built from the match, turned into claims by rules. Inputs
+come from `claim:`, `result:`, `parent:`, `request:` and `hint:` sources; a follow-up whose required input
+is blank (or whose URL needs a key that is not set) is skipped. `cache.store` is `response_cache` (the
+shared provider cache) or `memory`. A failure keeps the claims gathered so far (`on_error: log_and_continue`).
+Rules are `field` (with `json_path`, `json_paths`, `template`, `value`, `prefix`, `transform`, `join`, `trim`,
+`min_length`), `priority_pick`, `items` (sorting, `where`, `distinct_by` to keep one item per role and id, a `role` map, per-item claims and a joined claim),
+nested `lookup`, `sequence` and `paged_sequence` (a manifest of ordered members read page by page through
+`sequence_manifest`). See `tmdb.json` (movie and TV details, collection order) and `comicvine.json`
+(volume facts and the issue manifest).
+
+### Choosing between near-identical results (`candidate_ranking`)
+
+Declares request `facts`, how candidates are matched (`equivalent_text`, `equivalent_ordinal`, `equals`),
+which `fields` are read from them, the score terms (`word_overlap`, `year_bands`, `english_text`,
+`log_scale`, `text_affinity`), an optional `preferred_run` search, `enrich_when_multiple` lookups, and the
+`order` that breaks ties. See `comicvine.json` (`issue_in_run`).
+
+### Claims from the matched result and reshaped claims (`result_rules`, `claim_rules`)
+
+`result_rules` run the same rules on the matched result (creator credits with free-text roles).
+A strategy's `claim_rules` drop claims, drop text that reads as another language, and derive claims from
+other claims, the request or hints. A strategy `role` (`container` or `item`) says what it returns and
+`extra_field_aliases` keeps a mapped id under a second name in search results.
+
+### Multi-step lookups (`flows`)
+
+`flows.fetch` and `flows.search` are short programs of steps (`set`, `slice`, `call`, `pages`, `find`,
+`pick`, `stop_if`, `skip_if`, `if`, `each`, `emit`, `claims`, `return`) over the named endpoints.
+Expressions are `$variable.path`, `@request.field`, `@hint.key`, `@name`, `@limit`, lists (first with a
+value, skipping blank text) and the operations `first_chars`, `format`, `url_on_hosts`, `digits_of`,
+`first_non_null` (the first value that exists, even blank text), `clamp`, `int`, `object`. Conditions
+include `blank`, `present` and `not_null` (exists, even if blank).
+A flow that fails answers "nothing found" and logs a warning. See the `flows` block of `tvdb.json`.
+
+### Subtitle and lyrics sources (`adapter_type: "text_track"`)
+
+One built-in adapter runs every subtitle or lyrics provider from its `text_track` block: `kind`, the
+search `requests` (query pairs, `needs`, `title_check`), how releases and files are read and scored, the
+download rules (`allowed_hosts`, `max_bytes`, `formats`, archive limits), `errors` (status mapping and
+retry hints), `messages`, and `http` (no redirects, buffer size). Identities come from
+`SubtitleLookupContext.ToVerifiedValues`. See `subdl.json` and `lrclib.json`.
+
+### Registration order (`registration_order`)
+
+Providers register in file order. A positive `registration_order` registers after the built-in
+reconciliation provider, in ascending order; order decides which provider answers first.
+
+---
+
 ## Step 3 - Complete example: a hypothetical "BookHive" provider
 
 `config/providers/bookhive.json`:
@@ -530,7 +627,7 @@ GET http://localhost:61495/swagger  -> Providers section -> GET /settings/provid
 | `enabled` | bool | yes | - | `false` skips this provider entirely |
 | `weight` | float | yes | - | Provider-level multiplier [0.0-1.0] |
 | `domain` | string | yes | - | Ebook / Video / Music / Comics / Universal |
-| `adapter_type` | string | yes | - | Must be `config_driven` |
+| `adapter_type` | string | yes | - | `config_driven` (search strategies, follow-ups, flows) or `text_track` (subtitles, lyrics) |
 | `provider_id` | UUID string | yes | - | Stable FK - never change after first use |
 | `hydration_stages` | int[] | yes | - | `[1]` for Stage 1 identity, `[3]` for post-identity enrichment, `[2]` only for the Wikidata reconciliation provider |
 | `can_handle.media_types` | string[] | yes | - | Restricts to named media types |
@@ -542,6 +639,11 @@ GET http://localhost:61495/swagger  -> Providers section -> GET /settings/provid
 | `requires_api_key` | bool | no | false | Shown in provider readiness |
 | `language_strategy` | string | no | `"source"` | source / localized / both |
 | `preferred_bridge_ids` | object | no | - | Keys used by Wikidata Stage 2 |
+| `auth`, `api` | object | no | - | Sign-in and named endpoints (Step 2b) |
+| `follow_ups`, `candidate_ranking`, `result_rules` | array | no | - | Extra lookups, result choice, result claims (Step 2b) |
+| `flows` | object | no | - | Multi-step `fetch` and `search` (Step 2b) |
+| `text_track` | object | for `text_track` | - | Subtitle and lyrics sources (Step 2b) |
+| `registration_order` | int | no | 0 | Positive = registers after the reconciliation provider |
 
 ---
 

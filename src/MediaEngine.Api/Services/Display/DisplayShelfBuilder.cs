@@ -22,10 +22,10 @@ public sealed class DisplayShelfBuilder
         var take = Math.Max(1, shelfLimit);
         var shelves = new List<DisplayShelfDto>();
         AddShelf(shelves, "continue-reading", "Continue reading", "Books and comics already in motion",
-            journey.Take(take).Select(item => _cards.FromJourney(item, "read")).ToList(), "/read/books");
+            journey.Take(take).Select(item => _cards.FromJourney(item, "read")).ToList(), DisplayGridCatalog.RouteFor("read", "continue-reading"));
 
         AddShelf(shelves, "recently-added", "Recently added to read", "Fresh pages and issues ready to pick up",
-            works.Take(take).Select(work => _cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId))).ToList(), "/read/books");
+            works.Take(take).Select(work => _cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId))).ToList(), DisplayGridCatalog.RouteFor("read", "recently-added"));
 
         var authorShelves = works
             .Where(work => !string.IsNullOrWhiteSpace(work.Author))
@@ -37,8 +37,8 @@ public sealed class DisplayShelfBuilder
                 Key: $"author-{DisplayMediaRules.StableKey(group.Key)}",
                 Title: group.Key,
                 Subtitle: $"{group.Count()} titles",
-                Items: group.Take(12).Select(work => _cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId))).ToList(),
-                SeeAllRoute: null));
+                Items: group.Take(20).Select(work => _cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId))).ToList(),
+                SeeAllRoute: DisplayGridCatalog.RouteFor("read", $"author-{DisplayMediaRules.StableKey(group.Key)}")));
 
         shelves.AddRange(authorShelves);
         return shelves;
@@ -55,10 +55,10 @@ public sealed class DisplayShelfBuilder
         var groupShelf = _groupPolicy.GetShelf("watch");
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
         AddShelf(shelves, "continue-watching", "Continue watching", "Movies and shows already in progress",
-            journey.Take(take).Select(item => _cards.FromJourney(item, "watch")).ToList(), "/watch/movies");
+            journey.Take(take).Select(item => _cards.FromJourney(item, "watch")).ToList(), DisplayGridCatalog.RouteFor("watch", "continue-watching"));
 
         AddShelf(shelves, "tv-shows", "TV Shows", "Shows built from the episodes you own",
-            tvShowCards.Take(take).ToList(), "/watch/tv");
+            tvShowCards.Take(take).ToList(), DisplayGridCatalog.RouteFor("watch", "tv-shows"));
 
         if (groupShelf.Enabled)
         {
@@ -67,7 +67,7 @@ public sealed class DisplayShelfBuilder
         }
 
         AddShelf(shelves, "movies", "Movies in your library", "Feature films ready to play",
-            works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Movie").Take(take).Select(work => _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId))).ToList(), "/watch/movies");
+            works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Movie").Take(take).Select(work => _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId))).ToList(), DisplayGridCatalog.RouteFor("watch", "movies"));
 
         var genreShelves = works
             .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre).Select(genre => (Genre: genre, Work: work)))
@@ -85,9 +85,9 @@ public sealed class DisplayShelfBuilder
                     .Where(card => card is not null)
                     .Cast<DisplayCardDto>()
                     .DistinctBy(card => card.Id)
-                    .Take(12)
+                    .Take(20)
                     .ToList(),
-                SeeAllRoute: null));
+                SeeAllRoute: DisplayGridCatalog.RouteFor("watch", $"genre-{DisplayMediaRules.StableKey(group.Key)}")));
 
         shelves.AddRange(genreShelves);
         return shelves;

@@ -1,0 +1,20 @@
+== requests ==
+GET https://api.subdl.com/api/v2/subtitles/search?tmdb_id=693134&type=movie&languages=en&unpack=1 [auth:Bearer]
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://dl.subdl.com/subtitle/a/b
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://dl.subdl.com/subtitle/a/b
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://dl.subdl.com/subtitle/a/b
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://dl.subdl.com/subtitle/a/b
+GET https://api.subdl.com/api/v2/subtitles/one/download?format=file [auth:Bearer]
+GET https://dl.subdl.com/subtitle/a/b
+== results ==
+evil: download: null
+traversal: download: null
+empty: download: null
+binary: download: null
+bad-vtt: download: null
+good: download: srt->vtt 1\n00:00:01,000 --> 00:00:02,000\nHello\n

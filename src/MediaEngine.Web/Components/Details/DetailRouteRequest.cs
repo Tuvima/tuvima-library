@@ -87,7 +87,7 @@ public sealed record DetailRouteRequest
                 episodeId.Value,
                 DetailPresentationContext.Watch,
                 pageTitleFallback: "TV Show",
-                productTitle: "Tuvima Library",
+                productTitle: "Library",
                 notFoundTitle: "Episode not found",
                 notFoundMessage: "This episode could not be loaded from your library.",
                 loadKey: $"tvepisode|{episodeId.Value:D}|{id:D}",
@@ -109,7 +109,7 @@ public sealed record DetailRouteRequest
                 viaShow ? seasonId!.Value : id,
                 DetailPresentationContext.Watch,
                 pageTitleFallback: "TV Show",
-                productTitle: "Tuvima Library",
+                productTitle: "Library",
                 notFoundTitle: "Season not found",
                 notFoundMessage: "This season could not be loaded from your library.",
                 loadKey: viaShow ? TvShowKey(id, context) : $"tvseason|{id:D}|{context}",
@@ -125,7 +125,7 @@ public sealed record DetailRouteRequest
             id,
             context,
             pageTitleFallback: "Details",
-            productTitle: "Tuvima Library",
+            productTitle: "Library",
             notFoundTitle: "Detail page not found",
             notFoundMessage: "This item could not be loaded from your library.",
             loadKey: hasParsedEntityType
@@ -146,7 +146,7 @@ public sealed record DetailRouteRequest
             id,
             DetailPresentationContext.Default,
             pageTitleFallback: "TV Show",
-            productTitle: "Tuvima Library",
+            productTitle: "Library",
             notFoundTitle: episodeIsUnreadable ? "Episode not found" : "Season not found",
             notFoundMessage: episodeIsUnreadable
                 ? "This episode could not be loaded from your library."

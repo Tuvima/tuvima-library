@@ -132,7 +132,7 @@ internal static class SegmentManifestFactory
             {
                 Kind = "playback-segment-detector",
                 Name = capabilityName,
-                Description = "Produces playback markers for the shared Tuvima player.",
+                Description = "Produces playback markers for the shared Library player.",
             },
         ],
             Permissions = BuildPermissions(tools, ai),

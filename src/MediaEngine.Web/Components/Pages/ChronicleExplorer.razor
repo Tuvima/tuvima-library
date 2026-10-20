@@ -16,7 +16,7 @@
 @inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 
-<PageTitle>Chronicle Explorer - @(_graph?.Universe.Label ?? Qid)</PageTitle>
+<PageTitle>Chronicle Explorer - @(_graph?.universe.label ?? Qid)</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
 @if (_loading)
@@ -32,7 +32,7 @@ else if (_graph is null)
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-            Tuvima has not found enough real character, location, organization, event, or relationship data for this Universe yet.
+            Library has not found enough real character, location, organization, event, or relationship data for this Universe yet.
         </AppText>
     </AppPanel>
 }
@@ -40,7 +40,7 @@ else
 {
 <div class="chronicle-heading">
 <AppText Typo="AppTypo.h4" Class="chronicle-explorer-title tl-sp-mb-2">
-        @(_graph?.Universe.Label ?? "Loading...")
+        @(_graph?.universe.label ?? "Loading...")
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
     {
@@ -49,10 +49,10 @@ else
 </div>
     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-3">
         <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
-            @(_graph?.Nodes.Count ?? 0) entities
+            @(_graph?.nodes.Count ?? 0) entities
         </AppChip>
         <AppChip T="string" Color="AppColor.Secondary" Size="AppSize.Small">
-            @(_graph?.Edges.Count ?? 0) relationships
+            @(_graph?.edges.Count ?? 0) relationships
         </AppChip>
         @if (_characterCount > 0)
         {
@@ -105,7 +105,7 @@ else
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
                 <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-                    Tuvima has not found enough real character, location, organization, event, or relationship data for this Universe yet.
+                    Library has not found enough real character, location, organization, event, or relationship data for this Universe yet.
                 </AppText>
             </AppPanel>
         }
@@ -183,18 +183,18 @@ else
                                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
                                       Immediate="true" Class="chronicle-explorer-search tl-sp-mb-3" />
                         @* Keyboard, remote and screen-reader path to every node: each row is a real button. *@
-                        <AppList T="GraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
+                        <AppList T="UniverseGraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
                             @foreach (var entry in NodeListEntries)
                             {
                                 var entity = entry.Node;
-                                <AppListItem T="GraphNodeDto" OnClick="@(() => OnEntityClick(entity))">
+                                <AppListItem T="UniverseGraphNodeDto" OnClick="@(() => OnEntityClick(entity))">
                                     <span class="chronicle-node-list__row">
-                                        <AppMaterialIcon Icon="@GetEntityIcon(entity.Type)"
-                                                 Color="@GetEntityColor(entity.Type)"
+                                        <AppMaterialIcon Icon="@GetEntityIcon(entity.type)"
+                                                 Color="@GetEntityColor(entity.type)"
                                                  Size="AppSize.Small" />
                                         <span class="chronicle-node-list__text">
-                                            <span class="chronicle-node-list__label">@entity.Label</span>
-                                            <span class="chronicle-node-list__meta">@entity.Type · @RelationshipText(entry.RelationshipCount)</span>
+                                            <span class="chronicle-node-list__label">@entity.label</span>
+                                            <span class="chronicle-node-list__meta">@entity.type · @RelationshipText(entry.RelationshipCount)</span>
                                         </span>
                                     </span>
                                 </AppListItem>
@@ -222,7 +222,7 @@ else
     else if (_activeMode == 3)
     {
 <AppPanel Class="chronicle-explorer-full-panel tl-sp-pa-4">
-            <CastComparison UniverseQid="@Qid" />
+            <CastComparison UniverseQid="@Qid" Graph="@_graph" />
         </AppPanel>
     }
     else if (_activeMode == 4)
@@ -311,22 +311,22 @@ else
                             <tr>
                                 <td>
                                     <AppStack Spacing="0">
-                                        <AppLink Href="@source.BaseUrl" Target="_blank">@source.SourceName</AppLink>
-                                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@source.PluginId</AppText>
+                                        <AppLink Href="@source.base_url" Target="_blank">@source.source_name</AppLink>
+                                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@source.plugin_id</AppText>
                                     </AppStack>
                                 </td>
                                 <td>
                                     <AppChip T="string" Size="AppSize.Small"
-                                             Color="@GetSourceStatusColor(source.Status)"
-                                             Variant="@GetSourceStatusVariant(source.Status)">
-                                        @source.Status
+                                             Color="@GetSourceStatusColor(source.status)"
+                                             Variant="@GetSourceStatusVariant(source.status)">
+                                        @source.status
                                     </AppChip>
                                 </td>
-                                <td>@source.Confidence.ToString("P0")</td>
-                                <td>@(source.LastEnrichedAt?.ToLocalTime().ToString("g") ?? "-")</td>
+                                <td>@source.confidence.ToString("P0")</td>
+                                <td>@(source.last_enriched_at?.ToLocalTime().ToString("g") ?? "-")</td>
                                 <td>
                                     <AppStack Row="true" AlignItems="AppAlignItems.Center" Justify="AppJustify.FlexEnd" Spacing="1">
-                                        @if (!source.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                                        @if (!source.status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <AppIconButton Icon="@AppMaterialIcons.Filled.Check"
                                                            Tooltip="Approve"
@@ -334,9 +334,9 @@ else
                                                            Tone="AppUiTone.Success"
                                                            Size="AppControlSize.Compact"
                                                            Disabled="@_loreActionBusy"
-                                                           OnClick="@(() => ApproveLoreSourceAsync(source.Id))" />
+                                                           OnClick="@(() => ApproveLoreSourceAsync(source.id))" />
                                         }
-                                        @if (!source.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                                        @if (!source.status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <AppIconButton Icon="@AppMaterialIcons.Filled.Close"
                                                            Tooltip="Reject"
@@ -344,7 +344,7 @@ else
                                                            Tone="AppUiTone.Error"
                                                            Size="AppControlSize.Compact"
                                                            Disabled="@_loreActionBusy"
-                                                           OnClick="@(() => RejectLoreSourceAsync(source.Id))" />
+                                                           OnClick="@(() => RejectLoreSourceAsync(source.id))" />
                                         }
                                     </AppStack>
                                 </td>
@@ -364,31 +364,31 @@ else
     {
         <AppDrawerHeader>
             <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
-                <AppMaterialIcon Icon="@GetEntityIcon(_selectedEntity.Type)"
-                         Color="@GetEntityColor(_selectedEntity.Type)" />
-                <AppText Typo="AppTypo.h6">@_selectedEntity.Label</AppText>
+                <AppMaterialIcon Icon="@GetEntityIcon(_selectedEntity.type)"
+                         Color="@GetEntityColor(_selectedEntity.type)" />
+                <AppText Typo="AppTypo.h6">@_selectedEntity.label</AppText>
             </AppStack>
         </AppDrawerHeader>
         <div class="tl-sp-pa-4">
             <AppText Typo="AppTypo.body2" Class="tl-sp-mb-3">
-                @(_selectedEntity.Description ?? "No description available.")
+                @(_selectedEntity.description ?? "No description available.")
             </AppText>
             <AppText Typo="AppTypo.caption" Class="chronicle-explorer-qid">
-                QID: @_selectedEntity.Id
+                QID: @_selectedEntity.id
             </AppText>
 
-            @if (_canEditUniverse && !_selectedEntity.Supplemental && DeviceContext.CanEdit)
+            @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.Label</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.label</AppButton>
             }
 
-            @if (_selectedEntity.Works?.Count > 0)
+            @if (_selectedEntity.works.Any())
             {
                 <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">Appears in</AppText>
-                @foreach (var work in _selectedEntity.Works)
+                @foreach (var work in _selectedEntity.works)
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
-                        @work.Label
+                        @work.label
                     </AppChip>
                 }
             }
@@ -399,8 +399,8 @@ else
                 @foreach (var edge in _selectedEntityEdges)
                 {
                     <AppText Typo="AppTypo.body2" Class="tl-sp-mb-1">
-                        @edge.Label
-                        @GetNodeLabel(edge.Source == _selectedEntity.Id ? edge.Target : edge.Source)
+                        @edge.label
+                        @GetNodeLabel(edge.source == _selectedEntity.id ? edge.target : edge.source)
                     </AppText>
                 }
             }
@@ -416,7 +416,7 @@ else
     private bool _openingEditor;
     private SharedEntityEditorTargetDto UniverseTarget => new(SharedEntityEditorTargetKinds.Universe, Qid, null, Qid);
 
-    private async Task EditUniverseAsync(GraphNodeDto? entity)
+    private async Task EditUniverseAsync(UniverseGraphNodeDto? entity)
     {
         if (_openingEditor || !_canEditUniverse) return;
         _openingEditor = true;
@@ -430,20 +430,20 @@ else
                 SharedEntitySelectorPageDto? page;
                 do
                 {
-                    page = await ApiClient.GetSharedEntitySelectorPageAsync(Qid, category: null, search: entity.Id, offset: offset, limit: 100);
-                    selected = page?.items.FirstOrDefault(item => item.qid == entity.Id);
+                    page = await ApiClient.GetSharedEntitySelectorPageAsync(Qid, category: null, search: entity.id, offset: offset, limit: 100);
+                    selected = page?.items.FirstOrDefault(item => item.qid == entity.id);
                     offset += 100;
                 } while (selected is null && page?.has_more == true);
                 if (selected is null) { Snackbar.Add("This entity is not available for editing.", AppSeverity.Warning); return; }
                 target = new(SharedEntityEditorTargetKinds.FictionalEntity, Qid, selected.id, selected.qid);
             }
             if (await MediaEditorLauncher.OpenAsync(new MediaEditorLaunchRequest
-                { SharedEntityTarget = target, HeaderTitle = _graph?.Universe.Label, Mode = SharedMediaEditorMode.Normal }))
+                { SharedEntityTarget = target, HeaderTitle = _graph?.universe.label, Mode = SharedMediaEditorMode.Normal }))
             {
                 _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);
-                if (entity is not null) _selectedEntity = _graph?.Nodes.FirstOrDefault(node => node.Id == entity.Id);
+                if (entity is not null) _selectedEntity = _graph?.nodes.FirstOrDefault(node => node.id == entity.id);
                 if (_cytoscapeReady && _graph is not null)
-                    await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.Nodes), System.Text.Json.JsonSerializer.Serialize(_graph.Edges));
+                    await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
             }
         }
         catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error); }
@@ -458,8 +458,8 @@ else
     private string _layout = "cose";
     private string _entitySearch = string.Empty;
     private bool _drawerOpen;
-    private GraphNodeDto? _selectedEntity;
-    private List<GraphEdgeDto> _selectedEntityEdges = [];
+    private UniverseGraphNodeDto? _selectedEntity;
+    private List<UniverseGraphEdgeDto> _selectedEntityEdges = [];
     private DotNetObjectReference<ChronicleExplorer>? _dotNetRef;
     private int _characterCount;
     private int _locationCount;
@@ -479,9 +479,9 @@ else
     private string _manualSourceUrl = string.Empty;
     private string _loreMessage = string.Empty;
     private AppSeverity _loreMessageSeverity = AppSeverity.Info;
-    private List<UniverseLoreSourceViewModel> _loreSources = [];
+    private List<UniverseLoreSourceResponse> _loreSources = [];
 
-    private sealed record NodeListEntry(GraphNodeDto Node, int RelationshipCount);
+    private sealed record NodeListEntry(UniverseGraphNodeDto Node, int RelationshipCount);
 
     private UniverseGraphResponse? _nodeListSource;
     private IReadOnlyList<NodeListEntry> _nodeListAll = [];
@@ -502,7 +502,7 @@ else
 
             return string.IsNullOrWhiteSpace(_entitySearch)
                 ? _nodeListAll
-                : _nodeListAll.Where(entry => entry.Node.Label.Contains(_entitySearch, StringComparison.OrdinalIgnoreCase));
+                : _nodeListAll.Where(entry => entry.Node.label.Contains(_entitySearch, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -514,18 +514,18 @@ else
         }
 
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var edge in graph.Edges)
+        foreach (var edge in graph.edges)
         {
-            counts[edge.Source] = counts.GetValueOrDefault(edge.Source) + 1;
-            if (!string.Equals(edge.Source, edge.Target, StringComparison.Ordinal))
+            counts[edge.source] = counts.GetValueOrDefault(edge.source) + 1;
+            if (!string.Equals(edge.source, edge.target, StringComparison.Ordinal))
             {
-                counts[edge.Target] = counts.GetValueOrDefault(edge.Target) + 1;
+                counts[edge.target] = counts.GetValueOrDefault(edge.target) + 1;
             }
         }
 
-        return graph.Nodes
-            .OrderBy(node => node.Label, StringComparer.OrdinalIgnoreCase)
-            .Select(node => new NodeListEntry(node, counts.GetValueOrDefault(node.Id)))
+        return graph.nodes
+            .OrderBy(node => node.label, StringComparer.OrdinalIgnoreCase)
+            .Select(node => new NodeListEntry(node, counts.GetValueOrDefault(node.id)))
             .ToList();
     }
 
@@ -533,7 +533,7 @@ else
         count == 1 ? "1 relationship" : $"{count} relationships";
 
     private bool HasApprovedLoreSource =>
-        _loreSources.Any(source => source.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase));
+        _loreSources.Any(source => source.status.Equals("Approved", StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -543,8 +543,8 @@ else
             _dotNetRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("CytoscapeInterop.initGraph",
                 "cytoscape-container",
-                System.Text.Json.JsonSerializer.Serialize(_graph.Nodes),
-                System.Text.Json.JsonSerializer.Serialize(_graph.Edges),
+                System.Text.Json.JsonSerializer.Serialize(_graph.nodes),
+                System.Text.Json.JsonSerializer.Serialize(_graph.edges),
                 _layout,
                 _dotNetRef);
         }
@@ -557,8 +557,8 @@ else
             _dotNetRef ??= DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("CytoscapeInterop.initGraph",
                 "cytoscape-container",
-                System.Text.Json.JsonSerializer.Serialize(_graph.Nodes),
-                System.Text.Json.JsonSerializer.Serialize(_graph.Edges),
+                System.Text.Json.JsonSerializer.Serialize(_graph.nodes),
+                System.Text.Json.JsonSerializer.Serialize(_graph.edges),
                 _layout,
                 _dotNetRef);
         }
@@ -592,21 +592,21 @@ else
         }
         if (_graph is not null)
         {
-            _hasGraphData = _graph.Nodes.Count > 0 && _graph.Edges.Count > 0;
-            _characterCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Character", StringComparison.OrdinalIgnoreCase));
-            _locationCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Location", StringComparison.OrdinalIgnoreCase));
-            _orgCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Organization", StringComparison.OrdinalIgnoreCase));
-            _hasTemporalData = _graph.Edges.Any(e => !string.IsNullOrWhiteSpace(e.StartTime));
+            _hasGraphData = _graph.nodes.Count > 0 && _graph.edges.Count > 0;
+            _characterCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Character", StringComparison.OrdinalIgnoreCase));
+            _locationCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Location", StringComparison.OrdinalIgnoreCase));
+            _orgCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Organization", StringComparison.OrdinalIgnoreCase));
+            _hasTemporalData = _graph.edges.Any(e => !string.IsNullOrWhiteSpace(e.start_time));
             if (_hasTemporalData)
             {
-                var years = _graph.Edges
-                    .Where(e => !string.IsNullOrWhiteSpace(e.StartTime))
+                var years = _graph.edges
+                    .Where(e => !string.IsNullOrWhiteSpace(e.start_time))
                     .Select(e =>
                     {
-                        var span = e.StartTime!.AsSpan(0, Math.Min(4, e.StartTime!.Length));
+                        var span = e.start_time!.AsSpan(0, Math.Min(4, e.start_time!.Length));
                         int.TryParse(span, out var y);
                         return y;
                     })
@@ -624,7 +624,7 @@ else
         {
             await LoadLoreSourcesAsync();
             var deltas = await ApiClient.CheckLoreDeltaAsync(Qid);
-            _loreDeltaChanges = deltas.Count(d => d.HasChanged);
+            _loreDeltaChanges = deltas.Count(d => d.has_changed);
         }
         catch (Exception ex)
         {
@@ -661,20 +661,20 @@ else
         _graph = await ApiClient.GetUniverseGraphAsync(Qid, types: types, includeSupplementalLore: true);
         if (_graph is not null)
         {
-            _hasGraphData = _graph.Nodes.Count > 0 && _graph.Edges.Count > 0;
-            _characterCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Character", StringComparison.OrdinalIgnoreCase));
-            _locationCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Location", StringComparison.OrdinalIgnoreCase));
-            _orgCount = _graph.Nodes.Count(n =>
-                string.Equals(n.Type, "Organization", StringComparison.OrdinalIgnoreCase));
+            _hasGraphData = _graph.nodes.Count > 0 && _graph.edges.Count > 0;
+            _characterCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Character", StringComparison.OrdinalIgnoreCase));
+            _locationCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Location", StringComparison.OrdinalIgnoreCase));
+            _orgCount = _graph.nodes.Count(n =>
+                string.Equals(n.type, "Organization", StringComparison.OrdinalIgnoreCase));
 
             if (_hasGraphData)
             {
                 await EnsureCytoscapeLoadedAsync();
                 await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph",
-                    System.Text.Json.JsonSerializer.Serialize(_graph.Nodes),
-                    System.Text.Json.JsonSerializer.Serialize(_graph.Edges));
+                    System.Text.Json.JsonSerializer.Serialize(_graph.nodes),
+                    System.Text.Json.JsonSerializer.Serialize(_graph.edges));
             }
         }
     }
@@ -693,29 +693,29 @@ else
         await JS.InvokeVoidAsync("CytoscapeInterop.setLayout", layout);
     }
 
-    private async Task OnEntityClick(GraphNodeDto entity)
+    private async Task OnEntityClick(UniverseGraphNodeDto entity)
     {
         _selectedEntity = entity;
-        _selectedEntityEdges = _graph?.Edges
-            .Where(e => e.Source == entity.Id || e.Target == entity.Id)
+        _selectedEntityEdges = _graph?.edges
+            .Where(e => e.source == entity.id || e.target == entity.id)
             .ToList() ?? [];
         _drawerOpen = true;
         await EnsureCytoscapeLoadedAsync();
-        await JS.InvokeVoidAsync("CytoscapeInterop.focusNode", entity.Id);
+        await JS.InvokeVoidAsync("CytoscapeInterop.focusNode", entity.id);
     }
     [JSInvokable]
     public void OnNodeClick(string nodeQid)
     {
-        var entity = _graph?.Nodes.FirstOrDefault(n => n.Id == nodeQid);
+        var entity = _graph?.nodes.FirstOrDefault(n => n.id == nodeQid);
         if (entity is null) return;
 
         _selectedEntity = entity;
-        _selectedEntityEdges = _graph?.Edges
-            .Where(e => e.Source == entity.Id || e.Target == entity.Id)
+        _selectedEntityEdges = _graph?.edges
+            .Where(e => e.source == entity.id || e.target == entity.id)
             .ToList() ?? [];
         if (_activeMode == 1 && _pathFinderRef is not null)
         {
-            _pathFinderRef.SetNode(nodeQid, entity.Label);
+            _pathFinderRef.SetNode(nodeQid, entity.label);
         }
         else
         {
@@ -737,7 +737,7 @@ else
     }
 
     private string GetNodeLabel(string qid) =>
-        _graph?.Nodes.FirstOrDefault(n => n.Id == qid)?.Label ?? qid;
+        _graph?.nodes.FirstOrDefault(n => n.id == qid)?.label ?? qid;
 
     private static string GetEntityIcon(string type) => type switch
     {
@@ -789,11 +789,7 @@ else
         {
             var added = await ApiClient.AddUniverseLoreSourceAsync(
                 Qid,
-                new UniverseLoreManualSourceRequest
-                {
-                    SourceName = _manualSourceName,
-                    BaseUrl = _manualSourceUrl,
-                });
+                new UniverseLoreManualSourceRequest(_manualSourceName, _manualSourceUrl));
             if (added is null)
             {
                 SetLoreMessage("The source could not be added.", AppSeverity.Error);
@@ -855,17 +851,17 @@ else
             _graph = await ApiClient.GetUniverseGraphAsync(Qid, includeSupplementalLore: true);
             if (_graph is not null)
             {
-                _hasGraphData = _graph.Nodes.Count > 0 && _graph.Edges.Count > 0;
-                _characterCount = _graph.Nodes.Count(n =>
-                    string.Equals(n.Type, "Character", StringComparison.OrdinalIgnoreCase));
-                _locationCount = _graph.Nodes.Count(n =>
-                    string.Equals(n.Type, "Location", StringComparison.OrdinalIgnoreCase));
-                _orgCount = _graph.Nodes.Count(n =>
-                    string.Equals(n.Type, "Organization", StringComparison.OrdinalIgnoreCase));
+                _hasGraphData = _graph.nodes.Count > 0 && _graph.edges.Count > 0;
+                _characterCount = _graph.nodes.Count(n =>
+                    string.Equals(n.type, "Character", StringComparison.OrdinalIgnoreCase));
+                _locationCount = _graph.nodes.Count(n =>
+                    string.Equals(n.type, "Location", StringComparison.OrdinalIgnoreCase));
+                _orgCount = _graph.nodes.Count(n =>
+                    string.Equals(n.type, "Organization", StringComparison.OrdinalIgnoreCase));
             }
 
             SetLoreMessage(
-                $"Enriched {summary.EntitiesWritten} entities from {summary.SourcesEnriched} source(s).",
+                $"Enriched {summary.entities_written} entities from {summary.sources_enriched} source(s).",
                 AppSeverity.Success);
         }
         finally

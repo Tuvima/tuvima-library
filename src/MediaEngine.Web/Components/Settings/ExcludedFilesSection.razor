@@ -1,0 +1,127 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Client
+@inject IAppToastService Snackbar
+
+@* The files that stayed on disk when their title was deleted from this library. Scans skip them until they are added back, so
+   the section is not drawn at all while there are none. Under 600px each row becomes a card (AppTable cards mode). *@
+@if (_files.Count > 0)
+{
+    <section class="excluded-files" aria-labelledby="@_headingId">
+        <h4 id="@_headingId" class="excluded-files__title">Excluded files</h4>
+        <p class="excluded-files__hint">These files stayed on disk when their title was deleted. Scans skip them until you add them back.</p>
+        <AppTable CardsOn="AppTableCardsMode.Phone" Class="excluded-files__table">
+            <thead>
+                <tr>
+                    <th data-card-role="title">File</th>
+                    <th data-card-role="subtitle">Folder</th>
+                    <th data-card-role="value">When</th>
+                    <th>By</th>
+                    <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var file in _files)
+                {
+                    <tr @key="file.Id">
+                        <td data-card-role="title">@file.FileName</td>
+                        <td data-card-role="subtitle">@file.FolderLabel</td>
+                        <td data-card-role="value"><span class="excluded-files__when" title="@AbsoluteDate(file.ExcludedAt)">@RelativeAge(file.ExcludedAt, DateTimeOffset.UtcNow)</span></td>
+                        <td data-label="Deleted by">@(string.IsNullOrWhiteSpace(file.ExcludedBy) ? "—" : file.ExcludedBy)</td>
+                        <td data-card-role="actions">
+                            @if (!ReadOnly)
+                            {
+                                <AppButton Label="Add back"
+                                           ButtonStyle="AppButtonStyle.Outlined"
+                                           Disabled="@(_busyId is not null)"
+                                           Loading="@(_busyId == file.Id)"
+                                           UserAttributes="@AddBackAttributes(file)"
+                                           OnClick="@(() => AddBackAsync(file))" />
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+    </section>
+}
+
+@code {
+    private readonly string _headingId = $"excluded-files-{Guid.NewGuid():N}";
+    private IReadOnlyList<ExcludedFileDto> _files = [];
+    private Guid? _busyId;
+    private string? _loadedFor;
+
+    /// <summary>The library whose excluded files are shown; nothing is drawn without one.</summary>
+    [Parameter] public string? LibraryId { get; set; }
+
+    /// <summary>Read-only settings show the list but offer no Add back.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(LibraryId))
+        {
+            _files = [];
+            _loadedFor = null;
+            return;
+        }
+
+        if (string.Equals(_loadedFor, LibraryId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _loadedFor = LibraryId;
+        _files = [];
+        _files = await Client.GetExcludedFilesAsync(LibraryId) ?? [];
+    }
+
+    private async Task AddBackAsync(ExcludedFileDto file)
+    {
+        if (_busyId is not null)
+        {
+            return;
+        }
+
+        _busyId = file.Id;
+        try
+        {
+            var result = await Client.AddBackExcludedFileAsync(file.Id);
+            if (result is null)
+            {
+                Snackbar.Add($"{file.FileName} could not be added back. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            // The exclusion is gone whether or not a scan could be queued, so the row goes either way.
+            _files = _files.Where(candidate => candidate.Id != file.Id).ToList();
+            Snackbar.Add(result.Message, result.Queued ? AppSeverity.Success : AppSeverity.Info);
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private static Dictionary<string, object> AddBackAttributes(ExcludedFileDto file) =>
+        new() { ["aria-label"] = $"Add back {file.FileName}" };
+
+    private static string RelativeAge(DateTimeOffset value, DateTimeOffset now)
+    {
+        var diff = now - value;
+        if (diff.TotalMinutes < 1) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 30) return $"{(int)diff.TotalDays}d ago";
+        if (diff.TotalDays < 365) return $"{(int)(diff.TotalDays / 30)}mo ago";
+        return $"{(int)(diff.TotalDays / 365)}y ago";
+    }
+
+    private static string AbsoluteDate(DateTimeOffset value) =>
+        value.LocalDateTime.ToString("g", CultureInfo.CurrentCulture);
+}

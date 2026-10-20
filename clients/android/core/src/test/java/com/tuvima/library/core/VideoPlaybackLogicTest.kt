@@ -69,7 +69,7 @@ class VideoPlaybackLogicTest {
     @Test
     fun messagesAreThePlainWordsTheScreenShows() {
         assertEquals("This title is not available for this profile.", VideoMessages.forFailure(VideoFailure.Unavailable))
-        assertEquals("Can't reach your Tuvima server", VideoMessages.forFailure(VideoFailure.Network))
+        assertEquals("Can't reach your Library server", VideoMessages.forFailure(VideoFailure.Network))
     }
 
     @Test

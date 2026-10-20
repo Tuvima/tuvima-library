@@ -1572,7 +1572,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         context.RequestServices = services;
         var player = new PlayerService(
             null!, null!, _database, null!, null!, null!, null!, null!, null!,
-            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!, null!);
         var request = new PlayerQueueMutationDto
         {
             WorkIds = [combined.WorkId, covered, next.WorkId],
@@ -1633,7 +1633,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDispo
         context.RequestServices = services;
         var player = new PlayerService(
             null!, null!, _database, null!, null!, null!, null!, null!, null!,
-            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!, null!);
 
         var queue = await player.ResolveQueueItemsAsync(new PlayerQueueMutationDto
         {

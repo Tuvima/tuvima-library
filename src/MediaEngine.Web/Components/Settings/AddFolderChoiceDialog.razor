@@ -6,7 +6,7 @@
     <ChildContent>
         <div class="add-folder-choice">
             <AppChoiceCard Class="add-folder-choice__card" Title="Use as-is (recommended)"
-                           Description="Tuvima only reads the folder and never renames, moves or changes your files, so other apps are not affected."
+                           Description="Library only reads the folder and never renames, moves or changes your files, so other apps are not affected."
                            OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AsIs)))" />
             @if (CanMerge)
             {
@@ -14,8 +14,8 @@
                                Description="Bring its files into one of your managed folders, once. By default they are copied and this folder is left untouched."
                                OnClick="@(() => Dialog.Close(AppDialogResult.Ok(Merge)))" />
             }
-            <AppChoiceCard Class="add-folder-choice__card" Title="Let Tuvima manage it"
-                           Description="Tuvima may rename and reorganise the files here, which could affect other applications that use this folder."
+            <AppChoiceCard Class="add-folder-choice__card" Title="Let Library manage it"
+                           Description="Library may rename and reorganise the files here, which could affect other applications that use this folder."
                            OnClick="@(() => Dialog.Close(AppDialogResult.Ok(Managed)))" />
         </div>
     </ChildContent>

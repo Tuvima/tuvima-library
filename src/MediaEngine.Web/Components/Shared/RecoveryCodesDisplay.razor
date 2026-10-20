@@ -27,7 +27,7 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<string> Codes { get; set; } = [];
-    [Parameter] public string Heading { get; set; } = "Tuvima Library recovery codes";
+    [Parameter] public string Heading { get; set; } = "Library recovery codes";
     [Parameter] public string FileName { get; set; } = "tuvima-recovery-codes.txt";
 
     private readonly string _fieldId = $"recovery-codes-{Guid.NewGuid():N}";

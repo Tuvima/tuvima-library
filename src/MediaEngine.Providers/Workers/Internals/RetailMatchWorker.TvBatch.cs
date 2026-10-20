@@ -118,7 +118,7 @@ public sealed partial class RetailMatchWorker
         // The generic provider waterfall now starts with TVDB's exact aired
         // show/season/episode lookup. Existing TMDB-only installations retain
         // the established grouped TMDB path below.
-        if (_tvdbClient?.IsConfigured() == true
+        if (_tvdbClient?.IsConfigured("tvdb") == true
             && ProviderExecutionFilter.IsEnabled("tvdb", GetExecutionSnapshot().Providers))
         {
             foreach (var job in groupJobs)
