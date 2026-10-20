@@ -123,6 +123,11 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
             Entries.Add((logLevel, exception));
     }
 
+    private sealed class PassThroughRecorder : IRecurringTaskRecorder
+    {
+        public Task RecordAsync(string taskKey, Func<CancellationToken, Task<int?>> run, CancellationToken ct) => run(ct);
+    }
+
     private AdaptiveHlsCleanupService CreateCleanup(
         AdaptiveHlsPackageRepository packages,
         ILogger<AdaptiveHlsCleanupService>? logger = null)
@@ -140,6 +145,7 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
             new PlaybackStateRepository(_database),
             hls,
             _configuration,
+            new PassThroughRecorder(),
             logger ?? NullLogger<AdaptiveHlsCleanupService>.Instance);
     }
 
