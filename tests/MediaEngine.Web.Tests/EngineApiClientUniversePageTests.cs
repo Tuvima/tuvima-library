@@ -19,7 +19,12 @@ public sealed class EngineApiClientUniversePageTests
             {
               "detail": {
                 "qid": "Q4242", "name": "Dune", "group_type": "universe", "item_count": 1, "series_count": 1, "media_types": ["Book"],
-                "shelves": [], "cast": [ { "person_id": "11111111-1111-1111-1111-111111111111", "name": "Ann", "headshot_url": "/stream/head", "characters": [], "work_count": 1 } ],
+                "shelves": [], "cast": [], "adaptations": []
+              },
+              "connections": {
+                "characters": [ { "qid": "Q1", "label": "Paul", "work_count": 2, "no_plot_details": false, "sources": [ { "kind": "wikidata", "label": "Wikidata" } ] } ],
+                "character_count": 5,
+                "cast": [ { "member": { "person_id": "11111111-1111-1111-1111-111111111111", "name": "Ann", "headshot_url": "/stream/head", "characters": [], "work_count": 1 }, "sources": [ { "kind": "wikidata", "label": "Wikidata" } ] } ],
                 "adaptations": []
               },
               "standalone": null,
@@ -39,7 +44,10 @@ public sealed class EngineApiClientUniversePageTests
 
         Assert.Equal(UniversePageLoadStatus.Loaded, result.Status);
         Assert.Equal("Dune", result.Page!.Detail.Name);
-        Assert.Equal("http://localhost:61495/stream/head", result.Page.Detail.Cast.Single().HeadshotUrl);
+        Assert.Equal("http://localhost:61495/stream/head", result.Page.Connections.Cast.Single().Member.HeadshotUrl);
+        Assert.Equal("Wikidata", result.Page.Connections.Cast.Single().Sources.Single().Label);
+        Assert.Equal("Paul", result.Page.Connections.Characters.Single().Label);
+        Assert.Equal(5, result.Page.Connections.CharacterCount);
         Assert.Equal("running", result.Page.Enrichment.State);
         Assert.Equal(4, result.Page.GraphEntityCount);
     }

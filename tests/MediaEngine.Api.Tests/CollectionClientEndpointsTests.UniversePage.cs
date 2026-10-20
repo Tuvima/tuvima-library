@@ -28,6 +28,7 @@ public sealed partial class CollectionClientEndpointsTests
     public async Task Overview_UsesTheSameShelfOrderAndCountsAsTheHelperAppRead()
     {
         SeedCast();
+        AddRelationship("Q8100", "based_on", "Q8101");
         await using var app = await StartAsync(mapGraphActions: true);
 
         var overview = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview");
@@ -35,11 +36,29 @@ public sealed partial class CollectionClientEndpointsTests
 
         // The page's detail is the helper-app answer, field for field: same shelves in the same order, same counts. Each card's
         // sort timestamp can fall back to the moment of the read, so it is left out of the comparison (two reads, two moments).
+        // The one difference: the page leaves cast and adaptations empty, because it reads those rows (with their sources)
+        // from connections.
         WithoutSortTimestamps(helperRead);
         WithoutSortTimestamps(overview["detail"]);
+        var helperCast = helperRead["cast"]!.AsArray().Select(row => row!.DeepClone()).ToList();
+        var helperAdaptations = helperRead["adaptations"]!.AsArray().Select(row => row!.DeepClone()).ToList();
+        Assert.NotEmpty(helperCast);
+        var helperWithoutLists = (JsonObject)helperRead.DeepClone();
+        helperWithoutLists["cast"] = new JsonArray();
+        helperWithoutLists["adaptations"] = new JsonArray();
         Assert.True(
-            JsonNode.DeepEquals(helperRead, overview["detail"]),
+            JsonNode.DeepEquals(helperWithoutLists, overview["detail"]),
             $"The page detail differs from the helper-app read.\npage:   {overview["detail"]!.ToJsonString()}\nhelper: {helperRead.ToJsonString()}");
+        Assert.Empty(overview["detail"]!["cast"]!.AsArray());
+        Assert.Empty(overview["detail"]!["adaptations"]!.AsArray());
+        // The connections carry the very same rows, in the same order.
+        var connections = overview["connections"]!;
+        Assert.Equal(
+            helperCast.Select(row => row.ToJsonString()),
+            connections["cast"]!.AsArray().Select(row => row!["member"]!.ToJsonString()));
+        Assert.Equal(
+            helperAdaptations.Select(row => row.ToJsonString()),
+            connections["adaptations"]!.AsArray().Select(row => row!["adaptation"]!.ToJsonString()));
         Assert.Equal(
             helperRead["shelves"]!.AsArray().Select(shelf => shelf!["collection_id"]!.GetValue<Guid>()),
             overview["detail"]!["shelves"]!.AsArray().Select(shelf => shelf!["collection_id"]!.GetValue<Guid>()));
@@ -47,7 +66,7 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.Equal(helperRead["series_count"]!.GetValue<int>(), overview["detail"]!["series_count"]!.GetValue<int>());
         // Hero, Villain, Hidden Villain and the three works' things are the entities the profile can see here.
         Assert.Equal(6, overview["graph_entity_count"]!.GetValue<int>());
-        Assert.Equal(0, overview["graph_relationship_count"]!.GetValue<int>());
+        Assert.Equal(1, overview["graph_relationship_count"]!.GetValue<int>());
         Assert.Null(overview["standalone"]);
     }
 

@@ -1,0 +1,75 @@
+.universe-characters {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--tl-space-2, 0.5rem);
+    list-style: none;
+}
+
+/* The frame belongs to the list item. A row that can be chosen is a button made by AppNativeButton and takes its padding,
+   hover and focus ring from the shared list-row button class; a plain row has the same padding and height. */
+.universe-characters__item {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-primary);
+}
+
+.universe-characters__item:hover:has(button) {
+    background: var(--tl-bg-surface-hover);
+}
+
+.universe-characters__row--plain {
+    display: block;
+    box-sizing: border-box;
+    padding: var(--tl-space-2, 0.5rem) var(--tl-space-4, 1rem);
+}
+
+/* The row button centres its content, so the body fills the row to keep the text at the start edge. */
+.universe-characters__body {
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: var(--tl-tap-target-min, 44px);
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.universe-characters__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 0.5rem);
+}
+
+.universe-characters__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.universe-characters__works {
+    color: var(--tl-text-secondary);
+    font-size: 0.88rem;
+}
+
+.universe-characters__source {
+    color: var(--tl-text-muted);
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+}
+
+.universe-characters__more {
+    display: flex;
+    margin-top: var(--tl-space-2, 0.5rem);
+}
+
+.universe-characters__note {
+    margin: var(--tl-space-2, 0.5rem) 0 0;
+    color: var(--tl-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+}

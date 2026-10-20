@@ -55,15 +55,25 @@ public sealed partial class EngineApiClient
                 AlsoInThisWorld = shelf.AlsoInThisWorld is null ? null : NormalizeUniverseShelf(shelf.AlsoInThisWorld),
                 AlsoInThisWorldCount = shelf.AlsoInThisWorldCount,
             }).ToList(),
-            Cast = page.Detail.Cast.Select(member => new UniverseClientCastMemberDto
+        },
+        // The page reads Cast and Adaptations from Connections; Detail's own lists are empty on this read.
+        Connections = new UniverseConnectionsDto
+        {
+            Characters = page.Connections.Characters,
+            CharacterCount = page.Connections.CharacterCount,
+            Cast = page.Connections.Cast.Select(row => new UniverseSourcedCastMemberDto
             {
-                PersonId = member.PersonId,
-                Name = member.Name,
-                HeadshotUrl = NormalizeOptionalUrl(member.HeadshotUrl),
-                Characters = member.Characters,
-                WorkCount = member.WorkCount,
+                Member = new UniverseClientCastMemberDto
+                {
+                    PersonId = row.Member.PersonId,
+                    Name = row.Member.Name,
+                    HeadshotUrl = NormalizeOptionalUrl(row.Member.HeadshotUrl),
+                    Characters = row.Member.Characters,
+                    WorkCount = row.Member.WorkCount,
+                },
+                Sources = row.Sources,
             }).ToList(),
-            Adaptations = page.Detail.Adaptations,
+            Adaptations = page.Connections.Adaptations,
         },
         Standalone = page.Standalone is null ? null : NormalizeUniverseShelf(page.Standalone),
         Missing = page.Missing,

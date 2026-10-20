@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3, U-WP5 to U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -218,6 +218,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 ### U-WP6 — Evidence-backed Connections (Cast, Adaptations, Characters per Q2)
 - **Depends on:** U-WP5, Q2. **Size:** Complex.
 - **Done when:** every character or link shown carries a visible source, and an unenriched Universe shows the "still learning" state with no sample data.
+- **Status:** Built (2026-10-20, PR 318). The Universe page's Connections list Cast, Adaptations and a read-only Characters list (first 12 with a Show all toggle, at most 60), each row naming its stored source (Wikidata, or an approved lore source holding the same item); a character row opens "Also appears in". Spoilers: until U-WP11 adds per-viewer progress, a character whose every visible appearance is marked "spoiler for" is **labelled "No plot details"** (name and source only, listed last, no work count, no panel) rather than hidden, and "Also appears in" leaves spoiler-marked appearances out. The explorer's adaptation tree is empty without real adaptation links. Left for U-WP11: Cast rows still name every character an actor plays (credits carry no spoiler marker), so its "one spoiler rule used by every surface" should cover them.
 
 ### U-WP7 — Engine actions for helper apps
 - **What it does:** extend `/api/v1/universe/{id}` with "Also in this world", Cast and Adaptations; keep profile visibility rules.
