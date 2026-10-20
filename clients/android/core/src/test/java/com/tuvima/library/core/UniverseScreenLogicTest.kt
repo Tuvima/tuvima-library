@@ -1,6 +1,5 @@
 package com.tuvima.library.core
 
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -10,45 +9,7 @@ import org.junit.Test
 
 /** The Universe screen's pure logic, checked against the shared wire fixture the Engine's contract tests also pin. */
 class UniverseScreenLogicTest {
-    // The JVM unit-test classpath has only Android's stubbed org.json, so the wire answer cannot be parsed here. This is the
-    // fixture's Universe built by hand; fixtureStillHasTheShapeTheseTestsMirror keeps it honest against the real file.
-    private fun fixtureText(): String {
-        var dir: File? = File("").absoluteFile
-        while (dir != null) {
-            val candidate = File(dir, "tests/fixtures/native-client-v1/universe.json")
-            if (candidate.isFile) return candidate.readText()
-            dir = dir.parentFile
-        }
-        error("tests/fixtures/native-client-v1/universe.json was not found above ${File("").absolutePath}")
-    }
-
-    private fun fixture() = UniverseDetail(
-        qid = "Q4242",
-        name = "Test Universe",
-        description = null,
-        itemCount = 5,
-        shelves = listOf(
-            shelf(itemCount = 2, runCards = 2, also = null).let { it.copy(shelf = it.shelf.copy(title = "Series Alpha")) },
-            shelf(itemCount = 2, runCards = 2, also = null).let { it.copy(shelf = it.shelf.copy(title = "Series Beta")) },
-            shelf(itemCount = 0, runCards = 0, also = 1).let { it.copy(shelf = it.shelf.copy(title = "Series Gamma")) },
-        ),
-        seriesCount = 3,
-        mediaTypes = listOf("Movie", "Book"),
-        cast = listOf(
-            UniverseCastMember("p1", "Ann Actor", null, listOf(UniverseCharacter("Q8200", "Hero")), 2),
-            UniverseCastMember("p2", "Ben Narrator", null, emptyList(), 1),
-        ),
-        adaptations = listOf(UniverseAdaptation("Q8100", "The Film", "Object", "based on", "Q8101", "The Novel")),
-    )
-
-    @Test
-    fun fixtureStillHasTheShapeTheseTestsMirror() {
-        val text = fixtureText()
-        listOf(
-            "\"series_count\": 3", "\"item_count\": 5", "\"title\": \"Series Gamma\"", "\"also_in_this_world_count\": 1",
-            "\"label\": \"Hero\"", "\"characters\": []", "\"relationship\": \"based on\"", "\"source_label\": \"The Novel\"",
-        ).forEach { assertTrue("fixture no longer contains $it", text.contains(it)) }
-    }
+    private fun fixture() = WireFixtures.universe()
 
     private fun detail(series: Int, works: Int, formats: List<String>) =
         UniverseDetail("Q1", "U", null, works, emptyList(), seriesCount = series, mediaTypes = formats)

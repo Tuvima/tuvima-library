@@ -42,6 +42,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | Swashbuckle | Swagger/OpenAPI UI |
 | Cronos | Cron schedule parsing |
 | xUnit, bUnit, coverlet | Automated tests |
+| JUnit 4 and android-json (Apache 2.0, Android's own `org.json`) | Android app tests only; not shipped in the apps |
 | Astro and Starlight | GitHub Pages documentation site; exact versions and licenses below |
 
 ## Media Processing
