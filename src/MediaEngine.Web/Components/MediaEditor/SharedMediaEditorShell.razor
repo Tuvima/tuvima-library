@@ -538,6 +538,10 @@
                         CancelTvdbSelection="@(() => _selectedTvdbCandidate = null)"
                         SelectMusicTrackMoveChoice="@((string value) => _musicTrackMoveChoiceId = value)"
                         GetRetailCandidateId="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetCandidateId(candidate))" />
+                    @if (IsSingleItem && !IsSharedEntityMode)
+                    {
+                        <EditorSeriesBlock EntityId="@(CurrentEntityId)" Applied="@(OnSeriesPlacementApplied)" />
+                    }
                     @if (CoverageAssetId is { } coverageAssetId)
                     {
                         <MediaEditorFileCoveragePicker EntityId="@(CurrentEntityId)" AssetId="@(coverageAssetId)" />

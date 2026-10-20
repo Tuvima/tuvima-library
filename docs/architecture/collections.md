@@ -105,6 +105,31 @@ on the same shelf. Precedence:
 4. With no Wikidata manifest, a retail provider's own manifest, then the retail
    identity (provider key, then label plus media type), as `MainSequence`.
 
+**A person's choice is a lock.** When a person picks a Series in the editor's
+Matching section (or "Not in a Series"), the Engine saves it as
+`works.series_placement_locked = 1` with `works.collection_id` as their choice.
+`SeriesPlacementInput.Lock` comes before every rule above: the rule returns the
+locked shelf (scope from that shelf's manifest when it lists the work, else main
+sequence) or "no Series", and is never ambiguous. `CollectionAssignmentService`
+(and so backfill), `LinkOwnedWorksAsync` (which only refreshes the work's position
+on its chosen Series) and the repository's assign and clear calls all leave a
+locked work where the person put it. "Let the Library decide" clears the lock,
+takes the work off its shelf and runs placement for it again. The lock is a
+placement lock, not a claim lock (`PriorityCascadeEngine`'s lockable fields are
+unchanged).
+
+**One claimed-Series reader.** `ClaimedSeriesQidReader` (Domain) names the Series a
+work's own claims point to, for the tie-break above: `series_qid` from the lineage
+root's canonicals, then the file's; then a QID-shaped `series` value; then, for
+comics, `wikidata_qid`. Assignment and manifest linking both feed it the same
+values, so the same work gets the same shelf from either path.
+
+**One "which Series?" question.** `SeriesAmbiguityReviewer` raises the
+`AmbiguousSeriesMembership` item on the work's earliest-stored Normal original
+file, skips it when a pending one already exists on the work or any of its files,
+and resolves it whenever the work is later placed without a tie (any path,
+including a person's choice).
+
 A work moves only when the rule's shelf differs from its current one, and the
 log gives the real reason. A work with no manifest row (retail only) is
 `MainSequence` by definition.

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0021 universe_record).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0022 series_placement_lock).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2610,7 +2610,7 @@ CREATE TABLE works (
     -- 'Unowned' = catalog-only row discovered from Wikidata or a retail
     -- provider but not yet ingested. Kept in sync with is_catalog_only.
     ownership            TEXT NOT NULL DEFAULT 'Owned'
-, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT);
+, universe_mismatch INTEGER NOT NULL DEFAULT 0 CHECK (universe_mismatch IN (0, 1)), universe_mismatch_at TEXT, wikidata_status TEXT DEFAULT 'pending', wikidata_checked_at TEXT, wikidata_qid TEXT, curator_state TEXT, rejected_at TEXT, provisional_metadata_json TEXT, match_level TEXT DEFAULT 'work', wikidata_match_source TEXT, wikidata_match_locked INTEGER NOT NULL DEFAULT 0, wikidata_rejected_qids_json TEXT, ready_at TEXT, first_ready_at TEXT, series_placement_locked INTEGER NOT NULL DEFAULT 0);
 
 CREATE VIRTUAL TABLE artwork_asset_search USING fts5(
     artwork_asset_id UNINDEXED,

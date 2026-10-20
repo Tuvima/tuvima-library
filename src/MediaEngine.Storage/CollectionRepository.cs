@@ -609,6 +609,7 @@ public sealed class CollectionRepository : ICollectionRepository
     }
 
     /// <inheritdoc/>
+    /// <remarks>A work whose Series a person chose (<c>series_placement_locked</c>) is never moved by this call.</remarks>
     public Task AssignWorkToCollectionAsync(Guid workId, Guid collectionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -617,7 +618,7 @@ public sealed class CollectionRepository : ICollectionRepository
         {
             innerCt.ThrowIfCancellationRequested();
             conn.Execute(
-                "UPDATE works SET collection_id = @collectionId WHERE id = @workId;",
+                "UPDATE works SET collection_id = @collectionId WHERE id = @workId AND series_placement_locked = 0;",
                 new { collectionId, workId },
                 transaction: tx);
         }, ct);
@@ -632,7 +633,7 @@ public sealed class CollectionRepository : ICollectionRepository
         {
             innerCt.ThrowIfCancellationRequested();
             conn.Execute(
-                "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IS NOT NULL;",
+                "UPDATE works SET collection_id = NULL WHERE id = @workId AND collection_id IS NOT NULL AND series_placement_locked = 0;",
                 new { workId },
                 transaction: tx);
         }, ct);

@@ -39,6 +39,7 @@ public sealed class CollectionAssignmentService
     private readonly ILogger<CollectionAssignmentService> _logger;
     private readonly ISeriesManifestRepository? _manifestRepo;
     private readonly SeriesAmbiguityReviewer? _ambiguityReviewer;
+    private readonly ISeriesPlacementRepository? _placementRepo;
 
     // Per-shelf semaphores serialise concurrent find-or-create calls so two
     // workers cannot race past lookup and both UpsertAsync the same ContentGroup
@@ -52,7 +53,8 @@ public sealed class CollectionAssignmentService
         ILogger<CollectionAssignmentService> logger,
         ICanonicalValueArrayRepository? arrayRepo = null,
         ISeriesManifestRepository? manifestRepo = null,
-        SeriesAmbiguityReviewer? ambiguityReviewer = null)
+        SeriesAmbiguityReviewer? ambiguityReviewer = null,
+        ISeriesPlacementRepository? placementRepo = null)
     {
         _collectionRepo = collectionRepo;
         _canonicalRepo = canonicalRepo;
@@ -61,6 +63,7 @@ public sealed class CollectionAssignmentService
         _logger = logger;
         _manifestRepo = manifestRepo;
         _ambiguityReviewer = ambiguityReviewer;
+        _placementRepo = placementRepo;
     }
 
     /// <summary>
@@ -113,11 +116,42 @@ public sealed class CollectionAssignmentService
         var memberships = _manifestRepo is null
             ? []
             : await _manifestRepo.GetMembershipsForWorkAsync(workId.Value, ct).ConfigureAwait(false);
+        // A person's locked choice comes first, and the tie-break Series comes from the one shared reader, so the manifest
+        // linking pass reads the same value for the same work.
+        var held = _placementRepo is null
+            ? null
+            : await _placementRepo.GetLockAsync(workId.Value, ct).ConfigureAwait(false);
         var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
             mediaType.ToString(),
             memberships,
             retail?.ToIdentity(),
-            ClaimedSeriesQid: retail?.Qid));
+            ClaimedSeriesQid: ClaimedSeriesQidReader.Resolve(mediaType.ToString(), lookup),
+            Lock: held));
+
+        if (decision.Basis == SeriesPlacementBasis.PersonChoice)
+        {
+            // The person already put this work where they want it; nothing automatic moves, clears or re-places it.
+            await ResolveAmbiguityAsync(workId.Value, ct).ConfigureAwait(false);
+            _logger.LogDebug("CollectionAssignment: work {WorkId} keeps the Series a person chose", workId);
+            return decision.ShelfCollectionId is { } chosen
+                ? new CollectionAssignmentResult(
+                    CollectionAssignmentOutcome.AlreadyAssigned,
+                    entityId,
+                    workId.Value,
+                    chosen,
+                    Message: "A person chose this Series.")
+                : new CollectionAssignmentResult(
+                    CollectionAssignmentOutcome.SkippedNoShelfIdentity,
+                    entityId,
+                    workId.Value,
+                    Message: "A person chose that this work is not in a Series.");
+        }
+
+        if (decision.Kind != SeriesPlacementKind.Ambiguous)
+        {
+            // Placed or unplaced without a tie: any earlier "which Series?" question about this work is answered.
+            await ResolveAmbiguityAsync(workId.Value, ct).ConfigureAwait(false);
+        }
 
         if (decision.Kind == SeriesPlacementKind.Ambiguous)
         {
@@ -332,6 +366,9 @@ public sealed class CollectionAssignmentService
             workId,
             Message: detail);
     }
+
+    private Task ResolveAmbiguityAsync(Guid workId, CancellationToken ct)
+        => _ambiguityReviewer is null ? Task.CompletedTask : _ambiguityReviewer.ResolveAsync(workId, ct);
 
     private async Task<Collection?> FindShelfCollectionAsync(ShelfIdentity shelf, CancellationToken ct)
     {
@@ -576,6 +613,15 @@ public sealed class CollectionAssignmentService
             foreach (var work in ambiguous)
             {
                 await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
+            }
+
+            var stillAmbiguous = ambiguous.Select(a => a.WorkId).ToHashSet();
+            foreach (var workId in rows.Where(r => r.LinkedWorkId.HasValue).Select(r => r.LinkedWorkId!.Value).Distinct())
+            {
+                if (!stillAmbiguous.Contains(workId))
+                {
+                    await _ambiguityReviewer.ResolveAsync(workId, ct).ConfigureAwait(false);
+                }
             }
         }
     }

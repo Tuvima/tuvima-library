@@ -352,20 +352,6 @@ public static class LibraryEndpoints
         .Produces<LibraryBatchEditResult>(StatusCodes.Status200OK)
         .RequireEffectiveAdministrator();
 
-        // ── POST /library/universe-assign ──────────────────────────────────
-        group.MapPost("/universe-assign", async (
-            UniverseManualAssignRequest request,
-            ICollectionRepository collectionRepo,
-            CancellationToken ct) =>
-        {
-            await collectionRepo.AssignWorkToCollectionAsync(request.WorkId, request.CollectionId, ct);
-            return Results.Ok(new UniverseManualAssignResponse(assigned: true));
-        })
-        .WithName("ManualUniverseAssign")
-        .WithSummary("Manually assign a work to an existing collection.")
-        .Produces<UniverseManualAssignResponse>(StatusCodes.Status200OK)
-        .RequireEffectiveAdministrator();
-
         return app;
     }
 }

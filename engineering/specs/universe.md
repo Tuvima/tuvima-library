@@ -196,6 +196,12 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 - **Done when:** a test library with Expanse novels, novellas and TV shows three separate Series, numbered correctly, decimals intact, shelf and item page agreeing.
 - **Status:** Built (2026-10-19, branch `claude/universe-wave2-int`; data store upgrade step 0012). Existing libraries need a data store reset and re-ingest (section 7): shelves made before this step have no media type, so they are not reused and can be left behind beside the new ones.
 
+### U-WP3b — A person's Series choice is a lock; U-WP3 re-review follow-ups
+- **What it does:** a Series picked in Matching is saved as a locked choice (or "Not in a Series") that no automatic path changes; the placement rule, collection assignment, manifest linking and backfill all respect it. One shared reader names the Series a Work's claims point to, so assigning and linking pick the same shelf. A "which Series?" Needs Review item is raised once per Work and closes itself when the Work is placed. The Series block in Matching shows the current Series, the Series that list the Work and a search over other Series of the same kind; "Let the Library decide" releases the choice. The unused, lock-less `/library/universe-assign` action is removed.
+- **Files likely touched:** `SeriesPlacementRule.cs`, `ClaimedSeriesQidReader.cs`, `CollectionAssignmentService.cs`, `SeriesManifestRepository.cs`, `SeriesPlacementRepository.cs`, `SeriesAmbiguityReviewer.cs`, `MetadataEndpoints.SeriesPlacement.cs`, `LibraryEndpoints.cs`, `Contracts/Metadata/SeriesPlacementContracts.cs`, data store upgrade step `0022_series_placement_lock`, `EditorSeriesBlock.razor`, `SharedMediaEditorShell.razor`, `EngineApiClient.Details.cs`, `ReviewTargetResolver`.
+- **Depends on:** U-WP4. **Size:** Complex.
+- **Done when:** a Work the person put on a Series (or on none) stays there through re-assigning, re-linking, backfill and manifest refresh; assigning and linking give the same shelf from the same claim; one pending "which Series?" item per Work, closed when the Work is placed; the Series block in Matching saves, searches and releases a choice on a desktop only.
+
 ### U-WP0 — Confirm the real Expanse mix-up
 - **What it does:** read-only check on Shy's actual data to confirm which of the code paths in section 0 causes bug 23 (so U-WP3 fixes the real cause, not a guess).
 - **Files likely touched:** none (reads the Engine log and data store).
@@ -317,6 +323,8 @@ Before Claude Code starts the first packet, and again before each wave:
 **Further decisions (Shy, 2026-10-19, while building U-WP5 and U-WP10):** Edit Universe reuses the existing Universe editor, shown in-line beside the Universe page in the same side drawer Editing Mode uses (not a pop-up), desktop administrators only. "Also appears in" is a panel on the Universe page, not a character page.
 
 **Further decision (Shy, 2026-10-20, while building U-WP4):** the audiobook Wikidata fallback is option (a). When Apple has no match for an audiobook, it takes the Wikidata ID of an already-confirmed book in the Library with the same title and author. Nothing new is looked up outside the machine, and "no retail match = no Wikidata" stays true for everything else: an audiobook with no owned, confirmed book of the same title and author still goes to Needs Review.
+
+**Further decision (Shy, 2026-10-20, while building U-WP3b):** "When I pick a Series in Matching, save it as a locked choice the Engine always respects, so it survives re-runs." (U-WP3b)
 
 **Landing alongside the locked Developer tools spec:** see section 6A. That spec (`engineering/specs/developer-tools.md`, Locked v2, 2026-10-19) owns the plugin platform and the shared state card, approval rule, health words and run records; this spec defines no plugin mechanics.
 

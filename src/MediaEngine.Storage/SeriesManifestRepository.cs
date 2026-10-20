@@ -364,11 +364,32 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
                     "-- readiness: media type of one work, looked up by id\nSELECT media_type FROM works WHERE id = @workId;",
                     new { workId },
                     tx) ?? string.Empty;
+                var held = SeriesPlacementRepository.LoadLock(conn, tx, workId);
                 var decision = SeriesPlacementRule.Decide(new SeriesPlacementInput(
                     workMediaType,
                     LoadMemberships(conn, tx, workId),
                     Retail: null,
-                    ClaimedSeriesQid: LoadClaimedSeriesQid(conn, tx, workId)));
+                    ClaimedSeriesQid: LoadClaimedSeriesQid(conn, tx, workId, workMediaType),
+                    Lock: held));
+
+                if (decision.Basis == SeriesPlacementBasis.PersonChoice)
+                {
+                    // A person chose this work's Series (or no Series): linking never moves or clears it. The only thing
+                    // it may do is refresh the work's position on the Series the person chose.
+                    if (decision.ShelfCollectionId == collectionId)
+                    {
+                        conn.Execute(
+                            """
+                            UPDATE collection_items
+                            SET sort_order = @sortOrder
+                            WHERE collection_id = @collectionId AND work_id = @workId;
+                            """,
+                            new { collectionId, workId, sortOrder },
+                            tx);
+                    }
+
+                    continue;
+                }
 
                 if (decision.Kind == SeriesPlacementKind.Ambiguous)
                 {
@@ -518,20 +539,60 @@ public sealed class SeriesManifestRepository : ISeriesManifestRepository
         return Task.FromResult(LoadMemberships(conn, transaction: null, workId));
     }
 
-    /// <summary>The Series QID the work's own <c>series_qid</c> claim names, used only to break a tie that is not at main sequence.</summary>
-    private static string? LoadClaimedSeriesQid(IDbConnection conn, IDbTransaction? transaction, Guid workId)
+    /// <summary>
+    /// The Series QID the work's own claims name, read by the same <see cref="ClaimedSeriesQidReader"/> collection assignment
+    /// uses, over the same values: the lineage root's canonicals first, then the work's files'. Used only to break a tie that
+    /// is not at main sequence.
+    /// </summary>
+    private static string? LoadClaimedSeriesQid(IDbConnection conn, IDbTransaction? transaction, Guid workId, string workMediaType)
     {
-        var raw = conn.ExecuteScalar<string?>(
-            "SELECT CAST(value AS TEXT) FROM canonical_values WHERE entity_id = @workId AND key = 'series_qid' LIMIT 1;",
+        var entities = conn.Query<Guid>(
+            """
+            -- readiness: lineage root and files of one work, looked up by id
+            SELECT CASE WHEN w.media_type = 'Audiobooks' AND w.parent_key LIKE 'source-folder:%'
+                        THEN w.id ELSE COALESCE(gp.id, p.id, w.id) END AS EntityId
+            FROM works w
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            WHERE w.id = @workId
+            UNION ALL
+            SELECT ma.id
+            FROM media_assets ma
+            JOIN editions e ON e.id = ma.edition_id
+            WHERE e.work_id = @workId;
+            """,
             new { workId },
-            transaction);
-        if (string.IsNullOrWhiteSpace(raw))
+            transaction).AsList();
+        if (entities.Count == 0)
         {
             return null;
         }
 
-        var qid = raw.Contains('/') ? raw.Split('/')[^1] : raw;
-        return qid.Contains("::") ? qid.Split("::", 2)[0].Trim() : qid.Trim();
+        var values = conn.Query<ClaimValueRow>(
+            """
+            SELECT entity_id AS EntityId, key AS Key, CAST(value AS TEXT) AS Value
+            FROM canonical_values
+            WHERE entity_id IN @entityIds
+              AND key IN @keys;
+            """,
+            new
+            {
+                entityIds = entities.Select(GuidSql.ToBlob).ToArray(),
+                keys = ClaimedSeriesQidReader.Keys.ToArray(),
+            },
+            transaction).AsList();
+
+        var merged = ClaimedSeriesQidReader.Merge(entities.Select(entity => values
+            .Where(v => v.EntityId == entity && !string.IsNullOrWhiteSpace(v.Value))
+            .Select(v => new KeyValuePair<string, string>(v.Key, v.Value!))));
+        return ClaimedSeriesQidReader.Resolve(workMediaType, merged);
+    }
+
+    private sealed class ClaimValueRow
+    {
+        public Guid EntityId { get; set; }
+        public string Key { get; set; } = string.Empty;
+        public string? Value { get; set; }
     }
 
     /// <summary>

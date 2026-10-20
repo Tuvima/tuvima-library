@@ -6,6 +6,7 @@ public enum CollectionFinalizationReason
     QidResolved,
     RetainedRetailIdentity,
     Backfill,
+    PersonReleasedSeriesChoice,
 }
 
 public sealed record CollectionFinalizationResult(

@@ -1,0 +1,248 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Sections
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Domain.Constants
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject DeviceContextService Device
+@inject IAppToastService Toasts
+
+@* The Series block of Matching: which Series this item is on, the Series that list it, a search over the other Series of its
+   media type, "Not in a Series" and, once a person has chosen, "Let the Library decide". A chosen Series is saved as a lock the
+   Engine always respects. Choosing follows the Match section's pattern: select a result, review it, then save. *@
+@if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.CanEdit(Device))
+{
+    <section class="sme-series" aria-label="Series">
+        <h3>Series</h3>
+
+        <div class="sme-series__current">
+            <span class="sme-series__label">Current Series</span>
+            <strong>@(placement.Current?.Label ?? "Not in a Series")</strong>
+            @if (placement.Current is not null)
+            {
+                <span class="sme-series__scope">@ScopeText(placement.Current)</span>
+            }
+            @if (placement.IsPersonChoice)
+            {
+                <span class="sme-series__chosen">Chosen by you</span>
+            }
+        </div>
+
+        @if (placement.Listed.Count > 0)
+        {
+            <div class="sme-series__group" role="group" aria-label="Series that list this item">
+                <span class="sme-series__label">Listed in</span>
+                @foreach (var shelf in placement.Listed)
+                {
+                    <AppNativeButton Type="button"
+                                     Class="@RowClass(shelf.CollectionId)"
+                                     aria-pressed="@IsSelected(shelf.CollectionId)"
+                                     Disabled="@_saving"
+                                     OnClick="@(() => Select(shelf))">
+                        <span class="sme-series__row-copy"><strong>@shelf.Label</strong><span>@ScopeText(shelf)</span></span>
+                        <AppMaterialIcon Icon="@(IsSelected(shelf.CollectionId) ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
+                    </AppNativeButton>
+                }
+            </div>
+        }
+
+        <div class="sme-series__group" role="group" aria-label="Find another Series">
+            <span class="sme-series__label">Another Series</span>
+            <div class="sme-series__search">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+                <AppTextField T="string"
+                              Value="@_query"
+                              ValueChanged="@SearchChangedAsync"
+                              Placeholder="Search Series by name"
+                              Variant="AppVariant.Outlined"
+                              Margin="AppMargin.Dense"
+                              Immediate="true"
+                              Class="sme-text-input" />
+            </div>
+            @if (placement.Candidates.Count == 0)
+            {
+                <p class="sme-series__note">@(string.IsNullOrWhiteSpace(_query) ? "No other Series of this kind yet." : "No other Series match that name.")</p>
+            }
+            else
+            {
+                @foreach (var shelf in placement.Candidates)
+                {
+                    <AppNativeButton Type="button"
+                                     Class="@RowClass(shelf.CollectionId)"
+                                     aria-pressed="@IsSelected(shelf.CollectionId)"
+                                     Disabled="@_saving"
+                                     OnClick="@(() => Select(shelf))">
+                        <span class="sme-series__row-copy"><strong>@shelf.Label</strong></span>
+                        <AppMaterialIcon Icon="@(IsSelected(shelf.CollectionId) ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
+                    </AppNativeButton>
+                }
+            }
+        </div>
+
+        <div class="sme-series__group">
+            <AppNativeButton Type="button"
+                             Class="@(_chooseNone ? "sme-series__row is-selected" : "sme-series__row")"
+                             aria-pressed="@_chooseNone"
+                             Disabled="@_saving"
+                             OnClick="SelectNone">
+                <span class="sme-series__row-copy"><strong>Not in a Series</strong><span>Keep this item out of every Series.</span></span>
+                <AppMaterialIcon Icon="@(_chooseNone ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
+            </AppNativeButton>
+        </div>
+
+        @if (HasSelection)
+        {
+            <div class="sme-series__review" role="status">
+                <span>
+                    @(_chooseNone
+                        ? "This item will be taken out of its Series."
+                        : $"This item will go in {_selected!.Label}.")
+                    The Library will keep your choice, even when it is scanned or refreshed again.
+                </span>
+                <div class="sme-series__actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="CancelSelection">Cancel</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveChoiceAsync">@(_saving ? "Saving…" : "Save Series")</AppButton>
+                </div>
+            </div>
+        }
+
+        @if (placement.IsPersonChoice)
+        {
+            <div class="sme-series__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_saving" OnClick="LetLibraryDecideAsync">Let the Library decide</AppButton>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p class="sme-series__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    /// <summary>The item being edited (its Work, Edition or file id; the Engine finds the Work).</summary>
+    [Parameter] public Guid EntityId { get; set; }
+
+    /// <summary>Raised after a Series choice was saved or released, so the editor can refresh what the page shows.</summary>
+    [Parameter] public EventCallback Applied { get; set; }
+
+    private SeriesPlacementDto? _placement;
+    private Guid _loadedFor;
+    private string _query = string.Empty;
+    private int _searchVersion;
+    private SeriesPlacementShelfDto? _selected;
+    private bool _chooseNone;
+    private bool _saving;
+    private string? _error;
+
+    private bool HasSelection => _chooseNone || _selected is not null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EntityId == Guid.Empty || EntityId == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = EntityId;
+        _query = string.Empty;
+        CancelSelection();
+        _error = null;
+        // An item the Engine cannot place on Series (a TV episode, a music track) returns no Series block at all.
+        _placement = await ApiClient.GetSeriesPlacementAsync(EntityId);
+    }
+
+    private async Task SearchChangedAsync(string? value)
+    {
+        _query = value ?? string.Empty;
+        var version = ++_searchVersion;
+        // Wait for a pause in typing so one search runs per burst of keystrokes.
+        await Task.Delay(250);
+        if (version != _searchVersion)
+        {
+            return;
+        }
+
+        var result = await ApiClient.GetSeriesPlacementAsync(EntityId, _query);
+        if (version == _searchVersion && result is not null)
+        {
+            _placement = result;
+        }
+    }
+
+    private void Select(SeriesPlacementShelfDto shelf)
+    {
+        _selected = shelf;
+        _chooseNone = false;
+        _error = null;
+    }
+
+    private void SelectNone()
+    {
+        _selected = null;
+        _chooseNone = true;
+        _error = null;
+    }
+
+    private void CancelSelection()
+    {
+        _selected = null;
+        _chooseNone = false;
+    }
+
+    private bool IsSelected(Guid collectionId) => _selected?.CollectionId == collectionId;
+
+    private string RowClass(Guid collectionId) => IsSelected(collectionId) ? "sme-series__row is-selected" : "sme-series__row";
+
+    private Task SaveChoiceAsync() => ApplyAsync(_chooseNone ? null : _selected?.CollectionId, locked: true);
+
+    private Task LetLibraryDecideAsync() => ApplyAsync(null, locked: false);
+
+    private async Task ApplyAsync(Guid? collectionId, bool locked)
+    {
+        // Every edit handler asks the one device rule, so hiding the controls is never the only protection.
+        if (_saving || EditorDeviceRule.TryRefuse(Device, Toasts))
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var saved = await ApiClient.SaveSeriesPlacementAsync(EntityId, collectionId, locked);
+            if (saved is null)
+            {
+                _error = ApiClient.LastError ?? "The Series could not be saved. Try again.";
+                return;
+            }
+
+            _placement = saved;
+            _query = string.Empty;
+            CancelSelection();
+            Toasts.Add(locked ? "Series saved. The Library will keep your choice." : "The Library will decide this item's Series.", AppSeverity.Success);
+            await Applied.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    /// <summary>"In the main run (#3)" for a numbered main-sequence entry, otherwise "Also in this world".</summary>
+    internal static string ScopeText(SeriesPlacementShelfDto shelf)
+    {
+        if (!string.Equals(shelf.Scope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Also in this world";
+        }
+
+        return string.IsNullOrWhiteSpace(shelf.PositionLabel)
+            ? "In the main run"
+            : $"In the main run (#{shelf.PositionLabel})";
+    }
+}

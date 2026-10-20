@@ -392,6 +392,16 @@ public sealed class WikidataSeriesManifestHydrationService
         {
             await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
         }
+
+        // Every other work these rows name was placed without a tie, so any earlier "which Series?" item about it is answered.
+        var stillAmbiguous = ambiguous.Select(a => a.WorkId).ToHashSet();
+        foreach (var workId in items.Where(i => i.LinkedWorkId.HasValue).Select(i => i.LinkedWorkId!.Value).Distinct())
+        {
+            if (!stillAmbiguous.Contains(workId))
+            {
+                await _ambiguityReviewer.ResolveAsync(workId, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private static SeriesManifestRequest CreateManifestRequest(string seriesQid, string language) => new()

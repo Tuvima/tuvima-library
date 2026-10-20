@@ -65,6 +65,9 @@ public enum SeriesPlacementBasis
     ParentCollectionManifest,
     ProviderManifest,
     RetailIdentity,
+
+    /// <summary>A person chose this Series (or chose no Series) and the choice is locked.</summary>
+    PersonChoice,
 }
 
 /// <summary>The outcome of <see cref="SeriesPlacementRule.Decide"/>.</summary>
@@ -91,12 +94,26 @@ public sealed record SeriesPlacementCandidate(Guid CollectionId, string SeriesQi
 /// <param name="WorkMediaType">The Work's media type (a <c>MediaType</c> name such as Books or Audiobooks).</param>
 /// <param name="Memberships">Every stored manifest row that names the Work.</param>
 /// <param name="Retail">The retail or provider identity from the Work's claims, when there is one.</param>
-/// <param name="ClaimedSeriesQid">The Series QID the Work's own <c>series_qid</c> claim names; it breaks a tie that is not at main sequence.</param>
+/// <param name="ClaimedSeriesQid">The Series QID the Work's own claims name (see <see cref="ClaimedSeriesQidReader"/>); it breaks a tie that is not at main sequence.</param>
+/// <param name="Lock">A person's locked Series choice for the Work, or null when the Library decides.</param>
 public sealed record SeriesPlacementInput(
     string WorkMediaType,
     IReadOnlyList<SeriesManifestMembership> Memberships,
     SeriesShelfIdentity? Retail,
-    string? ClaimedSeriesQid = null);
+    string? ClaimedSeriesQid = null,
+    SeriesPlacementLock? Lock = null);
+
+/// <summary>
+/// A person's locked Series choice for one Work: a Series shelf (its id, Series QID and media type), or "not in a Series"
+/// (<see cref="NoSeries"/>). Nothing automatic changes a Work that holds one.
+/// </summary>
+public sealed record SeriesPlacementLock(Guid? CollectionId, string? SeriesQid, string? MediaType)
+{
+    /// <summary>The person chose that the Work is not in any Series.</summary>
+    public static SeriesPlacementLock NoSeries { get; } = new(null, null, null);
+
+    public bool IsNoSeries => CollectionId is null;
+}
 
 /// <summary>A work that two or more Series claim equally as main sequence, found while linking manifest rows.</summary>
 public sealed record AmbiguousSeriesPlacement(Guid WorkId, IReadOnlyList<SeriesPlacementCandidate> Candidates);
@@ -116,12 +133,20 @@ public sealed record AmbiguousSeriesPlacement(Guid WorkId, IReadOnlyList<SeriesP
 ///     comparison), so every caller picks the same one;
 /// (d) with no Wikidata manifest, a retail provider's own manifest, then the retail identity (provider key, then
 ///     label plus media type), as main sequence.
+///
+/// A person's locked choice comes before all of that: the rule returns the locked shelf (or "no Series") and is never
+/// ambiguous. The scope comes from that shelf's manifest when it lists the Work, else main sequence.
 /// </summary>
 public static class SeriesPlacementRule
 {
     public static SeriesPlacementDecision Decide(SeriesPlacementInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
+
+        if (input.Lock is { } held)
+        {
+            return DecideLocked(input, held);
+        }
 
         var eligible = input.Memberships
             .Where(m => MediaMatches(m.MediaType, input.WorkMediaType))
@@ -191,6 +216,49 @@ public static class SeriesPlacementRule
             [],
             "no manifest and no retail identity names a Series");
     }
+
+    private static SeriesPlacementDecision DecideLocked(SeriesPlacementInput input, SeriesPlacementLock held)
+    {
+        if (held.CollectionId is not { } shelfId)
+        {
+            return new SeriesPlacementDecision(
+                SeriesPlacementKind.Unplaced,
+                SeriesPlacementBasis.PersonChoice,
+                null,
+                null,
+                SeriesMembershipScopeNames.MainSequence,
+                [],
+                "a person chose that the work is not in a Series");
+        }
+
+        // The scope is whatever that shelf's own manifest gives the work, directly or through a parent collection it lists.
+        var scopes = input.Memberships
+            .Where(m => m.Origin != SeriesMembershipOrigin.WikidataParentCollection && m.CollectionId == shelfId)
+            .Select(m => NormalizeScope(m.Scope))
+            .Concat(input.Memberships
+                .Where(m => m.Origin == SeriesMembershipOrigin.WikidataParentCollection
+                    && (m.ListedInSeries ?? []).Any(l => l.CollectionId == shelfId))
+                .Select(_ => SeriesMembershipScopeNames.CollectedContent))
+            .ToList();
+        var scope = scopes.Count == 0
+            ? SeriesMembershipScopeNames.MainSequence
+            : scopes.OrderBy(ScopeRank).First();
+
+        var mediaType = string.IsNullOrWhiteSpace(held.MediaType) ? input.WorkMediaType : held.MediaType;
+        var seriesLabel = held.SeriesQid ?? string.Empty;
+        return new SeriesPlacementDecision(
+            SeriesPlacementKind.Placed,
+            SeriesPlacementBasis.PersonChoice,
+            new SeriesShelfIdentity(mediaType, seriesLabel, held.SeriesQid, null),
+            shelfId,
+            scope,
+            [],
+            "a person chose this Series and the choice is locked");
+    }
+
+    /// <summary>Whether Works of this media type can sit on Series shelves (TV episodes and music tracks group under their parent Work instead).</summary>
+    public static bool UsesSeriesShelves(string? workMediaType)
+        => workMediaType?.Trim().ToLowerInvariant() is "books" or "audiobooks" or "comics" or "movies";
 
     /// <summary>Whether a Series of <paramref name="seriesMediaType"/> may hold a Work of <paramref name="workMediaType"/>.</summary>
     public static bool MediaMatches(string? seriesMediaType, string? workMediaType)
