@@ -86,7 +86,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             try
             {
                 using var executionLease =
-                    await _executionGate.EnterAsync(stoppingToken).ConfigureAwait(false);
+                    await _executionGate.EnterAsync(nameof(MusicBrainzEnrichmentHostedService), stoppingToken).ConfigureAwait(false);
                 resetCancellationToken = executionLease.PauseCancellationToken;
                 using var sweepCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     stoppingToken,

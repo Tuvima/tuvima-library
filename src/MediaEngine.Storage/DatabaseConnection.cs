@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Schema;
 using MediaEngine.Storage.Schema.Upgrades;
@@ -19,6 +20,7 @@ public sealed class DatabaseConnection : IDatabaseConnection
     private readonly DatabaseIntegrityChecker _integrityChecker;
     private readonly SqliteMaintenanceService _maintenanceService;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private WriteLockHolder? _writeLockHolder;
     private readonly List<string> _startupNotes = [];
     private readonly IReadOnlyList<DataStoreUpgradeStep>? _upgradeSteps;
     private readonly Func<string, long>? _freeSpaceLookup;
@@ -154,12 +156,40 @@ public sealed class DatabaseConnection : IDatabaseConnection
         => _maintenanceService.Vacuum(Open());
 
     /// <inheritdoc/>
-    public Task AcquireWriteLockAsync(CancellationToken ct = default)
-        => _writeLock.WaitAsync(ct);
+    public async Task AcquireWriteLockAsync(
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "")
+    {
+        await _writeLock.WaitAsync(ct).ConfigureAwait(false);
+        Volatile.Write(
+            ref _writeLockHolder,
+            new WriteLockHolder($"{SourceFileName(holderFile)}.{holderMember}", DateTimeOffset.UtcNow));
+    }
+
+    // The caller's path was captured where the Engine was built, so either separator can appear in it.
+    private static string SourceFileName(string path)
+    {
+        var name = path[(path.LastIndexOfAny(['/', '\\']) + 1)..];
+        var dot = name.LastIndexOf('.');
+        return dot > 0 ? name[..dot] : name;
+    }
 
     /// <inheritdoc/>
     public void ReleaseWriteLock()
-        => _writeLock.Release();
+    {
+        Volatile.Write(ref _writeLockHolder, null);
+        _writeLock.Release();
+    }
+
+    /// <inheritdoc/>
+    public string? DescribeWriteLockHolder()
+    {
+        var holder = Volatile.Read(ref _writeLockHolder);
+        return holder is null
+            ? null
+            : $"{holder.Name}, held for {(DateTimeOffset.UtcNow - holder.Since).TotalSeconds:0} s";
+    }
 
     internal static void ExecuteStartupTransaction(SqliteConnection conn, Action<SqliteTransaction> body)
     {
@@ -186,10 +216,12 @@ public sealed class DatabaseConnection : IDatabaseConnection
     /// <inheritdoc/>
     public async Task<T> ExecuteWriteAsync<T>(
         Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "")
     {
         ArgumentNullException.ThrowIfNull(body);
-        await AcquireWriteLockAsync(ct).ConfigureAwait(false);
+        await AcquireWriteLockAsync(ct, holderFile, holderMember).ConfigureAwait(false);
         try
         {
             ct.ThrowIfCancellationRequested();
@@ -209,7 +241,9 @@ public sealed class DatabaseConnection : IDatabaseConnection
     /// <inheritdoc/>
     public Task ExecuteWriteAsync(
         Action<SqliteConnection, SqliteTransaction, CancellationToken> body,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        [CallerFilePath] string holderFile = "",
+        [CallerMemberName] string holderMember = "")
     {
         ArgumentNullException.ThrowIfNull(body);
         return ExecuteWriteAsync<object?>(
@@ -218,7 +252,9 @@ public sealed class DatabaseConnection : IDatabaseConnection
                 body(conn, tx, token);
                 return null;
             },
-            ct);
+            ct,
+            holderFile,
+            holderMember);
     }
 
     /// <summary>
@@ -238,4 +274,6 @@ public sealed class DatabaseConnection : IDatabaseConnection
         _connectionFactory.ClearPool();
         _writeLock.Dispose();
     }
+
+    private sealed record WriteLockHolder(string Name, DateTimeOffset Since);
 }

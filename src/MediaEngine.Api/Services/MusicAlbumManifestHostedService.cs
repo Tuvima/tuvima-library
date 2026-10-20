@@ -45,7 +45,7 @@ public sealed class MusicAlbumManifestHostedService(
             try
             {
                 using var executionLease =
-                    await executionGate.EnterAsync(stoppingToken).ConfigureAwait(false);
+                    await executionGate.EnterAsync(nameof(MusicAlbumManifestHostedService), stoppingToken).ConfigureAwait(false);
                 resetCancellationToken = executionLease.PauseCancellationToken;
                 using var sweepCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     stoppingToken,

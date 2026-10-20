@@ -4,6 +4,7 @@ using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Api.DevSupport;
@@ -17,6 +18,16 @@ public enum DevHarnessWipeScope
 public sealed record DevHarnessResetResult(
     DevHarnessWipeScope Scope,
     IReadOnlyList<string> Details);
+
+/// <summary>How long a development reset waits for background work before it gives up and says what is blocking it.</summary>
+public sealed record DevHarnessResetTimeouts(TimeSpan EnrichmentDrain, TimeSpan WriteLock)
+{
+    public static DevHarnessResetTimeouts Default { get; } = new(TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20));
+}
+
+/// <summary>A development reset stopped because background work did not let go in time; nothing was deleted from the data store.</summary>
+public sealed class DevHarnessResetBlockedException(string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException);
 
 /// <summary>
 /// Central reset service for development ingestion harness endpoints.
@@ -33,6 +44,8 @@ public sealed class DevHarnessResetService
     private readonly IIngestionEngine _ingestionEngine;
     private readonly EnrichmentPipelineExecutionGate _enrichmentPipelineGate;
     private readonly ILogger<DevHarnessResetService> _logger;
+    private readonly DevHarnessResetTimeouts _timeouts;
+    private readonly SemaphoreSlim _singleReset = new(1, 1);
 
     private static readonly HashSet<string> PreservedConfigurationTables = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -82,7 +95,8 @@ public sealed class DevHarnessResetService
         IConfigurationLoader configLoader,
         IIngestionEngine ingestionEngine,
         EnrichmentPipelineExecutionGate enrichmentPipelineGate,
-        ILogger<DevHarnessResetService> logger)
+        ILogger<DevHarnessResetService> logger,
+        DevHarnessResetTimeouts? timeouts = null)
     {
         _db = db;
         _options = options;
@@ -90,6 +104,7 @@ public sealed class DevHarnessResetService
         _ingestionEngine = ingestionEngine;
         _enrichmentPipelineGate = enrichmentPipelineGate;
         _logger = logger;
+        _timeouts = timeouts ?? DevHarnessResetTimeouts.Default;
     }
 
     public static DevHarnessWipeScope ParseScope(string? value)
@@ -114,7 +129,9 @@ public sealed class DevHarnessResetService
         bool resumeWatcher,
         CancellationToken ct = default)
     {
+        using var exclusive = BeginExclusiveReset();
         var details = new List<string>();
+        var completed = false;
 
         await PauseWatcherAsync(details, ct).ConfigureAwait(false);
 
@@ -122,35 +139,42 @@ public sealed class DevHarnessResetService
         {
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
             EnsureDestructivePathSafety(details);
-            WipeGeneratedLibraryState(details);
+            using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
+            {
+                WipeGeneratedLibraryState(details);
 
-            if (scope == DevHarnessWipeScope.Full)
-            {
-                WipeAllSourcePaths(details);
-            }
-            else
-            {
-                WipeTrackedSeedFiles(details);
+                if (scope == DevHarnessWipeScope.Full)
+                {
+                    WipeAllSourcePaths(details);
+                }
+                else
+                {
+                    WipeTrackedSeedFiles(details);
+                }
+
+                EnsureConfiguredSourcePathsExist(details);
+                if (scope == DevHarnessWipeScope.Full)
+                {
+                    ResetDatabase(details, ct);
+                }
+                else
+                {
+                    ResetLibraryDatabase(details, ct);
+                }
             }
 
-            EnsureConfiguredSourcePathsExist(details);
-            if (scope == DevHarnessWipeScope.Full)
-            {
-                await ResetDatabaseAsync(details, ct).ConfigureAwait(false);
-            }
-            else
-            {
-                await ResetLibraryDatabaseAsync(details, ct).ConfigureAwait(false);
-            }
             WipeRuntimeLogs(details);
+            completed = true;
         }
         finally
         {
             ResumeEnrichmentPipeline(details);
 
-            if (resumeWatcher)
+            // A failed reset seeds nothing, so the watcher comes back even when the caller meant to resume it
+            // later. It resumes even when the caller gave up, or it would stay off until the Engine restarts.
+            if (resumeWatcher || !completed)
             {
-                await ResumeWatcherAsync(details, ct).ConfigureAwait(false);
+                await ResumeWatcherAsync(details, CancellationToken.None).ConfigureAwait(false);
             }
             else
             {
@@ -163,21 +187,34 @@ public sealed class DevHarnessResetService
 
     public async Task<DevHarnessResetResult> PrepareForReingestAsync(CancellationToken ct = default)
     {
+        using var exclusive = BeginExclusiveReset();
         var details = new List<string>();
+        var completed = false;
 
         await PauseWatcherAsync(details, ct).ConfigureAwait(false);
 
         try
         {
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
-            WipeGeneratedCachesOnly(details);
-            await ResetLibraryDatabaseAsync(details, ct).ConfigureAwait(false);
+            using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
+            {
+                WipeGeneratedCachesOnly(details);
+                ResetLibraryDatabase(details, ct);
+            }
+
             WipeRuntimeLogs(details);
             details.Add("Ingestion engine: FSW resume deferred");
+            completed = true;
         }
         finally
         {
             ResumeEnrichmentPipeline(details);
+
+            // No reingest follows a failed reset, so the watcher comes back.
+            if (!completed)
+            {
+                await ResumeWatcherAsync(details, CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         return new DevHarnessResetResult(DevHarnessWipeScope.GeneratedState, details);
@@ -192,25 +229,34 @@ public sealed class DevHarnessResetService
         bool resumeWatcher,
         CancellationToken ct = default)
     {
+        using var exclusive = BeginExclusiveReset();
         var details = new List<string>();
+        var completed = false;
 
         await PauseWatcherAsync(details, ct).ConfigureAwait(false);
         try
         {
             await PauseEnrichmentPipelineAsync(details, ct).ConfigureAwait(false);
             EnsureDestructivePathSafety(details);
-            WipeGeneratedLibraryState(details);
-            WipeTrackedSeedFiles(details);
-            EnsureConfiguredSourcePathsExist(details);
-            await ResetDatabaseAsync(details, ct).ConfigureAwait(false);
+            using (await HoldWriteLockAsync(ct).ConfigureAwait(false))
+            {
+                WipeGeneratedLibraryState(details);
+                WipeTrackedSeedFiles(details);
+                EnsureConfiguredSourcePathsExist(details);
+                ResetDatabase(details, ct);
+            }
+
             WipeRuntimeLogs(details);
+            completed = true;
         }
         finally
         {
             ResumeEnrichmentPipeline(details);
-            if (resumeWatcher)
+
+            // Same rule as WipeAsync: a failed reset always brings the watcher back.
+            if (resumeWatcher || !completed)
             {
-                await ResumeWatcherAsync(details, ct).ConfigureAwait(false);
+                await ResumeWatcherAsync(details, CancellationToken.None).ConfigureAwait(false);
             }
             else
             {
@@ -255,7 +301,18 @@ public sealed class DevHarnessResetService
 
     private async Task PauseEnrichmentPipelineAsync(List<string> details, CancellationToken ct)
     {
-        await _enrichmentPipelineGate.PauseAndDrainAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await _enrichmentPipelineGate.PauseAndDrainAsync(_timeouts.EnrichmentDrain, ct).ConfigureAwait(false);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning("[HarnessReset] {Message}", ex.Message);
+            throw new DevHarnessResetBlockedException(
+                $"The reset was stopped before anything was deleted. {ex.Message} Try again in a moment.",
+                ex);
+        }
+
         _logger.LogInformation("[HarnessReset] Enrichment pipeline paused and drained");
         details.Add("Enrichment pipeline: paused and active workers drained");
     }
@@ -348,9 +405,9 @@ public sealed class DevHarnessResetService
             if (PathsOverlap(normalizedLibraryRoot, normalizedSource))
             {
                 var message =
-                    $"Refusing destructive dev wipe because library output '{normalizedLibraryRoot}' overlaps source folder '{normalizedSource}'.";
+                    $"The reset was stopped before anything was deleted. The library folder '{normalizedLibraryRoot}' and the source folder '{normalizedSource}' overlap, so clearing the library output would delete source media. Point the library folder (core.json library_root) somewhere outside every source folder, then try again.";
                 details.Add(message);
-                throw new InvalidOperationException(message);
+                throw new DevHarnessResetBlockedException(message);
             }
         }
     }
@@ -450,163 +507,191 @@ public sealed class DevHarnessResetService
         }
     }
 
-    private async Task ResetDatabaseAsync(List<string> details, CancellationToken ct)
+    /// <summary>Drops every table and reapplies the baseline. The caller holds the write lock.</summary>
+    private void ResetDatabase(List<string> details, CancellationToken ct)
     {
-        await _db.AcquireWriteLockAsync().ConfigureAwait(false);
-        try
+        int dropped;
+        using (var conn = _db.CreateConnection())
         {
-            var conn = _db.Open();
-
-            using (var fkOff = conn.CreateCommand())
-            {
-                fkOff.CommandText = "PRAGMA foreign_keys = OFF;";
-                fkOff.ExecuteNonQuery();
-            }
-
-            var tables = new List<string>();
-            using (var listCmd = conn.CreateCommand())
-            {
-                listCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
-                using var reader = listCmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    tables.Add(reader.GetString(0));
-                }
-            }
-
-            foreach (string table in tables)
-            {
-                ct.ThrowIfCancellationRequested();
-                using var dropCmd = conn.CreateCommand();
-                dropCmd.CommandText = $"DROP TABLE IF EXISTS [{table}];";
-                dropCmd.ExecuteNonQuery();
-            }
-
-            using (var ftsCmd = conn.CreateCommand())
-            {
-                ftsCmd.CommandText = "DROP TABLE IF EXISTS search_index;";
-                ftsCmd.ExecuteNonQuery();
-            }
-
-            // Dropping tables takes their indexes and triggers with them but not views, and the baseline step
-            // creates the views again without IF NOT EXISTS.
-            var views = new List<string>();
-            using (var viewListCmd = conn.CreateCommand())
-            {
-                viewListCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='view';";
-                using var viewReader = viewListCmd.ExecuteReader();
-                while (viewReader.Read())
-                {
-                    views.Add(viewReader.GetString(0));
-                }
-            }
-
-            foreach (string view in views)
-            {
-                using var dropViewCmd = conn.CreateCommand();
-                dropViewCmd.CommandText = $"DROP VIEW IF EXISTS [{view}];";
-                dropViewCmd.ExecuteNonQuery();
-            }
-
-            using (var fkOn = conn.CreateCommand())
-            {
-                fkOn.CommandText = "PRAGMA foreign_keys = ON;";
-                fkOn.ExecuteNonQuery();
-            }
-
-            using (var vacuumCmd = conn.CreateCommand())
-            {
-                vacuumCmd.CommandText = "VACUUM;";
-                vacuumCmd.ExecuteNonQuery();
-            }
-
-            _db.InitializeSchema();
-            _db.RunStartupChecks();
-
-            details.Add($"Database: dropped {tables.Count} table(s) and reinitialized schema");
-            _logger.LogInformation("[HarnessReset] Database reset: dropped {Count} table(s)", tables.Count);
+            dropped = DropAllTables(conn, ct);
         }
-        finally
-        {
-            _db.ReleaseWriteLock();
-        }
+
+        _db.InitializeSchema();
+        _db.RunStartupChecks();
+
+        details.Add($"Database: dropped {dropped} table(s) and reinitialized schema");
+        _logger.LogInformation("[HarnessReset] Database reset: dropped {Count} table(s)", dropped);
     }
 
-    private async Task ResetLibraryDatabaseAsync(List<string> details, CancellationToken ct)
+    private static int DropAllTables(SqliteConnection conn, CancellationToken ct)
     {
-        await _db.AcquireWriteLockAsync().ConfigureAwait(false);
+        using (var fkOff = conn.CreateCommand())
+        {
+            fkOff.CommandText = "PRAGMA foreign_keys = OFF;";
+            fkOff.ExecuteNonQuery();
+        }
+
+        var tables = new List<string>();
+        using (var listCmd = conn.CreateCommand())
+        {
+            listCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
+            using var reader = listCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+
+        foreach (string table in tables)
+        {
+            ct.ThrowIfCancellationRequested();
+            using var dropCmd = conn.CreateCommand();
+            dropCmd.CommandText = $"DROP TABLE IF EXISTS [{table}];";
+            dropCmd.ExecuteNonQuery();
+        }
+
+        using (var ftsCmd = conn.CreateCommand())
+        {
+            ftsCmd.CommandText = "DROP TABLE IF EXISTS search_index;";
+            ftsCmd.ExecuteNonQuery();
+        }
+
+        // Dropping tables takes their indexes and triggers with them but not views, and the baseline step
+        // creates the views again without IF NOT EXISTS.
+        var views = new List<string>();
+        using (var viewListCmd = conn.CreateCommand())
+        {
+            viewListCmd.CommandText = "SELECT name FROM sqlite_master WHERE type='view';";
+            using var viewReader = viewListCmd.ExecuteReader();
+            while (viewReader.Read())
+            {
+                views.Add(viewReader.GetString(0));
+            }
+        }
+
+        foreach (string view in views)
+        {
+            using var dropViewCmd = conn.CreateCommand();
+            dropViewCmd.CommandText = $"DROP VIEW IF EXISTS [{view}];";
+            dropViewCmd.ExecuteNonQuery();
+        }
+
+        using (var fkOn = conn.CreateCommand())
+        {
+            fkOn.CommandText = "PRAGMA foreign_keys = ON;";
+            fkOn.ExecuteNonQuery();
+        }
+
+        using (var vacuumCmd = conn.CreateCommand())
+        {
+            vacuumCmd.CommandText = "VACUUM;";
+            vacuumCmd.ExecuteNonQuery();
+        }
+
+        return tables.Count;
+    }
+
+    /// <summary>Clears library and ingestion tables, keeping configuration. The caller holds the write lock.</summary>
+    private void ResetLibraryDatabase(List<string> details, CancellationToken ct)
+    {
+        int cleared;
+        using (var conn = _db.CreateConnection())
+        {
+            cleared = ClearLibraryTables(conn, ct);
+        }
+
+        _db.RunStartupChecks();
+        details.Add($"Database: cleared {cleared} library/ingestion table(s); accounts, profiles, access, provider configuration, and UI settings preserved");
+        _logger.LogInformation(
+            "[HarnessReset] Library data reset cleared {Count} table(s) while preserving configuration state",
+            cleared);
+    }
+
+    private static int ClearLibraryTables(SqliteConnection conn, CancellationToken ct)
+    {
+        using (var fkOff = conn.CreateCommand())
+        {
+            fkOff.CommandText = "PRAGMA foreign_keys = OFF;";
+            fkOff.ExecuteNonQuery();
+        }
+
+        // pragma_table_list reports full-text shadow tables as type 'shadow', so they are left out here.
+        // Deleting from a full-text table through its virtual table clears its shadow tables consistently;
+        // deleting from the shadow tables directly corrupts the index.
+        var tables = new List<string>();
+        using (var listCmd = conn.CreateCommand())
+        {
+            listCmd.CommandText = "SELECT name FROM pragma_table_list WHERE schema='main' AND type IN ('table','virtual') AND name NOT LIKE 'sqlite_%';";
+            using var reader = listCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+
+        var cleared = new List<string>();
+        foreach (string table in tables)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (ShouldPreserveConfigurationTable(table))
+            {
+                continue;
+            }
+
+            using var deleteCmd = conn.CreateCommand();
+            deleteCmd.CommandText = $"DELETE FROM [{table}];";
+            deleteCmd.ExecuteNonQuery();
+            cleared.Add(table);
+        }
+
+        using (var sequenceCmd = conn.CreateCommand())
+        {
+            sequenceCmd.CommandText = "DELETE FROM sqlite_sequence WHERE name NOT IN (" +
+                string.Join(",", PreservedConfigurationTables.Select((_, index) => $"$table{index}")) + ");";
+            var index = 0;
+            foreach (var table in PreservedConfigurationTables)
+            {
+                sequenceCmd.Parameters.AddWithValue($"$table{index++}", table);
+            }
+            sequenceCmd.ExecuteNonQuery();
+        }
+
+        using (var fkOn = conn.CreateCommand())
+        {
+            fkOn.CommandText = "PRAGMA foreign_keys = ON;";
+            fkOn.ExecuteNonQuery();
+        }
+
+        using (var vacuumCmd = conn.CreateCommand())
+        {
+            vacuumCmd.CommandText = "VACUUM;";
+            vacuumCmd.ExecuteNonQuery();
+        }
+
+        return cleared.Count;
+    }
+
+    /// <summary>
+    /// Takes the data store's write lock for the destructive part of a reset, waiting at most
+    /// <see cref="DevHarnessResetTimeouts.WriteLock"/>, so a writer that never lets go fails the reset with its name
+    /// instead of hanging the request. Disposing the result releases the lock.
+    /// </summary>
+    internal async Task<IDisposable> HoldWriteLockAsync(CancellationToken ct)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(_timeouts.WriteLock);
         try
         {
-            var conn = _db.Open();
-
-            using (var fkOff = conn.CreateCommand())
-            {
-                fkOff.CommandText = "PRAGMA foreign_keys = OFF;";
-                fkOff.ExecuteNonQuery();
-            }
-
-            // pragma_table_list reports full-text shadow tables as type 'shadow', so they are left out here.
-            // Deleting from a full-text table through its virtual table clears its shadow tables consistently;
-            // deleting from the shadow tables directly corrupts the index.
-            var tables = new List<string>();
-            using (var listCmd = conn.CreateCommand())
-            {
-                listCmd.CommandText = "SELECT name FROM pragma_table_list WHERE schema='main' AND type IN ('table','virtual') AND name NOT LIKE 'sqlite_%';";
-                using var reader = listCmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    tables.Add(reader.GetString(0));
-                }
-            }
-
-            var cleared = new List<string>();
-            foreach (string table in tables)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (ShouldPreserveConfigurationTable(table))
-                {
-                    continue;
-                }
-
-                using var deleteCmd = conn.CreateCommand();
-                deleteCmd.CommandText = $"DELETE FROM [{table}];";
-                deleteCmd.ExecuteNonQuery();
-                cleared.Add(table);
-            }
-
-            using (var sequenceCmd = conn.CreateCommand())
-            {
-                sequenceCmd.CommandText = "DELETE FROM sqlite_sequence WHERE name NOT IN (" +
-                    string.Join(",", PreservedConfigurationTables.Select((_, index) => $"$table{index}")) + ");";
-                var index = 0;
-                foreach (var table in PreservedConfigurationTables)
-                {
-                    sequenceCmd.Parameters.AddWithValue($"$table{index++}", table);
-                }
-                sequenceCmd.ExecuteNonQuery();
-            }
-
-            using (var fkOn = conn.CreateCommand())
-            {
-                fkOn.CommandText = "PRAGMA foreign_keys = ON;";
-                fkOn.ExecuteNonQuery();
-            }
-
-            using (var vacuumCmd = conn.CreateCommand())
-            {
-                vacuumCmd.CommandText = "VACUUM;";
-                vacuumCmd.ExecuteNonQuery();
-            }
-
-            _db.RunStartupChecks();
-            details.Add($"Database: cleared {cleared.Count} library/ingestion table(s); accounts, profiles, access, provider configuration, and UI settings preserved");
-            _logger.LogInformation(
-                "[HarnessReset] Library data reset cleared {Count} table(s) while preserving configuration state",
-                cleared.Count);
+            await _db.AcquireWriteLockAsync(timeout.Token).ConfigureAwait(false);
+            return new WriteLockRelease(_db);
         }
-        finally
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            _db.ReleaseWriteLock();
+            var holder = _db.DescribeWriteLockHolder() ?? "a writer that has since finished";
+            var message =
+                $"The reset was stopped before anything was deleted. The data store stayed busy for {_timeouts.WriteLock.TotalSeconds:0} seconds (held by {holder}). Try again in a moment.";
+            _logger.LogWarning("[HarnessReset] {Message}", message);
+            throw new DevHarnessResetBlockedException(message, ex);
         }
     }
 
@@ -784,5 +869,34 @@ public sealed class DevHarnessResetService
             + Path.DirectorySeparatorChar;
 
         return child.StartsWith(parent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Lets one reset run at a time. A second one is refused straight away, so its clean-up can never resume
+    /// enrichment or the watcher while the first is still deleting. Disposing the result lets the next reset in.
+    /// </summary>
+    private IDisposable BeginExclusiveReset()
+    {
+        if (!_singleReset.Wait(0))
+        {
+            throw new DevHarnessResetBlockedException(
+                "Another reset is already running, so this one was stopped before anything was deleted. Try again when it finishes.");
+        }
+
+        return new SingleResetRelease(_singleReset);
+    }
+
+    private sealed class SingleResetRelease(SemaphoreSlim gate) : IDisposable
+    {
+        private SemaphoreSlim? _gate = gate;
+
+        public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+    }
+
+    private sealed class WriteLockRelease(IDatabaseConnection db) : IDisposable
+    {
+        private IDatabaseConnection? _db = db;
+
+        public void Dispose() => Interlocked.Exchange(ref _db, null)?.ReleaseWriteLock();
     }
 }
