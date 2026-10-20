@@ -1052,6 +1052,33 @@ One row per attempt to send an event to a webhook receiver, including the Send t
 
 **Indices:** `ix_application_webhook_attempts_webhook_time (webhook_id, attempted_at DESC)`. Added by upgrade step `0020_webhook_delivery_attempts`.
 
+### plugin_records
+
+The records a plugin keeps for itself, written through the plugin's own record store (the `plugin-records` permission). One row per plugin, collection and key; the value is a JSON document the plugin wrote. The Library scopes every read and write to the calling plugin's id, so a plugin never sees another plugin's rows, and it limits each plugin to 64 KB per value, 10,000 records and 16 MB in total (a write over a limit is refused and the plugin's card shows Needs attention). Records survive an Engine restart and are not touched when a plugin is switched off. Removing a plugin's records when the plugin is uninstalled belongs to the plugin install and removal work, not to this table.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id; first part of the primary key |
+| `collection` | TEXT | The plugin's own grouping name, 1 to 128 printable characters |
+| `record_key` | TEXT | The key inside the collection, 1 to 128 printable characters |
+| `value_json` | TEXT | The record, a JSON document, at most 64 KB |
+| `size_bytes` | INTEGER | UTF-8 size of `value_json`, so a plugin's total is a cheap sum |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+**Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0021_plugin_host_services`.
+
+### plugin_event_cursors
+
+Where each plugin has got to in the Library's event list (`application_events`): the sequence of the newest event already handed to it. The plugin event dispatcher reads events after this sequence, so a restart carries on where it stopped. A plugin that subscribes for the first time, or that is switched off and on again, starts at the newest event with no backlog.
+
+| Column | Type | Notes |
+|---|---|---|
+| `plugin_id` | TEXT | The plugin's manifest id, primary key |
+| `last_sequence` | INTEGER | The newest `application_events.sequence` already delivered |
+| `updated_at` | TEXT | ISO 8601 UTC |
+
+Added by upgrade step `0021_plugin_host_services`.
+
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

@@ -69,6 +69,11 @@ internal static class ApprovalStatementBuilder
         ["ai.infer"] = UsesLocalAi,
         ["storage.plugin"] = "Keeps its own data",
         ["secrets.plugin"] = KeepsOwnKeysAndLogins,
+        ["plugin-records"] = "Keeps its own records in the Library's data store",
+        ["scheduled-work"] = "Runs its own recurring jobs, listed in Scheduled tasks",
+        ["library-events"] = "Is told when things happen in the Library (items added, ingestion finished, metadata changes)",
+        ["watch-activity"] = "Is told what people watch, read and listen to",
+        ["background-work"] = "Runs continuously in the background while switched on",
     };
 
     private static readonly IReadOnlyDictionary<string, string> AiRoleNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

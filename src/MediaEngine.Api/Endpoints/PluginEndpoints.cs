@@ -25,13 +25,17 @@ internal static class PluginEndpoints
         group.MapGet("", async (
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var summaries = new List<PluginSummaryResponse>();
             foreach (var registration in catalog.List())
             {
-                summaries.Add(ToDto(registration, await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false)));
+                summaries.Add(ToDto(
+                    registration,
+                    await CountConfiguredSecretsAsync(registration, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(registration, ct).ConfigureAwait(false)));
             }
 
             return Results.Ok(summaries);
@@ -99,13 +103,17 @@ internal static class PluginEndpoints
             string pluginId,
             PluginCatalog catalog,
             [FromServices] IConfigSecretsStore secrets,
+            [FromServices] PluginHostServicesReader hostServices,
             ILoggerFactory loggers,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
             return plugin is null
                 ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.")
-                : Results.Ok(ToDto(plugin, await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false)));
+                : Results.Ok(ToDto(
+                    plugin,
+                    await CountConfiguredSecretsAsync(plugin, secrets, loggers, ct).ConfigureAwait(false),
+                    await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false)));
         })
         .WithName("GetPlugin")
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
@@ -206,6 +214,7 @@ internal static class PluginEndpoints
             PluginCatalog catalog,
             IPluginExecutionContextFactory contexts,
             PluginAiBudget aiBudget,
+            [FromServices] PluginHostServicesReader hostServices,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
@@ -226,7 +235,9 @@ internal static class PluginEndpoints
                 checks.Add(await check.GetHealthAsync(context, ct).ConfigureAwait(false));
             }
 
-            return Results.Ok(await PluginHealthComposer.ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct).ConfigureAwait(false));
+            return Results.Ok(await PluginHealthComposer
+                .ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct, await hostServices.DescribeAsync(plugin, ct).ConfigureAwait(false))
+                .ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)
@@ -553,7 +564,7 @@ internal static class PluginEndpoints
     private static string[] InstalledPluginIds(PluginCatalog catalog) =>
         catalog.List().Select(registration => registration.Manifest.Id).ToArray();
 
-    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0) => new()
+    internal static PluginSummaryResponse ToDto(PluginRegistration registration, int configuredSecrets = 0, PluginHostServicesDto? hostServices = null) => new()
     {
         Id = registration.Manifest.Id,
         Name = registration.Manifest.Name,
@@ -614,5 +625,6 @@ internal static class PluginEndpoints
             StringComparer.OrdinalIgnoreCase),
         SettingsSchema = registration.SettingsSchema,
         ManifestPath = registration.ManifestPath,
+        HostServices = hostServices ?? new PluginHostServicesDto(),
     };
 }

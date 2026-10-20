@@ -36,15 +36,15 @@ public sealed class PluginCapabilityAuthorizationTests
         using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.NetworkHttp]));
         fixture.Enable();
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        var client = new BoundPluginHttpClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new SingleClientFactory(handler));
+        var client = HttpClientFor(fixture, handler);
 
-        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/data"));
+        using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/data"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1, handler.RequestCount);
 
         fixture.Catalog.SetEnabled(TestPlugin.Id, false);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/again")));
+            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/again")));
         Assert.Equal(1, handler.RequestCount);
     }
 
@@ -54,10 +54,10 @@ public sealed class PluginCapabilityAuthorizationTests
         using var fixture = new CatalogFixture(Manifest([PluginPermissionIds.MediaRead]));
         fixture.Enable();
         var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
-        var client = new BoundPluginHttpClient(TestPlugin.Id, new PluginPermissionGate(fixture.Catalog), new SingleClientFactory(handler));
+        var client = HttpClientFor(fixture, handler);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.test/data")));
+            client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/data")));
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -404,7 +404,7 @@ public sealed class PluginCapabilityAuthorizationTests
         var storageRoot = Path.Combine(fixture.Root, "working");
         var storage = new BoundPluginStorage(TestPlugin.Id, storageRoot, new PluginPermissionGate(fixture.Catalog));
         storage.CreateDirectory("nested");
-        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!);
+        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!, null!);
 
         await context.DisposeAsync();
 
@@ -458,6 +458,15 @@ public sealed class PluginCapabilityAuthorizationTests
         Assert.DoesNotContain(typeof(IPluginExecutionContext).GetProperties(), property =>
             property.PropertyType == typeof(IPluginExecutionContextFactory));
     }
+
+    private static BoundPluginHttpClient HttpClientFor(CatalogFixture fixture, HttpMessageHandler handler) =>
+        new(
+            TestPlugin.Id,
+            new PluginPermissionGate(fixture.Catalog),
+            new SingleClientFactory(handler),
+            new PluginHttpRateLimiter(PluginHostLimits.Default),
+            PluginHostLimits.Default,
+            new PluginHostStatus(TimeProvider.System));
 
     private static PluginManifest Manifest(
         IReadOnlyList<string> permissions,

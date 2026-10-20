@@ -276,6 +276,38 @@ public static class PluginNetworkRules
     }
 
     /// <summary>
+    /// True when <paramref name="host"/> is the declared <paramref name="pattern"/>: an exact host (letters compared without
+    /// regard to case), or for <c>*.example.com</c> any host with at least one more label in front of <c>example.com</c>.
+    /// The wildcard never matches <c>example.com</c> itself or an unrelated host that merely ends the same way.
+    /// </summary>
+    public static bool HostMatches(string pattern, string host)
+    {
+        if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(host))
+        {
+            return false;
+        }
+
+        host = host.TrimEnd('.');
+        if (!pattern.StartsWith("*.", StringComparison.Ordinal))
+        {
+            return string.Equals(pattern, host, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var suffix = pattern[1..]; // ".example.com"
+        return host.Length > suffix.Length
+            && host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+            && !host.StartsWith('.');
+    }
+
+    /// <summary>The declared destination that covers <paramref name="host"/> (an exact entry wins over a wildcard), or null when none does.</summary>
+    public static PluginNetworkDestination? FindDestination(IReadOnlyList<PluginNetworkDestination> network, string host)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return network.FirstOrDefault(destination => !destination.Host.StartsWith("*.", StringComparison.Ordinal) && HostMatches(destination.Host, host))
+            ?? network.FirstOrDefault(destination => HostMatches(destination.Host, host));
+    }
+
+    /// <summary>
     /// Checks a whole <c>network</c> list against the permissions the manifest declares. Returns a plain load-error
     /// message, or null when the list is fine.
     /// </summary>
