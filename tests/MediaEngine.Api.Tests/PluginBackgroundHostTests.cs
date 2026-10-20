@@ -71,6 +71,81 @@ public sealed class PluginBackgroundHostTests : IDisposable
     }
 
     [Fact]
+    public async Task AlwaysOnWork_ThatIgnoresTheRequestToStop_IsNotStartedAgainUntilItHasReallyEnded_AndTheCardSaysStopping()
+    {
+        var limits = Quick with { BackgroundStopGrace = TimeSpan.FromMilliseconds(100) };
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var plugin = new HostServicesTestPlugin();
+        // The first run never looks at the stop request; a later run behaves.
+        var service = plugin.RunInBackground((start, _, token) => start == 1 ? release.Task : Task.Delay(Timeout.Infinite, token));
+        var host = NewHost(limits, plugin);
+        host.Enable();
+        var background = NewBackground(host);
+        await background.ReconcileAsync();
+        await HostServicesHarness.EventuallyAsync(() => service.Starts == 1, "the work to start");
+
+        host.Disable();
+        await background.ReconcileAsync();
+        host.Enable();
+        await background.ReconcileAsync();
+        await Task.Delay(150);
+        await background.ReconcileAsync();
+
+        Assert.Equal(1, service.Starts);
+        Assert.Equal("stopping", host.Statuses.Get(plugin.Manifest.Id).Describe().BackgroundService);
+
+        release.SetResult();
+        await HostServicesHarness.EventuallyAsync(
+            () =>
+            {
+                background.ReconcileAsync().GetAwaiter().GetResult();
+                return service.Starts == 2;
+            },
+            "a fresh run once the old one has ended");
+        Assert.Equal("running", host.Statuses.Get(plugin.Manifest.Id).Describe().BackgroundService);
+    }
+
+    [Fact]
+    public async Task SavingThePluginsSettings_RestartsItsAlwaysOnWork_WithTheNewValue()
+    {
+        var plugin = new HostServicesTestPlugin();
+        var seen = new List<string>();
+        var service = plugin.RunInBackground((_, context, token) =>
+        {
+            lock (seen)
+            {
+                seen.Add(context.Settings.TryGetValue("mode", out var mode) ? mode.GetString() ?? "" : "(none)");
+            }
+
+            return Task.Delay(Timeout.Infinite, token);
+        });
+        var host = NewHost(plugins: plugin);
+        host.Enable();
+        var background = NewBackground(host);
+        await background.ReconcileAsync();
+        await HostServicesHarness.EventuallyAsync(() => service.Starts == 1, "the work to start");
+
+        // Nothing changed, so nothing restarts.
+        await background.ReconcileAsync();
+        await Task.Delay(100);
+        Assert.Equal(1, service.Starts);
+
+        host.Catalog.SaveSettings(plugin.Manifest.Id, new Dictionary<string, System.Text.Json.JsonElement>
+        {
+            ["mode"] = System.Text.Json.JsonDocument.Parse("\"fast\"").RootElement.Clone(),
+        });
+        await background.ReconcileAsync();
+        await HostServicesHarness.EventuallyAsync(() => service.Starts == 2, "the work to restart with the new settings");
+
+        lock (seen)
+        {
+            Assert.Equal(["(none)", "fast"], seen);
+        }
+
+        Assert.Equal(1, service.Cancelled);
+    }
+
+    [Fact]
     public async Task AlwaysOnWork_IsToldToStopWhenTheEngineStops()
     {
         var plugin = new HostServicesTestPlugin();

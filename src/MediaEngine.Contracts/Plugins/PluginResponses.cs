@@ -179,7 +179,7 @@ public sealed record PluginHostServicesDto
     [JsonPropertyName("event_subscription")]
     public string? EventSubscription { get; set; }
 
-    /// <summary><c>running</c>, <c>restarting</c> or <c>stopped</c> when the plugin has always-on work; null when it does not.</summary>
+    /// <summary><c>running</c>, <c>restarting</c>, <c>stopping</c> (asked to stop and not finished yet) or <c>stopped</c> when the plugin has always-on work; null when it does not.</summary>
     [JsonPropertyName("background_service")]
     public string? BackgroundService { get; set; }
 }

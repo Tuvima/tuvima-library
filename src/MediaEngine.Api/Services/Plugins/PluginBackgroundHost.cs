@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -7,14 +9,21 @@ namespace MediaEngine.Api.Services.Plugins;
 /// approved, loaded and allowed <c>background-work</c>. It stops the work (cancel, then a ten-second grace) when the plugin
 /// is switched off, loses its approval, or the Engine stops. Work that crashes, or returns when it should not, restarts after
 /// a growing pause (5 s, 30 s, 2 min, 10 min); the fifth crash inside an hour stops it for good and the plugin shows
-/// Broken until it is switched off and on.
+/// Broken until it is switched off and on. Saving the plugin's settings restarts its work so it reads the new values. Work
+/// that ignores the request to stop is kept in view as "stopping", and a new run for that plugin does not start until the
+/// old one has really finished, so the same work never runs twice at once.
 /// </summary>
 internal sealed class PluginBackgroundHost : BackgroundService
 {
-    private sealed class Runner(string pluginId, int generation, CancellationTokenSource cancellation)
+    private const string StoppingState = "stopping";
+
+    private sealed class Runner(string pluginId, int generation, string settingsFingerprint, CancellationTokenSource cancellation)
     {
         public string PluginId { get; } = pluginId;
         public int Generation { get; } = generation;
+
+        /// <summary>The plugin's settings as this run read them; a different value means the work is restarted.</summary>
+        public string SettingsFingerprint { get; } = settingsFingerprint;
         public CancellationTokenSource Cancellation { get; } = cancellation;
         public Task Loop { get; set; } = Task.CompletedTask;
     }
@@ -26,6 +35,9 @@ internal sealed class PluginBackgroundHost : BackgroundService
     private readonly PluginHostLimits _limits;
     private readonly ILogger<PluginBackgroundHost> _logger;
     private readonly Dictionary<string, Runner> _runners = new(StringComparer.OrdinalIgnoreCase);
+
+    // Runs that were asked to stop and have not finished yet (they ignored the request). A new run for the same plugin waits for them.
+    private readonly ConcurrentDictionary<string, Runner> _stopping = new(StringComparer.OrdinalIgnoreCase);
 
     public PluginBackgroundHost(
         PluginCatalog catalog,
@@ -92,16 +104,19 @@ internal sealed class PluginBackgroundHost : BackgroundService
             }
             else
             {
-                status.SetBackgroundService(null);
+                status.SetBackgroundService(_stopping.ContainsKey(registration.Manifest.Id) ? StoppingState : null);
             }
         }
 
         foreach (var (pluginId, runner) in _runners.ToList())
         {
             var generation = _statuses.Get(pluginId).Generation;
-            if (!wanted.ContainsKey(pluginId) || runner.Generation != generation)
+            if (!wanted.TryGetValue(pluginId, out var current)
+                || runner.Generation != generation
+                || !string.Equals(runner.SettingsFingerprint, SettingsFingerprint(current.Registration), StringComparison.Ordinal))
             {
-                // Switched off (or off and on again): stop this run; a fresh one starts below if it is still wanted.
+                // Switched off (or off and on again), or its settings were saved: stop this run; a fresh one starts below
+                // if it is still wanted.
                 await StopAsync(runner).ConfigureAwait(false);
                 _runners.Remove(pluginId);
             }
@@ -115,7 +130,14 @@ internal sealed class PluginBackgroundHost : BackgroundService
                 continue;
             }
 
-            var runner = new Runner(pluginId, status.Generation, new CancellationTokenSource());
+            if (_stopping.ContainsKey(pluginId))
+            {
+                // The previous run has not finished stopping; starting another would run the same work twice.
+                status.SetBackgroundService(StoppingState);
+                continue;
+            }
+
+            var runner = new Runner(pluginId, status.Generation, SettingsFingerprint(entry.Registration), new CancellationTokenSource());
             _runners[pluginId] = runner;
             status.SetBackgroundService("running");
             runner.Loop = Task.Run(() => RunLoopAsync(runner, entry.Service, status), CancellationToken.None);
@@ -133,19 +155,43 @@ internal sealed class PluginBackgroundHost : BackgroundService
         _runners.Clear();
     }
 
+    // Keys are sorted so the same settings always give the same text.
+    private static string SettingsFingerprint(PluginRegistration registration) =>
+        JsonSerializer.Serialize(registration.Settings.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToDictionary(pair => pair.Key, pair => pair.Value));
+
     private async Task StopAsync(Runner runner)
     {
         await runner.Cancellation.CancelAsync().ConfigureAwait(false);
         var finished = await Task.WhenAny(runner.Loop, Task.Delay(_limits.BackgroundStopGrace)).ConfigureAwait(false);
-        if (finished != runner.Loop)
+        var status = _statuses.Get(runner.PluginId);
+        if (finished == runner.Loop)
         {
-            _logger.LogWarning(
-                "Plugin {PluginId} did not stop its background work within {Seconds} seconds of being asked to",
-                runner.PluginId, (int)_limits.BackgroundStopGrace.TotalSeconds);
+            runner.Cancellation.Dispose();
+            status.SetBackgroundService(null);
+            return;
         }
 
-        runner.Cancellation.Dispose();
-        _statuses.Get(runner.PluginId).SetBackgroundService(null);
+        _logger.LogWarning(
+            "Plugin {PluginId} did not stop its background work within {Seconds} seconds of being asked to",
+            runner.PluginId, (int)_limits.BackgroundStopGrace.TotalSeconds);
+
+        // It ignored the request: keep it in view, and start nothing new for this plugin until it really ends.
+        _stopping[runner.PluginId] = runner;
+        status.SetBackgroundService(StoppingState);
+        _ = runner.Loop.ContinueWith(
+            task =>
+            {
+                _ = task.Exception; // observed so a late failure is not an unhandled task error
+                _stopping.TryRemove(new KeyValuePair<string, Runner>(runner.PluginId, runner));
+                runner.Cancellation.Dispose();
+                if (string.Equals(status.Describe().BackgroundService, StoppingState, StringComparison.Ordinal))
+                {
+                    status.SetBackgroundService(null);
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private async Task RunLoopAsync(Runner runner, IPluginBackgroundService service, PluginHostStatus status)
@@ -173,6 +219,11 @@ internal sealed class PluginBackgroundHost : BackgroundService
             {
                 _logger.LogWarning(ex, "Plugin {PluginId} background work crashed", runner.PluginId);
                 crash = ex.Message;
+            }
+
+            if (token.IsCancellationRequested)
+            {
+                return; // it was asked to stop; whatever it did on the way out is not a crash
             }
 
             var crashes = status.RecordCrash(_clock.GetUtcNow(), _limits.BackgroundCrashWindow);
