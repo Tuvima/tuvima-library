@@ -26,6 +26,11 @@
             </div>
         </div>
 
+        @if (!mode.BatchSectionOpen && MoveMediaType is not null)
+        {
+            <ItemBatchMovePanel WorkIds="@mode.BatchSelection.ToList()" MediaType="@MoveMediaType" Plural="@Plural" OnMoved="OnMovedAsync" />
+        }
+
         @if (mode.BatchSectionOpen)
         {
             <div class="tl-batch__panel">
@@ -99,6 +104,9 @@
     [Parameter] public string Singular { get; set; } = "item";
 
     [Parameter] public string Plural { get; set; } = "items";
+
+    /// <summary>"Music", "TV" or "Audiobooks" where the ticked rows can be moved to another album, season or audiobook; null hides Move.</summary>
+    [Parameter] public string? MoveMediaType { get; set; }
 
     /// <summary>Raised after an apply so the page can refresh what it shows.</summary>
     [Parameter] public EventCallback OnApplied { get; set; }
@@ -185,6 +193,13 @@
     }
 
     private void ReportDirty() => Mode?.SetBatchDirty(IsDirty);
+
+    // Moved rows are no longer on this page, so the ticks go and the page refreshes.
+    private async Task OnMovedAsync()
+    {
+        Mode?.ClearBatchSelection();
+        await OnApplied.InvokeAsync();
+    }
 
     private async Task OpenAsync()
     {
