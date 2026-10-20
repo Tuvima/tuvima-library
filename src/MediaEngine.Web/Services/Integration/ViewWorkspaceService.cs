@@ -86,6 +86,7 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         OwnedGalleries = [];
         SharedGalleries = [];
         PendingNewGalleryItems = [];
+        _trashFailures = [];
     }
 
     /// <summary>
@@ -207,6 +208,27 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
     }
 
     public void StageNewGalleryItems(IReadOnlyCollection<Guid> itemIds) => PendingNewGalleryItems = [.. itemIds.Distinct()];
+
+    private Dictionary<Guid, string> _trashFailures = [];
+
+    /// <summary>
+    /// Why an item stayed in Trash the last time the person emptied it ("the file is in use"), for the note on its tile. Kept for the
+    /// session only: it is page state, never stored. Null when the item has no note.
+    /// </summary>
+    public string? TrashFailureReason(Guid itemId) => _trashFailures.GetValueOrDefault(itemId);
+
+    /// <summary>Replaces the notes with what the latest Empty Trash reported; an item that went, or is no longer listed, loses its note.</summary>
+    public void ReplaceTrashFailures(IEnumerable<ViewTrashEmptyFailureDto> failed) =>
+        _trashFailures = failed.GroupBy(item => item.ItemId).ToDictionary(group => group.Key, group => group.First().Reason);
+
+    /// <summary>An item that was restored from Trash no longer carries a "couldn't delete" note.</summary>
+    public void ClearTrashFailures(IEnumerable<Guid> itemIds)
+    {
+        foreach (var id in itemIds)
+        {
+            _trashFailures.Remove(id);
+        }
+    }
 
     public IReadOnlyList<Guid> TakePendingNewGalleryItems()
     {
