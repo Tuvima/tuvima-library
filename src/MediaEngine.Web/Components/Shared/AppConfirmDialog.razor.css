@@ -1,0 +1,17 @@
+.app-confirm {
+    display: grid;
+    gap: var(--tl-space-4);
+    max-width: 62ch;
+}
+
+.app-confirm p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.app-confirm__preview {
+    display: grid;
+    gap: var(--tl-space-2);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}

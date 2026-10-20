@@ -4433,6 +4433,26 @@ input[type="reset"],
     box-shadow: none !important;
 }
 
+/* The editing banner's "..." (Delete): a 44px circle beside Done. Global because the trigger is rendered by
+   AppOverflowMenu, which the banner's scoped styles cannot reach; specific enough to beat the compact menu size. */
+.app-overflow-menu .app-overflow-menu__trigger.app-overflow-menu__trigger--icon.tl-editing-banner__more {
+    width: var(--tl-tap-target-min, 44px);
+    height: var(--tl-tap-target-min, 44px);
+    border: 1px solid var(--tl-border-subtle) !important;
+    border-radius: 50%;
+}
+
+.app-overflow-menu__trigger.tl-editing-banner__more:hover,
+.app-overflow-menu__trigger.tl-editing-banner__more:focus-visible {
+    border-color: var(--tl-border-strong, var(--tl-border-subtle)) !important;
+    background: var(--tl-surface-hover, transparent) !important;
+}
+
+.app-overflow-menu__trigger.tl-editing-banner__more:focus-visible {
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring, currentColor);
+    outline-offset: var(--tl-focus-ring-offset, 2px);
+}
+
 .app-overflow-menu__trigger--icon {
     width: var(--tl-control-height-lg);
     height: var(--tl-control-height-lg);

@@ -3,8 +3,6 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
-@using MediaEngine.Web.Services.Integration
-@inject IServiceProvider Services
 
 <CinematicHeroSurface Artwork="Model.Artwork"
                       EntityType="Model.EntityType"
@@ -26,9 +24,8 @@
 
     @if (Model.EntityType != DetailEntityType.Person)
     {
-        @* Editing Mode controls: Edit / Done, Manage Artwork, Match and Identity, More, and the hero art buttons. *@
+        @* Editing Mode: the hero art buttons (the banner above the page holds everything else). *@
         <div class="tl-editing-hero-controls">
-            <EditingModeBar Mode="Editing" MoreActions="EditingMoreActions" OnActionSelected="OnActionSelected" />
             <EditingHeroArtworkButtons />
         </div>
     }
@@ -186,6 +183,8 @@
                                Progress="Presentation.Progress"
                                UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
                                IsMusicAlbum="@(Model.EntityType == DetailEntityType.MusicAlbum)"
+                               HideStatusActions="@(Editing is { IsOn: true })"
+                               CanDelete="CanDelete"
                                ActionAttributes="ActionAttributes"
                                OnActionSelected="OnActionSelected" />
             </ActionContent>
@@ -208,6 +207,9 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public EventCallback<string> OnTabRequested { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
+
+    /// <summary>Whether the page "..." lists Delete from library (the page decides who may delete a single title).</summary>
+    [Parameter] public bool CanDelete { get; set; }
 
     [CascadingParameter] private EditingModeContext? Editing { get; set; }
 
@@ -249,41 +251,6 @@
     private string[] HeroCopyKeys => !string.IsNullOrWhiteSpace(Model.Tagline)
         ? ["tagline"]
         : ["description", "episode_description", "issue_description"];
-
-    /// <summary>Editing Mode's own More list: the hero's shared list without Edit, which the Done button replaces.</summary>
-    private IReadOnlyList<DetailAction> EditingMoreActions
-    {
-        get
-        {
-            var actions = HeroActionRow
-                .OverflowMenu(Model.PrimaryActions, Model.OverflowActions)
-                .Where(action => action.Key is not ("edit" or "edit-media"))
-                .ToList();
-            if (CanDeleteFromLibrary)
-            {
-                actions.Add(DeleteFromLibraryAction);
-            }
-
-            return actions;
-        }
-    }
-
-    /// <summary>
-    /// Delete from library (Editing Mode's last, red More entry): only in Editing Mode (which a deep link never starts), on a device
-    /// that may edit, for an effective administrator, and for a page that is one title. The Engine and the page handler check again.
-    /// </summary>
-    private bool CanDeleteFromLibrary =>
-        Editing is { IsOn: true, CanEdit: true }
-        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
-        && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-
-    private static readonly DetailAction DeleteFromLibraryAction = new()
-    {
-        Key = DetailActionKeys.DeleteFromLibrary,
-        Label = "Delete from library…",
-        Icon = "delete",
-        IsDestructive = true,
-    };
 
     private DetailHeroPresentation Presentation => DetailHeroPresentation.From(Model);
     private string? SeriesContextLabel => BuildSeriesContextLabel(Model.EntityType, Model.SequencePlacement);

@@ -14,7 +14,7 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
-@inject IJSRuntime JS
+@inject IAppDialogService Dialogs
 @inject ILogger<CollectionEditorShell> Logger
 
 <NavigationLock ConfirmExternalNavigation="@_hasUnsavedChanges"
@@ -581,9 +581,28 @@ else
 
     private async Task ConfirmNavigationWithUnsavedChanges(LocationChangingContext context)
     {
-        if (_hasUnsavedChanges && !await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Leave without saving?"))
+        if (_hasUnsavedChanges && !await ConfirmDiscardAsync())
             context.PreventNavigation();
     }
+
+    // One dialog style for every confirmation (details overlay spec D17): closing it any other way keeps the person editing.
+    private async Task<bool> ConfirmDiscardAsync() =>
+        await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            "Discard your changes?",
+            "You have changes that are not saved yet.",
+            primaryLabel: "Discard",
+            secondaryLabel: "Keep editing",
+            primaryDestructive: true) == AppConfirmResult.Primary;
+
+    private async Task<bool> ConfirmDeleteCollectionAsync(string name) =>
+        await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            $"Delete {name}?",
+            "The titles in it stay in your library.",
+            primaryLabel: "Delete",
+            secondaryLabel: "Keep",
+            primaryDestructive: true) == AppConfirmResult.Primary;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -602,7 +621,7 @@ else
     private async Task<bool> CanCloseAsync()
     {
         if (_saving) return false;
-        if (_hasUnsavedChanges && !await JS.InvokeAsync<bool>("confirm", "You have unsaved changes. Leave without saving?"))
+        if (_hasUnsavedChanges && !await ConfirmDiscardAsync())
             return false;
         _hasUnsavedChanges = false;
         return true;
@@ -1246,10 +1265,7 @@ else
         if (!CanDeleteCollection || EditingCollection is null)
             return;
 
-        var confirmed = await JS.InvokeAsync<bool>(
-            "confirm",
-            $"Delete collection '{EditingCollection.Name}'? The media in it will remain in your library.");
-        if (!confirmed)
+        if (!await ConfirmDeleteCollectionAsync(EditingCollection.Name))
             return;
 
         _saving = true;

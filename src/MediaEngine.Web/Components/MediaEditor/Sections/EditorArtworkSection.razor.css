@@ -165,7 +165,13 @@
 }
 
 .sme-artwork-import-error {
+    display: grid;
+    gap: 4px;
     color: var(--tl-status-warning);
+}
+
+.sme-artwork-retry-note {
+    color: var(--tl-text-secondary);
 }
 
 .sme-artwork-variant-strip {
@@ -274,35 +280,6 @@
     background: linear-gradient(180deg, #6676ff, #3944d4);
     color: #fff;
     box-shadow: 0 4px 10px rgba(0,0,0,0.24);
-}
-
-.sme-artwork-delete-confirm {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--tl-space-1);
-    padding: var(--tl-space-1);
-    border: 1px solid var(--tl-status-danger-border);
-    border-radius: var(--tl-radius-pill);
-    background: color-mix(in srgb, var(--tl-bg-overlay) 88%, var(--tl-status-danger) 12%);
-    backdrop-filter: blur(var(--tl-space-2));
-    box-shadow: var(--tl-shadow-md);
-}
-
-:where(.sme-artwork) ::deep .sme-artwork-delete-confirm__action {
-    width: 2.25rem;
-    min-width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--tl-radius-pill);
-}
-
-:where(.sme-artwork) ::deep .sme-artwork-delete-confirm__action--accept {
-    color: var(--tl-status-danger);
-    background: color-mix(in srgb, var(--tl-status-danger) 16%, transparent);
-}
-
-:where(.sme-artwork) ::deep .sme-artwork-delete-confirm__action--cancel {
-    color: var(--tl-text-primary);
-    background: color-mix(in srgb, var(--tl-text-primary) 9%, transparent);
 }
 
 .sme-artwork-editor-grid {
@@ -838,14 +815,6 @@
     margin-left: auto;
 }
 
-.sme-artwork-primary-card .sme-artwork-delete-confirm {
-    position: absolute;
-    z-index: 4;
-    right: var(--tl-space-2);
-    bottom: var(--tl-space-2);
-    left: auto;
-}
-
 .sme-artwork-details-panel,
 .sme-artwork-add-panel {
     padding: var(--tl-space-3);
@@ -961,4 +930,17 @@
     font-size: 1.25rem;
     font-weight: 600;
     line-height: 1.3;
+}
+
+/* In an Editing Mode section (the full width of the page) the artwork stays at a readable width, centred, and the other
+   options wrap into rows of cards instead of a strip that scrolls sideways. */
+.sme-shell--section .sme-artwork {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+}
+
+.sme-shell--section .sme-artwork-variant-strip {
+    flex-wrap: wrap;
+    overflow-x: visible;
 }

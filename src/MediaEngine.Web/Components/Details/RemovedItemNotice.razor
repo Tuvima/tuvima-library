@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* Shown in place of a detail page whose title was deleted by someone else while it was open (details overlay spec section 4). The
+   overlay stays open so nothing typed is lost without warning: a pencil field that held unsaved text is shown here, read-only, with
+   a Copy button. Close dismisses the overlay as usual. *@
+<section class="tl-removed-notice" role="alert" aria-labelledby="tl-removed-notice-title">
+    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppSize.Large" />
+    <h2 id="tl-removed-notice-title" class="tl-removed-notice__title">@Heading</h2>
+    @if (!string.IsNullOrEmpty(InputText))
+    {
+        <div class="tl-removed-notice__input">
+            <p class="tl-removed-notice__input-label">@(string.IsNullOrWhiteSpace(InputLabel) ? "What you were typing" : $"What you were typing in {InputLabel}")</p>
+            <pre class="tl-removed-notice__input-text" tabindex="0" aria-label="Your unsaved text">@InputText</pre>
+            <div class="tl-removed-notice__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                           Class="tl-removed-notice__copy"
+                           OnClick="OnCopy">
+                    Copy
+                </AppButton>
+            </div>
+        </div>
+    }
+    @if (LostSectionInput)
+    {
+        <p class="tl-removed-notice__lost">An open section also had changes that were not saved. They could not be kept.</p>
+    }
+    <AppButton ButtonStyle="AppButtonStyle.Filled"
+               Tone="AppUiTone.Primary"
+               Size="AppControlSize.Large"
+               Class="tl-removed-notice__close"
+               OnClick="OnClose">
+        Close
+    </AppButton>
+</section>
+
+@code {
+    public const string Heading = "This item is no longer in your library";
+
+    /// <summary>The field whose unsaved text is shown (for example "Title"), when known.</summary>
+    [Parameter] public string? InputLabel { get; set; }
+
+    /// <summary>Unsaved text the person had typed; empty when there was none.</summary>
+    [Parameter] public string? InputText { get; set; }
+
+    /// <summary>True when an open section held unsaved changes that cannot be shown here.</summary>
+    [Parameter] public bool LostSectionInput { get; set; }
+
+    [Parameter] public EventCallback OnCopy { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+}
