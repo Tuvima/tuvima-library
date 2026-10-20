@@ -615,25 +615,7 @@ public sealed partial class RetailMatchWorker
                     job.EntityId);
             }
 
-            await ScoringHelper.PersistAndScoreWithLineageAsync(
-                job.EntityId, claims, providerId, lineage,
-                _claimRepo, _canonicalRepo, _scoringEngine, _configLoader, _providers, ct,
-                arrayRepo: _arrayRepo, logger: _logger);
-
-            var bridgeEntries = claims
-                .Where(c => BridgeIdHelper.IsBridgeId(c.Key) && !string.IsNullOrWhiteSpace(c.Value))
-                .Select(c => new BridgeIdEntry
-                {
-                    EntityId = ResolveBridgeIdEntityId(lineage, job.EntityId, c.Key),
-                    IdType = c.Key,
-                    IdValue = c.Value,
-                    ProviderId = providerId.ToString(),
-                }).ToList();
-
-            if (bridgeEntries.Count > 0)
-            {
-                await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct);
-            }
+            await PersistClaimsAndBridgeIdsAsync(job.EntityId, claims, providerId, lineage, ct);
         }
 
         if (decision.Outcome == "AutoAccepted")

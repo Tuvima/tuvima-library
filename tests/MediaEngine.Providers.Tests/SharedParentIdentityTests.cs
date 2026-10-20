@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -8,6 +9,7 @@ using MediaEngine.Intelligence.Contracts;
 using MediaEngine.Intelligence.Models;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage;
 using ProviderConfiguration = MediaEngine.Domain.Configuration.ProviderConfiguration;
 
 namespace MediaEngine.Providers.Tests;
@@ -82,6 +84,41 @@ public sealed class SharedParentIdentityTests
         Assert.Equal(Original, Value(winner, BridgeIdKeys.MusicBrainzReleaseId));
     }
 
+    [Fact]
+    public void Decide_CompilationTracksNamingDifferentArtists_AgreeOnTheirAlbum()
+    {
+        var first = AlbumReport(Original, "1969");
+        first.Add(new ProviderClaim(BridgeIdKeys.AppleArtistId, "136975", 1.0));
+        var second = AlbumReport(Original, "1969");
+        second.Add(new ProviderClaim(BridgeIdKeys.AppleArtistId, "5468295", 1.0));
+
+        var decision = SharedParentIdentity.Decide(second, Stored(first));
+
+        Assert.Equal(SharedParentIdentity.Outcome.Agree, decision.Outcome);
+    }
+
+    [Fact]
+    public void Decide_UserChoseTheReissue_AnAutomaticReportOfTheOriginalDoesNotReplaceIt()
+    {
+        var decision = SharedParentIdentity.Decide(
+            AlbumReport(Original, "1969"),
+            Stored(AlbumReport(Reissue, "2019"), userDecided: true));
+
+        Assert.Equal(SharedParentIdentity.Outcome.ExistingWins, decision.Outcome);
+        Assert.Equal(Reissue, Value(decision.ParentClaims, BridgeIdKeys.MusicBrainzReleaseId));
+    }
+
+    [Fact]
+    public void Decide_UserChoosesTheReissue_ReplacesTheAutomaticOriginal()
+    {
+        var decision = SharedParentIdentity.Decide(
+            AlbumReport(Reissue, "2019"),
+            Stored(AlbumReport(Original, "1969")),
+            incomingIsUserDecision: true);
+
+        Assert.Equal(SharedParentIdentity.Outcome.IncomingWins, decision.Outcome);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -120,6 +157,57 @@ public sealed class SharedParentIdentityTests
         Assert.Equal(!originalTrackFirst, written[1].ParentIdentityReplaced);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LineageWrite_StoredInTheDataStore_AlbumKeepsOneCurrentReleaseInEitherOrder(bool originalTrackFirst)
+    {
+        DapperConfiguration.Configure();
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-shared-parent-{Guid.NewGuid():N}.db");
+        var database = new DatabaseConnection(databasePath);
+        try
+        {
+            database.InitializeSchema();
+            using (var connection = database.CreateConnection())
+            {
+                connection.Execute(
+                    "INSERT OR IGNORE INTO metadata_providers (id, name, version, is_enabled) VALUES (@id, 'musicbrainz', '1', 1)",
+                    new { id = WellKnownProviders.MusicBrainz });
+            }
+
+            var albumId = Guid.NewGuid();
+            var claimRepo = new MetadataClaimRepository(database);
+            var reports = originalTrackFirst
+                ? new[] { (Original, "1969"), (Reissue, "2019") }
+                : new[] { (Reissue, "2019"), (Original, "1969") };
+            foreach (var (release, year) in reports)
+            {
+                var lineage = Track(albumId);
+                await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
+                    lineage.AssetId,
+                    [new ProviderClaim(MetadataFieldConstants.Title, "Track", 0.9), .. AlbumReport(release, year)],
+                    WellKnownProviders.MusicBrainz,
+                    lineage,
+                    claimRepo,
+                    new CanonicalValueRepository(database),
+                    new EmptyScoringEngine(),
+                    new MinimalConfigLoader(),
+                    allProviders: [],
+                    CancellationToken.None);
+            }
+
+            var album = await claimRepo.GetByEntityAsync(albumId);
+            Assert.Equal([Original], album.Where(c => c.ClaimKey == BridgeIdKeys.MusicBrainzReleaseId).Select(c => c.ClaimValue).Distinct());
+            Assert.Equal(["1969"], album.Where(c => c.ClaimKey == MetadataFieldConstants.Year).Select(c => c.ClaimValue).Distinct());
+        }
+        finally
+        {
+            database.Dispose();
+            DatabaseConnection.ReleasePooledConnections(databasePath);
+            File.Delete(databasePath);
+        }
+    }
+
     private static List<ProviderClaim> AlbumReport(string releaseId, string? year)
     {
         var claims = new List<ProviderClaim>
@@ -136,7 +224,7 @@ public sealed class SharedParentIdentityTests
         return claims;
     }
 
-    private static List<MetadataClaim> Stored(IEnumerable<ProviderClaim> report)
+    private static List<MetadataClaim> Stored(IEnumerable<ProviderClaim> report, bool userDecided = false)
     {
         var observation = Guid.NewGuid();
         var claimedAt = DateTimeOffset.UtcNow;
@@ -144,6 +232,7 @@ public sealed class SharedParentIdentityTests
         {
             Id = Guid.NewGuid(),
             ProviderId = WellKnownProviders.MusicBrainz,
+            DecisionSourceProviderId = userDecided ? WellKnownProviders.UserManual : null,
             ObservationSetId = observation,
             ClaimKey = claim.Key,
             ClaimValue = claim.Value,

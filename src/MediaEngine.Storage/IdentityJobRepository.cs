@@ -20,11 +20,11 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
     public Task CreateAsync(IdentityJob job, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
         // The part files of one audiobook recording share one identity job. It belongs to the lead part (the
         // lowest part number, then the first path), not to whichever part finished ingesting first: a later,
-        // lower part takes over a sibling's job while that job still waits for its first lease.
-        conn.Execute($"""
+        // lower part takes over a sibling's job while that job still waits for its first lease. Taking over
+        // and creating run in one write, so two parts arriving together cannot both miss the other's job.
+        var sql = $"""
             UPDATE identity_jobs
             SET    entity_id = @EntityId,
                    updated_at = @UpdatedAt
@@ -71,8 +71,8 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 WHERE @MediaType='Audiobooks' AND current_asset.id=@EntityId
                   AND sibling.entity_id!=@EntityId AND recording.parent_key LIKE 'source-folder:%'
             );
-            """,
-            new
+            """;
+        var parameters = new
             {
                 job.Id,
                 job.EntityId,
@@ -92,8 +92,8 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                 NextRetryAt = job.NextRetryAt?.ToString("O"),
                 CreatedAt = job.CreatedAt.ToString("O"),
                 UpdatedAt = job.UpdatedAt.ToString("O"),
-            });
-        return Task.CompletedTask;
+            };
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) => conn.Execute(sql, parameters, tx), ct);
     }
 
     /// <summary>Row value ordering an audiobook part asset: its part number, then its path.</summary>

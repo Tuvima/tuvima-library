@@ -132,6 +132,8 @@ Stages 1 and 2 create or update:
 
 The part files of one audiobook recording folder share one identity job, and it always belongs to the lead part (the lowest part number, then the first path), not to whichever part finished ingesting first: a lower part that arrives later takes over the job while it still waits for its first lease, and the job is not leased until every part the folder holds has been registered (at most 10 minutes after the job was created, so an unreadable part cannot hold the recording back for good). The retail match, people and review rows therefore always land on the same part.
 
+A job that reaches its outcome (ready, or no match) clears its last failure category: a provider outage or timeout it retried past is history, and whether one happened depends on load rather than on what the Library decided. The music album sweeps (track-manifest repair and MusicBrainz enrichment) leave an album alone while any of its tracks still has an identity job running, so they never act on the half-finished state of a track that is still being identified.
+
 Local processors read what the file itself can prove:
 
 | Media type | Processor evidence | Typical Stage 2 result |

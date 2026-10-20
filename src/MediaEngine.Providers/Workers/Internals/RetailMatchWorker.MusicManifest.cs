@@ -72,7 +72,6 @@ public sealed partial class RetailMatchWorker
             // the album, whichever track gets here last.
             var releaseId = rootValues.FirstOrDefault(value =>
                     string.Equals(value.Key, BridgeIdKeys.MusicBrainzReleaseId, StringComparison.OrdinalIgnoreCase)
-                    && value.WinningProviderId == WellKnownProviders.MusicBrainz
                     && !string.IsNullOrWhiteSpace(value.Value))?.Value
                 ?? trackReleaseId;
             var existingManifest = rootValues.FirstOrDefault(value =>

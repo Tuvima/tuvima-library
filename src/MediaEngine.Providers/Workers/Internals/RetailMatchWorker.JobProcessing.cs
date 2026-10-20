@@ -1031,6 +1031,44 @@ public sealed partial class RetailMatchWorker
         }
     }
 
+    /// <summary>
+    /// Writes one provider report and its bridge ids for a grouped (album, season) match. Siblings report their
+    /// shared parent in parallel groups, so the write and the bridge ids happen under the parent's lock and use
+    /// the claims as written (<see cref="SharedParentIdentity"/>), keeping the parent's bridge row on its agreed
+    /// identity.
+    /// </summary>
+    private async Task PersistClaimsAndBridgeIdsAsync(
+        Guid entityId,
+        IReadOnlyList<ProviderClaim> claims,
+        Guid providerId,
+        WorkLineage? lineage,
+        CancellationToken ct)
+    {
+        using var parentLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
+            ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
+            : null;
+
+        var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
+            entityId, claims, providerId, lineage,
+            _claimRepo, _canonicalRepo, _scoringEngine, _configLoader, _providers, ct,
+            arrayRepo: _arrayRepo, logger: _logger).ConfigureAwait(false);
+
+        var bridgeEntries = written.Claims
+            .Where(c => BridgeIdHelper.IsBridgeId(c.Key) && !string.IsNullOrWhiteSpace(c.Value))
+            .Select(c => new BridgeIdEntry
+            {
+                EntityId = ResolveBridgeIdEntityId(lineage, entityId, c.Key),
+                IdType = c.Key,
+                IdValue = c.Value,
+                ProviderId = providerId.ToString(),
+            }).ToList();
+
+        if (bridgeEntries.Count > 0)
+        {
+            await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct).ConfigureAwait(false);
+        }
+    }
+
     private static Guid ResolveBridgeIdEntityId(WorkLineage? lineage, Guid assetId, string key)
     {
         if (lineage is null)

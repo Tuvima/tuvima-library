@@ -669,7 +669,8 @@ public static class ScoringHelper
             var stored = await claimRepo.GetByEntityAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false);
             var decision = SharedParentIdentity.Decide(
                 parentClaims,
-                stored.Where(claim => claim.ProviderId == providerId).ToList());
+                stored.Where(claim => claim.ProviderId == providerId).ToList(),
+                incomingIsUserDecision: decisionSourceProviderId == WellKnownProviders.UserManual);
             switch (decision.Outcome)
             {
                 case SharedParentIdentity.Outcome.IncomingWins:
