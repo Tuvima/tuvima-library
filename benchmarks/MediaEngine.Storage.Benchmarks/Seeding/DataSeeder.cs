@@ -114,6 +114,14 @@ internal static class DataSeeder
                     commandTimeout: 0);
             });
 
+            RunStep(connection, timer, "play history, person group", transaction =>
+            {
+                // Added 2026-10-20. Both read existing rows only (seed_leaf, seed_audio_match, persons) and add rows to tables no
+                // earlier snapshot section reads, so the earlier sections keep their values.
+                connection.Execute(PlayHistorySql, null, transaction, commandTimeout: 0);
+                connection.Execute(PersonGroupSql, new { persons }, transaction, commandTimeout: 0);
+            });
+
             RunStep(connection, timer, "artwork, review queue, identity jobs", transaction =>
             {
                 connection.Execute(ArtworkSql, new { artwork }, transaction, commandTimeout: 0);
@@ -453,6 +461,57 @@ internal static class DataSeeder
         SELECT {Id(SeedIds.Claim, "seq * 10 + 5")}, work_id, @wikidata, 'description', 'Claimed description for item ' || seq, 0.9,
                {Ts("seq * 7 % 730", "seq * 131 % 86400 + 185")}, 0, 1, NULL
         FROM seed_leaf;
+        """;
+
+    // One profile's play history (SeedIds.PlayHistoryProfile), 60 plays chosen by a fixed stride from each group: 20 audiobooks
+    // without their own year (classes 4 to 7 of seed_audio_match: some borrow a book's year, some borrow nothing), 10 audiobooks
+    // with their own year, 10 books, 10 TV episodes and 10 tracks. i is a fixed shuffle of the 60, so last_accessed is distinct
+    // and the order is fixed. Every sixth play is finished (100%), plays 7 and 13 are hidden from Continue, the rest sit
+    // between 5% and 95%; two in three of the visible, unfinished plays also carry a saved position.
+    private static readonly string PlayHistorySql = $"""
+        WITH cand AS (
+            SELECT l.seq, l.asset_id,
+                   CASE WHEN l.media_type = 'Audiobooks' AND m.cls >= 4 THEN 1
+                        WHEN l.media_type = 'Audiobooks' THEN 2
+                        WHEN l.media_type = 'Books' THEN 3
+                        WHEN l.media_type = 'TV' THEN 4
+                        ELSE 5 END AS cat
+            FROM seed_leaf l
+            LEFT JOIN seed_audio_match m ON m.audio_seq = l.seq
+            WHERE l.media_type IN ('Audiobooks', 'Books', 'TV', 'Music')
+        ),
+        ranked AS (
+            SELECT seq, asset_id, cat,
+                   CASE cat WHEN 1 THEN 20 ELSE 10 END AS want,
+                   ROW_NUMBER() OVER (PARTITION BY cat ORDER BY seq) AS rn,
+                   COUNT(*) OVER (PARTITION BY cat) AS total
+            FROM cand
+        ),
+        chosen AS (
+            SELECT asset_id, ROW_NUMBER() OVER (ORDER BY (seq * 7919) % 10007, seq) AS i
+            FROM ranked
+            WHERE rn * want / total > (rn - 1) * want / total
+        )
+        INSERT INTO user_states (revision, user_id, asset_id, content_hash, progress_pct, last_accessed, extended_properties)
+        SELECT 0,
+               {Id(SeedIds.Profile, "1")},
+               asset_id,
+               NULL,
+               CASE WHEN i % 6 = 0 THEN 100.0 ELSE 5.0 + (i * 29) % 91 END,
+               strftime('%Y-%m-%dT%H:%M:%fZ', '2026-09-01 00:00:00', '+' || (i * 3607) || ' seconds'),
+               CASE WHEN i IN (7, 13) THEN json_object('hide_continue', 'true')
+                    WHEN i % 3 != 0 THEN json_object('position_seconds', (5 + (i * 29) % 91) * 36, 'duration_seconds', 3600) END
+        FROM chosen;
+        """;
+
+    // One group and one member, both existing persons, so the earlier sections' credits do not change: the group is the person
+    // in the middle of the list (credited on several works already), the member the next one. No dates, so the membership
+    // overlaps every work and the member's credits through the group are all shown.
+    private static readonly string PersonGroupSql = $"""
+        INSERT INTO person_group_members (group_id, member_id, start_date, end_date)
+        SELECT {Id(SeedIds.Person, "@persons / 2")}, {Id(SeedIds.Person, "@persons / 2 + 1")}, NULL, NULL;
+
+        UPDATE persons SET is_group = 1 WHERE id = {Id(SeedIds.Person, "@persons / 2")};
         """;
 
     private static readonly string ArtworkSql = $"""

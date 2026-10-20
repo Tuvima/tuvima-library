@@ -1,9 +1,12 @@
+using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 
@@ -15,6 +18,8 @@ namespace MediaEngine.Storage.Benchmarks.Snapshot;
 /// production code is called. The file has one <c>## name</c> section per read, one line per row, and ends with
 /// <c>sha256=&lt;hex&gt;</c> of everything above it. Run it before the first change and after each wave, then <c>compare</c>.
 /// Row order inside a group with the same <c>CreatedAt</c> is normalised (D7); see <see cref="SnapshotRows"/>.
+/// Sections for the seven reads of spec "Audiobook year on the remaining screens" (series page, Continue and play history,
+/// collection editor details and "add media", series search, a person's credits, taste profile) were added on 2026-10-20.
 /// </summary>
 internal static class SnapshotCommand
 {
@@ -114,6 +119,117 @@ internal static class SnapshotCommand
             });
         }
 
+        // Sections added 2026-10-20 (spec "Audiobook year on the remaining screens", WP1). Each calls one production read.
+        foreach (var label in SeriesPageLabels)
+        {
+            var sectionName = "series-page:" + label;
+            var page = samples.SeriesPages.FirstOrDefault(sample => sample.Label == label);
+            if (page is null)
+            {
+                failed |= Missing(sectionName);
+                await Section(sectionName, " (no sample found)", Empty);
+                continue;
+            }
+
+            var header = " collection=" + page.CollectionId.ToString("N", CultureInfo.InvariantCulture)
+                + (page.RootWorkId is { } root ? " root=" + root.ToString("N", CultureInfo.InvariantCulture) : string.Empty)
+                + " (" + page.Note + ")";
+            await Section(sectionName, header, async () => InOrder(await LoadSeriesPageAsync(context.Database, page, ct)));
+        }
+
+        if (samples.PlayProfile is { } profileId)
+        {
+            var journeys = new DisplayJourneyProjectionReader(context.Database);
+            var profileSuffix = " profile=" + profileId.ToString("N", CultureInfo.InvariantCulture);
+            await Section("continue", profileSuffix, async () => InOrder(await journeys.LoadAsync(profileId, null, ct)));
+            await Section("states", profileSuffix, async () => InOrder(await journeys.LoadAsync(profileId, null, ct, includeCompleted: true)));
+        }
+        else
+        {
+            foreach (var sectionName in new[] { "continue", "states" })
+            {
+                failed |= Missing(sectionName);
+                await Section(sectionName, " (no sample found)", Empty);
+            }
+        }
+
+        var lookup = new CollectionMediaLookupReadService(context.Database);
+        if (samples.ResolveWorkIds.Count > 0)
+        {
+            await Section(
+                "collection-resolve",
+                " works=" + samples.ResolveWorkIds.Count.ToString(CultureInfo.InvariantCulture),
+                async () => InOrder(await lookup.ResolveMetadataAsync(samples.ResolveWorkIds, ct)));
+        }
+        else
+        {
+            failed |= Missing("collection-resolve");
+            await Section("collection-resolve", " (no sample found)", Empty);
+        }
+
+        var allowedWorkIds = samples.AllWorkIds.ToHashSet();
+        var noWorkIds = new HashSet<Guid>();
+        foreach (var (label, mediaTypes, offset) in LookupPages)
+        {
+            await Section(
+                "collection-lookup:" + label,
+                " mediaTypes=" + (mediaTypes ?? "<none>") + " offset=" + offset.ToString(CultureInfo.InvariantCulture) + " limit=24",
+                async () => InOrder(await lookup.LookupAsync(null, mediaTypes, noWorkIds, allowedWorkIds, offset, 24, ct)));
+        }
+
+        // Series search goes through the product's search index, which the seeder leaves empty; rebuild it first (the same
+        // production call the Engine makes). While the section 7 bug of the spec is open this path returns no rows.
+        var searchIndex = new SearchIndexRepository(context.Database);
+        if (Wanted("series-search"))
+        {
+            await searchIndex.RebuildAsync(ct);
+        }
+
+        var searchService = new CollectionSearchReadService(context.Database, searchIndex);
+        foreach (var (label, query) in samples.SearchQueries)
+        {
+            var sectionName = "series-search:" + label;
+            if (query is null)
+            {
+                failed |= Missing(sectionName);
+                await Section(sectionName, " (no sample found)", Empty);
+                continue;
+            }
+
+            await Section(sectionName, " query=\"" + query + "\"", async () => InOrder(await searchService.SearchAsync(query, ct)));
+        }
+
+        var credits = new PersonCreditReadService(
+            new CanonicalValueArrayRepository(context.Database),
+            new PersonRepository(context.Database),
+            context.Database);
+        foreach (var (label, id) in samples.CreditPersons)
+        {
+            var sectionName = "person-credits:" + label;
+            if (id is not { } personCreditId)
+            {
+                failed |= Missing(sectionName);
+                await Section(sectionName, " (no sample found)", Empty);
+                continue;
+            }
+
+            await Section(sectionName, IdSuffix(personCreditId), async () => InOrder(await credits.GetLibraryCreditsAsync(personCreditId, ct)));
+        }
+
+        if (samples.PlayProfile is { } tasteProfileId)
+        {
+            var taste = new TasteProfileRepository(context.Database);
+            await Section(
+                "taste",
+                " profile=" + tasteProfileId.ToString("N", CultureInfo.InvariantCulture),
+                async () => InOrder(await taste.GetSignalsAsync(tasteProfileId, 1000, ct)));
+        }
+        else
+        {
+            failed |= Missing("taste");
+            await Section("taste", " (no sample found)", Empty);
+        }
+
         var body = text.ToString();
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body))).ToLowerInvariant();
         var outputPath = Path.GetFullPath(outPath);
@@ -131,6 +247,39 @@ internal static class SnapshotCommand
         }
 
         return 0;
+    }
+
+    private static readonly string[] SeriesPageLabels = ["audiobook-series", "book-series", "tv-season"];
+
+    /// <summary>The collection editor's "add media" pages: label, media type filter and offset (24 rows per page).</summary>
+    private static readonly (string Label, string? MediaTypes, int Offset)[] LookupPages =
+    [
+        ("audiobooks-p1", "Audiobooks", 0),
+        ("audiobooks-p2", "Audiobooks", 24),
+        ("books-p1", "Books", 0),
+        ("all-p1", null, 0),
+    ];
+
+    /// <summary>
+    /// <c>DetailCompositionOrchestrator</c> and its <c>LoadCollectionWorksAsync</c> are internal to the Api assembly; no visibility in
+    /// src/ was changed. The method only uses the <c>_db</c> field, so the instance is created without running its constructor
+    /// and <c>_db</c> is set. The result type is a private record; its public properties are formatted like any other row.
+    /// </summary>
+    private static async Task<IReadOnlyList<object>> LoadSeriesPageAsync(DatabaseConnection database, SeriesPageSample page, CancellationToken ct)
+    {
+        var type = typeof(DisplayWorkProjectionReader).Assembly.GetType(
+                "MediaEngine.Api.Services.Details.Internals.DetailCompositionOrchestrator",
+                throwOnError: false)
+            ?? throw new InvalidOperationException("DetailCompositionOrchestrator was not found.");
+        var orchestrator = RuntimeHelpers.GetUninitializedObject(type);
+        (type.GetField("_db", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("DetailCompositionOrchestrator._db was not found.")).SetValue(orchestrator, database);
+        var method = type.GetMethod("LoadCollectionWorksAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("DetailCompositionOrchestrator.LoadCollectionWorksAsync was not found.");
+        var task = (Task)method.Invoke(orchestrator, [page.CollectionId, page.RootWorkId, ct, page.ResolvedWorkIds, null, null])!;
+        await task;
+        var result = task.GetType().GetProperty("Result")!.GetValue(task)!;
+        return [.. ((IEnumerable)result).Cast<object>()];
     }
 
     private static bool Missing(string section)
