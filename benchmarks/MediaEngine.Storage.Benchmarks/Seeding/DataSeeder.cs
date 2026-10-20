@@ -373,10 +373,9 @@ internal static class DataSeeder
     // Audiobooks: half carry their own original publication year (an identified audiobook normally does, from a retail or
     // Wikidata match). The other half have none (since 2026-10-20; before that every audiobook had a year, so numbers measured
     // earlier never exercised the look-up below). Without a year the display and library list reads borrow the year of the
-    // book with the same title and the same author (MediaDateSql.RelatedBookOriginalYear): of the audiobooks without a year,
+    // book with the same title and the same author (MediaDateSql.RelatedBookOriginalYearCte): of the audiobooks without a year,
     // half match a book by title (case and surrounding spaces differ) and by author, a quarter match a book's title but have a
-    // different author, and a quarter match nothing. That look-up reads the whole credits view per such audiobook (visible in
-    // 'explain --query q4'). Classes are in seed_audio_match.
+    // different author, and a quarter match nothing. Classes are in seed_audio_match.
     private static readonly string CanonicalValuesSql = $"""
         INSERT INTO canonical_values (entity_id, key, value, last_scored_at, winning_provider_id)
         SELECT asset_id, 'title',
