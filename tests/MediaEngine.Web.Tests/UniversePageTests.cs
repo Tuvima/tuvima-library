@@ -59,6 +59,10 @@ public sealed class UniversePageTests : AsyncBunitContext
         Services.AddSingleton(_api);
         Services.AddSingleton(_device);
         Services.AddSingleton(_session);
+        // The page confirms administrator status with the Engine when the session does not already say so; this Engine
+        // stand-in answers that check with "not signed in", so the session's own authority decides.
+        Services.AddSingleton<IHttpClientFactory>(new SignedOutEngineClients());
+        Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddSingleton<IAdministratorSurfaceAccessService>(_access);
         // What the editor shell inside the drawer needs, as the drawer's own tests provide it.
@@ -258,6 +262,22 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
         cut.WaitForAssertion(() => Assert.Equal(expected, cut.FindAll("button.universe-hero__edit").Count == 1));
+    }
+
+    [Fact]
+    public async Task TheEditButton_Appears_WhenTheDeviceIsOnlyKnownAfterThePageHasLoaded()
+    {
+        // A fresh load can render before the browser has reported its device; unknown means "can't edit" until it does.
+        SignIn(administrator: true);
+        _editContext = EditContext(editable: true);
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
+        Assert.Empty(cut.FindAll("button.universe-hero__edit"));
+
+        await cut.InvokeAsync(() => UseDeviceAsync("web", "desktop"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
     }
 
     [Fact]
@@ -577,5 +597,16 @@ public sealed class UniversePageTests : AsyncBunitContext
             Requests++;
             return Task.FromResult(Unlocked);
         }
+    }
+
+    private sealed class SignedOutEngineClients : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(new SignedOutHandler(), true) { BaseAddress = new Uri("http://engine.test") };
+    }
+
+    private sealed class SignedOutHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized));
     }
 }

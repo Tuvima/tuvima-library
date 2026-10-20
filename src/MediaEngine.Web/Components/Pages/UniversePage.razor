@@ -13,6 +13,7 @@
 @inject UniverseStateContainer State
 @inject DeviceContextService DeviceContext
 @inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
 @inject IAdministratorSurfaceAccessService AdministratorAccess
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
@@ -102,7 +103,9 @@
 
     private string PageClass => _editing.DrawerOpen ? "universe-page universe-page--editing-drawer" : "universe-page";
 
-    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+    private bool _isAdministrator;
+
+    private bool IsAdministrator => _isAdministrator;
 
     // Desktop administrators who may edit this Universe: the same checks the explorer makes, and the Engine decides again.
     private bool CanShowEdit => IsAdministrator && DeviceContext.CanEdit && _canEditUniverse;
@@ -138,6 +141,7 @@
         _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger));
         _editing.Changed += OnEditingChanged;
         State.OnStateChanged += OnEngineStateChanged;
+        DeviceContext.OnChanged += OnDeviceChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -170,6 +174,10 @@
     // lore plugin is off. Both ask the Engine, which decides again for any action taken.
     private async Task LoadAdministratorExtrasAsync()
     {
+        // On a fresh page load the sign-in details may not have reached this screen yet, so when they don't already say
+        // "administrator" the page asks the Engine once, as the explorer does (the answer is cached for the open screen).
+        _isAdministrator = Session.Authority?.EffectiveAdministrator == true
+            || (await Identity.RevalidateAuthorityAsync(Session, _lifetime.Token))?.EffectiveAdministrator == true;
         if (!IsAdministrator)
         {
             _canEditUniverse = false;
@@ -298,6 +306,30 @@
         _ = RefreshAfterAsync(wait);
     });
 
+    // The device is often only known after the first render (unknown means "can't edit"), so when it becomes a desktop
+    // with a fine pointer the page asks again whether this administrator may edit this Universe.
+    private void OnDeviceChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || _state.Page is null || _canEditUniverse || !DeviceContext.CanEdit)
+        {
+            return;
+        }
+
+        try
+        {
+            await LoadAdministratorExtrasAsync();
+            StateHasChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left before the check finished.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Universe page could not check whether {UniverseQid} is editable", Qid);
+        }
+    });
+
     private async Task RefreshAfterAsync(TimeSpan wait)
     {
         try
@@ -326,6 +358,7 @@
     {
         _disposed = true;
         State.OnStateChanged -= OnEngineStateChanged;
+        DeviceContext.OnChanged -= OnDeviceChanged;
         _editing.Changed -= OnEditingChanged;
         _lifetime.Cancel();
         _lifetime.Dispose();
