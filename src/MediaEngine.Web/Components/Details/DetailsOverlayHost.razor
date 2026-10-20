@@ -23,14 +23,14 @@
     @* First, so app-dialog.js (which labels a dialog by its first h2 with an id) picks it up. *@
     <h2 id="@TitleId" class="tl-details-overlay__title">@(string.IsNullOrWhiteSpace(Overlay.Title) ? "Details" : Overlay.Title)</h2>
     <div class="tl-details-overlay__frame">
-        @* A plain button, not AppNativeButton: this component's scoped styles (44px, top right) only reach its own elements. *@
-        <button type="button"
-                class="tl-details-overlay__close"
-                aria-label="Close"
-                title="Close"
-                @onclick="CloseAsync">
+        @* AppNativeButton renders the element, so its 44px top-right style lives in app.css (scoped styles cannot reach it). *@
+        <AppNativeButton Type="button"
+                         Class="tl-details-overlay__close"
+                         AriaLabel="Close"
+                         Title="Close"
+                         OnClick="CloseAsync">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-        </button>
+        </AppNativeButton>
         <div class="tl-details-overlay__scroller" data-detail-origin-scroll="details-overlay" tabindex="-1" autofocus>
             @ChildContent
         </div>
