@@ -226,6 +226,13 @@ public sealed class PluginDirectoryService
             var client = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await client.GetAsync(sourceUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
+            // The client follows redirects (a github.com address may hand over to raw.githubusercontent.com), but the list is
+            // only accepted when the address it finally came from is still a GitHub one.
+            if (response.RequestMessage?.RequestUri is { } finalAddress && !IsAllowedGitHubUrl(finalAddress.AbsoluteUri))
+            {
+                throw new InvalidDataException("The plugin directory was redirected away from GitHub.");
+            }
+
             var bytes = await ReadLimitedAsync(response, ct).ConfigureAwait(false);
             using var document = JsonDocument.Parse(bytes, ListJson);
             if (PluginDirectoryParser.TryParse(document.RootElement, out var problem) is null)
