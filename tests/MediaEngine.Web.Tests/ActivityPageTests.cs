@@ -75,12 +75,13 @@ public sealed class ActivityPageTests : AsyncBunitContext
         _identity.Role = role;
     }
 
-    private IRenderedComponent<ActivityPage> RenderPage(bool standalone = false, string? scope = null)
+    private IRenderedComponent<ActivityPage> RenderPage(bool standalone = false, string? scope = null, DateTimeOffset? now = null)
     {
         var cut = Render<ActivityPage>(parameters =>
         {
             parameters.Add(page => page.Standalone, standalone);
             parameters.Add(page => page.Scope, scope);
+            parameters.Add(page => page.Clock, new FixedClock(now ?? FixedNow));
         });
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-activity-state='loading']")), TimeSpan.FromSeconds(10));
         return cut;
@@ -95,8 +96,21 @@ public sealed class ActivityPageTests : AsyncBunitContext
 
     // ---- items ---------------------------------------------------------------------------------------------------------------
 
-    private static string Utc(int daysAgo, int hour = 20) =>
-        DateTimeOffset.UtcNow.Date.AddDays(-daysAgo).AddHours(hour).ToString("O");
+    // The page counts "Today" from an injected clock, so the tests do not depend on when or where they run.
+    private static readonly DateTimeOffset FixedNow = new(2026, 10, 19, 12, 0, 0, TimeSpan.Zero);
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    /// <summary>The instant (as UTC text) that falls at <paramref name="hour"/> o'clock on the viewer's local day <paramref name="daysAgo"/> days before <paramref name="now"/>.</summary>
+    private static string LocalDay(DateTimeOffset now, int daysAgo, int hour) =>
+        TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(TimeZoneInfo.ConvertTime(now, TimeZoneInfo.Local).Date.AddDays(-daysAgo).AddHours(hour), DateTimeKind.Unspecified),
+            TimeZoneInfo.Local).ToString("O");
+
+    private static string Utc(int daysAgo, int hour = 20) => LocalDay(FixedNow, daysAgo, hour);
 
     internal static PersonalActivityItemDto Entry(
         string id,
@@ -482,6 +496,24 @@ public sealed class ActivityPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("This month", cut.FindAll(".activity-section__heading")[0].TextContent));
         // Dates only change the headings: the Engine is still asked for single entries.
         Assert.False(_engine.Lists.Last().GroupByTitle);
+    }
+
+    // Either side of UTC midnight the viewer's day and the UTC date can differ; "Today" must follow the viewer's day.
+    [Theory]
+    [InlineData("2026-10-19T12:00:00Z")]
+    [InlineData("2026-10-19T23:30:00Z")]
+    [InlineData("2026-10-20T00:30:00Z")]
+    [InlineData("2026-10-20T01:24:00Z")]
+    public void ByDay_CallsTheViewersOwnDayToday_WhateverTheHourRelativeToUtcMidnight(string clock)
+    {
+        SignIn(Role.Member);
+        var now = DateTimeOffset.Parse(clock, System.Globalization.CultureInfo.InvariantCulture);
+        _engine.OnList = _ => Page([Entry("today", started: LocalDay(now, 0, 9)), Entry("yesterday", started: LocalDay(now, 1, 9))]);
+
+        var cut = RenderPage(now: now);
+
+        var headings = cut.FindAll(".activity-section__heading").Select(heading => heading.TextContent).ToArray();
+        Assert.Equal(["Today", "Yesterday"], headings);
     }
 
     [Fact]
