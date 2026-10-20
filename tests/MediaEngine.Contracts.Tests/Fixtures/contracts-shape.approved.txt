@@ -8757,6 +8757,32 @@ MediaEngine.Contracts.Timeline.MediaEngine.Contracts.Timeline.RematchEntityRespo
   queued: System.Boolean | nullability=not-null | accessors=get,init
   entityId: System.Guid | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearanceGroupDto
+  MediaKind: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Works: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.EntityAppearanceWorkDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearanceSubjectKinds
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearanceWorkDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Year: System.Int32? | nullability=nullable | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=not-null | accessors=get,init
+  Role: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.EntityAppearancesDto
+  UniverseQid: System.String | nullability=not-null | accessors=get,init
+  SubjectKind: System.String | nullability=not-null | accessors=get,init
+  SubjectLabel: System.String | nullability=not-null | accessors=get,init
+  SubjectQid: System.String | nullability=nullable | accessors=get,init
+  PersonId: System.Guid? | nullability=nullable | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.EntityAppearanceGroupDto> | nullability=not-null | accessors=get,init
+  TotalWorks: System.Int32 | nullability=not-null | accessors=get,init
+  WorksWithoutCharacterData: System.Int32 | nullability=not-null | accessors=get,init
+  WorksNotYetChecked: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.SharedEntityAppearanceDto
   work_qid: System.String | nullability=not-null | accessors=get,init
   work_label: System.String | nullability=nullable | accessors=get,init

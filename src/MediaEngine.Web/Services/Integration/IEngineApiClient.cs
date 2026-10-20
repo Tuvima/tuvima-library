@@ -104,6 +104,14 @@ public partial interface IEngineApiClient
     /// <summary>GET /universe/{qid}/cast — characters with their real-world performers.</summary>
     Task<UniverseCastResponse?> GetUniverseCastAsync(string qid, CancellationToken ct = default);
 
+    /// <summary>
+    /// GET /universe/{qid}/also-appears-in — where else a character, place, organisation (<paramref name="entityQid"/>) or
+    /// person (<paramref name="personId"/>) shows up across the Library. Give exactly one of the two. A 404 (unknown, or nothing the
+    /// profile may see) is an empty result; null means a real failure.
+    /// </summary>
+    Task<EntityAppearancesDto?> GetEntityAppearancesAsync(
+        string universeQid, string? entityQid, Guid? personId, CancellationToken ct = default);
+
     /// <summary>GET /universe/{qid}/adaptations — adaptation chain (based_on/derivative_work/inspired_by).</summary>
     Task<UniverseAdaptationTreeResponse?> GetUniverseAdaptationsAsync(string qid, CancellationToken ct = default);
 
