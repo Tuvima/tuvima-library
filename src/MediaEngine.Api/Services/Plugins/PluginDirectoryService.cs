@@ -194,6 +194,9 @@ public sealed class PluginDirectoryService
             Kind = ToKind(entry.Kind),
             Description = entry.Description,
             Permissions = entry.Permissions,
+            Network = entry.Network
+                .Select(destination => new PluginNetworkDestination { Host = destination.Host, Sends = destination.Sends })
+                .ToList(),
         };
         var statement = ApprovalStatementBuilder.ForDirectoryEntry(manifest, ToTrust(entry.TrustLevel));
         return ApprovalStatementBuilder.ToPreview(ApprovalKinds.Plugin, entry.Id, statement);

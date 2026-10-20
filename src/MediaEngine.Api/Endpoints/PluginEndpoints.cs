@@ -609,6 +609,11 @@ internal static class PluginEndpoints
         }).ToList(),
         AllowedTo = ApprovalStatementBuilder.PluginAllowedTo(registration.Manifest).ToList(),
         SendsDataTo = ApprovalStatementBuilder.PluginSendsDataTo(registration.Manifest),
+        NetworkDestinations = registration.Manifest.Network.Select(destination => new PluginNetworkDestinationDto
+        {
+            Host = destination.Host,
+            Sends = destination.Sends,
+        }).ToList(),
         DeclaredSecrets = registration.Manifest.Secrets.Count,
         ConfiguredSecrets = configuredSecrets,
         Settings = registration.Settings.ToDictionary(

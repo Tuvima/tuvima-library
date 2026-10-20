@@ -154,6 +154,39 @@ public sealed class PluginCapabilityAuthorizationTests
     }
 
     [Fact]
+    public void Catalog_FailsAnInternetPluginThatListsNoDestination_AndADestinationWithoutTheInternetPermission()
+    {
+        var noDestination = Manifest([PluginPermissionIds.NetworkHttp]) with { Network = [] };
+        using (var fixture = new CatalogFixture(noDestination))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("no network destinations", registration.LoadError, StringComparison.Ordinal);
+            Assert.Empty(registration.Capabilities);
+            Assert.False(registration.Compatibility.IsCompatible);
+        }
+
+        var withoutPermission = Manifest([PluginPermissionIds.MediaRead]) with
+        {
+            Network = [new PluginNetworkDestination { Host = "api.example.com", Sends = "Titles" }],
+        };
+        using (var fixture = new CatalogFixture(withoutPermission))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("does not declare the network.http permission", registration.LoadError, StringComparison.Ordinal);
+        }
+
+        var malformed = Manifest([PluginPermissionIds.NetworkHttp]) with
+        {
+            Network = [new PluginNetworkDestination { Host = "https://api.example.com", Sends = "Titles" }],
+        };
+        using (var fixture = new CatalogFixture(malformed))
+        {
+            var registration = Assert.Single(fixture.Catalog.List());
+            Assert.Contains("https://api.example.com", registration.LoadError, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void Catalog_FailsUnknownPermissionsAndEntryAssemblyEscape()
     {
         using (var unknown = new CatalogFixture(Manifest(["NETWORK.HTTP"])))
@@ -342,6 +375,24 @@ public sealed class PluginCapabilityAuthorizationTests
             new CommercialSkipPlugin().Manifest.Permissions);
         Assert.Equal([PluginPermissionIds.NetworkHttp], new FandomLorePlugin().Manifest.Permissions);
         Assert.Equal(
+            [("www.wikidata.org", 60), ("*.fandom.com", 60)],
+            new FandomLorePlugin().Manifest.Network.Select(destination => (destination.Host, destination.MaxRequestsPerMinute ?? 0)));
+        Assert.Equal(
+            [
+                "Contacts www.wikidata.org: Wikidata item IDs (QIDs) of Universes already in your Library, to find their Fandom wiki",
+                "Contacts *.fandom.com: Requests for the page list of a wiki you approved; nothing about your Library",
+            ],
+            MediaEngine.Api.Services.Approvals.ApprovalStatementBuilder.PluginAllowedTo(new FandomLorePlugin().Manifest).Take(2));
+        Assert.Equal(
+            "www.wikidata.org, *.fandom.com",
+            MediaEngine.Api.Services.Approvals.ApprovalStatementBuilder.PluginSendsDataTo(new FandomLorePlugin().Manifest));
+        Assert.All(
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new FandomLorePlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            plugin => Assert.Null(PluginCompatibility.ValidateManifest(plugin.Manifest)));
+        Assert.All(
+            new ITuvimaPlugin[] { new CommercialSkipPlugin(), new IntroSkipPlugin(), new RecapDetectionPlugin(), new AiVisualVerifierPlugin() },
+            plugin => Assert.Empty(plugin.Manifest.Network));
+        Assert.Equal(
             [PluginPermissionIds.MediaRead, PluginPermissionIds.ProcessExecute, PluginPermissionIds.PluginStorage],
             new IntroSkipPlugin().Manifest.Permissions);
         Assert.Equal([PluginPermissionIds.MediaRead], new RecapDetectionPlugin().Manifest.Permissions);
@@ -372,6 +423,7 @@ public sealed class PluginCapabilityAuthorizationTests
             Id = TestPlugin.Id,
             Name = "Capability test plugin",
             Permissions = permissions,
+            Network = permissions.Contains(PluginPermissionIds.NetworkHttp) ? [new PluginNetworkDestination { Host = "api.example.com", Sends = "Looks up titles by name" }] : [],
             ToolRequirements = tools ?? [],
             AiPermissions = ai ?? [],
             DefaultSettings = settings is null

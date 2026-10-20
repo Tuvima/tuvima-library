@@ -106,6 +106,18 @@ internal static class ApprovalStatementBuilder
         PermissionWords.TryGetValue(permissionId, out var words) ? words : permissionId;
 
     /// <summary>
+    /// The lines for one permission. Internet access with declared destinations is one "Contacts host: what it sends" line
+    /// per destination instead of the general line; every other permission is its plain words.
+    /// </summary>
+    public static IEnumerable<string> PermissionLines(string permissionId, IReadOnlyList<PluginNetworkDestination> network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+        return network.Count > 0 && IsNetworkHttp(permissionId)
+            ? network.Select(DestinationLine)
+            : [PermissionText(permissionId)];
+    }
+
+    /// <summary>
     /// What a plugin may do: one line per declared permission, per tool it needs ("Needs FFmpeg"), per Local AI ability it
     /// asks for ("Uses Local AI: write text (quick)", sorted), when it declares keys or logins which ones by label, and how
     /// it runs ("Runs as: separate program"). Duplicate lines are shown once. Every line is part of the fingerprint, so a
@@ -124,7 +136,7 @@ internal static class ApprovalStatementBuilder
                 continue;
             }
 
-            lines.Add(PermissionText(permission));
+            lines.AddRange(PermissionLines(permission, manifest.Network));
         }
 
         lines.AddRange(manifest.ToolRequirements.Select(tool => $"Needs {ToolName(tool)}"));
@@ -157,14 +169,29 @@ internal static class ApprovalStatementBuilder
         _ => kind.ToString(),
     };
 
-    /// <summary>"the internet" when the plugin can reach the internet; otherwise null (nothing leaves this machine).</summary>
+    /// <summary>
+    /// The hosts the plugin declares it contacts, separated by commas, when it can reach the internet; "the internet" for a
+    /// plugin that can but does not say where (a plugin directory entry that predates the network list); otherwise null
+    /// (nothing leaves this machine).
+    /// </summary>
     public static string? PluginSendsDataTo(PluginManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        return manifest.Permissions.Any(permission => string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase))
-            ? TheInternet
-            : null;
+        if (!manifest.Permissions.Any(IsNetworkHttp))
+        {
+            return null;
+        }
+
+        return manifest.Network.Count > 0
+            ? string.Join(", ", manifest.Network.Select(destination => destination.Host).Distinct(StringComparer.OrdinalIgnoreCase))
+            : TheInternet;
     }
+
+    private static bool IsNetworkHttp(string permission) =>
+        string.Equals(permission, PluginPermissionIds.NetworkHttp, StringComparison.OrdinalIgnoreCase);
+
+    private static string DestinationLine(PluginNetworkDestination destination) =>
+        $"Contacts {destination.Host}: {destination.Sends.Trim()}";
 
     /// <summary>What a Local AI feature is allowed to do, in plain words; empty for a feature the Library has no words for.</summary>
     public static IReadOnlyList<string> AiFeatureAllowedTo(string featureKey) =>
