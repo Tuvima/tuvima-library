@@ -66,13 +66,14 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
 | `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
+| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0019_universe_record`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp of last Wikidata enrichment |
 
-**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity)
+**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity), `universe_qid`, and a unique index `idx_collections_one_universe_shelf` on `universe_qid` for Universe shelves (`collection_type = 'Universe'`), so one Universe record is presented by at most one Universe shelf.
 
 ### works
 
@@ -694,15 +695,15 @@ Wikidata qualifier.
 
 ### narrative_roots
 
-Universe-level root records with Wikidata provenance.
+The Universe record. One row per Wikidata QID that anchors a group of works (a fictional universe, franchise or Series); the graph, the Library and the Universe page all read the same row. A Universe shelf in `collections` is how the Library presents the record (`collections.universe_qid`), and a Series shelf names the record it belongs to with the same column. The record is created before any shelf names it, is never overwritten by a later shelf (`EnsureAsync`), and keeps a parent recorded earlier when a later write names none.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `collection_id` | TEXT | FK -> `collections.id` (the ParentCollection) |
-| `wikidata_qid` | TEXT | |
-| `franchise_qid` | TEXT | Wikidata P8345 franchise identifier |
-| `series_qid` | TEXT | Wikidata P179 series identifier |
+| `qid` | TEXT | Wikidata QID, primary key |
+| `label` | TEXT | Display label (a user override lives in `narrative_root_user_overrides`) |
+| `level` | TEXT | `Universe`, `Franchise`, `Series` or `Standalone` |
+| `parent_qid` | TEXT | The broader record this one sits under (a franchise within a universe, a Series within a franchise); NULL for a top-level record |
+| `created_at` | TEXT | Timestamp |
 
 ### qid_labels
 

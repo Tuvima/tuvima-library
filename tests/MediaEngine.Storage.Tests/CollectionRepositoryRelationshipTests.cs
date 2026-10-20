@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
@@ -56,92 +57,195 @@ public sealed class CollectionRepositoryRelationshipTests : IDisposable
     }
 
     [Fact]
-    public async Task FindParentCollectionByRelationshipAsync_IgnoresContentGroups()
+    public async Task UpsertAsync_RoundTripsTheUniverseQidOfAShelf()
     {
         var repo = new CollectionRepository(_db);
-        var contentGroup = CreateCollection("The Expanse", "ContentGroup");
+        await EnsureUniverseRecordAsync("Q18011049");
+        var shelf = CreateCollection("Dune book series", "ContentGroup");
+        shelf.UniverseQid = "Q18011049";
 
-        await repo.UpsertAsync(contentGroup);
-        await repo.InsertRelationshipsAsync([CreateRelationship(contentGroup.Id, "franchise", "Q19610143", "The Expanse")]);
+        await repo.UpsertAsync(shelf);
 
-        var parent = await repo.FindParentCollectionByRelationshipAsync("Q19610143");
-        Assert.Null(parent);
+        var saved = await repo.GetByIdAsync(shelf.Id);
+        Assert.Equal("Q18011049", saved!.UniverseQid);
+        var all = await repo.GetAllAsync();
+        Assert.Equal("Q18011049", all.Single(candidate => candidate.Id == shelf.Id).UniverseQid);
     }
 
     [Fact]
-    public async Task FindParentCollectionByRelationshipAsync_ReturnsUniverseParent()
+    public async Task SetUniverseAsync_SetsTheUniverseRecordAndTheUniverseShelfTogether()
     {
         var repo = new CollectionRepository(_db);
-        var contentGroup = CreateCollection("The Expanse", "ContentGroup");
-        var parentUniverse = CreateCollection("The Expanse Universe", "Universe");
+        await EnsureUniverseRecordAsync("Q18011049");
+        var universe = CreateUniverseShelf("Dune", "Q18011049");
+        var shelf = CreateCollection("Dune book series", "ContentGroup");
+        await repo.UpsertAsync(universe);
+        await repo.UpsertAsync(shelf);
 
-        await repo.UpsertAsync(contentGroup);
-        await repo.UpsertAsync(parentUniverse);
-        await repo.InsertRelationshipsAsync(
-        [
-            CreateRelationship(contentGroup.Id, "franchise", "Q19610143", "The Expanse"),
-            CreateRelationship(parentUniverse.Id, "franchise", "Q19610143", "The Expanse"),
-        ]);
+        await repo.SetUniverseAsync(shelf.Id, "Q18011049", universe.Id);
 
-        var parent = await repo.FindParentCollectionByRelationshipAsync("Q19610143");
-        Assert.NotNull(parent);
-        Assert.Equal(parentUniverse.Id, parent!.Id);
+        var saved = await repo.GetByIdAsync(shelf.Id);
+        Assert.Equal("Q18011049", saved!.UniverseQid);
+        Assert.Equal(universe.Id, saved.ParentCollectionId);
+
+        await repo.SetUniverseAsync(shelf.Id, null, null);
+
+        saved = await repo.GetByIdAsync(shelf.Id);
+        Assert.Null(saved!.UniverseQid);
+        Assert.Null(saved.ParentCollectionId);
     }
 
     [Fact]
-    public async Task RelationshipRollupQueries_IncludeBroaderSeriesRelationshipsForShelfCollections()
+    public async Task UniverseShelfLookups_SeparateTheUniverseShelfFromItsSeriesShelves()
     {
         var repo = new CollectionRepository(_db);
-        var lotr = CreateCollection("The Lord of the Rings", "ContentGroup");
-        var hobbit = CreateCollection("The Hobbit trilogy", "ContentGroup");
-        var parentUniverse = CreateCollection("Peter Jackson's Middle-earth film series", "Universe");
+        await EnsureUniverseRecordAsync("Q18011049");
+        var universe = CreateUniverseShelf("Dune", "Q18011049");
+        var books = CreateCollection("Dune book series", "ContentGroup");
+        books.UniverseQid = "Q18011049";
+        var movies = CreateCollection("Dune film series", "ContentGroup");
+        movies.UniverseQid = "Q18011049";
+        await repo.UpsertAsync(universe);
+        await repo.UpsertAsync(books);
+        await repo.UpsertAsync(movies);
 
-        await repo.UpsertAsync(lotr);
-        await repo.UpsertAsync(hobbit);
-        await repo.UpsertAsync(parentUniverse);
-        await repo.InsertRelationshipsAsync(
-        [
-            CreateRelationship(lotr.Id, "series", "Q26214973", "Peter Jackson's Middle-earth film series"),
-            CreateRelationship(hobbit.Id, "series", "Q26214973", "Peter Jackson's Middle-earth film series"),
-            CreateRelationship(parentUniverse.Id, "series", "Q26214973", "Peter Jackson's Middle-earth film series"),
-        ]);
+        var found = await repo.FindUniverseShelfByUniverseQidAsync("Q18011049");
+        var series = await repo.ListSeriesShelvesByUniverseQidAsync("Q18011049");
 
-        var shelfIds = await repo.FindCollectionIdsByFranchiseQidAsync("Q26214973");
-        var parent = await repo.FindParentCollectionByRelationshipAsync("Q26214973");
-
-        Assert.Contains(lotr.Id, shelfIds);
-        Assert.Contains(hobbit.Id, shelfIds);
-        Assert.DoesNotContain(parentUniverse.Id, shelfIds);
-        Assert.NotNull(parent);
-        Assert.Equal(parentUniverse.Id, parent!.Id);
+        Assert.Equal(universe.Id, found!.Id);
+        Assert.Equal(2, series.Count);
+        Assert.Contains(series, shelf => shelf.Id == books.Id);
+        Assert.Contains(series, shelf => shelf.Id == movies.Id);
     }
 
     [Fact]
-    public async Task RelationshipRollupQueries_IncludeBasedOnRelationshipsForCrossMediaShelves()
+    public async Task UniverseShelfIndex_RejectsASecondUniverseShelfForOneUniverseRecord()
     {
         var repo = new CollectionRepository(_db);
-        var comic = CreateCollection("Batman", "ContentGroup");
-        var movie = CreateCollection("Batman in film", "ContentGroup");
-        var parentUniverse = CreateCollection("Batman", "Universe");
+        await EnsureUniverseRecordAsync("Q18011049");
+        await repo.UpsertAsync(CreateUniverseShelf("Dune", "Q18011049"));
 
-        await repo.UpsertAsync(comic);
-        await repo.UpsertAsync(movie);
-        await repo.UpsertAsync(parentUniverse);
+        // The unique index refuses the second row: a direct insert fails, and the repository's insert-or-ignore stores nothing.
+        using (var conn = _db.CreateConnection())
+        {
+            Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => conn.Execute(
+                "INSERT INTO collections (id, collection_type, universe_qid) VALUES (@id, 'Universe', 'Q18011049');",
+                new { id = Guid.NewGuid() }));
+        }
+
+        var second = CreateUniverseShelf("Dune again", "Q18011049");
+        await repo.UpsertAsync(second);
+        Assert.Null(await repo.GetByIdAsync(second.Id));
+        Assert.Single(await repo.GetByTypeAsync("Universe"));
+
+        // Series shelves may share a Universe record freely.
+        var books = CreateCollection("Dune book series", "ContentGroup");
+        books.UniverseQid = "Q18011049";
+        var movies = CreateCollection("Dune film series", "ContentGroup");
+        movies.UniverseQid = "Q18011049";
+        await repo.UpsertAsync(books);
+        await repo.UpsertAsync(movies);
+        Assert.Equal(2, (await repo.ListSeriesShelvesByUniverseQidAsync("Q18011049")).Count);
+    }
+
+    [Fact]
+    public async Task FindSeriesShelvesByQidAsync_ReturnsSeriesShelvesOfEveryMediaTypeButNeverTheUniverseShelf()
+    {
+        var repo = new CollectionRepository(_db);
+        var books = CreateCollection("The Expanse", "ContentGroup");
+        books.WikidataQid = "Q19610143";
+        books.MediaType = "Books";
+        var audiobooks = CreateCollection("The Expanse (audio)", "ContentGroup");
+        audiobooks.WikidataQid = "Q19610143";
+        audiobooks.MediaType = "Audiobooks";
+        var universe = CreateCollection("The Expanse", "Universe");
+        universe.WikidataQid = "Q19610143";
+        await repo.UpsertAsync(books);
+        await repo.UpsertAsync(audiobooks);
+        await repo.UpsertAsync(universe);
+
+        var shelves = await repo.FindSeriesShelvesByQidAsync("Q19610143");
+
+        Assert.Equal(2, shelves.Count);
+        Assert.Contains(shelves, shelf => shelf.Id == books.Id);
+        Assert.Contains(shelves, shelf => shelf.Id == audiobooks.Id);
+    }
+
+    [Fact]
+    public async Task ListShelvesWithRollupRelationshipQidAsync_ReturnsSeriesShelvesThatNameTheQid()
+    {
+        var repo = new CollectionRepository(_db);
+        var books = CreateCollection("The Expanse", "ContentGroup");
+        var television = CreateCollection("The Expanse TV", "ContentGroup");
+        var unrelated = CreateCollection("Dune", "ContentGroup");
+        var universe = CreateCollection("The Expanse universe", "Universe");
+        await repo.UpsertAsync(books);
+        await repo.UpsertAsync(television);
+        await repo.UpsertAsync(unrelated);
+        await repo.UpsertAsync(universe);
         await repo.InsertRelationshipsAsync(
         [
-            CreateRelationship(comic.Id, "based_on", "Q2695156", "Batman"),
-            CreateRelationship(movie.Id, "based_on", "Q2695156", "Batman"),
-            CreateRelationship(parentUniverse.Id, "based_on", "Q2695156", "Batman"),
+            CreateRelationship(books.Id, "series", "Q19610143", "The Expanse"),
+            CreateRelationship(television.Id, "based_on", "Q19610143", "The Expanse"),
+            CreateRelationship(universe.Id, "series", "Q19610143", "The Expanse"),
+            CreateRelationship(unrelated.Id, "franchise", "Q6095696", "Dune"),
         ]);
 
-        var shelfIds = await repo.FindCollectionIdsByFranchiseQidAsync("Q2695156");
-        var parent = await repo.FindParentCollectionByRelationshipAsync("Q2695156");
+        var shelves = await repo.ListShelvesWithRollupRelationshipQidAsync("Q19610143");
 
-        Assert.Contains(comic.Id, shelfIds);
-        Assert.Contains(movie.Id, shelfIds);
-        Assert.DoesNotContain(parentUniverse.Id, shelfIds);
-        Assert.NotNull(parent);
-        Assert.Equal(parentUniverse.Id, parent!.Id);
+        Assert.Equal(2, shelves.Count);
+        Assert.Contains(shelves, shelf => shelf.Id == books.Id);
+        Assert.Contains(shelves, shelf => shelf.Id == television.Id);
+    }
+
+    [Fact]
+    public async Task DeleteUnusedUniverseShelfAsync_DeletesOnlyAnUneditedShelfWithNoChildren()
+    {
+        var repo = new CollectionRepository(_db);
+        await EnsureUniverseRecordAsync("Q1");
+        await EnsureUniverseRecordAsync("Q2");
+        await EnsureUniverseRecordAsync("Q3");
+        var empty = CreateUniverseShelf("Empty", "Q1");
+        var edited = CreateUniverseShelf("Edited", "Q2");
+        edited.Description = "Written by the owner.";
+        var withChild = CreateUniverseShelf("With child", "Q3");
+        var child = CreateCollection("Child", "ContentGroup");
+        child.ParentCollectionId = withChild.Id;
+        await repo.UpsertAsync(empty);
+        await repo.UpsertAsync(edited);
+        await repo.UpsertAsync(withChild);
+        await repo.UpsertAsync(child);
+
+        Assert.True(await repo.DeleteUnusedUniverseShelfAsync(empty.Id));
+        Assert.False(await repo.DeleteUnusedUniverseShelfAsync(edited.Id));
+        Assert.False(await repo.DeleteUnusedUniverseShelfAsync(withChild.Id));
+        Assert.False(await repo.DeleteUnusedUniverseShelfAsync(child.Id));
+
+        Assert.Null(await repo.GetByIdAsync(empty.Id));
+        Assert.NotNull(await repo.GetByIdAsync(edited.Id));
+        Assert.NotNull(await repo.GetByIdAsync(withChild.Id));
+        Assert.NotNull(await repo.GetByIdAsync(child.Id));
+    }
+
+    [Fact]
+    public async Task FindSeriesShelfForWorkTreeAsync_FindsTheShelfOfAnEpisodeFromItsShow()
+    {
+        var repo = new CollectionRepository(_db);
+        var shelf = CreateCollection("The Expanse", "ContentGroup");
+        await repo.UpsertAsync(shelf);
+        var showWorkId = Guid.NewGuid();
+        var seasonWorkId = Guid.NewGuid();
+        var episodeWorkId = Guid.NewGuid();
+        InsertWork(showWorkId, shelf.Id, mediaType: "TV");
+        InsertWork(seasonWorkId, shelf.Id, showWorkId, mediaType: "TV");
+        InsertWork(episodeWorkId, shelf.Id, seasonWorkId, mediaType: "TV");
+
+        var found = await repo.FindSeriesShelfForWorkTreeAsync(showWorkId);
+        var roots = await repo.GetRootWorkIdsOnShelfAsync(shelf.Id);
+
+        Assert.Equal(shelf.Id, found!.Id);
+        Assert.Equal([showWorkId], roots);
+        Assert.Null(await repo.FindSeriesShelfForWorkTreeAsync(Guid.NewGuid()));
     }
 
     [Fact]
@@ -279,6 +383,22 @@ public sealed class CollectionRepositoryRelationshipTests : IDisposable
         Assert.Equal("Dune", group.DisplayName);
         Assert.Equal(workId, Assert.Single(group.Works).Id);
     }
+
+    private static Collection CreateUniverseShelf(string name, string universeQid)
+    {
+        var shelf = CreateCollection(name, "Universe");
+        shelf.WikidataQid = universeQid;
+        shelf.UniverseQid = universeQid;
+        return shelf;
+    }
+
+    private Task EnsureUniverseRecordAsync(string qid) =>
+        new NarrativeRootRepository(_db).EnsureAsync(new MediaEngine.Domain.Models.NarrativeRoot
+        {
+            Qid = qid,
+            Label = qid,
+            Level = NarrativeLevel.Universe,
+        });
 
     private static Collection CreateCollection(string name, string type = "Universe")
     {
