@@ -195,7 +195,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                     SequenceLabel = BuildSequenceLabel(row),
                     Status = row.ReviewCount > 0
                         ? "review"
-                        : row.PresentedAt.HasValue ? "complete" : FriendlyOperationState(row.OperationStatus),
+                        : row.IsReady ? "complete" : FriendlyOperationState(row.OperationStatus),
                     DurationLabel = FormatChildDuration(row.MediaType, row.DurationLabel),
                 };
             })
@@ -1170,6 +1170,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 lfo.status AS OperationStatus,
                 lfo.stage AS OperationStage,
                 ma.presented_at AS PresentedAt,
+                w.first_ready_at AS FirstReadyAt,
                 ll.created_at AS AddedAt,
                 COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) AS UpdatedAt,
                 (SELECT COUNT(*) FROM review_queue rq WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id) AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL) AS ReviewCount,
@@ -1323,7 +1324,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             Metadata = Facet("Metadata", "metadata", scopedOps, intakeComplete, applies: true, settled: availability == "ready"),
             Relationships = Facet("Relationships", "relationship", scopedOps, false, applies: true, settled: availability == "ready"),
             TextTracks = Facet(mediaType == "Music" ? "Lyrics" : "Subtitles", "text", scopedOps, rows.Any(row => row.TextTrackCount > 0), applies: mediaType is "Music" or "Movies" or "TV", settled: availability == "ready"),
-            AddedAt = rows.Min(row => row.PresentedAt ?? row.AddedAt),
+            // "Added" is the moment the group first became Ready (D9), the same time the Added summary and the
+            // Recently Added filters use; a group not Ready yet keeps the time its files arrived.
+            AddedAt = rows.Any(row => row.FirstReadyAt.HasValue)
+                ? rows.Where(row => row.FirstReadyAt.HasValue).Min(row => row.FirstReadyAt!.Value)
+                : rows.Min(row => row.PresentedAt ?? row.AddedAt),
             UpdatedAt = scopedOps.Select(operation => operation.UpdatedAt).Append(rows.Max(row => row.UpdatedAt)).Max(),
         };
     }
@@ -2380,6 +2385,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public string? OperationStatus { get; set; }
         public string? OperationStage { get; set; }
         public DateTimeOffset? PresentedAt { get; set; }
+        public DateTimeOffset? FirstReadyAt { get; set; }
         public DateTimeOffset AddedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public int ReviewCount { get; set; }
