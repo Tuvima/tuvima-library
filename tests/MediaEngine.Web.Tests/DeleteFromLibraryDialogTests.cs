@@ -471,6 +471,35 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         host.WaitForAssertion(() => Assert.Contains("Delete a show's episodes one at a time.", host.Markup, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task WhenTheDeleteGotNoAnswer_TheDialogDoesNotClaimNothingWasDeletedAndOffersCloseNotTryAgain()
+    {
+        _delete = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unconfirmed));
+        var (host, dialog) = await OpenAsync();
+        Ready(host);
+
+        Button(host, "Delete from library and disk").Click();
+
+        host.WaitForAssertion(() => Assert.Contains("The Engine didn't answer in time. Check your library before trying again.", host.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Nothing was deleted", host.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(host.FindAll("footer button"), button => button.TextContent.Trim() is "Try again" or "Delete from library and disk");
+        Assert.Equal(1, _previewCalls);
+
+        Button(host, "Close").Click();
+        Assert.True((await dialog.Result)!.Canceled);
+        Assert.Single(_deleteCalls);
+    }
+
+    [Fact]
+    public async Task ATitleWithNoFiles_SaysThisTitleHasNoFilesInTheSingular()
+    {
+        _preview = () => Task.FromResult(LibraryItemDeletionOutcome<LibraryItemDeletionPreview>.Ok(Movie(files: [])));
+        var (host, _) = await OpenAsync();
+        Ready(host);
+
+        Assert.Contains("This title has no files on disk.", Body(host), StringComparison.Ordinal);
+    }
+
     // -- Several songs -------------------------------------------------------------------------
 
     [Fact]

@@ -46,6 +46,16 @@ public sealed class ExcludedSourceFileFilter : IExcludedSourceFileFilter
     /// <inheritdoc />
     public async Task<bool> ShouldSkipAsync(string fullPath, CancellationToken ct = default)
     {
+        var index = await GetIndexAsync(ct).ConfigureAwait(false);
+        lock (_indexLock)
+        {
+            // Nothing is excluded anywhere: no need to work out which source folder the file is in.
+            if (index.Count == 0)
+            {
+                return false;
+            }
+        }
+
         var source = _folders.ResolveSourceForPath(fullPath);
         if (source is null)
         {
@@ -58,7 +68,6 @@ public sealed class ExcludedSourceFileFilter : IExcludedSourceFileFilter
             return false;
         }
 
-        var index = await GetIndexAsync(ct).ConfigureAwait(false);
         var key = KeyOf(source.Source.Id, relative);
         ExcludedSourceFile? row;
         lock (_indexLock)
@@ -114,7 +123,17 @@ public sealed class ExcludedSourceFileFilter : IExcludedSourceFileFilter
         {
             // The same file, touched. Remember its new facts so the next scan does not read it again.
             var refreshed = row with { ContentHash = hash, FileSize = size, LastWriteUtc = lastWrite };
-            await _excluded.AddOrReplaceAsync(refreshed, ct).ConfigureAwait(false);
+            try
+            {
+                await _excluded.AddOrReplaceAsync(refreshed, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The file is still the excluded one, so it stays skipped; only the remembered facts could not be saved.
+                _logger.LogWarning(ex, "Could not save the refreshed facts of the excluded file {RelativePath}; it stays excluded", relative);
+                return true;
+            }
+
             lock (_indexLock)
             {
                 if (ReferenceEquals(_index, index))
@@ -128,7 +147,15 @@ public sealed class ExcludedSourceFileFilter : IExcludedSourceFileFilter
 
         // A different file now sits at this place: it is a new file, not the one that was deleted.
         await _excluded.RemoveAsync(row.Id, ct).ConfigureAwait(false);
-        Invalidate();
+        lock (_indexLock)
+        {
+            // Only the lifted exclusion leaves the remembered rows; the others stay as they are.
+            if (ReferenceEquals(_index, index))
+            {
+                index.Remove(key);
+            }
+        }
+
         _logger.LogInformation(
             "A different file now sits at the excluded place {RelativePath} in source {SourceId}; the exclusion was lifted and the file will be ingested",
             relative, source.Source.Id);

@@ -285,6 +285,7 @@
     private bool _chromeVisible = true;
     private bool _opened;
     private bool _exited;
+    private bool _removed; // the title was deleted from the library: nothing more is saved for it
     private bool _disposing;
     private bool _disposed;
     private double _fraction;
@@ -373,6 +374,7 @@
             }
 
             _exited = true;
+            _removed = true;
             Toast.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
             Nav.NavigateTo("/", replace: true);
         });
@@ -641,7 +643,7 @@
     private async Task SaveProgressAsync()
     {
         var cfi = _latestCfi;
-        if (string.IsNullOrWhiteSpace(cfi))
+        if (_removed || string.IsNullOrWhiteSpace(cfi))
         {
             return;
         }

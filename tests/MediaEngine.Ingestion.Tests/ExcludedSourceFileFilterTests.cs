@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
@@ -21,11 +22,13 @@ public sealed class ExcludedSourceFileFilterTests : IDisposable
     private readonly ImportFolderHarness _h = new();
     private readonly ExcludedSourceFileRepository _excluded;
     private readonly CountingHasher _hasher = new();
+    private readonly FlakyRepository _flaky;
     private readonly ExcludedSourceFileFilter _filter;
 
     public ExcludedSourceFileFilterTests()
     {
         _excluded = new ExcludedSourceFileRepository(_h.Db.Connection);
+        _flaky = new FlakyRepository(_excluded);
         var options = new IngestionOptions
         {
             LibraryFolders =
@@ -37,7 +40,7 @@ public sealed class ExcludedSourceFileFilterTests : IDisposable
         };
         _filter = new ExcludedSourceFileFilter(
             new LibraryFolderResolver(new ReloadableOptionsMonitor<IngestionOptions>(options)),
-            _excluded,
+            _flaky,
             _hasher,
             NullLogger<ExcludedSourceFileFilter>.Instance);
     }
@@ -159,6 +162,65 @@ public sealed class ExcludedSourceFileFilterTests : IDisposable
         Assert.False(await _filter.ShouldSkipAsync(WriteFile(Path.Combine("Someone Else", "Dune.epub"), "dune book")));
     }
 
+    [Fact]
+    public async Task When_the_refreshed_facts_cannot_be_saved_a_touched_copy_of_the_excluded_file_stays_skipped()
+    {
+        var path = WriteFile("Dune.epub", "dune book");
+        await ExcludeAsync(path);
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddHours(-3));
+        _flaky.FailWrites = true;
+
+        Assert.True(await _filter.ShouldSkipAsync(path));
+    }
+
+    [Fact]
+    public async Task Lifting_one_exclusion_leaves_the_others_in_place_without_reloading_them()
+    {
+        var gone = WriteFile("Dune.epub", "dune book");
+        var kept = WriteFile("Emma.epub", "emma book");
+        await ExcludeAsync(gone);
+        await ExcludeAsync(kept);
+        Assert.True(await _filter.ShouldSkipAsync(kept));
+        var loadsBefore = _flaky.ListAllCalls;
+        File.WriteAllText(gone, "a completely different book, longer than before");
+
+        Assert.False(await _filter.ShouldSkipAsync(gone));
+
+        Assert.True(await _filter.ShouldSkipAsync(kept));
+        Assert.Equal(loadsBefore, _flaky.ListAllCalls);
+    }
+
+    [Fact]
+    public async Task With_nothing_excluded_a_file_is_not_skipped_and_its_source_folder_is_not_looked_up()
+    {
+        var path = WriteFile("Dune.epub", "dune book");
+
+        Assert.False(await _filter.ShouldSkipAsync(path));
+        Assert.Equal(0, _hasher.Count);
+    }
+
+    [Fact]
+    public async Task When_the_check_itself_fails_the_scan_skips_the_file_for_this_pass()
+    {
+        var path = WriteFile("Dune.epub", "dune book");
+        var failing = new ThrowingFilter();
+        var method = typeof(IngestionEngine).GetMethod("IsExcludedScanFileAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
+        var skipped = await (Task<bool>)method.Invoke(null, [failing, NullLogger.Instance, path, CancellationToken.None])!;
+
+        Assert.True(skipped);
+    }
+
+    [Fact]
+    public async Task Without_a_filter_the_scan_does_not_skip_anything()
+    {
+        var method = typeof(IngestionEngine).GetMethod("IsExcludedScanFileAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
+        var skipped = await (Task<bool>)method.Invoke(null, [null, NullLogger.Instance, "x.epub", CancellationToken.None])!;
+
+        Assert.False(skipped);
+    }
+
     private string WriteFile(string relative, string content)
     {
         var path = Path.Combine(_h.AsIsDir, relative);
@@ -184,6 +246,39 @@ public sealed class ExcludedSourceFileFilterTests : IDisposable
             null,
             "Test",
             ExcludedSourceFileReasons.AsIs));
+    }
+
+    /// <summary>Wraps the real repository and can make writes fail or count how often the whole list is read.</summary>
+    private sealed class FlakyRepository(IExcludedSourceFileRepository inner) : IExcludedSourceFileRepository
+    {
+        private int _listAllCalls;
+
+        public bool FailWrites { get; set; }
+
+        public int ListAllCalls => Volatile.Read(ref _listAllCalls);
+
+        public Task AddOrReplaceAsync(ExcludedSourceFile file, CancellationToken ct = default) =>
+            FailWrites ? throw new IOException("The data store is busy") : inner.AddOrReplaceAsync(file, ct);
+
+        public Task<IReadOnlyList<ExcludedSourceFile>> ListByLibraryAsync(string libraryId, CancellationToken ct = default) => inner.ListByLibraryAsync(libraryId, ct);
+
+        public Task<IReadOnlyList<ExcludedSourceFile>> ListAllAsync(CancellationToken ct = default)
+        {
+            Interlocked.Increment(ref _listAllCalls);
+            return inner.ListAllAsync(ct);
+        }
+
+        public Task<ExcludedSourceFile?> GetAsync(string sourceId, string relativePath, CancellationToken ct = default) => inner.GetAsync(sourceId, relativePath, ct);
+
+        public Task<bool> RemoveAsync(Guid id, CancellationToken ct = default) => inner.RemoveAsync(id, ct);
+    }
+
+    private sealed class ThrowingFilter : IExcludedSourceFileFilter
+    {
+        public void Invalidate() { }
+
+        public Task<bool> ShouldSkipAsync(string fullPath, CancellationToken ct = default) =>
+            throw new InvalidOperationException("The excluded files could not be read");
     }
 
     /// <summary>Hashes like the real thing and counts how many files it was asked to read.</summary>

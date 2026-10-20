@@ -14,6 +14,7 @@ public static class LibraryItemDeletionText
     public const string Checking = "Checking what will be deleted…";
     public const string Changed = "Something changed since you opened this. Here's the updated list.";
     public const string Unavailable = "Couldn't reach the Engine. Nothing was deleted.";
+    public const string Unconfirmed = "The Engine didn't answer in time. Check your library before trying again.";
     public const string Forbidden = "You need administrator access to delete items.";
     public const string NoLongerInLibrary = "This item is no longer in your library.";
     public const string InvalidFallback = "The Engine couldn't delete these items. Nothing was deleted.";

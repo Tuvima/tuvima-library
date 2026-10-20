@@ -88,7 +88,7 @@ public sealed partial class PlaybackSessionController
 
     /// <summary>
     /// Titles were deleted from the library by an administrator. The one playing stops and the player closes (true is returned so the
-    /// caller can say why); upcoming and recent entries for the deleted titles quietly leave the queue and history. The Engine has already
+    /// caller can say why); upcoming and recent entries for the deleted titles quietly leave the queue (before or after the current one) and history. The Engine has already
     /// removed its saved queue rows, so nothing is sent back.
     /// </summary>
     public async Task<bool> HandleLibraryItemsRemovedAsync(IReadOnlyCollection<Guid> workIds, IReadOnlyCollection<Guid> assetIds)
@@ -105,15 +105,23 @@ public sealed partial class PlaybackSessionController
             return true;
         }
 
+        // Upcoming and already-played entries both go, so Previous cannot play a deleted title. The current item stays at its place.
         var changed = false;
-        for (var index = _queue.Count - 1; index > CurrentIndex; index--)
+        for (var index = _queue.Count - 1; index >= 0; index--)
         {
-            if (Gone(_queue[index]))
+            if (index == CurrentIndex || !Gone(_queue[index]))
             {
-                _persistedQueueEntries.Remove(_queue[index].QueueEntryId);
-                _queue.RemoveAt(index);
-                changed = true;
+                continue;
             }
+
+            _persistedQueueEntries.Remove(_queue[index].QueueEntryId);
+            _queue.RemoveAt(index);
+            if (index < CurrentIndex)
+            {
+                CurrentIndex--;
+            }
+
+            changed = true;
         }
 
         changed |= _history.RemoveAll(Gone) > 0;
