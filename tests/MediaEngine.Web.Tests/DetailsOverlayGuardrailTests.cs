@@ -72,30 +72,49 @@ public sealed partial class DetailsOverlayGuardrailTests
         Assert.DoesNotContain("Nav.ToAbsoluteUri(Nav.Uri)", section, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void ReplacingNavigationsToADetailAddressAreOnlyMadeThroughTheOverlayState()
+    // Every call that replaces the current history entry, per file, and why it can never target a detail address. The overlay
+    // cannot re-issue a replace (its location handler is not told whether a navigation replaces), so a replace that can reach
+    // /details/ must go through DetailsOverlayNavigation, which gives the new entry its own history state. A new call site, or a
+    // changed count, fails until it is reviewed and listed here.
+    private static readonly Dictionary<string, (int Count, string Reason)> ReplacingNavigationAllowlist = new(StringComparer.Ordinal)
     {
-        var offenders = new List<string>();
-        foreach (var file in SourceFiles().Where(file => file.RelativePath != "Services/Navigation/DetailsOverlayState.cs"))
-        {
-            // The replace is made by the overlay state (DetailsOverlayNavigation) so that it carries its history state.
-            var inDetails = file.RelativePath.StartsWith("Components/Details/", StringComparison.Ordinal);
-            foreach (Match match in ReplacingNavigation().Matches(file.Source))
-            {
-                // A reader's return address (returnUrl) is its title's detail address.
-                if (inDetails
-                    || match.Value.Contains("/details", StringComparison.OrdinalIgnoreCase)
-                    || match.Value.Contains("returnUrl", StringComparison.Ordinal))
-                {
-                    offenders.Add($"{file.RelativePath}: {match.Value.Trim()}");
-                }
-            }
-        }
+        ["Components/Browse/MediaBrowseShell.razor"] = (1, "The lane rewriting its own filter address (a browse route)."),
+        ["Components/Navigation/TopNavProfileSwitcher.razor"] = (1, "Full reload to Home after switching profile."),
+        ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
+        ["Components/Pages/EpubReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
+        ["Components/Pages/ForMe.razor"] = (2, "Redirects to the My Library page or a View all grid."),
+        ["Components/Pages/Operations.razor"] = (2, "Redirects to Settings routes."),
+        ["Components/Pages/ProfilePickerPage.razor"] = (2, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
+        ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
+        ["Components/Pages/Settings.razor"] = (11, "Settings redirects to Home, /not-found or another Settings route."),
+        ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
+        ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
+        ["Components/Settings/IngestionTasksTab.razor"] = (1, "Redirect to the Activity log route."),
+        ["Components/Settings/ProfileDetailPage.razor"] = (2, "Redirect to the Settings profiles list."),
+        ["Shared/MainLayout.razor"] = (1, "Full reload to the profile picker."),
+        ["Services/Navigation/DetailsOverlayState.cs"] = (4, "The overlay's own replaces (DetailsOverlayNavigation and dismissal), which carry their history state."),
+    };
+
+    [Fact]
+    public void EveryReplacingNavigationIsReviewedAndNoneThatCanReachADetailAddressBypassesTheOverlayState()
+    {
+        var found = SourceFiles()
+            .Select(file => (file.RelativePath, Count: ReplacingNavigation().Matches(file.Source).Count))
+            .Where(file => file.Count > 0)
+            .ToDictionary(file => file.RelativePath, file => file.Count, StringComparer.Ordinal);
+
+        var unreviewed = found
+            .Where(file => !ReplacingNavigationAllowlist.TryGetValue(file.Key, out var allowed) || allowed.Count != file.Value)
+            .Select(file => $"{file.Key} ({file.Value})")
+            .ToList();
+        var stale = ReplacingNavigationAllowlist.Keys.Where(path => !found.ContainsKey(path)).ToList();
 
         Assert.True(
-            offenders.Count == 0,
-            "A replace to a detail address must go through DetailsOverlayNavigation (it cannot be re-issued by the overlay): "
-            + string.Join("; ", offenders));
+            unreviewed.Count == 0,
+            "A call that replaces the history entry must be reviewed: if it can target a /details/ address, use DetailsOverlayNavigation; "
+            + "otherwise list it (with its count and a reason) in ReplacingNavigationAllowlist: " + string.Join(", ", unreviewed));
+        Assert.True(stale.Count == 0, "Remove allowlist entries whose replace is gone: " + string.Join(", ", stale));
+        Assert.All(ReplacingNavigationAllowlist.Values, entry => Assert.False(string.IsNullOrWhiteSpace(entry.Reason)));
     }
 
     private static IEnumerable<(string RelativePath, string Source)> SourceFiles()
@@ -123,7 +142,7 @@ public sealed partial class DetailsOverlayGuardrailTests
     [GeneratedRegex(@"\.LocationChanged\s*\+=")]
     private static partial Regex LocationChangedSubscription();
 
-    // A NavigateTo(...) statement that replaces the current history entry.
-    [GeneratedRegex(@"NavigateTo\([^;]*?replace:\s*true[^;]*;", RegexOptions.Singleline)]
+    // A NavigateTo(...) statement that replaces the current history entry, or an options object that does.
+    [GeneratedRegex(@"NavigateTo\([^;]*?replace:\s*(?!false)[^;]*;|ReplaceHistoryEntry\s*=\s*true", RegexOptions.Singleline)]
     private static partial Regex ReplacingNavigation();
 }

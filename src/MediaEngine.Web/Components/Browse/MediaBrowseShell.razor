@@ -653,7 +653,10 @@
             _activeProfileResolved = true;
         }
 
-        ReadUrlState(_address!.Absolute);
+        // The Router renders before this shell's own location handler runs, so a same-page change (a new tab with a new
+        // query) must be picked up here, or the new tab would be read with the old query. A detail address is ignored.
+        _address!.Accept(Nav.Uri);
+        ReadUrlState(_address.Absolute);
         var queryKey = BuildCurrentQueryKey();
         if (string.Equals(queryKey, _lastParameterQueryKey, StringComparison.Ordinal))
             return;
