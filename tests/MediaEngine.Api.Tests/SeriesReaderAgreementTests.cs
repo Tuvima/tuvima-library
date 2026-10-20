@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Dapper;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
@@ -237,6 +238,72 @@ public sealed class SeriesReaderAgreementTests : IDisposable
 
         Assert.Equal(("3", 3d), (onTrilogy.CurrentItem.PositionLabel, onTrilogy.CurrentItem.PositionSort));
         Assert.Equal(("7.5", 7.5d), (onCycle.CurrentItem.PositionLabel, onCycle.CurrentItem.PositionSort));
+    }
+
+    [Fact]
+    public async Task AWorkInTwoSeries_IsOrderedByEachSeriesOwnNumber_InTheHelperAppUniverse()
+    {
+        var seeded = await SeedTwoSeriesAsync();
+        var collections = new CollectionRepository(_db);
+        var universe = new Collection
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "World",
+            WikidataQid = "Q333",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        universe.RestoreDefinition(
+            CollectionType.Universe, CollectionScope.Library, CollectionResolution.Materialized,
+            CollectionMatchMode.All, CollectionSortDirection.Desc, CollectionUniverseStatus.Unknown);
+        await collections.UpsertAsync(universe);
+        await collections.SetParentCollectionAsync(seeded.TrilogyShelf, universe.Id);
+        await collections.SetParentCollectionAsync(seeded.CycleShelf, universe.Id);
+
+        var display = new DisplayRowsStub(
+        [
+            HelperRow(seeded.Opener, "Opener", seeded.TrilogyShelf, "1"),
+            HelperRow(seeded.Both, "Both", seeded.TrilogyShelf, "3"),
+            HelperRow(seeded.Sibling, "Sibling", seeded.CycleShelf, "7"),
+            HelperRow(seeded.Both, "Both", seeded.CycleShelf, "3"),
+        ]);
+        var connections = new UniverseConnectionsReadService(
+            new FictionalEntityRepository(_db),
+            new EntityRelationshipRepository(_db),
+            new NarrativeRootRepository(_db),
+            new PersonRepository(_db),
+            display);
+        var universes = new UniverseClientReadService(
+            collections, display, new DisplayCardBuilder(), connections,
+            new SeriesManifestRepository(_db), arrays: new CanonicalValueArrayRepository(_db));
+
+        var detail = await universes.LoadAsync("Q333", profile: null);
+
+        Assert.NotNull(detail);
+        var cycle = detail!.Shelves.Single(shelf => shelf.CollectionId == seeded.CycleShelf);
+        // The Work's single stored number (3) would list it before Sibling (7); the Cycle's own number is 7.5.
+        Assert.Equal([seeded.Sibling, seeded.Both], cycle.Shelf.Items.Select(card => card.WorkId!.Value));
+    }
+
+    private static DisplayWorkRow HelperRow(Guid workId, string title, Guid collectionId, string position) => new()
+    {
+        WorkId = workId,
+        RootWorkId = workId,
+        AssetId = Guid.NewGuid(),
+        EditionId = Guid.NewGuid(),
+        CollectionId = collectionId,
+        MediaType = "Books",
+        Title = title,
+        SeriesPosition = position,
+        CreatedAt = DateTimeOffset.UtcNow,
+    };
+
+    private sealed class DisplayRowsStub(IReadOnlyList<DisplayWorkRow> rows) : IDisplayProjectionReadService
+    {
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) => Task.FromResult(rows);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) => LoadJourneyAsync(profileId, lane, ct);
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+        public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
     }
 
     [Fact]

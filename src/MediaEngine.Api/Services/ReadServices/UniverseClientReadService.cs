@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -28,7 +29,8 @@ public sealed partial class UniverseClientReadService(
     DisplayCardBuilder cards,
     UniverseConnectionsReadService connections,
     ISeriesManifestRepository? manifests = null,
-    UniverseLinkCache? linkCache = null)
+    UniverseLinkCache? linkCache = null,
+    ICanonicalValueArrayRepository? arrays = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -85,6 +87,7 @@ public sealed partial class UniverseClientReadService(
 
         // One read for every member shelf's manifest rows, not one per shelf.
         var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+        var seriesPairs = await LoadSeriesPairsAsync(rowsByCollection.Values.SelectMany(rows => rows).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
         var mediaTypes = new List<string>();
@@ -99,7 +102,9 @@ public sealed partial class UniverseClientReadService(
                 rows,
                 placementsByShelf.TryGetValue(member.Id, out var placements)
                     ? placements
-                    : new Dictionary<Guid, ManifestItem>());
+                    : new Dictionary<Guid, ManifestItem>(),
+                member.WikidataQid,
+                seriesPairs);
             if (memberCards.Run.Count == 0 && memberCards.Also.Count == 0)
             {
                 continue;
@@ -369,9 +374,49 @@ public sealed partial class UniverseClientReadService(
                             .First()));
     }
 
+    /// <summary>
+    /// The (Series, position) pairs each listed work and its file store, so a work in two Series shows this shelf's own
+    /// number, as the shelf and the item page do.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>> LoadSeriesPairsAsync(
+        IReadOnlyList<DisplayWorkRow> rows,
+        CancellationToken ct)
+    {
+        if (arrays is null || rows.Count == 0)
+        {
+            return new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
+        }
+
+        var entityIds = rows.SelectMany(row => new[] { row.WorkId, row.AssetId }).Distinct().ToList();
+        var byEntity = await arrays.GetAllByEntitiesAsync(entityIds, ct).ConfigureAwait(false);
+        var pairs = new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
+        foreach (var (entityId, keys) in byEntity)
+        {
+            if (keys.TryGetValue(MetadataFieldConstants.SeriesPlacement, out var entries) && entries.Count > 0)
+            {
+                pairs[entityId] = entries;
+            }
+        }
+
+        return pairs;
+    }
+
+    private static string? OwnPosition(
+        DisplayWorkRow row,
+        string? seriesQid,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
+    {
+        var fromAsset = SeriesPositionPairs.PositionFor(
+            seriesQid, seriesPairs.GetValueOrDefault(row.AssetId), fallbackPosition: null);
+        return fromAsset ?? SeriesPositionPairs.PositionFor(
+            seriesQid, seriesPairs.GetValueOrDefault(row.WorkId), row.SeriesPosition);
+    }
+
     private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
-        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
+        IReadOnlyDictionary<Guid, ManifestItem> manifestByWork,
+        string? seriesQid,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
     {
         var run = new List<DisplayCardDto>();
         var also = new List<DisplayCardDto>();
@@ -398,7 +443,7 @@ public sealed partial class UniverseClientReadService(
                 placement?.ParsedOrdinal,
                 placement?.OrdinalScopeQid,
                 placement?.SeriesQid,
-                DisplayMediaRules.ParseDouble(row.SeriesPosition),
+                SeriesPositionPairs.SortValueOf(OwnPosition(row, seriesQid, seriesPairs)),
                 row.Year,
                 row.SortTitle ?? row.Title);
         });
