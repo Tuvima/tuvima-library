@@ -57,6 +57,9 @@
         <ol class="activity-log__list" aria-label="Events, newest first" data-testid="activity-log-rows">
             @foreach (var entry in _items)
             {
+                @* An entry that cannot be drawn becomes a "couldn't be shown" row in the same list; the other entries stay. *@
+                <AppRowErrorBoundary ItemTitle="@entry.Title" ResetKey="@entry">
+                <ChildContent>
                 <li class="activity-log__row activity-log__row--@CategoryKey(entry.Category)" data-testid="activity-log-row" data-category="@entry.Category">
                     <time class="activity-log__time" datetime="@entry.OccurredAt.ToString("O")" title="@FullTime(entry.OccurredAt)">@ShortTime(entry.OccurredAt)</time>
                     <span class="activity-log__symbol" aria-hidden="true">
@@ -83,6 +86,23 @@
                         }
                     </div>
                 </li>
+                </ChildContent>
+                <ErrorContent>
+                    <li class="activity-log__row activity-log__row--failed" data-testid="row-error">
+                        <span></span>
+                        <span class="activity-log__symbol" aria-hidden="true">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" Size="AppSize.Small" />
+                        </span>
+                        <div class="activity-log__body">
+                            <div class="activity-log__headline"><strong class="activity-log__title">@AppRowErrorBoundary.Headline</strong></div>
+                            @if (!string.IsNullOrWhiteSpace(entry.Title))
+                            {
+                                <p class="activity-log__detail">@entry.Title</p>
+                            }
+                        </div>
+                    </li>
+                </ErrorContent>
+                </AppRowErrorBoundary>
             }
         </ol>
 

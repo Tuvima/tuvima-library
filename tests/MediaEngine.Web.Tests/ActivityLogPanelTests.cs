@@ -34,6 +34,22 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void OneEntryThatCannotBeDrawn_ShowsACouldntBeShownRowInTheListAndTheOtherEntriesStay()
+    {
+        var broken = Entry(2, "added", "Cibola Burn", null);
+        broken.Category = null!;
+        _onLog = (_, _, offset, limit) => Page([Entry(1, "added", "Leviathan Wakes", null), broken, Entry(3, "failed", "Abaddon's Gate", null)], offset, limit, hasMore: false, total: 3);
+
+        var cut = Render<ActivityLogPanel>();
+
+        Assert.Equal(2, cut.FindAll("[data-testid='activity-log-row']").Count);
+        var fallback = Assert.Single(cut.FindAll("ol > li[data-testid='row-error']"));
+        Assert.Contains("This item couldn't be shown", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Cibola Burn", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Equal(3, cut.FindAll("ol.activity-log__list > li").Count);
+    }
+
+    [Fact]
     public void Panel_OffersTheFiveFilters_InOrder()
     {
         var cut = Render<ActivityLogPanel>();
