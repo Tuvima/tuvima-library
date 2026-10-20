@@ -39,6 +39,7 @@ public sealed class DisplayFormatReader
         using var connection = _db.CreateConnection();
         var rows = connection.Query<FormatRow>(new CommandDefinition(
             $"""
+            -- readiness: formats are only ever attached to works the authorized display list already returned, and that list applies the Ready rule
             SELECT woa.work_id AS WorkId,
                    ma.library_id AS LibraryId,
                    ma.file_path_root AS FilePath,

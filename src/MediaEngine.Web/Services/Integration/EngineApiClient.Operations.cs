@@ -670,6 +670,62 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
+        IReadOnlyList<Guid> workIds, string fingerprint, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(workIds);
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        const string endpoint = "POST /library/items/delete";
+        try
+        {
+            using var response = await _http.PostAsJsonAsync(
+                "/library/items/delete",
+                new MediaEngine.Contracts.Items.LibraryItemDeletionRequest { WorkIds = workIds, Fingerprint = fingerprint },
+                ct);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>(cancellationToken: ct);
+                ClearFailure(endpoint);
+                return result is null
+                    ? LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable)
+                    : LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Ok(result);
+            }
+
+            // A refusal is an expected answer, not a failure of the Engine; the dialog shows its own words for each.
+            switch (response.StatusCode)
+            {
+                case HttpStatusCode.Conflict:
+                    var conflict = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemDeletionConflictDto>(
+                        cancellationToken: ct);
+                    return conflict is null
+                        ? LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable)
+                        : LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Conflict(conflict.Preview, conflict.Message);
+                case HttpStatusCode.Forbidden:
+                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(
+                        LibraryItemDeletionOutcomeStatus.Forbidden, (await ReadProblemAsync(response, ct)).Detail);
+                case HttpStatusCode.NotFound:
+                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(
+                        LibraryItemDeletionOutcomeStatus.NotFound, (await ReadProblemAsync(response, ct)).Detail);
+                case HttpStatusCode.BadRequest:
+                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(
+                        LibraryItemDeletionOutcomeStatus.Invalid, (await ReadProblemAsync(response, ct)).Detail);
+                default:
+                    await RecordHttpFailureAsync(endpoint, response, ct);
+                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
+        {
+            _logger.LogWarning(ex, "{Endpoint} failed", endpoint);
+            RecordExceptionFailure(endpoint, ex);
+            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+        }
+    }
+
     /// <inheritdoc/>
     public async Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(
         int limit = 20, CancellationToken ct = default)

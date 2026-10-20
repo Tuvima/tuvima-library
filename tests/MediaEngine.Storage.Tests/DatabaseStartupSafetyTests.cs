@@ -311,6 +311,8 @@ public sealed class DatabaseStartupSafetyTests
             ("canonical_values", "winning_provider_id"),
             ("canonical_value_arrays", "entity_id"),
             ("profiles", "id"),
+            ("excluded_source_files", "id"),
+            ("excluded_source_files", "excluded_by_account_id"),
             ("entity_assets", "id"),
             ("entity_assets", "entity_id"),
             ("artwork_assets", "id"),

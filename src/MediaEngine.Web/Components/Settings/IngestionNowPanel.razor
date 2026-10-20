@@ -31,7 +31,20 @@
                 <div role="rowgroup">
                     @foreach (var item in _window.Rows)
                     {
-                        <IngestionMediaCard Item="item" OnOpen="OnOpen" @key="item.GroupId" />
+                        @* One row that cannot be drawn becomes a "couldn't be shown" row in the same grid, never a blank page. *@
+                        <AppRowErrorBoundary @key="item.GroupId" ItemTitle="@item.Title" ResetKey="@RowKey(item)">
+                            <ChildContent>
+                                <IngestionMediaCard Item="item" OnOpen="OnOpen" />
+                            </ChildContent>
+                            <ErrorContent>
+                                <div class="ingestion-now__row-error" role="row" data-testid="row-error" data-group-id="@item.GroupId">
+                                    <span role="cell" aria-colspan="5">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" aria-hidden="true" />
+                                        <span><strong>@AppRowErrorBoundary.Headline</strong><small title="@IngestionMediaCard.DisplayTitleFor(item.Title)">@IngestionMediaCard.DisplayTitleFor(item.Title)</small></span>
+                                    </span>
+                                </div>
+                            </ErrorContent>
+                        </AppRowErrorBoundary>
                     }
                 </div>
             </div>
@@ -65,6 +78,10 @@
     private IngestionNowWindow _window = null!;
     private Timer? _timer;
     private bool _disposed;
+
+    // A failed row is tried again when the Engine reports a change to it.
+    private static object RowKey(IngestionMediaGroupDto item) =>
+        (item.GroupId, item.UpdatedAt, item.Availability, item.StatusLabel, item.CurrentGateKey);
 
     private string? PersonalLine => IngestionNowText.PersonalMediaLine(PersonalMedia);
 
