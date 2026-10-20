@@ -1095,6 +1095,52 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         public IngestionQueueProgressDto Current { get; } = current;
     }
 
+    [Fact]
+    public async Task AnOldFailureOnAnEpisodeAlreadyInTheLibrary_DoesNotMarkTheWholeShowFailed()
+    {
+        var show = AddContainer("TV", "The Expanse");
+        var season = AddContainer("TV", "Season 1", show, "episode_count", "3");
+        AddChildren(season, "TV", "Episode", 2, "episode_number", seasonNumber: 1);
+        AddChildren(season, "TV", "New Episode", 1, "episode_number", seasonNumber: 1, ready: false);
+        using (var conn = _db.CreateConnection())
+        {
+            var readyEpisode = conn.QueryFirst<Guid>(
+                "SELECT w.id FROM works w WHERE w.parent_work_id = @season AND w.ready_at IS NOT NULL ORDER BY w.ordinal LIMIT 1;", new { season });
+            var newEpisode = conn.QueryFirst<Guid>(
+                "SELECT w.id FROM works w WHERE w.parent_work_id = @season AND w.ready_at IS NULL LIMIT 1;", new { season });
+            var now = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+            // A lyrics/subtitle fetch that gave up yesterday on an episode that is already in the library.
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.text','enrichment',@readyEpisode,'Work','dead_lettered',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), readyEpisode, now, key = Guid.NewGuid().ToString() });
+            AddIntakeOperation(newEpisode, "running");
+        }
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        var row = Assert.Single(page.Items);
+        Assert.Equal("adding", row.Availability);
+        Assert.NotEqual("Failed", row.StatusLabel);
+    }
+
+    [Fact]
+    public async Task AFailureNewerThanTheGroupsNewestFile_StillMarksTheGroupFailed()
+    {
+        var movie = AddStandalone("Movies", "Failed Today", ready: false, occurredAt: DateTimeOffset.UtcNow.AddMinutes(-10));
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.people','enrichment',@movie,'Work','failed_terminal',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), movie, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+        }
+
+        var group = await new IngestionPresentationReadService(_db).GetMediaGroupAsync(movie);
+
+        Assert.Equal("failed", group!.Availability);
+    }
+
     private Guid AddContainer(
         string mediaType,
         string title,

@@ -674,8 +674,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Count();
         var cover = rows.OrderByDescending(row => row.UpdatedAt).FirstOrDefault(row => row.CoverAssetId.HasValue)?.CoverAssetId;
         var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "RetailNoMatch" or "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
-        var terminalFailure = scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")
-                              || rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered");
+        // A file's own intake failure always counts. Any other failure counts only when it is no older than the group's
+        // newest file: a group spans every intake (there are no runs), so a newer episode supersedes an old failure on
+        // another one, while a movie whose last step failed still shows it.
+        var newestArrival = rows.Max(row => row.AddedAt);
+        var terminalFailure = rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered")
+                              || scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered"
+                                  && operation.UpdatedAt >= newestArrival);
         var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
         var intakeComplete = rows.All(row => row.IsReady);
         // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
@@ -1515,14 +1520,14 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             scoped AS (
                 SELECT {PresentationGroupSql} AS GroupId,
                        CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} THEN 1 ELSE 0 END AS RowReady,
-                       CASE WHEN lfo.status IN ('failed_terminal','dead_lettered')
-                                 OR EXISTS (SELECT 1 FROM media_operations fo
-                                            WHERE fo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                                              AND fo.status IN ('failed_terminal','dead_lettered'))
-                                 OR EXISTS (SELECT 1 FROM identity_jobs fj
-                                            WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                                              AND fj.state = 'Failed')
-                            THEN 1 ELSE 0 END AS RowFailed,
+                       CASE WHEN lfo.status IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS OwnIntakeFailed,
+                       MAX(COALESCE((SELECT MAX(julianday(fo.updated_at)) FROM media_operations fo
+                                     WHERE fo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fo.status IN ('failed_terminal','dead_lettered')), 0),
+                           COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                     WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fj.state = 'Failed'), 0)) AS FailedAtDay,
+                       julianday(ll.created_at) AS ArrivedAtDay,
                        CASE WHEN EXISTS (SELECT 1 FROM review_queue rq
                                          WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
                                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
@@ -1560,7 +1565,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             grouped AS (
                 SELECT GroupId,
                        MIN(RowReady) AS AllReady,
-                       MAX(RowFailed) AS AnyFailed,
+                       -- Same rule as BuildGroup: an own intake failure, or a failure no older than the group's newest file.
+                       CASE WHEN MAX(OwnIntakeFailed) = 1 OR (MAX(FailedAtDay) > 0 AND MAX(FailedAtDay) >= MAX(ArrivedAtDay))
+                            THEN 1 ELSE 0 END AS AnyFailed,
                        MAX(NeedsReview) AS AnyReview,
                        MAX(RowHold) AS AnyHold,
                        MAX(RowBackground) AS AnyBackground,
@@ -1587,21 +1594,29 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             LEFT JOIN works gp ON gp.id = p.parent_work_id
             LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
             WHERE {AddedAtSql} IS NOT NULL
-              AND (
-                  EXISTS (SELECT 1 FROM review_queue rq
-                          WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
-                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
-                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                     IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
-                  OR lfo.status IN ('failed_terminal','dead_lettered')
-                  OR EXISTS (SELECT 1 FROM media_operations mo
-                             WHERE mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                               AND mo.status IN ('failed_terminal','dead_lettered'))
-                  OR EXISTS (SELECT 1 FROM identity_jobs fj
-                             WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                               AND fj.state = 'Failed'))
             GROUP BY {PresentationGroupSql}
+            HAVING MAX(CASE WHEN EXISTS (SELECT 1 FROM review_queue rq
+                                         WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                           AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
+                                 OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
+                                     ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
+                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                 OR lfo.status IN ('failed_terminal','dead_lettered')
+                            THEN 1 ELSE 0 END) = 1
+                -- A failure other than the file's own intake counts only when no older than the group's newest file.
+                OR MAX(COALESCE((SELECT MAX(julianday(mo.updated_at)) FROM media_operations mo
+                                 WHERE mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                   AND mo.status IN ('failed_terminal','dead_lettered')), 0),
+                       COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                 WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                   AND fj.state = 'Failed'), 0))
+                   >= MAX(julianday(ll.created_at))
+                   AND MAX(COALESCE((SELECT MAX(julianday(mo.updated_at)) FROM media_operations mo
+                                     WHERE mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND mo.status IN ('failed_terminal','dead_lettered')), 0),
+                           COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                     WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fj.state = 'Failed'), 0)) > 0
         ),
         """;
 
