@@ -58,7 +58,7 @@ Tuvima Library does not keep a record of tags you take off. If an auto-filing ru
 
 - **Search and filters.** Search the words, or narrow the list by tag, correspondent, type, date and custom fields. The list can be sorted by date added, document date, title or correspondent, and your choice is remembered for your profile.
 - **Saved views.** Save a set of filters under a name, such as "Tax this month", and open it again later. A relative date range such as "Last 30 days" is worked out afresh each time. Saved views are private to you. They cannot be shared, and they never appear as a source for a Collection.
-- **Select and bulk edit.** Choose several documents to add or remove tags, set a correspondent, type or date, mark them filed, or move them to the trash, up to 500 at a time. Moving to the trash can be undone, and no file is deleted.
+- **Select and bulk edit.** Choose several documents to add or remove tags, set a correspondent, type or date, mark them filed, or move them to the trash, up to 500 at a time. Moving to the trash can be undone and deletes no file; documents leave the disk only when you empty the Trash on a computer.
 - **Export.** Download the list you are looking at as a spreadsheet (CSV). It holds titles, dates, correspondents, types, tags and custom fields, never the words inside the documents or your notes.
 
 You can search, filter and file from the Inbox on a phone. Editing every detail of a document and editing rules need a computer with a mouse or trackpad. A television can browse and open documents but not change them.

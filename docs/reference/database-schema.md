@@ -420,7 +420,7 @@ managed-source deletion happens afterward and can remain cleanup-pending.
 `item_id` on both `view_shared_contribution_items` and `view_shared_transfers` is
 optional and clears itself (`ON DELETE SET NULL`) when the personal item is removed
 by Empty Trash, so a finished, failed, declined or cancelled contribution keeps its
-history row with no item link (upgrade step 0019). Work still in flight (a pending
+history row with no item link (upgrade step 0020). Work still in flight (a pending
 contribution, an accepted item that is waiting, copying or cleaning up, or a transfer
 that is planned, copying or cleaning up) never reaches that point: Empty Trash skips
 the item first. The `contribution_item_id` link from a transfer to its contribution

@@ -38,7 +38,27 @@ Photos groups items by date and offers search and filters. Open an item in the v
 
 Folders keeps each source's real folder tree. Breadcrumbs show where you are. Use include-descendants to search child folders too. Private folder pins give you shortcuts.
 
-You can favorite, hide, archive, trash, or restore your own items. Archive removes an item from the normal Photos view. Trash can be restored. Browsing and making thumbnails do not change original files.
+You can favorite, hide, archive, move to Trash, or restore your own items. Archive removes an item from the normal Photos view. Moving to Trash can be undone, and only [Empty Trash](#move-items-to-trash-and-empty-it) ever removes files from your disk. Browsing and making thumbnails do not change original files.
+
+## Move items to Trash and empty it
+
+**Move to Trash** can be undone. In Photos or Documents, select one or more items, or open one, and choose **Move to Trash**. Phones and tablets can do this too. **Restore** is in the Trash view (**Photos > Trash** or **Documents > Trash**) and brings an item back where it was. While an item is in Trash it is out of Photos and out of your Galleries, and it cannot be a Gallery's cover. Restore puts it back in its Galleries. Moving an item to Trash never changes the file on disk.
+
+Items in a read-only folder cannot be moved to Trash. A folder you have linked to Library is there for looking at, so the button is not shown for them. If you select a mix, the other items go to Trash and Library tells you how many stayed: "3 items are in a read-only folder and weren't moved to Trash." Favorite, Archive, Hide and Galleries still work on them. Items in the Shared Library cannot be moved to Trash either.
+
+The Trash view shows how much it holds, such as **128 items · 4.2 GB**, on every device, so you can see the space Trash is using.
+
+**Empty Trash** deletes the files of everything in your Trash, for photos and documents together. It works only on a computer. On a phone or tablet the Trash view shows its size and "Empty Trash on a computer." Only you can empty your own Trash, from your own Personal Space; household members, administrators and the native apps cannot. You cannot pick items out of Trash to delete. To keep something, restore it first.
+
+On a computer, open **Photos > Trash** or **Documents > Trash** and choose **Empty Trash…**. Library first checks what is in Trash, then shows:
+
+- how many items will be deleted from your disk, split into photos, videos and documents, with the space they use;
+- which Galleries will lose items, from A to Z;
+- anything that stays in Trash and why: an item waiting to be added to the Shared Library (cancel that contribution first), an item in a read-only folder, or a file Library will not remove safely.
+
+Live Photos and RAW sets count as one item, and all their files go together. Cancel is selected when the dialog opens, and Escape cancels. Only the red **Delete N items from disk** button deletes anything. Deleted files cannot be recovered, and Library has no other copy.
+
+If the Trash changed while the dialog was open, Library shows the new list and deletes nothing; confirm again. If one item cannot be removed, for example because its file is in use, the others go and that item stays in Trash with a note on its tile, such as "Couldn't delete: the file is in use." After a successful run Library says how many items were deleted and how much space was freed.
 
 ## Find and file documents
 
