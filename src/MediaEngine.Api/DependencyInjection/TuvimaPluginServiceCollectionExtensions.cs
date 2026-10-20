@@ -19,6 +19,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginCatalog>();
         services.AddSingleton<ApprovedPluginCatalogService>();
+        services.AddSingleton<ILibraryUniverseQidGate, LibraryUniverseQidGate>();
         services.AddSingleton<PluginUniverseLoreService>();
         services.AddSingleton<PluginScheduledSegmentService>();
         services.AddSingleton<PluginToolRuntime>();

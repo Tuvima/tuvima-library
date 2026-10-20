@@ -610,7 +610,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         {
             await pluginUniverseLore.DiscoverSourcesAsync(universeQid, ct).ConfigureAwait(false);
             var summary = await pluginUniverseLore.EnrichUniverseAsync(universeQid, ct).ConfigureAwait(false);
-            if (summary.SourcesEnriched > 0)
+            if (summary is { SourcesEnriched: > 0 })
             {
                 _logger.LogInformation(
                     "[UNIVERSE-ENRICH] Plugin lore enriched {EntityCount} supplemental entities from {SourceCount} source(s) for {UniverseQid}",
