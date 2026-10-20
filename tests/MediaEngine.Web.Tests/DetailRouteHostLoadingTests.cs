@@ -205,11 +205,11 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         Title = title,
         Facts = new DetailFactsViewModel { MediaKind = "Audiobook" },
         Tabs = [new DetailTab { Key = "overview", Label = "Overview" }],
-        OverflowActions = allowEdit ? [new DetailAction { Key = "edit", Label = "Edit details", Icon = "edit" }] : [],
+        OverflowActions = allowEdit ? [new DetailAction { Key = "edit", Label = "Edit this title", Icon = "edit" }] : [],
     };
 
     [Fact]
-    public async Task ALoadedPageNeverStartsInEditingModeAndOnlyShowsEditToAnEditor()
+    public async Task ALoadedPageNeverStartsInEditingModeAndOffersEditOnlyInTheMoreMenu()
     {
         await UseDesktopWithAMouseAsync();
         var id = Guid.NewGuid();
@@ -218,10 +218,14 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
 
         _pending[id].SetResult(EditableModel(id, "First album"));
 
-        cut.WaitForAssertion(() => Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
-        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        Assert.Single(cut.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit this title"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));
-        Assert.Empty(cut.FindAll(".tl-editing-drawer"));
+        Assert.Empty(cut.FindAll(".tl-editing-slot"));
     }
 
     [Fact]
@@ -235,8 +239,8 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album", allowEdit: false));
 
         cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
     }
 
     [Fact]
@@ -248,23 +252,23 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(first)));
         cut.WaitForState(() => _pending.ContainsKey(first));
         _pending[first].SetResult(EditableModel(first, "First album"));
-        cut.WaitForAssertion(() => Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
 
-        cut.Find("button.tl-editing-toggle").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        await ChooseEditEntryAsync(cut);
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
 
         cut.Render(p => p.Add(c => c.Request, Request(second)));
         cut.WaitForState(() => _pending.ContainsKey(second));
         _pending[second].SetResult(EditableModel(second, "Second album"));
 
         cut.WaitForAssertion(() => Assert.Contains("Second album", cut.Markup));
-        Assert.Equal("Edit", cut.Find("button.tl-editing-toggle").TextContent.Trim());
-        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
     }
 
     [Fact]
-    public async Task TheMoreEntryThatOpenedTheModalNowTogglesEditingMode()
+    public async Task TheMoreEntryThatOpenedTheModalNowTurnsEditingModeOn()
     {
         await UseDesktopWithAMouseAsync();
         var id = Guid.NewGuid();
@@ -273,12 +277,35 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
 
-        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
-        await cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit details")).ClickAsync(new());
+        await ChooseEditEntryAsync(cut);
 
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
         Assert.Empty(cut.FindAll(".sme-dialog"));
+    }
+
+    [Fact]
+    public async Task ChoosingTheEditEntryWhileAlreadyEditingKeepsEditingModeOn()
+    {
+        await UseDesktopWithAMouseAsync();
+        var id = Guid.NewGuid();
+        var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, Request(id)));
+        cut.WaitForState(() => _pending.ContainsKey(id));
+        _pending[id].SetResult(EditableModel(id, "First album"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
+        await ChooseEditEntryAsync(cut);
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+
+        await ChooseEditEntryAsync(cut);
+
+        Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
+    }
+
+    private static async Task ChooseEditEntryAsync(IRenderedComponent<DetailRouteHost> cut)
+    {
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        await cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit this title")).ClickAsync(new());
     }
 
     [Fact]
@@ -294,9 +321,9 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
 
         cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
-        Assert.DoesNotContain("Edit details", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
+        Assert.DoesNotContain("Edit this title", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Edit on a computer", cut.Markup, StringComparison.Ordinal);
     }
 

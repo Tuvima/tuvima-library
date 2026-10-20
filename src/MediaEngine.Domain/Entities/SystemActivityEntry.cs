@@ -41,11 +41,4 @@ public sealed class SystemActivityEntry
 
     /// <summary>Human-readable one-line summary of the action.</summary>
     public string? Detail { get; init; }
-
-    /// <summary>
-    /// Groups all activity entries produced during a single ingestion run.
-    /// Null for non-ingestion actions. Used by the Dashboard to consolidate
-    /// scattered sub-events into one rich "Media Added" card.
-    /// </summary>
-    public Guid? IngestionRunId { get; init; }
 }

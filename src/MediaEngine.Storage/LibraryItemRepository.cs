@@ -660,9 +660,12 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             && explicitOriginalYear is null
             && assetId.HasValue)
         {
-            var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("@workId", "@assetId");
+            var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+                "related_book_year",
+                "SELECT @workId AS work_id, @assetId AS asset_id",
+                "rby_");
             relatedBookYear = conn.QueryFirstOrDefault<string?>(
-                $"SELECT {relatedBookYearSql};",
+                $"WITH {relatedBookYearCte} SELECT year FROM related_book_year;",
                 new { workId = entityId, assetId }) ?? string.Empty;
         }
 
@@ -784,42 +787,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             row.CompletedWithArt));
     }
 
-    public Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(Guid? batchId = null, CancellationToken ct = default)
+    public Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
-
-        if (batchId.HasValue)
-        {
-            var batch = conn.QueryFirstOrDefault<(int FilesIdentified, int FilesReview, int FilesNoMatch, int FilesFailed)>("""
-                SELECT files_registered AS FilesIdentified,
-                       files_review AS FilesReview,
-                       files_no_match AS FilesNoMatch,
-                       files_failed AS FilesFailed
-                FROM ingestion_batches
-                WHERE id = @batchId;
-                """, new { batchId = batchId.Value });
-
-            var batchTriggers = conn.Query<(string Trigger, int Count)>("""
-                SELECT rq.trigger AS Trigger, COUNT(*) AS Count
-                FROM review_queue rq
-                INNER JOIN media_assets ma ON ma.id = rq.entity_id
-                INNER JOIN ingestion_log il ON il.content_hash = ma.content_hash
-                WHERE rq.status = 'Pending'
-                  AND il.ingestion_run_id = @batchId
-                GROUP BY rq.trigger
-                ORDER BY Count DESC;
-                """, new { batchId = batchId.Value })
-                .ToDictionary(r => r.Trigger, r => r.Count);
-
-            return Task.FromResult(new LibraryItemLifecycleCounts(
-                batch.FilesIdentified,
-                batch.FilesReview + batch.FilesNoMatch + batch.FilesFailed,
-                0,
-                0,
-                0,
-                0,
-                batchTriggers));
-        }
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = BuildProjectionSql() + """
@@ -897,7 +867,18 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         var explicitWorkYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "wcv.key", "wcv.value");
         var explicitAssetYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "acv.key", "acv.value");
         var primaryAssetIdSql = "(SELECT year_asset.asset_id FROM primary_asset_data year_asset WHERE year_asset.work_id = w.id)";
-        var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("w.id", primaryAssetIdSql);
+        // The borrowed audiobook year is worked out once for all audiobooks (set-based), not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the year look-up only; the projection filters the rows it returns
+            SELECT audiobook_pad.work_id, audiobook_pad.asset_id
+            FROM primary_asset_data audiobook_pad
+            INNER JOIN works audiobook_work ON audiobook_work.id = audiobook_pad.work_id
+            WHERE LOWER(audiobook_work.media_type) LIKE '%audio%'
+            """,
+            "rby_");
+        var relatedBookYearSql = MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", primaryAssetIdSql);
 
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
@@ -920,6 +901,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM ranked_primary_assets
                 WHERE asset_rank=1
             ),
+            {relatedBookYearCte},
             root_work_data AS (
                 SELECT
                     w.id AS work_id,

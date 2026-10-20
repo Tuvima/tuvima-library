@@ -1,0 +1,100 @@
+/* The details overlay (spec D1): a modal window over the page the person came from.
+   Desktop and tablet: a large centred window (about 90% of the screen) with the page dimmed behind it.
+   Phone: a bottom sheet about 92% tall with a grip. The detail page scrolls inside it. */
+
+.tl-details-overlay {
+    box-sizing: border-box;
+    width: 90vw;
+    max-width: none;
+    height: 90vh;
+    height: 90dvh;
+    max-height: none;
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #101115;
+    color: #f6f0e8;
+    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.6);
+    /* Makes the window the containing block for anything the page fixes in place (its loading bar), so it stays inside. */
+    contain: layout;
+}
+
+.tl-details-overlay::backdrop {
+    background: rgba(0, 0, 0, 0.62);
+}
+
+.tl-details-overlay--sheet {
+    width: 100%;
+    height: 92vh;
+    height: 92dvh;
+    margin: auto 0 0;
+    border-radius: 1rem 1rem 0 0;
+    transform: translateY(var(--sheet-drag, 0px));
+}
+
+.tl-details-overlay__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* The frame never scrolls. It is the size container the page's stage is sized against (cqh), and the close button sits on it. */
+.tl-details-overlay__frame {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    container-type: size;
+    container-name: tl-details-overlay;
+    /* What the detail page sizes itself against (see DetailPage and DetailRouteHost): the window, not the screen. */
+    --tl-details-page-height: 100cqh;
+    --tl-details-stage-height: 95cqh;
+}
+
+.tl-details-overlay__scroller {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    outline: none;
+}
+
+.tl-details-overlay__grip {
+    position: absolute;
+    inset: 0 4rem auto 4rem;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    touch-action: none;
+    cursor: grab;
+}
+
+.tl-details-overlay__grip span {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .tl-details-overlay--sheet[open] {
+        animation: tl-details-overlay-sheet-up 0.22s ease-out;
+    }
+}
+
+@keyframes tl-details-overlay-sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(var(--sheet-drag, 0px)); }
+}
+

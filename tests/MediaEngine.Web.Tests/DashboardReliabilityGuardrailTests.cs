@@ -7,9 +7,14 @@ public sealed class DashboardReliabilityGuardrailTests
     {
         var source = Read(@"src/MediaEngine.Web/Components/Routes.razor");
 
+        // Routes hands every routed page to the overlay-aware route view, which also owns FocusOnNavigate so that opening
+        // the details overlay does not pull focus to the page behind it.
+        var routeView = Read(@"src/MediaEngine.Web/Components/Details/DetailsOverlayRouteView.razor");
+
         Assert.Contains("<ErrorBoundary>", source, StringComparison.Ordinal);
         Assert.Contains("<AppErrorState", source, StringComparison.Ordinal);
-        Assert.Contains("<FocusOnNavigate", source, StringComparison.Ordinal);
+        Assert.Contains("<DetailsOverlayRouteView", source, StringComparison.Ordinal);
+        Assert.Contains("<FocusOnNavigate", routeView, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -33,6 +38,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"item.Id\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor", "@key=\"item.GroupId\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor", "@key=\"item.GroupId\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {

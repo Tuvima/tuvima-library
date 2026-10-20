@@ -37,7 +37,7 @@ public sealed class WikidataBridgeWorkerProgressTests
             "Fetching full Wikidata properties.",
             StringComparison.Ordinal);
         var postPipelineIndex = normalized.IndexOf(
-            "await _postPipeline.EvaluateAndOrganizeAsync(\n                job.EntityId, job.Id, ctx.ResolvedQid, job.IngestionRunId, ct);",
+            "await _postPipeline.EvaluateAndOrganizeAsync(\n                job.EntityId, job.Id, ctx.ResolvedQid, ct);",
             fetchStageIndex >= 0 ? fetchStageIndex : 0,
             StringComparison.Ordinal);
         var successIndex = normalized.IndexOf(

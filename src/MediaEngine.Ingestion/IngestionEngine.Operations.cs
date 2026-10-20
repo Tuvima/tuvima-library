@@ -110,7 +110,6 @@ public sealed partial class IngestionEngine
             {
                 OperationType = MediaOperationType.IngestionFile,
                 OperationKind = MediaOperationKind.Ingestion,
-                BatchId = evt.BatchId,
                 SourcePath = Path.GetFullPath(evt.Path),
                 Status = stage == MediaOperationStage.Discovered ? MediaOperationStatus.Pending : MediaOperationStatus.Queued,
                 Stage = stage,
@@ -127,7 +126,6 @@ public sealed partial class IngestionEngine
 
     private async Task<MediaOperation?> EnsureIngestionOperationAsync(
         IngestionCandidate candidate,
-        Guid ingestionRunId,
         string stage,
         CancellationToken ct)
     {
@@ -142,7 +140,6 @@ public sealed partial class IngestionEngine
             {
                 OperationType = MediaOperationType.IngestionFile,
                 OperationKind = MediaOperationKind.Ingestion,
-                BatchId = candidate.BatchId ?? ingestionRunId,
                 SourcePath = Path.GetFullPath(candidate.Path),
                 Status = MediaOperationStatus.Queued,
                 Stage = stage,
@@ -260,8 +257,8 @@ public sealed partial class IngestionEngine
 
     /// <summary>
     /// A file that is gone before the pipeline could read it: closes its waiting intake job (see
-    /// <see cref="CloseWaitingFileOperationAsync"/>) and, when there was one, settles the file in the ingestion log and its
-    /// batch the same way the pipeline does for a file it finds missing.
+    /// <see cref="CloseWaitingFileOperationAsync"/>) and, when there was one, settles the file in the ingestion log
+    /// the same way the pipeline does for a file it finds missing.
     /// </summary>
     private async Task CloseVanishedFileOperationAsync(IngestionCandidate candidate, CancellationToken ct)
     {
@@ -277,16 +274,9 @@ public sealed partial class IngestionEngine
             Path.GetFileName(candidate.Path));
         await _ingestionLogScribe.RecordTerminalAsync(
             candidate,
-            candidate.BatchId,
             "missing",
             VanishedFileReason,
             ct).ConfigureAwait(false);
-        if (candidate.BatchId.HasValue)
-        {
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
-            await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-        }
     }
 
     /// <summary>
@@ -430,7 +420,6 @@ public sealed partial class IngestionEngine
                     ? FileEventType.Created
                     : candidate.EventType,
                 OccurredAt = DateTimeOffset.UtcNow,
-                BatchId = candidate.BatchId,
                 Intake = candidate.Intake,
             });
         }
@@ -570,7 +559,6 @@ public sealed partial class IngestionEngine
 
         await _ingestionLogScribe.RecordTerminalAsync(
             candidate,
-            candidate.BatchId,
             "failed",
             reason,
             ct).ConfigureAwait(false);
@@ -591,20 +579,12 @@ public sealed partial class IngestionEngine
                 error_type = exception.GetType().Name,
                 message = exception.Message,
             }),
-            IngestionRunId = candidate.BatchId,
         }, ct).ConfigureAwait(false);
 
         await SafePublishAsync(SignalREvents.IngestionFailed, new IngestionFailedEvent(
             candidate.Path,
             reason,
             DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
-
-        if (candidate.BatchId.HasValue)
-        {
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
-            await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-        }
     }
 
     /// <summary>
@@ -635,7 +615,6 @@ public sealed partial class IngestionEngine
 
     private async Task RecordTerminalLogAsync(
         IngestionCandidate candidate,
-        Guid? ingestionRunId,
         string status,
         string detail,
         CancellationToken ct)
@@ -649,7 +628,6 @@ public sealed partial class IngestionEngine
                 FilePath = candidate.Path,
                 Status = status,
                 ErrorDetail = detail,
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             await PublishItemProgressAsync(
@@ -677,15 +655,9 @@ public sealed partial class IngestionEngine
         string? title = null,
         string? mediaType = null)
     {
-        if (!candidate.BatchId.HasValue)
-        {
-            return Task.CompletedTask;
-        }
-
         return SafePublishAsync(
             SignalREvents.IngestionItemProgress,
             new IngestionItemProgressEvent(
-                candidate.BatchId.Value,
                 logEntryId,
                 mediaAssetId,
                 candidate.Path,
@@ -729,99 +701,6 @@ public sealed partial class IngestionEngine
         {
             _logger.LogDebug(ex, "Activity log write failed for action '{Action}' — pipeline continues",
                 entry.ActionType);
-        }
-    }
-
-    /// <summary>
-    /// Atomically increments one counter column on the given batch record.
-    /// Best-effort — never throws; a counter miss must not abort the pipeline.
-    /// </summary>
-    private async Task SafeIncrementBatchCounterAsync(
-        Guid batchId,
-        BatchCounterColumn column,
-        CancellationToken ct)
-    {
-        try
-        {
-            await _batchRepo.IncrementCounterAsync(batchId, column, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Batch counter increment failed for batch {BatchId} column {Column} — pipeline continues",
-                batchId, column);
-        }
-    }
-
-    private async Task MarkBatchFileProcessedAsync(Guid? batchId, CancellationToken ct)
-    {
-        if (!batchId.HasValue)
-        {
-            return;
-        }
-
-        await SafeIncrementBatchCounterAsync(batchId.Value, BatchCounterColumn.FilesProcessed, ct)
-            .ConfigureAwait(false);
-        await PublishQueuedBatchSnapshotAsync(batchId.Value, ct).ConfigureAwait(false);
-    }
-    private Task PublishInitialBatchProgressAsync(Guid batchId, int totalFiles)
-        => SafePublishAsync(
-            SignalREvents.BatchProgress,
-            new BatchProgressEvent(
-                batchId,
-                totalFiles,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                null,
-                false,
-                CurrentStage: "Queued",
-                FilesQueued: totalFiles,
-                FilesActive: 0),
-            CancellationToken.None);
-
-    private async Task PublishQueuedBatchSnapshotAsync(Guid batchId, CancellationToken ct)
-    {
-        try
-        {
-            var batch = await _batchRepo.GetByIdAsync(batchId, ct).ConfigureAwait(false);
-            if (batch is null)
-            {
-                return;
-            }
-
-            var terminal = Math.Max(
-                batch.FilesProcessed,
-                batch.FilesIdentified + batch.FilesReview + batch.FilesNoMatch + batch.FilesFailed);
-            var progressed = batch.FilesTotal > 0
-                ? Math.Clamp(terminal, 0, batch.FilesTotal)
-                : terminal;
-            var queue = Math.Max(0, batch.FilesTotal - progressed);
-            var completed = batch.FilesTotal > 0 && queue == 0;
-
-            await SafePublishAsync(
-                SignalREvents.BatchProgress,
-                new BatchProgressEvent(
-                    batch.Id,
-                    batch.FilesTotal,
-                    progressed,
-                    0,
-                    0,
-                    0,
-                    batch.FilesFailed,
-                    batch.FilesTotal > 0 ? (int)Math.Round(progressed * 100.0 / batch.FilesTotal) : 0,
-                    null,
-                    completed,
-                    CurrentStage: completed ? "Complete" : "Queued",
-                    FilesQueued: queue,
-                    FilesActive: 0),
-                ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogDebug(ex, "Initial batch snapshot publish failed for {BatchId}", batchId);
         }
     }
 

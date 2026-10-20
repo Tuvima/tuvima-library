@@ -1,0 +1,19 @@
+.artwork-remove-preview {
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-root);
+}
+
+.artwork-remove-preview__image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 16rem;
+    border-radius: var(--tl-radius-sm);
+    object-fit: contain;
+}

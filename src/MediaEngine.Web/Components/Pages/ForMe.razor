@@ -123,9 +123,13 @@
 </section>
 
 @code {
-    [SupplyParameterFromQuery(Name = "view")] public string? View { get; set; }
-    [SupplyParameterFromQuery(Name = "area")] public string? RequestedArea { get; set; }
-    [SupplyParameterFromQuery(Name = "sort")] public string? RequestedSort { get; set; }
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? View => Query.String("view");
+    public string? RequestedArea => Query.String("area");
+    public string? RequestedSort => Query.String("sort");
 
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];

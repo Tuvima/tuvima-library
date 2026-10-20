@@ -18,8 +18,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Delete from library on the details page: where its red entry shows (Editing Mode, a desktop, an administrator, one title),
-/// what the handler refuses even when invoked, and how the page leaves once the title is gone, here or in another window.
+/// Delete from library on the details page: where its red entry shows (the page's "..." menu with or without Editing Mode, and the
+/// editing banner's "..."; a desktop, an administrator, one title), what the handler refuses even when invoked, and how the page
+/// leaves once the title is gone, here or in another window (a page inside the overlay shows a notice instead: see
+/// <c>DetailsOverlayRemovalTests</c> and <c>DetailsOverlayRemovedNoticeTests</c>).
 /// </summary>
 public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 {
@@ -100,13 +102,15 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     private static void StartEditing(IRenderedComponent<DetailPage> cut)
     {
-        cut.Find("button.tl-editing-toggle").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        // Edit is an entry in the page's "..." menu; there is no standing Edit button.
+        cut.Find("button[aria-label='More actions']").Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
     }
 
     private static IReadOnlyList<AngleSharp.Dom.IElement> OpenMoreMenu(IRenderedComponent<DetailPage> cut)
     {
-        cut.Find("button.tl-editing-bar__more").Click();
+        cut.Find("button.tl-editing-banner__more").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
         return cut.FindAll("[role='menuitem']");
     }
@@ -119,7 +123,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     // -- Where the entry shows -----------------------------------------------------------------
 
     [Fact]
-    public async Task Entry_IsLastInTheEditingMoreMenuAfterADividerAndInTheDestructiveTone()
+    public async Task Entry_IsTheOnlyThingInTheBannerMenuAndInTheDestructiveTone()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
@@ -128,25 +132,105 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         var items = OpenMoreMenu(cut);
 
+        var only = Assert.Single(items);
+        Assert.Equal(Label, only.TextContent.Trim());
+        Assert.Contains("app-tone--error", only.ClassList);
+    }
+
+    private static IReadOnlyList<AngleSharp.Dom.IElement> OpenPageMoreMenu(IRenderedComponent<DetailPage> cut)
+    {
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        return cut.FindAll("[role='menuitem']");
+    }
+
+    private static void AssertDeleteIsLastRedAndAfterADivider(IReadOnlyList<AngleSharp.Dom.IElement> items)
+    {
+        Assert.True(items.Count > 1, "The page menu holds its other entries as well as Delete.");
         var last = items[^1];
         Assert.Equal(Label, last.TextContent.Trim());
         Assert.Contains("app-tone--error", last.ClassList);
-        Assert.Equal("hr", last.PreviousElementSibling?.TagName.ToLowerInvariant());
-        Assert.Contains("app-menu-divider", last.PreviousElementSibling!.ClassList);
+        Assert.Contains("app-menu-divider", last.PreviousElementSibling?.ClassName);
         Assert.Equal(1, items.Count(item => item.TextContent.Contains("Delete from library")));
-        Assert.Contains(items, item => item.TextContent.Trim() == "Viewing history");
     }
 
     [Fact]
-    public async Task Entry_IsAbsentWhileEditingModeIsOff()
+    public async Task Entry_IsTheLastRedEntryOfThePagesOwnMoreMenuAfterADivider_WhileEditing()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderPage();
+        StartEditing(cut);
+
+        AssertDeleteIsLastRedAndAfterADivider(OpenPageMoreMenu(cut));
+    }
+
+    [Fact]
+    public async Task Entry_IsTheLastRedEntryOfThePagesOwnMoreMenuAfterADivider_WithoutEditing()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderPage();
+
+        AssertDeleteIsLastRedAndAfterADivider(OpenPageMoreMenu(cut));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+    }
+
+    [Fact]
+    public async Task ChoosingTheEntryInThePagesMoreMenu_OpensTheDeleteDialogOnceWithoutEditing()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var host = Render<AppDialogHost>();
+        var cut = RenderPage();
+        OpenPageMoreMenu(cut);
+
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == Label).Click();
+
+        host.WaitForElement(".delete-library__section");
+        Assert.Equal("Delete \"Dune: Part One\" from your library?", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Single(Services.GetRequiredService<AppDialogService>().Dialogs);
+        Assert.Equal(1, _previewCalls);
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+    }
+
+    [Fact]
+    public async Task Entry_IsNotInThePagesMoreMenuForAnyoneTheEngineDoesNotTreatAsAnAdministrator()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(false);
+        var cut = RenderPage();
+
+        var items = OpenPageMoreMenu(cut);
+
+        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+    }
+
+    [Theory]
+    [InlineData("phone", true, false)]
+    [InlineData("tablet", true, true)]
+    public async Task Entry_IsNotInThePagesMoreMenuOnAPhoneOrTablet(string formFactor, bool finePointer, bool hover)
+    {
+        await UseDeviceAsync(formFactor, finePointer, hover);
+        SetAdministrator(true);
+        var cut = RenderPage();
+
+        // A phone lists the same actions in a bottom sheet instead of a popover; either way they render inside the page.
+        var items = OpenPageMoreMenu(cut);
+
+        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Entry_IsAbsentFromTheBannerWhileEditingModeIsOff()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
 
         var cut = RenderPage();
 
-        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button.tl-editing-bar__more"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
     }
 
     [Fact]
@@ -157,9 +241,9 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
         StartEditing(cut);
 
-        var items = OpenMoreMenu(cut);
-
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        // With no Delete entry the banner draws no "..." at all.
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,9 +253,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
         StartEditing(cut);
 
-        var items = OpenMoreMenu(cut);
-
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -187,7 +270,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         var cut = RenderPage();
 
-        Assert.Empty(cut.FindAll("button.tl-editing-toggle"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__done"));
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
@@ -201,15 +284,12 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
         var cut = RenderPage(type);
-        if (cut.FindAll("button.tl-editing-toggle").Count == 0)
-        {
-            return;
-        }
 
-        StartEditing(cut);
-        var items = OpenMoreMenu(cut);
-
+        // Not in the page's own "..." either (this also holds where Editing Mode is not offered for the page at all).
+        var items = OpenPageMoreMenu(cut);
         Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     // -- The handler never trusts the button ---------------------------------------------------
@@ -246,17 +326,22 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Assert.Equal(0, _previewCalls);
     }
 
-    [Fact]
-    public async Task Handler_DoesNothingOutsideEditingMode()
+    [Theory]
+    [InlineData(DetailEntityType.TvShow)]
+    [InlineData(DetailEntityType.TvSeason)]
+    [InlineData(DetailEntityType.MusicAlbum)]
+    [InlineData(DetailEntityType.BookSeries)]
+    public async Task Handler_DoesNothingOnAGroupPageEvenIfInvoked(DetailEntityType type)
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
-        var cut = RenderPage();
+        var cut = RenderPage(type);
 
         await InvokeActionAsync(cut);
 
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
+        Assert.Empty(Toasts);
     }
 
     // -- Deleting and leaving ------------------------------------------------------------------
@@ -306,7 +391,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     // -- Deleted somewhere else ----------------------------------------------------------------
 
     [Fact]
-    public async Task WhenTheTitleIsDeletedInAnotherWindow_ThePageSaysSoAndGoesBack()
+    public async Task WhenAPageOutsideTheOverlayHasItsTitleDeletedInAnotherWindow_ItSaysSoAndGoesBack()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);

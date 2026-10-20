@@ -23,6 +23,7 @@
 @inject IServiceProvider Services
 @inject IJSRuntime JS
 @inject ILogger<ListenNowPlayingBar> Logger
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
 @implements IAsyncDisposable
@@ -464,7 +465,10 @@
         }
     }
 
-    private bool IsListenRoute => Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.StartsWith("/listen", StringComparison.OrdinalIgnoreCase);
+    // The page under the details overlay counts as the current page while it is open.
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    private bool IsListenRoute => new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).AbsolutePath.StartsWith("/listen", StringComparison.OrdinalIgnoreCase);
 
     private double ProgressMax => Playback.DurationSeconds > 0 ? Playback.DurationSeconds : 1;
     private sealed record NativeSleepTimerBindingRequest(

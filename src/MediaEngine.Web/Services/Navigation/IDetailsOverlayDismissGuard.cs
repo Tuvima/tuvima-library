@@ -1,0 +1,23 @@
+namespace MediaEngine.Web.Services.Navigation;
+
+/// <summary>
+/// Lets the open detail page veto leaving the details overlay (for example "Save or discard?" while a field has unsaved input).
+/// A page registers a guard through <see cref="DetailsOverlayState.RegisterDismissGuard"/> and removes it when it goes away.
+/// It is consulted by the close button, Esc, the backdrop and any navigation away from the open item, including browser Back.
+/// Editing Mode registers one while it is on (see <c>EditingModeContext</c>).
+/// </summary>
+public interface IDetailsOverlayDismissGuard
+{
+    /// <summary>Returns true to let the overlay close, false to keep it open. The guard owns any question it asks the person.</summary>
+    ValueTask<bool> CanDismissAsync();
+}
+
+/// <summary>Steps the browser history back; the one thing the overlay needs that <see cref="Microsoft.AspNetCore.Components.NavigationManager"/> cannot do.</summary>
+public interface IDetailsOverlayHistory
+{
+    /// <summary>
+    /// Goes back <paramref name="steps"/> history entries (the equivalent of <c>history.go(-steps)</c>).
+    /// Returns false when the browser could not be asked, so the caller can go to the page another way.
+    /// </summary>
+    ValueTask<bool> GoBackAsync(int steps);
+}

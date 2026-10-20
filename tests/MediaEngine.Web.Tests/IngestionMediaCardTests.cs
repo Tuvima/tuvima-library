@@ -27,6 +27,27 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
+    [Theory]
+    [InlineData("matched", "Matched metadata", "Matching")]
+    [InlineData("identified", "Identified", "Identifying")]
+    [InlineData("ready", "Ready in library", "Finishing")]
+    [InlineData("enriched", "Finding cover art", "Finding cover art")]
+    public void TheStepColumn_NamesTheCurrentStepAsWorkInProgress(string gateKey, string gateLabel, string expected)
+    {
+        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(p => p.Item, new IngestionMediaGroupDto
+        {
+            GroupId = Guid.NewGuid(),
+            Title = "Dune",
+            MediaType = "Movies",
+            Availability = "adding",
+            StatusLabel = "Adding",
+            CurrentGateKey = gateKey,
+            CurrentGateLabel = gateLabel,
+        }));
+
+        Assert.Equal(expected, cut.Find(".ingestion-media-list-row__step").TextContent);
+    }
+
     [Fact]
     public void ActiveGroup_ShowsTitleTypeStepStatusAndDetailsAndOpensFromTheTitle()
     {

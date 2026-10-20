@@ -30,7 +30,6 @@ public sealed class PostPipelineService
     private readonly ICanonicalValueArrayRepository? _arrayRepo;
     private readonly ISearchIndexRepository? _searchIndex;
     private readonly ISystemActivityRepository? _activityRepo;
-    private readonly BatchProgressService _batchProgress;
     private readonly ILogger<PostPipelineService> _logger;
     private readonly StageOutcomeFactory? _outcomeFactory;
 
@@ -61,7 +60,6 @@ public sealed class PostPipelineService
         IEnumerable<IExternalMetadataProvider> providers,
         IReviewQueueRepository reviewRepo,
         IAutoOrganizeService organizer,
-        BatchProgressService batchProgress,
         ILogger<PostPipelineService> logger,
         ICanonicalValueArrayRepository? arrayRepo = null,
         ISearchIndexRepository? searchIndex = null,
@@ -75,7 +73,6 @@ public sealed class PostPipelineService
         _providers = providers;
         _reviewRepo = reviewRepo;
         _organizer = organizer;
-        _batchProgress = batchProgress;
         _logger = logger;
         _arrayRepo = arrayRepo;
         _searchIndex = searchIndex;
@@ -91,7 +88,6 @@ public sealed class PostPipelineService
         Guid entityId,
         Guid jobId,
         string? wikidataQid,
-        Guid? ingestionRunId,
         CancellationToken ct,
         bool retainedRetailIdentity = false)
     {
@@ -163,7 +159,7 @@ public sealed class PostPipelineService
                 entityId, effectiveConfidence, hydration.AutoReviewConfidenceThreshold);
 
             var promoted = _outcomeFactory is not null
-                ? await _outcomeFactory.PromoteProvisionalAsync(entityId, ingestionRunId, ct)
+                ? await _outcomeFactory.PromoteProvisionalAsync(entityId, ct)
                     .ConfigureAwait(false)
                 : await _reviewRepo.PromotePendingReadyByEntityAsync(entityId, ct)
                     .ConfigureAwait(false);
@@ -183,7 +179,6 @@ public sealed class PostPipelineService
                     await _outcomeFactory.CreateLowConfidenceAsync(
                         entityId,
                         effectiveConfidence,
-                        ingestionRunId,
                         ct: ct).ConfigureAwait(false);
                 }
                 else
@@ -200,11 +195,6 @@ public sealed class PostPipelineService
                         AutomationCompletedAt = DateTimeOffset.UtcNow,
                     }, ct);
                 }
-            }
-
-            if (ingestionRunId.HasValue)
-            {
-                await _batchProgress.EmitProgressAsync(ingestionRunId.Value, isFinal: false, ct);
             }
 
             return false;
@@ -226,7 +216,7 @@ public sealed class PostPipelineService
                 "Entity {EntityId} meets organization threshold ({Confidence:F2} >= {Threshold:F2}), promoting",
                 entityId, scored.OverallConfidence, organizeThreshold);
 
-            await _organizer.TryAutoOrganizeAsync(entityId, ct, ingestionRunId);
+            await _organizer.TryAutoOrganizeAsync(entityId, ct);
             return true;
         }
 

@@ -75,6 +75,9 @@ else
     public DetailRouteRequest Request { get; set; } =
         DetailRouteRequest.ForUnified(string.Empty, Guid.Empty, null);
 
+    /// <summary>The details overlay this page is shown in; null when the host is rendered on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private DetailPageViewModel? _detail;
     private DetailPageLoadFailure _failure;
     private bool _loading = true;
@@ -127,6 +130,7 @@ else
 
         // The previous page (if any) stays visible, dimmed, until the new payload replaces it.
         _loading = true;
+        Overlay?.SetTitle(null);
         _failure = DetailPageLoadFailure.None;
         _pageKey = _requestKey = Request.LoadKey;
         _addressTab = Request.RequestedTab;
@@ -139,6 +143,7 @@ else
             _detail = null;
             _failure = DetailPageLoadFailure.NotFound;
             _loading = false;
+            Overlay?.SetTitle(null);
             return;
         }
 
@@ -163,6 +168,7 @@ else
             _pageKey = Request.ShowLoadKey(showId);
         ApplyDetailTabRoute();
         _loading = false;
+        Overlay?.SetTitle(_detail?.Title);
     }
 
     private void ApplyAddressState()
@@ -232,6 +238,7 @@ else
             return;
 
         _detail = refreshed;
+        Overlay?.SetTitle(refreshed.Title);
     }
 
     /// <summary>
@@ -256,8 +263,11 @@ else
         }
 
         var target = QueryHelpers.AddQueryString(path, query);
-        if (!string.Equals(target, Nav.Uri, StringComparison.Ordinal))
-            Nav.NavigateTo(target, replace: true);
+        if (string.Equals(target, Nav.Uri, StringComparison.Ordinal))
+            return;
+
+        // In the overlay the entry is replaced with its underlay kept, so Back and Forward still restore it.
+        DetailsOverlayNavigation.ReplaceAddress(Nav, Overlay, target);
     }
 
     private void ApplyDetailTabRoute()

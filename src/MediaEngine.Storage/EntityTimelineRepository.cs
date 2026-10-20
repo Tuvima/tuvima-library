@@ -54,14 +54,14 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                 resolved_qid, confidence,
                 score_title, score_author, score_year, score_format,
                 score_cross_field, score_cover_art, score_composite,
-                occurred_at, ingestion_run_id, detail
+                occurred_at, detail
             ) VALUES (
                 @id, @entity_id, @entity_type, @event_type, @stage, @trigger,
                 @provider_id, @provider_name, @bridge_id_type, @bridge_id_value,
                 @resolved_qid, @confidence,
                 @score_title, @score_author, @score_year, @score_format,
                 @score_cross_field, @score_cover_art, @score_composite,
-                @occurred_at, @ingestion_run_id, @detail
+                @occurred_at, @detail
             )
             """;
 
@@ -86,9 +86,6 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
         cmd.Parameters.AddWithValue("@score_cover_art", evt.ScoreCoverArt.HasValue ? evt.ScoreCoverArt.Value : DBNull.Value);
         cmd.Parameters.AddWithValue("@score_composite", evt.ScoreComposite.HasValue ? evt.ScoreComposite.Value : DBNull.Value);
         cmd.Parameters.AddWithValue("@occurred_at", evt.OccurredAt.ToString("o"));
-        cmd.Parameters.Add("@ingestion_run_id", SqliteType.Blob).Value = evt.IngestionRunId.HasValue
-            ? GuidSql.ToBlob(evt.IngestionRunId.Value)
-            : DBNull.Value;
         cmd.Parameters.AddWithValue("@detail", (object?)evt.Detail ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
@@ -105,7 +102,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                    resolved_qid, confidence,
                    score_title, score_author, score_year, score_format,
                    score_cross_field, score_cover_art, score_composite,
-                   occurred_at, ingestion_run_id, detail
+                   occurred_at, detail
             FROM entity_events
             WHERE entity_id = @entity_id
             ORDER BY occurred_at DESC
@@ -129,7 +126,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                    resolved_qid, confidence,
                    score_title, score_author, score_year, score_format,
                    score_cross_field, score_cover_art, score_composite,
-                   occurred_at, ingestion_run_id, detail
+                   occurred_at, detail
             FROM entity_events
             WHERE entity_id = @entity_id AND stage = @stage
             ORDER BY occurred_at DESC
@@ -155,7 +152,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                    resolved_qid, confidence,
                    score_title, score_author, score_year, score_format,
                    score_cross_field, score_cover_art, score_composite,
-                   occurred_at, ingestion_run_id, detail
+                   occurred_at, detail
             FROM entity_events e1
             WHERE entity_id = @entity_id
               AND stage IS NOT NULL
@@ -181,7 +178,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                    resolved_qid, confidence,
                    score_title, score_author, score_year, score_format,
                    score_cross_field, score_cover_art, score_composite,
-                   occurred_at, ingestion_run_id, detail
+                   occurred_at, detail
             FROM entity_events
             WHERE id = @id
             """;
@@ -364,7 +361,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                        e.resolved_qid, e.confidence,
                        e.score_title, e.score_author, e.score_year, e.score_format,
                        e.score_cross_field, e.score_cover_art, e.score_composite,
-                       e.occurred_at, e.ingestion_run_id, e.detail
+                       e.occurred_at, e.detail
                 FROM entity_events e
                 INNER JOIN _tmp_entity_ids t ON t.id = e.entity_id
                 WHERE e.stage = 2
@@ -456,8 +453,7 @@ public sealed class EntityTimelineRepository : IEntityTimelineRepository
                 ScoreCoverArt = reader.IsDBNull(17) ? null : reader.GetDouble(17),
                 ScoreComposite = reader.IsDBNull(18) ? null : reader.GetDouble(18),
                 OccurredAt = DateTimeOffset.Parse(reader.GetString(19)),
-                IngestionRunId = reader.IsDBNull(20) ? null : GuidSql.FromDb(reader.GetValue(20)),
-                Detail = reader.IsDBNull(21) ? null : reader.GetString(21),
+                Detail = reader.IsDBNull(20) ? null : reader.GetString(20),
             });
         }
 

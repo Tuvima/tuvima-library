@@ -6,7 +6,6 @@ namespace MediaEngine.Domain.Models;
 public sealed record UniverseEnrichmentRequest(
     Guid JobId,
     Guid EntityId,
-    Guid? IngestionRunId,
     string WorkQid,
     string MediaType,
     string BatchKey,

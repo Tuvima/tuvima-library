@@ -28,34 +28,14 @@ public interface IIngestionPresentationReadService
         CancellationToken ct = default);
 
     Task<IngestionMediaGroupDto?> GetMediaGroupAsync(
-        Guid batchId,
         Guid groupId,
         CancellationToken ct = default);
 
     Task<PagedResponse<IngestionMediaChildDto>> GetChildrenAsync(
-        Guid batchId,
         Guid groupId,
         int offset,
         int limit,
         CancellationToken ct = default);
 
     Task<ActivityHistorySummaryDto> GetActivitySummaryAsync(CancellationToken ct = default);
-
-    Task<ActivityBatchPresentationDto?> GetBatchPresentationAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<IngestionMediaGroupDto>> GetBatchMediaAsync(
-        Guid batchId,
-        int offset,
-        int limit,
-        string? search = null,
-        string? lane = null,
-        string? sort = null,
-        CancellationToken ct = default);
-
-    Task<IReadOnlyDictionary<Guid, PagedResponse<IngestionMediaGroupDto>>> GetBatchMediaPreviewsAsync(
-        IReadOnlyCollection<Guid> batchIds,
-        int limitPerBatch,
-        CancellationToken ct = default);
 }

@@ -25,23 +25,37 @@ test('player detail intent defeats delayed restoration and resets late mounted c
     h.window.detailOrigin.fresh('/details/musicalbum/1');
     const pane={scrollTop:880,getAttribute:()=> 'main',querySelector:()=>null}; h.containers.push(pane);
     h.mutation(); h.flushFrames(); h.flushTimers();
-    assert.equal(h.window.scrollY,0); assert.equal(pane.scrollTop,0);
+    // The title opens in the details overlay: its scroller starts at the top and the page under it keeps its place.
+    assert.equal(h.window.scrollY,400); assert.equal(pane.scrollTop,0);
     // Normal later navigation to the same route still uses its saved position.
     h.store.set('tuvima:detail-origin:/details/musicalbum/1',JSON.stringify({scrollY:220,scrollContainers:[{key:'main',top:330}]}));
     h.window.detailOrigin.restore(); h.flushFrames(); h.flushTimers();
     assert.equal(h.window.scrollY,220); assert.equal(pane.scrollTop,330);
 });
-test('player detail intent resets the shell main pane that detail pages scroll inside',()=>{
-    // The harness returns every registered container, so also pin the real selector.
-    assert.match(code,/freshScrollSelector = '[^']*\.context-sidebar-shell__main/);
+test('player detail intent resets only the details overlay scroller, never the page under it',()=>{
+    // The harness returns every registered container, so also pin the real selector: the overlay's own scroller, not the
+    // shell's main pane (which belongs to the page under the overlay and must keep its place for when the overlay is dismissed).
+    assert.match(code,/freshScrollSelector = '\[data-detail-origin-scroll="details-overlay"\]'/);
+    assert.doesNotMatch(code,/freshScrollSelector = '[^']*context-sidebar-shell__main/);
     assert.doesNotMatch(code,/\.context-sidebar__content/);
     const h=setup();
-    const shellMain={scrollTop:700,getAttribute:()=>null,querySelector:()=>null};
+    const overlayScroller={scrollTop:700,getAttribute:()=>'details-overlay',querySelector:()=>null};
     h.window.location.pathname='/details/person/2';
     h.window.detailOrigin.fresh('/details/person/2');
-    h.containers.push(shellMain);
+    h.containers.push(overlayScroller);
     h.flushFrames();
-    assert.equal(shellMain.scrollTop,0);
+    assert.equal(overlayScroller.scrollTop,0);
+    assert.equal(h.window.scrollY,400);
+});
+test('dismissing the details overlay steps the browser back over every title opened inside it',()=>{
+    const steps=[];
+    const window={history:{go:count=>steps.push(count)}};
+    vm.runInNewContext(source.slice(source.indexOf('window.detailsOverlay = {'),source.indexOf('// Register before the first detail link')),{window});
+    window.detailsOverlay.goBack(3);
+    window.detailsOverlay.goBack(0);
+    window.detailsOverlay.goBack(-2);
+    window.detailsOverlay.goBack('x');
+    assert.deepEqual(steps,[-3]);
 });
 test('normal detail restoration preserves browsing position without a player intent',()=>{
     const h=setup(); h.store.set('tuvima:detail-origin:/listen',JSON.stringify({scrollY:480}));

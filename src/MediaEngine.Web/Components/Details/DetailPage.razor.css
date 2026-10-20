@@ -1,6 +1,7 @@
 .tl-detail-page {
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: var(--tl-details-page-height, 100dvh);
     background:
         radial-gradient(circle at 80% 8%, rgba(71, 53, 122, 0.26), transparent 30rem),
         radial-gradient(circle at 12% 20%, rgba(194, 135, 48, 0.18), transparent 24rem),
@@ -589,6 +590,7 @@
     display: flex;
     flex-direction: column;
     height: 95svh;
+    height: var(--tl-details-stage-height, 95svh);
     overflow: hidden;
     isolation: isolate;
     background:
@@ -682,6 +684,7 @@
 @media (width < 840px), (max-height: 620px) {
 .tl-detail-stage {
         min-height: 100svh;
+        min-height: var(--tl-details-page-height, 100svh);
     }
 
 .tl-detail-stage__navigation {
@@ -850,6 +853,9 @@
         height: 95svh;
         min-height: 95svh;
         max-height: 95svh;
+        height: var(--tl-details-stage-height, 95svh);
+        min-height: var(--tl-details-stage-height, 95svh);
+        max-height: var(--tl-details-stage-height, 95svh);
     }
 
 .tl-detail-stage__navigation {
@@ -995,9 +1001,4 @@
         min-height: var(--tl-touch-target-min, 48px);
     }
 
-}
-
-/* Editing Mode: keep the drawer beside the page, not over it, so the hero identity stays visible. */
-.tl-detail-page--editing-drawer {
-    padding-inline-end: var(--tl-editing-drawer-width, 23.75rem);
 }

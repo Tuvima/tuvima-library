@@ -115,7 +115,8 @@ window.tuvimaEditorFocus = function (selector) {
     });
 };
 
-// Editing Mode drawer: remember the control that opened it and give focus back when it closes.
+// Editing Mode section slot: remember the control that opened it and give focus back when it closes. When that control is gone
+// (Done closes the section and the banner button with it) focus goes to the first fallback selector that still matches.
 window.tuvimaFocusReturn = (function () {
     var opener = null;
     return {
@@ -123,12 +124,18 @@ window.tuvimaFocusReturn = (function () {
             var active = document.activeElement;
             opener = active && active !== document.body ? active : null;
         },
-        restore: function () {
-            var target = opener;
+        restore: function (fallbackSelectors) {
+            var remembered = opener;
             opener = null;
-            if (target && target.isConnected && typeof target.focus === 'function') {
-                window.requestAnimationFrame(function () { target.focus({ preventScroll: true }); });
-            }
+            window.requestAnimationFrame(function () {
+                var target = remembered && remembered.isConnected ? remembered : null;
+                for (var index = 0; !target && fallbackSelectors && index < fallbackSelectors.length; index++) {
+                    target = document.querySelector(fallbackSelectors[index]);
+                }
+                if (target && typeof target.focus === 'function') {
+                    target.focus({ preventScroll: true });
+                }
+            });
         }
     };
 })();
@@ -3626,10 +3633,10 @@ window.detailOrigin = (() => {
         window.location.assign(fallback || '/');
     };
 
-    // Detail pages scroll inside the shell's main pane, not the frame content.
-    const freshScrollSelector = '.playback-app-frame__content, [data-detail-origin-scroll], .context-sidebar-shell__main';
+    // A title opens in the details overlay, which scrolls inside its own scroller. Only that scroller goes back to
+    // the top: the page under the overlay keeps its place for when the overlay is dismissed.
+    const freshScrollSelector = '[data-detail-origin-scroll="details-overlay"]';
     const resetFresh = () => {
-        window.scrollTo({ top: 0, behavior: 'instant' });
         document.querySelectorAll(freshScrollSelector).forEach(element => { element.scrollTop = 0; });
     };
     const fresh = route => {
@@ -3649,6 +3656,15 @@ window.detailOrigin = (() => {
     };
     return { initialize, capture, restore, back, fresh };
 })();
+
+// Dismissing the details overlay steps the browser back over every title opened inside it (the entries are tracked in
+// DetailsOverlayState, which records how many lie between the overlay and the page under it).
+window.detailsOverlay = {
+    goBack: function (steps) {
+        const count = Math.floor(Number(steps));
+        if (count > 0) window.history.go(-count);
+    }
+};
 
 // Register before the first detail link is clicked so the originating lane
 // position can be captured on the initial navigation.

@@ -82,13 +82,6 @@ public sealed class HarvestRequest
     public bool SkipRetailStage { get; init; }
 
     /// <summary>
-    /// The ingestion run ID that originated this request.
-    /// When set, the <c>MediaAdded</c> activity entry will carry this ID so the
-    /// Dashboard can link all ingestion sub-steps to a single <c>MediaAdded</c> card.
-    /// </summary>
-    public Guid? IngestionRunId { get; init; }
-
-    /// <summary>
     /// Bridge identifiers from the Ingestion Hint cache (sibling-aware priming).
     /// When present, Stage 1 can use these to skip the bridge lookup SPARQL query.
     /// Keys are claim keys (e.g. "isbn", "tmdb_movie_id").

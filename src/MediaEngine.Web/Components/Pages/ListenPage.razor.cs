@@ -53,10 +53,17 @@ public partial class ListenPage
     [Parameter] public string? ArtistKey { get; set; }
     [Parameter] public string? PlaylistKey { get; set; }
     [Parameter] public Guid? WorkId { get; set; }
-    [SupplyParameterFromQuery(Name = "track")] public Guid? Track { get; set; }
-    [SupplyParameterFromQuery(Name = "edit")] public bool Edit { get; set; }
-    [SupplyParameterFromQuery(Name = "artist")] public string? AlbumArtist { get; set; }
-    [SupplyParameterFromQuery(Name = "browse")] public string? BrowseQuery { get; set; }
+
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public Guid? Track => Query.Guid("track");
+    public bool Edit => Query.Bool("edit");
+    public string? AlbumArtist => Query.String("artist");
+    public string? BrowseQuery => Query.String("browse");
 
     private readonly List<WorkViewModel> _allWorks = [];
     private readonly List<WorkViewModel> _musicWorks = [];
@@ -156,7 +163,7 @@ public partial class ListenPage
     private int _resizeStartWidth;
     private int _listenLoadVersion;
 
-    private string CurrentPath => Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath;
+    private string CurrentPath => new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).AbsolutePath;
     private string NormalizedSection => string.IsNullOrWhiteSpace(Section) ? string.Empty : Section.Trim().ToLowerInvariant();
     private bool IsDefaultEntry => string.Equals(CurrentPath, "/listen", StringComparison.OrdinalIgnoreCase);
     private bool IsListenHub => IsDefaultEntry;
@@ -1646,7 +1653,7 @@ public partial class ListenPage
         }
 
         var routeUri = Nav.ToAbsoluteUri(route);
-        var currentUri = Nav.ToAbsoluteUri(Nav.Uri);
+        var currentUri = new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay));
         if (!string.IsNullOrWhiteSpace(routeUri.Query))
         {
             return string.Equals(CurrentPath, routeUri.AbsolutePath, StringComparison.OrdinalIgnoreCase)
@@ -1759,7 +1766,8 @@ public partial class ListenPage
         var trackContextRoute = BuildAlbumRouteForTrack(work);
         if (navigateBackToTrackContext && !string.IsNullOrWhiteSpace(trackContextRoute))
         {
-            Nav.NavigateTo(trackContextRoute, replace: true);
+            // The album page it returns to is a detail address, which must carry its own history state.
+            DetailsOverlayNavigation.ReplacePage(Nav, trackContextRoute);
         }
     }
 

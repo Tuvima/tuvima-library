@@ -453,7 +453,7 @@ public sealed class IngestionQueueProgressDisplayTests : AsyncBunitContext
     {
         _presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto
         {
-            CurrentMedia = [new() { BatchId = Guid.NewGuid(), GroupId = Guid.NewGuid(), Title = "Dune" }],
+            CurrentMedia = [new() { GroupId = Guid.NewGuid(), Title = "Dune" }],
             IsRunning = true,
             CurrentMediaTotal = 5,
         });

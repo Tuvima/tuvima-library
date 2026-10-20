@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0018 ai_usage_records).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0019 ai_usage_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -920,7 +920,6 @@ CREATE TABLE entity_events (
     score_cover_art   REAL,
     score_composite   REAL,
     occurred_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    ingestion_run_id  BLOB,
     detail            TEXT
 );
 
@@ -1096,7 +1095,6 @@ CREATE TABLE identity_jobs (
     entity_id              BLOB NOT NULL,
     entity_type            TEXT NOT NULL,
     media_type             TEXT NOT NULL,
-    ingestion_run_id       BLOB,
     state                  TEXT NOT NULL DEFAULT 'Queued',
     pass                   TEXT NOT NULL DEFAULT 'Quick',
     attempt_count          INTEGER NOT NULL DEFAULT 0,
@@ -1126,38 +1124,6 @@ CREATE TABLE image_cache_sources (
     FOREIGN KEY(content_hash) REFERENCES image_cache(content_hash) ON DELETE CASCADE
 );
 
-CREATE TABLE ingestion_batch_artifacts (
-    id                BLOB NOT NULL PRIMARY KEY,
-    batch_id          BLOB NOT NULL,
-    artifact_type     TEXT NOT NULL,
-    artifact_id       BLOB,
-    parent_entity_id  BLOB,
-    parent_entity_type TEXT,
-    action            TEXT NOT NULL,
-    display_name      TEXT,
-    provider_id       TEXT,
-    source            TEXT,
-    detail_json       TEXT,
-    occurred_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-);
-
-CREATE TABLE ingestion_batches (
-    id                BLOB NOT NULL PRIMARY KEY,
-    status            TEXT NOT NULL DEFAULT 'running',
-    source_path       TEXT,
-    category          TEXT,
-    files_total       INTEGER NOT NULL DEFAULT 0,
-    files_processed   INTEGER NOT NULL DEFAULT 0,
-    files_registered  INTEGER NOT NULL DEFAULT 0,
-    files_review      INTEGER NOT NULL DEFAULT 0,
-    files_no_match    INTEGER NOT NULL DEFAULT 0,
-    files_failed      INTEGER NOT NULL DEFAULT 0,
-    started_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    completed_at      TEXT,
-    created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-    updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-);
-
 CREATE TABLE ingestion_log (
     id                BLOB NOT NULL PRIMARY KEY,
     file_path         TEXT NOT NULL,
@@ -1170,7 +1136,6 @@ CREATE TABLE ingestion_log (
     normalized_title  TEXT,
     wikidata_qid      TEXT,
     error_detail      TEXT,
-    ingestion_run_id  BLOB,
     created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
@@ -1455,7 +1420,6 @@ CREATE TABLE media_operation_events (
   id             BLOB PRIMARY KEY,
   operation_id   BLOB NOT NULL,
   entity_id      BLOB,
-  batch_id       BLOB,
   event_type     TEXT NOT NULL,
   old_status     TEXT,
   new_status     TEXT,
@@ -1472,7 +1436,6 @@ CREATE TABLE media_operations (
   operation_kind      TEXT NOT NULL,
   entity_id           BLOB,
   entity_kind         TEXT,
-  batch_id            BLOB,
   source_path         TEXT,
   content_hash        TEXT,
   capability_id       TEXT,
@@ -2325,9 +2288,7 @@ CREATE TABLE system_activity (
     entity_type  TEXT,
     profile_id   BLOB,
     changes_json TEXT,
-    detail       TEXT,
-    ingestion_run_id BLOB
-);
+    detail       TEXT);
 
 CREATE TABLE tags (
     id                  BLOB NOT NULL PRIMARY KEY,
@@ -2890,19 +2851,14 @@ CREATE INDEX idx_identity_audit_profile_occurred
     ON identity_audit_events(profile_id, occurred_at DESC);
 
 CREATE INDEX idx_identity_jobs_activity_latest
-    ON identity_jobs(ingestion_run_id, entity_id, updated_at, created_at);
+    ON identity_jobs(entity_id, updated_at, created_at);
 
 CREATE INDEX idx_identity_jobs_entity_id ON identity_jobs (entity_id);
-
-CREATE INDEX idx_identity_jobs_ingestion_run_id ON identity_jobs (ingestion_run_id);
 
 CREATE INDEX idx_identity_jobs_lease ON identity_jobs (state, lease_expires_at);
 
 CREATE INDEX idx_identity_jobs_next_retry
     ON identity_jobs(next_retry_at) WHERE next_retry_at IS NOT NULL;
-
-CREATE INDEX idx_identity_jobs_run_entity_updated
-    ON identity_jobs(ingestion_run_id, entity_id, updated_at);
 
 CREATE INDEX idx_identity_jobs_state ON identity_jobs (state);
 
@@ -2911,29 +2867,7 @@ CREATE INDEX idx_identity_jobs_updated_at ON identity_jobs (updated_at);
 CREATE INDEX idx_image_cache_phash
     ON image_cache(phash) WHERE phash IS NOT NULL;
 
-CREATE INDEX idx_ingestion_batch_artifacts_artifact
-    ON ingestion_batch_artifacts(artifact_type, artifact_id);
-
-CREATE INDEX idx_ingestion_batch_artifacts_batch
-    ON ingestion_batch_artifacts(batch_id, occurred_at);
-
-CREATE INDEX idx_ingestion_batch_artifacts_parent
-    ON ingestion_batch_artifacts(parent_entity_id);
-
-CREATE INDEX idx_ingestion_batch_artifacts_type
-    ON ingestion_batch_artifacts(batch_id, artifact_type);
-
-CREATE INDEX idx_ingestion_batches_created ON ingestion_batches(created_at);
-
-CREATE INDEX idx_ingestion_batches_status ON ingestion_batches(status);
-
 CREATE INDEX idx_ingestion_log_media_asset ON ingestion_log(media_asset_id);
-
-CREATE INDEX idx_ingestion_log_run
-    ON ingestion_log(ingestion_run_id);
-
-CREATE INDEX idx_ingestion_log_run_created
-    ON ingestion_log(ingestion_run_id, created_at);
 
 CREATE INDEX idx_ingestion_log_status
     ON ingestion_log(status);
@@ -2967,23 +2901,11 @@ CREATE INDEX idx_media_assets_presented
 CREATE INDEX idx_media_assets_status
     ON media_assets(status);
 
-CREATE INDEX idx_media_operation_events_batch
-ON media_operation_events(batch_id, occurred_at);
-
-CREATE INDEX idx_media_operation_events_batch_entity
-ON media_operation_events(batch_id, entity_id, occurred_at);
-
 CREATE INDEX idx_media_operation_events_entity
 ON media_operation_events(entity_id, occurred_at);
 
 CREATE INDEX idx_media_operation_events_operation
 ON media_operation_events(operation_id, occurred_at);
-
-CREATE INDEX idx_media_operations_batch
-ON media_operations(batch_id, status);
-
-CREATE INDEX idx_media_operations_batch_entity_type
-ON media_operations(batch_id, entity_id, operation_type);
 
 CREATE INDEX idx_media_operations_capability
 ON media_operations(capability_id, status, next_retry_at);
@@ -3154,9 +3076,6 @@ CREATE INDEX idx_system_activity_action_type
 
 CREATE INDEX idx_system_activity_occurred_at
     ON system_activity (occurred_at);
-
-CREATE INDEX idx_system_activity_run_entity_action
-    ON system_activity(ingestion_run_id, entity_id, action_type, occurred_at);
 
 CREATE INDEX idx_text_tracks_asset_kind
     ON text_tracks(asset_id, kind);

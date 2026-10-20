@@ -42,16 +42,12 @@ public interface IIdentityJobRepository
     /// Atomically leases up to <paramref name="batchSize"/> jobs in the specified
     /// <paramref name="states"/> for the named <paramref name="workerName"/>.
     /// Only jobs with no active lease (or an expired lease) are eligible.
-    /// When <paramref name="excludeRunIds"/> is non-empty, jobs belonging to
-    /// those ingestion runs are skipped (batch gate). Jobs with a NULL
-    /// <c>ingestion_run_id</c> (ad-hoc / manual) are never excluded.
     /// </summary>
     Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(
         string workerName,
         IReadOnlyList<IdentityJobState> states,
         int batchSize,
         TimeSpan leaseDuration,
-        IReadOnlyList<string>? excludeRunIds = null,
         CancellationToken ct = default);
 
     /// <summary>Transitions the job to a new state and clears the lease.</summary>
@@ -115,18 +111,6 @@ public interface IIdentityJobRepository
 
     /// <summary>Returns jobs in a specific state, ordered by creation time.</summary>
     Task<IReadOnlyList<IdentityJob>> GetByStateAsync(IdentityJobState state, int limit, CancellationToken ct = default);
-
-    /// <summary>Returns job state counts grouped by ingestion run, for batch progress reporting.</summary>
-    Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default);
-
-    /// <summary>
-    /// Returns the count of Stage 1 jobs still pending (Queued or RetailSearching)
-    /// for each of the supplied ingestion run IDs.
-    /// Runs with zero pending jobs are omitted from the result.
-    /// Used by the batch gate to determine which runs are still draining Stage 1.
-    /// </summary>
-    Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-        IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default);
 
     /// <summary>Releases the lease on a job without changing state (e.g. on graceful shutdown).</summary>
     Task ReleaseLeaseAsync(Guid jobId, CancellationToken ct = default);

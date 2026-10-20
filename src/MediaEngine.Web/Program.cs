@@ -403,6 +403,8 @@ builder.Services.AddScoped<ContextSidebarPreferences>();
 builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
 builder.Services.AddScoped<ListenContextSidebarState>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
+builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
+builder.Services.AddScoped<DetailsOverlayState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while

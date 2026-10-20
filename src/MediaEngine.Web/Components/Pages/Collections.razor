@@ -1,6 +1,8 @@
 @page "/collections"
 @page "/collections/{Section}"
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Navigation
+@inject NavigationManager Nav
 
 <PageTitle>Collections  -  Library</PageTitle>
 <CollectionsPage Section="@Section"
@@ -14,11 +16,16 @@
 
 @code {
     [Parameter] public string? Section { get; set; }
-    [SupplyParameterFromQuery(Name = "q")] public string? SearchQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "lane")] public string? LaneQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "kind")] public string? KindQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "membership")] public string? MembershipQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "role")] public string? RoleQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "sort")] public string? SortQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "tile")] public int? TileQuery { get; set; }
+
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? SearchQuery => Query.String("q");
+    public string? LaneQuery => Query.String("lane");
+    public string? KindQuery => Query.String("kind");
+    public string? MembershipQuery => Query.String("membership");
+    public string? RoleQuery => Query.String("role");
+    public string? SortQuery => Query.String("sort");
+    public int? TileQuery => Query.Int("tile");
 }

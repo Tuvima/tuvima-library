@@ -16,33 +16,6 @@ public sealed class PipelineSettings
     /// <summary>Lease batch sizes for identity worker polling cycles.</summary>
     [JsonPropertyName("lease_sizes")]
     public LeaseSizeSettings LeaseSizes { get; set; } = new();
-
-    /// <summary>Batch gate settings — holds Stage 2 until Stage 1 drains for a run.</summary>
-    [JsonPropertyName("batch_gate")]
-    public BatchGateSettings BatchGate { get; set; } = new();
-}
-
-/// <summary>
-/// Controls the batch gate that holds Stage 2 (Wikidata bridge resolution)
-/// until all Stage 1 (retail match) jobs for a given ingestion run have
-/// completed. This ensures a larger, more coherent batch reaches Wikidata
-/// so cross-file deduplication (e.g. all tracks from the same album) can
-/// operate on the full set rather than whichever files happened to finish
-/// retail matching first.
-/// </summary>
-public sealed class BatchGateSettings
-{
-    /// <summary>Gate is active. When false, Stage 2 processes immediately.</summary>
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; } = true;
-
-    /// <summary>Batches with this many files or fewer skip the gate entirely.</summary>
-    [JsonPropertyName("small_batch_threshold")]
-    public int SmallBatchThreshold { get; set; } = 5;
-
-    /// <summary>Maximum seconds to hold a batch before force-releasing.</summary>
-    [JsonPropertyName("timeout_seconds")]
-    public int TimeoutSeconds { get; set; } = 300;
 }
 
 /// <summary>

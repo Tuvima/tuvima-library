@@ -121,12 +121,12 @@ All Engine-managed artefacts live under a single `.data/` directory at the libra
 ## Hydration Pipeline & Providers
 **Detail:** [`docs/architecture/hydration-and-providers.md`](hydration-and-providers.md)
 
-Operations uses `IngestionBatchActivitySql` to keep a batch active while durable jobs or operations remain, even across restart and stale terminal batch status. Startup requeues leased and unleased intermediate jobs before workers start. Long waits are not terminal failures. Ingestion cards and drawers show added tracks, episodes, and issues without provider totals or per-item progress bars; whole-batch progress includes distinct skipped duplicate inputs.
+Operations keeps a group in flight on the live ingestion page while durable jobs or operations remain, even across restart. Startup requeues leased and unleased intermediate jobs before workers start. Long waits are not terminal failures. Ingestion cards and drawers show added tracks, episodes, and issues without provider totals or per-item progress bars.
 
 A durable staged enrichment pipeline runs after ingestion. `identity_jobs` rows (SQLite) replace any in-memory queue. Pipeline workers poll for jobs:
 
 - **`RetailMatchWorker`** - Stage 1. Active configured providers score candidates through `RetailMatchScoringService`; music runs MusicBrainz first for recording/release identity and Apple second for artwork/retail enrichment. Strong candidates auto-accept, ambiguous candidates route to review, and failed provider matches do not trigger broad Wikidata fallback.
-- **`WikidataBridgeWorker`** - Stage 2. Uses retail/catalogue bridge IDs (ISBN, ASIN, TMDB ID, MusicBrainz ID, Apple ID, Comic Vine ID, etc.) to resolve a QID. A batch gate holds Stage 2 until Stage 1 finishes for the run.
+- **`WikidataBridgeWorker`** - Stage 2. Uses retail/catalogue bridge IDs (ISBN, ASIN, TMDB ID, MusicBrainz ID, Apple ID, Comic Vine ID, etc.) to resolve a QID.
 - **`QuickHydrationWorker`** — Populates canonical values, hero images, collection assignment.
 - **Stage 3 enrichment workers** — Fanart.tv, people enrichment, universe graph population, lyrics/subtitles, fictional entities, relationships, and additional images.
 
@@ -143,7 +143,7 @@ All settings live in `config/` as individual JSON files grouped by concern. Prov
 
 | File / folder | What it controls |
 |---|---|
-| `core.json` | Core paths, rate limits, language preferences, batch gate, maintenance schedules |
+| `core.json` | Core paths, rate limits, language preferences, maintenance schedules |
 | `libraries.json` | Watch folders, media-type hints, organization templates |
 | `providers/*.json` | One file per provider; includes language strategy |
 | `providers/wikidata_reconciliation.json` | All Wikidata config — reconciliation, edition pivot, data extension, child entity discovery |
@@ -188,7 +188,7 @@ Needs Review (stored in the Engine's review queue) is the Engine's safety net fo
 
 The queue surfaces items that need human attention: failed retail matches, ambiguous Wikidata candidates, low-confidence matches, missing titles, and items that fell through during enrichment. Review rows can launch the shared editor in review mode, dismiss an item, skip universe matching where supported, keep a provider match, move a film to TV, or retry a failed write-back according to existing Engine rules. `PostPipelineService` auto-resolves queue items when a later enrichment pass pushes confidence above threshold.
 
-Browsing lives on Home, Read, Watch, Listen, Collections, Search, and detail pages; review lives inside Settings/Admin. Do not add all-in-one management routes, components, docs, or navigation. A single item is fixed in Editing Mode on its own detail page (desktop only: hero Edit/Done, one pencil per field, and an `EditingDrawer` that re-houses the `SharedMediaEditorShell` sections beside the unchanged page); Needs Review, browse shells and Recently Added open the same shell as a modal through `MediaEditorLauncherService.OpenAsync`.
+Browsing lives on Home, Read, Watch, Listen, Collections, Search, and detail pages; review lives inside Settings/Admin. Do not add all-in-one management routes, components, docs, or navigation. A single item is fixed in Editing Mode on its own detail page (desktop only: Edit in the "..." menu, an `EditingBanner` with Done, one pencil per field, and one `EditingSectionSlot` below the hero that re-houses the `SharedMediaEditorShell` sections in line); Needs Review, browse shells and Recently Added open the same shell as a modal through `MediaEditorLauncherService.OpenAsync`.
 
 ## Universal Parameterized Collection System
 **Detail:** [`docs/architecture/collections.md`](collections.md)
