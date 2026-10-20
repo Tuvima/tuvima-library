@@ -1,6 +1,7 @@
 using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Events;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
@@ -60,9 +61,9 @@ public sealed class ApplicationEventAcceptanceTests
             producer, new FixedResourceResolver(libraryId), NullLogger<ApplicationEventProjectionPublisher>.Instance);
 
         await projection.ProjectAsync(SignalREvents.IngestionStarted, new IngestionStartedEvent("C:/secret/file.mkv", DateTimeOffset.UtcNow), default);
-        await projection.ProjectAsync(SignalREvents.IngestionProgress, new IngestionProgressEvent("C:/secret/file.mkv", 1, 2, "identify"), default);
         await projection.ProjectAsync(SignalREvents.IngestionCompleted, new IngestionCompletedEvent("C:/secret/file.mkv", "Movies", DateTimeOffset.UtcNow), default);
-        await projection.ProjectAsync(SignalREvents.BatchProgress, new BatchProgressEvent(Guid.NewGuid(), 2, 2, 2, 0, 0, 0, 100, 0, true), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, new IngestionQueueProgressDto { State = "working", FilesFound = 2, FilesDone = 1 }, default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, new IngestionQueueProgressDto { State = "idle", FilesFound = 2, FilesDone = 2, Progress = 1 }, default);
         await projection.ProjectAsync(SignalREvents.IngestionFailed, new IngestionFailedEvent("C:/secret/file.mkv", "secret error", DateTimeOffset.UtcNow), default);
         await projection.ProjectAsync(SignalREvents.MediaAdded, new MediaAddedEvent(assetId, null, "Movie", "Private title"), default);
         await projection.ProjectAsync(SignalREvents.MediaRemoved, new MediaRemovedEvent(assetId, "C:/secret/file.mkv", "Orphaned"), default);
@@ -87,6 +88,78 @@ public sealed class ApplicationEventAcceptanceTests
             value => Assert.Equal(AccountFeatureId.Watch, value.Subject.FeatureId));
         Assert.Single(producer.Values, value => value.EventType == "ingestion.completed");
     }
+
+    [Fact]
+    public async Task QueueProgress_ProjectsProgressWhileWorkingAndCompletedOnceWhenTheQueueGoesIdle()
+    {
+        var producer = new CaptureProducer();
+        var projection = new ApplicationEventProjectionPublisher(
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle"), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 4, done: 1, progress: 0.25), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 4, done: 3, progress: 0.75), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle", found: 4, done: 4, progress: 1), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle", found: 4, done: 4, progress: 1), default);
+
+        Assert.Equal(
+            ["ingestion.progress", "ingestion.progress", "ingestion.completed"],
+            producer.Values.Select(value => value.EventType));
+        Assert.All(producer.Values, value =>
+        {
+            Assert.Equal("ingestion", value.Subject.Type);
+            Assert.Equal("current", value.Subject.Id);
+        });
+        var progress = producer.Values[1].Payload;
+        Assert.Equal(4, progress.GetProperty("files_found").GetInt32());
+        Assert.Equal(3, progress.GetProperty("files_done").GetInt32());
+        Assert.Equal(0, progress.GetProperty("files_waiting").GetInt32());
+        Assert.Equal(0.75, progress.GetProperty("progress").GetDouble());
+        Assert.Equal("working", progress.GetProperty("state").GetString());
+        var completed = producer.Values[2].Payload;
+        Assert.Equal(4, completed.GetProperty("files_done").GetInt32());
+        Assert.Equal("idle", completed.GetProperty("state").GetString());
+    }
+
+    [Fact]
+    public async Task QueueProgress_StartingIdleOrWaitingOnATool_PublishesNothing()
+    {
+        var producer = new CaptureProducer();
+        var projection = new ApplicationEventProjectionPublisher(
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle"), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("waiting", found: 2, done: 0), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle", found: 2, done: 0), default);
+
+        Assert.Empty(producer.Values);
+    }
+
+    [Fact]
+    public async Task QueueProgress_ARunThatWaitsOnAToolBeforeFinishing_CompletesOnce()
+    {
+        var producer = new CaptureProducer();
+        var projection = new ApplicationEventProjectionPublisher(
+            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
+
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 3, done: 1), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("waiting", found: 3, done: 1), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("working", found: 3, done: 2), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("waiting", found: 3, done: 2), default);
+        await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, Queue("idle", found: 3, done: 3, progress: 1), default);
+
+        Assert.Equal(
+            ["ingestion.progress", "ingestion.progress", "ingestion.completed"],
+            producer.Values.Select(value => value.EventType));
+    }
+
+    private static IngestionQueueProgressDto Queue(string state, int found = 0, int done = 0, double progress = 0) => new()
+    {
+        State = state,
+        FilesFound = found,
+        FilesDone = done,
+        Progress = progress,
+    };
 
     [Fact]
     public async Task Projection_UsesConcreteAssetRatherThanLogicalWorkForDurableProvenance()

@@ -13,7 +13,7 @@
                              Title="@DisplayTitle"
                              AriaLabel="@OpenAriaLabel"
                              OnClick="@(_ => OnOpen.InvokeAsync(Item))">
-                <strong>@DisplayTitle</strong>
+                <strong class="ingestion-media-list-row__title">@DisplayTitle</strong>
             </AppNativeButton>
             <small title="@DisplaySubtitle">@DisplaySubtitle</small>
         </span>
@@ -47,9 +47,16 @@
     private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : ReadinessWaitingText.StatusFor(Item);
 
     // The Step column names the gate the item is working through; an item with none left says its status.
-    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
-        ? (Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel)
-        : Item.CurrentGateLabel;
+    // The step the row is on now, worded as work in progress: the Engine's gate labels name finished steps
+    // ("Matched metadata"), which would read as done next to "Waiting for matching".
+    private string StepLabel => Item.CurrentGateKey switch
+    {
+        "identified" => "Identifying",
+        "matched" => "Matching",
+        "ready" => "Finishing",
+        _ when !string.IsNullOrWhiteSpace(Item.CurrentGateLabel) => Item.CurrentGateLabel,
+        _ => Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel,
+    };
     private string ActivityIcon => Item.Availability switch
     {
         "ready" => AppMaterialIcons.Outlined.CheckCircle,
@@ -72,9 +79,10 @@
             + (Item.FileCount > 0 && Item.ChildUnit != "files" ? $" · {FileLabel}" : string.Empty)
         : Item.FileCount > 0 ? FileLabel : null;
     private string FileLabel => $"{Item.FileCount:N0} {(Item.FileCount == 1 ? "file" : "files")}";
-    private string OpenAriaLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
+    // Says the same step words as the Step column, then the status.
+    private string OpenAriaLabel => StepLabel == ActivityLabel
         ? $"Open ingestion details for {DisplayTitle}. {ActivityLabel}."
-        : $"Open ingestion details for {DisplayTitle}. {Item.CurrentGateLabel}. {ActivityLabel}.";
+        : $"Open ingestion details for {DisplayTitle}. {StepLabel}. {ActivityLabel}.";
 
     private string DisplayChildUnit(int count) => count == 1 && Item.ChildUnit!.EndsWith('s')
         ? Item.ChildUnit[..^1]

@@ -890,7 +890,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         {
             typeof(CollectionEndpoints).Assembly,
             typeof(IProfileRepository).Assembly,
-            typeof(MediaEngine.Application.Services.IIngestionBatchReadService).Assembly,
+            typeof(MediaEngine.Application.Services.IPersonAliasReadService).Assembly,
             typeof(MediaEngine.Contracts.Paging.PagedRequest).Assembly,
         };
         foreach (var type in assemblies.SelectMany(assembly => assembly.GetExportedTypes()))

@@ -47,7 +47,6 @@ public sealed partial class IngestionEngine
             Path = fullPath,
             EventType = FileEventType.Created,
             OccurredAt = DateTimeOffset.UtcNow,
-            BatchId = request.BatchId,
             Intake = new IntakeContext
             {
                 SourceKind = request.SourceKind,

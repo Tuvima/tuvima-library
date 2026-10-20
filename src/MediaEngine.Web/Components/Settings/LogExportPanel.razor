@@ -17,12 +17,12 @@
         <div class="log-export__filters">
             <AppSelect Label="Time" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
             <AppSelect Label="Level" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
-            <AppTextField Label="One item or run (optional)"
+            <AppTextField Label="One item (optional)"
                           Value="@_itemOrRun"
                           ValueChanged="OnItemOrRunChanged"
                           OnDebounceIntervalElapsed="OnItemOrRunDebounced"
                           DebounceInterval="500"
-                          Placeholder="Paste a run id or item id"
+                          Placeholder="Paste an item id"
                           HelpText="Only lines that mention it are included."
                           data-testid="export-item-or-run" />
         </div>

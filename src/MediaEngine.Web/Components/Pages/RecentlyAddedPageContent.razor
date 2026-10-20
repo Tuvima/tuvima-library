@@ -46,7 +46,7 @@
             <div class="recent-history__list">
                 @foreach (var item in _history.Items)
                 {
-                    <AppRowErrorBoundary @key="(item.BatchId, item.GroupId)" ItemTitle="@IngestionMediaCard.DisplayTitleFor(item.Title)" ResetKey="@item">
+                    <AppRowErrorBoundary @key="item.GroupId" ItemTitle="@IngestionMediaCard.DisplayTitleFor(item.Title)" ResetKey="@item">
                     <article class="history-row">
                         <time datetime="@item.AddedAt.ToString("O")"><strong>@LocalClock(item.AddedAt)</strong><small>@RelativeDate(item.AddedAt)</small></time>
                         <span class="history-row__identity">

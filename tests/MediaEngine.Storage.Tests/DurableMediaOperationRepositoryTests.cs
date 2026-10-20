@@ -44,15 +44,13 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
         var key = $"ingestion:file:C:/watch/restart.epub:{Guid.NewGuid():N}";
         var created = await repo.EnsureAsync(NewOperation(
             key,
-            sourcePath: "C:/watch/restart.epub",
-            batchId: Guid.NewGuid()));
+            sourcePath: "C:/watch/restart.epub"));
 
         var found = await repo.GetByIdempotencyKeyAsync(key);
         var missing = await repo.GetByIdempotencyKeyAsync($"missing:{Guid.NewGuid():N}");
 
         Assert.NotNull(found);
         Assert.Equal(created.Id, found.Id);
-        Assert.Equal(created.BatchId, found.BatchId);
         Assert.Null(missing);
     }
 
@@ -61,11 +59,9 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
     {
         var repo = new MediaOperationRepository(_db);
         var sourcePath = Path.GetFullPath("C:/watch/restart.epub");
-        var batchId = Guid.NewGuid();
         var active = await repo.EnsureAsync(NewOperation(
             $"ingestion:file:{sourcePath}:100:1",
             sourcePath: sourcePath,
-            batchId: batchId,
             status: MediaOperationStatus.Running));
         await repo.EnsureAsync(NewOperation(
             $"ingestion:file:{sourcePath}:100:0",
@@ -76,7 +72,6 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
 
         Assert.NotNull(found);
         Assert.Equal(active.Id, found.Id);
-        Assert.Equal(batchId, found.BatchId);
     }
 
     [Fact]
@@ -140,28 +135,23 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
     {
         var repo = new MediaOperationRepository(_db);
         var entityId = Guid.NewGuid();
-        var batchId = Guid.NewGuid();
         var operation = await repo.EnsureAsync(NewOperation(
             $"ingestion:file:{Guid.NewGuid():N}",
-            entityId: entityId,
-            batchId: batchId));
+            entityId: entityId));
 
         using var conn = _db.CreateConnection();
-        var storageTypes = conn.QuerySingle<(string IdType, string EntityIdType, string BatchIdType)>("""
+        var storageTypes = conn.QuerySingle<(string IdType, string EntityIdType)>("""
             SELECT typeof(id) AS IdType,
-                   typeof(entity_id) AS EntityIdType,
-                   typeof(batch_id) AS BatchIdType
+                   typeof(entity_id) AS EntityIdType
             FROM media_operations
             WHERE idempotency_key = @key;
             """, new { key = operation.IdempotencyKey });
-        var byBatch = await repo.GetByBatchAsync(batchId);
+        var byEntity = await repo.GetByEntityAsync(entityId);
 
         Assert.Equal("blob", storageTypes.IdType);
         Assert.Equal("blob", storageTypes.EntityIdType);
-        Assert.Equal("blob", storageTypes.BatchIdType);
-        Assert.Single(byBatch);
-        Assert.Equal(entityId, byBatch[0].EntityId);
-        Assert.Equal(batchId, byBatch[0].BatchId);
+        Assert.Single(byEntity);
+        Assert.Equal(entityId, byEntity[0].EntityId);
     }
 
     [Fact]
@@ -278,23 +268,20 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
         var repo = new MediaOperationEventRepository(_db);
         var operationId = Guid.NewGuid();
         var entityId = Guid.NewGuid();
-        var batchId = Guid.NewGuid();
 
         await repo.AddAsync(new MediaOperationEvent
         {
             OperationId = operationId,
             EntityId = entityId,
-            BatchId = batchId,
             EventType = "status_changed",
             NewStatus = MediaOperationStatus.Running,
         });
 
         using var conn = _db.CreateConnection();
-        var storageTypes = conn.QuerySingle<(string IdType, string OperationIdType, string EntityIdType, string BatchIdType)>("""
+        var storageTypes = conn.QuerySingle<(string IdType, string OperationIdType, string EntityIdType)>("""
             SELECT typeof(id) AS IdType,
                    typeof(operation_id) AS OperationIdType,
-                   typeof(entity_id) AS EntityIdType,
-                   typeof(batch_id) AS BatchIdType
+                   typeof(entity_id) AS EntityIdType
             FROM media_operation_events
             WHERE operation_id = @operationId;
             """, new { operationId });
@@ -303,10 +290,8 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
         Assert.Equal("blob", storageTypes.IdType);
         Assert.Equal("blob", storageTypes.OperationIdType);
         Assert.Equal("blob", storageTypes.EntityIdType);
-        Assert.Equal("blob", storageTypes.BatchIdType);
         Assert.Single(events);
         Assert.Equal(entityId, events[0].EntityId);
-        Assert.Equal(batchId, events[0].BatchId);
     }
 
     [Fact]
@@ -349,13 +334,11 @@ public sealed class DurableMediaOperationRepositoryTests : IDisposable
         string? sourcePath = null,
         string status = MediaOperationStatus.Queued,
         DateTimeOffset? heartbeatAt = null,
-        Guid? entityId = null,
-        Guid? batchId = null) => new()
+        Guid? entityId = null) => new()
         {
             OperationType = MediaOperationType.IngestionFile,
             OperationKind = MediaOperationKind.Ingestion,
             EntityId = entityId,
-            BatchId = batchId,
             SourcePath = sourcePath,
             Status = status,
             Stage = MediaOperationStage.Queued,

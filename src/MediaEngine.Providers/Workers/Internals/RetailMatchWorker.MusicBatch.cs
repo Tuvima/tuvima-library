@@ -503,9 +503,9 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailNoMatch, ct: ct);
             await EnrichPeopleWithoutMediaMatchAsync(job.EntityId, ct).ConfigureAwait(false);
             await _outcomeFactory.CreateRetailFailedAsync(
-                job.EntityId, job.MediaType, job.IngestionRunId, null, ct);
+                job.EntityId, job.MediaType, ct);
             var titleHint = fileHints.GetValueOrDefault(MetadataFieldConstants.Title) ?? "(unknown)";
-            await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, job.IngestionRunId, ct);
+            await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, ct);
 
             _logger.LogInformation(
                 "Music: no track match (score {Score:F2}) for '{Title}' in album collectionId={CollectionId} (entity {EntityId})",
@@ -641,7 +641,7 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.SetSelectedCandidateAsync(job.Id, candidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatched, ct: ct);
             await _timeline.RecordRetailMatchedAsync(
-                job.EntityId, "apple_api", 1, job.IngestionRunId, ct);
+                job.EntityId, "apple_api", 1, ct);
 
             _logger.LogInformation(
                 "Music: track '{FileTitle}' → '{MatchedTitle}' from Apple iTunes album lookup (score {Score:F2}) [entity {EntityId}]",
@@ -650,7 +650,7 @@ public sealed partial class RetailMatchWorker
             try
             {
                 await _postPipeline.EvaluateAndOrganizeAsync(
-                    job.EntityId, job.Id, wikidataQid: null, job.IngestionRunId, ct)
+                    job.EntityId, job.Id, wikidataQid: null, ct)
                     .ConfigureAwait(false);
                 if (_coverArtWorker is not null)
                 {
@@ -670,9 +670,9 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.SetSelectedCandidateAsync(job.Id, candidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
             await _outcomeFactory.CreateRetailAmbiguousAsync(
-                job.EntityId, job.MediaType, decision.FinalScore, job.IngestionRunId, null, ct);
+                job.EntityId, job.MediaType, decision.FinalScore, ct);
             await _timeline.RecordRetailMatchedAsync(
-                job.EntityId, "apple_api", 1, job.IngestionRunId, ct);
+                job.EntityId, "apple_api", 1, ct);
 
             _logger.LogInformation(
                 "Music: track '{FileTitle}' → '{MatchedTitle}' ambiguous on Apple iTunes (score {Score:F2}, needs review) [entity {EntityId}]",
@@ -683,9 +683,9 @@ public sealed partial class RetailMatchWorker
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailNoMatch, ct: ct);
             await EnrichPeopleWithoutMediaMatchAsync(job.EntityId, ct).ConfigureAwait(false);
             await _outcomeFactory.CreateRetailFailedAsync(
-                job.EntityId, job.MediaType, job.IngestionRunId, null, ct);
+                job.EntityId, job.MediaType, ct);
             var titleHint = fileHints.GetValueOrDefault(MetadataFieldConstants.Title) ?? "(unknown)";
-            await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, job.IngestionRunId, ct);
+            await _timeline.RecordRetailNoMatchAsync(job.EntityId, titleHint, ct);
 
             _logger.LogInformation(
                 "Music: track '{FileTitle}' rejected — score {Score:F2} below thresholds [entity {EntityId}]",

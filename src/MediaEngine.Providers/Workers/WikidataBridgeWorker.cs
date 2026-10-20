@@ -46,14 +46,12 @@ public sealed partial class WikidataBridgeWorker
     private readonly IWorkRepository _workRepo;
     private readonly WorkClaimRouter _claimRouter;
     private readonly CatalogUpsertService _catalogUpsert;
-    private readonly IIngestionBatchRepository _batchRepo;
     private readonly PostPipelineService _postPipeline;
     private readonly PersonEnrichmentWorker? _personEnrichment;
     private readonly WikidataSeriesManifestHydrationService? _seriesManifestHydration;
     private readonly CoverArtWorker _coverArt;
     private readonly CollectionFinalizationService? _collectionFinalization;
     private readonly IWorkIdentityReconciliationService? _workIdentityReconciliation;
-    private readonly BatchProgressService? _batchProgress;
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
     private readonly IMediaOperationTracker? _operationTracker;
     private readonly IEntityCapabilityStateRepository? _capabilityStates;
@@ -85,11 +83,9 @@ public sealed partial class WikidataBridgeWorker
         IWorkRepository workRepo,
         WorkClaimRouter claimRouter,
         CatalogUpsertService catalogUpsert,
-        IIngestionBatchRepository batchRepo,
         PostPipelineService postPipeline,
         CoverArtWorker coverArt,
         ILogger<WikidataBridgeWorker> logger,
-        BatchProgressService? batchProgress = null,
         IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
         ICanonicalValueArrayRepository? arrayRepo = null,
         WikidataSeriesManifestHydrationService? seriesManifestHydration = null,
@@ -118,7 +114,6 @@ public sealed partial class WikidataBridgeWorker
         _workRepo = workRepo;
         _claimRouter = claimRouter;
         _catalogUpsert = catalogUpsert;
-        _batchRepo = batchRepo;
         _postPipeline = postPipeline;
         _personEnrichment = personEnrichment;
         _seriesManifestHydration = seriesManifestHydration;
@@ -126,7 +121,6 @@ public sealed partial class WikidataBridgeWorker
         _collectionFinalization = collectionFinalization;
         _workIdentityReconciliation = workIdentityReconciliation;
         _logger = logger;
-        _batchProgress = batchProgress;
         _concurrency = concurrencyLimiter ?? NoopEnrichmentConcurrencyLimiter.Instance;
         _operationTracker = operationTracker;
         _capabilityStates = capabilityStates;

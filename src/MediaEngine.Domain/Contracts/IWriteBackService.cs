@@ -20,14 +20,14 @@ public interface IWriteBackService
     /// <param name="assetId">The <c>media_assets.id</c> identifying the file.</param>
     /// <param name="trigger">The write-back trigger (e.g. "auto_match", "manual_override", "universe_enrichment").</param>
     /// <param name="ct">Cancellation token.</param>
-    Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null);
+    Task WriteMetadataAsync(Guid assetId, string trigger, CancellationToken ct = default);
 }
 
 /// <summary>Outcome-bearing contract for durable write-back dispatch.</summary>
 public interface IWriteBackOutcomeService : IWriteBackService
 {
     Task<WriteBackOutcome> WriteMetadataWithOutcomeAsync(
-        Guid assetId, string trigger, CancellationToken ct = default, Guid? ingestionRunId = null);
+        Guid assetId, string trigger, CancellationToken ct = default);
 }
 
 public enum WriteBackOutcomeKind

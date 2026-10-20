@@ -53,7 +53,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
     }
 
     /// <inheritdoc />
-    public async Task<NarrativeRoot?> ResolveAsync(Guid entityId, CancellationToken ct = default, Guid? ingestionRunId = null)
+    public async Task<NarrativeRoot?> ResolveAsync(Guid entityId, CancellationToken ct = default)
     {
         var values = await _canonicalValues.GetByEntityAsync(entityId, ct);
         var lookup = values.ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
@@ -78,7 +78,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
             && !IsKnownFictionalMemberQid(lookup, qid))
         {
             var root = await UpsertRootAsync(qid, label, NarrativeLevel.Universe, parentQid: null, ct);
-            await StoreNarrativeRootOnWork(entityId, root, ingestionRunId, ct);
+            await StoreNarrativeRootOnWork(entityId, root, ct);
 
             // Also record franchise and series as child nodes if present
             await TryRecordChildNode(lookup, "franchise", NarrativeLevel.Franchise, qid, ct);
@@ -93,7 +93,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
             && !IsKnownFictionalMemberQid(lookup, qid))
         {
             var root = await UpsertRootAsync(qid, label, NarrativeLevel.Franchise, parentQid: null, ct);
-            await StoreNarrativeRootOnWork(entityId, root, ingestionRunId, ct);
+            await StoreNarrativeRootOnWork(entityId, root, ct);
 
             // Record series as child if present
             await TryRecordChildNode(lookup, "series", NarrativeLevel.Series, qid, ct);
@@ -105,7 +105,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         if (TryExtractQidAndLabel(lookup, "series", out qid, out label))
         {
             var root = await UpsertRootAsync(qid, label, NarrativeLevel.Series, parentQid: null, ct);
-            await StoreNarrativeRootOnWork(entityId, root, ingestionRunId, ct);
+            await StoreNarrativeRootOnWork(entityId, root, ct);
             return root;
         }
 
@@ -323,7 +323,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
     }
 
     private async Task StoreNarrativeRootOnWork(
-        Guid entityId, NarrativeRoot root, Guid? ingestionRunId, CancellationToken ct)
+        Guid entityId, NarrativeRoot root, CancellationToken ct)
     {
         // Store narrative_root_qid and narrative_root_label as canonical values on the work
         var values = new[]
@@ -346,8 +346,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
 
         await _canonicalValues.UpsertBatchAsync(values, ct);
 
-        // Log activity — tagged with IngestionRunId so the Dashboard can group
-        // this entry as a sub-item under the parent media-added entry.
+        // Log activity.
         await _activity.LogAsync(new Domain.Entities.SystemActivityEntry
         {
             OccurredAt = DateTimeOffset.UtcNow,
@@ -356,7 +355,6 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
             EntityId = entityId,
             EntityType = "NarrativeRoot",
             Detail = $"Resolved narrative root: {root.Label} ({root.Qid}) at level {root.Level}",
-            IngestionRunId = ingestionRunId,
         }, ct);
     }
 }

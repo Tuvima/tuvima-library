@@ -1031,7 +1031,6 @@ One row per file processed through the ingestion pipeline.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT | UUID, primary key |
-| `batch_id` | TEXT | FK -> `ingestion_batches.id` |
 | `asset_id` | TEXT | FK -> `media_assets.id` |
 | `file_path` | TEXT | Original file path |
 | `fingerprint` | TEXT | SHA-256 hash |
@@ -1039,38 +1038,6 @@ One row per file processed through the ingestion pipeline.
 | `outcome_reason` | TEXT | Natural-language explanation for non-promoted outcomes |
 | `pipeline_state` | TEXT | JSON snapshot of pipeline stage completion |
 | `created_at` | TEXT | Timestamp |
-
-### ingestion_batches
-
-Groups ingestion_log rows into named runs.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `started_at` | TEXT | Timestamp |
-| `completed_at` | TEXT | NULL until batch finishes |
-| `file_count` | INTEGER | Total files in batch |
-| `promoted_count` | INTEGER | |
-| `rejected_count` | INTEGER | |
-
-### ingestion_batch_artifacts
-
-Current-schema ledger for the concrete things an ingestion batch added, updated, linked, or routed to review. This table supports later Activity page rollups without relying on UI-only state.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | BLOB | UUID, primary key |
-| `batch_id` | BLOB | Ingestion batch/run id |
-| `artifact_type` | TEXT | Media, metadata field, cover/poster URL, stored artwork, person, relationship, series, QID, review item, or other batch artifact |
-| `artifact_id` | BLOB | Optional id of the created or updated artifact |
-| `parent_entity_id` | BLOB | Optional owning asset, work, collection, person, or review entity |
-| `parent_entity_type` | TEXT | Optional owner type |
-| `action` | TEXT | Added, updated, linked, resolved, skipped, review-created, or similar action |
-| `display_name` | TEXT | Human-readable artifact label |
-| `provider_id` | TEXT | Provider that supplied the artifact, when relevant |
-| `source` | TEXT | Source subsystem or worker |
-| `detail_json` | TEXT | Structured detail for Activity page display and diagnostics |
-| `occurred_at` | TEXT | Timestamp |
 
 ### deferred_enrichment_queue
 
@@ -1372,19 +1339,21 @@ The unique key is `(asset_id, source_hash, profile_key)`. Cleanup scans the `(st
 
 ### system_activity
 
-Rolling log of Engine actions. Pruned automatically per `config/maintenance.json`.
+The Activity log's store: one row per thing the Library did (added media, Needs Review, failures, system events such as a missing tool, and photo or personal video counts). Pruned automatically per `config/maintenance.json`.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `run_id` | TEXT | Groups related activities into a single run |
-| `activity_type` | TEXT | Type code (e.g., `"Ingestion"`, `"Enrichment"`, `"Writeback"`) |
-| `entity_id` | TEXT | Related entity. NULL for system-level activities. |
-| `outcome` | TEXT | `"Success"`, `"Failure"`, `"Skipped"` |
-| `message` | TEXT | Human-readable description |
-| `created_at` | TEXT | Timestamp |
+| `id` | INTEGER | Auto-increment primary key |
+| `occurred_at` | TEXT | UTC timestamp |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
+| `entity_id` | BLOB | Related entity, when there is one |
+| `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
+| `profile_id` | BLOB | The profile that caused it, when a person did |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `detail` | TEXT | The plain explanation under the headline |
 
-**Index:** `run_id`, `activity_type`, `created_at`
+**Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0018).
 
 ### transaction_log
 

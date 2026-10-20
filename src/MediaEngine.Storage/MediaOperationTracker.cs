@@ -37,7 +37,6 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
         {
             OperationId = ensured.Id,
             EntityId = ensured.EntityId,
-            BatchId = ensured.BatchId,
             EventType = "ensured",
             NewStatus = ensured.Status,
             NewStage = ensured.Stage,
@@ -166,7 +165,6 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
         {
             OperationId = after.Id,
             EntityId = after.EntityId,
-            BatchId = after.BatchId,
             EventType = eventType,
             OldStatus = before?.Status,
             NewStatus = after.Status,

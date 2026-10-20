@@ -120,5 +120,15 @@
     .ingestion-media-list-row__identity { grid-column: 1 / -1; }
     .ingestion-media-list-row__format small { display: none; }
     .ingestion-media-list-row__status { justify-self: start; }
-    .ingestion-media-list-row__details { justify-self: end; width: 100%; }
+    /* Details takes its own line so five 44px symbols fit on a phone. */
+    .ingestion-media-list-row__details { grid-column: 1 / -1; width: 100%; }
+}
+
+/* Touch: the title button is a 44px target (its stretched hit area already covers the whole row); the title it holds sets its height. */
+@media (pointer: coarse) {
+    /* One line tall enough for a finger; block display keeps the title's ellipsis. */
+    .ingestion-media-list-row__title {
+        display: block;
+        line-height: var(--tl-tap-target-min, 44px);
+    }
 }

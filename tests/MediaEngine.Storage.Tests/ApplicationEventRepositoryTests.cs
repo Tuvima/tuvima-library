@@ -98,7 +98,7 @@ public sealed class ApplicationEventRepositoryTests : IDisposable
     private static ApplicationEventDraft Draft(string type, string subjectId)
     {
         using var payload = JsonDocument.Parse("{\"status\":\"ok\"}");
-        return new(type, 1, DateTimeOffset.UtcNow, new("ingestion-batch", subjectId), payload.RootElement.Clone());
+        return new(type, 1, DateTimeOffset.UtcNow, new("ingestion", subjectId), payload.RootElement.Clone());
     }
 
     public void Dispose()
