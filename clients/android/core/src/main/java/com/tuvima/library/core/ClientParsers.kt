@@ -69,6 +69,7 @@ internal fun parseCollectionEntry(json: JSONObject, absolute: (String?) -> Strin
         collectionType = json.optionalString("collection_type"),
         systemKey = json.optionalString("system_key"),
         itemCount = json.optInt("item_count"),
+        wireUniverseQid = json.optionalString("universe_qid"),
         coverUrls = json.optJSONArray("artwork_items")
             ?.objects { absolute(it.optionalString("cover_url")) }
             .orEmpty()

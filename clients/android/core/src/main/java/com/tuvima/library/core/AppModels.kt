@@ -87,9 +87,13 @@ data class CollectionEntry(
     val systemKey: String?,
     val itemCount: Int,
     val coverUrls: List<String>,
+    /** The entry's `universe_qid`: set by the Engine only on a Universe the profile may open. */
+    val wireUniverseQid: String? = null,
 ) {
-    /** The Wikidata QID when the Engine carries one for this entry, otherwise null. */
-    fun universeQid(): String? = systemKey?.trim()?.takeIf { ClientRoutes.isQid(it) }
+    /** The Wikidata QID that opens this entry as a Universe (`universe_qid`, else a QID-shaped `system_key`), otherwise null. */
+    fun universeQid(): String? =
+        wireUniverseQid?.trim()?.takeIf { ClientRoutes.isQid(it) }
+            ?: systemKey?.trim()?.takeIf { ClientRoutes.isQid(it) }
 
     /** What the person calls this group, by its group type. */
     fun kindLabel(): String = groupTypeLabel(groupType)

@@ -444,7 +444,7 @@ end function
 function wireCount(value as Dynamic) as Integer
     if value = invalid then return 0
     kind = Type(value)
-    if kind = "roInt" or kind = "Integer" or kind = "roFloat" or kind = "Float" or kind = "roDouble" or kind = "Double" or kind = "roLongInteger" or kind = "LongInteger"
+    if kind = "roInt" or kind = "roInteger" or kind = "Integer" or kind = "roFloat" or kind = "Float" or kind = "roDouble" or kind = "Double" or kind = "roLongInteger" or kind = "LongInteger"
         return Int(value)
     end if
     return 0

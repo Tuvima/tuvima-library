@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -676,9 +677,12 @@ private fun UniverseScreen(
                 Column(Modifier.padding(horizontal = 64.dp, vertical = 8.dp)) {
                     Text("Cast", style = MaterialTheme.typography.headlineMedium)
                     Spacer(Modifier.height(8.dp))
+                    // Focusable without an action, so the remote can move down here and the list scrolls into view.
                     universe.cast.forEach { member ->
-                        Text(member.name, style = MaterialTheme.typography.titleMedium)
-                        castCharactersLine(member)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                        Column(Modifier.focusable()) {
+                            Text(member.name, style = MaterialTheme.typography.titleMedium)
+                            castCharactersLine(member)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                        }
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -690,7 +694,7 @@ private fun UniverseScreen(
                     Text("Adaptations", style = MaterialTheme.typography.headlineMedium)
                     Spacer(Modifier.height(8.dp))
                     universe.adaptations.forEach { link ->
-                        Text(adaptationLine(link), style = MaterialTheme.typography.bodyLarge)
+                        Text(adaptationLine(link), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.focusable())
                         Spacer(Modifier.height(6.dp))
                     }
                 }

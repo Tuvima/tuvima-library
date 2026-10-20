@@ -283,7 +283,8 @@ struct UniverseView: View {
                 ShelfRow(shelf: rows.runShelf, showsTitle: false)
             }
             if let also = rows.alsoShelf, let heading = rows.alsoHeading {
-                ShelfRow(shelf: also, title: heading)
+                // With no run, the Series heading above already says "Also in this world · N items".
+                ShelfRow(shelf: also, title: heading, showsTitle: rows.showsRun)
             }
         }
     }
