@@ -427,7 +427,8 @@ public static class ViewClientEndpoints
             ContentUrl = $"{BasePath}/items/{item.Id:D}/original",
             DocumentInfo = null,
             Snippet = null,
-            CanTrash = own && item.CanTrash,
+            // A paired app's photo permissions are for viewing: it can never move anything to Trash.
+            CanTrash = false,
         };
         return own
             ? client

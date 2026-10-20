@@ -98,6 +98,8 @@ public sealed class ViewTrashDeletionPlanner(
     public const string ContributionPendingReason = "Waiting to be added to the Shared Library; cancel that first.";
     public const string SourceMissingReason = "Its folder is no longer set up in View, so the file was left where it is.";
     public const string StorageUnavailableReason = "View storage isn't available right now, so the file was left where it is.";
+    public const string StorageReadOnlyReason = "View storage is read-only right now, so the file was left where it is.";
+    public const string NotAllowedReason = "Tuvima isn't allowed to change this file.";
     public const string NotAFileReason = "Something other than a file is at this location, so it was left where it is.";
 
     private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
@@ -157,13 +159,14 @@ public sealed class ViewTrashDeletionPlanner(
         var pending = await trash.GetItemsWithPendingContributionAsync(space.Id, ownerId, ct).ConfigureAwait(false);
         var sources = (await spaces.GetSourcesAsync(space.Id, ct).ConfigureAwait(false)).ToDictionary(source => source.Id);
         var rootProblem = TryGetProfileRoot(space, out var profileRoot);
+        var storageWritable = profileRoot is not null && SafeIsWritable();
 
         // 2. Decide each item on its own: all of its files go, or none do.
         var decided = new List<Decision>(items.Count);
         foreach (var item in items)
         {
             ct.ThrowIfCancellationRequested();
-            decided.Add(Decide(space, item, sources, pending, profileRoot, rootProblem));
+            decided.Add(Decide(space, item, sources, pending, profileRoot, rootProblem, storageWritable));
         }
 
         var deleting = decided.Where(decision => decision.Outcome == ViewTrashOutcomes.Delete)
@@ -278,7 +281,8 @@ public sealed class ViewTrashDeletionPlanner(
         IReadOnlyDictionary<Guid, ViewSource> sources,
         IReadOnlySet<Guid> pending,
         string? profileRoot,
-        string? rootProblem)
+        string? rootProblem,
+        bool storageWritable)
     {
         // A file in a linked folder is for looking at: the whole item is read-only, even if its other files are not.
         foreach (var source in item.Files.SelectMany(file => file.Sources))
@@ -299,7 +303,7 @@ public sealed class ViewTrashDeletionPlanner(
         {
             foreach (var place in file.Sources)
             {
-                var refusal = CheckPlace(space, file, place, sources, profileRoot, rootProblem, out var plannedFile);
+                var refusal = CheckPlace(space, file, place, sources, profileRoot, rootProblem, storageWritable, out var plannedFile);
                 if (refusal is not null)
                 {
                     return Skip(item, ViewTrashOutcomes.SkipRefused, refusal);
@@ -320,6 +324,7 @@ public sealed class ViewTrashDeletionPlanner(
         IReadOnlyDictionary<Guid, ViewSource> sources,
         string? profileRoot,
         string? rootProblem,
+        bool storageWritable,
         out ViewTrashPlannedFile? planned)
     {
         planned = null;
@@ -339,7 +344,7 @@ public sealed class ViewTrashDeletionPlanner(
             return reason;
         }
 
-        var policy = ViewSourceMutationPolicyFactory.Create(space, source, resolved.Root, storageIsWritable: true);
+        var policy = ViewSourceMutationPolicyFactory.Create(space, source, resolved.Root, storageWritable);
         var verdict = gate.Evaluate(new SourceMutationRequest
         {
             Source = policy,
@@ -348,7 +353,11 @@ public sealed class ViewTrashDeletionPlanner(
         });
         if (!verdict.Allowed)
         {
-            return verdict.Reason ?? "The safety check refused to delete this file.";
+            // The gate's own wording can carry technical detail (even an exception message), so it is logged here and never
+            // sent to the person or folded into the fingerprint.
+            logger.LogInformation("The source-file safety gate refused to let Empty Trash delete file {FileId} of a Personal Space: {Reason}",
+                file.FileId, verdict.Reason);
+            return storageWritable ? NotAllowedReason : StorageReadOnlyReason;
         }
 
         var action = ViewTrashFileAction.Delete;
@@ -376,16 +385,33 @@ public sealed class ViewTrashDeletionPlanner(
     {
         try
         {
-            profileRoot = storage.GetProfileRoot(space);
+            // Read-only storage still gets a root: the gate, not this lookup, refuses to change files on it.
+            profileRoot = storage.GetProfileRoot(space, requireWrite: false);
             return null;
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException
+            or MediaEngine.Storage.Configuration.ConfigValidationException
             or ArgumentException)
         {
             // Without a verified profile folder nothing can be shown to be inside it, so every file is left alone.
             logger.LogWarning(exception, "View storage could not be resolved while planning Empty Trash for a Personal Space");
             profileRoot = null;
             return StorageUnavailableReason;
+        }
+    }
+
+    private bool SafeIsWritable()
+    {
+        try
+        {
+            return storage.IsStorageWritable();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException
+            or MediaEngine.Storage.Configuration.ConfigValidationException)
+        {
+            // If writability cannot be read it counts as not writable: the gate then refuses, which costs nothing.
+            logger.LogWarning(exception, "View storage writability could not be read while planning Empty Trash");
+            return false;
         }
     }
 

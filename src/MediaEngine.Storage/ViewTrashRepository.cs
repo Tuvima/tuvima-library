@@ -156,8 +156,9 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
 
-        // Waiting for a household administrator, or accepted and not yet finished (copying, cleaning up, needs attention, retry).
-        // A transfer that has not completed also counts: it can still be retried. Declined and cancelled contributions do not.
+        // Only work that is in flight protects an item: waiting for a household administrator, accepted and waiting or copying,
+        // or a transfer that is planned, copying or cleaning up. Failed, needs-attention, declined, cancelled and completed
+        // states do not block; the person's own copy may go and the history row is left unlinked.
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT ci.item_id
               FROM view_shared_contribution_items ci
@@ -167,14 +168,14 @@ public sealed class ViewTrashRepository(IDatabaseConnection database) : IViewTra
                AND t.scope_kind = 'personal' AND t.trashed_at IS NOT NULL
                AND (c.status = 'pending'
                     OR (c.status = 'accepted'
-                        AND ci.execution_state IN ('waiting', 'transferring', 'cleanup_pending', 'needs_attention', 'failed')))
+                        AND ci.execution_state IN ('waiting', 'transferring', 'cleanup_pending')))
             UNION
             SELECT tr.item_id
               FROM view_shared_transfers tr
               JOIN local_items t ON t.id = tr.item_id
              WHERE t.personal_space_id = @personalSpaceId AND t.owner_profile_id = @ownerProfileId
                AND t.scope_kind = 'personal' AND t.trashed_at IS NOT NULL
-               AND tr.state <> 'completed';
+               AND tr.state IN ('planned', 'transferring', 'cleanup_pending');
             """, new { personalSpaceId, ownerProfileId }, cancellationToken: ct)).ToHashSet();
         return Task.FromResult<IReadOnlySet<Guid>>(ids);
     }

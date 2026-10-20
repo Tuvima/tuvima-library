@@ -209,10 +209,7 @@ public sealed class ViewDiscoveryService(
             to,
             favoritesOnly), ct);
         var viewerProfileId = (await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false)).ActiveProfileId;
-        var items = page.AssetIds
-            .Select(id => assets.Find(id, ct))
-            .Where(item => item is not null)
-            .Cast<LocalAssetDto>()
+        var items = assets.FindMany(page.AssetIds, ct)
             .Select(item => ViewItemCapabilities.ForViewer(item, viewerProfileId))
             .ToList();
         return new ViewPlaceMediaResult(

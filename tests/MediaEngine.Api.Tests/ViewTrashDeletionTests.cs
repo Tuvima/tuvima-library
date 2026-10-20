@@ -49,6 +49,7 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
     private ViewPersonalSpaceRepository _spaces = null!;
     private ViewProfileRepository _policies = null!;
     private ViewStorageService _storage = null!;
+    private ConfigurationDirectoryLoader _configuration = null!;
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -62,7 +63,7 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         _spaces = new ViewPersonalSpaceRepository(_database);
         _policies = new ViewProfileRepository(_database);
 
-        var configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
+        var configuration = _configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         configuration.SaveLibraries(new LibrariesConfiguration
         {
             StorageLocations = [new ServerStorageLocationConfig { Id = "view", Label = "View", Path = Path.Combine(_root, "storage"), AllowWrite = true }],
@@ -462,7 +463,7 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task APendingContribution_IsSkippedUntilItIsDoneOrCancelled()
+    public async Task OnlyInFlightSharedLibraryWork_ProtectsAnItem()
     {
         var alice = await CreatePerson();
         var photo = await AddPhoto(alice, "shared-soon");
@@ -472,15 +473,46 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         Assert.Equal(ViewTrashOutcomes.SkipContributionPending, waiting.Outcome);
         Assert.Equal(ViewTrashDeletionPlanner.ContributionPendingReason, waiting.Reason);
 
-        SetContribution(contribution, "accepted", "transferring");
-        Assert.Equal(ViewTrashOutcomes.SkipContributionPending, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        // Accepted and still waiting, being copied, or cleaning up the original: protected.
+        foreach (var state in new[] { "waiting", "transferring", "cleanup_pending" })
+        {
+            SetContribution(contribution, "accepted", state);
+            Assert.Equal(ViewTrashOutcomes.SkipContributionPending, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        }
 
-        // Already added: the history stays, and the item can go.
-        SetContribution(contribution, "accepted", "completed");
-        Assert.Equal(ViewTrashOutcomes.Delete, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        // Failed, needs attention, completed, cancelled or declined: the person's own copy may go.
+        foreach (var (status, state) in new[]
+        {
+            ("accepted", "failed"), ("accepted", "needs_attention"), ("accepted", "completed"),
+            ("cancelled", "waiting"), ("declined", "waiting"),
+        })
+        {
+            SetContribution(contribution, status, state);
+            Assert.Equal(ViewTrashOutcomes.Delete, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        }
 
-        SetContribution(contribution, "cancelled", "waiting");
-        Assert.Equal(ViewTrashOutcomes.Delete, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        Assert.True(File.Exists(photo.Paths[0]));
+    }
+
+    [Fact]
+    public async Task OnlyAnInFlightTransfer_ProtectsAnItem()
+    {
+        var alice = await CreatePerson();
+        var photo = await AddPhoto(alice, "moving");
+        InsertTransfer(photo.ItemId, "planned");
+
+        foreach (var state in new[] { "planned", "transferring", "cleanup_pending" })
+        {
+            SetTransfer(photo.ItemId, state);
+            Assert.Equal(ViewTrashOutcomes.SkipContributionPending, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        }
+
+        foreach (var state in new[] { "failed", "completed" })
+        {
+            SetTransfer(photo.ItemId, state);
+            Assert.Equal(ViewTrashOutcomes.Delete, Assert.Single((await PlanAsync(alice)).Items).Outcome);
+        }
+
         Assert.True(File.Exists(photo.Paths[0]));
     }
 
@@ -652,6 +684,109 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         await File.WriteAllBytesAsync(photo.Paths[0], new byte[500]);
 
         Assert.NotEqual(before, (await PlanAsync(alice)).Preview.Fingerprint);
+    }
+
+    [Fact]
+    public async Task AnotherPersonsLinkedCopyOfTheSameBytes_NeverMakesMyManagedUploadReadOnly()
+    {
+        var alice = await CreatePerson();
+        var bob = await CreatePerson();
+        var bobsFolder = await AddLinkedSource(bob);
+        var photoHash = NewHash();
+        var documentHash = NewHash();
+        var theirPhoto = await AddItem(bob, LocalAssetMediaKinds.Image, "same", Part(bob, "same.jpg", 100, LocalAssetFileRoles.Primary, bobsFolder, bobsFolder.ExternalPath) with { Hash = photoHash }, trash: false);
+        var theirDocument = await AddItem(bob, LocalAssetMediaKinds.Document, "same", Part(bob, "same.pdf", 100, LocalAssetFileRoles.Primary, bobsFolder, bobsFolder.ExternalPath) with { Hash = documentHash }, trash: false);
+        var myPhoto = await AddItem(alice, LocalAssetMediaKinds.Image, "same", Part(alice, "same.jpg", 100, LocalAssetFileRoles.Primary, alice.Upload) with { Hash = photoHash }, trash: false);
+        var myDocument = await AddItem(alice, LocalAssetMediaKinds.Document, "same", Part(alice, "same.pdf", 100, LocalAssetFileRoles.Primary, alice.Upload) with { Hash = documentHash }, trash: false);
+
+        // Bob's own copies are read-only; Alice's are not, and nothing about Bob's folder reaches her.
+        Assert.Equal(
+            new HashSet<Guid> { theirPhoto.ItemId, theirDocument.ItemId },
+            _assets.GetReadOnlyItemIds([myPhoto.ItemId, myDocument.ItemId, theirPhoto.ItemId, theirDocument.ItemId]));
+        Assert.True(_assets.Find(myPhoto.ItemId)!.CanTrash);
+        Assert.False(_assets.Find(theirPhoto.ItemId)!.CanTrash);
+        var many = _assets.FindMany([theirPhoto.ItemId, Guid.NewGuid(), myPhoto.ItemId, myDocument.ItemId]);
+        Assert.Equal([theirPhoto.ItemId, myPhoto.ItemId, myDocument.ItemId], many.Select(item => item.Id).ToArray());
+        Assert.Equal([false, true, true], many.Select(item => item.CanTrash).ToArray());
+
+        _actor.Current = alice.Authority;
+        using var single = await _client.PostAsync($"/view/items/{myPhoto.ItemId:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, single.StatusCode);
+        Assert.NotNull(_assets.Find(myPhoto.ItemId)!.TrashedAt);
+        using var bulk = await _client.PostAsJsonAsync("/view/documents/bulk",
+            new ViewDocumentBulkRequest([myDocument.ItemId], ViewDocumentBulkOperations.MoveToTrash));
+        var result = (await bulk.Content.ReadFromJsonAsync<ViewDocumentBulkResultDto>())!;
+        Assert.Equal((1, 0), (result.Done, result.Skipped));
+        Assert.NotNull(_assets.Find(myDocument.ItemId)!.TrashedAt);
+    }
+
+    [Fact]
+    public async Task OnReadOnlyStorage_NothingIsPlannedForDeletion()
+    {
+        var alice = await CreatePerson();
+        var photo = await AddPhoto(alice, "pic");
+        // The settings screen refuses to save read-only View storage, so the file is edited by hand, as a person could, and the
+        // loader is given a moment to notice.
+        _configuration.StartWatching();
+        var file = Path.Combine(_root, "config", "libraries.json");
+        var text = File.ReadAllText(file);
+        var edited = text.Replace("\"allow_write\": true", "\"allow_write\": false", StringComparison.Ordinal);
+        Assert.NotEqual(text, edited);
+        File.WriteAllText(file, edited);
+        // Settings that say the store is read-only no longer load at all (they fail validation), so there is no folder to check.
+        for (var wait = 0; wait < 100 && StorageSettingsLoad(); wait++)
+        {
+            await Task.Delay(100);
+        }
+
+        Assert.False(StorageSettingsLoad(), "The loader did not pick up the edited settings.");
+        var plan = await PlanAsync(alice);
+
+        var item = Assert.Single(plan.Items);
+        Assert.Equal(ViewTrashOutcomes.SkipRefused, item.Outcome);
+        Assert.Equal(ViewTrashDeletionPlanner.StorageUnavailableReason, item.Reason);
+        Assert.Equal(0, plan.Preview.DeleteCount);
+        Assert.True(File.Exists(photo.Paths[0]));
+    }
+
+    [Fact]
+    public async Task AGateRefusal_NeverPutsItsOwnWordingOnTheWireOrInTheFingerprint()
+    {
+        var alice = await CreatePerson();
+        await AddPhoto(alice, "pic");
+        using var scope = _app.Services.CreateScope();
+        var planner = new ViewTrashDeletionPlanner(
+            scope.ServiceProvider.GetRequiredService<IViewTrashRepository>(), _spaces, _policies, _storage,
+            new RefusingGate("secret detail: the ledger failed"),
+            scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+            NullLogger<ViewTrashDeletionPlanner>.Instance);
+
+        var plan = (await planner.BuildPlanAsync(alice.Authority)).Plan!;
+
+        var item = Assert.Single(plan.Items);
+        Assert.Equal(ViewTrashOutcomes.SkipRefused, item.Outcome);
+        Assert.Equal(ViewTrashDeletionPlanner.NotAllowedReason, item.Reason);
+        Assert.DoesNotContain("secret", System.Text.Json.JsonSerializer.Serialize(plan.Preview), StringComparison.Ordinal);
+        Assert.NotEqual((await PlanAsync(alice)).Preview.Fingerprint, plan.Preview.Fingerprint);
+    }
+
+    private bool StorageSettingsLoad()
+    {
+        try
+        {
+            _ = _storage.IsStorageWritable();
+            return true;
+        }
+        catch (MediaEngine.Storage.Configuration.ConfigValidationException)
+        {
+            return false;
+        }
+    }
+
+    private sealed class RefusingGate(string reason) : ISourceMutationPolicyGate
+    {
+        public MediaEngine.Ingestion.Models.SourceMutationDecision Evaluate(MediaEngine.Ingestion.Models.SourceMutationRequest request) =>
+            MediaEngine.Ingestion.Models.SourceMutationDecision.Deny(reason);
     }
 
     // ---------------------------------------------------------------- routes
@@ -982,6 +1117,22 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
             now = DateTimeOffset.UtcNow,
         });
         return contributionId;
+    }
+
+    private void InsertTransfer(Guid itemId, string state)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO view_shared_transfers
+                (id, item_id, operation, state, source_manifest_json, created_at, updated_at)
+            VALUES (@id, @itemId, 'copy', @state, '[]', @now, @now);
+            """, new { id = Guid.NewGuid(), itemId, state, now = DateTimeOffset.UtcNow });
+    }
+
+    private void SetTransfer(Guid itemId, string state)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("UPDATE view_shared_transfers SET state = @state WHERE item_id = @itemId;", new { itemId, state });
     }
 
     private void SetContribution(Guid contributionId, string status, string state)

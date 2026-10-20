@@ -15,6 +15,9 @@ public interface ILocalAssetRepository
     IReadOnlyList<LocalAssetTimelineBucket> QueryTimelineIndex(LocalAssetTimelineQuery query, CancellationToken ct = default);
     LocalAssetDto? Find(Guid itemId, CancellationToken ct = default);
 
+    /// <summary>The items that exist among <paramref name="itemIds"/>, in the order given (unknown ids are left out). The read-only lookup is one query for the whole list.</summary>
+    IReadOnlyList<LocalAssetDto> FindMany(IReadOnlyList<Guid> itemIds, CancellationToken ct = default);
+
     /// <summary>True when the item is a document (PDF, Office or text file) rather than a photo, video or audio.</summary>
     bool IsDocument(Guid itemId, CancellationToken ct = default);
 

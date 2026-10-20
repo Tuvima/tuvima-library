@@ -16,7 +16,20 @@ public sealed class ViewStorageService(
     private static readonly SemaphoreSlim PersonalSpaceGate = new(1, 1);
     private static readonly SemaphoreSlim ManagedSourceGate = new(1, 1);
 
-    public string GetRootPath()
+    public string GetRootPath() => GetRootPath(requireWrite: true);
+
+    /// <summary>
+    /// Whether the configured View storage location allows writes. A folder on read-only storage can still be shown and
+    /// planned against, but the safety gate must refuse to change anything in it.
+    /// </summary>
+    public bool IsStorageWritable()
+    {
+        var settings = configuration.LoadLibraries();
+        return settings.StorageLocations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, settings.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase))?.AllowWrite == true;
+    }
+
+    private string GetRootPath(bool requireWrite)
     {
         var settings = configuration.LoadLibraries();
         if (!string.Equals(settings.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
@@ -36,7 +49,7 @@ public sealed class ViewStorageService(
             string.Equals(candidate.Id, settings.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
                 $"View storage location '{settings.ViewStorage.StorageLocationId}' is not configured.");
-        if (!storage.AllowWrite)
+        if (requireWrite && !storage.AllowWrite)
         {
             throw new InvalidOperationException("The configured View storage location must allow writes.");
         }
@@ -53,14 +66,20 @@ public sealed class ViewStorageService(
         return Path.TrimEndingDirectorySeparator(root);
     }
 
-    public string GetProfileRoot(ViewPersonalSpace space)
+    public string GetProfileRoot(ViewPersonalSpace space) => GetProfileRoot(space, requireWrite: true);
+
+    /// <summary>
+    /// The owner's profile folder. With <paramref name="requireWrite"/> false the folder is returned even when the storage
+    /// location is read-only, for callers that only plan and leave the writability decision to the safety gate.
+    /// </summary>
+    public string GetProfileRoot(ViewPersonalSpace space, bool requireWrite)
     {
         if (!ViewStorageNames.IsValid(space.StorageLabel))
         {
             throw new InvalidOperationException("This Personal Space uses obsolete storage state. Recreate its disposable index and explicitly reimport originals; files are not relocated automatically.");
         }
 
-        return ResolveManagedRelativePath($"Profiles/{space.StorageLabel}");
+        return ResolveManagedRelativePath($"Profiles/{space.StorageLabel}", requireWrite);
     }
 
     public string GetSharedRoot() => ResolveManagedRelativePath("Shared");
@@ -356,7 +375,7 @@ public sealed class ViewStorageService(
 
         if (string.Equals(fullRoot, fullPath, PathComparison) || !IsWithin(fullRoot, fullPath))
         {
-            reason = "The file is outside this person's own folder.";
+            reason = "This file is outside your Personal Space folder.";
             return false;
         }
 
@@ -372,13 +391,13 @@ public sealed class ViewStorageService(
         {
             // The links on the way to the file could not be followed, so it cannot be shown to be inside the folder.
             _ = exception;
-            reason = "The file's location could not be checked, so it was left where it is.";
+            reason = "This file's location could not be checked, so it was left where it is.";
             return false;
         }
 
         if (string.Equals(realRoot, realPath, PathComparison) || !IsWithin(realRoot, realPath))
         {
-            reason = "The file is a link that leads outside this person's own folder.";
+            reason = "This file is a link that leads outside your Personal Space folder.";
             return false;
         }
 
@@ -387,7 +406,7 @@ public sealed class ViewStorageService(
         var real = Path.GetRelativePath(realRoot, realPath);
         if (!string.Equals(lexical, real, PathComparison))
         {
-            reason = "The file is reached through a link, so it was left where it is.";
+            reason = "This file is reached through a link, so it was left where it is.";
             return false;
         }
 
@@ -426,14 +445,14 @@ public sealed class ViewStorageService(
         return Path.TrimEndingDirectorySeparator(current);
     }
 
-    private string ResolveManagedRelativePath(string relative)
+    private string ResolveManagedRelativePath(string relative, bool requireWrite = true)
     {
         if (Path.IsPathRooted(relative))
         {
             throw new InvalidOperationException("Managed View paths must be relative to the View root.");
         }
 
-        var root = GetRootPath();
+        var root = GetRootPath(requireWrite);
         var result = Path.GetFullPath(Path.Combine(root, relative));
         EnsureContained(root, result, "Managed View paths must remain within the View root.");
         EnsureNoReparsePoints(result);

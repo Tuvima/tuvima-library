@@ -28,7 +28,7 @@ public interface IViewTrashRepository
     /// </summary>
     Task<IReadOnlyList<ViewTrashPathUse>> GetPathUsesByOtherItemsAsync(Guid personalSpaceId, Guid ownerProfileId, CancellationToken ct = default);
 
-    /// <summary>The owner's trashed items that are waiting to be added to the Shared Library or are being copied there.</summary>
+    /// <summary>The owner's trashed items with Shared Library work still in flight: a contribution waiting for a decision, accepted and waiting or copying, or a transfer that is planned, copying or cleaning up. Failed, needs-attention, cancelled, declined and completed work does not count.</summary>
     Task<IReadOnlySet<Guid>> GetItemsWithPendingContributionAsync(Guid personalSpaceId, Guid ownerProfileId, CancellationToken ct = default);
 
     /// <summary>Every Manual Gallery that holds one of the owner's trashed items, one row per gallery and item.</summary>
