@@ -55,15 +55,22 @@
                     {
                         <span class="tl-match-step__blocked">@row.Source.BlockedReason</span>
                     }
+                    @if (row.PickNote is { } pickNote)
+                    {
+                        <span class="tl-match-step__row-note" data-pick-note="true">@pickNote</span>
+                    }
                 </div>
-                <div class="tl-match-step__anyway">
-                    <p class="tl-match-step__muted">Nothing fits? Add it anyway. It won't get a @NumberWord number or details from @Destination.</p>
-                    <AppButton Label="Add anyway"
-                               ButtonStyle="AppButtonStyle.Text"
-                               Size="@AppControlSize.Compact"
-                               Disabled="@(Busy || row.Choice == LibraryMoveRowChoice.AddAnyway)"
-                               OnClick="@(() => AddAnyway(row))" />
-                </div>
+                @if (!Selection.IsWithinCurrentPlace)
+                {
+                    <div class="tl-match-step__anyway">
+                        <p class="tl-match-step__muted">Nothing fits? Add it anyway. It won't get a @NumberWord number or details from @Destination.</p>
+                        <AppButton Label="Add anyway"
+                                   ButtonStyle="AppButtonStyle.Text"
+                                   Size="@AppControlSize.Compact"
+                                   Disabled="@(Busy || row.Choice == LibraryMoveRowChoice.AddAnyway)"
+                                   OnClick="@(() => AddAnyway(row))" />
+                    </div>
+                }
             </section>
             <section class="tl-match-step__pane" aria-label="@($"{Destination} {ListNoun}")">
                 <h4 class="tl-match-step__pane-title">@ListHeading</h4>
@@ -79,8 +86,9 @@
                             {
                                 var chosen = string.Equals(row.EntryKey, entry.EntryKey, StringComparison.Ordinal) && row.Choice is LibraryMoveRowChoice.Match or LibraryMoveRowChoice.AddAsVersion;
                                 var taken = Selection.IsTaken(entry.EntryKey, row.ItemId);
-                                <AppListItem T="LibraryMoveEntry" Disabled="@Busy" OnClick="@(() => PickAsync(row, entry.EntryKey))">
-                                    <span class="@($"tl-match-step__entry{(chosen ? " is-chosen" : string.Empty)}{(taken ? " is-taken" : string.Empty)}")"
+                                var own = Selection.IsOwn(entry.EntryKey, row.ItemId);
+                                <AppListItem T="LibraryMoveEntry" Disabled="@(Busy || own || !row.CanPick(entry))" OnClick="@(() => PickAsync(row, entry.EntryKey))">
+                                    <span class="@($"tl-match-step__entry{(chosen ? " is-chosen" : string.Empty)}{(taken ? " is-taken" : string.Empty)}{(own ? " is-own" : string.Empty)}")"
                                           data-entry-key="@entry.EntryKey">
                                         <span class="tl-match-step__entry-number">@entry.Number</span>
                                         <span class="tl-match-step__entry-title">@entry.Title</span>
@@ -92,7 +100,11 @@
                                         {
                                             <span class="sr-only">Chosen.</span>
                                         }
-                                        @if (taken)
+                                        @if (own)
+                                        {
+                                            <span class="tl-match-step__own">This is it now</span>
+                                        }
+                                        else if (taken)
                                         {
                                             <span class="tl-match-step__taken">Has a file</span>
                                         }
@@ -138,7 +150,6 @@
                         <td class="tl-match-step__arrow" aria-hidden="true">&rarr;</td>
                         <td>
                             <AppNativeSelect @key="@((row.ItemId, _selectVersion))"
-                                             Class="tl-match-step__select"
                                              Value="@SelectValue(row)"
                                              Disabled="@Busy"
                                              aria-label="@($"New {NumberWord} for {row.Title}")"
@@ -147,11 +158,18 @@
                                 @foreach (var entry in Selection.Preview.Entries)
                                 {
                                     var other = Selection.IsPickedByOtherRow(row.ItemId, entry.EntryKey);
-                                    <option value="@entry.EntryKey" disabled="@other">@EntryOption(entry, row)</option>
+                                    <option value="@entry.EntryKey" disabled="@(other || !row.CanPick(entry))">@EntryOption(entry, row)</option>
                                 }
-                                <option value="@AnywayValue">Add anyway (no number)</option>
+                                @if (!Selection.IsWithinCurrentPlace)
+                                {
+                                    <option value="@AnywayValue">Add anyway (no number)</option>
+                                }
                             </AppNativeSelect>
                             <span class="tl-match-step__row-note">@RowNote(row)</span>
+                            @if (row.PickNote is { } pickNote)
+                            {
+                                <span class="tl-match-step__row-note" data-pick-note="true">@pickNote</span>
+                            }
                         </td>
                     </tr>
                 }
@@ -171,7 +189,7 @@
 
         <div class="tl-match-step__actions">
             <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="CancelAsync" />
-            @if (Selection.HasList && !Selection.IsSingle && Selection.UndecidedCount > 0)
+            @if (Selection.HasList && !Selection.IsSingle && !Selection.IsWithinCurrentPlace && Selection.UndecidedCount > 0)
             {
                 <AppButton Label="Add unmatched without numbers"
                            ButtonStyle="AppButtonStyle.Outlined"
@@ -226,6 +244,7 @@
 
     private string Heading => !Selection.HasList
         ? $"Move to {Destination}"
+        : Selection.IsWithinCurrentPlace && Selection.IsSingle ? $"Match {Selection.Rows[0].Title} in {Destination}"
         : Selection.IsSingle ? $"Match {Selection.Rows[0].Title} to {Destination}" : $"Match {Selection.Rows.Count} items to {Destination}";
 
     private string Lead => !Selection.HasList
@@ -234,8 +253,12 @@
             ? $"Choose which {NumberWord} this is. It takes that {NumberWord}'s number and details."
             : $"Choose which {NumberWord} each one is. Each takes that {NumberWord}'s number and details.";
 
+    // "Try again when it has finished" only fits the reason that passes by itself; the other reasons are final.
     private string? BlockedReason => Selection.Rows.FirstOrDefault(row => row.IsBlocked) is { } blocked
-        ? $"{blocked.Title}: {blocked.Source.BlockedReason}. Try again when it has finished."
+        ? $"{blocked.Title}: {blocked.Source.BlockedReason!.Trim().TrimEnd('.')}."
+            + (string.Equals(blocked.Source.BlockedReason, LibraryMoveBlockedReasons.StillProcessing, StringComparison.Ordinal)
+                ? " Try again when it has finished."
+                : string.Empty)
         : null;
 
     private string SelectValue(LibraryMoveRowState row) => row.Choice switch
@@ -248,7 +271,11 @@
     private string EntryOption(LibraryMoveEntry entry, LibraryMoveRowState row)
     {
         var text = $"{entry.Number}. {entry.Title}";
-        if (Selection.IsTaken(entry.EntryKey, row.ItemId))
+        if (Selection.IsOwn(entry.EntryKey, row.ItemId))
+        {
+            text += " (this is it now)";
+        }
+        else if (Selection.IsTaken(entry.EntryKey, row.ItemId))
         {
             text += " (has a file)";
         }
@@ -281,7 +308,9 @@
                     return $"Best guess {LibraryMoveText.EntryLabel(Selection.Preview, taken)} already has a file.";
                 }
 
-                return $"Not matched yet. Choose a {NumberWord}, or add it anyway.";
+                return Selection.IsWithinCurrentPlace
+                    ? $"Not matched yet. Choose a {NumberWord}."
+                    : $"Not matched yet. Choose a {NumberWord}, or add it anyway.";
         }
     }
 
@@ -321,6 +350,12 @@
         {
             case LibraryMovePickResult.EntryTaken:
                 await HandleTakenAsync(row, entryKey);
+                break;
+            case LibraryMovePickResult.OwnEntry when Selection.Entry(entryKey) is { } own:
+                _takenNote = LibraryMoveText.OwnEntryMessage(Selection.Preview, own);
+                break;
+            case LibraryMovePickResult.MatchNotAllowed or LibraryMovePickResult.CannotMerge:
+                _takenNote = row.PickNote;
                 break;
             case LibraryMovePickResult.PickedByAnotherItem:
                 _takenNote = $"Another item already has that {NumberWord}. Pick a different one.";

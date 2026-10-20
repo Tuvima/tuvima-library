@@ -80,9 +80,23 @@ public sealed class LibraryMoveDestination
     [JsonPropertyName("has_list")] public bool HasList { get; init; }
 }
 
+/// <summary>Plain reasons a preview row is blocked that a screen may need to tell apart from the others.</summary>
+public static class LibraryMoveBlockedReasons
+{
+    /// <summary>Something is still working on the item. It passes by itself, so a screen may suggest trying again later.</summary>
+    public const string StillProcessing = "Still being processed";
+}
+
 public sealed class LibraryMoveDestinationsResponse
 {
     [JsonPropertyName("destinations")] public List<LibraryMoveDestination> Destinations { get; init; } = [];
+
+    /// <summary>
+    /// The place the item already sits in, when that place has its own list (the album, season, series or audiobook it is in). It is never
+    /// among <see cref="Destinations"/> (those are places to move it to), so a screen opens the Match step on it directly to match an item
+    /// that was added anyway, or to change an item's number. Null when the item sits in no such place, or the caller may not edit it.
+    /// </summary>
+    [JsonPropertyName("current_destination")] public LibraryMoveDestination? CurrentDestination { get; init; }
 }
 
 /// <summary>Asks the Engine what moving these items into a destination would do. Nothing is changed.</summary>
@@ -123,6 +137,13 @@ public sealed class LibraryMoveEntry
     /// attach to (it is owned elsewhere), and for a free entry, which is matched instead.
     /// </summary>
     [JsonPropertyName("can_add_version")] public bool CanAddVersion { get; init; }
+
+    /// <summary>
+    /// True when matching an item to this entry merges it into a title that is already in the list (the entry's own title). An item whose
+    /// details the person set cannot do that (see <see cref="LibraryMovePreviewRow.MergeBlockedReason"/>). False when the entry is a slot
+    /// with no title yet, which the item simply takes.
+    /// </summary>
+    [JsonPropertyName("joins_existing_title")] public bool JoinsExistingTitle { get; init; }
 }
 
 /// <summary>A file's name and place before and after a move. Filled in when the move also renames and moves files.</summary>
@@ -155,6 +176,19 @@ public sealed class LibraryMovePreviewRow
 
     /// <summary>Why this item cannot be moved right now ("Still being processed"). Null when it can. Apply stays off while any row is blocked.</summary>
     [JsonPropertyName("blocked_reason")] public string? BlockedReason { get; init; }
+
+    /// <summary>
+    /// False when the caller may write this item but not match it to an entry (matching needs the metadata-match permission as well as
+    /// metadata-write). Such a row can only be added anyway, or joined to a place with no list; asking to match it fails at the commit.
+    /// </summary>
+    [JsonPropertyName("can_match")] public bool CanMatch { get; init; } = true;
+
+    /// <summary>
+    /// Why this item cannot be matched to an entry that already has a title in the list ("You changed this item's details, so it can't
+    /// be merged into an existing entry..."), while adding it anyway, or taking a slot with no title yet, still works. Null when it can.
+    /// Unlike <see cref="BlockedReason"/> it does not stop Apply: the person picks a choice that works.
+    /// </summary>
+    [JsonPropertyName("merge_blocked_reason")] public string? MergeBlockedReason { get; init; }
 }
 
 /// <summary>What the Engine will do if the items are moved, worked out fresh for each request.</summary>
@@ -201,6 +235,12 @@ public sealed class LibraryMoveRowResult
 
     /// <summary>One of <see cref="LibraryMoveOutcomes"/>.</summary>
     [JsonPropertyName("outcome")] public string Outcome { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The Work the item now lives in or as: its own Work when it stayed a title of its own (placed, or added anyway), the entry's Work when
+    /// it was merged into one (the item's own Work is gone), and the audiobook for a part. A screen showing the item re-targets to it.
+    /// </summary>
+    [JsonPropertyName("result_entity_id")] public Guid ResultEntityId { get; init; }
 }
 
 public sealed class LibraryMoveCommitResult

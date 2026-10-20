@@ -46,6 +46,28 @@ public sealed class WorkPersonalStateMergeTests : IDisposable
     }
 
     [Fact]
+    public void EveryPerPersonTableThatNamesATitleByIdWithNoForeignKey_IsCarriedOver()
+    {
+        using var connection = _database.CreateConnection();
+        var perPersonByEntityId = connection.Query<string>(
+            """
+            SELECT m.name
+            FROM sqlite_master m
+            WHERE m.type = 'table'
+              AND EXISTS (SELECT 1 FROM pragma_table_info(m.name) c WHERE c.name = 'entity_id')
+              AND EXISTS (SELECT 1 FROM pragma_table_info(m.name) c WHERE c.name = 'profile_id');
+            """).ToList();
+
+        // The activity log records who did what and when; it is history, not something a person owns, so a move leaves it as it was.
+        var records = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "system_activity" };
+        var personal = perPersonByEntityId.Where(table => !records.Contains(table)).ToList();
+
+        Assert.NotEmpty(personal);
+        Assert.All(personal, table => Assert.Contains(table, WorkPersonalStateMerge.HandledEntityIdTables));
+        Assert.All(WorkPersonalStateMerge.HandledEntityIdTables, table => Assert.Contains(table, personal));
+    }
+
+    [Fact]
     public void QueueItemsAndDeviceStatesPointAtTheSurvivingTitle_AndListenHistoryAndBookmarksAreAllKept()
     {
         var source = Work("Audiobooks");

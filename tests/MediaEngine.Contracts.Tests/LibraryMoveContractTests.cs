@@ -43,10 +43,10 @@ public sealed class LibraryMoveContractTests
         Assert.Equal(["destination", "list_kind", "entries", "rows", "warnings", "preview_token"], PropertyNames(json));
         Assert.Equal(["id", "kind", "label", "parent_label", "has_list"], root.GetProperty("destination").EnumerateObject().Select(property => property.Name));
         Assert.Equal(
-            ["entry_key", "number", "title", "length_seconds", "taken_by_item_id", "taken_by_title", "can_add_version"],
+            ["entry_key", "number", "title", "length_seconds", "taken_by_item_id", "taken_by_title", "can_add_version", "joins_existing_title"],
             root.GetProperty("entries")[0].EnumerateObject().Select(property => property.Name));
         Assert.Equal(
-            ["item_id", "title", "current_placement_label", "suggested_entry_key", "suggestion_reason", "file_change", "file_note", "blocked_reason"],
+            ["item_id", "title", "current_placement_label", "suggested_entry_key", "suggestion_reason", "file_change", "file_note", "blocked_reason", "can_match", "merge_blocked_reason"],
             root.GetProperty("rows")[0].EnumerateObject().Select(property => property.Name));
         // The file change and note are filled in when moves also rename and move files; until then they are null, never absent.
         Assert.Equal(JsonValueKind.Null, root.GetProperty("rows")[0].GetProperty("file_change").ValueKind);
@@ -87,7 +87,7 @@ public sealed class LibraryMoveContractTests
         Assert.Equal("add_as_version", roundTrip.Rows[0].Mode);
         Assert.Equal("work:1", roundTrip.Rows[0].EntryKey);
         Assert.Equal(["moved_count", "rows", "removed_containers"], PropertyNames(resultJson));
-        Assert.Equal(["item_id", "outcome"], PropertyNames(JsonSerializer.Serialize(result.Rows[0])));
+        Assert.Equal(["item_id", "outcome", "result_entity_id"], PropertyNames(JsonSerializer.Serialize(result.Rows[0])));
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public sealed class LibraryMoveContractTests
             Destinations = [new LibraryMoveDestination { Id = Guid.NewGuid(), Kind = LibraryMoveDestinationKinds.Collection, Label = "Road trip", HasList = false }],
         });
 
-        Assert.Equal(["destinations"], PropertyNames(json));
+        Assert.Equal(["destinations", "current_destination"], PropertyNames(json));
     }
 
     [Fact]

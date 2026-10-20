@@ -30,6 +30,15 @@ public enum LibraryMovePickResult
     /// <summary>Another item in this move already has that entry.</summary>
     PickedByAnotherItem,
 
+    /// <summary>The entry is the item's own (its current track, episode, position or part): it is never selectable, a different one is.</summary>
+    OwnEntry,
+
+    /// <summary>The caller may write the item but not match it to an entry (the Engine said so in the preview): only add anyway is left.</summary>
+    MatchNotAllowed,
+
+    /// <summary>The item's details were set by the person, so it cannot be merged into an entry that already has a title (the Engine said so in the preview).</summary>
+    CannotMerge,
+
     /// <summary>The entry or the item is not in this preview.</summary>
     Unknown,
 }
@@ -55,6 +64,24 @@ public sealed class LibraryMoveRowState
         Source.SuggestedEntryKey is { } suggested && string.Equals(suggested, EntryKey, StringComparison.Ordinal);
 
     public bool IsBlocked => !string.IsNullOrWhiteSpace(Source.BlockedReason);
+
+    /// <summary>False when the Engine said this item cannot be matched to an entry (no match permission): add anyway is the only choice that works.</summary>
+    public bool CanMatch => Source.CanMatch;
+
+    /// <summary>Why this item cannot be merged into an entry that already has a title, or null. It can still take an empty slot or be added anyway.</summary>
+    public string? MergeBlockedReason => string.IsNullOrWhiteSpace(Source.MergeBlockedReason) ? null : Source.MergeBlockedReason;
+
+    /// <summary>
+    /// Why entries are off for this item, in plain words, or null when it can pick. Shown under the item. A partly-off row (cannot merge)
+    /// still has the entries that are empty slots on offer.
+    /// </summary>
+    public string? PickNote => !CanMatch ? LibraryMoveText.MatchNotAllowedNote : MergeBlockedReason;
+
+    /// <summary>True when this row may choose the entry: it is not the item's own, the item may match, and it is not a merge the item cannot do.</summary>
+    public bool CanPick(LibraryMoveEntry entry) =>
+        CanMatch
+        && entry.TakenByItemId != ItemId
+        && !(MergeBlockedReason is not null && entry.JoinsExistingTitle);
 }
 
 /// <summary>
@@ -89,14 +116,20 @@ public sealed class LibraryMoveSelection
     public bool IsSingle => _rows.Count == 1;
 
     /// <summary>
+    /// True when the Match step was opened on the place the item already sits in (matching an item that was added anyway, or changing a
+    /// number). Adding anyway would change nothing there, so it is not offered, and the words say "match" rather than "move".
+    /// </summary>
+    public bool IsWithinCurrentPlace { get; init; }
+
+    /// <summary>
     /// Starts from a fresh preview: the Engine's best guess is pre-selected when it is free (a guess that already has a file is shown
     /// but not chosen, because that is the person's decision, D16). When <paramref name="previous"/> is given (the Engine answered that
     /// something changed) the person's earlier choices are kept wherever they are still possible.
     /// </summary>
-    public static LibraryMoveSelection From(LibraryMovePreview preview, LibraryMoveSelection? previous = null)
+    public static LibraryMoveSelection From(LibraryMovePreview preview, LibraryMoveSelection? previous = null, bool withinCurrentPlace = false)
     {
         ArgumentNullException.ThrowIfNull(preview);
-        var selection = new LibraryMoveSelection(preview);
+        var selection = new LibraryMoveSelection(preview) { IsWithinCurrentPlace = withinCurrentPlace || previous?.IsWithinCurrentPlace == true };
         foreach (var row in selection._rows)
         {
             if (!selection.HasList)
@@ -112,7 +145,8 @@ public sealed class LibraryMoveSelection
 
             if (row.Source.SuggestedEntryKey is { } suggested
                 && selection._entries.TryGetValue(suggested, out var entry)
-                && IsFreeFor(entry, row.ItemId)
+                && row.CanPick(entry)
+                && IsFreeFor(entry)
                 && !selection.IsPickedByOtherRow(row.ItemId, suggested))
             {
                 row.Choice = LibraryMoveRowChoice.Match;
@@ -136,9 +170,17 @@ public sealed class LibraryMoveSelection
     public bool IsPickedByOtherRow(Guid itemId, string entryKey) => RowChoosing(entryKey) is { } holder && holder.ItemId != itemId;
 
     /// <summary>True when the entry already has a file that is not this item's own.</summary>
-    public bool IsTaken(string entryKey, Guid itemId) => Entry(entryKey) is { } entry && !IsFreeFor(entry, itemId);
+    public bool IsTaken(string entryKey, Guid itemId) =>
+        Entry(entryKey) is { } entry && !IsFreeFor(entry) && !IsOwn(entry, itemId);
 
-    /// <summary>The person clicks an entry for an item. A free entry becomes the match; a taken one asks first (D16) and changes nothing yet.</summary>
+    /// <summary>True when the entry is the item's own: where it sits now. It is never selectable.</summary>
+    public bool IsOwn(string entryKey, Guid itemId) => Entry(entryKey) is { } entry && IsOwn(entry, itemId);
+
+    /// <summary>
+    /// The person clicks an entry for an item. A free entry becomes the match; a taken one asks first (D16) and changes nothing yet. The
+    /// item's own entry, an entry an item without the match permission cannot take, and an existing title an item with details the person
+    /// set cannot merge into, are refused here exactly as the Engine would at the commit.
+    /// </summary>
     public LibraryMovePickResult Pick(Guid itemId, string entryKey)
     {
         if (Find(itemId) is not { } row || Entry(entryKey) is not { } entry)
@@ -146,12 +188,27 @@ public sealed class LibraryMoveSelection
             return LibraryMovePickResult.Unknown;
         }
 
+        if (IsOwn(entry, itemId))
+        {
+            return LibraryMovePickResult.OwnEntry;
+        }
+
+        if (!row.CanMatch)
+        {
+            return LibraryMovePickResult.MatchNotAllowed;
+        }
+
+        if (!row.CanPick(entry))
+        {
+            return LibraryMovePickResult.CannotMerge;
+        }
+
         if (IsPickedByOtherRow(itemId, entryKey))
         {
             return LibraryMovePickResult.PickedByAnotherItem;
         }
 
-        if (!IsFreeFor(entry, itemId))
+        if (!IsFreeFor(entry))
         {
             return LibraryMovePickResult.EntryTaken;
         }
@@ -166,7 +223,8 @@ public sealed class LibraryMoveSelection
     {
         if (Find(itemId) is not { } row
             || Entry(entryKey) is not { CanAddVersion: true } entry
-            || IsFreeFor(entry, itemId)
+            || !row.CanPick(entry)
+            || IsFreeFor(entry)
             || IsPickedByOtherRow(itemId, entryKey))
         {
             return false;
@@ -180,7 +238,8 @@ public sealed class LibraryMoveSelection
     /// <summary>Add anyway for one item: no number, no borrowed details, end of the list.</summary>
     public void AddAnyway(Guid itemId)
     {
-        if (Find(itemId) is { } row)
+        // Within the item's own place there is nothing to add anyway: the item is already there.
+        if (!IsWithinCurrentPlace && Find(itemId) is { } row)
         {
             row.Choice = LibraryMoveRowChoice.AddAnyway;
             row.EntryKey = null;
@@ -190,6 +249,11 @@ public sealed class LibraryMoveSelection
     /// <summary>"Add unmatched without numbers" (D13): every item still without a choice is added anyway.</summary>
     public void AddUnmatchedWithoutNumbers()
     {
+        if (IsWithinCurrentPlace)
+        {
+            return;
+        }
+
         foreach (var row in _rows.Where(row => row.Choice == LibraryMoveRowChoice.Undecided))
         {
             row.Choice = LibraryMoveRowChoice.AddAnyway;
@@ -240,31 +304,38 @@ public sealed class LibraryMoveSelection
         ],
     };
 
-    private static bool IsFreeFor(LibraryMoveEntry entry, Guid itemId) =>
-        entry.TakenByItemId is null || entry.TakenByItemId == itemId;
+    // An entry nobody holds. The item's own entry is held by the item itself, so it is never free for it either: the Engine refuses it.
+    private static bool IsFreeFor(LibraryMoveEntry entry) => entry.TakenByItemId is null;
+
+    private static bool IsOwn(LibraryMoveEntry entry, Guid itemId) => entry.TakenByItemId == itemId;
 
     // Keeps an earlier choice when the fresh list still allows it exactly as before.
     private bool TryKeep(LibraryMoveRowState row, LibraryMoveRowState earlier)
     {
         if (earlier.Choice == LibraryMoveRowChoice.AddAnyway)
         {
+            if (IsWithinCurrentPlace)
+            {
+                return false;
+            }
+
             row.Choice = LibraryMoveRowChoice.AddAnyway;
             return true;
         }
 
-        if (earlier.EntryKey is not { } key || !_entries.TryGetValue(key, out var entry) || IsPickedByOtherRow(row.ItemId, key))
+        if (earlier.EntryKey is not { } key || !_entries.TryGetValue(key, out var entry) || !row.CanPick(entry) || IsPickedByOtherRow(row.ItemId, key))
         {
             return false;
         }
 
-        if (earlier.Choice == LibraryMoveRowChoice.Match && IsFreeFor(entry, row.ItemId))
+        if (earlier.Choice == LibraryMoveRowChoice.Match && IsFreeFor(entry))
         {
             row.Choice = LibraryMoveRowChoice.Match;
             row.EntryKey = key;
             return true;
         }
 
-        if (earlier.Choice == LibraryMoveRowChoice.AddAsVersion && entry is { CanAddVersion: true } && !IsFreeFor(entry, row.ItemId))
+        if (earlier.Choice == LibraryMoveRowChoice.AddAsVersion && entry is { CanAddVersion: true } && !IsFreeFor(entry))
         {
             row.Choice = LibraryMoveRowChoice.AddAsVersion;
             row.EntryKey = key;

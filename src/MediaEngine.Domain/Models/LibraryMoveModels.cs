@@ -13,6 +13,14 @@ public static class LibraryMoveKinds
     public const string Collection = "collection";
 }
 
+/// <summary>Plain-words reasons the Engine gives for a refusal that the Engine's two layers (the preview and the commit transaction) both reach.</summary>
+public static class LibraryMoveReasons
+{
+    /// <summary>An item whose details the person set cannot be merged into an existing entry: removing its emptied title would lose them.</summary>
+    public const string UserManagedMerge =
+        "You changed this item's details, so it can't be merged into an existing entry. Add it anyway without a number instead.";
+}
+
 /// <summary>How one item is placed in the destination.</summary>
 public enum LibraryMoveMode
 {
@@ -130,17 +138,24 @@ public sealed record LibraryMovePlan(
     string ActorLabel);
 
 /// <summary>What a committed row became. The wire strings are in the Contracts outcomes.</summary>
-public sealed record LibraryMoveRowOutcome(Guid ItemId, string Outcome);
+/// <param name="ResultEntityId">The Work the item now lives in or as: its own Work when it stayed a title of its own, the entry's Work when it was merged into one, the audiobook for a part.</param>
+public sealed record LibraryMoveRowOutcome(Guid ItemId, string Outcome, Guid ResultEntityId);
 
 /// <summary>The result of the commit transaction: either everything moved, or nothing did and why.</summary>
+/// <param name="IsRefusal">When nothing moved: true for a request the Engine does not allow whatever the state (the reason is plain words for the person); false for something that changed since the preview.</param>
 public sealed record LibraryMoveCommitOutcome(
     bool Committed,
     string? ConflictReason,
     IReadOnlyList<LibraryMoveRowOutcome> Rows,
     IReadOnlyList<string> RemovedContainers,
-    IReadOnlyList<string> OwnedFilesToRemove)
+    IReadOnlyList<string> OwnedFilesToRemove,
+    bool IsRefusal = false)
 {
+    /// <summary>Nothing moved because something changed since the preview.</summary>
     public static LibraryMoveCommitOutcome Conflict(string reason) => new(false, reason, [], [], []);
+
+    /// <summary>Nothing moved because the request is not one the Engine allows, however fresh the preview.</summary>
+    public static LibraryMoveCommitOutcome Refusal(string reason) => new(false, reason, [], [], [], IsRefusal: true);
 
     /// <param name="ownedFiles">Files Tuvima wrote for titles the move merged away (pictures, text tracks), for the caller to remove once the commit has succeeded.</param>
     public static LibraryMoveCommitOutcome Done(

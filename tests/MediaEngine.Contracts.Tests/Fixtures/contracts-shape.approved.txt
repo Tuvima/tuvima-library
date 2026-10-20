@@ -3362,6 +3362,8 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChange
   Value: System.String | nullability=nullable | accessors=get,init
   Values: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveBlockedReasons
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveCommitRequest
   PreviewToken: System.String | nullability=not-null | accessors=get,init
   Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.LibraryMoveCommitRow> | nullability=not-null | accessors=get,init
@@ -3391,6 +3393,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveDestinati
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveDestinationsResponse
   Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMoveDestination> | nullability=not-null | accessors=get,init
+  CurrentDestination: MediaEngine.Contracts.Library.LibraryMoveDestination | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveEntry
   EntryKey: System.String | nullability=not-null | accessors=get,init
@@ -3400,6 +3403,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveEntry
   TakenByItemId: System.Guid? | nullability=nullable | accessors=get,init
   TakenByTitle: System.String | nullability=nullable | accessors=get,init
   CanAddVersion: System.Boolean | nullability=not-null | accessors=get,init
+  JoinsExistingTitle: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveFileChange
   From: System.String | nullability=not-null | accessors=get,init
@@ -3433,10 +3437,13 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMovePreviewRo
   FileChange: MediaEngine.Contracts.Library.LibraryMoveFileChange | nullability=nullable | accessors=get,init
   FileNote: System.String | nullability=nullable | accessors=get,init
   BlockedReason: System.String | nullability=nullable | accessors=get,init
+  CanMatch: System.Boolean | nullability=not-null | accessors=get,init
+  MergeBlockedReason: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveRowResult
   ItemId: System.Guid | nullability=not-null | accessors=get,init
   Outcome: System.String | nullability=not-null | accessors=get,init
+  ResultEntityId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryOverviewDto
   TotalItems: System.Int32 | nullability=not-null | accessors=get,init

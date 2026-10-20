@@ -796,6 +796,7 @@ else if (Model is not null)
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
             OnArtworkChanged = RefreshCurrentDetailAsync,
+            OnEditedItemReplaced = FollowMovedItemAsync,
             IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
             PreviewItems =
             [
@@ -908,6 +909,20 @@ else if (Model is not null)
             CanEdit = collection.CanEdit,
             CanShare = collection.CanShare,
         };
+
+    // A move merged the title this page shows into another (or an audiobook part joined another audiobook), so the Work in the address
+    // may be gone: the address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so
+    // Back still returns to the page beneath. A page showing something else (an album with a song moved out of it) keeps its address.
+    private Task FollowMovedItemAsync(Guid previousId, Guid survivingId)
+    {
+        if (Model is null || _disposed || !Guid.TryParse(Model.Id, out var pageId) || pageId != previousId)
+        {
+            return Task.CompletedTask;
+        }
+
+        DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId);
+        return Task.CompletedTask;
+    }
 
     private async Task RefreshCurrentDetailAsync()
     {

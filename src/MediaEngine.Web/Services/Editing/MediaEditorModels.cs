@@ -51,6 +51,13 @@ public sealed class MediaEditorLaunchRequest
     public string? HeaderSubtitle { get; init; }
     public string? CoverUrl { get; init; }
     public Func<Task>? OnArtworkChanged { get; init; }
+
+    /// <summary>
+    /// Raised after a move when the Work the editor now shows is not the one it was showing (the move merged the edited title into an
+    /// entry's own title, which removed it, or an audiobook part joined another audiobook): the previous id and the surviving id. A host
+    /// that shows the previous Work (the details overlay) replaces its address with the surviving one.
+    /// </summary>
+    public Func<Guid, Guid, Task>? OnEditedItemReplaced { get; init; }
     public List<MediaEditorPreviewItem> PreviewItems { get; init; } = [];
 
     /// <summary>

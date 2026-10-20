@@ -146,6 +146,18 @@
     color: var(--tl-status-warning);
 }
 
+/* The item's own entry: shown so the list is complete, never selectable. */
+.tl-match-step__own {
+    grid-column: 2 / -1;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-match-step__entry.is-own .tl-match-step__entry-title {
+    color: var(--tl-text-secondary);
+}
+
 .tl-match-step__guess {
     color: var(--tl-accent-primary);
 }
