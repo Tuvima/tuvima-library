@@ -133,7 +133,7 @@ public sealed partial class WikidataBridgeWorker
             IssueNumber: issueNumber);
 
         // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no lookup runs.
-        var ownedBookQid = await FindOwnedBookHandoffQidAsync(job, mediaType, ct).ConfigureAwait(false);
+        var ownedBookQid = FindOwnedBookHandoffQid(job);
         if (ownedBookQid is not null)
         {
             ApplyOwnedBookHandoff(ctx, ownedBookQid);

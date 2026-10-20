@@ -9,49 +9,22 @@ namespace MediaEngine.Providers.Workers;
 public sealed partial class WikidataBridgeWorker
 {
     /// <summary>
-    /// Reads the hand-off the retail stage leaves for an audiobook that took the Wikidata ID of an owned,
-    /// confirmed book (<see cref="QidResolutionMethods.OwnedBookNoRetail"/>). Returns that ID, or <c>null</c>
-    /// for every other job. A job that carries a selected retail candidate is never one of these: a stale
-    /// hand-off claim from an earlier run must not skip the lookups for an audiobook that has since matched.
+    /// Reads the hand-off the retail stage leaves on the job itself for an audiobook that took the Wikidata ID
+    /// of an owned, confirmed book. It is the job's resolved QID, set before the job reaches this stage and
+    /// honoured only for an audiobook job with no selected retail candidate. A job created or resumed for a
+    /// user rematch (Editing Mode) is built without a resolved QID, so it always does the normal lookups and a
+    /// correction is never overridden. Returns <c>null</c> for every other job.
     /// </summary>
-    private async Task<string?> FindOwnedBookHandoffQidAsync(
-        IdentityJob job,
-        MediaType mediaType,
-        CancellationToken ct)
+    internal static string? FindOwnedBookHandoffQid(IdentityJob job)
     {
-        if (mediaType != MediaType.Audiobooks || job.SelectedCandidateId.HasValue)
+        if (job.SelectedCandidateId.HasValue
+            || string.IsNullOrWhiteSpace(job.ResolvedQid)
+            || !string.Equals(job.MediaType, nameof(MediaType.Audiobooks), StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        try
-        {
-            var claims = await _claimRepo.GetByEntityAsync(job.EntityId, ct).ConfigureAwait(false);
-            var handedOff = claims.Any(claim =>
-                claim.IsCurrent
-                && string.Equals(claim.ClaimKey, MetadataFieldConstants.QidResolutionMethod, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(claim.ClaimValue, QidResolutionMethods.OwnedBookNoRetail, StringComparison.OrdinalIgnoreCase));
-            if (!handedOff)
-            {
-                return null;
-            }
-
-            return claims
-                .Where(claim => claim.IsCurrent
-                    && claim.ProviderId == WellKnownProviders.Wikidata
-                    && string.Equals(claim.ClaimKey, BridgeIdKeys.WikidataQid, StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrWhiteSpace(claim.ClaimValue))
-                .OrderByDescending(claim => claim.ClaimedAt)
-                .Select(claim => claim.ClaimValue.Trim())
-                .FirstOrDefault();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // Without the hand-off the job carries on as a normal retail-matched job would.
-            _logger.LogWarning(ex,
-                "Wikidata: could not read the owned-book hand-off for audiobook entity {EntityId}", job.EntityId);
-            return null;
-        }
+        return job.ResolvedQid.Trim();
     }
 
     /// <summary>

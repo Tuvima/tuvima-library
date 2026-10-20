@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 
@@ -116,6 +117,31 @@ public sealed class TimelineRecorder
             ResolvedQid = qid,
             BridgeIdType = bridgeType,
             Detail = $"{bridgeType} \u2192 {qid}",
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Records the Wikidata stage keeping the Wikidata ID an audiobook took from its owned book, with no
+    /// lookup. Uses the same event type as a bridge resolution so the Wikidata step still shows as done.
+    /// </summary>
+    /// <param name="entityId">The audiobook entity.</param>
+    /// <param name="qid">The Wikidata QID taken from the owned book.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public async Task RecordOwnedBookQidKeptAsync(
+        Guid entityId,
+        string qid,
+        CancellationToken ct = default)
+    {
+        await _timelineRepo.InsertEventAsync(new EntityEvent
+        {
+            EntityId = entityId,
+            EntityType = "Work",
+            EventType = "wikidata_bridge_resolved",
+            Stage = 2,
+            Trigger = "ingestion",
+            ResolvedQid = qid,
+            BridgeIdType = QidResolutionMethods.OwnedBookNoRetail,
+            Detail = $"Kept Wikidata identity {qid} from the owned book",
         }, ct).ConfigureAwait(false);
     }
 

@@ -97,11 +97,11 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.Equal(nameof(IdentityJobState.RetailMatched), job!.State);
         Assert.Null(job.SelectedCandidateId);
 
-        var claims = await _claims.GetByEntityAsync(audiobook.AssetId);
-        Assert.Equal(BookQid, Assert.Single(claims, c => c.ClaimKey == BridgeIdKeys.WikidataQid).ClaimValue);
-        Assert.Equal(
-            QidResolutionMethods.OwnedBookNoRetail,
-            Assert.Single(claims, c => c.ClaimKey == MetadataFieldConstants.QidResolutionMethod).ClaimValue);
+        // The hand-off rides on this job alone; the Wikidata stage writes the claims.
+        Assert.Equal(BookQid, job.ResolvedQid);
+        Assert.DoesNotContain(
+            await _claims.GetByEntityAsync(audiobook.AssetId),
+            c => c.ClaimKey == MetadataFieldConstants.QidResolutionMethod);
 
         Assert.Empty(await _reviews.GetPendingByEntityAsync(audiobook.AssetId));
         var timeline = await _timelineEvents.GetEventsByEntityAsync(audiobook.AssetId);
@@ -253,6 +253,19 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         Assert.Equal(nameof(IdentityJobState.QidResolved), job!.State);
         Assert.Equal(BookQid, job.ResolvedQid);
 
+        var claims = await _claims.GetByEntityAsync(audiobook.AssetId);
+        Assert.All(claims.Where(c => c.ClaimKey == BridgeIdKeys.WikidataQid), c => Assert.Equal(BookQid, c.ClaimValue));
+        Assert.Contains(claims, c => c.ClaimKey == BridgeIdKeys.WikidataQid);
+        Assert.Equal(
+            QidResolutionMethods.OwnedBookNoRetail,
+            Assert.Single(claims, c => c.ClaimKey == MetadataFieldConstants.QidResolutionMethod).ClaimValue);
+
+        var resolved = Assert.Single(
+            await _timelineEvents.GetEventsByEntityAsync(audiobook.AssetId),
+            e => e.EventType == "wikidata_bridge_resolved");
+        Assert.DoesNotContain("owned_book_no_retail", resolved.Detail);
+        Assert.Contains("owned book", resolved.Detail);
+
         var candidate = Assert.Single(await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId));
         Assert.Equal(BookQid, candidate.Qid);
         Assert.Equal(QidResolutionMethods.OwnedBookNoRetail, candidate.MatchedBy);
@@ -268,24 +281,58 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
     }
 
     [Fact]
-    public async Task Audiobook_RetailMatchedWithACandidate_IgnoresAStaleOwnedBookHandoffAndLooksUpAsUsual()
+    public async Task Audiobook_RetailMatchedWithACandidate_IgnoresAnOwnedBookHandoffAndLooksUpAsUsual()
     {
         var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert", queued: false);
-        await _claims.ReplaceCurrentProviderClaimsAsync(
-            audiobook.AssetId,
-            WellKnownProviders.Wikidata,
-            [BridgeIdKeys.WikidataQid, MetadataFieldConstants.QidResolutionMethod],
-            [
-                Claim(audiobook.AssetId, BridgeIdKeys.WikidataQid, BookQid),
-                Claim(audiobook.AssetId, MetadataFieldConstants.QidResolutionMethod, QidResolutionMethods.OwnedBookNoRetail),
-            ]);
+        await SeedIsbnAndRetailCandidateAsync(audiobook);
+        await _jobs.SetResolvedQidAsync(audiobook.JobId, BookQid);
+
+        await RunBridgeAsync();
+
+        // The lookups the hand-off would have skipped did go out for this retail-matched job.
+        Assert.NotEmpty(_http.Urls);
+        var candidates = await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId);
+        Assert.DoesNotContain(candidates, c => c.MatchedBy == QidResolutionMethods.OwnedBookNoRetail);
+    }
+
+    [Fact]
+    public async Task Audiobook_RematchedByTheUserAfterAnOwnedBookHandoff_DoesTheNormalLookups()
+    {
+        await SeedBookAsync("Dune", "Frank Herbert", BookQid);
+        var audiobook = await SeedAudiobookAsync("Dune", "Frank Herbert");
+        await RunRetailAsync();
         await _bridgeIds.UpsertBatchAsync(
         [
             new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
         ]);
-        var candidateRepo = new RetailCandidateRepository(_db);
+
+        // What a rematch in Editing Mode does: resume the job with the retail stage skipped. The job is
+        // built fresh, so it carries neither the earlier hand-off nor a stored one after the resume.
+        var rematch = new IdentityJob
+        {
+            EntityId = audiobook.AssetId,
+            EntityType = "MediaAsset",
+            MediaType = "Audiobooks",
+            State = nameof(IdentityJobState.RetailMatched),
+        };
+        rematch.Id = await _jobs.CreateOrResumeUserResolutionAsync(rematch);
+        Assert.Equal(audiobook.JobId, rematch.Id);
+
+        await CreateBridgeWorker().ProcessJobAsync(rematch, CancellationToken.None);
+
+        Assert.Contains(_http.Urls, url => !url.Contains($"ids={BookQid}", StringComparison.OrdinalIgnoreCase));
+        var candidates = await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId);
+        Assert.DoesNotContain(candidates, c => c.MatchedBy == QidResolutionMethods.OwnedBookNoRetail);
+    }
+
+    private async Task SeedIsbnAndRetailCandidateAsync(SeededAudiobook audiobook)
+    {
+        await _bridgeIds.UpsertBatchAsync(
+        [
+            new BridgeIdEntry { EntityId = audiobook.AssetId, IdType = BridgeIdKeys.Isbn13, IdValue = "9780441172719" },
+        ]);
         var candidateId = Guid.NewGuid();
-        await candidateRepo.InsertBatchAsync(
+        await new RetailCandidateRepository(_db).InsertBatchAsync(
         [
             new RetailMatchCandidate
             {
@@ -301,13 +348,6 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         ]);
         await _jobs.SetSelectedCandidateAsync(audiobook.JobId, candidateId);
         await _jobs.UpdateStateAsync(audiobook.JobId, IdentityJobState.RetailMatched);
-
-        await RunBridgeAsync();
-
-        // The lookups the hand-off would have skipped did go out for this retail-matched job.
-        Assert.NotEmpty(_http.Urls);
-        var candidates = await new WikidataCandidateRepository(_db).GetByJobAsync(audiobook.JobId);
-        Assert.DoesNotContain(candidates, c => c.MatchedBy == QidResolutionMethods.OwnedBookNoRetail);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -350,7 +390,9 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
         await worker.PollAsync(CancellationToken.None);
     }
 
-    private async Task<int> RunBridgeAsync()
+    private Task<int> RunBridgeAsync() => CreateBridgeWorker().PollAsync(CancellationToken.None);
+
+    private WikidataBridgeWorker CreateBridgeWorker()
     {
         var root = FindRepoRoot();
         var adapterConfig = JsonSerializer.Deserialize<ReconciliationProviderConfig>(
@@ -380,7 +422,7 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
             new NoOpAutoOrganizeService(),
             NullLogger<PostPipelineService>.Instance);
 
-        var worker = new WikidataBridgeWorker(
+        return new WikidataBridgeWorker(
             _jobs,
             new WikidataCandidateRepository(_db),
             _outcomes,
@@ -399,8 +441,6 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
             CoverArtWorkerTestFactory.Create(_canonicals, _works),
             NullLogger<WikidataBridgeWorker>.Instance,
             arrayRepo: _arrays);
-
-        return await worker.PollAsync(CancellationToken.None);
     }
 
     private sealed record SeededBook(Guid WorkId, Guid AssetId, Guid? JobId);
@@ -498,17 +538,6 @@ public sealed class AudiobookOwnedBookFallbackTests : IDisposable
 
         return (workId, assetId);
     }
-
-    private static MetadataClaim Claim(Guid entityId, string key, string value) => new()
-    {
-        Id = Guid.NewGuid(),
-        EntityId = entityId,
-        ProviderId = WellKnownProviders.Wikidata,
-        ClaimKey = key,
-        ClaimValue = value,
-        Confidence = 0.95,
-        ClaimedAt = DateTimeOffset.UtcNow,
-    };
 
     private static string FindRepoRoot()
     {
