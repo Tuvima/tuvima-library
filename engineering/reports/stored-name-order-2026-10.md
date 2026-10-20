@@ -121,6 +121,16 @@ These do not pick by name, so they are outside the question asked, but they make
 - **"Largest value wins"** (`MAX(CASE WHEN key IN (…) THEN value END)`): `CollectionBrowseReadService.cs:248–436`, `PlayerService.cs:751–773`, `MediaEditorNavigationReadService.cs:365–368`, `DetailCompositionOrchestrator.MediaGroups.cs:68–69`. For the cover at `CollectionBrowseReadService.cs:401` a web link (`https…`) sorts above an Engine address (`/stream…`), so the provider link wins here too. For the colours (`:426–436`), `artwork_accent_hex` belongs to the most recently chosen artwork of any kind while `cover_accent_hex` belongs to the cover, so when they differ the larger hex code wins, which is arbitrary.
 - **"Whichever row the grouping keeps"**: the Continue rails join every matching name and then group by file (`DisplayJourneyProjectionReader.cs:254–293`), so which name's value is used is not fixed.
 
+## Outcome
+
+Shy approved recommendations 1–3 on October 20, 2026. Built in the follow-up proposed change (branch `claude/stored-name-order-fix`):
+
+- Every cover read listed above now takes `cover_url` before `cover` (`ORDER BY CASE key …` in the SQL reads; `ValueInOrder` for `CoverUrl`, `RootCoverUrl` and `CollectionCoverUrl` in the one-pass reader; one chosen row per entity in the Continue rails; one `MAX` per name, in order, in the browse grid read).
+- Where a provider link still wins (no Engine copy yet), the TV show page, profile overview, Needs Review and browse grid swap it for an Engine route before it leaves the Engine. The profile overview and browse grid use the file's cover route (`/stream/{file}/cover`, which shows the saved copy or a placeholder, as Home does). Needs Review uses the work's cover route (`/stream/entity/work/{id}/cover`), which fetches the image through the Engine when no copy is saved yet, so candidates in review keep their artwork. The TV show page uses the show's managed copy or its cover route, and does this before an in-progress episode's still replaces the show cover.
+- The profile overview subtitle takes `show_name` before `series`; the sequence rail takes `runtime` before `duration`.
+- Tests cover the one-pass reader, the Continue rails, the profile overview and Needs Review. The browse grid, the TV show page swap and the sequence rail's time were checked by review only: each needs a whole browse or detail composition to test.
+- Not changed: the colour "largest value wins" reads; an in-progress episode's still on the TV show page when that still is itself a provider link (no provider writing an episode-still link was found; they are written as Engine copies); and every field marked Keep.
+
 ## Recommendations
 
 | # | Field | Recommendation | Product reason |

@@ -116,12 +116,12 @@ internal sealed partial class DetailCompositionOrchestrator
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('quality', 'audio_quality') LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('quality', 'audio_quality') LIMIT 1)) AS TEXT) AS Quality,
                    CAST(COALESCE(
-                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key IN ('cover_url', 'cover') LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key IN ('cover_url', 'cover') ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key IN ('poster_url', 'poster') LIMIT 1),
-                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('cover_url', 'cover') LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('cover_url', 'cover') ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('poster_url', 'poster') LIMIT 1),
                        (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = w.id AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC, mc.rowid LIMIT 1),
-                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('cover_url', 'cover') LIMIT 1),
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('cover_url', 'cover') ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = COALESCE(gp.id, p.id, w.id) AND cv.key IN ('poster_url', 'poster') LIMIT 1),
                        (SELECT NULLIF(CAST(mc.claim_value AS TEXT), '') FROM metadata_claims mc WHERE mc.entity_id = COALESCE(gp.id, p.id, w.id) AND mc.claim_key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY mc.confidence DESC, mc.claimed_at DESC, mc.rowid LIMIT 1)) AS TEXT) AS ArtworkUrl,
                    CAST(COALESCE(
@@ -714,9 +714,9 @@ internal sealed partial class DetailCompositionOrchestrator
             SELECT
                 AssetId,
                 COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1)) AS CoverUrl,
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY CASE key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 WHEN 'poster_url' THEN 2 ELSE 3 END LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY CASE key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 WHEN 'poster_url' THEN 2 ELSE 3 END LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY CASE key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 WHEN 'poster_url' THEN 2 ELSE 3 END LIMIT 1)) AS CoverUrl,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('square_url', 'square') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('square_url', 'square') LIMIT 1),
