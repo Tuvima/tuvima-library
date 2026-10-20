@@ -1,0 +1,27 @@
+.universe-page {
+    box-sizing: border-box;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: clamp(1.5rem, 3vw, 2.5rem);
+    /* 16px gutters on a phone (in px: the phone root text size is smaller), wider on larger screens; the bottom clears the dock. */
+    padding: 1rem clamp(16px, 3vw, 2rem) calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1.5rem);
+}
+
+/* The editing drawer sits beside the page, never over it. */
+.universe-page--editing-drawer {
+    padding-inline-end: var(--tl-editing-drawer-width, 23.75rem);
+}
+
+.universe-page__series {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.universe-page__loading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4, 1rem);
+}

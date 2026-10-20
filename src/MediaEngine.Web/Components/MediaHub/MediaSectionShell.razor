@@ -477,6 +477,15 @@
         _scrollActiveItem = true;
     }
 
+    // The Router renders before this shell's own location handler runs, so a render for a new address must already see it.
+    protected override void OnParametersSet()
+    {
+        if (_address!.Accept(Nav.Uri))
+        {
+            ApplyAddressChange();
+        }
+    }
+
     private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
     {
         // The details overlay opening, swapping titles or closing leaves this page where it was: no scroll, no change of active entry.
@@ -487,11 +496,16 @@
 
         _ = InvokeAsync(() =>
         {
-            ExpandActiveBranch();
-            _scrollActiveItem = true;
-            _scrollContentTop = true;
+            ApplyAddressChange();
             StateHasChanged();
         });
+    }
+
+    private void ApplyAddressChange()
+    {
+        ExpandActiveBranch();
+        _scrollActiveItem = true;
+        _scrollContentTop = true;
     }
 
     private Uri CurrentUri => new(_address!.Absolute);

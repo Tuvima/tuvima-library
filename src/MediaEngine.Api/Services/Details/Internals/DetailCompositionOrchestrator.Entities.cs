@@ -244,10 +244,10 @@ internal sealed partial class DetailCompositionOrchestrator
             SourceLinks = BuildExternalSourceLinks(row.WikidataQid, null, null),
             Artwork = BuildArtwork(DetailEntityType.Universe, row.BackgroundUrl, row.BannerUrl, row.CoverUrl, row.CoverUrl, null, new Dictionary<string, string>(), relatedArt, 0, null),
             Metadata = [new MetadataPill { Label = "Universe" }, new MetadataPill { Label = $"{works.Count} items" }],
-            // The timeline button only exists when there is a timeline to open.
-            PrimaryActions = string.IsNullOrWhiteSpace(row.WikidataQid)
-                ? []
-                : [new DetailAction { Key = "timeline", Label = "Explore Timeline", Icon = "account_tree", Route = $"/universe/{row.WikidataQid}/explore", IsPrimary = true }],
+            // The button opens the Universe page; it only exists when the Universe has a well-formed Wikidata identity.
+            PrimaryActions = UniverseClientReadService.NormalizeQid(row.WikidataQid) is { } universeQid
+                ? [new DetailAction { Key = "open-universe", Label = "Open Universe", Icon = "account_tree", Route = $"/universe/{universeQid}", IsPrimary = true }]
+                : [],
             OverflowActions = BuildOverflowActions(id, DetailEntityType.Universe, actionAuthorization),
             Tabs = BuildTabs(DetailEntityType.Universe, context),
             MediaGroups = mediaGroups,

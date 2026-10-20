@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
+
+@* What the Library can show about how a Universe connects, backed by evidence only: who plays whom across formats (Cast)
+   and what was adapted from what (Adaptations). Before the Engine has learned anything this says so plainly; it never
+   shows sample data. The explorer (paths, family tree) is a desktop screen and is only linked from a desktop. *@
+<section class="universe-connections" aria-labelledby="universe-connections-title">
+    <header class="universe-connections__header">
+        <h2 id="universe-connections-title" class="universe-connections__title">Connections</h2>
+        @if (ShowExplorerLink)
+        {
+            <a class="universe-connections__explorer" href="@ExplorerRoute">Open the explorer</a>
+        }
+    </header>
+
+    @if (HasConnections)
+    {
+        <div class="universe-connections__columns">
+            @if (Detail.Cast.Count > 0)
+            {
+                <div class="universe-connections__column">
+                    <h3 class="universe-connections__subtitle">Cast</h3>
+                    <UniverseCastList Cast="@Detail.Cast" OnCastMemberSelected="@OnCastMemberSelected" />
+                </div>
+            }
+            @if (Detail.Adaptations.Count > 0)
+            {
+                <div class="universe-connections__column">
+                    <h3 class="universe-connections__subtitle">Adaptations</h3>
+                    <UniverseAdaptationsList Adaptations="@Detail.Adaptations" />
+                </div>
+            }
+        </div>
+    }
+    else if (!IsReady)
+    {
+        <div class="universe-connections__state" role="status">
+            <p class="universe-connections__state-title">Still learning about this Universe</p>
+            @if (Page.Enrichment.WorkCount > 0)
+            {
+                <p class="universe-connections__state-note">@UniversePageText.EnrichmentNote(Page.Enrichment)</p>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="universe-connections__state-title" role="status">No cast or adaptations recorded for this Universe yet.</p>
+    }
+
+    @if (FandomLine)
+    {
+        <p class="universe-connections__fandom">
+            <a href="/settings/plugins">Add Fandom details</a>
+        </p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public UniversePageDto Page { get; set; } = default!;
+
+    /// <summary>Shows the quiet "Add Fandom details" line (administrators, lore plugin off).</summary>
+    [Parameter] public bool FandomLine { get; set; }
+
+    /// <summary>Raised when a cast row is chosen. When nothing listens, a row links to the person's page.</summary>
+    [Parameter] public EventCallback<UniverseClientCastMemberDto> OnCastMemberSelected { get; set; }
+
+    private UniverseClientDetailDto Detail => Page.Detail;
+
+    private bool HasConnections => Detail.Cast.Count > 0 || Detail.Adaptations.Count > 0;
+
+    private bool IsReady => string.Equals(Page.Enrichment.State, UniverseEnrichmentStateDto.Ready, StringComparison.Ordinal);
+
+    private string ExplorerRoute => $"/universe/{Uri.EscapeDataString(Detail.Qid)}/explore";
+
+    // The explorer is built for a mouse and a large screen; tablet, phone and TV never see the link.
+    private bool ShowExplorerLink => DeviceContext.IsDesktop && (HasConnections || Page.GraphEntityCount > 0);
+}

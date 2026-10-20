@@ -1766,7 +1766,8 @@ public partial class ListenPage
         var trackContextRoute = BuildAlbumRouteForTrack(work);
         if (navigateBackToTrackContext && !string.IsNullOrWhiteSpace(trackContextRoute))
         {
-            Nav.NavigateTo(trackContextRoute, replace: true);
+            // The album page it returns to is a detail address, which must carry its own history state.
+            DetailsOverlayNavigation.ReplacePage(Nav, trackContextRoute);
         }
     }
 

@@ -1096,6 +1096,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("Dune Universe", cut.Markup);
             Assert.Contains("Middle-earth", cut.Markup);
             Assert.Contains("Weekend Picks", cut.Markup);
+            // A Universe with a Wikidata identity opens its own page; one without keeps the generic collection page.
+            Assert.Contains("href=\"/universe/Q4242\"", cut.Markup);
+            Assert.Contains("href=\"/details/collection/10000000-0000-0000-0000-000000000002\"", cut.Markup);
             Assert.Contains(">Automatic<", cut.Markup);
             Assert.Contains(">Curated<", cut.Markup);
             Assert.Contains(">Shelves<", cut.Markup);

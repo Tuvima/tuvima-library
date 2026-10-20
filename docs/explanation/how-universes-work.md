@@ -35,6 +35,12 @@ Owning several Matrix films creates a Watch series shelf. It does not also creat
 
 Several formats of the same work remain variants. An ebook and audiobook alone do not create a collection, nor do same-title formats become separate owned story installments.
 
+## Find and read a Universe
+
+A Universe is the larger world several of your Series belong to. Open **Collections** and choose the **Universes** group, search for it by name, or follow the quiet "Part of the … Universe" line on a title that belongs to one (it appears when you own two or more Series, or two or more formats, in that Universe).
+
+The Universe page shows its name and how much of it you own, then each Series in order with "Also in this world" underneath, any standalone works, and a Connections section listing the people who appear across formats and what was adapted from what. Entries you do not own can be shown as dashed "Not in library" placeholders in their place if you chose to see missing entries for that Series; otherwise only a quiet count is shown. While the Library is still learning about a Universe the page says so and shows how far it has got, rather than inventing connections. On a computer, Connections links to the explorer for paths between characters and the family tree.
+
 ## Build your own collections separately
 
 A custom collection can use manual membership or complete dynamic rules. Profile-owned collections are private unless supported sharing policy allows otherwise. Only administrators publish or manage library-wide collections.

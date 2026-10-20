@@ -27,6 +27,7 @@ public sealed class DetailsOverlayState : IDisposable
     private readonly NavigationManager _navigation;
     private readonly IDetailsOverlayHistory _history;
     private readonly ILogger<DetailsOverlayState>? _logger;
+    private readonly TimeProvider _time;
     private readonly Dictionary<string, RouteData> _pages = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _pageOrder = new();
     private readonly List<IDetailsOverlayDismissGuard> _guards = [];
@@ -36,12 +37,26 @@ public sealed class DetailsOverlayState : IDisposable
     private bool _firstEntryNeedsTag;
     private bool _guardAlreadyAnswered;
     private string? _title;
+    // A close is in flight from this moment until the address changes (see DismissAsync).
+    private DateTimeOffset? _dismissStartedAt;
+    // The open overlay last left for another page, and how many address changes followed it (see TryReturnToOpenerAsync).
+    private DetailsOverlayRoute? _lastClosedRoute;
+    private int _changesSinceClose;
+    private readonly Dictionary<Guid, Guid> _lastAssets = [];
 
-    public DetailsOverlayState(NavigationManager navigation, IDetailsOverlayHistory history, ILogger<DetailsOverlayState>? logger = null)
+    // A close that never produced an address change (the browser had nowhere to step back to) must not make the overlay unclosable.
+    internal static readonly TimeSpan DismissTimeout = TimeSpan.FromSeconds(2);
+
+    public DetailsOverlayState(
+        NavigationManager navigation,
+        IDetailsOverlayHistory history,
+        ILogger<DetailsOverlayState>? logger = null,
+        TimeProvider? timeProvider = null)
     {
         _navigation = navigation;
         _history = history;
         _logger = logger;
+        _time = timeProvider ?? TimeProvider.System;
         _currentUri = ToAppPath(navigation.Uri);
         // A reload (or first load) of a detail address opens over Home in read mode, whatever state the entry holds.
         _current = DetailsOverlayRoute.Resolve(DetailsOverlayRoute.None, previousUri: null, _currentUri, historyEntryState: null, firstRender: true);
@@ -149,6 +164,12 @@ public sealed class DetailsOverlayState : IDisposable
             return true;
         }
 
+        // A second Close or Esc while the first is still stepping back would step back again, past the page under the overlay.
+        if (_dismissStartedAt is { } started && _time.GetUtcNow() - started < DismissTimeout)
+        {
+            return true;
+        }
+
         if (!force && !await CanDismissAsync())
         {
             return false;
@@ -156,11 +177,15 @@ public sealed class DetailsOverlayState : IDisposable
 
         // The guards have just answered; the navigation that follows must not ask again.
         _guardAlreadyAnswered = true;
+        _dismissStartedAt = _time.GetUtcNow();
         var route = _current;
         if (route.Depth > 0 && await _history.GoBackAsync(route.Depth))
         {
             return true;
         }
+
+        // Falling back to a replace: a repeat of it is harmless, so the close is no longer in flight.
+        _dismissStartedAt = null;
 
         if (route.Depth > 0)
         {
@@ -171,6 +196,36 @@ public sealed class DetailsOverlayState : IDisposable
         // This navigation consumes the "already answered" mark when it reaches the location handler.
         _navigation.NavigateTo(_navigation.ToAbsoluteUri(route.UnderlayUri ?? DetailsOverlayRoute.Home).ToString(), replace: true);
         return true;
+    }
+
+    /// <summary>
+    /// A page opened from the open title (a reader) hands back where the person was reading, for the title's page to pick up
+    /// when it is shown again. Held in memory for this circuit only; it is never put in the address.
+    /// </summary>
+    public void OfferLastAsset(Guid titleId, Guid assetId) => _lastAssets[titleId] = assetId;
+
+    /// <summary>Takes the asset last offered for <paramref name="titleId"/>, once.</summary>
+    public bool TryTakeLastAsset(Guid titleId, out Guid assetId) => _lastAssets.Remove(titleId, out assetId);
+
+    /// <summary>
+    /// Leaves a page for <paramref name="detailAddress"/> by stepping the browser back, when that page was opened straight
+    /// from that title's overlay (nothing happened in between): the title then returns over the page it was opened from.
+    /// Returns false when it was not (a deep link or reload), so the caller opens the title another way.
+    /// </summary>
+    public async ValueTask<bool> TryReturnToOpenerAsync(string detailAddress)
+    {
+        if (_current.IsOpen
+            || _changesSinceClose != 0
+            || _lastClosedRoute?.OverlayUri is not { } opener
+            || !string.Equals(
+                DetailsOverlayRoute.PathOf(ToAppPath(detailAddress)),
+                DetailsOverlayRoute.PathOf(opener),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return await _history.GoBackAsync(1);
     }
 
     /// <summary>
@@ -197,9 +252,26 @@ public sealed class DetailsOverlayState : IDisposable
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         var next = ToAppPath(e.Location);
+        var wasOpen = _current.IsOpen;
+        var previousRoute = _current;
         _current = DetailsOverlayRoute.Resolve(_current, _currentUri, next, e.HistoryEntryState, firstRender: false, CanRestoreUnderlay);
         _currentUri = next;
         _guardAlreadyAnswered = false;
+        _dismissStartedAt = null;
+        if (_current.IsOpen)
+        {
+            _lastClosedRoute = null;
+        }
+        else if (wasOpen)
+        {
+            _lastClosedRoute = previousRoute;
+            _changesSinceClose = 0;
+        }
+        else
+        {
+            _changesSinceClose++;
+        }
+
         if (!_current.IsOpen)
         {
             _title = null;
@@ -294,7 +366,19 @@ public static class DetailsOverlayNavigation
     }
 
     /// <summary>
-    /// Leaves the current page for <paramref name="target"/>, replacing the page's entry (a reader returning to its title).
+    /// A reader returning to its title: back over the page the title was opened from when the reader was opened straight from
+    /// it, otherwise (a deep link or reload) the title over Home.
+    /// </summary>
+    public static async ValueTask ExitToTitleAsync(NavigationManager navigation, DetailsOverlayState? overlay, string detailAddress)
+    {
+        if (overlay is null || !await overlay.TryReturnToOpenerAsync(detailAddress))
+        {
+            ReplacePage(navigation, detailAddress);
+        }
+    }
+
+    /// <summary>
+    /// Leaves the current page for <paramref name="target"/>, replacing the page's entry.
     /// When the target is a detail address it opens over Home: the page being replaced must not stay under it.
     /// </summary>
     public static void ReplacePage(NavigationManager navigation, string target)

@@ -20,6 +20,7 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     private static readonly Guid OtherTitleId = Guid.Parse("0a1b2c3d-1111-2222-3333-444455556666");
 
     private readonly RecordingHistory _history = new();
+    private readonly ManualClock _clock = new();
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly NavigationManager _nav;
     private readonly BunitJSModuleInterop _dialogModule;
@@ -30,6 +31,7 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         _dialogModule = JSInterop.SetupModule("./js/app-dialog.js");
         _dialogModule.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IDetailsOverlayHistory>(_history);
+        Services.AddSingleton<TimeProvider>(_clock);
         Services.AddScoped<DetailsOverlayState>();
         Services.AddSingleton(_device);
         UnderlayPage.Instances.Clear();
@@ -336,6 +338,125 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         Assert.Single(view.FindAll("#reader-layout"));
     }
 
+    // -- Closing twice, and leaving a reader ----------------------------------------------------------
+
+    [Fact]
+    public void ASecondCloseWhileTheFirstIsStillStepping_DoesNotStepBackPastThePageUnderTheOverlay()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        _nav.NavigateTo(DetailUri(OtherTitleId));
+        RouterShows(view, Detail(OtherTitleId));
+
+        view.Find("button.tl-details-overlay__close").Click();
+        view.Find("button.tl-details-overlay__close").Click();
+        view.Find("button.tl-details-overlay__close").Click();
+
+        Assert.Equal([2], _history.Steps);
+    }
+
+    [Fact]
+    public async Task TheCloseInFlight_EndsWhenTheAddressChanges_SoTheNextOverlayClosesNormally()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        await State.DismissAsync();
+        await State.DismissAsync();
+        Assert.Equal([1], _history.Steps);
+
+        _nav.NavigateTo("/listen");
+        RouterShows(view, Underlay());
+        _nav.NavigateTo(DetailUri(OtherTitleId));
+        RouterShows(view, Detail(OtherTitleId));
+        await State.DismissAsync();
+
+        Assert.Equal([1, 1], _history.Steps);
+    }
+
+    [Fact]
+    public async Task ACloseThatNeverChangedTheAddress_DoesNotMakeTheOverlayUnclosable()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        await State.DismissAsync();
+
+        // The browser had nowhere to step back to, so no address change ever came.
+        _clock.Advance(DetailsOverlayState.DismissTimeout + TimeSpan.FromMilliseconds(1));
+        await State.DismissAsync();
+
+        Assert.Equal([1, 1], _history.Steps);
+    }
+
+    [Fact]
+    public async Task AReaderOpenedStraightFromTheTitle_ReturnsBySteppingBackSoTheOriginalUnderlayIsKept()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        _nav.NavigateTo("/read/abc");
+        RouterShows(view, Underlay());
+        var entriesBefore = SucceededEntries;
+
+        await DetailsOverlayNavigation.ExitToTitleAsync(_nav, State, DetailUri(TitleId));
+
+        Assert.Equal([1], _history.Steps);
+        Assert.Equal(entriesBefore, SucceededEntries);
+    }
+
+    [Fact]
+    public async Task AReaderFromADeepLink_OpensTheTitleOverHome()
+    {
+        var home = new RouteData(typeof(HomePage), new Dictionary<string, object?>());
+        var view = RenderAt("/read/abc", Underlay(), home);
+
+        await DetailsOverlayNavigation.ExitToTitleAsync(_nav, State, DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+
+        Assert.Empty(_history.Steps);
+        Assert.True(State.IsOpen);
+        Assert.Equal(DetailsOverlayRoute.Home, State.UnderlayUri);
+        var entry = History.First(item => item.State == Bunit.TestDoubles.NavigationState.Succeeded);
+        Assert.True(entry.Options.ReplaceHistoryEntry);
+    }
+
+    [Theory]
+    [InlineData("anotherPageFirst")]
+    [InlineData("anotherTitle")]
+    public async Task AReaderThatDidNotComeStraightFromThatTitle_OpensTheTitleOverHomeInstead(string case_)
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        _nav.NavigateTo("/read/abc");
+        RouterShows(view, Underlay());
+        if (case_ == "anotherPageFirst")
+        {
+            _nav.NavigateTo("/read/abc?reader=new");
+            RouterShows(view, Underlay());
+        }
+
+        var target = case_ == "anotherTitle" ? DetailUri(OtherTitleId) : DetailUri(TitleId);
+        await DetailsOverlayNavigation.ExitToTitleAsync(_nav, State, target);
+
+        Assert.Empty(_history.Steps);
+        var entry = History.First(item => item.State == Bunit.TestDoubles.NavigationState.Succeeded);
+        Assert.True(entry.Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public void WhatTheTitleNeedsFromAReaderExitIsHandedOverInMemoryOnce()
+    {
+        var asset = Guid.NewGuid();
+        State.OfferLastAsset(TitleId, asset);
+
+        Assert.True(State.TryTakeLastAsset(TitleId, out var taken));
+        Assert.Equal(asset, taken);
+        Assert.False(State.TryTakeLastAsset(TitleId, out _));
+    }
+
     // -- Presentation ------------------------------------------------------------------------------
 
     [Fact]
@@ -405,6 +526,15 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
             Steps.Add(steps);
             return ValueTask.FromResult(Succeeds);
         }
+    }
+
+    private sealed class ManualClock : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
     }
 
     private sealed class RecordingGuard(bool allow) : IDetailsOverlayDismissGuard
