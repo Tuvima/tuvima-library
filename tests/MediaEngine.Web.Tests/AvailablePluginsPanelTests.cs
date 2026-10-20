@@ -23,7 +23,7 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class AvailablePluginsPanelTests : AsyncBunitContext
 {
-    private const string Warning = "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access.";
+    private const string Warning = "Tuvima hasn't checked this plugin. Only install plugins from people you trust.";
 
     private static readonly Guid AccountId = Guid.Parse("00000000-0000-0000-0000-0000000000a1");
     private static readonly Guid ProfileId = Guid.Parse("00000000-0000-0000-0000-0000000000b1");

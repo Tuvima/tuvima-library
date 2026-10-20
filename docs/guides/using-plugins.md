@@ -36,7 +36,7 @@ A link of the form `/settings/plugins?plugin=<plugin id>` opens this page at tha
 - The Library keeps a saved copy of the list and shows that. It checks GitHub when you open the section and the last check is more than a day old, and when you choose **Check now**. It never checks in the background. Nothing about you or your Library is sent.
 - The section says when the list was last checked. If GitHub could not be reached it keeps showing the saved copy and says which date it is from.
 - The switch at the top turns the lookup off. With it off, no request is made; the saved copy, if there is one, is still shown.
-- Each entry has a label. **Official** plugins are built by Tuvima. **Verified** plugins have been checked by Tuvima. **Not verified** plugins have not been checked, and say so beside the entry: "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access."
+- Each entry has a label. **Official** plugins are built by Tuvima. **Verified** plugins have been checked by Tuvima. **Not verified** plugins have not been checked, and say so beside the entry: "Tuvima hasn't checked this plugin. Only install plugins from people you trust."
 - A quiet line, "N new plugins available", appears when plugins have been added since you last looked.
 - An **Install** button appears on an entry only once the Library can install plugins; until then it is not shown. When it appears it opens the same confirmation as switching a plugin on, listing what the plugin can do and whether it sends data out.
 

@@ -39,7 +39,7 @@ internal static class ApprovalStatementBuilder
     public const string TheSoftwareHoldingItsKeys = "the software that holds its keys";
 
     /// <summary>The warning shown wherever a plugin Tuvima has not checked is offered (the plugin directory and its install approval).</summary>
-    public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access.";
+    public const string NotVerifiedWarning = "Tuvima hasn't checked this plugin. Only install plugins from people you trust.";
 
     public const string PluginKindLabel = "Plugin";
     public const string AiFeatureKindLabel = "Local AI feature";

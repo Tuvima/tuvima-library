@@ -115,7 +115,7 @@ The label on each entry comes from `trust_level`:
 
 - **Official**: built by Tuvima and shipped with the Library.
 - **Verified**: Tuvima checked the publisher and reviewed what the plugin asks for.
-- **Not verified**: listed, but Tuvima has not checked it. The entry shows the warning "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access." beside it, and the same words appear in the approval step before an install.
+- **Not verified**: listed, but Tuvima has not checked it. The entry shows the warning "Tuvima hasn't checked this plugin. Only install plugins from people you trust." beside it, and the same words appear in the approval step before an install, together with a line saying how that kind of plugin runs.
 
 Only Tuvima can set `verified`: a submission that claims it is treated as a request, and the mark is added to the list after the review.
 
