@@ -3471,6 +3471,15 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionColle
   ItemsInRequest: System.Int32 | nullability=not-null | accessors=get,init
   WillBeDeleted: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionConflictDto
+  Message: System.String | nullability=not-null | accessors=get,init
+  Preview: MediaEngine.Contracts.Items.LibraryItemDeletionPreview | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto
+  FileName: System.String | nullability=not-null | accessors=get,init
+  FolderLabel: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileDto
   WorkId: System.Guid | nullability=not-null | accessors=get,init
   AssetId: System.Guid? | nullability=nullable | accessors=get,init
@@ -3501,6 +3510,23 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPrevi
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionRequest
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionResultDto
+  DeletedWorkIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+  Titles: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  FilesDeleted: System.Int32 | nullability=not-null | accessors=get,init
+  FilesLeftOnDisk: System.Int32 | nullability=not-null | accessors=get,init
+  FilesFailed: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto> | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  CollectionsDeleted: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
@@ -6990,6 +7016,10 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.InitialSweepStarte
   StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryChangedEvent
+
+MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.ManualMetadataHarvestedEvent
   EntityId: System.Guid | nullability=not-null | accessors=get,init

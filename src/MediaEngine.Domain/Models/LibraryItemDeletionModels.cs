@@ -1,3 +1,5 @@
+using MediaEngine.Domain.Contracts;
+
 namespace MediaEngine.Domain.Models;
 
 /// <summary>One media file that belongs to a title being considered for deletion.</summary>
@@ -24,3 +26,14 @@ public sealed record LibraryItemDeletionRelatedFacts(
     IReadOnlyList<LibraryItemDeletionCollection> CuratedCollections,
     int ProfilesWithPersonalState,
     bool ProcessingRunning);
+
+/// <summary>What removing the titles' records took with it.</summary>
+/// <param name="EditionIds">The editions that were removed with the titles.</param>
+/// <param name="AssetIds">The media assets that were removed with the titles.</param>
+/// <param name="CollectionsDeleted">Hand-picked collections that were left empty and deleted (the cleanup sweeps every empty one; only collections actually removed are listed).</param>
+/// <param name="TuvimaOwnedFiles">Files Tuvima itself wrote for the titles (pictures only they used, text tracks, cached images) that are now unreferenced. The caller deletes them after the data was removed, and only inside Tuvima's own data folders.</param>
+public sealed record LibraryItemDeletionDataResult(
+    IReadOnlyList<Guid> EditionIds,
+    IReadOnlyList<Guid> AssetIds,
+    IReadOnlyList<RemovedCollection> CollectionsDeleted,
+    IReadOnlyList<string> TuvimaOwnedFiles);

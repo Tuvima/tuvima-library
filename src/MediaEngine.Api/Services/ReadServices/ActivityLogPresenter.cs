@@ -48,6 +48,12 @@ public static partial class ActivityLogPresenter
                 dto.Route = WorkRoute(entry.EntityId, changes.Text("media_type"));
                 break;
 
+            case SystemActionType.MediaRemoved:
+                // One entry per deletion: the writer put the title (or "12 songs") in the name and who, files and space in the detail.
+                dto.Title = $"Deleted {FirstText(entry.CollectionName) ?? "an item"}";
+                dto.Detail = FirstText(entry.Detail);
+                break;
+
             case SystemActionType.PersonalMediaAdded:
                 dto.Title = FirstText(entry.CollectionName) ?? "Personal media";
                 dto.Detail = FirstText(entry.Detail);
