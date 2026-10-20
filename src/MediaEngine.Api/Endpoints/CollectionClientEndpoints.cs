@@ -184,7 +184,7 @@ public static class CollectionClientEndpoints
         (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
 
     // The profile always comes from the device token, never from a request value.
-    private static async Task<Profile?> ResolveActiveProfileAsync(
+    internal static async Task<Profile?> ResolveActiveProfileAsync(
         HttpContext http,
         IProfileRepository profiles,
         CancellationToken ct)

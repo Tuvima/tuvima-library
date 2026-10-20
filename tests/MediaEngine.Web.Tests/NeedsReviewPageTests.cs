@@ -156,6 +156,23 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         Assert.DoesNotContain("could not load", cut.Markup);
     }
 
+    [Fact]
+    public void OneReviewItemThatCannotBeDrawn_ShowsACouldntBeShownRowAndTheOtherItemsStayUsable()
+    {
+        var broken = Item(FirstId, "Cibola Burn");
+        broken.DetectedFacts = null!;
+        Register(() => Loaded(broken, Item(SecondId, "Leviathan Wakes")));
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        Assert.Contains("Leviathan Wakes", cut.Find("article.review-row").TextContent, StringComparison.Ordinal);
+        var fallback = Assert.Single(cut.FindAll("[data-testid='row-error']"));
+        Assert.Contains("This item couldn't be shown", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Cibola Burn", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".app-error-state"));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

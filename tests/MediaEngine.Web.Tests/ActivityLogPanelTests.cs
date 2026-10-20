@@ -34,6 +34,22 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void OneEntryThatCannotBeDrawn_ShowsACouldntBeShownRowInTheListAndTheOtherEntriesStay()
+    {
+        var broken = Entry(2, "added", "Cibola Burn", null);
+        broken.Category = null!;
+        _onLog = (_, _, offset, limit) => Page([Entry(1, "added", "Leviathan Wakes", null), broken, Entry(3, "failed", "Abaddon's Gate", null)], offset, limit, hasMore: false, total: 3);
+
+        var cut = Render<ActivityLogPanel>();
+
+        Assert.Equal(2, cut.FindAll("[data-testid='activity-log-row']").Count);
+        var fallback = Assert.Single(cut.FindAll("ol > li[data-testid='row-error']"));
+        Assert.Contains("This item couldn't be shown", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Cibola Burn", fallback.TextContent, StringComparison.Ordinal);
+        Assert.Equal(3, cut.FindAll("ol.activity-log__list > li").Count);
+    }
+
+    [Fact]
     public void Panel_OffersTheFiveFilters_InOrder()
     {
         var cut = Render<ActivityLogPanel>();
@@ -58,6 +74,21 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
 
         Assert.Equal("added", Assert.Single(_requests).Category);
         Assert.Equal("true", Chip(cut, "Added").GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public void ARowWithNoRecordedTime_StillShowsItsTitle_WithADashForTheTime()
+    {
+        var timeless = Entry(1, "added", "Cibola Burn", null);
+        timeless.OccurredAt = default;
+        _onLog = (_, _, offset, limit) => Page([timeless], offset, limit, hasMore: false, total: 1);
+
+        var cut = Render<ActivityLogPanel>();
+
+        var row = cut.Find("[data-testid='activity-log-row']");
+        Assert.Contains("Cibola Burn", row.TextContent, StringComparison.Ordinal);
+        Assert.Equal("—", row.QuerySelector("time")!.TextContent.Trim());
+        Assert.Equal("Time not recorded", row.QuerySelector("time")!.GetAttribute("title"));
     }
 
     [Fact]
