@@ -803,6 +803,10 @@
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   response | shape=a1b55499ca5eddeb351d7c3fc16052ef538fff0f26b1638c9b2820994ef9c52f
 
+[method] GetItemExplicitAsync
+  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  response | shape=73d1fc1adb912d0b6820e38567578b80812c58eb49846417e957818267537bfc
+
 [method] GetItemHistoryWithStatusAsync
   input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   response | shape=aea56bc368b5166852ac8f6f86563df0b6fbd1f117ab3fdaf29025daf3d10a90
@@ -1872,6 +1876,11 @@
   input profileId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
   input request | default=required | shape=4b7507fc6ef8e49226240a341ff96bcd43b6642acec089f28f0ad0fede01d740
   response | shape=32127a5df9c1323410dd7cec273e1cd55e8ce3b00b742715f4812a4784164d84
+
+[method] SaveItemExplicitAsync
+  input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
+  input isExplicit | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
 [method] SaveItemPreferencesAsync
   input entityId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -6694,6 +6703,12 @@ direction=read | kind=array | item=cffb1b838bdfd6eba9c001e1fd41a0a77a56402581060
 [shape] 73c527ab27c7d5c8bf7549e6f685c615a4f9dfd673b9a8a4055f7509a83d7903
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
 property=duplicate_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+
+[shape] 73d1fc1adb912d0b6820e38567578b80812c58eb49846417e957818267537bfc
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=c053966c6e811a8ce84683726714ab2f84f40fd250c6cd58763ff6b03e191115
+property=explicit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
 [shape] 741fa7009c44d59cb183fae71ef3cd01baa22e1553995b017befa8308f35c42f
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1070; api=0; web-client=54
+# scopes: contracts=1072; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3754,6 +3754,18 @@
   UpdatedAt: System.DateTimeOffset? | json=updated_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayOverrides: System.Collections.Generic.IReadOnlyDictionary<System.String, System.String> | json=display_overrides | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profile_id":"11111111-2222-3333-4444-555555555555","work_id":"11111111-2222-3333-4444-555555555555","local_tags":[],"revision":7,"updated_at":"2025-01-02T03:04:05+00:00","display_overrides":{}}
+
+[contracts] MediaEngine.Contracts.Items.ItemExplicitRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  IsExplicit: System.Boolean | json=explicit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"explicit":true}
+
+[contracts] MediaEngine.Contracts.Items.ItemExplicitResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsExplicit: System.Boolean | json=explicit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Supported: System.Boolean | json=supported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","explicit":true,"supported":true}
 
 [contracts] MediaEngine.Contracts.Items.ItemMoveConflictDto
   kind=class | converter=default | number-handling=default | unmapped=default

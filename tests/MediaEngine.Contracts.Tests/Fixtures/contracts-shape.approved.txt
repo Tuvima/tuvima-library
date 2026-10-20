@@ -3116,6 +3116,14 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemEditorPreferencesRes
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   DisplayOverrides: System.Collections.Generic.IReadOnlyDictionary<System.String, System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemExplicitRequest
+  IsExplicit: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemExplicitResponse
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  IsExplicit: System.Boolean | nullability=not-null | accessors=get,init
+  Supported: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.ItemMoveConflictDto
   Message: System.String | nullability=not-null | accessors=get,init
   Preview: MediaEngine.Contracts.Items.ItemMovePreview | nullability=nullable | accessors=get,init

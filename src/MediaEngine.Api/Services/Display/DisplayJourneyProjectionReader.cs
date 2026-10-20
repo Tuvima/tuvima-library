@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -24,6 +25,12 @@ public sealed class DisplayJourneyProjectionReader
         using var conn = _db.CreateConnection();
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        var journeyRating = ContentRatingSql.WithExplicit("w.id", "COALESCE(gpw.id, pw.id, w.id)", "ma.id", """
+            COALESCE(
+                (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('content_rating', 'certification') LIMIT 1),
+                (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('content_rating', 'certification') LIMIT 1),
+                (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('content_rating', 'certification') LIMIT 1))
+            """);
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "w.id",
             "COALESCE(gpw.id, pw.id, w.id)",
@@ -87,11 +94,7 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'album' LIMIT 1)
                 ) AS Album,
                 {displayYearSql} AS Year,
-                COALESCE(
-                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('content_rating', 'certification') LIMIT 1),
-                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('content_rating', 'certification') LIMIT 1)
-                ) AS ContentRating,
+                {journeyRating} AS ContentRating,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'runtime' LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'runtime' LIMIT 1),

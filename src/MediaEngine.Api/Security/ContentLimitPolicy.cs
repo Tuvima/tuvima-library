@@ -82,6 +82,17 @@ internal static class ContentRatingSql
     {
         static string One(string id) =>
             $"(SELECT GROUP_CONCAT(NULLIF(TRIM(value), ''), '|') FROM canonical_values WHERE entity_id = {id} AND key IN ('content_rating', 'certification'))";
-        return $"COALESCE({One(work)}, {One(root)}, {One(asset)})";
+        return WithExplicit(work, root, asset, $"COALESCE({One(work)}, {One(root)}, {One(asset)})");
+    }
+
+    /// <summary>
+    /// An item or series a person marked Explicit counts as adults-only, so no limit below "Everything" lets it through.
+    /// Wraps a rating expression so every reader that feeds a content-limit check agrees on that.
+    /// </summary>
+    public static string WithExplicit(string work, string root, string asset, string rating)
+    {
+        static string Marked(string id) =>
+            $"EXISTS (SELECT 1 FROM canonical_values WHERE entity_id = {id} AND key = 'explicit' AND value = 'true')";
+        return $"CASE WHEN {Marked(work)} OR {Marked(root)} OR {Marked(asset)} THEN 'NC-17' ELSE {rating} END";
     }
 }

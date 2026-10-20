@@ -265,6 +265,41 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<MediaEngine.Contracts.Items.ItemExplicitResponse>($"/library/items/{entityId}/explicit", ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "GET /library/items/{EntityId}/explicit failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PutAsJsonAsync($"/library/items/{entityId}/explicit", new MediaEngine.Contracts.Items.ItemExplicitRequest { IsExplicit = isExplicit }, ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var detail = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning("PUT /library/items/{EntityId}/explicit returned {Status}: {Detail}", entityId, (int)resp.StatusCode, detail);
+                LastError = $"HTTP {(int)resp.StatusCode}: {detail}";
+            }
+
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogWarning(ex, "PUT /library/items/{EntityId}/explicit failed", entityId);
+            LastError = ex.Message;
+            return false;
+        }
+    }
+
     public Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default)
         => SaveDisplayOverridesAsync($"/collections/{collectionId}/display-overrides", collectionId, fields, ct);
 

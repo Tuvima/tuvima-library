@@ -150,6 +150,10 @@ public partial interface IEngineApiClient
 
     /// <summary>PUT /library/items/{entityId}/display-overrides — save presentation-only display overrides.</summary>
     Task<bool> SaveItemDisplayOverridesAsync(Guid entityId, Dictionary<string, string> fields, CancellationToken ct = default);
+    /// <summary>GET /library/items/{entityId}/explicit — whether the item is marked Explicit, and whether it can be at all.</summary>
+    Task<MediaEngine.Contracts.Items.ItemExplicitResponse?> GetItemExplicitAsync(Guid entityId, CancellationToken ct = default);
+    /// <summary>PUT /library/items/{entityId}/explicit — mark an item or series Explicit, or remove the mark.</summary>
+    Task<bool> SaveItemExplicitAsync(Guid entityId, bool isExplicit, CancellationToken ct = default);
     Task<bool> SaveCollectionDisplayOverridesAsync(Guid collectionId, Dictionary<string, string> fields, CancellationToken ct = default);
     Task<MediaEngine.Contracts.Items.ItemEditorPreferencesResponse?> GetItemEditorPreferencesAsync(Guid entityId, Guid profileId, CancellationToken ct = default);
     Task<ItemEditorPreferencesSaveResultDto> SaveItemEditorPreferencesAsync(Guid entityId, Guid profileId, MediaEngine.Contracts.Items.ItemEditorPreferencesRequest request, CancellationToken ct = default);

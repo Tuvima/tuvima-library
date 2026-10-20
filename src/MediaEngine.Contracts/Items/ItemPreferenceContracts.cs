@@ -51,3 +51,17 @@ public sealed class ItemEditorPreferencesResponse
     public IReadOnlyDictionary<string, string> DisplayOverrides { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
+
+public sealed class ItemExplicitRequest
+{
+    [JsonPropertyName("explicit")] public bool IsExplicit { get; init; }
+}
+
+public sealed class ItemExplicitResponse
+{
+    [JsonPropertyName("entity_id")] public Guid EntityId { get; init; }
+    [JsonPropertyName("explicit")] public bool IsExplicit { get; init; }
+
+    /// <summary>True for a video or a series of videos, the only kind that offers the Explicit mark.</summary>
+    [JsonPropertyName("supported")] public bool Supported { get; init; }
+}

@@ -94,6 +94,8 @@ public static class MetadataFieldConstants
     public const string VideoIdentifiedBy = "video_identified_by";
     /// <summary>The YouTube video ID found in the file name or its .info.json.</summary>
     public const string YoutubeVideoId = "youtube_video_id";
+    /// <summary>"true" when a person marked the item (or a whole series) Explicit; a content-limited profile never sees it.</summary>
+    public const string Explicit = "explicit";
     public const string EpisodeTitle = "episode_title";
     public const string EpisodeDescription = "episode_description";
     public const string Network = "network";

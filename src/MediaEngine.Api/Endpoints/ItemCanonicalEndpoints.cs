@@ -223,6 +223,86 @@ public static class ItemCanonicalEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
 
+        group.MapGet("/{entityId:guid}/explicit", async (
+            Guid entityId,
+            ICanonicalValueRepository canonicalRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            var values = await canonicalRepo.GetByEntityAsync(workId, ct);
+            var supported = string.Equals(await itemCanonicalData.GetWorkMediaTypeAsync(workId, ct), nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase);
+            return Results.Ok(new ItemExplicitResponse { EntityId = entityId, IsExplicit = IsMarkedExplicit(values), Supported = supported });
+        })
+        .WithName("GetItemExplicit")
+        .WithSummary("Whether the item (or its series) is marked Explicit.")
+        .Produces<ItemExplicitResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
+        // Marking a series Explicit marks the series' own record, so every video inside it is hidden from
+        // content-limited profiles; marking one video marks only that video.
+        group.MapPut("/{entityId:guid}/explicit", async (
+            Guid entityId,
+            ItemExplicitRequest request,
+            IMetadataClaimRepository claimRepo,
+            ICanonicalValueRepository canonicalRepo,
+            ISystemActivityRepository activityRepo,
+            IItemCanonicalRepository itemCanonicalData,
+            CancellationToken ct) =>
+        {
+            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
+            if (!(await itemCanonicalData.LoadDisplayOverridesAsync(workId, ct)).WorkExists)
+            {
+                return ApiErrors.NotFound($"No work found for {entityId}.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var value = request.IsExplicit ? "true" : "false";
+            await claimRepo.InsertBatchAsync(
+            [
+                new MetadataClaim
+                {
+                    Id = Guid.NewGuid(),
+                    EntityId = workId,
+                    ProviderId = WellKnownProviders.UserManual,
+                    ClaimKey = MetadataFieldConstants.Explicit,
+                    ClaimValue = value,
+                    ClaimedAt = now,
+                    Confidence = 1.0,
+                    IsUserLocked = true,
+                },
+            ], ct);
+            await canonicalRepo.UpsertBatchAsync(
+            [
+                new CanonicalValue
+                {
+                    EntityId = workId,
+                    Key = MetadataFieldConstants.Explicit,
+                    Value = value,
+                    LastScoredAt = now,
+                    WinningProviderId = WellKnownProviders.UserManual,
+                },
+            ], ct);
+
+            await activityRepo.LogAsync(new SystemActivityEntry
+            {
+                OccurredAt = now,
+                ActionType = SystemActionType.MetadataManualOverride,
+                EntityId = workId,
+                EntityType = "Work",
+                Detail = request.IsExplicit ? "Marked Explicit." : "Explicit mark removed.",
+            }, ct);
+
+            return Results.Ok(new ItemExplicitResponse { EntityId = entityId, IsExplicit = request.IsExplicit, Supported = true });
+        })
+        .WithName("SaveItemExplicit")
+        .WithSummary("Mark an item or series Explicit, or remove the mark.")
+        .Produces<ItemExplicitResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite);
+
         group.MapPut("/{entityId:guid}/display-overrides", async (
             Guid entityId,
             ItemDisplayOverridesRequest request,
@@ -2228,6 +2308,10 @@ public static class ItemCanonicalEndpoints
                 ct);
         }
     }
+
+    private static bool IsMarkedExplicit(IReadOnlyList<CanonicalValue> values) =>
+        values.Any(v => string.Equals(v.Key, MetadataFieldConstants.Explicit, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(v.Value, "true", StringComparison.OrdinalIgnoreCase));
 
     internal static Guid ResolveScopedTarget(Guid assetId, WorkLineage? lineage, string key)
     {
