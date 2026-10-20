@@ -292,4 +292,7 @@ public static class SystemActionType
 
     /// <summary>Photos or personal videos were added to a personal library, recorded as one count row instead of one row per file.</summary>
     public const string PersonalMediaAdded = "PersonalMediaAdded";
+
+    /// <summary>A person emptied their View Trash: how many items, how much space, how many skipped. Counts only; never a file name or title.</summary>
+    public const string PersonalTrashEmptied = "PersonalTrashEmptied";
 }

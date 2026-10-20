@@ -142,6 +142,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         typeof(ViewSharedSourceService),
         typeof(ViewSourceIndexingHostedService),
         typeof(ViewTrashDeletionPlanner),
+        typeof(ViewTrashDeletionService),
         typeof(MediaEngine.Api.Services.Settings.ServerFolderBrowserService),
     ];
 
@@ -1657,6 +1658,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
     private const string ClientDocuments = "AProfileWithoutDocumentsLearnsOfNoDocumentThroughTimelineGalleriesCountsPeoplePlacesItemsOrFiles";
     private const string TrashWithoutDocuments = "AProfileWithoutDocuments_NeverSeesDocumentsInItsTrash";
+    private const string EmptyTrashWithoutDocuments = "AProfileWithoutDocuments_EmptyTrashLeavesItsDocumentsOnDisk";
     private const string NoItems = "none:";
 
     /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
@@ -1736,6 +1738,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["POST /view/shared/contributions/preview"] = Covers(ContributionSend, "PreviewAsync"),
         ["POST /view/shared/items/direct"] = Covers(ContributionSend, "AddDirectAsync"),
         ["POST /view/tags"] = Refused,
+        ["POST /view/trash/empty"] = Covers(EmptyTrashWithoutDocuments, "/view/trash/empty"),
         ["POST /view/trash/empty-preview"] = Covers(TrashWithoutDocuments, "/view/trash/empty-preview"),
         ["POST /view/uploads"] = Covers(UploadRefusal, "\"Lease.pdf\""),
         ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
