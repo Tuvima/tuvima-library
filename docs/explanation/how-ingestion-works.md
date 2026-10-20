@@ -210,9 +210,9 @@ The pipeline is designed to fail safely:
 
 It shows real application state from the Engine:
 
-- active scans and ingestion batches, grouped by Discover, Identify, Enrich, and Organize
+- the groups being added now, and what became Ready on each recent day
 - registered, provisional, and review lifecycle counts
-- current-run outcomes and recent named runs
+- current outcomes: added, needs review and failed
 - Watch, Listen, and Read source folders from `config/libraries.json`
 - provider health without exposing secrets
 - pipeline counts from durable identity jobs and ingestion logs
@@ -220,11 +220,11 @@ It shows real application state from the Engine:
 
 File progress and run completion are deliberately separate. The Files checked outcome reports intake volume, while the prominent overall bar combines measurable pipeline stages for the logical run. It stays below completion while a stage is active and shows the current stage's own task count beneath it. The run stays active while required identity, artwork, people, relationship, or organization operations remain outstanding.
 
-The page's headline, file tally, progress bar and time estimate are the Engine's `IngestionQueueProgress` snapshot, pushed over SignalR whenever its numbers change and read again on every (re)connect; the Dashboard shows it as sent and works out no percentage or estimate of its own. The cards below come from the operations snapshot, which the Dashboard polls more frequently while work is active and less often when idle. If the Engine stops answering or the live connection drops, the page says "The Library's engine isn't responding" with a Retry button and greys the last numbers until a fresh snapshot arrives. If a signal is not tracked yet, the page says so instead of inventing a count. The top navigation activity indicator opens Ingestion for authorized system work. The page has no manual status-refresh control because this synchronization is automatic. Its one **Check folders for changes** (in the Ingestion page "⋯" menu) action starts an extra scan of watched folders; folder monitoring, schedules, and queued processing continue automatically.
+The page's headline, file tally, progress bar and time estimate are the Engine's `IngestionQueueProgress` snapshot, pushed over SignalR whenever its numbers change and read again on every (re)connect; the Dashboard shows it as sent and works out no percentage or estimate of its own. The cards below come from the Engine's presentation view, which the Dashboard refreshes more often while work is active and less often when idle. If the Engine stops answering or the live connection drops, the page says "The Library's engine isn't responding" with a Retry button and greys the last numbers until a fresh snapshot arrives. If a signal is not tracked yet, the page says so instead of inventing a count. The top navigation activity indicator opens Ingestion for authorized system work. The page has no manual status-refresh control because this synchronization is automatic. Its one **Check folders for changes** (in the Ingestion page "⋯" menu) action starts an extra scan of watched folders; folder monitoring, schedules, and queued processing continue automatically.
 
-Batch history loads the three newest runs first. Search and All, Completed, Needs attention, and Failed quick filters query the server, while **Show older** appends another bounded page. Selecting a run opens the shared searchable, sortable media browser without loading raw technical records. A durable ingestion batch retains the same identity when the Engine restarts and resumes its outstanding work; later watcher debounce windows join the active batch instead of creating duplicate entries, and a scan across multiple configured source folders uses one batch ID.
+Recently Added loads the newest items first. Search and quick filters query the server, while **Show older** appends another bounded page. A show, album or series is one row however many times its files were found; opening a row shows its tracks, episodes or parts without loading raw technical records.
 
-On a phone, Ingestion keeps current state, active and queued operation counts, attention, and compact batch rows visible. Needs Review resolution is reserved for desktop and tablet, while its unresolved count remains visible beside Operations. All responsive summaries use the same state and counts as desktop.
+On a phone, Ingestion keeps current state, active and queued operation counts, attention, and compact rows visible. Needs Review resolution is reserved for desktop and tablet, while its unresolved count remains visible beside Operations. All responsive summaries use the same state and counts as desktop.
 - if Wikidata finds no QID, the item can still remain usable without forcing a bad identity
 - if artwork is still unresolved, the item stays out of the main browse surfaces until that question is settled
 

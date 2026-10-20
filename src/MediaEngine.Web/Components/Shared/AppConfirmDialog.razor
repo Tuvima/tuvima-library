@@ -1,0 +1,98 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+
+@* The one confirmation dialog for every short "are you sure" step (details overlay spec D17): Save or discard, Move, Add anyway,
+   Remove artwork, Discard. It has a title, a message, an optional preview of what will happen, a primary and a secondary button
+   with the labels the caller chooses, and the same frame as the Delete from library dialog. Closing it (Esc, the close button or
+   the backdrop) is a third answer, Cancelled, so nothing is ever decided by accident. When the primary button is destructive
+   the safer secondary button has the focus when it opens (the autofocus attribute is honoured by the native dialog). *@
+<AppDialogShell Title="@Title" Size="@(Preview is null ? "Small" : "Medium")" OnClose="CancelAsync">
+    <ChildContent>
+        <div class="app-confirm">
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <p class="app-confirm__message">@Message</p>
+            }
+
+            @if (Preview is not null)
+            {
+                <div class="app-confirm__preview">@Preview</div>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @if (PrimaryDestructive)
+        {
+            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" OnClick="SecondaryAsync" />
+            <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="PrimaryAsync" />
+        }
+        else
+        {
+            <AppButton Label="@SecondaryLabel" ButtonStyle="AppButtonStyle.Text" OnClick="SecondaryAsync" />
+            <AppButton Label="@PrimaryLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" autofocus="autofocus" OnClick="PrimaryAsync" />
+        }
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    [Parameter] public string? Message { get; set; }
+
+    /// <summary>What will happen, shown under the message (for example the file that will move, or the artwork that will go).</summary>
+    [Parameter] public RenderFragment? Preview { get; set; }
+
+    [Parameter, EditorRequired] public string PrimaryLabel { get; set; } = "OK";
+
+    [Parameter, EditorRequired] public string SecondaryLabel { get; set; } = "Cancel";
+
+    /// <summary>True when the primary step cannot be undone (a delete, a removal): the button is red and starts unfocused.</summary>
+    [Parameter] public bool PrimaryDestructive { get; set; }
+
+    private Task PrimaryAsync() => Dialog.CloseAsync(AppDialogResult.Ok(AppConfirmResult.Primary));
+
+    private Task SecondaryAsync() => Dialog.CloseAsync(AppDialogResult.Ok(AppConfirmResult.Secondary));
+
+    private Task CancelAsync() => Dialog.CancelAsync();
+
+    /// <summary>
+    /// Opens the dialog and returns what the person chose. Dismissing it any other way returns
+    /// <see cref="AppConfirmResult.Cancelled"/>.
+    /// </summary>
+    public static async Task<AppConfirmResult> ShowAsync(
+        IAppDialogService dialogs,
+        string title,
+        string? message,
+        string primaryLabel,
+        string secondaryLabel,
+        bool primaryDestructive = false,
+        RenderFragment? preview = null)
+    {
+        var parameters = new AppDialogParameters<AppConfirmDialog>
+        {
+            { component => component.Title, title },
+            { component => component.Message, message },
+            { component => component.Preview, preview },
+            { component => component.PrimaryLabel, primaryLabel },
+            { component => component.SecondaryLabel, secondaryLabel },
+            { component => component.PrimaryDestructive, primaryDestructive },
+        };
+        var dialog = await dialogs.ShowAsync<AppConfirmDialog>(
+            string.Empty,
+            parameters,
+            new AppDialogOptions
+            {
+                MaxWidth = preview is null ? AppMaxWidth.Small : AppMaxWidth.Medium,
+                FullWidth = true,
+                CloseButton = false,
+                NoHeader = true,
+                CloseOnEscapeKey = true,
+            });
+
+        return await dialog.Result is { Canceled: false, Data: AppConfirmResult answer }
+            ? answer
+            : AppConfirmResult.Cancelled;
+    }
+}

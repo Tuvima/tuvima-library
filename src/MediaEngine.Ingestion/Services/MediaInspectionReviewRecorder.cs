@@ -19,11 +19,11 @@ public sealed class MediaInspectionReviewRecorder(
     /// <summary>Plain-language reason shown to a person when the tool works but cannot read a file.</summary>
     public const string UnreadableFileDetail = "This file couldn't be read. It may be damaged or incomplete.";
 
-    public async Task RecordFailureAsync(Guid assetId, Guid? ingestionRunId, CancellationToken ct)
+    public async Task RecordFailureAsync(Guid assetId, CancellationToken ct)
     {
         if (outcomes is not null)
         {
-            await outcomes.CreateMediaInspectionFailedAsync(assetId, UnreadableFileDetail, ingestionRunId, ct).ConfigureAwait(false);
+            await outcomes.CreateMediaInspectionFailedAsync(assetId, UnreadableFileDetail, ct).ConfigureAwait(false);
         }
         else
         {

@@ -85,11 +85,17 @@ public sealed class EngineApiClientOperationsTests
                     ]
                     """,
                 "/capabilities/summary" => """{"text_track.lyrics:no_result":1}""",
-                "/ingestion/batches/55555555-5555-5555-5555-555555555555/items?offset=0&limit=100" => """
+                "/ingestion/media-groups/55555555-5555-5555-5555-555555555555" => """
+                    {
+                      "group_id": "55555555-5555-5555-5555-555555555555",
+                      "title": "Dune"
+                    }
+                    """,
+                "/ingestion/media-groups/55555555-5555-5555-5555-555555555555/children?offset=0&limit=50" => """
                     {
                       "items": [],
                       "offset": 0,
-                      "limit": 100,
+                      "limit": 50,
                       "has_more": false,
                       "total_count": null,
                       "next_cursor": null
@@ -113,7 +119,9 @@ public sealed class EngineApiClientOperationsTests
         var detail = await client.GetMediaOperationAsync(operationId);
         var capabilities = await client.GetAssetCapabilitiesAsync(Guid.Parse("33333333-3333-3333-3333-333333333333"));
         var capabilitySummary = await client.GetCapabilitySummaryAsync();
-        var batchItems = await client.GetIngestionBatchItemsAsync(Guid.Parse("55555555-5555-5555-5555-555555555555"));
+        var groupId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        var group = await client.GetIngestionMediaGroupAsync(groupId);
+        var children = await client.GetIngestionMediaChildrenAsync(groupId);
         var retry = await client.RetryMediaOperationAsync(operationId);
         var cancel = await client.CancelMediaOperationAsync(operationId);
 
@@ -125,7 +133,8 @@ public sealed class EngineApiClientOperationsTests
         Assert.Single(capabilities);
         Assert.Equal("no_result", capabilities[0].Status);
         Assert.Equal(1, capabilitySummary["text_track.lyrics:no_result"]);
-        Assert.NotNull(batchItems);
+        Assert.Equal(groupId, group?.GroupId);
+        Assert.NotNull(children);
         Assert.True(retry);
         Assert.True(cancel);
         Assert.Contains(requests, request => request.RequestUri!.PathAndQuery == "/operations/11111111-1111-1111-1111-111111111111/retry");

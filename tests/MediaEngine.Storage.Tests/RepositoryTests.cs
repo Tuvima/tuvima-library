@@ -1892,10 +1892,9 @@ public sealed class RepositoryTests : IDisposable
     [InlineData("BridgeSearching", "RetailMatched")]
     [InlineData("Hydrating", "QidResolved")]
     [InlineData("UniverseEnriching", "QidResolved")]
-    public async Task IdentityJob_StartupRecoversUnleasedWorkWithoutChangingBatch(string state, string resumedState)
+    public async Task IdentityJob_StartupRecoversUnleasedWork(string state, string resumedState)
     {
         var repo = new IdentityJobRepository(_db);
-        var runId = Guid.NewGuid();
         var job = new IdentityJob
         {
             Id = Guid.NewGuid(),
@@ -1904,13 +1903,11 @@ public sealed class RepositoryTests : IDisposable
             MediaType = nameof(MediaType.Books),
             Pass = "Quick",
             State = state,
-            IngestionRunId = runId,
         };
         await repo.CreateAsync(job);
         Assert.Equal(1, await repo.RecoverInterruptedJobsAsync());
         var recovered = await repo.GetByIdAsync(job.Id);
         Assert.Equal(resumedState, recovered!.State);
-        Assert.Equal(runId, recovered.IngestionRunId);
         Assert.Null(recovered.LeaseOwner);
         Assert.Equal(0, await repo.RecoverInterruptedJobsAsync());
     }
@@ -1963,21 +1960,11 @@ public sealed class RepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task IngestionBatchLogAndActivity_UseGuidBlobRunIds()
+    public async Task IngestionLogAndActivity_UseGuidBlobIds()
     {
-        var batchRepo = new IngestionBatchRepository(_db);
         var logRepo = new IngestionLogRepository(_db);
         var activityRepo = new SystemActivityRepository(_db);
-        var batchId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
-
-        await batchRepo.CreateAsync(new IngestionBatch
-        {
-            Id = batchId,
-            Status = "running",
-            SourcePath = "/library/import",
-            FilesTotal = 1,
-        });
 
         await logRepo.InsertAsync(new IngestionLogEntry
         {
@@ -1985,7 +1972,6 @@ public sealed class RepositoryTests : IDisposable
             FilePath = "/library/import/book.epub",
             MediaAssetId = assetId,
             Status = "queued_identity",
-            IngestionRunId = batchId,
         });
 
         await activityRepo.LogAsync(new SystemActivityEntry
@@ -1993,104 +1979,26 @@ public sealed class RepositoryTests : IDisposable
             ActionType = SystemActionType.FileIngested,
             EntityId = assetId,
             ProfileId = Profile.SeedProfileId,
-            IngestionRunId = batchId,
         });
 
         using var conn = _db.CreateConnection();
-        var batchType = conn.ExecuteScalar<string>("SELECT typeof(id) FROM ingestion_batches WHERE id = @batchId;", new { batchId });
-        var logTypes = conn.QuerySingle<(string IdType, string AssetType, string RunType)>("""
+        var logTypes = conn.QuerySingle<(string IdType, string AssetType)>("""
             SELECT typeof(id) AS IdType,
-                   typeof(media_asset_id) AS AssetType,
-                   typeof(ingestion_run_id) AS RunType
+                   typeof(media_asset_id) AS AssetType
             FROM ingestion_log
-            WHERE ingestion_run_id = @batchId;
-            """, new { batchId });
-        var activityTypes = conn.QuerySingle<(string EntityType, string ProfileType, string RunType)>("""
+            WHERE media_asset_id = @assetId;
+            """, new { assetId });
+        var activityTypes = conn.QuerySingle<(string EntityType, string ProfileType)>("""
             SELECT typeof(entity_id) AS EntityType,
-                   typeof(profile_id) AS ProfileType,
-                   typeof(ingestion_run_id) AS RunType
+                   typeof(profile_id) AS ProfileType
             FROM system_activity
-            WHERE ingestion_run_id = @batchId;
-            """, new { batchId });
+            WHERE entity_id = @assetId;
+            """, new { assetId });
 
-        Assert.Equal("blob", batchType);
         Assert.Equal("blob", logTypes.IdType);
         Assert.Equal("blob", logTypes.AssetType);
-        Assert.Equal("blob", logTypes.RunType);
         Assert.Equal("blob", activityTypes.EntityType);
         Assert.Equal("blob", activityTypes.ProfileType);
-        Assert.Equal("blob", activityTypes.RunType);
-        Assert.NotNull(await batchRepo.GetByIdAsync(batchId));
-        Assert.Single(await logRepo.GetByRunIdAsync(batchId));
-        Assert.Single(await activityRepo.GetByRunIdAsync(batchId));
-    }
-
-    [Fact]
-    public async Task IngestionBatchProgress_CountsIdentityWorkAfterFileOperationsFinish()
-    {
-        var batchRepo = new IngestionBatchRepository(_db);
-        var jobRepo = new IdentityJobRepository(_db);
-        var batchId = Guid.NewGuid();
-
-        await batchRepo.CreateAsync(new IngestionBatch
-        {
-            Id = batchId,
-            Status = "running",
-            SourcePath = "/library/books",
-            FilesTotal = 2,
-            FilesProcessed = 2,
-        });
-
-        await jobRepo.CreateAsync(new IdentityJob
-        {
-            EntityId = Guid.NewGuid(),
-            EntityType = nameof(EntityType.MediaAsset),
-            MediaType = nameof(MediaType.Books),
-            IngestionRunId = batchId,
-            Pass = "Quick",
-            State = IdentityJobState.Hydrating.ToString(),
-        });
-        await jobRepo.CreateAsync(new IdentityJob
-        {
-            EntityId = Guid.NewGuid(),
-            EntityType = nameof(EntityType.MediaAsset),
-            MediaType = nameof(MediaType.Books),
-            IngestionRunId = batchId,
-            Pass = "Quick",
-            State = IdentityJobState.QidResolved.ToString(),
-        });
-
-        var snapshot = await batchRepo.GetProgressSnapshotAsync(batchId);
-
-        Assert.Equal(2, snapshot.OutstandingOperations);
-        Assert.Equal(1, snapshot.ActiveOperations);
-        Assert.Equal(1, snapshot.QueuedOperations);
-        Assert.Equal(0, snapshot.RetryWaitingOperations);
-    }
-
-    [Fact]
-    public async Task IngestionBatch_GetRecent_IncludesAbandonedTerminalBatches()
-    {
-        var batchRepo = new IngestionBatchRepository(_db);
-        var batchId = Guid.NewGuid();
-
-        await batchRepo.CreateAsync(new IngestionBatch
-        {
-            Id = batchId,
-            Status = "abandoned",
-            SourcePath = "/library/interrupted",
-            FilesTotal = 5,
-            FilesProcessed = 5,
-            FilesFailed = 5,
-            CompletedAt = DateTimeOffset.UtcNow,
-        });
-
-        var recent = await batchRepo.GetRecentAsync(10);
-
-        var batch = Assert.Single(recent);
-        Assert.Equal(batchId, batch.Id);
-        Assert.Equal("abandoned", batch.Status);
-        Assert.Equal(5, batch.FilesFailed);
     }
 
     [Fact]

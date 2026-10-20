@@ -30,7 +30,7 @@
                 if (!Enabled) continue;
                 try
                 {
-                    var snapshot = await Api.GetIngestionNotificationStatusAsync(_stop.Token);
+                    var snapshot = await Api.GetIngestionQueueProgressAsync(_stop.Token);
                     if (snapshot is not null) Notifications.Observe(snapshot);
                     var path = new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath;
                     var quiet = Playback.CurrentItem is not null

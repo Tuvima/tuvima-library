@@ -66,7 +66,6 @@ public sealed class DurablePipelineTests : IDisposable
     private readonly IWorkRepository _workRepo;
     private readonly IEntityAssetRepository _entityAssetRepo;
     private readonly IMediaEntityChainFactory _chainFactory;
-    private readonly IIngestionBatchRepository _batchRepo;
     private readonly IIdentityJobRepository _identityJobRepo;
     private readonly IMediaOperationRepository _operationRepo;
     private readonly IMediaOperationTracker _operationTracker;
@@ -105,7 +104,6 @@ public sealed class DurablePipelineTests : IDisposable
         _entityAssetRepo = new EntityAssetRepository(db);
         _assetPaths = new AssetPathService(_libraryDir);
         _chainFactory = new MediaEntityChainFactory(db, new HierarchyResolver(_workRepo, null, new BookFormatSiblingFinder(db)));
-        _batchRepo = new IngestionBatchRepository(db);
         _identityJobRepo = new IdentityJobRepository(db);
         _operationRepo = new MediaOperationRepository(db);
         _operationTracker = new MediaOperationTracker(
@@ -385,42 +383,8 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Contains("Corrupt media file", operation.MissingReason, StringComparison.Ordinal);
     }
 
-    // ── Test 4: Batch counter increments after processing ────────────────
-
     [Fact]
-    public async Task IngestionEngine_ProcessesFiles_BatchCounterIncrementsFilesProcessed()
-    {
-        // Pre-create an ingestion batch row so we can track its counters.
-        var batchId = Guid.NewGuid();
-        var batch = new IngestionBatch
-        {
-            Id = batchId,
-            Status = "running",
-            SourcePath = _watchDir,
-            StartedAt = DateTimeOffset.UtcNow,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-        };
-        await _batchRepo.CreateAsync(batch);
-
-        // Verify the counter starts at 0.
-        var before = await _batchRepo.GetByIdAsync(batchId);
-        Assert.NotNull(before);
-        Assert.Equal(0, before!.FilesProcessed);
-
-        // Manually increment the counter (as IngestionEngine would do).
-        await _batchRepo.IncrementCounterAsync(batchId, BatchCounterColumn.FilesProcessed);
-        await _batchRepo.IncrementCounterAsync(batchId, BatchCounterColumn.FilesProcessed);
-        await _batchRepo.IncrementCounterByAsync(batchId, BatchCounterColumn.FilesTotal, 3);
-
-        var after = await _batchRepo.GetByIdAsync(batchId);
-        Assert.NotNull(after);
-        Assert.Equal(2, after!.FilesProcessed);
-        Assert.Equal(3, after.FilesTotal);
-    }
-
-    [Fact]
-    public async Task IngestionEngine_ScanDirectories_CreatesSingleBatchForCombinedTargets()
+    public async Task IngestionEngine_ScanDirectories_QueuesEveryFileOfCombinedTargetsAsItsOwnOperation()
     {
         var booksDir = Path.Combine(_tempRoot, "books");
         var comicsDir = Path.Combine(_tempRoot, "comics");
@@ -453,11 +417,6 @@ public sealed class DurablePipelineTests : IDisposable
             ],
             CancellationToken.None);
 
-        using var conn = _dbFactory.Connection.CreateConnection();
-        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM ingestion_batches;"));
-        Assert.Equal(3, conn.ExecuteScalar<int>("SELECT COALESCE(SUM(files_total), 0) FROM ingestion_batches;"));
-        Assert.Equal("Multiple source folders", conn.ExecuteScalar<string>("SELECT source_path FROM ingestion_batches LIMIT 1;"));
-
         var candidates = new List<IngestionCandidate>();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         while (candidates.Count < 3)
@@ -465,10 +424,13 @@ public sealed class DurablePipelineTests : IDisposable
             candidates.Add(await debounce.Reader.ReadAsync(timeout.Token));
         }
 
-        var batchIdValue = conn.ExecuteScalar<object>("SELECT id FROM ingestion_batches LIMIT 1;");
-        Assert.NotNull(batchIdValue);
-        var batchId = GuidSql.FromDb(batchIdValue);
-        Assert.All(candidates, candidate => Assert.Equal(batchId, candidate.BatchId));
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(3, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM media_operations WHERE operation_type = @type;",
+            new { type = MediaOperationType.IngestionFile }));
+        Assert.Equal(
+            3,
+            candidates.Select(candidate => Path.GetFullPath(candidate.Path)).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]
@@ -657,8 +619,8 @@ public sealed class DurablePipelineTests : IDisposable
         using var conn = _dbFactory.Connection.CreateConnection();
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
         Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM ingestion_log WHERE status = 'duplicate';"));
-        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COALESCE(SUM(files_registered), 0) FROM ingestion_batches;"));
-        Assert.Equal(2, conn.ExecuteScalar<int>("SELECT COALESCE(SUM(files_processed), 0) FROM ingestion_batches;"));
+        Assert.Equal(2, conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM media_operations WHERE operation_type = 'ingestion.file' AND completed_at IS NOT NULL;"));
     }
 
     [Fact]
@@ -1068,7 +1030,7 @@ public sealed class DurablePipelineTests : IDisposable
             DetectedAt = DateTimeOffset.UtcNow,
             ReadyAt = DateTimeOffset.UtcNow,
         };
-        var context = Activator.CreateInstance(contextType, candidate, Guid.NewGuid());
+        var context = Activator.CreateInstance(contextType, candidate);
         Assert.NotNull(context);
 
         void Set(string name, object value) => contextType.GetProperty(name)!.SetValue(context, value);
@@ -1206,7 +1168,6 @@ public sealed class DurablePipelineTests : IDisposable
             candidateRepo,
             CreateOutcomeFactory(),
             CreateTimelineRecorder(),
-            CreateBatchProgressService(),
             new IExternalMetadataProvider[] { provider },
             retailScoring,
             new NoOpMetadataClaimRepository(),
@@ -1270,7 +1231,6 @@ public sealed class DurablePipelineTests : IDisposable
             workRepoLocal,
             new WorkClaimRouter(),
             new CatalogUpsertService(workRepoLocal),
-            new NoOpIngestionBatchRepository(),
             null!, // PostPipelineService — no jobs should be leased in this test
             new CoverArtWorker(
                 _assetRepo,
@@ -1323,7 +1283,6 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             new NoOpReviewQueueRepository(),
             new NoOpAutoOrganizeService(),
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
         var collectionRepo = new NoOpCollectionRepository();
@@ -1399,7 +1358,6 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             new NoOpReviewQueueRepository(),
             new NoOpAutoOrganizeService(),
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
         var collectionRepo = new NoOpCollectionRepository();
@@ -1492,10 +1450,9 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             new NoOpAutoOrganizeService(),
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
-        await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, "Q185166", null, CancellationToken.None);
+        await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, "Q185166", CancellationToken.None);
 
         // All stale pre-identity review items should now be Resolved.
         var all = await reviewRepo.GetByEntityAsync(entityId);
@@ -1534,16 +1491,15 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             organizer,
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
-        var didOrganize = await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, "Q185166", null, CancellationToken.None);
+        var didOrganize = await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, "Q185166", CancellationToken.None);
 
         var review = Assert.Single(await reviewRepo.GetByEntityAsync(entityId));
         Assert.Equal(ReviewStatus.Resolved, review.Status);
         Assert.Equal("system:identity-superseded", review.ResolvedBy);
         var organized = Assert.Single(organizer.Calls);
-        Assert.Equal(entityId, organized.EntityId);
+        Assert.Equal(entityId, organized);
         Assert.True(didOrganize);
     }
 
@@ -1576,14 +1532,12 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             organizer,
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
         var didOrganize = await postPipeline.EvaluateAndOrganizeAsync(
             entityId,
             jobId,
             wikidataQid: null,
-            ingestionRunId: null,
             ct: CancellationToken.None,
             retainedRetailIdentity: true);
 
@@ -1591,7 +1545,7 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Equal(ReviewStatus.Resolved, review.Status);
         Assert.Equal("system:retained-retail-identity", review.ResolvedBy);
         var organized = Assert.Single(organizer.Calls);
-        Assert.Equal(entityId, organized.EntityId);
+        Assert.Equal(entityId, organized);
         Assert.True(didOrganize);
     }
 
@@ -1622,10 +1576,9 @@ public sealed class DurablePipelineTests : IDisposable
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             new NoOpAutoOrganizeService(),
-            CreateBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
-        await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, wikidataQid: null, ingestionRunId: null, CancellationToken.None);
+        await postPipeline.EvaluateAndOrganizeAsync(entityId, jobId, wikidataQid: null, CancellationToken.None);
 
         var all = await reviewRepo.GetByEntityAsync(entityId);
         var review = Assert.Single(all);
@@ -1868,7 +1821,6 @@ public sealed class DurablePipelineTests : IDisposable
             new StubMediaTypeAdvisor(),
             new StubEntityTimelineRepository(),
             new ScoringConfiguration(),
-            _batchRepo,
             _identityJobRepo,
             new MediaTypeResolver(
                 new OptionsMonitorStub<IngestionOptions>(options),
@@ -1911,12 +1863,6 @@ public sealed class DurablePipelineTests : IDisposable
     private static TimelineRecorder CreateTimelineRecorder() =>
         new TimelineRecorder(new NoOpEntityTimelineRepository());
 
-    private static BatchProgressService CreateBatchProgressService() =>
-        new BatchProgressService(
-            new NoOpIngestionBatchRepository(),
-            new NoOpEventPublisher(),
-            NullLogger<BatchProgressService>.Instance);
-
     // ══════════════════════════════════════════════════════════════════════
     // Stub / fake implementations used by Group B tests
     // ══════════════════════════════════════════════════════════════════════
@@ -1938,17 +1884,12 @@ public sealed class DurablePipelineTests : IDisposable
             IReadOnlyList<IdentityJobState> states,
             int batchSize,
             TimeSpan leaseDuration,
-            IReadOnlyList<string>? excludeRunIds = null,
             CancellationToken ct = default)
         {
             var stateStrings = states.Select(s => s.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var excluded = excludeRunIds is { Count: > 0 }
-                ? new HashSet<string>(excludeRunIds, StringComparer.OrdinalIgnoreCase)
-                : null;
             var matches = _jobs
                 .Where(j => stateStrings.Contains(j.State)
-                         && (j.LeaseOwner is null || j.LeaseExpiresAt < DateTimeOffset.UtcNow)
-                         && (excluded is null || j.IngestionRunId is null || !excluded.Contains(j.IngestionRunId.ToString()!)))
+                         && (j.LeaseOwner is null || j.LeaseExpiresAt < DateTimeOffset.UtcNow))
                 .Take(batchSize)
                 .ToList();
 
@@ -2007,13 +1948,6 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<IReadOnlyList<IdentityJob>> GetByStateAsync(IdentityJobState state, int limit, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<IdentityJob>>(
                 _jobs.Where(j => j.State == state.ToString()).Take(limit).ToList());
-
-        public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-
-        public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-            IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 
         public Task<int> ReclaimStuckJobsAsync(
             IdentityJobState processingState,
@@ -2460,17 +2394,17 @@ public sealed class DurablePipelineTests : IDisposable
 
     private sealed class NoOpAutoOrganizeService : IAutoOrganizeService
     {
-        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default, Guid? ingestionRunId = null)
+        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
             => Task.CompletedTask;
     }
 
     private sealed class RecordingAutoOrganizeService : IAutoOrganizeService
     {
-        public List<(Guid EntityId, Guid? IngestionRunId)> Calls { get; } = [];
+        public List<Guid> Calls { get; } = [];
 
-        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default, Guid? ingestionRunId = null)
+        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
         {
-            Calls.Add((assetId, ingestionRunId));
+            Calls.Add(assetId);
             return Task.CompletedTask;
         }
     }
@@ -2481,7 +2415,6 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentAsync(int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
         public Task<int> PruneOlderThanAsync(int retentionDays, CancellationToken ct = default) => Task.FromResult(0);
         public Task<long> CountAsync(CancellationToken ct = default) => Task.FromResult(0L);
-        public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
 
@@ -2511,19 +2444,6 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<IReadOnlyDictionary<Guid, EntityEvent>> GetLatestStage2EventsAsync(IReadOnlyList<Guid> entityIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyDictionary<Guid, EntityEvent>>(new Dictionary<Guid, EntityEvent>());
         public Task<int> CullOldEventsAsync(TimeSpan retention, CancellationToken ct = default) => Task.FromResult(0);
         public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.CompletedTask;
-    }
-
-    private sealed class NoOpIngestionBatchRepository : IIngestionBatchRepository
-    {
-        public Task CreateAsync(IngestionBatch batch, CancellationToken ct = default) => Task.CompletedTask;
-        public Task UpdateCountsAsync(Guid id, int filesTotal, int filesProcessed, int filesIdentified, int filesReview, int filesNoMatch, int filesFailed, CancellationToken ct = default) => Task.CompletedTask;
-        public Task CompleteAsync(Guid id, string status, CancellationToken ct = default) => Task.CompletedTask;
-        public Task IncrementCounterAsync(Guid id, BatchCounterColumn column, CancellationToken ct = default) => Task.CompletedTask;
-        public Task<IngestionBatch?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<IngestionBatch?>(null);
-        public Task<IReadOnlyList<IngestionBatch>> GetRecentAsync(int limit = 20, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<IngestionBatch>>([]);
-        public Task<int> GetNeedsAttentionCountAsync(CancellationToken ct = default) => Task.FromResult(0);
-        public Task<IngestionBatchProgressSnapshot> GetProgressSnapshotAsync(Guid batchId, CancellationToken ct = default)
-            => Task.FromResult(new IngestionBatchProgressSnapshot());
     }
 
     /// <summary>

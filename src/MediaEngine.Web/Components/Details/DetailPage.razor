@@ -30,12 +30,33 @@
 @inject ILogger<DetailPage> Logger
 @implements IDisposable
 
-@if (Model is not null)
+@if (Model is not null && _removed)
+{
+    @* Someone else deleted this title while it was open: the overlay stays, with a notice in place of the page. *@
+    <article class="tl-detail-page tl-detail-page--removed">
+        <RemovedItemNotice InputLabel="@_removedInputLabel"
+                           InputText="@_removedInputText"
+                           LostSectionInput="_removedLostSectionInput"
+                           OnCopy="CopyRemovedInputAsync"
+                           OnClose="CloseRemovedNoticeAsync" />
+    </article>
+}
+else if (Model is not null)
 {
     <CascadingValue Value="_editing" IsFixed="true">
-    <article class="@ArticleClass">
+    <article class="tl-detail-page">
+        @* Editing Mode: the banner is the first thing in the page's scroll container and sticks to its top; it is outside the
+           hero because the full-bleed hero clips what overflows it. *@
+        @if (Model.EntityType != DetailEntityType.Person)
+        {
+            <EditingBanner Mode="_editing"
+                           CanDelete="@CanDeleteFromLibrary"
+                           OnActionSelected="HandleDetailActionAsync" />
+        }
+
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
+                        CanDelete="@CanDeleteFromLibrary"
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
@@ -49,6 +70,11 @@
                 </div>
             }
         </section>
+
+        @* The open Editing Mode section (Artwork, Match and Identity, History): directly below the hero, one at a time. *@
+        <EditingSectionSlot Mode="_editing"
+                            BuildRequest="BuildSectionRequest"
+                            OnCommitted="RefreshAfterSectionCommitAsync" />
 
         @if (ShowPrimaryModuleAfterNavigation)
         {
@@ -90,11 +116,6 @@
                 <DetailsTab Model="Model" />
             }
         </section>
-
-        <EditingDrawer Mode="_editing"
-                       BuildRequest="BuildDrawerRequest"
-                       ItemTitle="@Model.Title"
-                       OnCommitted="RefreshAfterDrawerCommitAsync" />
     </article>
     </CascadingValue>
 }
@@ -130,17 +151,19 @@
     private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
-    // Editing Mode (the in-page drawer) is for single items. Collections, series shelves and people keep their own editors.
+    // Editing Mode (the banner, pencils and one section below the hero) is for single items. Collections, series shelves and
+    // people keep their own editors.
     private EditingModeContext? _editing;
     private Guid? _editingProfileId;
-
-    private string ArticleClass => _editing is { DrawerOpen: true } ? "tl-detail-page tl-detail-page--editing-drawer" : "tl-detail-page";
+    private IDisposable? _overlayGuard;
+    private IDisposable? _overlayEscape;
 
     protected override void OnInitialized()
     {
         _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
         {
             Loader = LoadEditingFieldsAsync,
+            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
@@ -159,6 +182,7 @@
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+        ReleaseOverlayGuards();
         if (_editing is null)
         {
             return;
@@ -169,7 +193,45 @@
         _editing.Dispose();
     }
 
-    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnEditingChanged()
+    {
+        SyncOverlayGuards();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // While Editing Mode is on the overlay asks it before it closes (close button, Esc, backdrop, Back, a link to another
+    // title): it settles unsaved input with "Save or discard?" and leaves the mode first. Esc is offered to it first too,
+    // so Esc closes an open field, then an open section, and only then dismisses the overlay.
+    private void SyncOverlayGuards()
+    {
+        if (_editing is { IsOn: true } && Overlay is not null)
+        {
+            _overlayGuard ??= Overlay.RegisterDismissGuard(_editing);
+            _overlayEscape ??= Overlay.RegisterEscapeHandler(_editing.HandleEscapeAsync);
+            return;
+        }
+
+        ReleaseOverlayGuards();
+    }
+
+    private void ReleaseOverlayGuards()
+    {
+        _overlayGuard?.Dispose();
+        _overlayGuard = null;
+        _overlayEscape?.Dispose();
+        _overlayEscape = null;
+    }
+
+    /// <summary>
+    /// Delete from library, in the page's "..." menu (with or without Editing Mode) and in the editing banner's "...": on a desktop
+    /// for an effective administrator, and for a page that is one title (details overlay spec D18, D19). The Engine and
+    /// <see cref="DeleteFromLibraryAsync"/> check again.
+    /// </summary>
+    private bool CanDeleteFromLibrary =>
+        Model is not null
+        && !_removed
+        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
 
     private void UpdateEditingEligibility()
     {
@@ -208,7 +270,8 @@
             _editingProfileId);
     }
 
-    private MediaEditorLaunchRequest? BuildDrawerRequest(string tab, string? artworkSlot)
+    // The request for the editor hosted in the section slot: the section id (artwork, links or history) is its one tab.
+    private MediaEditorLaunchRequest? BuildSectionRequest(string tab, string? artworkSlot)
     {
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
         {
@@ -233,7 +296,7 @@
         }
     }
 
-    private async Task RefreshAfterDrawerCommitAsync()
+    private async Task RefreshAfterSectionCommitAsync()
     {
         try
         {
@@ -245,7 +308,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "The detail page could not refresh after the editor drawer saved a change");
+            Logger.LogWarning(ex, "The detail page could not refresh after an editing section saved a change");
             Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
         }
     }
@@ -256,20 +319,26 @@
     private bool _leaving;
     private bool _removedWhileDeleting;
 
+    // Someone else deleted this title while the overlay showed it: the notice stands in for the page.
+    private bool _removed;
+    private string? _removedInputLabel;
+    private string? _removedInputText;
+    private bool _removedLostSectionInput;
+
     private async Task DeleteFromLibraryAsync()
     {
-        if (Model is null || _deleting || _leaving || !Guid.TryParse(Model.Id, out var workId))
+        if (Model is null || _deleting || _leaving || _removed || !Guid.TryParse(Model.Id, out var workId))
         {
             return;
         }
 
-        // The entry only shows to an administrator in Editing Mode on a desktop; a handler never trusts that.
+        // The entry only shows to an administrator on a desktop; a handler never trusts that.
         if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), Snackbar))
         {
             return;
         }
 
-        if (_editing is not { IsOn: true } || !LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType))
+        if (!LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType))
         {
             return;
         }
@@ -293,16 +362,14 @@
         else if (_removedWhileDeleting && !_disposed)
         {
             // Cancelled, but someone else deleted this title while the dialog was open.
-            _leaving = true;
-            Snackbar.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
-            await LeaveAfterRemovalAsync();
+            await HandleRemovedByAnotherAsync();
         }
     }
 
     // Another window (or another person) deleted the title this page shows.
     private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
     {
-        if (_disposed || _leaving || Model is null || !Guid.TryParse(Model.Id, out var id))
+        if (_disposed || _leaving || _removed || Model is null || !Guid.TryParse(Model.Id, out var id))
         {
             return;
         }
@@ -331,10 +398,71 @@
             return;
         }
 
+        await HandleRemovedByAnotherAsync();
+    });
+
+    // Not this page's own delete. In the overlay the person may have been typing, so it stays open with a notice (and a way to keep
+    // the typed text); a page on its own says so in a toast and goes back, as before.
+    private async Task HandleRemovedByAnotherAsync()
+    {
+        if (Overlay is { IsOpen: true })
+        {
+            ShowRemovedNotice();
+            return;
+        }
+
         _leaving = true;
         Snackbar.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
         await LeaveAfterRemovalAsync();
-    });
+    }
+
+    // Editing Mode ends without asking (the item is gone, so there is nothing to save or discard); unsaved text from a pencil field
+    // is kept for the notice. An open section's unsaved input lives inside the editor and cannot be read from here.
+    private void ShowRemovedNotice()
+    {
+        if (_editing is { IsOn: true } editing)
+        {
+            var fields = editing.Fields;
+            if (fields.IsDirty)
+            {
+                _removedInputText = fields.Draft;
+                _removedInputLabel = fields.ActiveKey is { } key ? fields.Find(key)?.Label : null;
+            }
+
+            _removedLostSectionInput = editing.SectionDirty;
+            editing.Leave();
+        }
+
+        _removed = true;
+        StateHasChanged();
+    }
+
+    private async Task CopyRemovedInputAsync()
+    {
+        if (string.IsNullOrEmpty(_removedInputText))
+        {
+            return;
+        }
+
+        switch (await JS.TryCopyAsync(_removedInputText, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Snackbar.Add("Copied.", AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Snackbar.Add(ClipboardInterop.FailedMessage("the text"), AppSeverity.Warning);
+                break;
+        }
+    }
+
+    // Close is the overlay's own close path; nothing typed on a deleted title needs a guard.
+    private async Task CloseRemovedNoticeAsync()
+    {
+        if (Overlay is { IsOpen: true } overlay)
+        {
+            await overlay.DismissAsync(force: true);
+        }
+    }
 
     private bool ListsRemovedTitle(LibraryItemsRemovedEvent removed) => Model is not null
         && Model.MediaGroups.SelectMany(group => group.Items)
@@ -619,7 +747,7 @@
         }
     }
 
-    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode drawer.
+    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode section slot.
     private MediaEditorLaunchRequest? BuildMediaEditorRequest(
         Guid entityId,
         (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,

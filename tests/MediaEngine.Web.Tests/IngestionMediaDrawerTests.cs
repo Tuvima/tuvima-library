@@ -22,7 +22,7 @@ public sealed class IngestionMediaDrawerTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(
             nameof(IEngineApiClient.GetIngestionMediaChildrenAsync), args =>
             {
-                var offset = (int)args![2]!;
+                var offset = (int)args![1]!;
                 offsets.Add(offset);
                 var children = offset == 0
                     ? Children(250, 1)
@@ -49,7 +49,7 @@ public sealed class IngestionMediaDrawerTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(
             nameof(IEngineApiClient.GetIngestionMediaChildrenAsync), args =>
             {
-                var groupId = (Guid)args![1]!;
+                var groupId = (Guid)args![0]!;
                 if (groupId == first.GroupId)
                 {
                     return slowResponse.Task;
@@ -79,7 +79,7 @@ public sealed class IngestionMediaDrawerTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.Create(stub => stub.SetHandler(
             nameof(IEngineApiClient.GetIngestionMediaChildrenAsync), args =>
             {
-                requestToken = (CancellationToken)args![4]!;
+                requestToken = (CancellationToken)args![3]!;
                 return response.Task;
             })));
 
@@ -134,7 +134,6 @@ public sealed class IngestionMediaDrawerTests : AsyncBunitContext
 
     private static IngestionMediaGroupDto Group(string title = "Album") => new()
     {
-        BatchId = Guid.NewGuid(),
         GroupId = Guid.NewGuid(),
         Title = title,
         MediaType = "Music",

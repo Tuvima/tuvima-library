@@ -145,14 +145,6 @@
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.StarOutline" Disabled="@(_busy || SelectedVariant.IsPreferred)" OnClick="SetPreferredAsync">@(SelectedVariant.IsPreferred ? "Preferred" : "Set Preferred")</AppButton>
                     }
-                    @if (_deleteLinkId == SelectedVariant.LinkId)
-                    {
-                        <div class="artwork-workspace-core__delete-confirm" role="group" aria-label="Confirm artwork deletion">
-                            <span>Remove this link from @ActiveItem.DisplayTitle? The image stays in the library.</span>
-                            <AppIconButton Class="artwork-confirm-action" Tone="AppUiTone.Success" Icon="@AppMaterialIcons.Outlined.Check" Tooltip="Confirm deletion" AriaLabel="Confirm deletion" Disabled="@_busy" OnClick="RemoveAsync" />
-                            <AppIconButton Class="artwork-cancel-action" Tone="AppUiTone.Error" Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Cancel deletion" AriaLabel="Cancel deletion" Disabled="@_busy" OnClick="CancelDelete" />
-                        </div>
-                    }
                 </div>
             }
         </div>
@@ -237,7 +229,6 @@
     protected override async Task OnInitializedAsync() { if (string.Equals(Item.GroupKind, "Universe", StringComparison.OrdinalIgnoreCase)) _hierarchyItems = await ApiClient.GetUniverseArtworkHierarchyAsync(Item.EntityId); await ReloadAsync(preserveSelection: false); }
     private async Task ReloadAsync(bool preserveSelection = true, Guid? selectAssetId = null)
     {
-        CancelDelete();
         var previousRole = preserveSelection ? (_role, _sourceAssetType) : (InitialRole ?? string.Empty, (string?)null);
         var previousAsset = selectAssetId ?? (preserveSelection ? _selectedAssetId : InitialAssetId);
         _workspace = await ApiClient.GetEntityArtworkAsync(ActiveItem.EntityType, ActiveItem.EntityId, ActiveItem.MediaType, ActiveItem.GroupKind, ActiveItem.AssetTypes);
@@ -265,12 +256,18 @@
     private async Task SelectHierarchySectionAsync(string section) { _hierarchySection = section; _activeHierarchyItem = null; if (!string.Equals(section, "Overview", StringComparison.OrdinalIgnoreCase) && FilteredHierarchyItems.FirstOrDefault() is { } first) await SelectHierarchyEntityAsync(first); else await ReloadAsync(preserveSelection: false); }
     private async Task SelectHierarchyEntityAsync(ArtworkLibraryItemDto entity) { _activeHierarchyItem = entity; await ReloadAsync(preserveSelection: false); }
     private static string HierarchyPlaceholderIcon(ArtworkLibraryItemDto entity) => entity.GroupKind switch { "Character" => AppMaterialIcons.Outlined.PersonOutline, "Location" => AppMaterialIcons.Outlined.Place, "Organization" => AppMaterialIcons.Outlined.AccountBalance, "Event" => AppMaterialIcons.Outlined.Event, _ => AppMaterialIcons.Outlined.Category };
-    private void SelectRole(ArtworkRolePresentation role) { CancelDelete(); _role = role.Role; _sourceAssetType = role.SourceAssetType; var variants = VariantsFor(role); _selectedAssetId = variants.FirstOrDefault(variant => variant.IsPreferred)?.ArtworkAssetId ?? variants.FirstOrDefault()?.ArtworkAssetId; }
+    private void SelectRole(ArtworkRolePresentation role) { _role = role.Role; _sourceAssetType = role.SourceAssetType; var variants = VariantsFor(role); _selectedAssetId = variants.FirstOrDefault(variant => variant.IsPreferred)?.ArtworkAssetId ?? variants.FirstOrDefault()?.ArtworkAssetId; }
     private ElementReference _preview;
-    private Guid? _deleteLinkId;
-    private void BeginDelete(ArtworkEntityVariantDto variant) { _selectedAssetId = variant.ArtworkAssetId; _deleteLinkId = variant.LinkId; }
-    private void CancelDelete() => _deleteLinkId = null;
-    private void SelectVariant(Guid assetId) { CancelDelete(); _selectedAssetId = assetId; }
+    // Remove asks first, in the shared confirmation dialog with the image shown (details overlay spec D7 and D17).
+    private async Task BeginDelete(ArtworkEntityVariantDto variant)
+    {
+        if (_busy) return;
+        _selectedAssetId = variant.ArtworkAssetId;
+        var message = $"This removes the link from {ActiveItem.DisplayTitle}. The image stays in the library.";
+        if (!await ArtworkRemoveConfirmation.AskRemoveAsync(DialogService, ActiveRole.Label, variant.ThumbnailUrl, message)) return;
+        await RemoveAsync(variant.LinkId);
+    }
+    private void SelectVariant(Guid assetId) { _selectedAssetId = assetId; }
     private string VariantTileClass(ArtworkEntityVariantDto variant) => $"artwork-workspace-core__variant-tile{(variant.IsPreferred ? " is-preferred" : string.Empty)}{(variant.ArtworkAssetId == SelectedVariant?.ArtworkAssetId ? " is-selected" : string.Empty)}";
     private string VariantActionLabel(ArtworkEntityVariantDto variant) => variant.IsPreferred
         ? $"{ActiveRole.Label} artwork variant, preferred"
@@ -356,7 +353,6 @@
     }
     private async Task SelectPreferredVariantAsync(ArtworkEntityVariantDto variant)
     {
-        CancelDelete();
         _selectedAssetId = variant.ArtworkAssetId;
         if (!PersistArtworkChangesImmediately) return;
         await PersistPreferredVariantAsync(variant);
@@ -391,7 +387,7 @@
         finally { _busy = false; }
     }
     private async Task RefreshProviderAsync() { var scope = ResolvedProviderRefreshScope; if (string.IsNullOrWhiteSpace(scope)) return; _busy = true; try { var result = await ApiClient.RefreshScopeProviderArtworkAsync(ProviderRefreshEntityId ?? ActiveItem.EntityId, scope); if (result is null) { Snackbar.Add(ApiClient.LastError ?? "Provider artwork refresh failed.", AppSeverity.Error); return; } await ReloadAsync(); _changed = _changed || result.DownloadedCount > 0; if (result.DownloadedCount > 0) await OnChanged.InvokeAsync(); Snackbar.Add(result.DownloadedCount > 0 ? $"Added {result.DownloadedCount} provider artwork image{(result.DownloadedCount == 1 ? string.Empty : "s")}." : "Provider artwork is already current.", result.DownloadedCount > 0 ? AppSeverity.Success : AppSeverity.Info); } finally { _busy = false; } }
-    private async Task RemoveAsync() { if (_busy || SelectedVariant is null || _deleteLinkId != SelectedVariant.LinkId) return; var linkId = SelectedVariant.LinkId; CancelDelete(); if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); Snackbar.Add("Artwork removal staged.", AppSeverity.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { Snackbar.Add("Artwork link could not be removed.", AppSeverity.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); Snackbar.Add("Artwork link removed. The image remains in the library.", AppSeverity.Success); } finally { _busy = false; } }
+    private async Task RemoveAsync(Guid linkId) { if (_busy) return; if (DeferMutations && !PersistArtworkChangesImmediately) { await StageAsync(new PendingArtworkMutation(PendingArtworkMutationKind.Remove, SnapshotTarget(), LinkId: linkId)); Snackbar.Add("Artwork removal staged.", AppSeverity.Info); return; } _busy = true; try { if (!await ApiClient.RemoveArtworkLinkAsync(linkId)) { Snackbar.Add("Artwork link could not be removed.", AppSeverity.Error); return; } _changed = true; await ReloadAsync(); await OnChanged.InvokeAsync(); Snackbar.Add("Artwork link removed. The image remains in the library.", AppSeverity.Success); } finally { _busy = false; } }
 
     public async Task<(bool Saved, string? Error)> ApplyPendingChangesAsync()
     {

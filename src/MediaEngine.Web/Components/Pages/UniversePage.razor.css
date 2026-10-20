@@ -8,9 +8,14 @@
     padding: 1rem clamp(16px, 3vw, 2rem) calc(var(--tl-bottom-dock-height, 0px) + var(--tl-safe-area-bottom, 0px) + 1.5rem);
 }
 
-/* The editing drawer sits beside the page, never over it. */
-.universe-page--editing-drawer {
-    padding-inline-end: var(--tl-editing-drawer-width, 23.75rem);
+/* The Editing Mode banner spans the page edge to edge (it undoes these gutters) and sticks just under the top bar, which is
+   fixed here; this page has no details overlay and so no close button for the bar to clear. */
+.universe-page {
+    --universe-gutter: clamp(16px, 3vw, 2rem);
+    --tl-editing-banner-page-gutter: var(--universe-gutter);
+    --tl-editing-banner-page-top-gap: 1rem;
+    --tl-editing-banner-top: var(--app-topbar-height, 65px);
+    --tl-editing-banner-end-clearance: var(--universe-gutter);
 }
 
 .universe-page__series {

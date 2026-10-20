@@ -62,11 +62,6 @@ public sealed class PeopleEnrichmentHostedService(
                             await repository.MarkFailedRetryableAsync(job.Id, ex.Message, DateTimeOffset.UtcNow.AddMinutes(5), stoppingToken);
                         }
                     }
-                    if (job.BatchId is { } batchId)
-                    {
-                        await scope.ServiceProvider.GetRequiredService<BatchProgressService>()
-                                .EmitProgressAsync(batchId, isFinal: false, stoppingToken);
-                    }
                 }
                 if (jobs.Count > 0)
                 {

@@ -1,3 +1,4 @@
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -7,12 +8,14 @@ namespace MediaEngine.AI.Features;
 
 public sealed class SeriesAligner : ISeriesAligner
 {
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.SeriesAlignment);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly ILogger<SeriesAligner> _logger;
 
-    public SeriesAligner(ILlamaInferenceService llama, ILogger<SeriesAligner> logger)
+    public SeriesAligner(IAiEngineRoom engineRoom, ILogger<SeriesAligner> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _logger = logger;
     }
 
@@ -24,11 +27,12 @@ public sealed class SeriesAligner : ISeriesAligner
     {
         var prompt = PromptTemplates.SeriesPositionPrompt(workTitle, seriesName, siblingTitles);
 
-        var result = await _llama.InferJsonAsync<SeriesPositionResponse>(
-            AiModelRole.TextQuality,
+        var result = await _engineRoom.ExtractJsonOrThrowAsync<SeriesPositionResponse>(
+            Caller,
+            AiAbility.ExtractStructured,
             prompt,
             PromptTemplates.SeriesPositionGrammar,
-            ct);
+            ct: ct);
 
         if (result is null
             || !result.Position.HasValue

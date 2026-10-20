@@ -13,15 +13,6 @@ public interface IJourneyReadService
         CancellationToken ct);
 }
 
-public interface IIngestionBatchReadService
-{
-    Task<IReadOnlyList<IngestionBatchItemResponse>> GetItemsAsync(
-        Guid batchId,
-        int offset,
-        int limit,
-        CancellationToken ct);
-}
-
 public interface IPersonAliasReadService
 {
     Task<PersonAliasResponse?> GetAliasesAsync(Guid personId, CancellationToken ct);

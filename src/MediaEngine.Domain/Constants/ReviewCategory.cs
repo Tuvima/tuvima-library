@@ -3,7 +3,7 @@ namespace MediaEngine.Domain.Constants;
 /// <summary>
 /// The one set of Needs Review categories. Every <see cref="ReviewTrigger"/> belongs to exactly one
 /// category, so Live Ingestion's attention counts and the Needs Review list group items the same way.
-/// The keys are on the wire as <c>IngestionReviewReasonDto.Key</c>; keep the strings.
+/// The keys are stored and sent to clients as these strings; keep them.
 /// </summary>
 public static class ReviewCategory
 {

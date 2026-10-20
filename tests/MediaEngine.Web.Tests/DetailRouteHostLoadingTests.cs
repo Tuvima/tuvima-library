@@ -219,12 +219,13 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         Assert.Single(cut.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit this title"));
-        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));
-        Assert.Empty(cut.FindAll(".tl-editing-drawer"));
+        Assert.Empty(cut.FindAll(".tl-editing-slot"));
     }
 
     [Fact]
@@ -238,8 +239,8 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album", allowEdit: false));
 
         cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
     }
 
     [Fact]
@@ -254,16 +255,16 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
 
         await ChooseEditEntryAsync(cut);
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
 
         cut.Render(p => p.Add(c => c.Request, Request(second)));
         cut.WaitForState(() => _pending.ContainsKey(second));
         _pending[second].SetResult(EditableModel(second, "Second album"));
 
         cut.WaitForAssertion(() => Assert.Contains("Second album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
-        Assert.Empty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
     }
 
     [Fact]
@@ -278,8 +279,8 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
 
         await ChooseEditEntryAsync(cut);
 
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
         Assert.Empty(cut.FindAll(".sme-dialog"));
     }
 
@@ -293,12 +294,12 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']")));
         await ChooseEditEntryAsync(cut);
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
 
         await ChooseEditEntryAsync(cut);
 
-        Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim());
-        Assert.NotEmpty(cut.FindAll(".tl-editing-bar__action"));
+        Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll(".tl-editing-banner__section"));
     }
 
     private static async Task ChooseEditEntryAsync(IRenderedComponent<DetailRouteHost> cut)
@@ -320,8 +321,8 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         _pending[id].SetResult(EditableModel(id, "First album"));
 
         cut.WaitForAssertion(() => Assert.Contains("First album", cut.Markup));
-        Assert.Empty(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(cut.FindAll(".tl-editing-toggle"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner__done"));
         Assert.DoesNotContain("Edit this title", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Edit on a computer", cut.Markup, StringComparison.Ordinal);
     }

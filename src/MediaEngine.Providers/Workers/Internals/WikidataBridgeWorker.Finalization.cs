@@ -116,7 +116,7 @@ public sealed partial class WikidataBridgeWorker
 
             // Record timeline event.
             var timelineMethod = ctx.PrimaryBridgeIdType ?? ctx.MatchedBy ?? "bridge_id";
-            await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, job.IngestionRunId, ct);
+            await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, ct);
 
             _logger.LogInformation(
                 "Wikidata: '{Title}' identified as {Qid} via {Method} [entity {EntityId}]",
@@ -189,7 +189,7 @@ public sealed partial class WikidataBridgeWorker
                 }
 
                 await _postPipeline.EvaluateAndOrganizeAsync(
-                    job.EntityId, job.Id, ctx.ResolvedQid, job.IngestionRunId, ct);
+                    job.EntityId, job.Id, ctx.ResolvedQid, ct);
                 await _coverArt.DownloadAndPersistAsync(job.EntityId, ctx.ResolvedQid, ct)
                     .ConfigureAwait(false);
                 await MarkBridgeSucceededAsync(ctx.Operation, job, ctx.ResolvedQid, ct).ConfigureAwait(false);
@@ -279,12 +279,11 @@ public sealed partial class WikidataBridgeWorker
                 await _collectionFinalization.FinalizeAsync(
                     job.EntityId,
                     CollectionFinalizationReason.QidResolved,
-                    job.IngestionRunId,
                     ct).ConfigureAwait(false);
             }
 
             await _postPipeline.EvaluateAndOrganizeAsync(
-                job.EntityId, job.Id, ctx.ResolvedQid, job.IngestionRunId, ct);
+                job.EntityId, job.Id, ctx.ResolvedQid, ct);
             await _coverArt.DownloadAndPersistAsync(job.EntityId, ctx.ResolvedQid, ct)
                 .ConfigureAwait(false);
             await TryMergeReadWorkIdentitiesAsync(ctx.MediaType, ct).ConfigureAwait(false);
@@ -295,7 +294,7 @@ public sealed partial class WikidataBridgeWorker
             // No QID found at all.
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.QidNoMatch, ct: ct);
             await _timeline.RecordBridgeNoMatchAsync(
-                job.EntityId, job.IngestionRunId, ct);
+                job.EntityId, ct);
 
             var reviewCreated = ShouldCreateReviewForBridgeNoMatch(ctx);
             if (reviewCreated)
@@ -303,8 +302,6 @@ public sealed partial class WikidataBridgeWorker
                 await _outcomeFactory.CreateWikidataBridgeFailedAsync(
                     job.EntityId,
                     "Wikidata bridge resolution did not find a confirmed identity after the item had already been marked for review.",
-                    job.IngestionRunId,
-                    null,
                     ct).ConfigureAwait(false);
             }
 
@@ -604,7 +601,6 @@ public sealed partial class WikidataBridgeWorker
                 MediaType: ctx.MediaType,
                 Title: ctx.TitleHint ?? ctx.AlbumHint,
                 SeriesHint: ctx.SeriesHint,
-                IngestionRunId: job.IngestionRunId,
                 Lineage: lineage,
                 FullClaims: fullClaims), ct);
         }

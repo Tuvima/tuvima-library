@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -229,6 +229,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 ### U-WP8 — Helper app screens (Android, Apple, TV web, Roku)
 - **Depends on:** U-WP7. **Size:** Standard (one packet per client, at most two at a time).
 - **Done when:** each app shows the 4.4 layout against a test Engine; Roku lists Series.
+- **Status:** Built (2026-10-20, PR 317). Android phone and TV, Apple and TV web show the hero totals (saying "shows" when every line is a TV show, as on the Dashboard), each Series with "Also in this world" beneath, and read-only Cast and Adaptations; a Series with only Also members shows just that row. Roku lists a Universe's Series. The shelf's see-all (`/api/v1/display/groups/{id}`) now uses the same split as the Universe read, with Also members in their own shelf. Checked against the wire fixture (TV web also rendered in a browser), not a live Engine; Apple was not compiled (no Swift on Windows) and every app still needs a device check.
 
 ### U-WP9 — Lore plugin alignment with the Developer tools family
 - **What it does:** Official manifest touch-up (DT D-K), declare what it contacts, route Fandom requests through the shared rate-limited client, send only QIDs already in the Library (D5), link from the Universe page to its Plugins state card. No private switch or health display.
@@ -302,7 +303,7 @@ The Developer tools spec (cited as DT, its packets as DT-WP#) is large, Locked, 
 ## 6B. Before starting any packet: re-check for collisions (Shy, 2026-10-19)
 
 Before Claude Code starts the first packet, and again before each wave:
-1. Re-read `engineering/specs/developer-tools.md` (version and status), `engineering/specs/ingestion-and-readiness.md`, `engineering/specs/settings-revamp.md` and `engineering/README.md` on main for changes since this spec was locked.
+1. Re-read `engineering/specs/developer-tools.md` (version and status), `engineering/specs/archive/ingestion-and-readiness.md`, `engineering/specs/settings-revamp.md` and `engineering/README.md` on main for changes since this spec was locked.
 2. List which DT packets and waves are merged, in progress or not started, and check the sequencing rules in 6A against that. If a conflicting packet is in flight, wait or ask Shy; do not run in parallel.
 3. Search main for changes to the files this packet lists (`git log` on those paths since the spec's date). Anything touching them from another spec is a collision to report before starting.
 4. If the Developer tools spec has a newer version that changes plugin, AI or ingestion behaviour, stop and ask Shy before building U-WP9, U-WP14, U-WP15 or anything touching ingestion.

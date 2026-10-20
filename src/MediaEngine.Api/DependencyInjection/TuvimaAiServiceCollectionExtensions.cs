@@ -1,9 +1,9 @@
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Features;
 using MediaEngine.AI.Infrastructure;
-using MediaEngine.AI.Llama;
 using MediaEngine.AI.Whisper;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Domain.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -44,12 +44,9 @@ public static class TuvimaAiServiceCollectionExtensions
         services.AddSingleton<AiFeatureGate>();
         services.AddSingleton(benchmarkStore);
         services.AddSingleton<IModelDownloadManager, ModelDownloadManager>();
+        services.AddSingleton<IAiRuntimeStatus, AiRuntimeStatus>();
         services.AddSingleton<IModelLifecycleManager, ModelLifecycleManager>();
-        services.AddSingleton<LlamaInferenceService>();
-        services.AddSingleton<ILlamaInferenceService>(sp =>
-            sp.GetRequiredService<LlamaInferenceService>());
-        services.AddSingleton<ITextInferenceService>(sp =>
-            sp.GetRequiredService<LlamaInferenceService>());
+        services.AddTuvimaLocalAiEngineRoom();
         services.AddSingleton<WhisperInferenceService>();
         services.AddSingleton<IAudioTranscriptionService>(sp =>
             sp.GetRequiredService<WhisperInferenceService>());
@@ -64,7 +61,6 @@ public static class TuvimaAiServiceCollectionExtensions
         services.AddSingleton(gpuDetector);
         services.AddSingleton<ResourceMonitorService>();
         services.AddSingleton<InteractiveRequestTracker>();
-        services.AddSingleton<BackgroundAiAdmissionController>();
         services.AddSingleton<HardwareBenchmarkService>();
         return services;
     }

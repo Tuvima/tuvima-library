@@ -292,7 +292,6 @@ public sealed class PipelineStageHostedServiceTests
             IReadOnlyList<IdentityJobState> states,
             int batchSize,
             TimeSpan leaseDuration,
-            IReadOnlyList<string>? excludeRunIds = null,
             CancellationToken ct = default) =>
             throw new NotSupportedException();
 
@@ -324,16 +323,6 @@ public sealed class PipelineStageHostedServiceTests
         public Task<IReadOnlyList<IdentityJob>> GetByStateAsync(
             IdentityJobState state,
             int limit,
-            CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(
-            Guid ingestionRunId,
-            CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-            IReadOnlyList<string> ingestionRunIds,
             CancellationToken ct = default) =>
             throw new NotSupportedException();
 

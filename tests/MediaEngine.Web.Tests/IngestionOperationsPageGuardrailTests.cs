@@ -23,7 +23,7 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.DoesNotContain("<IngestionBatchHistory", source, StringComparison.Ordinal);
         Assert.Contains("<IngestionMediaDrawer", source, StringComparison.Ordinal);
         Assert.Contains("RefreshPinnedDrawerAsync", source, StringComparison.Ordinal);
-        Assert.Contains("_selectedItem.BatchId == batchId", source, StringComparison.Ordinal);
+        Assert.Contains("_selectedItem.GroupId == groupId", source, StringComparison.Ordinal);
         Assert.DoesNotContain("IngestionMediaPagedView", source, StringComparison.Ordinal);
         Assert.Contains("IngestionQueueProgressText.Headline", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Adding {RunTotal:N0}", source, StringComparison.Ordinal);
@@ -71,10 +71,8 @@ public sealed class IngestionOperationsPageGuardrailTests
     public void UniverseStateContainer_ItemProgressDoesNotRequestSnapshotRefresh()
     {
         var state = new UniverseStateContainer();
-        var batchId = Guid.NewGuid();
 
         state.PushIngestionItemProgress(new IngestionItemProgressEvent(
-            batchId,
             Guid.NewGuid(),
             MediaAssetId: null,
             FilePath: @"C:\drop\Neuromancer.epub",
@@ -85,46 +83,6 @@ public sealed class IngestionOperationsPageGuardrailTests
             IsTerminal: false));
 
         Assert.False(state.LastStateChangeRequiresSnapshotRefresh);
-
-        state.PushBatchProgress(new BatchProgressEvent(
-            batchId,
-            FilesTotal: 1,
-            FilesProcessed: 1,
-            FilesIdentified: 1,
-            FilesReview: 0,
-            FilesNoMatch: 0,
-            FilesFailed: 0,
-            ProgressPercent: 100,
-            EstimatedSecondsRemaining: null,
-            IsComplete: true));
-
-        Assert.True(state.LastStateChangeRequiresSnapshotRefresh);
-        Assert.Null(state.BatchProgress);
-        Assert.Null(state.BatchProgressReceivedAt);
-    }
-
-    [Fact]
-    public void IngestionRealtimeProgress_ReflectsQuickHydrationTransitions()
-    {
-        var workerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Workers/QuickHydrationWorker.cs"));
-        var progressSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/BatchProgressService.cs"));
-        var progressRepositorySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/IngestionBatchRepository.cs"));
-        var normalizedProgressSource = progressSource.Replace("\r\n", "\n", StringComparison.Ordinal);
-        var operationsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/IngestionOperationsStatusService.cs"));
-
-        Assert.Contains("EmitBatchProgressAsync(job.IngestionRunId", workerSource, StringComparison.Ordinal);
-        Assert.Contains("'UniverseEnriching'", progressRepositorySource, StringComparison.Ordinal);
-        Assert.Contains("\"Hydrating\" => \"Retail Match\"", progressSource, StringComparison.Ordinal);
-        Assert.Contains("nameof(IdentityJobState.Hydrating)", operationsSource, StringComparison.Ordinal);
-        Assert.Contains("ActiveBatchFreshness", operationsSource, StringComparison.Ordinal);
-        Assert.Contains("js.lease_expires_at > @now", operationsSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("+ snapshot.RetailMatched\n                + snapshot.RetailMatchedNeedsReview", normalizedProgressSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("+ snapshot.QidResolved\n                + snapshot.Hydrating", normalizedProgressSource, StringComparison.Ordinal);
-        Assert.Contains("var terminal = identified + review + noMatch + failed + snapshot.FilesSkipped;", normalizedProgressSource, StringComparison.Ordinal);
-        // File intake and identity completion are different units for multipart books.
-        // Their behavior is covered by IngestionPresentationReadServiceTests.
-        Assert.Contains("WorkUnitsTotal: phaseTotal", normalizedProgressSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("AverageProgressPercent", normalizedProgressSource, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -134,22 +92,6 @@ public sealed class IngestionOperationsPageGuardrailTests
 
         Assert.Contains("aria-live=\"polite\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AdditionalAttributes=", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void IngestionOperationsStatusService_UsesDomainSpecificWorkerPreviewSources()
-    {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/IngestionOperationsStatusService.cs"));
-
-        Assert.Contains("ReadArtworkWorkerRowsAsync", source, StringComparison.Ordinal);
-        Assert.Contains("ReadSeriesWorkerRowsAsync", source, StringComparison.Ordinal);
-        Assert.Contains("ReadPeopleWorkerRowsAsync", source, StringComparison.Ordinal);
-        Assert.Contains("ArtworkAssetCount", source, StringComparison.Ordinal);
-        Assert.Contains("entity_assets", source, StringComparison.Ordinal);
-        Assert.Contains("person_media_links", source, StringComparison.Ordinal);
-        Assert.Contains("series_manifest_hydrations", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("c.name", source, StringComparison.Ordinal);
-        Assert.Contains("displayRows", source, StringComparison.Ordinal);
     }
 
     private static string ReadIngestionDashboardStateSource() =>

@@ -65,7 +65,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddSingleton<IAdministratorSurfaceAccessService>(_access);
-        // What the editor shell inside the drawer needs, as the drawer's own tests provide it.
+        // What the editor shell inside the section slot needs, as the slot's own tests provide it.
         Services.AddSingleton(serviceProvider => new UIOrchestratorService(
             _api,
             new UniverseStateContainer(),
@@ -293,11 +293,44 @@ public sealed class UniversePageTests : AsyncBunitContext
         cut.Find("button.universe-hero__edit").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(1, _access.Requests));
-        Assert.Empty(cut.FindAll("aside.tl-editing-drawer"));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(cut.FindAll(".tl-editing-slot"));
     }
 
     [Fact]
-    public async Task ChoosingEdit_AfterTheUnlock_OpensTheSideDrawerBesideThePage_NotAModal()
+    public async Task ChoosingEdit_AfterTheUnlock_ShowsTheBannerAndTheUniverseEditorInLine_NotADrawerOrAModal()
+    {
+        await UseDeviceAsync("web", "desktop");
+        SignIn(administrator: true);
+        _editContext = EditContext(editable: true);
+        _access.Unlocked = true;
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
+        Assert.Empty(cut.FindAll(".tl-editing-banner"));
+        cut.Find("button.universe-hero__edit").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(1, _access.Requests);
+            Assert.Single(cut.FindAll(".tl-editing-banner"));
+            Assert.Single(cut.FindAll(".tl-editing-slot[data-section='details']"));
+            Assert.Equal("Universe details", cut.Find(".tl-editing-slot__title").TextContent.Trim());
+            Assert.NotEmpty(cut.FindAll(".tl-editing-slot .sme-shell--section"));
+        });
+        // The slot sits directly below the hero, in the page's own flow, and the page behind it is unchanged.
+        Assert.True(cut.Find(".universe-hero").NextElementSibling?.Id == "tl-editing-slot");
+        Assert.NotEmpty(cut.FindAll(".universe-hero"));
+        Assert.Empty(cut.FindAll(".tl-dialog"));
+        Assert.DoesNotContain("tl-editing-drawer", cut.Markup, StringComparison.Ordinal);
+
+        // The Universe editor brings its own sections, so the banner offers only Done.
+        Assert.Empty(cut.FindAll(".tl-editing-banner__section"));
+        Assert.Equal(["Done"], cut.FindAll(".tl-editing-banner button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task DoneInTheBanner_EndsEditingAndTakesTheBannerAndTheEditorAway()
     {
         await UseDeviceAsync("web", "desktop");
         SignIn(administrator: true);
@@ -307,17 +340,35 @@ public sealed class UniversePageTests : AsyncBunitContext
         var cut = RenderPage();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
         cut.Find("button.universe-hero__edit").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-slot")));
+
+        cut.Find("button.tl-editing-banner__done").Click();
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(1, _access.Requests);
-            Assert.Single(cut.FindAll("aside.tl-editing-drawer"));
-            Assert.Contains("universe-page--editing-drawer", cut.Find(".universe-page").ClassName);
-            Assert.Contains("Editing Dune", cut.Find(".tl-editing-drawer__heading h2").TextContent);
+            Assert.Empty(cut.FindAll(".tl-editing-banner"));
+            Assert.Empty(cut.FindAll(".tl-editing-slot"));
         });
-        // The page behind it is unchanged.
         Assert.NotEmpty(cut.FindAll(".universe-hero"));
-        Assert.Empty(cut.FindAll(".tl-dialog"));
+    }
+
+    [Fact]
+    public async Task ClosingTheEditorInTheSlot_EndsEditingBecauseThePageHasNoOtherEditingSurface()
+    {
+        await UseDeviceAsync("web", "desktop");
+        SignIn(administrator: true);
+        _editContext = EditContext(editable: true);
+        _access.Unlocked = true;
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
+        cut.Find("button.universe-hero__edit").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-slot")));
+
+        cut.Find("button.tl-editing-slot__close").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-banner")));
+        Assert.Empty(cut.FindAll(".tl-editing-slot"));
     }
 
     [Fact]

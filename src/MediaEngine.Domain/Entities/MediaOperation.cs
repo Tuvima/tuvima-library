@@ -7,7 +7,6 @@ public sealed class MediaOperation
     public string OperationKind { get; init; } = "";
     public Guid? EntityId { get; init; }
     public string? EntityKind { get; init; }
-    public Guid? BatchId { get; init; }
     public string? SourcePath { get; init; }
     public string? ContentHash { get; init; }
     public string? CapabilityId { get; init; }

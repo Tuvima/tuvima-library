@@ -5,7 +5,7 @@ namespace MediaEngine.Api.Services.Tools;
 
 /// <summary>The real probes: a 2x2 image encode for the image engine, loading the local AI runtime, and re-reading model files.</summary>
 public sealed class ToolRuntimeProbe(
-    SharedAiRuntime runtime,
+    IAiRuntimeStatus runtime,
     ModelInventory inventory,
     ILogger<ToolRuntimeProbe> logger) : IToolRuntimeProbe
 {
@@ -32,19 +32,8 @@ public sealed class ToolRuntimeProbe(
         }
     }
 
-    public bool AiRuntimeLoads()
-    {
-        try
-        {
-            runtime.EnsureLlama();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "LLamaSharp native runtime failed.");
-            return false;
-        }
-    }
+    // A tool install or refresh asks again here; the answer is stored so the Local AI engine room and /ai/status see it too.
+    public bool AiRuntimeLoads() => runtime.RefreshTextRuntime();
 
     public void RefreshModelFiles() => inventory.Refresh();
 }

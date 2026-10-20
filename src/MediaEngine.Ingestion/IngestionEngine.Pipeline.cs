@@ -58,7 +58,7 @@ public sealed partial class IngestionEngine
     /// and every later step runs as normal. A file the working tool cannot read goes to Needs Review, and still carries on
     /// to its identity job.
     /// </summary>
-    private async Task InspectPlaybackAsync(MediaAsset asset, Guid? ingestionRunId, CancellationToken ct)
+    private async Task InspectPlaybackAsync(MediaAsset asset, CancellationToken ct)
     {
         if (_playbackInspection is null)
         {
@@ -73,7 +73,7 @@ public sealed partial class IngestionEngine
 
         if (_inspectionReviews is not null)
         {
-            await _inspectionReviews.RecordFailureAsync(asset.Id, ingestionRunId, ct).ConfigureAwait(false);
+            await _inspectionReviews.RecordFailureAsync(asset.Id, ct).ConfigureAwait(false);
         }
         else
         {
@@ -82,16 +82,13 @@ public sealed partial class IngestionEngine
                 ReviewTrigger.MediaInspectionFailed,
                 0.0,
                 MediaInspectionReviewRecorder.UnreadableFileDetail,
-                ct,
-                ingestionRunId).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
         }
     }
 
     private async Task ProcessCandidateCoreAsync(IngestionCandidate candidate, CancellationToken ct)
     {
-        var context = new IngestionPipelineContext(
-            candidate,
-            candidate.BatchId ?? Guid.NewGuid());
+        var context = new IngestionPipelineContext(candidate);
         context.Library = candidate.Intake?.HasDestinationHint == true
             ? _libraryFolderResolver?.ResolveById(candidate.Intake.DestinationLibraryId!)
             : _libraryFolderResolver?.ResolveForPath(candidate.Path);
@@ -131,10 +128,7 @@ public sealed partial class IngestionEngine
     private async Task RunSettleAndDetectStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        // Use the batch ID as the ingestion run ID so all activity entries
-        // for files in the same batch share one correlation ID.
-        var ingestionRunId = context.IngestionRunId;
-        var durableOperation = context.DurableOperation = await EnsureIngestionOperationAsync(candidate, ingestionRunId, MediaOperationStage.Queued, ct).ConfigureAwait(false);
+        var durableOperation = context.DurableOperation = await EnsureIngestionOperationAsync(candidate, MediaOperationStage.Queued, ct).ConfigureAwait(false);
         await UpdateOperationStageAsync(durableOperation, MediaOperationStage.Queued, 0, "Queued for ingestion.", ct).ConfigureAwait(false);
 
         // Step 2: skip failed probe candidates. A file that is gone is not a lock problem to retry; the missing-file step
@@ -169,12 +163,6 @@ public sealed partial class IngestionEngine
                 candidate.Path,
                 reason,
                 DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
-            if (candidate.BatchId.HasValue)
-            {
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
-                await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-            }
             await MarkInterruptedOperationAsync(durableOperation, reason, ct).ConfigureAwait(false);
             context.Complete();
             return;
@@ -195,16 +183,9 @@ public sealed partial class IngestionEngine
             _logger.LogWarning("Ingestion skipped - file missing: \"{FileName}\"", Path.GetFileName(candidate.Path));
             await _ingestionLogScribe.RecordTerminalAsync(
                 candidate,
-                ingestionRunId,
                 "missing",
                 reason,
                 ct).ConfigureAwait(false);
-            if (candidate.BatchId.HasValue)
-            {
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
-                await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-            }
             await NoResultOperationAsync(durableOperation, reason, ct).ConfigureAwait(false);
 
             // The job opened when the file was first noticed has a different key (it includes the file's size and time,
@@ -220,7 +201,7 @@ public sealed partial class IngestionEngine
             candidate.Path, DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
 
         // Lifecycle log: create entry at detection.
-        var logEntryId = context.LogEntryId = await _ingestionLogScribe.InsertDetectedAsync(candidate, ingestionRunId, ct)
+        var logEntryId = context.LogEntryId = await _ingestionLogScribe.InsertDetectedAsync(candidate, ct)
             .ConfigureAwait(false);
 
         context.PipelineStopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -229,7 +210,6 @@ public sealed partial class IngestionEngine
     private async Task RunHashAndDedupeStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var durableOperation = context.DurableOperation;
         var logEntryId = context.LogEntryId;
         // Step 4: hash.
@@ -264,7 +244,6 @@ public sealed partial class IngestionEngine
                 elapsed_ms = (long)hash.Elapsed.TotalMilliseconds,
                 filename = Path.GetFileName(candidate.Path),
             }),
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // Lifecycle log: hashing complete.
@@ -317,7 +296,6 @@ public sealed partial class IngestionEngine
                         EntityId = existing.Id,
                         EntityType = "MediaAsset",
                         Detail = $"Duplicate skipped: {Path.GetFileName(candidate.Path)} (identical to {Path.GetFileName(existing.FilePathRoot)})",
-                        IngestionRunId = ingestionRunId,
                     }, ct).ConfigureAwait(false);
 
                     try
@@ -405,7 +383,6 @@ public sealed partial class IngestionEngine
                     }
 
                     await AttachOperationAssetAsync(durableOperation, existing.Id, ct).ConfigureAwait(false);
-                    await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
                     if (retryImportCopyLater)
                     {
                         // Kept under Keep both but not filed yet (its destination isn't ready): the next pass tries again.
@@ -436,7 +413,6 @@ public sealed partial class IngestionEngine
                     metadataRefreshed = await RefreshExistingAssetMetadataAsync(
                         existing,
                         candidate.Path,
-                        ingestionRunId,
                         ct,
                         queueIdentityRefresh: context.Library?.BypassesExternalIdentity != true).ConfigureAwait(false);
 
@@ -452,7 +428,7 @@ public sealed partial class IngestionEngine
                         if (hashUpdated)
                         {
                             existing.ContentHash = hash.Hex;
-                            await InspectPlaybackAsync(existing, ingestionRunId, ct).ConfigureAwait(false);
+                            await InspectPlaybackAsync(existing, ct).ConfigureAwait(false);
                             _logger.LogInformation(
                                 "Re-read local metadata and updated content hash for same-path asset {AssetId}: {OldHash} -> {NewHash}",
                                 existing.Id,
@@ -500,7 +476,6 @@ public sealed partial class IngestionEngine
                     _logger.LogDebug(ex, "Ingestion same-path log update failed - continuing");
                 }
                 await AttachOperationAssetAsync(durableOperation, existing.Id, ct).ConfigureAwait(false);
-                await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
                 // Only a file the Library already had, unchanged, is "seen again". A file replaced in place with new
                 // content, or one whose identity job was put back, did real work and counts as found.
                 var summary = missingIdentityJob
@@ -518,7 +493,6 @@ public sealed partial class IngestionEngine
     private async Task RunScoreAndIdentifyStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var durableOperation = context.DurableOperation;
         var logEntryId = context.LogEntryId;
         var hash = context.Hash!;
@@ -537,7 +511,6 @@ public sealed partial class IngestionEngine
             ActionType = SystemActionType.FileDetected,
             EntityId = assetId,
             Detail = $"File detected in watch folder: {Path.GetFileName(candidate.Path)}",
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // History: metadata extracted.
@@ -546,7 +519,6 @@ public sealed partial class IngestionEngine
             ActionType = "MetadataExtracted",
             EntityId = assetId,
             Detail = $"Metadata extracted — {result.Claims.Count} fields found",
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // -- Timeline: Stage 0 file_scanned event ----------------------------
@@ -562,7 +534,6 @@ public sealed partial class IngestionEngine
                 ProviderId = LocalProcessorProviderId.ToString(),
                 ProviderName = "local_processor",
                 Confidence = result.Claims.Count > 0 ? 1.0 : 0.0,
-                IngestionRunId = ingestionRunId,
                 Detail = $"File scanned: {Path.GetFileName(candidate.Path)} — {result.Claims.Count} fields extracted ({result.DetectedType})",
             }, ct).ConfigureAwait(false);
         }
@@ -598,7 +569,6 @@ public sealed partial class IngestionEngine
             ActionType = "ConfidenceScored",
             EntityId = assetId,
             Detail = $"Confidence: {scored.OverallConfidence:P0} — Score: {scored.OverallConfidence:F2}",
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // Phase 9: persist claims (append-only; enables re-scoring on weight changes).
@@ -620,7 +590,6 @@ public sealed partial class IngestionEngine
                     .Select(f => new { field = f.Key, value = f.WinningValue, confidence = f.Confidence, conflicted = f.IsConflicted })
                     .ToList(),
             }),
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // Lifecycle log: scored.
@@ -742,7 +711,7 @@ public sealed partial class IngestionEngine
                 assetId,
                 scored.OverallConfidence,
                 conflictedFields,
-                ct, ingestionRunId).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
         }
 
         // Create AmbiguousMediaType review item when media type confidence is below threshold.
@@ -762,7 +731,7 @@ public sealed partial class IngestionEngine
                 candidateList[0].Confidence,
                 candidatesJson,
                 candidateList[0].Reason,
-                ct, ingestionRunId).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
         }
 
         // Create RootWatchFolder review item when a file was dropped directly into any
@@ -774,7 +743,7 @@ public sealed partial class IngestionEngine
                 ReviewTrigger.RootWatchFolder,
                 candidateList.Count > 0 ? candidateList[0].Confidence : 0.0,
                 mediaTypeResolution.RootWatchFolderDetail ?? "File dropped into a source root - please confirm the media type.",
-                ct, ingestionRunId).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
         }
 
         // Enrich the candidate with resolved metadata.
@@ -816,7 +785,6 @@ public sealed partial class IngestionEngine
                     media_type = resolvedMediaType.ToString(),
                     edition_id = editionId.ToString(),
                 }),
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             // Step 10: insert asset.
@@ -842,7 +810,7 @@ public sealed partial class IngestionEngine
             return;
         }
 
-        await InspectPlaybackAsync(asset, ingestionRunId, ct).ConfigureAwait(false);
+        await InspectPlaybackAsync(asset, ct).ConfigureAwait(false);
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;
@@ -908,30 +876,10 @@ public sealed partial class IngestionEngine
             resolvedMediaType.ToString(),
             DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
 
-        // Emit incremental ingestion progress so the Dashboard can show a live counter.
-        // Fetch the batch total from the repository; fall back to 0 if not available.
-        if (candidate.BatchId.HasValue)
-        {
-            try
-            {
-                var batchSnap = await _batchRepo.GetByIdAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-                await SafePublishAsync(SignalREvents.IngestionProgress, new IngestionProgressEvent(
-                    Path.GetFileName(candidate.Path),
-                    batchSnap?.FilesProcessed ?? 0,
-                    batchSnap?.FilesTotal ?? 0,
-                    "Processing"), ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "IngestionProgress publish failed — pipeline continues");
-            }
-        }
-
     }
     private async Task RunOrganizeStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var assetId = context.AssetId;
         var claims = context.Claims;
         var scored = context.Scored!;
@@ -984,27 +932,17 @@ public sealed partial class IngestionEngine
             await CreateIngestionReviewItemAsync(
                 assetId, gateResult.ReviewTrigger, scored.OverallConfidence,
                 gateResult.ReviewDetail!,
-                ct, ingestionRunId).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Review: asset {AssetId} queued for review — trigger={Trigger}",
                 assetId, gateResult.ReviewTrigger);
-
-            if (candidate.BatchId.HasValue)
-            {
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesIdentified, ct).ConfigureAwait(false);
-            }
-        }
-        else if (candidate.BatchId.HasValue)
-        {
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesIdentified, ct).ConfigureAwait(false);
         }
 
     }
     private async Task RunWriteBackStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var assetId = context.AssetId;
         var result = context.ProcessorResult!;
         var resolvedTitle = context.ResolvedTitle;
@@ -1131,7 +1069,6 @@ public sealed partial class IngestionEngine
                                 owner_entity_id = ownerEntityId,
                             }),
                             Detail = $"Cover art saved ({coverBytes.Length / 1024} KB)",
-                            IngestionRunId = ingestionRunId,
                         }, ct).ConfigureAwait(false);
                     }
                 }
@@ -1195,7 +1132,6 @@ public sealed partial class IngestionEngine
                             file = Path.GetFileName(currentPath),
                         }),
                         Detail = $"Tags written back to file ({tagsWritten.Count} field(s){(coverWritten ? " + cover art" : "")})",
-                        IngestionRunId = ingestionRunId,
                     }, ct).ConfigureAwait(false);
 
                     // -- Timeline: sync writeback event ---------------------------
@@ -1208,7 +1144,6 @@ public sealed partial class IngestionEngine
                             EventType = "sync_writeback",
                             Stage = null,
                             Trigger = "ingestion",
-                            IngestionRunId = ingestionRunId,
                             Detail = $"Metadata written back to file: {tagsWritten.Count} field(s){(coverWritten ? " + cover art" : "")}",
                         };
                         await _timelineRepo.InsertEventAsync(writebackEvent, ct).ConfigureAwait(false);
@@ -1250,7 +1185,6 @@ public sealed partial class IngestionEngine
     private async Task RunIdentityJobStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var durableOperation = context.DurableOperation;
         var logEntryId = context.LogEntryId;
         var pipelineStopwatch = context.PipelineStopwatch!;
@@ -1281,7 +1215,6 @@ public sealed partial class IngestionEngine
                 EntityId = assetId,
                 EntityType = EntityType.MediaAsset.ToString(),
                 MediaType = resolvedMediaType.ToString(),
-                IngestionRunId = ingestionRunId,
                 Pass = "Quick",
             }, identityJobCt).ConfigureAwait(false);
             await _assetRepo.MarkPresentedAsync(assetId, DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
@@ -1324,7 +1257,6 @@ public sealed partial class IngestionEngine
                 CollectionName = resolvedTitle,
                 ChangesJson = JsonSerializer.Serialize(new { entity_id = assetId.ToString(), media_type = resolvedMediaType.ToString() }),
                 Detail = $"Queued for metadata enrichment ({resolvedMediaType})",
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
         }
         else
@@ -1358,12 +1290,6 @@ public sealed partial class IngestionEngine
                 resolvedMediaType,
                 resolvedTitle,
                 assetId.ToString("N")[..12]);
-        }
-
-        // Batch counter: file has been fully processed through the ingestion pipeline.
-        if (candidate.BatchId.HasValue)
-        {
-            await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
         }
 
         // Phase 9: person enrichment is deferred to the hydration pipeline (Stage 1),
@@ -1461,7 +1387,6 @@ public sealed partial class IngestionEngine
             CollectionName = resolvedTitle,
             ChangesJson = finalRichJson,
             Detail = outcome,
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         // -- Performance log --------------------------------------------------

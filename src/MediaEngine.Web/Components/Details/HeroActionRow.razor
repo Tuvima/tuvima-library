@@ -38,11 +38,39 @@
     [Parameter] public ProgressViewModel? Progress { get; set; }
     [Parameter] public bool UsePrimaryHeroChrome { get; set; }
     [Parameter] public bool IsMusicAlbum { get; set; }
+
+    /// <summary>
+    /// True while Editing Mode is on: "Mark as watched" and its reset are viewing actions, so the "..." menu leaves them out
+    /// until editing ends (details overlay spec section 4).
+    /// </summary>
+    [Parameter] public bool HideStatusActions { get; set; }
+
+    /// <summary>
+    /// True when the person may delete this title (the page decides): "Delete from library…" is then the menu's last entry, red,
+    /// after a divider, whether or not Editing Mode is on (details overlay spec D18, D19). The page's handler checks again.
+    /// </summary>
+    [Parameter] public bool CanDelete { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
     private IReadOnlyList<DetailAction> VisibleSecondaryActions => PrimaryActions.Skip(1).Where(action => action.Key == "shuffle").Concat(SecondaryActions).ToList();
-    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowMenu(PrimaryActions, OverflowActions);
+    private IReadOnlyList<DetailAction> OverflowMenuActions
+    {
+        get
+        {
+            var actions = OverflowMenu(PrimaryActions, OverflowActions);
+            if (HideStatusActions)
+            {
+                actions = actions
+                    .Where(action => action.Key is not (DetailActionKeys.StatusComplete or DetailActionKeys.StatusReset))
+                    .ToList();
+            }
+
+            return CanDelete && !actions.Any(action => action.Key == DetailActionKeys.DeleteFromLibrary)
+                ? [.. actions, DetailMenuGrouping.DeleteFromLibraryAction]
+                : actions;
+        }
+    }
 
     /// <summary>The shared More list: the overflow actions plus the primary actions that do not fit in the row.</summary>
     public static IReadOnlyList<DetailAction> OverflowMenu(IReadOnlyList<DetailAction> primaryActions, IReadOnlyList<DetailAction> overflowActions) =>

@@ -9,7 +9,6 @@ public interface IIngestionLogScribe
 {
     Task<Guid> InsertDetectedAsync(
         IngestionCandidate candidate,
-        Guid ingestionRunId,
         CancellationToken ct = default);
 
     Task UpdateStatusAsync(
@@ -31,7 +30,6 @@ public interface IIngestionLogScribe
 
     Task RecordTerminalAsync(
         IngestionCandidate candidate,
-        Guid? ingestionRunId,
         string status,
         string detail,
         CancellationToken ct = default);

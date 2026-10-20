@@ -197,7 +197,6 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
             value.QueuedOperations,
             value.RetryWaitingOperations,
             string.Join(',', value.CurrentMedia.Select(item => string.Join(':',
-                item.BatchId.ToString("N"),
                 item.GroupId.ToString("N"),
                 item.Availability,
                 item.StatusLabel,

@@ -26,24 +26,6 @@ public static class IngestionEndpoints
         var group = app.MapGroup("/ingestion")
                        .WithTags("Ingestion");
 
-        group.MapGet("/notification-status", async (IngestionNotificationReadService readService, CancellationToken ct) =>
-            Results.Ok(await readService.GetRecentAsync(ct)))
-          .WithName("GetIngestionNotificationStatus")
-          .Produces<List<IngestionOperationsBatchDto>>()
-          .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
-
-        group.MapGet("/operations", async (
-            IIngestionOperationsStatusService statusService,
-            CancellationToken ct) =>
-        {
-            var snapshot = await statusService.GetSnapshotAsync(ct);
-            return Results.Ok(snapshot);
-        })
-        .WithName("GetIngestionOperationsSnapshot")
-        .WithSummary("Aggregated Ingestion status for scans, review, providers, folders, and recent batches.")
-        .Produces<IngestionOperationsSnapshotDto>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
-
         group.MapGet("/presentation", async (
             IIngestionPresentationReadService readService,
             int? currentLimit,
@@ -95,17 +77,16 @@ public static class IngestionEndpoints
             return Results.Ok(await readService.GetRecentAdditionsAsync(search, lane, start, end, page.Offset, page.Limit, sort, status, ct));
         })
         .WithName("GetRecentIngestionAdditions")
-        .WithSummary("Returns paged, event-scoped media additions across completed runs.")
+        .WithSummary("Returns paged media additions, one row per group, by when each first became Ready.")
         .Produces<PagedResponse<IngestionMediaGroupDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
 
-        group.MapGet("/batches/{batchId:guid}/media-groups/{groupId:guid}", async (
-            Guid batchId,
+        group.MapGet("/media-groups/{groupId:guid}", async (
             Guid groupId,
             IIngestionPresentationReadService readService,
             CancellationToken ct) =>
         {
-            var item = await readService.GetMediaGroupAsync(batchId, groupId, ct);
+            var item = await readService.GetMediaGroupAsync(groupId, ct);
             return item is null ? ApiErrors.NotFound("That ingestion media group was not found.") : Results.Ok(item);
         })
         .WithName("GetIngestionMediaGroup")
@@ -114,8 +95,7 @@ public static class IngestionEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
 
-        group.MapGet("/batches/{batchId:guid}/media-groups/{groupId:guid}/children", async (
-            Guid batchId,
+        group.MapGet("/media-groups/{groupId:guid}/children", async (
             Guid groupId,
             IIngestionPresentationReadService readService,
             int? offset,
@@ -123,7 +103,7 @@ public static class IngestionEndpoints
             CancellationToken ct) =>
         {
             var page = PagedRequest.From(offset, limit, 50, 250);
-            return Results.Ok(await readService.GetChildrenAsync(batchId, groupId, page.Offset, page.Limit, ct));
+            return Results.Ok(await readService.GetChildrenAsync(groupId, page.Offset, page.Limit, ct));
         })
         .WithName("GetIngestionMediaGroupChildren")
         .WithSummary("Returns lazy, paged tracks, episodes, issues, or parts for an ingestion group.")
@@ -404,90 +384,6 @@ public static class IngestionEndpoints
             "are missing from disk.")
         .Produces<ReconciliationResultResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionRun);
-
-        // ── GET /ingestion/batches ────────────────────────────────────────────
-        group.MapGet("/batches", async (
-            IIngestionBatchResponseService batchResponses,
-            int? limit,
-            CancellationToken ct) =>
-        {
-            var responses = await batchResponses.GetRecentAsync(PagedRequest.From(null, limit, defaultLimit: 20).Limit, ct);
-            return Results.Ok(responses);
-        })
-        .WithName("GetRecentBatches")
-        .WithSummary("List recent ingestion batches, newest first.")
-        .Produces<List<IngestionBatchResponse>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
-
-        // ── GET /ingestion/batches/attention-count ────────────────────────────
-        group.MapGet("/batches/attention-count", async (
-            IIngestionBatchRepository batchRepo) =>
-        {
-            var count = await batchRepo.GetNeedsAttentionCountAsync();
-            return Results.Ok(new BatchAttentionCountResponse(count));
-        })
-        .WithName("GetBatchAttentionCount")
-        .WithSummary("Count of items across all batches that need curator attention.")
-        .Produces<BatchAttentionCountResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
-
-        // ── GET /ingestion/batches/{id} ───────────────────────────────────────
-        group.MapGet("/batches/{id:guid}/items", async (
-            Guid id,
-            IIngestionBatchReadService batchReadService,
-            int? offset,
-            int? limit,
-            ILoggerFactory loggerFactory,
-            CancellationToken ct) =>
-        {
-            var page = PagedRequest.From(offset, limit, defaultLimit: 100, maxLimit: 500);
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            var items = await batchReadService.GetItemsAsync(id, page.Offset, page.Limit + 1, ct);
-            var response = PagedResponse<IngestionBatchItemResponse>.FromPage(items, page);
-            var logger = loggerFactory.CreateLogger("MediaEngine.Api.IngestionBatches");
-            sw.Stop();
-            if (sw.ElapsedMilliseconds >= 1000)
-            {
-                logger.LogWarning(
-                    "Large-list read {Operation} took {ElapsedMs} ms with offset {Offset}, limit {Limit}, returned {ItemCount}, has_more {HasMore}",
-                    "ingestion.batch.items",
-                    sw.ElapsedMilliseconds,
-                    response.Offset,
-                    response.Limit,
-                    response.Items.Count,
-                    response.HasMore);
-            }
-            else
-            {
-                logger.LogDebug(
-                    "Large-list read {Operation} took {ElapsedMs} ms with offset {Offset}, limit {Limit}, returned {ItemCount}, has_more {HasMore}",
-                    "ingestion.batch.items",
-                    sw.ElapsedMilliseconds,
-                    response.Offset,
-                    response.Limit,
-                    response.Items.Count,
-                    response.HasMore);
-            }
-
-            return Results.Ok(response);
-        })
-        .WithName("GetBatchItems")
-        .WithSummary("List item-level ingestion progress for a batch.")
-        .Produces<List<IngestionBatchItemResponse>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
-        group.MapGet("/batches/{id:guid}", async (
-            Guid id,
-            IIngestionBatchResponseService batchResponses,
-            CancellationToken ct) =>
-        {
-            var response = await batchResponses.GetByIdAsync(id, ct);
-            return response is null ? ApiErrors.NotFound($"Batch '{id}' not found.") : Results.Ok(response);
-        })
-        .WithName("GetBatchById")
-        .WithSummary("Get details of a specific ingestion batch.")
-        .Produces<IngestionBatchResponse>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionHistoryRead);
 
         // ── POST /ingestion/upload ────────────────────────────────────────────────
 
@@ -947,20 +843,6 @@ public static class UploadSafety
         }
 
         return targetPath;
-    }
-
-}
-
-internal static class IngestionBatchEndpointMapper
-{
-    internal static bool ShouldShowInRecentBatches(IngestionBatch batch)
-    {
-        var hasOutcome = batch.FilesIdentified > 0
-            || batch.FilesReview > 0
-            || batch.FilesNoMatch > 0
-            || batch.FilesFailed > 0;
-
-        return hasOutcome || !string.Equals(batch.Status, "completed", StringComparison.OrdinalIgnoreCase);
     }
 
 }

@@ -169,6 +169,10 @@ class AppModelsTest {
         assertEquals("Q4242", entry("Q4242").universeQid())
         assertNull(entry("universe:dune").universeQid())
         assertNull(entry(null).universeQid())
+        // The Engine names a Universe by `universe_qid` (its `system_key` is null), as in collections.json.
+        val universe = CollectionEntry("2", "Test Universe", null, "universe", "Universe", null, 4, emptyList(), wireUniverseQid = "Q4242")
+        assertEquals("Q4242", universe.universeQid())
+        assertNull(universe.copy(wireUniverseQid = "not-a-qid").universeQid())
     }
 
     @Test

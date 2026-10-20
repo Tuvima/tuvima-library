@@ -3,7 +3,9 @@
     width: 100%;
     height: auto;
     min-height: 100%;
-    overflow-x: hidden;
+    /* clip, not hidden: hidden would make this wrapper a scroll container (overflow-y computes to auto), and the Editing Mode
+       banner inside it could then never stick to the top of the overlay's real scroller. */
+    overflow-x: clip;
     overflow-y: visible;
     overscroll-behavior-y: auto;
     touch-action: auto;

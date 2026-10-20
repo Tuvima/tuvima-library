@@ -42,7 +42,7 @@ public sealed class StageOutcomeFactoryTests
         Assert.Empty(activityRepo.Entries);
         Assert.Empty(eventPublisher.Events);
 
-        var promoted = await factory.PromoteProvisionalAsync(entityId, Guid.NewGuid());
+        var promoted = await factory.PromoteProvisionalAsync(entityId);
 
         var promotedEntry = Assert.Single(promoted);
         Assert.Equal(provisionalId.Value, promotedEntry.Id);
@@ -57,7 +57,7 @@ public sealed class StageOutcomeFactoryTests
         var published = Assert.Single(eventPublisher.Events);
         Assert.Equal(SignalREvents.ReviewItemCreated, published.EventName);
 
-        Assert.Empty(await factory.PromoteProvisionalAsync(entityId, Guid.NewGuid()));
+        Assert.Empty(await factory.PromoteProvisionalAsync(entityId));
         Assert.Single(activityRepo.Entries);
         Assert.Single(eventPublisher.Events);
     }
@@ -215,10 +215,6 @@ public sealed class StageOutcomeFactoryTests
 
         public Task<long> CountAsync(CancellationToken ct = default)
             => Task.FromResult((long)Entries.Count);
-
-        public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<SystemActivityEntry>>(
-                Entries.Where(e => e.IngestionRunId == runId).ToList());
 
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(
             IReadOnlyList<string> actionTypes,

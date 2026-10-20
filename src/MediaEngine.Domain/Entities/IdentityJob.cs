@@ -24,9 +24,6 @@ public sealed class IdentityJob
     /// <summary>Media type (e.g. "Books", "Movies", "Music").</summary>
     public string MediaType { get; set; } = "";
 
-    /// <summary>Link to the ingestion batch that created this job. Null for ad-hoc runs.</summary>
-    public Guid? IngestionRunId { get; set; }
-
     /// <summary>Current pipeline state. See <see cref="Enums.IdentityJobState"/>.</summary>
     public string State { get; set; } = "Queued";
 

@@ -281,9 +281,11 @@
     return t;
   }
 
-  function row(title, tiles) {
+  function row(title, tiles, meta) {
     var section = el('section', 'row');
-    section.appendChild(el('h2', 'row-title', title));
+    var heading = el('h2', 'row-title', title);
+    if (meta) { heading.appendChild(el('span', 'row-meta', meta)); }
+    section.appendChild(heading);
     var track = el('div', 'row-track');
     tiles.forEach(function (t) { track.appendChild(t); });
     section.appendChild(track);
@@ -822,20 +824,60 @@
     loading(ctx);
     var data = await api.universe(params.qid);
     if (!ctx.isCurrent()) { return; }
+    var page = TV.universe.view(data, function (groupType) { return GROUP_LABELS[groupType] || ''; });
     ctx.root.textContent = '';
-    ctx.root.appendChild(el('h1', 'page-title', data.name || params.title || 'Universe'));
-    if (data.description) { ctx.root.appendChild(el('p', 'muted', data.description)); }
-    var any = false;
-    (data.shelves || []).forEach(function (entry) {
-      var shelf = entry.shelf || {};
-      var items = shelf.items || [];
-      if (!items.length) { return; }
-      any = true;
-      var kind = GROUP_LABELS[text(entry.group_type).toLowerCase()] || '';
-      ctx.root.appendChild(row((shelf.title || '') + (kind ? ' (' + kind + ')' : ''),
-        items.map(function (card) { return cardTile(card, ctx, { keySuffix: ':' + entry.collection_id }); })));
+    ctx.root.appendChild(el('h1', 'page-title', page.name || params.title || 'Universe'));
+    if (page.totals) { ctx.root.appendChild(el('p', 'universe-totals', page.totals)); }
+    if (page.description) { ctx.root.appendChild(el('p', 'muted universe-description', page.description)); }
+
+    var tileRows = [];
+    page.shelves.forEach(function (plan) {
+      var opts = { keySuffix: ':' + plan.collectionId };
+      if (plan.showRun) {
+        tileRows.push(row(plan.runTitle, plan.runItems.map(function (card) { return cardTile(card, ctx, opts); }), plan.runMeta));
+      }
+      if (plan.showAlso) {
+        // Distinct key suffix: the same card can sit in a run elsewhere on the page.
+        tileRows.push(row(plan.alsoTitle, plan.alsoItems.map(function (card) {
+          return cardTile(card, ctx, { keySuffix: ':also:' + plan.collectionId });
+        }), plan.alsoMeta));
+      }
     });
-    if (!any) { ctx.root.appendChild(emptyPanel('Nothing to show', 'No items in this Universe are available to this profile.')); }
+    tileRows.forEach(function (r) { ctx.root.appendChild(r); });
+    if (!tileRows.length) { ctx.root.appendChild(emptyPanel('Nothing to show', 'No items in this Universe are available to this profile.')); }
+
+    // Cast and Adaptations are plain read-only text: no focusable parts, no handlers.
+    var lastText = null;
+    if (page.cast.length) {
+      var castBox = el('section', 'info-list');
+      castBox.appendChild(el('h2', 'row-title', 'Cast'));
+      page.cast.forEach(function (member) {
+        var line = el('p', 'info-line');
+        line.appendChild(el('span', 'info-name', member.name));
+        if (member.line) { line.appendChild(el('span', 'info-detail', member.line)); }
+        castBox.appendChild(line);
+      });
+      ctx.root.appendChild(castBox);
+      lastText = castBox;
+    }
+    if (page.adaptations.length) {
+      var adaptBox = el('section', 'info-list');
+      adaptBox.appendChild(el('h2', 'row-title', 'Adaptations'));
+      page.adaptations.forEach(function (line) { adaptBox.appendChild(el('p', 'info-line', line)); });
+      ctx.root.appendChild(adaptBox);
+      lastText = adaptBox;
+    }
+
+    // Focus only ever scrolls to the focused tile, so when the last row of tiles is focused, also bring the text
+    // sections beneath it into view (the tile stays visible).
+    if (lastText && tileRows.length) {
+      Array.prototype.forEach.call(tileRows[tileRows.length - 1].querySelectorAll('.focusable'), function (t) {
+        t.tvFocused = function () {
+          if (typeof lastText.scrollIntoView === 'function') { lastText.scrollIntoView({ block: 'nearest' }); }
+          if (typeof t.scrollIntoView === 'function') { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+        };
+      });
+    }
     ctx.focus();
   };
 

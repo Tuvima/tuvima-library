@@ -95,7 +95,6 @@
 
     private const int ChildPageSize = 250;
     private Guid? _loadedGroup;
-    private Guid? _loadedBatch;
     private bool _loading;
     private IReadOnlyList<IngestionMediaChildDto> _children = [];
     private string? _childrenError;
@@ -108,16 +107,14 @@
         {
             CancelChildLoad();
             _loadedGroup = null;
-            _loadedBatch = null;
             _children = [];
             _childrenError = null;
             return;
         }
 
-        if (_loadedGroup == Item.GroupId && _loadedBatch == Item.BatchId) return;
+        if (_loadedGroup == Item.GroupId) return;
         CancelChildLoad();
         _loadedGroup = Item.GroupId;
-        _loadedBatch = Item.BatchId;
         _children = [];
         _childrenError = null;
         if (!string.IsNullOrWhiteSpace(Item.ChildUnit)) await LoadChildrenAsync(Item);
@@ -144,7 +141,7 @@
             var offset = 0;
             while (true)
             {
-                var page = await Api.GetIngestionMediaChildrenAsync(item.BatchId, item.GroupId, offset, ChildPageSize, ct);
+                var page = await Api.GetIngestionMediaChildrenAsync(item.GroupId, offset, ChildPageSize, ct);
                 ct.ThrowIfCancellationRequested();
                 if (page is null) throw new InvalidOperationException("The Engine did not return child details.");
                 if (page.Offset != offset) throw new InvalidOperationException("The Engine returned an out-of-sequence child-details page.");

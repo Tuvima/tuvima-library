@@ -8,7 +8,7 @@ to `config.xml` in `build/` (ignored by git) and prints the Tizen commands.
 
 `config.xml` uses `content src="index.html"`, so the package root is a folder that
 holds, side by side: `config.xml`, `icon.png`, `tizen-keys.js`, and the shared
-`index.html`, `api.js`, `nav.js`, `player.js`, `app.js`, `styles.css`, `assets/`
+`index.html`, `api.js`, `universe.js`, `nav.js`, `player.js`, `app.js`, `styles.css`, `assets/`
 and `vendor/`. `package.ps1` builds that folder and adds one line to the staged
 `index.html` (it loads `tizen-keys.js` first). The shared `index.html` is not
 changed in git.

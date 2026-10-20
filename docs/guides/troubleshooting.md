@@ -142,7 +142,7 @@ Preview from the repository root:
 Authorized diagnostics can inspect:
 
 - `GET /operations?queueName=ingestion`
-- `GET /ingestion/batches/{batchId}/items`
+- `GET /ingestion/media-groups/{groupId}`
 - `GET /assets/{id}/capabilities`
 
 These are internal Engine actions, subject to authentication and operation/resource permissions. Do not publish the Engine to reach them.

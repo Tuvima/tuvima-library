@@ -23,19 +23,12 @@ public sealed partial class WikidataBridgeWorker
         // ── Phase 1: Lease ────────────────────────────────────────────────────
         // Strict retail gate: only RetailMatched or RetailMatchedNeedsReview.
         // RetailNoMatch is NEVER included — enforced at the SQL level.
-        //
-        // Batch gate: when enabled, Stage 2 waits until all Stage 1 jobs for a
-        // given ingestion run have completed. This lets the full album / season /
-        // series land in one cohesive Wikidata batch instead of trickling in
-        // piecemeal and paying for redundant per-album calls.
-        var gatedRunIds = await GetGatedRunIdsAsync(ct);
 
         var jobs = await _jobRepo.LeaseNextAsync(
             "WikidataBridgeWorker",
             [IdentityJobState.RetailMatched, IdentityJobState.RetailMatchedNeedsReview],
             GetBatchSize(),
             LeaseDuration,
-            excludeRunIds: gatedRunIds.Count > 0 ? gatedRunIds : null,
             ct: ct);
 
         if (jobs.Count == 0)
@@ -66,18 +59,6 @@ public sealed partial class WikidataBridgeWorker
                     "No reconciliation adapter configured", ct);
                 await MarkBridgeBlockedAsync(operationByJobId.GetValueOrDefault(j.Id), j, "No reconciliation adapter configured", ct).ConfigureAwait(false);
                 await TryOrganizeRetainedRetailIdentityAsync(j, ct);
-            }
-
-            if (_batchProgress is not null)
-            {
-                foreach (var runId in jobs
-                             .Select(j => j.IngestionRunId)
-                             .Where(id => id.HasValue)
-                             .Select(id => id!.Value)
-                             .Distinct())
-                {
-                    await _batchProgress.EmitProgressAsync(runId, isFinal: false, ct).ConfigureAwait(false);
-                }
             }
 
             return jobs.Count;
@@ -424,18 +405,6 @@ public sealed partial class WikidataBridgeWorker
         if (allCandidates.Count > 0)
         {
             await _candidateRepo.InsertBatchAsync(allCandidates, ct);
-        }
-
-        if (_batchProgress is not null)
-        {
-            foreach (var runId in jobs
-                         .Select(j => j.IngestionRunId)
-                         .Where(id => id.HasValue)
-                         .Select(id => id!.Value)
-                         .Distinct())
-            {
-                await _batchProgress.EmitProgressAsync(runId, isFinal: false, ct).ConfigureAwait(false);
-            }
         }
 
         return jobs.Count;

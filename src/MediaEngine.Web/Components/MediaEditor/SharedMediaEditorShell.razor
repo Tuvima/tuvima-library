@@ -10,13 +10,18 @@
 @using MediaEngine.Web.Components.Artwork
 @using MediaEngine.Web.Components.MediaEditor.Sections
 
-<NavigationLock ConfirmExternalNavigation="@HasPendingNavigationChanges"
-                OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
+@* Hosted in an Editing Mode section slot, the page (the banner and the overlay's dismiss guard) owns the "Save or discard?"
+   question for leaving, so the slot's editor registers no lock of its own. *@
+@if (!IsSection)
+{
+    <NavigationLock ConfirmExternalNavigation="@HasPendingNavigationChanges"
+                    OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
+}
 
-<MediaEditorSurface Inline="@Inline" HeroConstrained="@(HeroConstrained || Drawer)">
-        <div class="sme-shell @(HeroConstrained ? "sme-shell--hero" : string.Empty) @(Drawer ? "sme-shell--drawer" : string.Empty)">
+<MediaEditorSurface Inline="@Inline" HeroConstrained="@HeroConstrained" Section="@IsSection">
+        <div class="sme-shell @(HeroConstrained ? "sme-shell--hero" : string.Empty) @(IsSection ? "sme-shell--section" : string.Empty)">
 
-                    @if (!Drawer)
+                    @if (!IsSection)
                     {
                     <EditorHeaderSection
                         SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
@@ -110,7 +115,7 @@
                 </div>
             }
 
-            @if (Inline && !Drawer && _confirmDiscard)
+            @if (Inline && !IsSection && _confirmDiscard)
             {
                 <div class="sme-inline-decision" role="alert">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
@@ -149,7 +154,7 @@
                 </div>
             }
 
-            @if (Inline && !Drawer && _pendingMembershipPreview is not null)
+            @if (Inline && !IsSection && _pendingMembershipPreview is not null)
             {
                 <div class="sme-inline-decision" role="status">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" />
@@ -204,7 +209,10 @@
             else
             {
             <div class="sme-workspace">
-                <nav class="sme-section-nav @(Drawer ? "sme-section-nav--drawer" : string.Empty)" aria-label="@(Drawer ? "Editing sections" : "Editor sections")">
+                @* A section slot shows the one section the banner asked for: no rail to move between sections. *@
+                @if (!IsSection)
+                {
+                <nav class="sme-section-nav" aria-label="Editor sections">
                     @for (var index = 0; index < Tabs.Count; index++)
                     {
                         var tabIndex = index;
@@ -220,7 +228,7 @@
                         </AppButton>
                     }
 
-                    @if (IsSingleItem && _activeTab != "details" && !Drawer)
+                    @if (IsSingleItem && _activeTab != "details")
                     {
                         <div class="sme-section-nav__footer">
                             <AppTooltip Text="@WritebackPolicyExplanation">
@@ -233,6 +241,7 @@
                     }
 
                 </nav>
+                }
                 <div class="sme-main-pane">
                     <div class="sme-body">
                 @if (_loading)
@@ -412,6 +421,13 @@
                         </div>
                     }
                     <EditorMatchSection
+                        ShowPageHeading="@(!IsSection)"
+                        CanRefreshMetadata="@(CanRefreshMetadata)"
+                        RefreshMetadataBusy="@(_refreshQueueing)"
+                        RefreshMetadataDisabledReason="@(RefreshMetadataDisabledReason)"
+                        RefreshMetadataStatus="@(_refreshStatus)"
+                        RefreshMetadataError="@(_refreshError)"
+                        RefreshMetadataRequested="@(QueueFullEnrichmentAsync)"
                         SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
                         EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"
                         SetTvdbLocalFilterRequested="@(SetTvdbLocalFilter)"
@@ -551,10 +567,7 @@
                         GetArtworkThumbnailUrl="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkThumbnailUrl(item))"
                         GetArtworkThumbnailSrcSet="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkThumbnailSrcSet(item))"
                         GetArtworkRowItems="@((string assetType) => GetArtworkRowItems(assetType))"
-                        IsArtworkDeleteConfirming="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => IsArtworkDeleteConfirming(item))"
                         DeleteArtworkVariantWithConfirmationAsyncRequested="@(DeleteArtworkVariantWithConfirmationAsync)"
-                        CancelArtworkDeleteRequested="@(CancelArtworkDelete)"
-                        ConfirmArtworkDeleteAsyncRequested="@(ConfirmArtworkDeleteAsync)"
                         RetryArtworkUploadAsyncRequested="@(RetryArtworkUploadAsync)"
                         ApplyArtworkUrlAsyncRequested="@(ApplyArtworkUrlAsync)"
                         RefreshProviderArtworkAsyncRequested="@(RefreshProviderArtworkAsync)"
@@ -564,8 +577,6 @@
                         OpenArtworkFullSizeAsyncRequested="@(OpenArtworkFullSizeAsync)"
                         BuildArtworkVariantHoverLabel="@((MediaEngine.Web.Components.MediaEditor.ArtworkSlotDefinition slot, MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => BuildArtworkVariantHoverLabel(slot, item))"
                         GetArtworkRemovalLabel="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkRemovalLabel(item))"
-                        GetArtworkRemovalQuestion="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkRemovalQuestion(item))"
-                        GetArtworkRemovalConfirmLabel="@((MediaEngine.Web.Components.MediaEditor.ArtworkVariantDisplayItem item) => GetArtworkRemovalConfirmLabel(item))"
                         GetArtworkReadOnlyTitle="@(() => GetArtworkReadOnlyTitle())"
                         GetArtworkReadOnlyText="@(() => GetArtworkReadOnlyText())"
                         GetArtworkReadOnlySwitchTargets="@(() => GetArtworkReadOnlySwitchTargets())"
@@ -919,6 +930,19 @@
                                    OnClick="ConfirmMembershipMoveAsync"
                                    Disabled="@_saving">
                             Save and Move
+                        </AppButton>
+                    }
+                    else if (ShowArtworkUploadRetryFooter)
+                    {
+                        <div class="sme-footer-note" role="alert">
+                            <span>The image was not added, so nothing has changed yet.</span>
+                        </div>
+                        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Class="sme-footer-btn sme-footer-btn--primary"
+                                   Disabled="@IsArtworkRetryRunning"
+                                   OnClick="RetryFailedArtworkUploadsAsync">
+                            Retry upload
                         </AppButton>
                     }
                     else if (HasStagedEditorChanges)

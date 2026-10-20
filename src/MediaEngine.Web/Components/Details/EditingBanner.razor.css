@@ -1,0 +1,93 @@
+/* The Editing Mode banner: one full-width bar at the top of the page, in view while the page scrolls. It sits outside the hero
+   (the hero is full-bleed and clips what overflows it), as the first thing in the page's scroll container. */
+
+.tl-editing-banner {
+    position: sticky;
+    top: var(--tl-editing-banner-top, 0);
+    z-index: 20;
+    box-sizing: border-box;
+    width: 100%;
+    /* The details overlay's close button floats over the right end of the page, so the bar stops short of it. */
+    padding: var(--tl-space-2) var(--tl-editing-banner-end-clearance, 4.5rem) var(--tl-space-2) clamp(1rem, 3vw, 2.5rem);
+    border-bottom: 1px solid var(--tl-border-default);
+    background: color-mix(in srgb, var(--tl-bg-shell) 94%, transparent);
+    color: var(--tl-text-primary);
+    backdrop-filter: blur(0.75rem);
+    box-shadow: var(--tl-shadow-md);
+}
+
+/* On a page of its own (a Universe) the bar undoes the page gutters so it spans edge to edge; the page names its gutters. */
+.tl-editing-banner--page {
+    width: auto;
+    margin: calc(-1 * var(--tl-editing-banner-page-top-gap, 0px)) calc(-1 * var(--tl-editing-banner-page-gutter, 0px)) 0;
+}
+
+.tl-editing-banner__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-4);
+}
+
+.tl-editing-banner__status {
+    display: flex;
+    flex: 1 1 14rem;
+    align-items: baseline;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-editing-banner__dot {
+    align-self: center;
+    flex: 0 0 auto;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--tl-accent-primary, #8852FC);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--tl-accent-primary, #8852FC) 28%, transparent);
+}
+
+.tl-editing-banner__title {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-editing-banner__note {
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-editing-banner__sections {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--tl-space-2);
+}
+
+.tl-editing-banner__end {
+    display: flex;
+    flex: 1 1 14rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2);
+}
+
+.tl-editing-banner__notice {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-top: var(--tl-space-2);
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-status-warning-border);
+    border-radius: var(--tl-radius-lg);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-editing-banner__notice strong {
+    color: var(--tl-text-primary);
+}

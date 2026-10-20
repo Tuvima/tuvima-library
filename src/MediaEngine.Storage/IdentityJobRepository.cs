@@ -46,12 +46,12 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
               );
 
             INSERT OR IGNORE INTO identity_jobs
-                (id, entity_id, entity_type, media_type, ingestion_run_id,
+                (id, entity_id, entity_type, media_type,
                  state, pass, attempt_count, poison_attempt_count, last_outcome_category, lease_owner, lease_expires_at,
                  selected_candidate_id, resolved_qid, last_error, next_retry_at,
                  created_at, updated_at)
             SELECT
-                @Id, @EntityId, @EntityType, @MediaType, @IngestionRunId,
+                @Id, @EntityId, @EntityType, @MediaType,
                 @State, @Pass, @AttemptCount, @PoisonAttemptCount, @LastOutcomeCategory, @LeaseOwner, @LeaseExpiresAt,
                 @SelectedCandidateId, @ResolvedQid, @LastError, @NextRetryAt,
                 @CreatedAt, @UpdatedAt
@@ -78,7 +78,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             job.EntityId,
             job.EntityType,
             job.MediaType,
-            job.IngestionRunId,
             job.State,
             job.Pass,
             job.AttemptCount,
@@ -153,7 +152,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                     UPDATE identity_jobs
                     SET entity_type          = @EntityType,
                         media_type           = @MediaType,
-                        ingestion_run_id     = NULL,
                         state                = @State,
                         selected_candidate_id = @SelectedCandidateId,
                         resolved_qid         = @ResolvedQid,
@@ -178,12 +176,12 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
 
             conn.Execute("""
                 INSERT INTO identity_jobs
-                    (id, entity_id, entity_type, media_type, ingestion_run_id,
+                    (id, entity_id, entity_type, media_type,
                      state, pass, attempt_count, poison_attempt_count, last_outcome_category, lease_owner, lease_expires_at,
                      selected_candidate_id, resolved_qid, last_error, next_retry_at,
                      created_at, updated_at)
                 VALUES
-                    (@Id, @EntityId, @EntityType, @MediaType, NULL,
+                    (@Id, @EntityId, @EntityType, @MediaType,
                      @State, @Pass, @AttemptCount, @PoisonAttemptCount, @LastOutcomeCategory, NULL, NULL,
                      @SelectedCandidateId, @ResolvedQid, NULL, NULL,
                      @CreatedAt, @UpdatedAt);
@@ -248,7 +246,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         IReadOnlyList<IdentityJobState> states,
         int batchSize,
         TimeSpan leaseDuration,
-        IReadOnlyList<string>? excludeRunIds = null,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -257,20 +254,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         var leaseExpiry = DateTimeOffset.UtcNow.Add(leaseDuration).ToString("O");
         // Build IN clause from enum values (safe — not user input).
         var stateList = string.Join(", ", states.Select(s => $"'{s}'"));
-
-        // Validate all run ID strings are valid GUIDs before interpolating into SQL.
-        // Values are written by this codebase but validated defensively.
-        var validExcludeRunIds = excludeRunIds?
-            .Select(id => Guid.TryParse(id, out var parsed) ? parsed : (Guid?)null)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
-
-        // Build optional exclusion clause. Jobs with NULL ingestion_run_id
-        // (ad-hoc / manual) always pass through regardless of the gate.
-        var excludeClause = validExcludeRunIds is { Count: > 0 }
-            ? "AND (ingestion_run_id IS NULL OR ingestion_run_id NOT IN @excludeRunIds)"
-            : "";
 
         var sql = $"""
             UPDATE identity_jobs
@@ -283,7 +266,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                   AND  (lease_owner IS NULL OR lease_expires_at < @now)
                   AND  (next_retry_at IS NULL OR next_retry_at <= @now)
                   AND  NOT ({IncompleteAudiobookRecordingSql})
-                  {excludeClause}
                 ORDER BY created_at ASC
                 LIMIT  @batchSize
             )
@@ -291,7 +273,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                       entity_id       AS EntityId,
                       entity_type     AS EntityType,
                       media_type      AS MediaType,
-                      ingestion_run_id AS IngestionRunId,
                       state           AS State,
                       pass            AS Pass,
                       attempt_count   AS AttemptCount,
@@ -315,7 +296,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
             leaseExpiry,
             now,
             batchSize,
-            excludeRunIds = validExcludeRunIds,
             incompleteRecordingCutoff,
         });
         return Task.FromResult<IReadOnlyList<IdentityJob>>(rows.Select(MapRow).ToList());
@@ -640,23 +620,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         return Task.FromResult<IReadOnlyList<IdentityJob>>(rows.Select(MapRow).ToList());
     }
 
-    public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query("""
-            SELECT state, COUNT(*) AS cnt
-            FROM   identity_jobs
-            WHERE  ingestion_run_id = @runId
-            GROUP BY state;
-            """,
-            new { runId = ingestionRunId });
-        IReadOnlyDictionary<string, int> counts = rows.ToDictionary(
-            r => (string)r.state,
-            r => (int)r.cnt);
-        return Task.FromResult(counts);
-    }
-
     public Task<int> CountActiveAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -664,44 +627,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         var count = conn.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM identity_jobs WHERE state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview')");
         return Task.FromResult(count);
-    }
-
-    public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-        IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        if (ingestionRunIds.Count == 0)
-        {
-            return Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-        }
-
-        // Validate all run ID strings are valid GUIDs before interpolating into SQL.
-        var validRunIds = ingestionRunIds
-            .Select(id => Guid.TryParse(id, out var parsed) ? parsed : (Guid?)null)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .ToList();
-        if (validRunIds.Count == 0)
-        {
-            return Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-        }
-
-        // Build IN clause from validated GUID strings.
-        const string sql = """
-            SELECT ingestion_run_id AS IngestionRunId, COUNT(*) AS Count
-            FROM   identity_jobs
-            WHERE  ingestion_run_id IN @validRunIds
-              AND  state IN ('Queued', 'RetailSearching')
-            GROUP BY ingestion_run_id;
-            """;
-
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<PendingStageCountRow>(sql, new { validRunIds });
-        IReadOnlyDictionary<string, int> counts = rows.ToDictionary(
-            r => r.IngestionRunId.ToString("D"),
-            r => r.Count);
-        return Task.FromResult(counts);
     }
 
     public Task ReleaseLeaseAsync(Guid jobId, CancellationToken ct = default)
@@ -730,7 +655,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
                entity_id        AS EntityId,
                entity_type      AS EntityType,
                media_type       AS MediaType,
-               ingestion_run_id AS IngestionRunId,
                state            AS State,
                pass             AS Pass,
                attempt_count    AS AttemptCount,
@@ -755,7 +679,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         public Guid EntityId { get; set; }
         public string EntityType { get; set; } = "";
         public string MediaType { get; set; } = "";
-        public Guid? IngestionRunId { get; set; }
         public string State { get; set; } = "";
         public string Pass { get; set; } = "";
         public int AttemptCount { get; set; }
@@ -777,7 +700,6 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         EntityId = r.EntityId,
         EntityType = r.EntityType,
         MediaType = r.MediaType,
-        IngestionRunId = r.IngestionRunId,
         State = r.State,
         Pass = r.Pass,
         AttemptCount = r.AttemptCount,
@@ -792,10 +714,4 @@ public sealed class IdentityJobRepository : IIdentityJobRepository
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(r.UpdatedAt),
     };
-
-    private sealed class PendingStageCountRow
-    {
-        public Guid IngestionRunId { get; set; }
-        public int Count { get; set; }
-    }
 }
