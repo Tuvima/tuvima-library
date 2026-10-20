@@ -29,7 +29,8 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Locked (v2, 2026-10-20) |
-| [Spec: Home and item detail speed](specs/home-and-detail-speed.md) | Draft (v1, 2026-10-19; Q1 stored table or not, Q2 light visible-works read) |
+| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v25, 2026-10-20) |
+| [Spec: Home and item detail speed](specs/home-and-detail-speed.md) | In progress (v2, locked by Shy 2026-10-20; started 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; the audiobook year look-up and Home are follow-ups) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
