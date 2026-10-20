@@ -136,26 +136,6 @@ public sealed class UniverseConnectionsReadService(
     }
 
     /// <summary>
-    /// The compact read-only Cast and Adaptations lists the helper apps show. Both are limited to what the profile may
-    /// see; Adaptations lists only real adaptation relationships and is empty without them.
-    /// </summary>
-    /// <param name="visibleWorkQids">
-    /// Identity QIDs of every work the profile may see, when the caller already loaded the authorised projection;
-    /// null to read it here.
-    /// </param>
-    public async Task<UniverseHelperLists> GetHelperListsAsync(
-        string qid,
-        IReadOnlySet<string>? visibleWorkQids,
-        CancellationToken ct = default)
-    {
-        var universeConnections = await GetConnectionsAsync(
-            qid, visibleWorkQids, includeCharacters: false, ct).ConfigureAwait(false);
-        return new UniverseHelperLists(
-            universeConnections.Cast.Select(row => row.Member).ToList(),
-            universeConnections.Adaptations.Select(row => row.Adaptation).ToList());
-    }
-
-    /// <summary>
     /// The Universe's Characters, Cast and Adaptations with the source of every row, from one read of the visible scope.
     /// Cast and Adaptations are exactly the helper-app rows (same filter, order and cap), only wrapped with their sources.
     /// </summary>
@@ -497,8 +477,3 @@ public sealed class UniverseConnectionsReadService(
         _ => relType.Replace('_', ' '),
     };
 }
-
-/// <summary>The compact Cast and Adaptations lists of one Universe.</summary>
-public sealed record UniverseHelperLists(
-    IReadOnlyList<UniverseClientCastMemberDto> Cast,
-    IReadOnlyList<UniverseClientAdaptationDto> Adaptations);
