@@ -204,7 +204,9 @@ public static class ReviewIssuePresentationBuilder
             "duration_sec" => numeric,
             _ => 0,
         };
-        if (seconds <= 0)
+        // A detected value that is not a real length of time (NaN, infinity, or more than a TimeSpan can hold) is shown as
+        // detected; TimeSpan.FromSeconds throws on those and one bad fact must not stop the whole Needs Review page.
+        if (seconds <= 0 || !double.IsFinite(seconds) || seconds >= TimeSpan.MaxValue.TotalSeconds)
         {
             return value;
         }

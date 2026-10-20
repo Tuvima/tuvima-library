@@ -68,9 +68,11 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapPersonalTasteEndpoints();
         app.MapLogEndpoints();
         app.MapDisplayEndpoints();
+        app.MapDisplayGridPreferenceEndpoints();
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();
         app.MapUniverseGraphEndpoints();
+        app.MapUniverseAppearanceEndpoints();
         app.MapSharedEntityEditorEndpoints();
         app.MapUniverseLoreEndpoints();
         app.MapCharacterEndpoints();

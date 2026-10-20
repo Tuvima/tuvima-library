@@ -68,6 +68,35 @@ public sealed class WorkReadinessServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task OneAddedWork_ReadsTheSameInTheActivityLogAndOnTheLivePage_WithTheSameMoment()
+    {
+        // Spec ingestion-and-readiness WP7 (D8): the Engine words the event once. The live page's Added row and the
+        // Activity log's Added entry name the same title and the same moment (the work's first Ready time).
+        var (workId, assetId) = SeedBook("Dune");
+        SeedIngestionLog(assetId, "Dune");
+        SetCanonical(assetId, "cover_state", "present");
+        SetJob(assetId, "Queued", DateTimeOffset.UtcNow.AddSeconds(-10));
+        await _service.BackfillAsync(CancellationToken.None);
+        SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
+        await _service.PollAsync(CancellationToken.None);
+
+        var log = await new MediaEngine.Api.Services.ReadServices.ActivityLogReadService(_activity)
+            .GetLogAsync(MediaEngine.Contracts.Activity.ActivityLogCategoryValues.Added, null, 0, 50);
+        var snapshot = await new MediaEngine.Api.Services.ReadServices.IngestionPresentationReadService(_db, bypassLibraries: _bypass)
+            .GetSnapshotAsync();
+
+        var entry = Assert.Single(log.Items);
+        var row = Assert.Single(snapshot.RecentDays.SelectMany(day => day.Items), item => item.WorkId == workId);
+        Assert.Equal("Dune", entry.Title);
+        Assert.Equal(entry.Title, row.Title);
+        Assert.Equal("ready", row.Availability);
+        var firstReady = DateTimeOffset.Parse(FirstReadyAt(workId)!, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(firstReady, row.AddedAt);
+        Assert.True((entry.OccurredAt - firstReady).Duration() < TimeSpan.FromSeconds(5),
+            $"The log says {entry.OccurredAt:O}; the page says {row.AddedAt:O}.");
+    }
+
+    [Fact]
     public async Task WorksThatAreAlreadyReadyAtStartup_AreMarkedWithoutBeingAnnounced()
     {
         var (workId, assetId) = SeedBook("Existing");
@@ -291,6 +320,31 @@ public sealed class WorkReadinessServiceTests : IDisposable
         conn.Execute(
             "INSERT OR REPLACE INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@entityId, @key, @value, @at)",
             new { entityId, key, value, at = (at ?? DateTimeOffset.UtcNow).ToString("O") });
+    }
+
+    private string? FirstReadyAt(Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<string?>("SELECT first_ready_at FROM works WHERE id = @workId", new { workId });
+    }
+
+    private void SeedIngestionLog(Guid assetId, string title)
+    {
+        var at = DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O");
+        var runId = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        // The live page still lists additions by their intake run until batches are removed (spec WP11).
+        conn.Execute(
+            """
+            INSERT INTO ingestion_batches (
+                id, status, source_path, category, files_total, files_processed,
+                files_registered, files_review, files_no_match, files_failed,
+                started_at, completed_at, created_at, updated_at)
+            VALUES (@runId, 'completed', '/library', 'Books', 1, 1, 1, 0, 0, 0, @at, @at, @at, @at);
+            INSERT INTO ingestion_log (id, file_path, media_asset_id, content_hash, status, media_type, detected_title, normalized_title, ingestion_run_id, created_at, updated_at)
+            VALUES (@id, @path, @assetId, @hash, 'registered', 'Books', @title, lower(@title), @runId, @at, @at)
+            """,
+            new { id = Guid.NewGuid(), runId, path = $"/library/{assetId:N}.epub", assetId, hash = $"hash_{assetId:N}", title, at });
     }
 
     private string? ReadyAt(Guid workId)

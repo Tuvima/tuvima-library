@@ -28,49 +28,16 @@ public sealed partial class DisplayComposerService
             var favoritesTask = _readService.LoadFavoriteWorkIdsAsync(profileId, ct);
             await Task.WhenAll(worksTask, statesTask, favoritesTask);
 
-            var works = await worksTask;
-            var progressByWork = LatestProgressByWork(await statesTask);
-            var favoriteWorkIds = await favoritesTask;
-            var byWork = works.GroupBy(work => work.WorkId).ToDictionary(group => group.Key, group => group.First());
-            var wanted = requested.ToHashSet();
-
-            // Shows and albums are found by their root id; only the groups someone asked about are built.
-            var showWorks = works
-                .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV")
-                .Where(work => wanted.Contains(TvGroupId(work)) && !byWork.ContainsKey(TvGroupId(work)))
-                .ToList();
-            var showCards = showWorks.Count == 0
-                ? new Dictionary<Guid, DisplayCardDto>()
-                : _cards.BuildTvShowCards(showWorks, progressByWork).ToDictionary(card => card.Id);
-
-            var musicWorks = works
-                .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
-                .ToList();
-            var albumKeys = musicWorks
-                .Where(work => work.RootWorkId != Guid.Empty && wanted.Contains(work.RootWorkId) && !byWork.ContainsKey(work.RootWorkId))
-                .Select(AlbumGroupKey)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var albumCards = albumKeys.Count == 0
-                ? new Dictionary<Guid, DisplayCardDto>()
-                : BuildMusicAlbumCards(musicWorks.Where(work => albumKeys.Contains(AlbumGroupKey(work))).ToList())
-                    .GroupBy(card => card.Id)
-                    .ToDictionary(group => group.Key, group => group.First());
-
+            var found = ResolveItemCards(
+                requested,
+                await worksTask,
+                LatestProgressByWork(await statesTask),
+                await favoritesTask);
             foreach (var id in requested)
             {
-                if (byWork.TryGetValue(id, out var row))
+                if (found.TryGetValue(id, out var card))
                 {
-                    cards.Add(MarkFavorite(
-                        _cards.FromWork(row, LaneFor(row.MediaType), progressByWork.GetValueOrDefault(row.WorkId)),
-                        favoriteWorkIds));
-                }
-                else if (showCards.TryGetValue(id, out var show))
-                {
-                    cards.Add(show);
-                }
-                else if (albumCards.TryGetValue(id, out var album))
-                {
-                    cards.Add(album);
+                    cards.Add(card);
                 }
             }
         }
@@ -82,6 +49,71 @@ public sealed partial class DisplayComposerService
             Hero: null,
             Shelves: [],
             Catalog: cards);
+    }
+
+    /// <summary>
+    /// Builds the card for each requested id that is a catalogue item, and only for those: a Work id gives that Work's card,
+    /// a show's or album's root id gives the show or album card. Nothing else in the catalogue is grouped or carded.
+    /// </summary>
+    private IReadOnlyDictionary<Guid, DisplayCardDto> ResolveItemCards(
+        IReadOnlyList<Guid> requested,
+        IReadOnlyList<DisplayWorkRow> works,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow> progressByWork,
+        IReadOnlySet<Guid> favoriteWorkIds)
+    {
+        var wanted = requested.ToHashSet();
+        var byWork = new Dictionary<Guid, DisplayWorkRow>();
+        foreach (var work in works)
+        {
+            if (wanted.Contains(work.WorkId))
+            {
+                byWork.TryAdd(work.WorkId, work);
+            }
+        }
+
+        // Shows and albums are found by their root id; only the groups someone asked about are built.
+        var showWorks = works
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV")
+            .Where(work => wanted.Contains(TvGroupId(work)) && !byWork.ContainsKey(TvGroupId(work)))
+            .ToList();
+        var showCards = showWorks.Count == 0
+            ? new Dictionary<Guid, DisplayCardDto>()
+            : _cards.BuildTvShowCards(showWorks, progressByWork).ToDictionary(card => card.Id);
+
+        var albumKeys = works
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
+            .Where(work => work.RootWorkId != Guid.Empty && wanted.Contains(work.RootWorkId) && !byWork.ContainsKey(work.RootWorkId))
+            .Select(AlbumGroupKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var albumCards = albumKeys.Count == 0
+            ? new Dictionary<Guid, DisplayCardDto>()
+            : BuildMusicAlbumCards(works
+                    .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
+                    .Where(work => albumKeys.Contains(AlbumGroupKey(work)))
+                    .ToList())
+                .GroupBy(card => card.Id)
+                .ToDictionary(group => group.Key, group => group.First());
+
+        var found = new Dictionary<Guid, DisplayCardDto>();
+        foreach (var id in requested)
+        {
+            if (byWork.TryGetValue(id, out var row))
+            {
+                found.TryAdd(id, MarkFavorite(
+                    _cards.FromWork(row, LaneFor(row.MediaType), progressByWork.GetValueOrDefault(row.WorkId)),
+                    favoriteWorkIds));
+            }
+            else if (showCards.TryGetValue(id, out var show))
+            {
+                found.TryAdd(id, show);
+            }
+            else if (albumCards.TryGetValue(id, out var album))
+            {
+                found.TryAdd(id, album);
+            }
+        }
+
+        return found;
     }
 
     private static Guid TvGroupId(DisplayWorkRow work) =>

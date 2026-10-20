@@ -126,6 +126,24 @@ public interface IFictionalEntityRepository
         IEnumerable<Guid> entityIds,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Of the supplied work QIDs, the ones that have at least one recorded appearance link, whichever entity it is for.
+    /// Compared without regard to case.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetLinkedWorkQidsAsync(
+        IEnumerable<string> workQids,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Of the supplied entity IDs (works, root works or media assets), the ones whose universe enrichment has run, that
+    /// is, that carry the <c>stage3_enriched_at</c> or <c>stage3_enhanced_at</c> completion marker. Both count: the
+    /// enrichment pass clears <c>stage3_enriched_at</c> when its core step linked no entities, but always writes
+    /// <c>stage3_enhanced_at</c> once the enhancer step finishes.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetUniverseEnrichedEntityIdsAsync(
+        IEnumerable<Guid> entityIds,
+        CancellationToken ct = default);
+
     /// <summary>Return total entity count (for stats).</summary>
     Task<int> CountAsync(CancellationToken ct = default);
 

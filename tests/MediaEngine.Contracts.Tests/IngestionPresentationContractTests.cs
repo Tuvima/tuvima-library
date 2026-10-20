@@ -47,4 +47,28 @@ public sealed class IngestionPresentationContractTests
         var restoredCount = Assert.Single(restored!.TypeCounts);
         Assert.Equal(("Movies", 212), (restoredCount.MediaType, restoredCount.Count));
     }
+
+    [Fact]
+    public void MediaGroup_CarriesWhatARowIsWaitingForAsAnOrderedListOfKeys()
+    {
+        var group = new IngestionMediaGroupDto
+        {
+            WaitingFor = [IngestionWaitingForKeys.Matching, IngestionWaitingForKeys.Placing, IngestionWaitingForKeys.Artwork],
+        };
+
+        var node = Assert.IsType<JsonObject>(JsonSerializer.SerializeToNode(group, JsonOptions));
+
+        var waiting = Assert.IsType<JsonArray>(node["waiting_for"]);
+        Assert.Equal(["matching", "placing", "artwork"], waiting.Select(item => item!.GetValue<string>()));
+        var restored = JsonSerializer.Deserialize<IngestionMediaGroupDto>(node.ToJsonString(), JsonOptions);
+        Assert.Equal(group.WaitingFor, restored!.WaitingFor);
+    }
+
+    [Fact]
+    public void MediaGroup_WaitingForIsAnEmptyListByDefault()
+    {
+        var node = Assert.IsType<JsonObject>(JsonSerializer.SerializeToNode(new IngestionMediaGroupDto(), JsonOptions));
+
+        Assert.Empty(Assert.IsType<JsonArray>(node["waiting_for"]));
+    }
 }

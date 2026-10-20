@@ -712,6 +712,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// <summary>Fires when the active profile is updated (display name or avatar colour).</summary>
     public event Action? OnProfileChanged;
 
+    /// <summary>
+    /// Fires when an administrator deleted titles from the library: the work and file ids that are gone, so open screens (browse rows,
+    /// Home, Continue lists, collection pages, Needs Review) can drop them without a reload.
+    /// </summary>
+    public event Action<LibraryItemsRemovedEvent>? OnLibraryItemsRemoved;
+
     /// <summary>Fires on every re-tag sweep progress tick broadcast by the Engine.</summary>
     public event Action<RetagSweepProgressEvent>? OnRetagSweepProgress;
 
@@ -1521,6 +1527,17 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         {
             _logger.LogInformation("Intercom ? MediaRemoved: invalidating collection cache");
             _state.Invalidate();
+        });
+
+        // -- "LibraryItemsRemoved" ---------------------------------------------
+        // An administrator deleted titles from the library. Invalidate the same state a removed file does, then let
+        // screens that hold their own copy of the list drop the ids.
+        _hubConnection.On<LibraryItemsRemovedEvent>(SignalREvents.LibraryItemsRemoved, ev =>
+        {
+            _logger.LogInformation(
+                "Intercom ? LibraryItemsRemoved: {Count} title(s), invalidating collection cache", ev.WorkIds.Count);
+            _state.Invalidate();
+            OnLibraryItemsRemoved?.Invoke(ev);
         });
 
         // -- "WatchFolderActive" -----------------------------------------------

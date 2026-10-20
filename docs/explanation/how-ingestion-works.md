@@ -169,6 +169,8 @@ If it fails that gate, it stays visible in Operations and, when a decision is ac
 
 This is why "the system has seen the file" and "the file is in the main browse surfaces" are no longer the same moment.
 
+On the live ingestion page a row that has not passed the gate says what it is still waiting for, in this order: matching, its show or album (TV episodes and music tracks only), and artwork. The page uses the same Ready rule as the browse surfaces, so a row is Ready exactly when the item can appear there.
+
 ---
 
 ## Step 9: Organisation

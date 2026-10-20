@@ -10,17 +10,23 @@ public sealed partial class DisplayComposerService
     private readonly DisplayCardBuilder _cards;
     private readonly DisplayShelfBuilder _shelves;
     private readonly MusicPlayStatsRepository? _musicStats;
+    private readonly DisplayFormatReader? _formats;
+    private readonly DisplayGridPersonalReader? _personal;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
         DisplayCardBuilder cards,
         DisplayShelfBuilder shelves,
-        MusicPlayStatsRepository? musicStats = null)
+        MusicPlayStatsRepository? musicStats = null,
+        DisplayFormatReader? formats = null,
+        DisplayGridPersonalReader? personal = null)
     {
         _readService = readService;
         _cards = cards;
         _shelves = shelves;
         _musicStats = musicStats;
+        _formats = formats;
+        _personal = personal;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -36,7 +42,7 @@ public sealed partial class DisplayComposerService
             .OrderByDescending(row => row.LastAccessed)
             .ToList();
 
-    public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 18)
+    public async Task<DisplayPageDto> BuildHomeAsync(bool includeCatalog = true, Guid? profileId = null, CancellationToken ct = default, int shelfLimit = 20)
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
@@ -102,10 +108,10 @@ public sealed partial class DisplayComposerService
             .ToList();
 
         var shelves = new List<DisplayShelfDto>();
-        DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, null);
-        DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, "/watch");
-        DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, "/read");
-        DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, "/listen");
+        DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, DisplayGridCatalog.RouteFor("home", "continue"));
+        DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, DisplayGridCatalog.RouteFor("home", "watch-next"));
+        DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, DisplayGridCatalog.RouteFor("home", "read-next"));
+        DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));
         DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
 
         var spotlights = BuildHomeSpotlights(works, progressByWork, tvShowCards,
@@ -400,6 +406,19 @@ public sealed partial class DisplayComposerService
 
         var start = ResolveShelfOffset(cursor, offset);
         var take = Math.Clamp(limit <= 0 ? 24 : limit, 1, 100);
+
+        // A shelf that has a "View all" grid answers from the grid's full list, so long shelves are never cut off.
+        var gridOwnsShelf = (string.IsNullOrWhiteSpace(mediaType) && string.IsNullOrWhiteSpace(grouping) && string.IsNullOrWhiteSpace(search))
+                            || (string.Equals(DisplayMediaRules.NormalizeLane(lane), "listen", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(DisplayMediaRules.NormalizeMediaType(mediaType ?? string.Empty), "Music", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(grouping, "home", StringComparison.OrdinalIgnoreCase)
+                                && string.IsNullOrWhiteSpace(search));
+        if (gridOwnsShelf
+            && await TryBuildShelfPageFromGridAsync(shelfKey, lane, start, take, profileId, ct) is { } gridPage)
+        {
+            return gridPage;
+        }
+
         var sourceLimit = start + take + 1;
         var page = string.IsNullOrWhiteSpace(lane)
                    && string.IsNullOrWhiteSpace(mediaType)
@@ -486,7 +505,7 @@ public sealed partial class DisplayComposerService
         return BuildBrowseAsync(lane, mediaType, grouping, search, 0, Math.Max(1, shelfLimit), includeCatalog: false, profileId, ct);
     }
 
-    private async Task<DisplayPageDto> BuildLaneAsync(string lane, bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 18)
+    private async Task<DisplayPageDto> BuildLaneAsync(string lane, bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 20)
     {
         var worksTask = _readService.LoadWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, lane, ct);
@@ -581,7 +600,7 @@ public sealed partial class DisplayComposerService
         };
     }
 
-    private async Task<DisplayPageDto> BuildMusicHomeAsync(bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 18)
+    private async Task<DisplayPageDto> BuildMusicHomeAsync(bool includeCatalog, Guid? profileId, CancellationToken ct, int shelfLimit = 20)
     {
         var worksTask = _readService.LoadWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, "listen", ct);
@@ -608,13 +627,13 @@ public sealed partial class DisplayComposerService
 
         var shelves = new List<DisplayShelfDto>();
         DisplayShelfBuilder.AddShelf(shelves, "recently-played", "Recently Played", "Pick up the albums from your latest listening sessions",
-            BuildMusicJourneyAlbumCards(works, journey).Take(Math.Max(1, shelfLimit)).ToList(), "/listen/music");
+            BuildMusicJourneyAlbumCards(works, journey).Take(Math.Max(1, shelfLimit)).ToList(), DisplayGridCatalog.RouteFor("listen", "recently-played"));
         DisplayShelfBuilder.AddShelf(shelves, "favorite-songs", "Favorite Songs", "Tracks you marked as favorites",
             catalog.Where(card => card.WorkId.HasValue && favoriteWorkIds.Contains(card.WorkId.Value)).Take(Math.Max(1, shelfLimit)).ToList(), "/listen/music/playlists/system/favorite-songs");
         DisplayShelfBuilder.AddShelf(shelves, "new-tracks-added", "New tracks added", "Recently added tracks grouped by album",
-            BuildNewTrackAlbumCards(works, shelfLimit).ToList(), "/listen/music?sort=newest");
+            BuildNewTrackAlbumCards(works, shelfLimit).ToList(), DisplayGridCatalog.RouteFor("listen", "new-tracks-added"));
         DisplayShelfBuilder.AddShelf(shelves, "albums", "Albums", "Album-first browsing with cover art at the center",
-            BuildMusicAlbumCards(works).Take(Math.Max(1, shelfLimit)).ToList(), "/listen/music");
+            BuildMusicAlbumCards(works).Take(Math.Max(1, shelfLimit)).ToList(), DisplayGridCatalog.RouteFor("listen", "albums"));
         DisplayShelfBuilder.AddShelf(shelves, "artists", "Artists", "Artist-led listening built from your library",
             BuildMusicArtistCards(works).Take(Math.Max(1, shelfLimit)).ToList(), "/listen/music?browse=artists");
 
@@ -764,13 +783,13 @@ public sealed partial class DisplayComposerService
 
         var shelves = new List<DisplayShelfDto>();
         DisplayShelfBuilder.AddShelf(shelves, "continue-listening", "Continue Listening", "Resume audiobooks already in progress",
-            continueCards, "/listen/audiobooks?status=in-progress");
+            continueCards, DisplayGridCatalog.RouteFor("listen", "continue-listening"));
         DisplayShelfBuilder.AddShelf(shelves, "recently-played", "Recently Played", "Albums from your latest music sessions",
-            recentlyPlayedAlbums, "/listen/music");
+            recentlyPlayedAlbums, DisplayGridCatalog.RouteFor("listen", "recently-played"));
         DisplayShelfBuilder.AddShelf(shelves, "recently-updated-albums", "Recently Updated Albums", "Albums that received newly added tracks",
-            recentlyUpdatedAlbums, "/listen/music?sort=newest");
+            recentlyUpdatedAlbums, DisplayGridCatalog.RouteFor("listen", "recently-updated-albums"));
         DisplayShelfBuilder.AddShelf(shelves, "recently-added-audiobooks", "Recently Added Audiobooks", "New spoken-word titles in your library",
-            recentlyAddedAudiobooks, "/listen/audiobooks?sort=newest");
+            recentlyAddedAudiobooks, DisplayGridCatalog.RouteFor("listen", "recently-added-audiobooks"));
         DisplayShelfBuilder.AddShelf(shelves, "audiobook-series", "Audiobook series", "Grouped audiobook runs from your library",
             _cards.BuildCollectionCards(audiobookWorks, "listen", progressByWork: progressByWork).Take(take).ToList(),
             "/listen/audiobooks?browse=series");

@@ -53,10 +53,14 @@
                     }
                     @foreach (var item in VisibleReviews)
                     {
-                        var issue = ReviewIssueClassifier.Classify(item.Trigger);
-                        var detail = ReviewIssuePresentationBuilder.Build(item);
-                        var tvSuggestion = item.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(item.CandidatesJson) : null;
-                        <article class="review-row" @key="item.Id">
+                        @* One review item that cannot be drawn shows a "couldn't be shown" row; the rest of the queue stays usable. *@
+                        <AppRowErrorBoundary @key="item.Id" ItemTitle="@DisplayTitle(item)" ResetKey="@item">
+                        @{
+                            var issue = ReviewIssueClassifier.Classify(item.Trigger);
+                            var detail = ReviewIssuePresentationBuilder.Build(item);
+                            var tvSuggestion = item.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(item.CandidatesJson) : null;
+                        }
+                        <article class="review-row">
                             <span class="review-row__identity">
                                 <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
                                 <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small>@if (item.FromImportFolder || item.FromMerge){<span class="review-row__badges">@if (item.FromImportFolder){<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}@if (item.FromMerge){<AppStatusBadge Text="From merge" Tone="AppUiTone.Info" />}</span>}</span>
@@ -88,6 +92,7 @@
                                 </div>
                             }
                         </article>
+                        </AppRowErrorBoundary>
                     }
                 </div>
             </section>
