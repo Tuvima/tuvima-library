@@ -323,12 +323,18 @@ public sealed class UniverseLorePrivacyTests : IDisposable
     private void SeedUniverseWithWorks()
     {
         using var connection = _database.CreateConnection();
+        // The Works sit in a Series under the root Universe collection and carry claims pointing at the test Universe,
+        // so their titles are exactly the ones a leaking implementation would collect for it.
+        var universe = Guid.NewGuid();
+        var series = Guid.NewGuid();
         connection.Execute(
             """
             INSERT INTO collections (id, collection_type, display_name, wikidata_qid)
             VALUES (@universe, 'Universe', 'Zephyrine Cycle', 'Q777');
+            INSERT INTO collections (id, collection_type, display_name, parent_collection_id)
+            VALUES (@series, 'ContentGroup', 'Zephyrine Cycle Novels', @universe);
             """,
-            new { universe = Guid.NewGuid() });
+            new { universe, series });
 
         foreach (var (title, author, file) in new[]
                  {
@@ -341,17 +347,21 @@ public sealed class UniverseLorePrivacyTests : IDisposable
             var asset = Guid.NewGuid();
             connection.Execute(
                 """
-                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@work, 'Books', 'standalone', 'accepted');
+                INSERT INTO works (id, media_type, work_kind, curator_state, collection_id) VALUES (@work, 'Books', 'standalone', 'accepted', @series);
                 INSERT INTO editions (id, work_id) VALUES (@edition, @work);
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
                 VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP);
                 INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
                 VALUES (@work, 'title', @title, CURRENT_TIMESTAMP),
-                       (@work, 'author', @author, CURRENT_TIMESTAMP);
+                       (@work, 'author', @author, CURRENT_TIMESTAMP),
+                       (@work, 'fictional_universe_qid', @universeQid, CURRENT_TIMESTAMP),
+                       (@work, 'narrative_root_qid', @universeQid, CURRENT_TIMESTAMP);
                 """,
                 new
                 {
                     work,
+                    series,
+                    universeQid = HeldQid,
                     edition,
                     asset,
                     title,

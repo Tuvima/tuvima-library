@@ -608,7 +608,13 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
         try
         {
-            await pluginUniverseLore.DiscoverSourcesAsync(universeQid, ct).ConfigureAwait(false);
+            var discovered = await pluginUniverseLore.DiscoverSourcesAsync(universeQid, ct).ConfigureAwait(false);
+            if (discovered is null)
+            {
+                _logger.LogDebug("[UNIVERSE-ENRICH] Skipped plugin lore for {UniverseQid}: the Library does not hold it as a Universe", universeQid);
+                return;
+            }
+
             var summary = await pluginUniverseLore.EnrichUniverseAsync(universeQid, ct).ConfigureAwait(false);
             if (summary is { SourcesEnriched: > 0 })
             {
