@@ -1,6 +1,6 @@
 # Spec: Home and item detail speed
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 3 and 4, fix options D and E, recommendation step 2) · [Spec: Library list speed](archive/library-list-speed.md) (built; section 8 records the audiobook year look-up) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** In progress (locked by Shy 2026-10-20 with Q1 and Q2 answered (a); started 2026-10-20) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 3 and 4, fix options D and E, recommendation step 2) · [Spec: Library list speed](archive/library-list-speed.md) (built; section 8 records the audiobook year look-up) · [Benchmarks README](../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -15,7 +15,7 @@ Home opens in under a second at 4,000 works instead of about 7 seconds, and an i
 - **One field-by-field comparison** of every value Home, detail, recent pages, the "all works" read and the library list return, before and after, on the benchmark library.
 - **Guardrail tests for Home and detail**, the same kind as the library list's: a fixed work budget at 4,000 works and a check that 8,000 works costs at most 2.5 times as much.
 - **Remove the library list guardrail workaround.** The library list's guardrail library currently gives every audiobook its own year so the slow look-up stays out of its budgets. Once the look-up is fixed, the guardrail library includes audiobooks without a year (some with a matching book), and the list budgets are measured again.
-- **Depends on Q2:** a light "which works can this person see" read for the screens that only need that list, instead of building every work's full display row.
+- **A light "which works can this person see" read (D11)** for the screens that only need that list, instead of building every work's full display row.
 
 **Out of scope**
 - A stored, precomputed display table (report option F). Held as the decision to revisit if this spec does not reach its targets (Q1).
@@ -36,6 +36,8 @@ Home opens in under a second at 4,000 works instead of about 7 seconds, and an i
 - **D7. Items added at the same moment keep a fixed order.** Today, when two items have exactly the same "added" time, the data store returns them in whichever order its plan happens to produce, which can change when the read changes. The rewrite adds a fixed tie-break (by work, then library) so Home is stable from one visit to the next. The comparison treats rows with the same added time as a group: same rows, same values, order within the group free; at Home's 1,000-item cut-off it reports any tied rows that moved in or out.
 - **D8. Count work, not seconds.** As in the library list spec: guardrails count the operations the data store performs, which is the same on every run. Each has a budget at 4,000 works (about 1.5 times the measured fixed cost, with the measured number written beside it) and a growth check that 8,000 works costs at most 2.5 times as much. They use the library list's guardrail library, extended with people, matching books and audiobooks, and audiobooks without a year.
 - **D9. Targets.** Home at 4,000 works under 1 s of processor time (report: about 6.8–7.5 s today; the one-pass read of every value for every item took 0.15 s). Detail under 0.2 s for one item (about 0.9 s of processor time today, mostly the credit lists). These are estimates from the report's measurements, not yet built; the guardrails lock in whatever the fixed code measures. If Home cannot get under 1 s with D2 to D5, the builder stops and reports, and Q1's option (b) comes back to Shy.
+- **D10. This spec first, no stored display table (Q1, Shy 2026-10-20).** Home and detail are fixed inside today's read (options D and E). A stored display table (option F) is revisited only if 100,000-work measurements show it is needed.
+- **D11. Include the light "visible works" read now (Q2, Shy 2026-10-20).** WP7 is part of this spec and runs in wave 2.
 
 ## 4. UI behaviour
 
@@ -58,7 +60,7 @@ None. No new stored information, no data store upgrade step, no reset, no re-ing
 
 Waves (at most two packets at once, each in its own worktree; WP3, WP4 and WP5 all change the Home read, so they go one after another):
 - **Wave 1:** WP1 and WP2.
-- **Wave 2:** WP3, and WP7 if Q2 is answered "include".
+- **Wave 2:** WP3 and WP7.
 - **Wave 3:** WP4.
 - **Wave 4:** WP5.
 - **Wave 5:** WP6.
@@ -124,7 +126,7 @@ Baseline: after WP1 merges, run its `snapshot` command on `main` (seed `--scale 
 - **Size:** Standard
 - **Done when:** the six tests pass; with WP4's or WP5's change reverted locally, at least the Home budget and the audiobook-detail budget fail (record the numbers, do not commit); the project's full test run stays under two minutes.
 
-### WP7 — Light "visible works" read (only if Q2 is answered "include")
+### WP7 — Light "visible works" read (D11)
 - **What it does:** add `LoadVisibleWorkIdsAsync(CancellationToken)` to `IDisplayProjectionReadService`, implemented in `DisplayProjectionReadService` (cached 30 s like the others) by a new light reader (`DisplayVisibleWorkReader`, its own file) that returns `WorkId`, `LibraryId`, `MediaType` and `ContentRating` for exactly the rows `LoadAsync()` with no limit returns (same Ready rule, visible path rule, `AssetRank = 1` choice and `ContentRating` fallback order). `AuthorizedDisplayProjectionReadService` filters it with the same `Allows(LibraryId, MediaType, ContentRating, scope)` rule and returns the id set. Switch every caller whose only use of `LoadWorksAsync` is `.Select(work => work.WorkId).ToHashSet()` (about 20 in `CollectionEndpoints.cs`, plus `CollectionClientEndpoints.cs` and the Home collections filter in `AuthorizedDisplayProjectionReadService`); leave callers that read other fields alone and list them in the packet report.
   - Tests: for profiles limited by library, by media type and by content rating, and for the owner, the new id set equals the set derived from `LoadWorksAsync` on the same fixture. A guardrail `VisibleWorks_StaysWithinBudgetAtFourThousandWorks` plus its growth check.
 - **Files likely touched:** `src/MediaEngine.Api/Services/Display/DisplayVisibleWorkReader.cs` (new), `src/MediaEngine.Api/Services/Display/IDisplayProjectionReadService.cs`, `src/MediaEngine.Api/Services/Display/DisplayProjectionReadService.cs`, `src/MediaEngine.Api/Security/AuthorizedDisplayProjectionReadService.cs`, `src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs`, `src/MediaEngine.Api/Endpoints/CollectionClientEndpoints.cs`, tests in `tests/MediaEngine.Api.Tests/` and `tests/MediaEngine.Performance.Tests/`
@@ -141,6 +143,6 @@ Baseline: after WP1 merges, run its `snapshot` command on `main` (seed `--scale 
   - *The target is not reached.* The 1-second figure is estimated from the report, not built. D9 makes the builder stop and report rather than add anything new.
   - *Benchmark numbers move.* Making some benchmark audiobooks lose their year changes the benchmark library; the README records it so old and new numbers are not compared directly.
 - **Observation (not part of this spec):** where a field accepts several stored names, today's choice is alphabetical rather than the order written in the code (for example, a small episode still beats a small poster). This spec keeps today's results (D1). Whether the written order was the intent is a separate product question; I'll propose it as a follow-up once this is built.
-- **Open questions:**
-  - **Q1. Start with this spec (D + E), or go straight to a stored display table (option F)?** (a) This spec: removes the measured causes inside today's read, with no new stored information that can go out of date. (b) A stored table with one ready-made row per item, refreshed whenever an item's values, artwork or credits change: the fastest at any size, but every write path in the Engine must remember to refresh it, it needs a rebuild command and a consistency check, and it deserves its own architecture decision. **Recommendation: (a)**, as the report recommends. Option F stays available if 100,000-work measurements later show it is needed.
-  - **Q2. Include the light "visible works" read (WP7) now, or defer it?** About 45 places read every visible work's full display row; at least 20 of them only need the list of work ids the person may see. After this spec the full read gets cheaper too, but still builds every row for 4,000 works whenever a series or collection screen misses the 30-second cache. (a) Include WP7: those screens read only ids, kinds and ratings, with the visibility rule tested to match exactly. (b) Defer to its own spec. **Recommendation: (a)**, since the "best long-term fix before beta" rule applies and it runs beside wave 2 without touching the same files.
+- **Open questions:** none open.
+  - **Q1 (answered (a), see D10). Start with this spec (D + E), or go straight to a stored display table (option F)?** (a) This spec: removes the measured causes inside today's read, with no new stored information that can go out of date. (b) A stored table with one ready-made row per item, refreshed whenever an item's values, artwork or credits change: the fastest at any size, but every write path in the Engine must remember to refresh it, it needs a rebuild command and a consistency check, and it deserves its own architecture decision. **Recommendation: (a)**, as the report recommends. Option F stays available if 100,000-work measurements later show it is needed.
+  - **Q2 (answered (a), see D11). Include the light "visible works" read (WP7) now, or defer it?** About 45 places read every visible work's full display row; at least 20 of them only need the list of work ids the person may see. After this spec the full read gets cheaper too, but still builds every row for 4,000 works whenever a series or collection screen misses the 30-second cache. (a) Include WP7: those screens read only ids, kinds and ratings, with the visibility rule tested to match exactly. (b) Defer to its own spec. **Recommendation: (a)**, since the "best long-term fix before beta" rule applies and it runs beside wave 2 without touching the same files.
