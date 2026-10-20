@@ -427,6 +427,7 @@ public static class ViewClientEndpoints
             ContentUrl = $"{BasePath}/items/{item.Id:D}/original",
             DocumentInfo = null,
             Snippet = null,
+            CanTrash = own && item.CanTrash,
         };
         return own
             ? client

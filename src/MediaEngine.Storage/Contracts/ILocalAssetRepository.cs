@@ -22,6 +22,13 @@ public interface ILocalAssetRepository
     IReadOnlyDictionary<Guid, string> GetMediaKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
 
     /// <summary>
+    /// The ids, among <paramref name="itemIds"/>, of items that are read-only: at least one of their files comes from a
+    /// <c>linked</c> folder, which Tuvima never moves, renames or deletes. Such an item cannot be moved to Trash.
+    /// Read in chunks, a few queries for any number of ids.
+    /// </summary>
+    IReadOnlySet<Guid> GetReadOnlyItemIds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Reads at most <paramref name="maxCharacters"/> characters of an item's extracted document text; the second value
     /// says whether more existed. Returns null when no text is stored.
     /// </summary>
