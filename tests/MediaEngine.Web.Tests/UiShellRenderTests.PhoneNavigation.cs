@@ -214,9 +214,11 @@ public sealed partial class UiShellRenderTests
         var cut = await RenderLayoutAsync(PhoneDevice);
         var nav = Services.GetRequiredService<NavigationManager>();
 
+        // The layout keeps re-rendering while its session and profile load, so each click finds its element afresh and
+        // retries if a render replaced it between the find and the click.
         void Open()
         {
-            cut.Find(".layout-shell__menu-button").Click();
+            cut.WaitForAssertion(() => cut.Find(".layout-shell__menu-button").Click());
             cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
             Assert.Equal("true", cut.Find(".layout-shell__menu-button").GetAttribute("aria-expanded"));
         }
@@ -229,7 +231,7 @@ public sealed partial class UiShellRenderTests
 
         // Close button.
         Open();
-        cut.Find(".phone-nav-menu__close").Click();
+        cut.WaitForAssertion(() => cut.Find(".phone-nav-menu__close").Click());
         AssertClosed();
 
         // Escape: the dialog frame reports it through the same cancel callback it uses for every dialog.
@@ -244,7 +246,7 @@ public sealed partial class UiShellRenderTests
 
         // Choosing an entry navigates and closes.
         Open();
-        cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[5].Click();
+        cut.WaitForAssertion(() => cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[5].Click());
         AssertClosed();
         Assert.EndsWith("/listen", nav.Uri);
     }

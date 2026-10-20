@@ -130,6 +130,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<SetupPreflightService>();
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
         services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
+        services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
         services.AddSingleton<ITasteProfileRepository, TasteProfileRepository>();
         services.AddSingleton<IProfileService, ProfileService>();
         services.AddSingleton<IAccountExternalLoginRepository, AccountExternalLoginRepository>();

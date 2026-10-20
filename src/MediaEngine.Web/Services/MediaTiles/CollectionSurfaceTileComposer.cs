@@ -175,10 +175,16 @@ public static class CollectionSurfaceTileComposer
         };
     }
 
+    // A Universe opens its own page (by Wikidata QID); every other collection keeps the generic collection page.
+    private static string CollectionRoute(CollectionManagementCatalogViewModel collection) =>
+        !string.IsNullOrWhiteSpace(collection.UniverseQid)
+            ? $"/universe/{Uri.EscapeDataString(collection.UniverseQid.Trim())}"
+            : $"/details/collection/{collection.Id:D}";
+
     public static MediaTileViewModel FromCollection(CollectionManagementCatalogViewModel collection)
     {
         var navigationUrl = collection.Person is null
-            ? $"/details/collection/{collection.Id:D}"
+            ? CollectionRoute(collection)
             : $"/details/person/{collection.Person.Id:D}";
         var previewImages = collection.ArtworkItems
             .Select(item => MediaTileArtworkUrl.Sized(item.CoverUrl, "s"))
