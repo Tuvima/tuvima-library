@@ -53,6 +53,10 @@ internal static class ApprovalStatementBuilder
     private const string RunsWithLocalAi = "Runs on this machine with Local AI";
     private const string ModelMayDownload = "May download an AI model to this machine first";
     private const string UnsandboxedNote = "Plugins run inside the server without a sandbox. Only turn on plugins you trust.";
+    private const string DeclarativeNote = "This plugin is a description file; it runs no code of its own.";
+    private const string ServiceNote = "This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.";
+    private const string SandboxedNote = "This plugin runs in a sandbox with limited access.";
+    private const string OfficialNote = "This plugin ships with the Library.";
 
     private static readonly JsonSerializerOptions CanonicalJson = new()
     {
@@ -234,7 +238,7 @@ internal static class ApprovalStatementBuilder
             notes.Add(NotVerifiedWarning);
         }
 
-        notes.Add(UnsandboxedNote);
+        notes.Add(RunLocationNote(manifest.Kind));
         return new ApprovalStatement(
             string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name,
             PluginKindLabel,
@@ -243,6 +247,15 @@ internal static class ApprovalStatementBuilder
             sendsTo,
             notes);
     }
+
+    // A listed plugin is described by how it runs, so a description file is not told it runs inside the server.
+    private static string RunLocationNote(PluginKind kind) => kind switch
+    {
+        PluginKind.Declarative => DeclarativeNote,
+        PluginKind.Service => ServiceNote,
+        PluginKind.Sandboxed => SandboxedNote,
+        _ => OfficialNote,
+    };
 
     /// <param name="modelReady">True when the model the feature reads is already on this machine.</param>
     public static ApprovalStatement ForAiFeature(string featureKey, bool modelReady)

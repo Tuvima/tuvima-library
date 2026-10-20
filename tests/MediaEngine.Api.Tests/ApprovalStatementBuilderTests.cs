@@ -234,6 +234,20 @@ public sealed class ApprovalStatementBuilderTests
         Assert.Equal("the internet", statement.SendsDataTo);
     }
 
+    [Theory]
+    [InlineData(PluginKind.Declarative, "This plugin is a description file; it runs no code of its own.")]
+    [InlineData(PluginKind.Service, "This plugin runs as a separate program and talks to the Library through its published contract. Only turn on plugins you trust.")]
+    [InlineData(PluginKind.Sandboxed, "This plugin runs in a sandbox with limited access.")]
+    [InlineData(PluginKind.Official, "This plugin ships with the Library.")]
+    public void DirectoryInstallPreview_SaysWhereThePluginRuns_ByItsKind_NeverThatItRunsInsideTheServer(PluginKind kind, string expected)
+    {
+        var statement = ApprovalStatementBuilder.ForDirectoryEntry(
+            new PluginManifest { Id = "p", Name = "P", Kind = kind }, PluginTrustLevel.Community);
+
+        Assert.Contains(expected, statement.Notes);
+        Assert.DoesNotContain(statement.Notes, note => note.Contains("without a sandbox", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void StatementHash_ChangesWhenADestinationIsAddedOrChanged_AndNotWhenItIsRestated()
     {
