@@ -1,12 +1,16 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using MediaEngine.Api.Endpoints;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Contracts.Approvals;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Secrets;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -66,6 +70,61 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         Assert.Null(request.Content);
         Assert.Null(request.Headers.Authorization);
         Assert.DoesNotContain(request.Headers, header => header.Key is "Cookie" or "Referer" or "X-Tuvima-Library");
+    }
+
+    [Fact]
+    public async Task AListThatCameBackFromARedirectAwayFromGitHub_IsNotAccepted()
+    {
+        _handler.AnswerAfterRedirectTo("https://evil.example.net/approved-plugins.json", ListJson(Entry("acme.one", "One")));
+
+        var directory = await NewService().GetAsync();
+
+        Assert.Equal("unavailable", directory.Status);
+        Assert.Empty(directory.Plugins);
+    }
+
+    [Fact]
+    public async Task AListThatCameBackFromARedirectWithinGitHub_IsAccepted()
+    {
+        _handler.AnswerAfterRedirectTo("https://raw.githubusercontent.com/Tuvima/tuvima-library/main/other.json", ListJson(Entry("acme.one", "One")));
+
+        var directory = await NewService().GetAsync();
+
+        Assert.Equal("fresh", directory.Status);
+        Assert.Equal("acme.one", Assert.Single(directory.Plugins).Id);
+    }
+
+    [Fact]
+    public async Task ReadingTheDirectory_AsASignedInAdministrator_MayCheckGitHub()
+    {
+        _handler.Answer(ListJson(Entry("acme.one", "One")));
+        var administrator = new RequestAuthority(
+            PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, AccountIsAdministrator: true, GrantAdminEnabled: true);
+
+        var directory = await PluginEndpoints.ReadDirectoryAsync(
+            new DefaultHttpContext(), new FixedAuthorityResolver(administrator), NewService(), [], CancellationToken.None);
+
+        Assert.Equal(1, _handler.Requests);
+        Assert.Equal("acme.one", Assert.Single(directory.Plugins).Id);
+    }
+
+    [Fact]
+    public async Task ReadingTheDirectory_AsAnOutsideApplication_NeverMakesARequest_AndShowsTheSavedCopyOnly()
+    {
+        _handler.Answer(ListJson(Entry("acme.one", "One")));
+        var service = NewService();
+        await service.GetAsync();
+        _handler.Reset();
+        _clock.Advance(TimeSpan.FromDays(3)); // the copy is old enough that an administrator's read would check again
+        var application = new RequestAuthority(
+            PrincipalKind.ServiceApplication, true, ApplicationId: Guid.NewGuid(), ApplicationEnabled: true);
+
+        var directory = await PluginEndpoints.ReadDirectoryAsync(
+            new DefaultHttpContext(), new FixedAuthorityResolver(application), service, [], CancellationToken.None);
+
+        Assert.Equal(0, _handler.Requests);
+        Assert.Equal("acme.one", Assert.Single(directory.Plugins).Id);
     }
 
     [Fact]
@@ -507,6 +566,12 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         }
     }
 
+    private sealed class FixedAuthorityResolver(RequestAuthority authority) : IRequestAuthorityResolver
+    {
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
+            ValueTask.FromResult(authority);
+    }
+
     private sealed class StepClock(DateTimeOffset start) : TimeProvider
     {
         private DateTimeOffset _now = start;
@@ -531,6 +596,14 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         public List<HttpRequestMessage> Seen { get; } = [];
 
         public void Answer(string body) => Respond(HttpStatusCode.OK, body);
+
+        /// <summary>Answers as if the request was redirected on to <paramref name="finalAddress"/> before this body came back.</summary>
+        public void AnswerAfterRedirectTo(string finalAddress, string body) =>
+            _answer = () => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, finalAddress),
+            };
 
         public void Respond(HttpStatusCode status, string body) =>
             _answer = () => new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };

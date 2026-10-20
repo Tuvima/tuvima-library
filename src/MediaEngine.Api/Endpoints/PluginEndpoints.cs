@@ -47,10 +47,15 @@ internal static class PluginEndpoints
         // The plugin directory (Available plugins): the saved copy of Tuvima's list on GitHub. Reading may check GitHub when the
         // last check is over a day old; the actions below change what is remembered or switched, so they are for server
         // administrators only.
-        group.MapGet("/directory", async (PluginDirectoryService directory, PluginCatalog catalog, CancellationToken ct) =>
-            Results.Ok(await directory.GetAsync(InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
+        group.MapGet("/directory", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            PluginDirectoryService directory,
+            PluginCatalog catalog,
+            CancellationToken ct) =>
+            Results.Ok(await ReadDirectoryAsync(http, authorityResolver, directory, InstalledPluginIds(catalog), ct).ConfigureAwait(false)))
             .WithName("GetPluginDirectory")
-            .WithSummary("The saved copy of the plugin directory. Checks GitHub first only when the switch is on and the last check is over a day old.")
+            .WithSummary("The saved copy of the plugin directory. For a signed-in administrator it checks GitHub first when the switch is on and the last check is over a day old; any other caller (an outside application) gets the saved copy only.")
             .Produces<PluginDirectoryResponse>(StatusCodes.Status200OK)
             .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
@@ -561,6 +566,23 @@ internal static class PluginEndpoints
     };
 
     // The ids of the plugins on this server, so the directory can mark the ones already installed.
+    /// <summary>
+    /// Only a signed-in server administrator's read may start the once-a-day check of GitHub; an outside application that
+    /// holds <c>plugins.read</c> gets the saved copy and never causes a request to leave the machine.
+    /// </summary>
+    internal static async Task<PluginDirectoryResponse> ReadDirectoryAsync(
+        HttpContext http,
+        IRequestAuthorityResolver authorityResolver,
+        PluginDirectoryService directory,
+        IReadOnlyCollection<string> installedIds,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        return authority.IsEffectiveAdministrator
+            ? await directory.GetAsync(installedIds, ct).ConfigureAwait(false)
+            : await directory.GetSavedAsync(installedIds, ct).ConfigureAwait(false);
+    }
+
     private static string[] InstalledPluginIds(PluginCatalog catalog) =>
         catalog.List().Select(registration => registration.Manifest.Id).ToArray();
 
