@@ -140,6 +140,26 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         Assert.Contains(cut.FindAll(".tl-detail-secondary-actions .hero-icon-circle"), circle => circle.GetAttribute("data-phone-label") == "My List");
     }
 
+    [Theory]
+    [InlineData(false, "Add to My List", null)]
+    [InlineData(true, "Remove from My List", "true")]
+    public void HeroActionRow_MyListIsAHeart_FilledOnlyOnceSaved(bool saved, string expectedLabel, string? expectedFilled)
+    {
+        // The page flips IsSelected in place after a save, so the name must follow it rather than the original label.
+        var cut = Render<HeroActionRow>(parameters => parameters
+            .Add(component => component.SecondaryActions, new[]
+            {
+                new DetailAction { Key = "my-list", Label = "Add to My List", Tooltip = "Add to My List", Icon = "favorite", IsSelected = saved },
+            }));
+
+        var circle = cut.Find(".tl-detail-secondary-actions .hero-icon-circle");
+        var glyph = circle.QuerySelector("svg.playback-utility-glyph")!;
+        Assert.Equal(expectedLabel, circle.GetAttribute("aria-label"));
+        Assert.Equal(saved ? "true" : "false", circle.GetAttribute("aria-pressed"));
+        Assert.Equal("Favorite", glyph.GetAttribute("data-playback-glyph"));
+        Assert.Equal(expectedFilled, glyph.GetAttribute("data-filled"));
+    }
+
     [Fact]
     public void HeroActionRow_EmbedsProgressInTheMainAction()
     {

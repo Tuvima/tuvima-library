@@ -10,7 +10,7 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed partial class AppNameGuardrailTests
 {
-    private static readonly string[] ScannedRoots = ["src", "clients", "config/providers"];
+    private static readonly string[] ScannedRoots = ["src", "clients", "config"];
 
     private static readonly HashSet<string> ScannedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -21,6 +21,10 @@ public sealed partial class AppNameGuardrailTests
     [
         "/bin/", "/obj/", "/build/", "/node_modules/", "/.gradle/",
         "/wwwroot/lib/", "/wwwroot/vendor/",
+        // Local credentials, gitignored and never shipped.
+        "config/secrets/", "config/.secrets/",
+        // JSON Schema titles for editors and validation tooling, read by developers rather than shown in the app.
+        "config/schemas/",
         // Development-only seed and test harness output; never shown in a release build.
         "src/MediaEngine.Api/DevSupport/",
     ];
