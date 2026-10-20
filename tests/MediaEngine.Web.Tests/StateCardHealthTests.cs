@@ -116,6 +116,26 @@ public sealed class StateCardHealthTests
     }
 
     [Fact]
+    public void Plugin_ThatIsWorking_StillShowsItsLastProblem_WithoutChangingTheWord()
+    {
+        var plugin = Plugin(enabled: true, host: new PluginHostServicesDto { LastProblem = "Tried to contact other.example.org, which it did not say it would contact" });
+
+        var result = StateCardHealth.ForPlugin(plugin, Health("healthy"), null);
+
+        Assert.Equal(HealthWord.Working, result.Word);
+        Assert.Equal("Tried to contact other.example.org, which it did not say it would contact", result.LastProblem);
+    }
+
+    [Fact]
+    public void Plugin_ThatIsWorking_WithNoProblem_HasNoLastProblem()
+    {
+        var result = StateCardHealth.ForPlugin(Plugin(enabled: true, host: new PluginHostServicesDto { LastProblem = "  " }), null, null);
+
+        Assert.Equal(HealthWord.Working, result.Word);
+        Assert.Null(result.LastProblem);
+    }
+
+    [Fact]
     public void Plugin_WhoseAlwaysOnWorkStoppedAfterCrashing_IsBroken_AndShadesTheMenuRed()
     {
         var plugin = Plugin(enabled: true, host: new PluginHostServicesDto { State = "broken", Problem = "Stopped after crashing 5 times in an hour" });

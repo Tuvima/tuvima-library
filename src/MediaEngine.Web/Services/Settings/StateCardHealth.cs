@@ -114,7 +114,10 @@ public static class StateCardHealth
             return new(HealthWord.NeedsAttention, StringHelpers.FirstNonBlank(latestRun.Message)?.Trim() ?? "The last run failed.");
         }
 
-        return new(HealthWord.Working);
+        // Still working: a refused address, a single failed event or a crash below the limit does not change the word,
+        // but it is still the plugin's last problem and the card shows it.
+        var lastProblem = StringHelpers.FirstNonBlank(plugin.HostServices?.LastProblem)?.Trim();
+        return new(HealthWord.Working, lastProblem);
     }
 
     /// <summary>True when the plugin is switched on and cannot do its job; needs no health check or run record.</summary>
