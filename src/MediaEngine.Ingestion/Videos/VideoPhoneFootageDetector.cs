@@ -10,6 +10,8 @@ namespace MediaEngine.Ingestion.Videos;
 public static class VideoPhoneFootageDetector
 {
     private const int MaxFilesLooked = 500;
+    private const int MaxEntriesVisited = 5000;
+    private static readonly TimeSpan TimeLimit = TimeSpan.FromSeconds(3);
 
     public static bool Looks(string folder, VideoPhoneFootageConfiguration rules)
     {
@@ -30,8 +32,14 @@ public static class VideoPhoneFootageDetector
             var videos = 0;
             var cameraStyle = 0;
             var inCameraFolder = false;
-            foreach (var file in Directory.EnumerateFiles(root, "*", options).Where(VideoFolderLayout.IsVideoFile).Take(MaxFilesLooked))
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            foreach (var file in Directory.EnumerateFiles(root, "*", options).Take(MaxEntriesVisited).Where(VideoFolderLayout.IsVideoFile).Take(MaxFilesLooked))
             {
+                if (clock.Elapsed > TimeLimit)
+                {
+                    break;
+                }
+
                 videos++;
                 var parent = Path.GetDirectoryName(file);
                 while (parent is not null && parent.Length >= root.Length)

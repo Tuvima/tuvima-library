@@ -156,6 +156,10 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("youtube_lookup")]
     public bool YoutubeLookup { get; set; } = true;
 
+    /// <summary>Videos libraries only: saved videos have no ratings, so content-limited profiles see them only when this is on.</summary>
+    [JsonPropertyName("ok_for_limited_profiles")]
+    public bool OkForLimitedProfiles { get; set; }
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceDto> Sources { get; set; } = [];
 

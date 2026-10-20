@@ -7502,6 +7502,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   MetadataPolicy: System.String | nullability=not-null | accessors=get,set
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   YoutubeLookup: System.Boolean | nullability=not-null | accessors=get,set
+  OkForLimitedProfiles: System.Boolean | nullability=not-null | accessors=get,set
   Sources: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibrarySourceDto> | nullability=not-null | accessors=get,set
   PrimaryDestinationSourceId: System.String | nullability=nullable | accessors=get,set
   OwnerProfileId: System.String | nullability=nullable | accessors=get,set

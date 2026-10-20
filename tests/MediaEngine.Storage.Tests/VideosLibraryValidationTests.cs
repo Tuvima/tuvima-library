@@ -51,4 +51,15 @@ public sealed class VideosLibraryValidationTests
 
         Assert.Contains(errors, error => error.Contains("videos libraries must use local_only metadata"));
     }
+
+    [Fact]
+    public void VideosMixedWithAnotherTypeIsToldToBeItsOwnLibrary()
+    {
+        var config = Shipped();
+        config.Libraries.Single(library => library.MediaTypes.Contains("Videos")).MediaTypes = ["Videos", "Movies"];
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("Videos must be a library of its own"));
+    }
 }

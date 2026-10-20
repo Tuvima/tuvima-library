@@ -240,10 +240,13 @@ public sealed partial class DisplayComposerService
                         .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre))
                         .First(genre => DisplayMediaRules.StableKey(genre) == definition.Preset);
                     var shows = _cards.BuildTvShowCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
+                    var videos = _cards.BuildVideoCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
                     cards = [.. matching
                     .Select(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV"
                         ? shows.GetValueOrDefault(TvGroupId(work))
-                        : _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)))
+                        : DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Video"
+                            ? videos.GetValueOrDefault(TvGroupId(work))
+                            : _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)))
                     .Where(card => card is not null)
                     .Cast<DisplayCardDto>()
                     .DistinctBy(card => card.Id)

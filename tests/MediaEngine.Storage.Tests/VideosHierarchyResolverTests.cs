@@ -44,6 +44,20 @@ public sealed class VideosHierarchyResolverTests : IDisposable
     }
 
     [Fact]
+    public async Task SectionsThatCleanToTheSameTitleStayApartWhenTheirFolderNamesDiffer()
+    {
+        var one = Meta("course", "Overview", 1);
+        one[MetadataFieldConstants.VideoSectionKey] = "01 overview";
+        var two = Meta("course", "Overview", 2);
+        two[MetadataFieldConstants.VideoSectionKey] = "02 overview";
+
+        var first = await _resolver.ResolveAsync(MediaType.Videos, one);
+        var second = await _resolver.ResolveAsync(MediaType.Videos, two);
+
+        Assert.NotEqual(first.ParentWorkId, second.ParentWorkId);
+    }
+
+    [Fact]
     public async Task AVideoWithoutASeriesStandsAlone()
     {
         var result = await _resolver.ResolveAsync(MediaType.Videos, Meta(null));

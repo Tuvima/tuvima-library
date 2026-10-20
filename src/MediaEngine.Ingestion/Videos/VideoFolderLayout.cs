@@ -8,6 +8,7 @@ namespace MediaEngine.Ingestion.Videos;
 /// <param name="SeriesKey">The series folder relative to the library folder; the stable key of the series.</param>
 /// <param name="SeriesTitle">The series folder name, cleaned.</param>
 /// <param name="SectionTitle">The sub-folder the video sits in inside its series, or <see langword="null"/>.</param>
+/// <param name="SectionKey">The section folder's own name in lower case; the stable key of the section (titles can repeat).</param>
 /// <param name="SectionIndex">The section's position inside the series.</param>
 /// <param name="EpisodeIndex">The video's position inside its section (or the series when it has no section).</param>
 public sealed record VideoPlacement(
@@ -15,6 +16,7 @@ public sealed record VideoPlacement(
     string? SeriesKey,
     string? SeriesTitle,
     string? SectionTitle,
+    string? SectionKey,
     int? SectionIndex,
     int EpisodeIndex);
 
@@ -41,7 +43,7 @@ public static partial class VideoFolderLayout
         var file = Path.GetFullPath(filePath);
         var relative = Path.GetRelativePath(root, file);
         var parts = relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length <= 1 || relative.StartsWith("..", StringComparison.Ordinal) || parts.Any(IsHiddenName))
+        if (parts.Length <= 1 || Path.IsPathRooted(relative) || relative.StartsWith("..", StringComparison.Ordinal) || parts.Any(IsHiddenName))
         {
             return Standalone();
         }
@@ -84,10 +86,11 @@ public static partial class VideoFolderLayout
             seriesKey,
             seriesTitle,
             ownSection is null ? null : VideoTitleCleaner.Clean(ownSection, rules, stripLeadingNumber: true).Title,
+            ownSection?.Trim().ToLowerInvariant(),
             sectionIndex,
             episodeIndex);
 
-        static VideoPlacement Standalone() => new(true, null, null, null, null, 1);
+        static VideoPlacement Standalone() => new(true, null, null, null, null, null, 1);
     }
 
     /// <summary>

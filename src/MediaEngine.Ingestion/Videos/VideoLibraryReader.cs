@@ -86,6 +86,7 @@ public sealed class VideoLibraryReader : IVideoLibraryReader
             Add(MetadataFieldConstants.VideoSeries, placement.SeriesTitle, 0.98);
             Add(MetadataFieldConstants.VideoSeriesKey, placement.SeriesKey, 0.98);
             Add(MetadataFieldConstants.VideoSection, placement.SectionTitle, 0.98);
+            Add(MetadataFieldConstants.VideoSectionKey, placement.SectionKey, 0.98);
             Add(MetadataFieldConstants.VideoSectionIndex, placement.SectionIndex?.ToString(CultureInfo.InvariantCulture), 0.98);
             Add(MetadataFieldConstants.VideoEpisodeIndex, placement.EpisodeIndex.ToString(CultureInfo.InvariantCulture), 0.98);
 

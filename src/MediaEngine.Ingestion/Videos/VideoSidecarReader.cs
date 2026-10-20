@@ -52,16 +52,17 @@ public static class VideoSidecarReader
 
                 var id = Text(root, "id");
                 var info = new VideoSidecarInfo(
-                    Text(root, "title"),
-                    Text(root, "description"),
-                    Text(root, "channel") ?? Text(root, "uploader"),
+                    Cap(Text(root, "title"), MaxTitleChars),
+                    Cap(Text(root, "description"), MaxDescriptionChars),
+                    Cap(Text(root, "channel") ?? Text(root, "uploader"), MaxTitleChars),
                     id is not null && VideoTitleCleaner.LooksLikeYoutubeId(id) ? id : null,
                     ParseUploadDate(Text(root, "upload_date")),
                     Domain.Configuration.VideoIdentificationMethods.InfoJson);
                 return info.HasAnything ? info : null;
             }
-            catch (JsonException)
+            catch (Exception ex) when (ex is JsonException or IOException)
             {
+                System.Diagnostics.Trace.TraceWarning($"Skipped unreadable sidecar {path}: {ex.Message}");
                 return null;
             }
         }
@@ -103,22 +104,28 @@ public static class VideoSidecarReader
                     return null;
                 }
 
-                var date = Node("premiered", "aired", "releasedate", "dateadded");
+                var date = Node("premiered", "aired", "releasedate");
                 var info = new VideoSidecarInfo(
-                    Node("title"),
-                    Node("plot", "outline"),
-                    Node("studio", "director"),
+                    Cap(Node("title"), MaxTitleChars),
+                    Cap(Node("plot", "outline"), MaxDescriptionChars),
+                    Node("studio"),
                     null,
                     date is not null && DateOnly.TryParse(date[..Math.Min(10, date.Length)], CultureInfo.InvariantCulture, out var parsed) ? parsed : null,
                     Domain.Configuration.VideoIdentificationMethods.Nfo);
                 return info.HasAnything ? info : null;
             }
-            catch (XmlException)
+            catch (Exception ex) when (ex is XmlException or IOException)
             {
+                System.Diagnostics.Trace.TraceWarning($"Skipped unreadable sidecar {path}: {ex.Message}");
                 return null;
             }
         }
     }
+
+    private const int MaxTitleChars = 300;
+    private const int MaxDescriptionChars = 8000;
+
+    private static string? Cap(string? value, int max) => value is not null && value.Length > max ? value[..max] : value;
 
     private static bool TryOpen(string path, out FileStream stream)
     {
@@ -126,7 +133,7 @@ public static class VideoSidecarReader
         try
         {
             var info = new FileInfo(path);
-            if (!info.Exists || info.Length is 0 or > MaxSidecarBytes)
+            if (!info.Exists || info.Length is 0 or > MaxSidecarBytes || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
             {
                 return false;
             }

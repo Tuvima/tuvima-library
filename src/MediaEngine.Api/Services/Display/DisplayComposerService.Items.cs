@@ -80,6 +80,14 @@ public sealed partial class DisplayComposerService
             ? new Dictionary<Guid, DisplayCardDto>()
             : _cards.BuildTvShowCards(showWorks, progressByWork).ToDictionary(card => card.Id);
 
+        var videoWorks = works
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Video")
+            .Where(work => wanted.Contains(TvGroupId(work)) && !byWork.ContainsKey(TvGroupId(work)))
+            .ToList();
+        var videoCards = videoWorks.Count == 0
+            ? new Dictionary<Guid, DisplayCardDto>()
+            : _cards.BuildVideoCards(videoWorks, progressByWork).ToDictionary(card => card.Id);
+
         var albumKeys = works
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
             .Where(work => work.RootWorkId != Guid.Empty && wanted.Contains(work.RootWorkId) && !byWork.ContainsKey(work.RootWorkId))
@@ -106,6 +114,10 @@ public sealed partial class DisplayComposerService
             else if (showCards.TryGetValue(id, out var show))
             {
                 found.TryAdd(id, show);
+            }
+            else if (videoCards.TryGetValue(id, out var video))
+            {
+                found.TryAdd(id, video);
             }
             else if (albumCards.TryGetValue(id, out var album))
             {

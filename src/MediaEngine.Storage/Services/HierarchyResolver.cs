@@ -259,9 +259,11 @@ public sealed class HierarchyResolver
         var section = Get(meta, MetadataFieldConstants.VideoSection);
         if (!string.IsNullOrWhiteSpace(section))
         {
+            // Keyed by the folder's own name: two sections can clean to the same title ("01 Overview", "02 Overview").
+            var sectionKey = Get(meta, MetadataFieldConstants.VideoSectionKey) ?? section;
             var sectionIndex = ParseInt(Get(meta, MetadataFieldConstants.VideoSectionIndex)) ?? 1;
             leafParentId = await _works.GetOrCreateParentAsync(
-                MediaType.Videos, MakeKey("videos", seriesKey, "section", section), seriesId, sectionIndex, sectionIndex, ct);
+                MediaType.Videos, MakeKey("videos", seriesKey, "section", sectionKey), seriesId, sectionIndex, sectionIndex, ct);
         }
 
         var episode = ParseInt(Get(meta, MetadataFieldConstants.VideoEpisodeIndex));

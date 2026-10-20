@@ -87,6 +87,7 @@ public static class MetadataFieldConstants
     public const string VideoSection = "video_section";
     /// <summary>Position of the section inside its series.</summary>
     public const string VideoSectionIndex = "video_section_index";
+    public const string VideoSectionKey = "video_section_key";
     /// <summary>Position of the video inside its section or series.</summary>
     public const string VideoEpisodeIndex = "video_episode_index";
     /// <summary>How the video was identified: youtube_id, info_json, nfo or file_name.</summary>

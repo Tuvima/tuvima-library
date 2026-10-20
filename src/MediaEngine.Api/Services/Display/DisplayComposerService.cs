@@ -58,6 +58,7 @@ public sealed partial class DisplayComposerService
         var homeCollections = await homeCollectionsTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
+        var videoCards = _cards.BuildVideoCards(works, progressByWork);
 
         var musicAlbumCards = BuildMusicAlbumCards(works
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Music")
@@ -76,9 +77,10 @@ public sealed partial class DisplayComposerService
             .Select(group => group.Key.ToString("D")).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var freshCandidates = works
             .Where(work => !work.IsUpdatingDetails)
-            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
+            .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music" or "Video"))
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
             .Concat(tvShowCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))).Select(card => card with { TileTextMode = "coverOnly" }))
+            .Concat(videoCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))))
             .Concat(musicAlbumCards.Where(card => readyRoots.Contains((card.WorkId ?? card.Id).ToString("D"))))
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
@@ -94,6 +96,7 @@ public sealed partial class DisplayComposerService
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "Movie")
             .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
             .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
+            .Concat(videoCards)
             .OrderByDescending(card => card.SortTimestamp)
             .Take(Math.Max(1, shelfLimit))
             .ToList();
@@ -128,9 +131,10 @@ public sealed partial class DisplayComposerService
             Hero: spotlights.FirstOrDefault(),
             Shelves: shelves,
             Catalog: includeCatalog
-                ? works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music"))
+                ? works.Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) is not ("TV" or "Music" or "Video"))
                     .Select(work => _cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)))
                     .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
+                    .Concat(videoCards)
                     .Concat(musicAlbumCards)
                     .ToList()
                 : [])

@@ -550,6 +550,10 @@ public static class JsonConfigValidator
                     errors.Add($"{prefix}.videos libraries must use local_only metadata.");
                 }
             }
+            else if (library.MediaTypes.Any(type => string.Equals(type, nameof(MediaEngine.Domain.Enums.MediaType.Videos), StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add($"{prefix}.Videos must be a library of its own, with no other media type.");
+            }
             else if (library.MetadataPolicy != LibraryMetadataPolicies.Enriched)
             {
                 errors.Add($"{prefix}.catalogued libraries must use enriched metadata.");
