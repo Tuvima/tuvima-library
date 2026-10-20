@@ -8,12 +8,14 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -69,6 +71,9 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         ReadyWorks.TreatEveryWorkAsReady(_database);
         CreateAccount();
         SeedLibrary();
+        // The older tests are about visibility and sources, not spoilers, so the profile starts on "Everything"; the spoiler
+        // tests choose "Up to where I am" themselves.
+        SetSpoilerLevel(SpoilerLevels.Everything);
     }
 
     [Fact]
@@ -1225,10 +1230,14 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
         builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
         builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
+        builder.Services.AddSingleton<IViewerProgressRepository, ViewerProgressRepository>();
+        builder.Services.AddSingleton<IUserPlaybackSettingsService, UserPlaybackSettingsService>();
+        builder.Services.AddScoped<CharacterFirstSeenReader>();
+        builder.Services.AddScoped<CharacterSpoilerService>();
         builder.Services.AddScoped<UniverseConnectionsReadService>();
-        // The other graph actions are mapped too when asked, so they need to bind; the Cast and Adaptations actions never resolve these.
+        // The other graph actions are mapped too when asked, so they need to bind; only the graph action reads the era actors.
         builder.Services.AddSingleton<IUniverseGraphQueryService>(_ => throw new NotSupportedException());
-        builder.Services.AddSingleton<IEraActorResolverService>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<IEraActorResolverService, NoEraActors>();
         builder.Services.AddSingleton<ILoreDeltaService>(_ => throw new NotSupportedException());
         builder.Services.AddSingleton<IPluginLoreRepository, PluginLoreRepository>();
         builder.Services.AddScoped<UniverseClientReadService>();
@@ -1281,6 +1290,17 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
             Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
         public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
+    }
+
+    /// <summary>The graph action asks for era actors only with a timeline year; none is known here.</summary>
+    private sealed class NoEraActors : IEraActorResolverService
+    {
+        public Task<ActorResolution?> ResolveActorForEraAsync(string characterQid, int? timelineYear = null, CancellationToken ct = default) =>
+            Task.FromResult<ActorResolution?>(null);
+
+        public Task<IReadOnlyDictionary<string, ActorResolution>> ResolveActorsForEraAsync(
+            IEnumerable<string> characterQids, int? timelineYear = null, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, ActorResolution>>(new Dictionary<string, ActorResolution>());
     }
 
     private sealed class FixedAuthorityResolver(RequestAuthority authority) : IRequestAuthorityResolver

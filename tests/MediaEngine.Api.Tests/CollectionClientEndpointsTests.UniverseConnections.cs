@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Dapper;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Tests;
 
@@ -55,23 +56,26 @@ public sealed partial class CollectionClientEndpointsTests
     }
 
     [Fact]
-    public async Task Connections_ListACharacterWhoseOnlyAppearanceIsASpoiler_LastWithNoPlotDetails()
+    public async Task Connections_HoldBackACharacterWhoseOnlyAppearanceIsASpoilerForAnUnfinishedWork_AndCountIt()
     {
         SeedCast();
-        // Only seen as a spoiler for another work: named, but no work count and no plot details.
+        SetSpoilerLevel(SpoilerLevels.UpToProgress);
+        WatchFully(WorkIdOf("QW1"));
+        // Only seen as a spoiler for a film the profile has not finished: held back, and only counted.
         var spoilerOnly = AddEntity(UniverseQid, "Q8300", "A Zealous Spoiler", "Character");
         LinkEntityWithEvidence(spoilerOnly, "QW1", spoilerForWorkQid: "QW2");
-        // One spoiler appearance and one plain one: an ordinary character, counted by its plain appearance only.
+        // One spoiler appearance and one plain one: an ordinary character, known and counted by its plain appearance only.
         var mixed = AddEntity(UniverseQid, "Q8301", "Mixed Appearances", "Character");
-        LinkEntityWithEvidence(mixed, "QW1", spoilerForWorkQid: "QW2");
-        LinkEntityWithEvidence(mixed, "QW2", appearanceSuffix: "plain");
+        LinkEntityWithEvidence(mixed, "QW2", spoilerForWorkQid: "QW2");
+        LinkEntityWithEvidence(mixed, "QW1", appearanceSuffix: "plain");
         await using var app = await StartAsync(mapGraphActions: true);
 
         var connections = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!;
 
+        // Hero, Villain and Mixed are met in the film the profile finished; Hidden Villain is only in a film it has not started.
         var characters = connections["characters"]!.AsArray();
         Assert.Equal(
-            ["Hero", "Hidden Villain", "Mixed Appearances", "Villain", "A Zealous Spoiler"],
+            ["Hero", "Mixed Appearances", "Villain", "Hidden Villain"],
             characters.Select(character => character!["label"]!.GetValue<string>()));
         var last = characters[^1]!;
         Assert.True(last["no_plot_details"]!.GetValue<bool>());
@@ -80,7 +84,25 @@ public sealed partial class CollectionClientEndpointsTests
         var normal = characters.Single(character => character!["qid"]!.GetValue<string>() == "Q8301")!;
         Assert.False(normal["no_plot_details"]!.GetValue<bool>());
         Assert.Equal(1, normal["work_count"]!.GetValue<int>());
-        Assert.Equal(5, connections["character_count"]!.GetValue<int>());
+        Assert.Equal(4, connections["character_count"]!.GetValue<int>());
+        Assert.Equal(1, connections["hidden_character_count"]!.GetValue<int>());
+        Assert.DoesNotContain("A Zealous Spoiler", connections.ToJsonString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Connections_ListASpoilerMarkedCharacterWithItsCount_AtTheLevelEverything()
+    {
+        SeedCast();
+        var spoilerOnly = AddEntity(UniverseQid, "Q8300", "A Zealous Spoiler", "Character");
+        LinkEntityWithEvidence(spoilerOnly, "QW1", spoilerForWorkQid: "QW2");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var connections = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!;
+
+        var row = connections["characters"]!.AsArray().Single(character => character!["qid"]!.GetValue<string>() == "Q8300")!;
+        Assert.False(row["no_plot_details"]!.GetValue<bool>());
+        Assert.Equal(1, row["work_count"]!.GetValue<int>());
+        Assert.Equal(0, connections["hidden_character_count"]!.GetValue<int>());
     }
 
     [Fact]
@@ -153,6 +175,23 @@ public sealed partial class CollectionClientEndpointsTests
         var adaptations = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!["adaptations"]!.AsArray();
 
         var row = Assert.Single(adaptations)!;
+        Assert.Equal(["wikidata:Wikidata", "lore_plugin:Dune Wiki"], SourcesOf(row));
+    }
+
+    [Fact]
+    public async Task Connections_ListOneAdaptationRowPerPairOfWorks_WhateverWayRoundItWasRecorded()
+    {
+        SeedCast();
+        // The film is based on the novel (recorded from the film), and the novel lists the film as a derivative work
+        // (recorded from the novel's side, still "the film is an adaptation of the novel").
+        AddRelationship("Q8100", "derivative_work", "Q8101", "Plugin", "Dune Wiki", "derivative");
+        AddRelationship("Q8100", "based_on", "Q8101");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var adaptations = (await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"))["connections"]!["adaptations"]!.AsArray();
+
+        var row = Assert.Single(adaptations)!;
+        Assert.Equal("based on", row["adaptation"]!["relationship"]!.GetValue<string>());
         Assert.Equal(["wikidata:Wikidata", "lore_plugin:Dune Wiki"], SourcesOf(row));
     }
 

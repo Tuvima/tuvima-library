@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
@@ -61,6 +62,72 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         Assert.Equal([2d, 4d, 8d, 16d], settings.Listening.AudiobookScanRates);
         Assert.Equal(100, settings.Reading.FontSizePercent);
         Assert.True(settings.Subtitles.SubtitleBackground);
+    }
+
+    [Fact]
+    public async Task TheSpoilerLevel_IsUpToWhereIAm_UntilThePersonChoosesAnother()
+    {
+        Assert.Equal(SpoilerLevel.UpToProgress, await _service.GetSpoilerLevelAsync(_profileId));
+        Assert.Equal("up_to_progress", (await _service.GetAsync(_profileId)).General.SpoilerLevel);
+    }
+
+    [Fact]
+    public async Task ChoosingASpoilerLevel_IsSavedForThatProfileOnly()
+    {
+        var chosen = await _service.SetSpoilerLevelAsync(_profileId, "everything");
+
+        Assert.Equal(SpoilerLevel.Everything, chosen);
+        Assert.Equal(SpoilerLevel.Everything, await _service.GetSpoilerLevelAsync(_profileId));
+        Assert.Equal(SpoilerLevel.UpToProgress, await _service.GetSpoilerLevelAsync(_otherProfileId));
+        await _service.SetSpoilerLevelAsync(_profileId, "up_to_progress");
+        Assert.Equal(SpoilerLevel.UpToProgress, await _service.GetSpoilerLevelAsync(_profileId));
+    }
+
+    [Fact]
+    public async Task ChoosingASpoilerLevel_KeepsTheProfilesOtherPlaybackSettings()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Watching.DefaultPlaybackSpeed = 1.5m;
+        await _service.UpdateAsync(_profileId, settings);
+
+        await _service.SetSpoilerLevelAsync(_profileId, "everything");
+
+        Assert.Equal(1.5m, (await _service.GetAsync(_profileId)).Watching.DefaultPlaybackSpeed);
+    }
+
+    [Theory]
+    [InlineData("whole_work")]
+    [InlineData("")]
+    [InlineData("  ")]
+    public async Task ChoosingAnUnknownSpoilerLevel_IsRefused_AndKeepsTheSavedOne(string level)
+    {
+        await _service.SetSpoilerLevelAsync(_profileId, "everything");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetSpoilerLevelAsync(_profileId, level));
+
+        Assert.Equal(SpoilerLevel.Everything, await _service.GetSpoilerLevelAsync(_profileId));
+    }
+
+    [Fact]
+    public async Task ASpoilerLevelForAnUnknownProfile_IsNotFound()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.SetSpoilerLevelAsync(Guid.NewGuid(), "everything"));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _service.GetSpoilerLevelAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task ABulkPlaybackSave_NeverChangesTheSpoilerLevel()
+    {
+        await _service.SetSpoilerLevelAsync(_profileId, "everything");
+        var settings = await _service.GetAsync(_profileId);
+        settings.General.SpoilerLevel = "up_to_progress";
+        settings.Watching.DefaultPlaybackSpeed = 1.25m;
+
+        var saved = await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal("everything", saved.General.SpoilerLevel);
+        Assert.Equal(SpoilerLevel.Everything, await _service.GetSpoilerLevelAsync(_profileId));
+        Assert.Equal(1.25m, (await _service.GetAsync(_profileId)).Watching.DefaultPlaybackSpeed);
     }
 
     [Fact]

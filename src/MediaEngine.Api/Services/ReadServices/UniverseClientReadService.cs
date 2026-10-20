@@ -53,6 +53,10 @@ public sealed partial class UniverseClientReadService(
     public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default) =>
         (await BuildAsync(qid, profile, includeStandalone: false, includeCharacters: false, ct).ConfigureAwait(false))?.Detail;
 
+    /// <summary>The Wikidata work items the requesting profile may see (the one visibility set every Universe read uses).</summary>
+    internal Task<IReadOnlySet<string>> LoadVisibleWorkQidsAsync(CancellationToken ct) =>
+        connections.LoadVisibleWorkQidsAsync(ct);
+
     /// <summary>A Universe's detail, plus the visible works that belong directly to the Universe and to no Series.</summary>
     internal sealed record UniverseBuild(
         UniverseClientDetailDto Detail,
@@ -155,13 +159,9 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
-        var visibleWorkQids = allRows
-            .Select(row => row.IdentityQid)
-            .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
-            .Select(workQid => workQid!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct).ConfigureAwait(false);
         var universeConnections = await connections.GetConnectionsAsync(
-            normalized, visibleWorkQids, includeCharacters, ct).ConfigureAwait(false);
+            normalized, visibleWorkQids, includeCharacters, profile, ct).ConfigureAwait(false);
 
         return new UniverseBuild(
             new UniverseClientDetailDto

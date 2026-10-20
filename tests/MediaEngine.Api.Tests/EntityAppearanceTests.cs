@@ -2,12 +2,15 @@ using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -146,13 +149,60 @@ public sealed class EntityAppearanceTests : IDisposable
     }
 
     [Fact]
-    public async Task EntityWhoseOnlyAppearancesAreSpoilers_IsNotConfirmed()
+    public async Task ACharacterWhoseOnlyAppearancesAreSpoilersForAnUnfinishedWork_IsHeldBackWithoutBeingDescribed()
     {
         await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
         await LinkAsync(HalQid, "Q-spoiler-movie", spoilerFor: "Q-spoiler-movie");
         var service = CreateService(Row(Guid.NewGuid(), "Movies", "Q-spoiler-movie", "Spoiler Film", 2012));
 
-        Assert.Null(await service.GetForEntityAsync(UniverseQid, HalQid, profile: null));
+        var result = await service.GetForEntityAsync(UniverseQid, HalQid, profile: null);
+
+        Assert.NotNull(result);
+        Assert.True(result.HiddenForSpoilers);
+        Assert.Equal(string.Empty, result.SubjectLabel);
+        Assert.Null(result.SubjectQid);
+        Assert.Empty(result.Groups);
+        Assert.Equal(0, result.TotalWorks);
+    }
+
+    [Fact]
+    public async Task ASpoilerMarkedCharacter_IsDescribedInFull_AtTheLevelEverything()
+    {
+        await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
+        await LinkAsync(HalQid, "Q-spoiler-movie", spoilerFor: "Q-spoiler-movie");
+        var service = CreateService(Row(Guid.NewGuid(), "Movies", "Q-spoiler-movie", "Spoiler Film", 2012));
+        var profile = await ProfileWithLevelAsync(SpoilerLevels.Everything);
+
+        var result = await service.GetForEntityAsync(UniverseQid, HalQid, profile);
+
+        Assert.NotNull(result);
+        Assert.False(result.HiddenForSpoilers);
+        Assert.Equal("Hal Jordan", result.SubjectLabel);
+        Assert.Equal(1, result.TotalWorks);
+    }
+
+    [Fact]
+    public async Task ACharacterFirstSeenInALaterEpisode_IsHeldBack_UntilTheViewerReachesThatEpisode()
+    {
+        var show = Guid.NewGuid();
+        var episodeOne = TvEpisode(show, Guid.NewGuid(), "Q-ep-1", "Pilot", 2024, season: 1, number: 1);
+        var episodeTwo = TvEpisode(show, Guid.NewGuid(), "Q-ep-2", "Second", 2024, season: 1, number: 2);
+        SeedOwnedEpisode(show, episodeOne, "Q-ep-1", ordinal: 1);
+        SeedOwnedEpisode(show, episodeTwo, "Q-ep-2", ordinal: 2);
+        await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
+        await LinkTypedAsync(HalQid, "Q-ep-2", "first_appearance");
+        var service = CreateService(episodeOne, episodeTwo);
+        var profile = await ProfileWithLevelAsync(SpoilerLevels.UpToProgress);
+
+        SetProgress(profile.Id, episodeOne, 100);
+        var before = await service.GetForEntityAsync(UniverseQid, HalQid, profile);
+        SetProgress(profile.Id, episodeTwo, 5);
+        var after = await service.GetForEntityAsync(UniverseQid, HalQid, profile);
+
+        Assert.True(before!.HiddenForSpoilers);
+        Assert.False(after!.HiddenForSpoilers);
+        Assert.Equal("Hal Jordan", after.SubjectLabel);
+        Assert.Equal(1, after.TotalWorks);
     }
 
     [Fact]
@@ -400,11 +450,12 @@ public sealed class EntityAppearanceTests : IDisposable
             new EntityRelationshipRepository(_database),
             new NarrativeRootRepository(_database),
             _people,
-            display,
-            new PluginLoreRepository(_database));
+            new PluginLoreRepository(_database),
+            SpoilerTestKit.Create(display, _database));
         var universes = new UniverseClientReadService(new CollectionRepository(_database), display, cards, connections);
         var credits = new PersonCreditReadService(new CanonicalValueArrayRepository(_database), _people, _database);
-        return new EntityAppearanceReadService(_entities, _people, credits, display, cards, universes);
+        return new EntityAppearanceReadService(
+            _entities, _people, credits, display, cards, universes, SpoilerTestKit.Create(display, _database));
     }
 
     private static HttpContext HttpContextWithNoActiveProfile()
@@ -423,6 +474,57 @@ public sealed class EntityAppearanceTests : IDisposable
             EntitySubType = subType,
             FictionalUniverseQid = UniverseQid,
         });
+
+    private async Task LinkTypedAsync(string entityQid, string workQid, string linkType)
+    {
+        var entity = await _entities.FindByQidAsync(entityQid);
+        await _entities.LinkToWorkAsync(new FictionalEntityWorkLink(entity!.Id, workQid, null, linkType));
+    }
+
+    private async Task<Profile> ProfileWithLevelAsync(string level)
+    {
+        var profiles = new ProfileRepository(_database);
+        await new UserPlaybackSettingsService(_database, profiles).SetSpoilerLevelAsync(Profile.SeedProfileId, level);
+        return (await profiles.GetByIdAsync(Profile.SeedProfileId))!;
+    }
+
+    /// <summary>Writes the work, edition and file behind a hand-made display row, so the profile's progress can be stored against it.</summary>
+    private void SeedOwnedEpisode(Guid show, DisplayWorkRow row, string qid, int ordinal)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT OR IGNORE INTO works (id, media_type, work_kind) VALUES (@show, 'TV', 'parent');
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, wikidata_qid)
+            VALUES (@work, 'TV', 'child', @show, @ordinal, @qid);
+            INSERT INTO editions (id, work_id) VALUES (@edition, @work);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+            VALUES (@asset, @edition, @hash, @path);
+            """,
+            new
+            {
+                show,
+                work = row.WorkId,
+                edition = row.EditionId,
+                asset = row.AssetId,
+                qid,
+                ordinal,
+                hash = row.AssetId.ToString("N"),
+                path = $"C:/library/Lanterns/{row.AssetId:N}.mkv",
+            });
+    }
+
+    private void SetProgress(Guid profileId, DisplayWorkRow row, double percent)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO user_states (user_id, asset_id, content_hash, progress_pct, last_accessed, extended_properties, revision)
+            VALUES (@profileId, @asset, @hash, @percent, CURRENT_TIMESTAMP, '{}', 0)
+            ON CONFLICT(user_id, asset_id) DO UPDATE SET progress_pct = excluded.progress_pct;
+            """,
+            new { profileId, asset = row.AssetId, hash = row.AssetId.ToString("N"), percent });
+    }
 
     private async Task LinkAsync(string entityQid, string workQid, string? role = null, string? spoilerFor = null)
     {
@@ -536,10 +638,13 @@ public sealed class EntityAppearanceTests : IDisposable
         };
 
     /// <summary>One owned episode: its own work id, but the show's root id, which is what groups episodes into a show.</summary>
-    private static DisplayWorkRow TvEpisode(Guid showRootId, Guid episodeId, string identityQid, string title, int year, Guid? collectionId = null)
+    private static DisplayWorkRow TvEpisode(
+        Guid showRootId, Guid episodeId, string identityQid, string title, int year, Guid? collectionId = null, int? season = null, int? number = null)
     {
         var row = Row(episodeId, "TV", identityQid, title, year, collectionId);
         row.RootWorkId = showRootId;
+        row.SeasonNumber = season?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        row.EpisodeNumber = number?.ToString(System.Globalization.CultureInfo.InvariantCulture);
         row.ShowName = "Lanterns";
         row.RootCoverUrl = $"/stream/artwork/{showRootId:D}";
         return row;

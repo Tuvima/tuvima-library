@@ -3,6 +3,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -33,13 +34,13 @@ public static class UniverseGraphEndpoints
             INarrativeRootRepository rootRepo,
             IFictionalEntityRepository entityRepo,
             IEntityRelationshipRepository relRepo,
-            IDisplayProjectionReadService display,
+            UniverseConnectionsReadService connections,
             HttpContext httpContext,
             CatalogueResourceAuthorizationService resourceAuthorization,
             CancellationToken ct) =>
         {
             var roots = await rootRepo.ListAllAsync(ct);
-            var visibleWorkQids = await LoadVisibleWorkQidsAsync(display, ct);
+            var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct);
             var results = new List<UniverseListItemDto>();
             foreach (var root in roots)
             {
@@ -91,7 +92,7 @@ public static class UniverseGraphEndpoints
             INarrativeRootRepository rootRepo,
             IFictionalEntityRepository entityRepo,
             IEntityRelationshipRepository relRepo,
-            IDisplayProjectionReadService display,
+            UniverseConnectionsReadService connections,
             CancellationToken ct) =>
         {
             var root = await rootRepo.FindByQidAsync(qid, ct);
@@ -100,7 +101,7 @@ public static class UniverseGraphEndpoints
                 return ApiErrors.NotFound($"Narrative root '{qid}' not found.");
             }
 
-            var visibleWorkQids = await LoadVisibleWorkQidsAsync(display, ct);
+            var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct);
             var entities = (await LoadVisibleUniverseScopeAsync(
                 qid, entityRepo, visibleWorkQids, ct)).Entities;
             var entityQids = entities.Select(e => e.WikidataQid).ToHashSet();
@@ -161,12 +162,14 @@ public static class UniverseGraphEndpoints
             int? depth,
             int? timeline_year,
             bool? include_supplemental_lore,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniverseConnectionsReadService connections,
             INarrativeRootRepository rootRepo,
             IFictionalEntityRepository entityRepo,
             IEntityRelationshipRepository relRepo,
             IPluginLoreRepository pluginLoreRepo,
             IEraActorResolverService eraActorResolver,
-            IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
             var root = await rootRepo.FindByQidAsync(qid, ct);
@@ -176,10 +179,15 @@ public static class UniverseGraphEndpoints
             }
 
             // Load all entities in this universe.
-            var visibleWorkQids = await LoadVisibleWorkQidsAsync(display, ct);
+            var visibleWorkQids = await connections.LoadVisibleWorkQidsAsync(ct);
             var visibleScope = await LoadVisibleUniverseScopeAsync(
                 qid, entityRepo, visibleWorkQids, ct);
-            var allEntities = visibleScope.Entities;
+            // Characters the profile has not reached are left out of the graph, the same rule as every other list of characters.
+            var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
+            var visibility = await connections.EvaluateCharactersAsync(visibleScope, profile, ct);
+            var allEntities = visibleScope.Entities
+                .Where(entity => !IsHidden(visibility, entity))
+                .ToList();
 
             // Apply type filter if specified (e.g. ?types=Character,Location).
             if (!string.IsNullOrWhiteSpace(types))
@@ -202,7 +210,13 @@ public static class UniverseGraphEndpoints
             }
 
             var entityQids = allEntities.Select(e => e.WikidataQid).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var relationships = (await relRepo.GetByUniverseAsync(entityQids, ct)).ToList();
+            var hiddenQids = visibleScope.Entities
+                .Where(entity => IsHidden(visibility, entity))
+                .Select(entity => entity.WikidataQid)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var relationships = (await relRepo.GetByUniverseAsync(entityQids, ct))
+                .Where(edge => !hiddenQids.Contains(edge.SubjectQid) && !hiddenQids.Contains(edge.ObjectQid))
+                .ToList();
 
             // Apply ego-network filter (e.g. ?center=Q937618&depth=1).
             if (!string.IsNullOrWhiteSpace(center) && entityQids.Contains(center))
@@ -277,7 +291,8 @@ public static class UniverseGraphEndpoints
                     id: entity.WikidataQid,
                     label: entity.Label,
                     type: entity.EntitySubType,
-                    description: entity.Description,
+                    // "No plot details" names the character and nothing else.
+                    description: visibility.GetValueOrDefault(entity.Id) == CharacterVisibility.NoPlotDetails ? null : entity.Description,
                     image: image,
                     works: workLinksByEntity[entity.Id]
                         .Where(link => visibleWorkQids.Contains(link.WorkQid))
@@ -338,6 +353,7 @@ public static class UniverseGraphEndpoints
                     types,
                     pluginLoreRepo,
                     entityQids,
+                    hiddenQids,
                     nodes,
                     edges,
                     ct).ConfigureAwait(false);
@@ -358,12 +374,16 @@ public static class UniverseGraphEndpoints
             string from,
             string to,
             int? maxHops,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniverseConnectionsReadService connections,
             IUniverseGraphQueryService graphQuery,
             IFictionalEntityRepository entityRepo,
-            IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var visibleQids = await LoadVisibleEntityQidsAsync(qid, entityRepo, display, ct);
+            var visibleQids = await LoadVisibleEntityQidsAsync(
+                qid, entityRepo, connections,
+                await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct), ct);
             var paths = await graphQuery.FindPathsAsync(qid, from, to, maxHops ?? 4, ct);
             paths = paths.Where(path => path.All(visibleQids.Contains)).ToList();
             return Results.Ok(new UniversePathsResponse(universe_qid: qid, from_qid: from, to_qid: to, paths: paths));
@@ -377,12 +397,16 @@ public static class UniverseGraphEndpoints
             string qid,
             string character,
             int? generations,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniverseConnectionsReadService connections,
             IUniverseGraphQueryService graphQuery,
             IFictionalEntityRepository entityRepo,
-            IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var visibleQids = await LoadVisibleEntityQidsAsync(qid, entityRepo, display, ct);
+            var visibleQids = await LoadVisibleEntityQidsAsync(
+                qid, entityRepo, connections,
+                await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct), ct);
             var tree = await graphQuery.GetFamilyTreeAsync(qid, character, generations ?? 3, ct);
             return Results.Ok(new UniverseFamilyTreeResponse(
                 universe_qid: qid,
@@ -398,9 +422,14 @@ public static class UniverseGraphEndpoints
         // GET /universe/{qid}/cast — characters with their real-world performers.
         group.MapGet("/universe/{qid}/cast", async (
             string qid,
+            HttpContext http,
+            IProfileRepository profiles,
             UniverseConnectionsReadService connections,
             CancellationToken ct) =>
-            Results.Ok(await connections.GetCastAsync(qid, ct)))
+            Results.Ok(await connections.GetCastAsync(
+                qid,
+                await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct),
+                ct)))
         .Produces<UniverseCastResponse>(StatusCodes.Status200OK)
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
@@ -426,22 +455,31 @@ public static class UniverseGraphEndpoints
     private static async Task<HashSet<string>> LoadVisibleEntityQidsAsync(
         string universeQid,
         IFictionalEntityRepository entityRepo,
-        IDisplayProjectionReadService display,
-        CancellationToken ct) =>
-        (await LoadVisibleUniverseScopeAsync(
+        UniverseConnectionsReadService connections,
+        Profile? profile,
+        CancellationToken ct)
+    {
+        var scope = await LoadVisibleUniverseScopeAsync(
             universeQid,
             entityRepo,
-            await LoadVisibleWorkQidsAsync(display, ct),
-            ct))
-        .Entities
-        .Select(entity => entity.WikidataQid)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            await connections.LoadVisibleWorkQidsAsync(ct),
+            ct);
+        var visibility = await connections.EvaluateCharactersAsync(scope, profile, ct);
+        return scope.Entities
+            .Where(entity => !IsHidden(visibility, entity))
+            .Select(entity => entity.WikidataQid)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHidden(IReadOnlyDictionary<Guid, CharacterVisibility> visibility, FictionalEntity entity) =>
+        visibility.TryGetValue(entity.Id, out var value) && value == CharacterVisibility.Hidden;
 
     private static async Task AppendSupplementalLoreAsync(
         string universeQid,
         string? types,
         IPluginLoreRepository pluginLoreRepo,
         IReadOnlySet<string> existingQids,
+        IReadOnlySet<string> hiddenQids,
         List<UniverseGraphNodeDto> nodes,
         List<UniverseGraphEdgeDto> edges,
         CancellationToken ct)
@@ -463,6 +501,12 @@ public static class UniverseGraphEndpoints
 
         foreach (var entity in supplementalEntities)
         {
+            // A character the profile has not reached stays out even when a lore source also holds it.
+            if (!string.IsNullOrWhiteSpace(entity.WikidataQid) && hiddenQids.Contains(entity.WikidataQid))
+            {
+                continue;
+            }
+
             var nodeId = !string.IsNullOrWhiteSpace(entity.WikidataQid)
                 ? entity.WikidataQid
                 : BuildSupplementalNodeId(entity.SourceId, entity.ExternalKey);

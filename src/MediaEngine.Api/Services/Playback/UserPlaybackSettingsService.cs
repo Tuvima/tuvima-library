@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
 
@@ -37,6 +38,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         "60",
         PlaybackPreferenceValues.EndOfChapter,
         PlaybackPreferenceValues.EndOfEpisode);
+    private static readonly HashSet<string> SpoilerLevelValues = BuildSet(
+        SpoilerLevels.UpToProgress,
+        SpoilerLevels.Everything);
     private static readonly HashSet<string> OutputValues = BuildSet(
         PlaybackPreferenceValues.Auto,
         PlaybackPreferenceValues.Headphones,
@@ -153,8 +157,35 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         }
 
         var normalized = Normalize(settings, profileId);
+        // The spoiler level changes only through the person's own action (SetSpoilerLevelAsync); a bulk save, even by an
+        // administrator of the household, keeps what is stored.
+        normalized.General.SpoilerLevel = (await GetAsync(profileId, ct)).General.SpoilerLevel;
         Validate(normalized);
+        return Save(normalized, profileId);
+    }
 
+    public async Task<SpoilerLevel> GetSpoilerLevelAsync(Guid profileId, CancellationToken ct = default) =>
+        SpoilerLevels.Parse((await GetAsync(profileId, ct)).General.SpoilerLevel);
+
+    public async Task<SpoilerLevel> SetSpoilerLevelAsync(Guid profileId, string level, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!SpoilerLevels.IsValid(level))
+        {
+            throw new ArgumentException(
+                $"Spoiler level must be '{SpoilerLevels.UpToProgress}' or '{SpoilerLevels.Everything}'.", nameof(level));
+        }
+
+        var settings = Normalize(await GetAsync(profileId, ct), profileId);
+        var chosen = SpoilerLevels.Parse(level);
+        settings.General.SpoilerLevel = SpoilerLevels.ToWire(chosen);
+        Validate(settings);
+        Save(settings, profileId);
+        return chosen;
+    }
+
+    private UserPlaybackSettingsDto Save(UserPlaybackSettingsDto normalized, Guid profileId)
+    {
         normalized.UpdatedAt = DateTimeOffset.UtcNow;
         var json = JsonSerializer.Serialize(normalized, JsonOptions);
 
@@ -287,6 +318,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.General.SyncFrequencyMinutes, SyncFrequencyValues, nameof(settings.General.SyncFrequencyMinutes));
         RequireAllowed(settings.Watching.PreferredVideoQuality, VideoQualityValues, nameof(settings.Watching.PreferredVideoQuality));
         RequireAllowed(settings.Listening.DefaultSleepTimer, SleepTimerValues, nameof(settings.Listening.DefaultSleepTimer));
+        RequireAllowed(settings.General.SpoilerLevel, SpoilerLevelValues, nameof(settings.General.SpoilerLevel));
         RequireAllowed(settings.Listening.OutputPreference, OutputValues, nameof(settings.Listening.OutputPreference));
         RequireAllowed(settings.Reading.ReadingMode, ReadingModeValues, nameof(settings.Reading.ReadingMode));
         RequireAllowed(settings.Reading.LineSpacing, LineSpacingValues, nameof(settings.Reading.LineSpacing));

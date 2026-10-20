@@ -6,6 +6,7 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Api.Services.ReadServices;
 
@@ -14,7 +15,8 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// Wikidata item, never the same name) or a person (their library credits). Every Work comes from the authorised display
 /// projection, so a Work the requesting profile may not see is never listed or counted. Rows are grouped by format and a
 /// TV show is one entry however many episodes are owned. For an entity the answer also says how many Works in the
-/// Universe have no character details yet, so the list is honest about what it may be missing.
+/// Universe have no character details yet, so the list is honest about what it may be missing. A character the profile
+/// has not reached is not described at all (the one spoiler rule, <see cref="CharacterSpoilerService"/>).
 /// </summary>
 public sealed class EntityAppearanceReadService(
     IFictionalEntityRepository entities,
@@ -22,7 +24,8 @@ public sealed class EntityAppearanceReadService(
     IPersonCreditReadService personCredits,
     IDisplayProjectionReadService display,
     DisplayCardBuilder cards,
-    UniverseClientReadService universes)
+    UniverseClientReadService universes,
+    CharacterSpoilerService spoilers)
 {
     /// <summary>Format order of the groups, with the user-facing plural heading of each.</summary>
     private static readonly (string Kind, string Label)[] GroupOrder =
@@ -37,9 +40,9 @@ public sealed class EntityAppearanceReadService(
 
     /// <summary>
     /// The Works that share one character, place or organisation. Null when no such entity exists or none of its Works is
-    /// visible to the profile, so an entity the profile cannot see about is never confirmed. An appearance marked as a
-    /// spoiler for a work is left out until the Library knows how far the viewer has got (the same rule as the Universe
-    /// page's Characters list, where such a character has "no plot details").
+    /// visible to the profile, so an entity the profile cannot see about is never confirmed. A character held back by the
+    /// spoiler rule comes back flagged <c>hidden_for_spoilers</c> and names nothing; an appearance marked as a spoiler for
+    /// a work is left out unless the profile may see it (the same rule as the Universe page's Characters list).
     /// </summary>
     public async Task<EntityAppearancesDto?> GetForEntityAsync(
         string universeQid,
@@ -54,16 +57,36 @@ public sealed class EntityAppearanceReadService(
         }
 
         var rows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
-        var rowsByWorkQid = rows
-            .Where(row => !string.IsNullOrWhiteSpace(row.IdentityQid))
-            .GroupBy(row => row.IdentityQid!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => (IReadOnlyList<DisplayWorkRow>)group.ToList(), StringComparer.OrdinalIgnoreCase);
+        var view = await spoilers.LoadAsync(profile, ct).ConfigureAwait(false);
+        var story = view.Story;
 
-        // The same visibility rule as every Universe read: only links to a work the profile may see, and no spoiler-marked ones.
-        var visibleLinks = (await entities.GetWorkLinksAsync(entity.Id, ct).ConfigureAwait(false))
-            .Where(link => rowsByWorkQid.ContainsKey(link.WorkQid)
-                && string.IsNullOrWhiteSpace(link.SpoilerForWorkQid))
+        // The same visibility rule as every Universe read: only links to a work the profile may see.
+        var seenLinks = (await entities.GetWorkLinksAsync(entity.Id, ct).ConfigureAwait(false))
+            .Where(link => story.VisibleQids.Contains(link.WorkQid))
             .ToList();
+        if (seenLinks.Count == 0)
+        {
+            return null;
+        }
+
+        // ...and the one spoiler rule: a character the profile has not reached is not described, and an appearance marked as
+        // a spoiler is left out (other kinds of entity have no episode to place them by, so only the markers apply).
+        var isCharacter = string.Equals(entity.EntitySubType, "Character", StringComparison.OrdinalIgnoreCase);
+        if (isCharacter && view.Evaluate(seenLinks) == CharacterVisibility.Hidden)
+        {
+            return new EntityAppearancesDto
+            {
+                UniverseQid = universeQid,
+                SubjectKind = EntityAppearanceSubjectKinds.Character,
+                HiddenForSpoilers = true,
+            };
+        }
+
+        var visibleLinks = isCharacter
+            ? view.Counted(seenLinks)
+            : view.Level == SpoilerLevel.Everything
+                ? seenLinks
+                : seenLinks.Where(link => string.IsNullOrWhiteSpace(link.SpoilerForWorkQid)).ToList();
         if (visibleLinks.Count == 0)
         {
             return null;
@@ -73,7 +96,7 @@ public sealed class EntityAppearanceReadService(
         foreach (var workGroup in visibleLinks.GroupBy(link => link.WorkQid, StringComparer.OrdinalIgnoreCase))
         {
             var roles = workGroup.Select(link => link.AppearanceRole);
-            foreach (var card in BuildCards(rowsByWorkQid[workGroup.Key]))
+            foreach (var card in BuildCards(story.RowsFor(workGroup.Key)))
             {
                 AddEntry(entries, card, roles);
             }

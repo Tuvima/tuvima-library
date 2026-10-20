@@ -172,6 +172,33 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
         await AssertForbiddenAsync(http, _householdOneOtherProfile.Id);
     }
 
+    [Fact]
+    public async Task TheSpoilerPreference_IsOnlyForThePersonThemselves_EvenForAHouseholdAdministrator()
+    {
+        var http = Caller(_householdOneAdmin, _householdOneAdultProfile);
+
+        Assert.True(await ProfileEndpoints.IsActiveProfileAuthorizedAsync(http, _householdOneAdultProfile.Id));
+        // The administrator may manage the other person's playback settings, but not the spoiler level.
+        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOneOtherProfile.Id));
+        Assert.False(await ProfileEndpoints.IsActiveProfileAuthorizedAsync(http, _householdOneOtherProfile.Id));
+        Assert.False(await ProfileEndpoints.IsActiveProfileAuthorizedAsync(http, _householdTwoProfile.Id));
+    }
+
+    [Fact]
+    public void TheSpoilerPreferenceRoutes_AreGuardedByTheActiveProfile_NotTheSettingsAdministratorRule()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src/MediaEngine.Api/Endpoints/ProfileEndpoints.cs")));
+        var start = source.IndexOf("group.MapGet(\"/{id:guid}/settings/spoilers\"", StringComparison.Ordinal);
+        var end = source.IndexOf("group.MapGet(\"/{id:guid}/sequence-preferences/missing-items\"", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+
+        var routes = source[start..end];
+        Assert.Contains("group.MapPut(\"/{id:guid}/settings/spoilers\"", routes, StringComparison.Ordinal);
+        Assert.Equal(2, routes.Split(".RequireActiveProfile();").Length - 1);
+        Assert.DoesNotContain("RequireProfileSettingsAccess", routes, StringComparison.Ordinal);
+    }
+
     private static async Task AssertForbiddenAsync(HttpContext http, Guid profileId)
     {
         var result = await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, profileId);

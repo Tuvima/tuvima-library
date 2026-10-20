@@ -29,7 +29,11 @@
                     }
                     else
                     {
-                        @if (section.Result is { Groups.Count: > 0 } result)
+                        @if (section.Result is { HiddenForSpoilers: true })
+                        {
+                            <p class="also-appears-in__empty" data-note="hidden-for-spoilers">@section.Label is hidden to avoid spoilers.</p>
+                        }
+                        else if (section.Result is { Groups.Count: > 0 } result)
                         {
                             @foreach (var group in result.Groups)
                             {

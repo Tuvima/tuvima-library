@@ -312,24 +312,60 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ACharacterWithNoPlotDetails_ShowsNameTagAndSourceOnly_AndIsNeverInteractive()
+    public void ACharacterWithNoPlotDetails_ShowsNameTagAndSourceOnly_ButStillOpensAlsoAppearsIn()
     {
-        UniverseCharacterDto? chosen = null;
+        var chosen = new List<UniverseCharacterDto>();
 
         var cut = Render<UniverseCharacterList>(parameters => parameters
             .Add(p => p.Characters, [Character("Q1", "Stilgar", 4, noPlotDetails: true), Character("Q2", "Paul", 2)])
-            .Add(p => p.OnCharacterSelected, character => chosen = character));
+            .Add(p => p.OnCharacterSelected, character => chosen.Add(character)));
 
         var spoilerItem = cut.FindAll(".universe-characters__item")[0];
         Assert.Equal("Stilgar", spoilerItem.QuerySelector(".universe-characters__name")!.TextContent);
         Assert.Contains("No plot details", spoilerItem.TextContent);
         Assert.Equal("Source: Wikidata", spoilerItem.QuerySelector(".universe-characters__source")!.TextContent);
-        Assert.Null(spoilerItem.QuerySelector("button"));
         Assert.Null(spoilerItem.QuerySelector(".universe-characters__works"));
         Assert.DoesNotContain("of your work", spoilerItem.TextContent);
-        // The next row stays a normal, chosen-able one.
-        Assert.Single(cut.FindAll("button.universe-characters__row")).Click();
-        Assert.Equal("Q2", chosen!.Qid);
+        // "Also appears in" lists Works, not plot, so both rows can be chosen.
+        Assert.Equal(2, cut.FindAll("button.universe-characters__row").Count);
+        cut.FindAll("button.universe-characters__row")[0].Click();
+        cut.FindAll("button.universe-characters__row")[1].Click();
+        Assert.Equal(["Q1", "Q2"], chosen.Select(character => character.Qid));
+    }
+
+    [Theory]
+    [InlineData(1, "1 character hidden to avoid spoilers")]
+    [InlineData(3, "3 characters hidden to avoid spoilers")]
+    public void CharactersLeftOutToAvoidSpoilers_AreCountedInOneHonestLine(int hidden, string expected)
+    {
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [Character("Q1", "Paul", 2)])
+            .Add(p => p.CharacterCount, 1)
+            .Add(p => p.HiddenCount, hidden));
+
+        Assert.Equal(expected, cut.Find("[data-hidden-characters]").TextContent);
+        Assert.Single(cut.FindAll(".universe-characters__item"));
+    }
+
+    [Fact]
+    public void WhenEveryCharacterIsHeldBack_TheListShowsOnlyTheHiddenLine()
+    {
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [])
+            .Add(p => p.HiddenCount, 4));
+
+        Assert.Empty(cut.FindAll(".universe-characters"));
+        Assert.Equal("4 characters hidden to avoid spoilers", cut.Find("[data-hidden-characters]").TextContent);
+    }
+
+    [Fact]
+    public void NoHiddenLine_IsShown_WhenNothingIsHeldBack()
+    {
+        var cut = Render<UniverseCharacterList>(parameters => parameters
+            .Add(p => p.Characters, [Character("Q1", "Paul", 2)])
+            .Add(p => p.HiddenCount, 0));
+
+        Assert.Empty(cut.FindAll("[data-hidden-characters]"));
     }
 
     [Fact]
@@ -419,6 +455,22 @@ public sealed class UniverseComponentTests : AsyncBunitContext
             "No adaptation relationships recorded yet. Works appear here when Wikidata links them as \"based on\", \"derivative work\" or \"inspired by\".",
             Normalise(cut.Markup)));
         Assert.Empty(cut.FindAll(".adaptation-tree"));
+    }
+
+    [Fact]
+    public void TheConnections_StillShowTheCharactersColumn_WhenEveryCharacterIsHeldBack()
+    {
+        var page = new UniversePageDto
+        {
+            Detail = new UniverseClientDetailDto { Qid = "Q1", Name = "Test World" },
+            Connections = new UniverseConnectionsDto { HiddenCharacterCount = 2 },
+            Enrichment = new UniverseEnrichmentStateDto { State = UniverseEnrichmentStateDto.Ready },
+        };
+
+        var cut = Render<UniverseConnections>(parameters => parameters.Add(p => p.Page, page));
+
+        Assert.Equal("2 characters hidden to avoid spoilers", cut.Find("[data-hidden-characters]").TextContent);
+        Assert.DoesNotContain("No characters, cast or adaptations recorded", cut.Markup);
     }
 
     // Helpers -------------------------------------------------------------------------------------------------------
