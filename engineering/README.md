@@ -431,7 +431,13 @@ Published pages are listed in `website/publication.json`; status comes from each
 | [.claude/agents/verifier.md](../.claude/agents/verifier.md) | Current — helper agent |
 | [.claude/rules/architecture-boundaries.md](../.claude/rules/architecture-boundaries.md) | Current — Claude rule file |
 | [.claude/rules/build-and-ai-runtime.md](../.claude/rules/build-and-ai-runtime.md) | Current — Claude rule file |
+| [.claude/rules/cloud-first.md](../.claude/rules/cloud-first.md) | Current — Claude rule file |
+| [engineering/validation/batch.md](validation/batch.md) | Current — local validation batch list |
 | [.claude/rules/dashboard-surfaces.md](../.claude/rules/dashboard-surfaces.md) | Current — Claude rule file |
+| [.claude/rules/dashboard-surfaces-collections-tv.md](../.claude/rules/dashboard-surfaces-collections-tv.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-editor.md](../.claude/rules/dashboard-surfaces-editor.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-home-player.md](../.claude/rules/dashboard-surfaces-home-player.md) | Current — Claude rule file (split from dashboard-surfaces) |
+| [.claude/rules/dashboard-surfaces-settings-setup.md](../.claude/rules/dashboard-surfaces-settings-setup.md) | Current — Claude rule file (split from dashboard-surfaces) |
 | [.claude/rules/data-store.md](../.claude/rules/data-store.md) | Current — Claude rule file |
 | [.claude/rules/dependencies.md](../.claude/rules/dependencies.md) | Current — Claude rule file |
 | [.claude/rules/docs.md](../.claude/rules/docs.md) | Current — Claude rule file |
