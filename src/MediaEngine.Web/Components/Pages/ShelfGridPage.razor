@@ -1,0 +1,151 @@
+@page "/all/{Lane}/{ShelfKey}"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Components.Browse
+@implements IAsyncDisposable
+
+@inject IEngineApiClient ApiClient
+@inject NavigationManager Nav
+@inject IAppToastService Toasts
+@inject IJSRuntime JS
+@inject ILogger<ShelfGridPage> Logger
+
+<PageTitle>@PageTitleText - Tuvima Library</PageTitle>
+
+@* View all: the full list behind a shelf's "See all", as a grid with a remembered sort and filters the Engine says are worth showing.
+   Sort and filters live in the address (replaced, never pushed, so Back leaves the page). The grid pages in 48 at a time: more loads as the
+   end comes near, and a Load more button always stays under the grid for keyboards, remotes and screen readers. *@
+<section class="shelf-grid-page" aria-labelledby="shelf-grid-title" data-shelf-grid-page>
+    @if (_notFound)
+    {
+        <AppPageState Kind="AppPageStateKind.Unavailable"
+                      Title="This list isn't available"
+                      Message="It may have been removed, or it isn't part of the libraries you can see.">
+            <Actions>
+                <AppButton Href="/" Label="Go to Home" Size="AppControlSize.Large" />
+            </Actions>
+        </AppPageState>
+    }
+    else
+    {
+        <header class="shelf-grid-page__header">
+            @if (_page is { } header)
+            {
+                <h1 id="shelf-grid-title" class="shelf-grid-page__title">@header.Title</h1>
+                @if (!string.IsNullOrWhiteSpace(header.Subtitle))
+                {
+                    <p class="shelf-grid-page__subtitle">@header.Subtitle</p>
+                }
+            }
+            else
+            {
+                <h1 id="shelf-grid-title" class="sr-only">@(_loading ? "Loading" : "View all")</h1>
+                @if (_loading)
+                {
+                    <AppSkeleton Class="shelf-grid-page__title-skeleton" />
+                }
+            }
+            <p class="shelf-grid-page__count" role="status" aria-live="polite" data-shelf-grid-count>@CountText</p>
+        </header>
+
+        @if (_page is { } controls)
+        {
+            <div class="shelf-grid-page__filters">
+                <BrowseFilterSheet ActiveCount="@ActiveFilters.Count"
+                                   ResultLabel="@CountLabel(controls.TotalCount)"
+                                   OnClear="ClearFiltersAsync">
+                    <ChildContent Context="inSheet">
+                        <div class="shelf-grid-page__controls @(inSheet ? "is-sheet" : "")">
+                            <div class="shelf-grid-page__control">
+                                <AppSelect Label="Sort by"
+                                           Size="AppControlSize.Large"
+                                           Value="@CurrentSort"
+                                           ValueChanged="OnSortChangedAsync"
+                                           Options="@SortChoices" />
+                            </div>
+                            @foreach (var group in controls.Filters)
+                            {
+                                var filterKey = group.Key;
+                                <div class="shelf-grid-page__control" @key="filterKey">
+                                    <AppSelect Label="@group.Label"
+                                               Size="AppControlSize.Large"
+                                               Value="@SelectedValue(group)"
+                                               ValueChanged="@(value => OnFilterChangedAsync(filterKey, value))"
+                                               Options="@FilterChoices(group)" />
+                                </div>
+                            }
+                        </div>
+                    </ChildContent>
+                </BrowseFilterSheet>
+                <AppActiveFilterSummary Items="@ActiveFilters"
+                                        Remove="RemoveFilterAsync"
+                                        ClearAll="ClearFiltersAsync" />
+            </div>
+        }
+
+        @if (_loading)
+        {
+            <div class="shelf-grid-page__skeleton" role="status" aria-label="Loading">
+                @for (var index = 0; index < SkeletonTileCount; index++)
+                {
+                    <div class="shelf-grid-page__skeleton-tile">
+                        <AppSkeleton Class="shelf-grid-page__skeleton-art" />
+                        <AppSkeleton Class="shelf-grid-page__skeleton-caption" />
+                    </div>
+                }
+            </div>
+        }
+        else if (_failed)
+        {
+            <AppErrorState Title="This list could not load"
+                           Message="The Dashboard could not read it from the Engine."
+                           Retry="ReloadAsync" />
+        }
+        else if (_tiles.Count == 0)
+        {
+            @if (ActiveFilters.Count > 0)
+            {
+                <AppEmptyState Title="Nothing matches these filters"
+                               Message="Try removing a filter to see more.">
+                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Large" OnClick="ClearFiltersAsync" /></Action>
+                </AppEmptyState>
+            }
+            else
+            {
+                <AppEmptyState Title="Nothing here yet" />
+            }
+        }
+        else
+        {
+            <MediaTileGrid Items="@_tiles"
+                           HoverMode="MediaTileHoverMode.GlowOnly"
+                           HideMediaKindBadges="true"
+                           HideSourceBadges="true"
+                           HideGroupKind="true"
+                           ShowCompactCaptions="true"
+                           TileSizePx="@TileSizePx"
+                           Class="shelf-grid-page__grid" />
+
+            @if (_hasMore)
+            {
+                <div class="shelf-grid-page__more">
+                    @if (_moreFailed)
+                    {
+                        <p class="shelf-grid-page__more-error" role="status">Couldn't load more titles.</p>
+                        <AppButton Label="Try again" Size="AppControlSize.Large" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
+                    }
+                    else
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Filled"
+                                   Tone="AppUiTone.Primary"
+                                   Size="AppControlSize.Large"
+                                   Label="Load more"
+                                   Loading="@_loadingMore"
+                                   OnClick="LoadMoreAsync" />
+                    }
+                </div>
+            }
+
+            <div @ref="_sentinel" class="shelf-grid-page__sentinel" aria-hidden="true"></div>
+        }
+    }
+</section>
