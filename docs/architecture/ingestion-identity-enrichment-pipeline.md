@@ -206,7 +206,7 @@ Stage 6-8 providers and services include:
 | Wikidata graph/property expansion | Narrative roots, series/franchise/universe QIDs, fictional entity references, relationship edges, and Event P585/P580/P582/P4895 in-universe chronology. |
 | Recursive identity enrichment | QID-backed people records and person-media links. |
 | Metadata harvesting | Person biography, birth/death/nationality/occupation, pseudonym and group relationships, headshots. |
-| TMDB artwork and tagged images | Movie/TV posters, backdrops, logos, network/studio logos, season art, episode stills, and cast/character portrait seeds when available. |
+| TMDB artwork and tagged images | Movie/TV posters, backdrops, logos, network/studio logos, season art, episode stills, and cast/character portrait seeds when available. The poster this pass ranks (or a user's choice) stays preferred whether it runs before or after Quick Hydration's cover step, which then only adds the retail cover as an alternative; an explicit retail rematch still replaces it. A repeat pass counts the same held artwork, including brand logos already stored. |
 | LRCLIB/SubDL | Lyrics, subtitles, normalized text-track files, optional preferred exports. |
 
 Stage 6-8 data artifacts:

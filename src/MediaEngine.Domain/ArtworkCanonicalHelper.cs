@@ -42,6 +42,33 @@ public static class ArtworkCanonicalHelper
         LastScoredAt = lastScoredAt,
     };
 
+    /// <summary>
+    /// Canonical holding the bridge id (TMDB or TheTVDB id) for which that provider's images pass last chose
+    /// the owner's poster. Written only when the pass actually chose one, never by a pass that skipped or failed.
+    /// </summary>
+    public static string PosterChoiceKey(string provider) => $"{provider}_artwork_poster_bridge_id";
+
+    /// <summary>Address prefix of a stored artwork variant, as written into display canonicals.</summary>
+    public const string StoredArtworkUrlPrefix = "/stream/artwork/";
+
+    /// <summary>
+    /// Reads the variant id from a stored artwork address (<c>/stream/artwork/{id}</c>, with or without a
+    /// size query). Provider URLs and other values return false.
+    /// </summary>
+    public static bool TryParseStoredArtworkId(string? url, out Guid assetId)
+    {
+        assetId = Guid.Empty;
+        if (string.IsNullOrWhiteSpace(url)
+            || !url.StartsWith(StoredArtworkUrlPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var idPart = url.AsSpan(StoredArtworkUrlPrefix.Length);
+        var queryStart = idPart.IndexOf('?');
+        return Guid.TryParse(queryStart >= 0 ? idPart[..queryStart] : idPart, out assetId);
+    }
+
     public static List<CanonicalValue> CreatePreferredAssetCanonicals(
         Guid entityId,
         EntityAsset asset,
@@ -50,11 +77,11 @@ public static class ArtworkCanonicalHelper
         ArgumentNullException.ThrowIfNull(asset);
 
         var values = new List<CanonicalValue>();
-        var baseUrl = $"/stream/artwork/{asset.Id}";
+        var baseUrl = $"{StoredArtworkUrlPrefix}{asset.Id}";
         var hasRenditions = ShouldGenerateRenditions(asset.AssetTypeValue);
-        var smallUrl = $"/stream/artwork/{asset.Id}?size=s";
-        var mediumUrl = $"/stream/artwork/{asset.Id}?size=m";
-        var largeUrl = $"/stream/artwork/{asset.Id}?size=l";
+        var smallUrl = $"{baseUrl}?size=s";
+        var mediumUrl = $"{baseUrl}?size=m";
+        var largeUrl = $"{baseUrl}?size=l";
 
         foreach (var key in ResolvePrimaryUrlKeys(asset.AssetTypeValue))
         {
