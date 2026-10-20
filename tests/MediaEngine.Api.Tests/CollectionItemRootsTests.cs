@@ -7,6 +7,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
@@ -848,6 +849,10 @@ public sealed class CollectionItemRootsTests : IDisposable
         builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
         builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
         builder.Services.AddSingleton<IPluginLoreRepository, PluginLoreRepository>();
+        builder.Services.AddSingleton<IViewerProgressRepository, ViewerProgressRepository>();
+        builder.Services.AddSingleton<IUserPlaybackSettingsService, UserPlaybackSettingsService>();
+        builder.Services.AddScoped<CharacterFirstSeenReader>();
+        builder.Services.AddScoped<CharacterSpoilerService>();
         builder.Services.AddScoped<UniverseConnectionsReadService>();
         builder.Services.AddScoped<UniverseClientReadService>();
         var app = builder.Build();
