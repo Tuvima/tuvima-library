@@ -299,6 +299,7 @@ public static class BaselineComparer
         text.AppendLine($"| Label | {Cell(before.Metadata.Label)} | {Cell(after.Metadata.Label)} |");
         text.AppendLine($"| Build | {Cell(before.Metadata.BuildCommit)} | {Cell(after.Metadata.BuildCommit)} |");
         text.AppendLine($"| Started | {Cell(before.Metadata.StartedAt)} | {Cell(after.Metadata.StartedAt)} |");
+        text.AppendLine($"| Provider answers | {Cell(before.Metadata.ProviderAnswers ?? "live")} | {Cell(after.Metadata.ProviderAnswers ?? "live")} |");
         text.AppendLine($"| Duration (s) | {Cell(before.Metadata.TotalDurationSeconds?.ToString("0.0", CultureInfo.InvariantCulture))} | {Cell(after.Metadata.TotalDurationSeconds?.ToString("0.0", CultureInfo.InvariantCulture))} |");
         text.AppendLine($"| Items / View items | {before.Items.Count} / {before.ViewItems.Count} | {after.Items.Count} / {after.ViewItems.Count} |");
         text.AppendLine();
@@ -307,6 +308,8 @@ public static class BaselineComparer
             : $"**Result: {comparison.Differences.Count} difference(s).**");
         text.AppendLine();
 
+        AppendNotRecorded(text, "Before", before);
+        AppendNotRecorded(text, "After", after);
         AppendCounts(text, before, after);
         AppendDifferences(text, comparison);
         AppendTimings(text, comparison);
@@ -416,6 +419,29 @@ public static class BaselineComparer
         foreach (var delta in beyond.OrderByDescending(t => Math.Abs(t.Ratio)).Take(40))
         {
             text.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| `{delta.Subject}` | {delta.Before:0.0} | {delta.After:0.0} | {delta.Ratio:+0%;-0%;0%} |"));
+        }
+
+        text.AppendLine();
+    }
+
+    /// <summary>
+    /// A replay answers requests its recording never saw with "not found". They are listed in full, never hidden:
+    /// differences on the same items usually come from our code asking for something different.
+    /// </summary>
+    private static void AppendNotRecorded(StringBuilder text, string side, BaselineRecord record)
+    {
+        if (record.Metadata.ProviderAnswersNotRecorded.Count == 0)
+        {
+            return;
+        }
+
+        text.AppendLine($"## {side}: requests not in the recording ({record.Metadata.ProviderAnswersNotRecorded.Count})");
+        text.AppendLine();
+        text.AppendLine("Each was answered \"not found\". Differences on the same items usually come from our code asking for something different.");
+        text.AppendLine();
+        foreach (var request in record.Metadata.ProviderAnswersNotRecorded)
+        {
+            text.AppendLine($"- `{request}`");
         }
 
         text.AppendLine();

@@ -34,6 +34,68 @@
     "media_types": ["Music"],
     "entity_types": ["MediaAsset"]
   },
+  "text_track": {
+    "kind": "Lyrics",
+    "noun": "lyrics",
+    "search": {
+      "needs": [
+        "title"
+      ],
+      "requests": [
+        {
+          "when_media_type": "Music",
+          "path": "/api/get",
+          "query": [
+            [
+              "track_name",
+              "{title}"
+            ],
+            [
+              "artist_name",
+              "{artist}"
+            ],
+            [
+              "album_name",
+              "{album}"
+            ],
+            [
+              "duration",
+              "{duration_seconds}"
+            ]
+          ]
+        }
+      ],
+      "response_cache": true,
+      "lyrics": {
+        "sources": [
+          {
+            "path": "syncedLyrics",
+            "format": "lrc"
+          },
+          {
+            "path": "plainLyrics",
+            "format": "txt"
+          }
+        ],
+        "instrumental_path": "instrumental",
+        "id_path": "id",
+        "duration": {
+          "path": "duration",
+          "full_within_seconds": 2,
+          "reject_beyond_seconds": 10,
+          "strict_format": "lrc",
+          "lenient_floor": 0.75,
+          "default_confidence": 0.82
+        }
+      }
+    },
+    "download": {
+      "mode": "payload"
+    },
+    "messages": {
+      "provider_down": "{name} is temporarily unavailable after repeated provider failures."
+    }
+  },
   "ui_metadata": {
     "accent_color": "#3BA55D",
     "material_icon": "Lyrics",

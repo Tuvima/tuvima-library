@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
@@ -6,6 +7,7 @@ using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.Storage.Secrets;
 
 namespace MediaEngine.Storage;
 
@@ -43,7 +45,12 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
+    private static readonly string[] SecretFieldNames =
+        ["api_key", "api_key_override", "client_key", "access_token", "pin", "username", "password"];
+
     private readonly string _configDir;
+    private readonly IConfigSecretsStore _secrets;
+    private readonly ConcurrentDictionary<string, byte> _unreadableSecrets = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _reloadLock = new();
     private readonly Dictionary<string, object> _lastKnownGood = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Timer> _reloadTimers = new(StringComparer.OrdinalIgnoreCase);
@@ -74,10 +81,15 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// <param name="configDirectoryPath">
     /// Root directory for all configuration files (e.g. <c>"config"</c>).
     /// </param>
-    public ConfigurationDirectoryLoader(string configDirectoryPath)
+    /// <param name="secrets">
+    /// Where provider keys are read from. When null, the loader uses a <see cref="ConfigFolderSecretsStore"/>
+    /// over the same config folder (the host passes one shared store so writes and reads use one lock).
+    /// </param>
+    public ConfigurationDirectoryLoader(string configDirectoryPath, IConfigSecretsStore? secrets = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configDirectoryPath);
         _configDir = configDirectoryPath;
+        _secrets = secrets ?? new ConfigFolderSecretsStore(configDirectoryPath);
 
         EnsureInitialized();
     }
@@ -304,7 +316,9 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         }
 
         var results = new List<ProviderConfiguration>();
-        foreach (var file in Directory.EnumerateFiles(dir, "*.json"))
+        // Sorted by file name: the operating system lists files in its own order (alphabetical on Windows, not on
+        // Linux), and the order decides which provider registers, and so answers, first.
+        foreach (var file in Directory.EnumerateFiles(dir, "*.json").Order(StringComparer.Ordinal))
         {
             var relativePath = Path.Combine(ProvidersSubdir, Path.GetFileName(file));
             var config = LoadFile<ProviderConfiguration>(relativePath);
@@ -320,90 +334,101 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     }
 
     /// <summary>
-    /// Overlays secrets from <c>config/secrets/{providerName}.json</c> onto a loaded
-    /// provider configuration. Secrets files contain flat JSON objects with keys like
-    /// <c>api_key</c>, <c>username</c>, <c>password</c> that are merged into the
-    /// provider's <see cref="HttpClientConfig"/>.
+    /// Overlays the provider's secrets (from <see cref="IConfigSecretsStore"/>, which keeps them in
+    /// <c>config/secrets/{providerName}.json</c>) onto a loaded provider configuration. The secrets are
+    /// flat strings with keys like <c>api_key</c>, <c>username</c>, <c>password</c> that are merged
+    /// into the provider's <see cref="HttpClientConfig"/>. An unreadable secrets file leaves the
+    /// provider without keys and is reported once through <see cref="ConfigurationChanged"/>
+    /// (file name and error type only, never content).
     /// </summary>
     private void ApplySecrets(ProviderConfiguration config, string providerName)
     {
-        var secretsPath = Path.Combine(_configDir, "secrets", $"{providerName}.json");
-        if (!File.Exists(secretsPath))
+        SecretOwner owner;
+        try
+        {
+            owner = SecretOwner.Provider(providerName);
+        }
+        catch (ArgumentException)
+        {
+            // A provider whose name cannot be a secrets file name has no secrets file.
+            return;
+        }
+
+        IReadOnlyDictionary<string, string> secrets;
+        try
+        {
+            secrets = _secrets.GetAllAsync(owner).GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException)
+        {
+            ReportUnreadableSecrets(owner, ex);
+            return;
+        }
+
+        _unreadableSecrets.TryRemove(owner.Name, out _);
+        if (secrets.Count == 0)
         {
             return;
         }
 
-        try
+        // Ensure HttpClient exists if secrets reference it
+        if (config.HttpClient is null && SecretFieldNames.Any(secrets.ContainsKey))
         {
-            var json = File.ReadAllText(secretsPath);
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return;
-            }
-
-            // Ensure HttpClient exists if secrets reference it
-            if (config.HttpClient is null)
-            {
-                var hasHttpField = root.TryGetProperty("api_key", out _)
-                    || root.TryGetProperty("api_key_override", out _)
-                    || root.TryGetProperty("client_key", out _)
-                    || root.TryGetProperty("access_token", out _)
-                    || root.TryGetProperty("pin", out _)
-                    || root.TryGetProperty("username", out _)
-                    || root.TryGetProperty("password", out _);
-
-                if (hasHttpField)
-                {
-                    config.HttpClient = new HttpClientConfig();
-                }
-            }
-
-            if (config.HttpClient is not null)
-            {
-                if (root.TryGetProperty("api_key", out var apiKey) && apiKey.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.ApiKey = apiKey.GetString();
-                }
-
-                if (root.TryGetProperty("api_key_override", out var apiKeyOverride)
-                    && apiKeyOverride.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.ApiKeyOverride = apiKeyOverride.GetString();
-                }
-
-                if (root.TryGetProperty("client_key", out var clientKey) && clientKey.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.ClientKey = clientKey.GetString();
-                }
-
-                if (root.TryGetProperty("access_token", out var accessToken) && accessToken.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.AccessToken = accessToken.GetString();
-                }
-
-                if (root.TryGetProperty("pin", out var pin) && pin.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.Pin = pin.GetString();
-                }
-
-                if (root.TryGetProperty("username", out var user) && user.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.Username = user.GetString();
-                }
-
-                if (root.TryGetProperty("password", out var pass) && pass.ValueKind == JsonValueKind.String)
-                {
-                    config.HttpClient.Password = pass.GetString();
-                }
-            }
+            config.HttpClient = new HttpClientConfig();
         }
-        catch
+
+        if (config.HttpClient is null)
         {
-            // Silently skip malformed secrets files
+            return;
         }
+
+        if (secrets.TryGetValue("api_key", out var apiKey))
+        {
+            config.HttpClient.ApiKey = apiKey;
+        }
+
+        if (secrets.TryGetValue("api_key_override", out var apiKeyOverride))
+        {
+            config.HttpClient.ApiKeyOverride = apiKeyOverride;
+        }
+
+        if (secrets.TryGetValue("client_key", out var clientKey))
+        {
+            config.HttpClient.ClientKey = clientKey;
+        }
+
+        if (secrets.TryGetValue("access_token", out var accessToken))
+        {
+            config.HttpClient.AccessToken = accessToken;
+        }
+
+        if (secrets.TryGetValue("pin", out var pin))
+        {
+            config.HttpClient.Pin = pin;
+        }
+
+        if (secrets.TryGetValue("username", out var user))
+        {
+            config.HttpClient.Username = user;
+        }
+
+        if (secrets.TryGetValue("password", out var pass))
+        {
+            config.HttpClient.Password = pass;
+        }
+    }
+
+    private void ReportUnreadableSecrets(SecretOwner owner, Exception error)
+    {
+        // Report each unreadable file once until it reads cleanly again, so a broken file does not repeat on every load.
+        if (!_unreadableSecrets.TryAdd(owner.Name, 0))
+        {
+            return;
+        }
+
+        var relativePath = $"secrets/{owner.Name}.json";
+        ConfigurationChanged?.Invoke(this, new ConfigurationFileChangedEventArgs(
+            relativePath, Path.Combine(_configDir, "secrets", $"{owner.Name}.json"), applied: false, error));
     }
 
     /// <inheritdoc/>

@@ -11,14 +11,14 @@ public interface ITvEpisodeRangeCatalogue
 }
 
 /// <summary>TheTVDB-backed season list; reuses the client's cached default-order episode pages.</summary>
-public sealed class TvdbEpisodeRangeCatalogue(TvdbRetailClient client) : ITvEpisodeRangeCatalogue
+public sealed class TvdbEpisodeRangeCatalogue(ProviderApiClient client) : ITvEpisodeRangeCatalogue
 {
     public async Task<IReadOnlySet<int>?> GetSeasonEpisodeNumbersAsync(
         string seriesId,
         int seasonNumber,
         CancellationToken ct = default)
     {
-        var episodes = await client.GetAllEpisodesAsync(seriesId, language: "eng", ct: ct).ConfigureAwait(false);
+        var episodes = await client.GetAllPagesAsync("tvdb", "series_episodes", ProviderApiClient.Args(("id", seriesId), ("lang", "eng")), ct).ConfigureAwait(false);
         var numbers = new HashSet<int>();
         foreach (var episode in episodes)
         {

@@ -1,6 +1,8 @@
 using System.Globalization;
+using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Settings;
 
 namespace MediaEngine.Web.Services.Navigation;
 
@@ -34,6 +36,7 @@ public sealed class SettingsAttentionState(
     private Dictionary<string, string> _dismissed = new(StringComparer.Ordinal);
     private int _reviewCount;
     private bool _loaded;
+    private bool _pluginsBroken;
     private bool _dismissalsLoaded;
     private bool _busy;
     private string? _actionError;
@@ -97,6 +100,26 @@ public sealed class SettingsAttentionState(
 
     /// <summary>Local AI is switched off until the tools it needs are downloaded.</summary>
     public bool LocalAiBlocked => LocalAiBlockers.Count > 0;
+
+    /// <summary>
+    /// A plugin that is switched on cannot do its job (it did not load, or it does not work with this Library), so the
+    /// Plugins menu row shows red. A plugin that is switched off never counts. False for anyone who is not a server administrator.
+    /// </summary>
+    public bool PluginsBroken => IsServerAdministrator && Volatile.Read(ref _pluginsBroken);
+
+    /// <summary>
+    /// Takes the plugin list the Plugins page just loaded or changed, so the menu agrees with the page straight away
+    /// instead of waiting for the next look.
+    /// </summary>
+    public void ReportPlugins(IEnumerable<PluginSummaryResponse> plugins)
+    {
+        ArgumentNullException.ThrowIfNull(plugins);
+        var broken = plugins.Any(StateCardHealth.IsPluginBroken);
+        if (Interlocked.Exchange(ref _pluginsBroken, broken) != broken)
+        {
+            Changed?.Invoke();
+        }
+    }
 
     /// <summary>The Needs Review line is shown: items are waiting and none of these were already dismissed.</summary>
     public bool ReviewLineVisible
@@ -216,6 +239,7 @@ public sealed class SettingsAttentionState(
             {
                 Volatile.Write(ref _reviewCount, 0);
                 Volatile.Write(ref _tools, null);
+                Volatile.Write(ref _pluginsBroken, false);
                 Volatile.Write(ref _loaded, true);
                 Changed?.Invoke();
                 return;
@@ -223,10 +247,11 @@ public sealed class SettingsAttentionState(
 
             var reviewTask = orchestrator.TryRefreshReviewCountAsync(ct);
             var toolsTask = api.GetToolRequirementsAsync(ct);
+            var pluginsTask = api.GetPluginsAsync(ct);
             var noticesTask = reloadDismissals || !HasDismissalsLoaded
                 ? api.GetSettingsNoticesAsync(ct)
                 : Task.FromResult<ProfileNoticesResponse?>(null);
-            await Task.WhenAll(reviewTask, toolsTask, noticesTask).ConfigureAwait(false);
+            await Task.WhenAll(reviewTask, toolsTask, pluginsTask, noticesTask).ConfigureAwait(false);
 
             // The Engine could not be asked (or this person may not see the queue): keep what was last known rather than
             // clearing a real problem, and never treat the failed read as "nothing needs review".
@@ -241,6 +266,8 @@ public sealed class SettingsAttentionState(
             {
                 Volatile.Write(ref _tools, tools);
             }
+
+            Volatile.Write(ref _pluginsBroken, (await pluginsTask.ConfigureAwait(false)).Any(StateCardHealth.IsPluginBroken));
 
             if (await noticesTask.ConfigureAwait(false) is { } notices)
             {

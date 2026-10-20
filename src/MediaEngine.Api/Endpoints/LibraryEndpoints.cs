@@ -98,9 +98,7 @@ public static class LibraryEndpoints
             var page = PagedRequest.From(offset, limit, defaultLimit: 100, maxLimit: 500);
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var logger = loggerFactory.CreateLogger("MediaEngine.Api.LibraryWorks");
-            var allowedWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var response = await workFeedReadService.GetWorksAsync(page, ct, allowedWorkIds);
             sw.Stop();
             if (sw.ElapsedMilliseconds >= 1000)

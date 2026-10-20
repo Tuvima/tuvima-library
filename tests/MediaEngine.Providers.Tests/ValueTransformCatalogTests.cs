@@ -21,6 +21,17 @@ public class ValueTransformCatalogTests
     }
 
     [Theory]
+    [InlineData("2012", "2012")]
+    [InlineData("Sept 2012 (reprint 2014)", "2012")]
+    [InlineData("1999-03-14", "1999")]
+    [InlineData("c. 1887", null)]
+    [InlineData("12345", null)]
+    public void FirstYear_ExtractsTheFirstPlausibleYear(string input, string? expected)
+    {
+        Assert.Equal(expected, ValueTransformCatalog.Apply("first_year", input));
+    }
+
+    [Theory]
     [InlineData("Book 3", "3")]
     [InlineData("Part 12 of 20", "12")]
     [InlineData("42", "42")]

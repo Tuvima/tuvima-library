@@ -6,6 +6,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Providers;
+using MediaEngine.Providers.Tests.ProviderRecording;
 using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Providers.Tests;
 
@@ -30,7 +31,12 @@ public sealed class LrclibDurationTests
         Assert.Equal("txt", plain.SourceFormat);
     }
     private static TextTrackLookup Lookup() => new(new MediaAsset { Id = Guid.NewGuid(), FilePathRoot = "fixture.wav" }, MediaType.Music, "Fixture song", "Artist", "Album", null, "en", 180, new Dictionary<string, string>());
-    private static LrclibTextTrackProvider Provider(double duration, bool synced) => new(new ProviderConfiguration { Name = "LRCLIB", Enabled = true }, new Factory(JsonSerializer.Serialize(new { id = 1, duration, syncedLyrics = synced ? "[00:01]Line" : null, plainLyrics = "Line" })), new Cache(), NullProviderHealthMonitor.Instance, NullLogger<LrclibTextTrackProvider>.Instance);
+    private static TextTrackProviderAdapter Provider(double duration, bool synced) => new(
+        ShippedProviderHarness.LoadShipped("lrclib"),
+        new Factory(JsonSerializer.Serialize(new { id = 1, duration, syncedLyrics = synced ? "[00:01]Line" : null, plainLyrics = "Line" })),
+        NullProviderHealthMonitor.Instance,
+        NullLogger<TextTrackProviderAdapter>.Instance,
+        cache: new Cache());
     private sealed class Factory(string json) : IHttpClientFactory { public HttpClient CreateClient(string name) => new(new Handler(json)); }
     private sealed class Handler(string json) : HttpMessageHandler { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") }); }
     private sealed class Cache : IProviderResponseCacheRepository

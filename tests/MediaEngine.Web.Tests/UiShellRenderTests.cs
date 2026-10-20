@@ -96,6 +96,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.AccountNoticeState>();
         Services.AddScoped<MediaEngine.Web.Services.Navigation.SettingsAttentionState>();
+        Services.AddScoped<MediaEngine.Web.Services.Navigation.DevelopmentToolsState>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
     }
