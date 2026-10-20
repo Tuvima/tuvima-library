@@ -198,6 +198,12 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/access/applications/{applicationId:guid}/credentials/{credentialId:guid}/rotate", HttpMethods.Post)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
 
+        // The delivery history and Send test sit in the webhook group, so they need exactly what the other webhook actions need.
+        inventory.Require("/access/applications/{applicationId:guid}/webhooks/{webhookId:guid}/attempts", HttpMethods.Get)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
+        inventory.Require("/access/applications/{applicationId:guid}/webhooks/{webhookId:guid}/test", HttpMethods.Post)
+            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityApplicationsWrite);
+
         inventory.Require("/auth/login", HttpMethods.Post)
             .RequiresNamedPolicy(AuthPolicies.DashboardService);
         inventory.Require("/auth/session/validate", HttpMethods.Post)

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0018 remove_ingestion_batches).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0019 webhook_delivery_attempts).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -195,6 +195,21 @@ CREATE TABLE application_permission_grants (
     permission_id TEXT NOT NULL,
     granted_at TEXT NOT NULL,
     PRIMARY KEY (application_id, permission_id)
+);
+
+CREATE TABLE application_webhook_attempts (
+    id             BLOB NOT NULL PRIMARY KEY,
+    webhook_id     BLOB NOT NULL REFERENCES application_webhooks(id) ON DELETE CASCADE,
+    delivery_id    BLOB NOT NULL,      -- the delivery row this attempt belongs to (may be pruned before the attempt is)
+    event_id       BLOB NOT NULL,
+    event_type     TEXT NOT NULL,      -- for example ingestion.completed, or webhook.test for a test send
+    attempt_number INTEGER NOT NULL,   -- 1 for the first try of a delivery
+    attempted_at   TEXT NOT NULL,      -- ISO 8601 UTC
+    delivered      INTEGER NOT NULL,   -- 1 when the receiver accepted it
+    result         TEXT NOT NULL,      -- short plain text; never a response body
+    http_status    INTEGER NULL,       -- the receiver's HTTP status code, when it answered
+    duration_ms    INTEGER NOT NULL,
+    is_test        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE application_webhook_deliveries (
@@ -3125,6 +3140,9 @@ CREATE INDEX ix_application_events_occurred ON application_events(occurred_at);
 CREATE INDEX ix_application_events_profile_sequence ON application_events(profile_id, sequence);
 
 CREATE INDEX ix_application_events_type_sequence ON application_events(event_type, sequence);
+
+CREATE INDEX ix_application_webhook_attempts_webhook_time
+    ON application_webhook_attempts(webhook_id, attempted_at DESC);
 
 CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
 

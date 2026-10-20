@@ -370,7 +370,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ServerIntegration_ShowsWebhookDeliveryStateWithoutTestDeliveryAction()
+    public void ServerIntegration_ShowsWebhookDeliveryState()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
@@ -381,8 +381,187 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             Assert.Contains(ApplicationsHandler.WebhookUrl, cut.Markup);
             Assert.Contains("Retry scheduled after receiver failure", cut.Markup);
             Assert.Contains("Last attempt", cut.Markup);
-            Assert.DoesNotContain("Test webhook", cut.Markup, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("Send test", cut.Markup, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Recent deliveries", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void WebhookCard_ShowsTheLastSixAttemptsWithResultAttemptNumberAndTestMarker()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        for (var number = 6; number >= 1; number--)
+        {
+            _handler.Attempts.Add(new(Guid.NewGuid(), "ingestion.completed", number, DateTimeOffset.UtcNow.AddMinutes(-number), false, "HTTP 503", 40, false));
+        }
+        _handler.Attempts.Insert(0, new(Guid.NewGuid(), "webhook.test", 1, DateTimeOffset.UtcNow, true, "HTTP 204", 25, true));
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll(".application-webhook__attempts li");
+            Assert.Equal(6, rows.Count);
+            Assert.Contains("Delivered", rows[0].TextContent);
+            Assert.Contains("HTTP 204", rows[0].TextContent);
+            Assert.Contains("Test", rows[0].TextContent);
+            Assert.Contains("Failed", rows[1].TextContent);
+            Assert.Contains("HTTP 503", rows[1].TextContent);
+            Assert.Contains("Attempt 6", rows[1].TextContent);
+            Assert.DoesNotContain("Test", rows[1].TextContent);
+        });
+        Assert.Contains(_handler.Requests, request =>
+            request.Method == HttpMethod.Get && request.Path.EndsWith($"/webhooks/{_handler.WebhookId:D}/attempts", StringComparison.Ordinal)
+            && request.Query.Contains("limit=6", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WebhookCard_WithNoAttempts_SaysNoDeliveriesYet()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("No deliveries yet", cut.Markup);
+            Assert.Empty(cut.FindAll(".application-webhook__attempts"));
+        });
+    }
+
+    [Fact]
+    public void WebhookCard_WhenTheHistoryCannotBeRead_SaysSoWithoutHidingTheWebhook()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.AttemptsStatus = HttpStatusCode.InternalServerError;
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains(ApplicationsHandler.WebhookUrl, cut.Markup);
+            Assert.Contains("Delivery history could not be loaded.", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void SendTest_PostsTheTestRoute_ThenShowsTheNewAttemptAndAMessage()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
+
+        ButtonNamed(cut, "Send test").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Test sent. The receiver answered: HTTP 204.", cut.Markup);
+            var row = Assert.Single(cut.FindAll(".application-webhook__attempts li"));
+            Assert.Contains("Delivered", row.TextContent);
+            Assert.Contains("Test", row.TextContent);
+        });
+        Assert.Single(_handler.Requests, request =>
+            request.Method == HttpMethod.Post && request.Path.EndsWith($"/webhooks/{_handler.WebhookId:D}/test", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SendTest_ThatTheReceiverRefuses_ShowsAFailedAttemptAndAnErrorMessage()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.TestDelivered = false;
+        _handler.TestResult = "HTTP 503";
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
+
+        ButtonNamed(cut, "Send test").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("The test was not delivered: HTTP 503.", cut.Markup);
+            Assert.Contains("Failed", Assert.Single(cut.FindAll(".application-webhook__attempts li")).TextContent);
+        });
+    }
+
+    [Fact]
+    public void SendTest_IsDisabledWithAReason_WhenTheWebhookIsOff_AndSendsNothing()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.WebhookIsEnabled = false;
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Turn this webhook on to send a test.", cut.Markup);
+            Assert.True(ButtonNamed(cut, "Send test").HasAttribute("disabled"));
+        });
+        ButtonNamed(cut, "Send test").Click();
+        Assert.DoesNotContain(_handler.Requests, request => request.Path.EndsWith("/test", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SendTest_WhenTheEngineRefuses_ShowsItsPlainMessage()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.TestRefusal = "Turn this webhook on to send a test.";
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
+
+        ButtonNamed(cut, "Send test").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Turn this webhook on to send a test.", cut.Markup));
+        Assert.Empty(cut.FindAll(".application-webhook__attempts"));
+    }
+
+    [Fact]
+    public void Credentials_AlwaysSaySomethingPlainAboutLastUseAndExpiry()
+    {
+        _handler.AddCredential("Never used key", null, null);
+        _handler.AddCredential("Used key", DateTimeOffset.UtcNow.AddDays(30), DateTimeOffset.UtcNow.AddHours(-3));
+        _handler.AddCredential("Lapsed key", DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(-5));
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll(".access-credential-row");
+            Assert.Equal(3, rows.Count);
+            Assert.Contains("No expiry", rows[0].TextContent);
+            Assert.Contains("Never used", rows[0].TextContent);
+            Assert.Contains("Expires ", rows[1].TextContent);
+            Assert.Contains("Last used ", rows[1].TextContent);
+            Assert.DoesNotContain("Never used", rows[1].TextContent);
+            Assert.Contains("Expired ", rows[2].TextContent);
+        });
+    }
+
+    [Fact]
+    public void ApplicationTable_ShowsTheSoonestKeyExpiryInTheCredentialsCell()
+    {
+        _handler.AddCredential("Later", DateTimeOffset.UtcNow.AddDays(60), null);
+        _handler.AddCredential("Sooner", DateTimeOffset.UtcNow.AddDays(10), null);
+        var cut = RenderApplications();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("2 active", cut.Markup);
+            Assert.Contains($"Next expiry {DateTimeOffset.UtcNow.AddDays(10).ToLocalTime():g}", cut.Markup);
+            Assert.DoesNotContain($"Next expiry {DateTimeOffset.UtcNow.AddDays(60).ToLocalTime():g}", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void ApplicationTable_SaysNoExpiry_WhenNoKeyExpires()
+    {
+        _handler.AddCredential("Forever", null, null);
+        var cut = RenderApplications();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("1 active", cut.Markup);
+            Assert.Contains("No expiry", cut.Markup);
         });
     }
 
@@ -669,6 +848,19 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         public TaskCompletionSource? SecondWebhookLoadGate { get; set; }
         public TaskCompletionSource? SecondWebhookLoadStarted { get; set; }
         public bool FirstWebhookLoadFails { get; set; }
+
+        /// <summary>The attempts the webhook's history answers, newest first.</summary>
+        public List<ApplicationWebhookAttemptResponse> Attempts { get; } = [];
+        public HttpStatusCode AttemptsStatus { get; set; } = HttpStatusCode.OK;
+        public bool WebhookIsEnabled { get; set; } = true;
+        public bool TestDelivered { get; set; } = true;
+        public string TestResult { get; set; } = "HTTP 204";
+
+        /// <summary>When set, Send test answers 409 with this as the problem's plain message.</summary>
+        public string? TestRefusal { get; set; }
+
+        public void AddCredential(string name, DateTimeOffset? expiresAt, DateTimeOffset? lastUsedAt) => _credentials.Add(
+            new ApplicationCredentialResponse(Guid.NewGuid(), ApplicationId, name, DateTimeOffset.UtcNow.AddDays(-9), expiresAt, lastUsedAt, null));
         public bool IgnoreWebhookRotateCancellation { get; set; }
 
         /// <summary>When set, issuing a key and saving a webhook answer 409 approval_required until the request carries the hash.</summary>
@@ -712,7 +904,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
             lock (_requestLock)
             {
-                _requests.Add(new(request.Method, path, body));
+                _requests.Add(new(request.Method, path, body, request.RequestUri.Query));
             }
 
 
@@ -760,6 +952,22 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
                 }
 
                 return Json(new[] { RaceWebhook(SecondRaceApplicationId, SecondRaceWebhookUrl) });
+            }
+            if (request.Method == HttpMethod.Get && path.EndsWith("/attempts", StringComparison.Ordinal))
+            {
+                return AttemptsStatus != HttpStatusCode.OK ? new HttpResponseMessage(AttemptsStatus) : Json(Attempts.Take(6).ToList());
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/test", StringComparison.Ordinal))
+            {
+                if (TestRefusal is not null)
+                {
+                    return Json(new { title = "Conflict", status = 409, detail = TestRefusal }, HttpStatusCode.Conflict);
+                }
+
+                var attempt = new ApplicationWebhookAttemptResponse(
+                    Guid.NewGuid(), "webhook.test", 1, DateTimeOffset.UtcNow, TestDelivered, TestResult, 20, true);
+                Attempts.Insert(0, attempt);
+                return Json(attempt);
             }
             if (request.Method == HttpMethod.Get && path.EndsWith("/webhooks", StringComparison.Ordinal))
             {
@@ -921,7 +1129,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
                 WebhookUrl,
                 [EventType],
                 false,
-                true,
+                WebhookIsEnabled,
                 3,
                 "Retry scheduled after receiver failure",
                 DateTimeOffset.UtcNow.AddMinutes(-2),
@@ -958,5 +1166,5 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             new(status) { Content = JsonContent.Create(value) };
     }
 
-    private sealed record RequestRecord(HttpMethod Method, string Path, string Body);
+    private sealed record RequestRecord(HttpMethod Method, string Path, string Body, string Query = "");
 }

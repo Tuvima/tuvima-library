@@ -25,3 +25,17 @@ public sealed record SaveApplicationWebhookRequest(
 public sealed record ApplicationWebhookSecretResponse(
     [property: JsonPropertyName("webhook")] ApplicationWebhookResponse Webhook,
     [property: JsonPropertyName("signing_secret")] string? SigningSecret);
+
+/// <summary>
+/// One attempt to send an event to a webhook receiver. <c>result</c> is short plain text ("HTTP 503", "Receiver unavailable");
+/// it never carries the event body, the signing secret or anything the receiver answered with.
+/// </summary>
+public sealed record ApplicationWebhookAttemptResponse(
+    [property: JsonPropertyName("attempt_id")] Guid AttemptId,
+    [property: JsonPropertyName("event_type")] string EventType,
+    [property: JsonPropertyName("attempt_number")] int AttemptNumber,
+    [property: JsonPropertyName("attempted_at")] DateTimeOffset AttemptedAt,
+    [property: JsonPropertyName("delivered")] bool Delivered,
+    [property: JsonPropertyName("result")] string Result,
+    [property: JsonPropertyName("duration_ms")] long DurationMs,
+    [property: JsonPropertyName("is_test")] bool IsTest);

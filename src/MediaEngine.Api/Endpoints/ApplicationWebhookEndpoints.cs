@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Webhooks;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
 
 namespace MediaEngine.Api.Endpoints;
@@ -42,6 +43,16 @@ internal static class ApplicationWebhookEndpoints
             http.Response.Headers.CacheControl = "no-store";
             return Results.Ok(await service.RotateAsync(applicationId, webhookId, ct));
         }).WithName("RotateWebhookSigningSecret").Produces<ApplicationWebhookSecretResponse>();
+        group.MapGet("/{webhookId:guid}/attempts", async (Guid applicationId, Guid webhookId, int? limit,
+            ApplicationWebhookService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAttemptsAsync(applicationId, webhookId,
+                PagedRequest.From(null, limit, ApplicationWebhookService.DefaultAttemptCount, ApplicationWebhookService.MaximumAttemptCount).Limit, ct)))
+            .WithName("ListApplicationWebhookAttempts").Produces<IReadOnlyList<ApplicationWebhookAttemptResponse>>();
+        group.MapPost("/{webhookId:guid}/test", async (Guid applicationId, Guid webhookId,
+            ApplicationWebhookTestSender sender, CancellationToken ct) =>
+            Results.Ok(await sender.SendAsync(applicationId, webhookId, ct)))
+            .WithName("SendApplicationWebhookTest").Produces<ApplicationWebhookAttemptResponse>()
+            .Produces(StatusCodes.Status409Conflict);
         group.MapDelete("/{webhookId:guid}", async (Guid applicationId, Guid webhookId, ApplicationWebhookService service, CancellationToken ct) =>
         {
             await service.DeleteAsync(applicationId, webhookId, ct);

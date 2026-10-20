@@ -23,7 +23,8 @@
 }
 
 .application-webhook__summary > div,
-.application-webhook__status {
+.application-webhook__status,
+.application-webhook__deliveries {
     display: grid;
     gap: .2rem;
     min-width: 0;
@@ -55,4 +56,28 @@
     border-radius: var(--app-radius-sm);
     background: rgb(0 0 0 / 28%);
     user-select: all;
+}
+
+.application-webhook__attempts {
+    display: grid;
+    gap: .35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.application-webhook__attempts li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+
+.application-webhook__attempt-time {
+    color: var(--app-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.application-webhook__hint {
+    margin-right: auto;
 }
