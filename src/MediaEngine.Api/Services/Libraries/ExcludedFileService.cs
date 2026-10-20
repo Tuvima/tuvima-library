@@ -39,7 +39,7 @@ public sealed class ExcludedFileService(
     /// <summary>Puts one file back. Null when no excluded file has this id.</summary>
     public async Task<ExcludedFileAddBackResultDto?> AddBackAsync(Guid id, CancellationToken ct = default)
     {
-        var row = (await excludedFiles.ListAllAsync(ct).ConfigureAwait(false)).FirstOrDefault(candidate => candidate.Id == id);
+        var row = await excludedFiles.GetByIdAsync(id, ct).ConfigureAwait(false);
         if (row is null)
         {
             return null;

@@ -123,5 +123,5 @@
     }
 
     private static string AbsoluteDate(DateTimeOffset value) =>
-        value.LocalDateTime.ToString("M/d/yyyy, h:mm tt", CultureInfo.CurrentCulture);
+        value.LocalDateTime.ToString("g", CultureInfo.CurrentCulture);
 }

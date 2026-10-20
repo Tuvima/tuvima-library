@@ -328,6 +328,19 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Empty(tv.FindAll(".excluded-files"));
     }
 
+    // The last folder can be removed while files are still excluded; the list stays so they can be added back.
+    [Fact]
+    public void ExcludedFilesStayListedWhenTheLibraryHasNoFoldersLeft()
+    {
+        _configuration.Libraries.Single(library => library.Id == MoviesId).Sources.Clear();
+        _excluded.Add(new() { Id = Guid.NewGuid(), LibraryId = MoviesId, FileName = "Dune.mkv", FolderLabel = "Movies", ExcludedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ExcludedBy = "Shy" });
+
+        var movies = Open("Movies");
+
+        Assert.NotEmpty(movies.FindAll(".library-folders__empty"));
+        movies.WaitForAssertion(() => Assert.Contains("Dune.mkv", Text(movies.Find(".excluded-files"))));
+    }
+
     // A1: the per-library page and its link are gone.
     [Fact]
     public void NoLibrarySettingsLinkRemains()

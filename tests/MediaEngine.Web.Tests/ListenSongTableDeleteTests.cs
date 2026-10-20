@@ -102,11 +102,6 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     private static IReadOnlyList<AngleSharp.Dom.IElement> Checkboxes(IRenderedComponent<ListenSongTable> cut) =>
         cut.FindAll(".listen-song-table__select input[type='checkbox']");
 
-    private static Task InvokeAsync(IRenderedComponent<ListenSongTable> cut, string method, params object?[] args) =>
-        cut.InvokeAsync(() => (Task)typeof(ListenSongTable)
-            .GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(cut.Instance, args)!);
-
     // -- Who sees it ---------------------------------------------------------------------------
 
     [Fact]
@@ -170,6 +165,20 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     }
 
     // -- One song ------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheCountIsTheOnlyLiveRegionInTheBar()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderTable(Songs(2));
+        Checkboxes(cut)[0].Change(true);
+
+        var bar = cut.Find(".listen-song-table__selection");
+
+        Assert.False(bar.HasAttribute("role"));
+        Assert.Equal("1 selected", Assert.Single(bar.QuerySelectorAll("[role='status']")).TextContent.Trim());
+    }
 
     [Fact]
     public async Task TheRowDeleteIconOpensOneDialogForThatSongAndAsksTheEngineAboutOnlyIt()
@@ -256,6 +265,35 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task KeysPressedOnTheQueueEditAndDeleteCellsNeverReachTheRowThatPlaysTheSong()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderTable(Songs(2));
+
+        foreach (var cell in new[] { "queue", "edit", "delete" })
+        {
+            Assert.All(cut.FindAll($".listen-song-table__{cell}"), element =>
+                Assert.Contains(element.Attributes, attribute => attribute.Name.Contains("onkeydown:stoppropagation", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        Assert.Empty(_played);
+    }
+
+    [Fact]
+    public async Task PressingEnterOnTheRowStillPlaysTheSong()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var songs = Songs(2);
+        var cut = RenderTable(songs);
+
+        cut.FindAll(".listen-song-table__row")[0].KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+
+        Assert.Equal([songs[0].Id], _played);
+    }
+
+    [Fact]
     public async Task ClickingTheRowStillPlaysTheSong()
     {
         await UseDeviceAsync("desktop");
@@ -281,7 +319,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var songs = Songs(2);
         var cut = RenderTable(songs);
 
-        await InvokeAsync(cut, "DeleteRowAsync", songs[0]);
+        await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
         Assert.Equal(EditorDeviceRule.Message, Assert.Single(Toasts));
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
@@ -296,7 +334,7 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
         var songs = Songs(2);
         var cut = RenderTable(songs);
 
-        await InvokeAsync(cut, "DeleteRowAsync", songs[0]);
+        await cut.InvokeAsync(() => cut.Instance.DeleteRowAsync(songs[0]));
 
         Assert.Equal("You need administrator access to delete items.", Assert.Single(Toasts));
         Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);

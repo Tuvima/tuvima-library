@@ -64,10 +64,12 @@
 }
 else
 {
-    @if (ShowDelete && _selected.Count > 0)
+    // Worked out once per render: the column list and every row read it.
+    _showDelete = ComputeShowDelete();
+    if (ShowDelete && _selected.Count > 0)
     {
-        <div class="listen-song-table__selection" role="status">
-            <span class="listen-song-table__selection-count">@_selected.Count selected</span>
+        <div class="listen-song-table__selection">
+            <span class="listen-song-table__selection-count" role="status">@_selected.Count selected</span>
             <AppButton Label="Delete…" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact" OnClick="DeleteSelectedAsync" />
             <AppButton Label="Clear" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="ClearSelection" />
         </div>
@@ -224,14 +226,14 @@ else
                             <span class="listen-song-table__meta" role="cell">@FormatDateAdded(track.CreatedAt)</span>
                             break;
                         case "queue":
-                            <div class="listen-song-table__queue" role="cell">
+                            <div class="listen-song-table__queue" role="cell" @onkeydown:stopPropagation="true">
                                 <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                 </AppNativeButton>
                             </div>
                             break;
                         case "edit":
-                            <div class="listen-song-table__edit" role="cell">
+                            <div class="listen-song-table__edit" role="cell" @onkeydown:stopPropagation="true">
                                 @if (!DeviceContext.IsPhone)
                                 {
                                     <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
@@ -241,7 +243,7 @@ else
                             </div>
                             break;
                         case "delete":
-                            <div class="listen-song-table__delete" role="cell">
+                            <div class="listen-song-table__delete" role="cell" @onkeydown:stopPropagation="true">
                                 <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__delete-button" Title="Delete from library…" AriaLabel="@($"Delete {trackTitle} from library…")" StopPropagation="true" OnClick="@(() => DeleteRowAsync(track))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                                 </AppNativeButton>
@@ -385,7 +387,10 @@ else
     }
 
     // Desktop administrators only. A phone renders cards and never reaches this; touch-only and tablet devices fail CanEdit.
-    private bool ShowDelete => !DeviceContext.IsPhone
+    private bool _showDelete;
+    private bool ShowDelete => _showDelete;
+
+    private bool ComputeShowDelete() => !DeviceContext.IsPhone
         && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
 
     private void SetSelected(Guid id, bool selected)
@@ -402,9 +407,9 @@ else
 
     private void ClearSelection() => _selected.Clear();
 
-    private Task DeleteRowAsync(WorkViewModel track) => DeleteAsync([track.Id], DisplayTrackTitle(track));
+    internal Task DeleteRowAsync(WorkViewModel track) => DeleteAsync([track.Id], DisplayTrackTitle(track));
 
-    private Task DeleteSelectedAsync()
+    internal Task DeleteSelectedAsync()
     {
         var chosen = VisibleTracks.Where(track => _selected.Contains(track.Id)).ToList();
         return DeleteAsync(chosen.Select(track => track.Id).ToList(), chosen.Count == 1 ? DisplayTrackTitle(chosen[0]) : null);
