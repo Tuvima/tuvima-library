@@ -28,6 +28,12 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
+    public async Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        return scope.IsValid ? new DisplayLibraryScope(scope.AllLibraries, scope.Libraries) : new DisplayLibraryScope(false, new HashSet<Guid>());
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>
         FilterWorks(await inner.LoadDetailWorksAsync(id, ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 

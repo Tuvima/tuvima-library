@@ -33,7 +33,10 @@ public sealed partial class CollectionClientEndpointsTests
         var overview = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview");
         var helperRead = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
 
-        // The page's detail is the helper-app answer, byte for byte: same shelves in the same order, same counts.
+        // The page's detail is the helper-app answer, field for field: same shelves in the same order, same counts. Each card's
+        // sort timestamp can fall back to the moment of the read, so it is left out of the comparison (two reads, two moments).
+        WithoutSortTimestamps(helperRead);
+        WithoutSortTimestamps(overview["detail"]);
         Assert.True(
             JsonNode.DeepEquals(helperRead, overview["detail"]),
             $"The page detail differs from the helper-app read.\npage:   {overview["detail"]!.ToJsonString()}\nhelper: {helperRead.ToJsonString()}");
@@ -46,6 +49,28 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.Equal(6, overview["graph_entity_count"]!.GetValue<int>());
         Assert.Equal(0, overview["graph_relationship_count"]!.GetValue<int>());
         Assert.Null(overview["standalone"]);
+    }
+
+    private static void WithoutSortTimestamps(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                obj.Remove("sortTimestamp");
+                foreach (var child in obj.Select(pair => pair.Value).ToList())
+                {
+                    WithoutSortTimestamps(child);
+                }
+
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                {
+                    WithoutSortTimestamps(child);
+                }
+
+                break;
+        }
     }
 
     [Fact]

@@ -86,6 +86,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/my-library` | `MyLibrary` | The personal page (Continue, My List, Recent activity preview, Liked; Downloads in the app); the phone dock's My Library tab |
 | `/my-activity` | `MyActivity` | The signed-in person's own Activity page outside Settings (Kids profiles and quick access); same component as Settings > Overview > Activity, own scope only |
 | `/for-me` | `ForMe` | Personal shelves and See All grids |
+| `/all/{Lane}/{ShelfKey}` | `ShelfGridPage` | View all: the full list behind a shelf as a grid, with a remembered sort and the filters the Engine returns; sort and filters live in the query string (replaced, never pushed); loads 48 at a time through `wwwroot/js/load-more-observer.js` with a Load more button always under the grid |
 | `/who` | `ProfilePickerPage` | Profile picker |
 | `/setup` | `SetupPage` | First-run setup |
 | `/recently-added` | `RecentlyAddedPage` | Recently added |

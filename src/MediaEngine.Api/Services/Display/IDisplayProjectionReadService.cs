@@ -22,6 +22,16 @@ public interface IDisplayProjectionReadService
         Guid? profileId,
         CancellationToken ct);
 
+    /// <summary>Which libraries the current request may see files from. Unscoped sources allow every library.</summary>
+    Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct) => Task.FromResult(DisplayLibraryScope.All);
+}
+
+/// <summary>The libraries a request may see: every library, or exactly the granted ones.</summary>
+public sealed record DisplayLibraryScope(bool AllLibraries, IReadOnlySet<Guid> Libraries)
+{
+    public static readonly DisplayLibraryScope All = new(true, new HashSet<Guid>());
+
+    public bool Allows(Guid libraryId) => AllLibraries || Libraries.Contains(libraryId);
 }
 
 internal interface IRawDisplayProjectionReadService : IDisplayProjectionReadService

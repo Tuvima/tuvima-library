@@ -257,8 +257,8 @@ public sealed class DisplayComposerServiceTests
         Assert.Contains(page.Shelves, shelf => shelf.Key == "tv-shows");
         Assert.Contains(page.Shelves, shelf => shelf.Key == "series");
         Assert.Contains(page.Shelves, shelf => shelf.Key == "movies");
-        Assert.Equal("/watch/movies", page.Shelves.Single(shelf => shelf.Key == "movies").SeeAllRoute);
-        Assert.Equal("/watch/tv", page.Shelves.Single(shelf => shelf.Key == "tv-shows").SeeAllRoute);
+        Assert.Equal("/all/watch/movies", page.Shelves.Single(shelf => shelf.Key == "movies").SeeAllRoute);
+        Assert.Equal("/all/watch/tv-shows", page.Shelves.Single(shelf => shelf.Key == "tv-shows").SeeAllRoute);
         Assert.Equal("/watch/movies?grouping=series", page.Shelves.Single(shelf => shelf.Key == "series").SeeAllRoute);
 
         var continueCard = page.Shelves.Single(shelf => shelf.Key == "continue-watching").Items.Single();
@@ -303,8 +303,8 @@ public sealed class DisplayComposerServiceTests
 
         Assert.Contains(page.Shelves, shelf => shelf.Key == "continue-reading");
         Assert.Contains(page.Shelves, shelf => shelf.Key == "recently-added");
-        Assert.Equal("/read/books", page.Shelves.Single(shelf => shelf.Key == "continue-reading").SeeAllRoute);
-        Assert.Equal("/read/books", page.Shelves.Single(shelf => shelf.Key == "recently-added").SeeAllRoute);
+        Assert.Equal("/all/read/continue-reading", page.Shelves.Single(shelf => shelf.Key == "continue-reading").SeeAllRoute);
+        Assert.Equal("/all/read/recently-added", page.Shelves.Single(shelf => shelf.Key == "recently-added").SeeAllRoute);
 
         var continueCard = page.Shelves.Single(shelf => shelf.Key == "continue-reading").Items.Single();
         Assert.Equal("smart", continueCard.PreviewPlacement);
@@ -800,11 +800,11 @@ public sealed class DisplayComposerServiceTests
             page.Shelves.Select(shelf => shelf.Key));
         Assert.Equal("Continue Across Media", page.Shelves[0].Title);
         Assert.Equal("Watch", page.Shelves[1].Title);
-        Assert.Equal("/watch", page.Shelves[1].SeeAllRoute);
+        Assert.Equal("/all/home/watch-next", page.Shelves[1].SeeAllRoute);
         Assert.Equal("Read", page.Shelves[2].Title);
-        Assert.Equal("/read", page.Shelves[2].SeeAllRoute);
+        Assert.Equal("/all/home/read-next", page.Shelves[2].SeeAllRoute);
         Assert.Equal("Listen", page.Shelves[3].Title);
-        Assert.Equal("/listen", page.Shelves[3].SeeAllRoute);
+        Assert.Equal("/all/home/listen-next", page.Shelves[3].SeeAllRoute);
         Assert.Equal("Collections & Lists", page.Shelves[4].Title);
         Assert.Equal("/collections", page.Shelves[4].SeeAllRoute);
         Assert.Equal(page.Shelves[0].Items[0].Facts, page.Hero?.Facts);
@@ -864,7 +864,7 @@ public sealed class DisplayComposerServiceTests
     public async Task Home_RetiresFreshWithoutReducingDiscoveryShelf()
     {
         var sharedCollectionId = Guid.Parse("bbbbbbbb-9999-9999-9999-bbbbbbbbbbbb");
-        var works = Enumerable.Range(1, 20)
+        var works = Enumerable.Range(1, 25)
             .Select(index => Work(
                 Guid.Parse($"aaaaaaaa-9999-9999-9999-{index:D12}"),
                 "Movie",
@@ -873,10 +873,10 @@ public sealed class DisplayComposerServiceTests
             .ToList();
         var composer = CreateComposer(new StubDisplayProjectionRepository(works, []));
 
-        var page = await composer.BuildHomeAsync(includeCatalog: false, shelfLimit: 18);
+        var page = await composer.BuildHomeAsync(includeCatalog: false);
 
         var watch = page.Shelves.Single(shelf => shelf.Key == "watch-next");
-        Assert.Equal(18, watch.Items.Count);
+        Assert.Equal(20, watch.Items.Count);
         Assert.DoesNotContain(page.Shelves, shelf => shelf.Key == "fresh");
         Assert.NotEmpty(page.Spotlights);
     }
