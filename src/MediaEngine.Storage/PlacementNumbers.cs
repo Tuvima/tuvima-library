@@ -1,6 +1,6 @@
 using System.Data;
 using Dapper;
-using MediaEngine.Domain;
+using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Storage;
 
@@ -15,21 +15,13 @@ namespace MediaEngine.Storage;
 /// </summary>
 internal static class PlacementNumbers
 {
-    internal const string AudiobookPartNumberKey = "audiobook_part_number";
+    internal const string AudiobookPartNumberKey = MovePlacementNumbers.AudiobookPartNumberKey;
 
     /// <summary>The numbers a title (Work) holds in its album, season or series. A title's "not matched" mark covers these.</summary>
-    internal static readonly string[] WorkKeys =
-    [
-        MetadataFieldConstants.TrackNumber,
-        MetadataFieldConstants.DiscNumber,
-        MetadataFieldConstants.EpisodeNumber,
-        MetadataFieldConstants.SeasonNumber,
-        MetadataFieldConstants.SeriesPosition,
-        "series_index",
-    ];
+    internal static readonly string[] WorkKeys = MovePlacementNumbers.WorkKeys;
 
     /// <summary>The numbers an audiobook part (an Edition) holds in its audiobook. An Edition's "not matched" mark covers these.</summary>
-    internal static readonly string[] PartKeys = [AudiobookPartNumberKey];
+    internal static readonly string[] PartKeys = MovePlacementNumbers.PartKeys;
 
     internal static readonly string[] Keys = [.. WorkKeys, .. PartKeys];
 

@@ -19,6 +19,7 @@ public sealed class LibraryMoveService(
     ILibraryMoveRepository moves,
     MoveListRegistry registry,
     MoveOwnedFileCleaner ownedFiles,
+    MoveFilePlanner files,
     IMemoryCache cache) : ILibraryMoveService
 {
     public const int MaxItems = 200;
@@ -337,10 +338,18 @@ public sealed class LibraryMoveService(
         // What the caller may do to each item. Matching an entry needs the match right as well as the write right (Details overlay
         // spec decision); the preview says so up front so the Match step offers only what will work. A place with no list needs no match.
         var hasList = provider.ListKind != LibraryMoveListKinds.None;
+
+        // What happens to each file (D19): renamed and moved in a Managed folder, never touched in an As-is or protected one.
+        var picked = suggestions
+            .Where(pair => pair.Value.Entry is not null)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Entry!);
+        var fileLines = await files.PlanAsync(items, destination, hasList, picked, blocked.Keys.ToHashSet(), ct).ConfigureAwait(false);
+
         var rows = new List<LibraryMovePreviewRow>(items.Count);
         foreach (var item in items)
         {
             suggestions.TryGetValue(item.ItemId, out var suggestion);
+            fileLines.TryGetValue(item.ItemId, out var fileLine);
             var canMatch = !hasList || await canEdit(item.ItemId, LibraryMoveRight.Match, ct).ConfigureAwait(false);
             rows.Add(new LibraryMovePreviewRow
             {
@@ -349,6 +358,8 @@ public sealed class LibraryMoveService(
                 CurrentPlacementLabel = PlacementLabel(item),
                 SuggestedEntryKey = suggestion.Entry?.Key,
                 SuggestionReason = suggestion.Reason ?? string.Empty,
+                FileChange = fileLine?.Change,
+                FileNote = fileLine?.Note,
                 BlockedReason = blocked.GetValueOrDefault(item.ItemId),
                 CanMatch = canMatch,
                 MergeBlockedReason = hasList && CannotMergeIntoExistingTitle(item) ? LibraryMoveReasons.UserManagedMerge : null,
@@ -356,6 +367,7 @@ public sealed class LibraryMoveService(
         }
 
         var warnings = new List<string>();
+        warnings.AddRange(items.Select(item => fileLines.GetValueOrDefault(item.ItemId)?.Warning).OfType<string>());
         var leaving = places.Where(place => place.ContainerId != destination.Id).ToList();
         warnings.AddRange(leaving.Where(place => !place.BecomesEmpty).Select(place => $"Leaves {place.Label}"));
         if (sourceCollection is { BecomesEmpty: false })
@@ -388,7 +400,8 @@ public sealed class LibraryMoveService(
             Warnings = [.. warnings.Distinct(StringComparer.Ordinal)],
         };
 
-        var state = new State(destination, provider, entries, items, blocked, sourceCollectionId, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count));
+        var fileFingerprint = string.Concat(items.Select(item => fileLines.GetValueOrDefault(item.ItemId)?.FingerprintText + "\n"));
+        var state = new State(destination, provider, entries, items, blocked, sourceCollectionId, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count, fileFingerprint));
         return new Built(state, null);
     }
 
@@ -667,9 +680,11 @@ public sealed class LibraryMoveService(
         IReadOnlyList<LibraryMoveItem> items,
         IReadOnlyList<LibraryMoveSourceFacts> places,
         LibraryMoveSourceFacts? sourceCollection,
-        int missingItems)
+        int missingItems,
+        string fileLines)
     {
         var text = new StringBuilder();
+        text.Append(fileLines);
         text.Append("dest|").Append(destination.Id.ToString("N")).Append('|').Append(destination.Kind).Append('|').Append(provider.ListKind).AppendLine();
         text.Append("missing|").Append(missingItems.ToString(CultureInfo.InvariantCulture)).AppendLine();
         foreach (var entry in entries)

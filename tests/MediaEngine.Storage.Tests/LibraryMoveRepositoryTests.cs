@@ -135,6 +135,8 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM system_activity WHERE action_type = 'MediaUpdated' AND entity_id = @album;", new { album }));
         Assert.Equal("pending", Scalar<string>("SELECT writeback_status FROM media_assets;"));
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM media_file_write_intents WHERE status = 'pending';"));
+        // The queue row also asks for the file to be renamed and moved to fit its new place (D19).
+        Assert.Equal(1, Scalar("SELECT COUNT(*) FROM media_file_write_intents WHERE trigger = 'library_move';"));
     }
 
     [Fact]
