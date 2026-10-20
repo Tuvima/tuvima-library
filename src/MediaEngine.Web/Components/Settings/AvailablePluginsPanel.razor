@@ -1,7 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
-@using System.Globalization
 @using MediaEngine.Contracts.Plugins
-@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Settings
 @implements IDisposable
@@ -248,8 +246,8 @@
         return string.Join(" - ", parts);
     }
 
-    private static string FormatMoment(DateTimeOffset value) =>
-        $"{DisplayFormat.FormatPlainDate(value)} {value.UtcDateTime.ToString("HH:mm", CultureInfo.InvariantCulture)} UTC";
+    // The viewer's own time, formatted the way webhook history shows its attempt times.
+    private static string FormatMoment(DateTimeOffset value) => value.ToLocalTime().ToString("g");
 
     private static string TrustLabel(string trustLevel) => trustLevel.ToLowerInvariant() switch
     {

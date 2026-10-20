@@ -152,7 +152,7 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
         var cut = Render<AvailablePluginsPanel>();
 
         cut.WaitForAssertion(() =>
-            Assert.Contains("Last checked 2026-10-20 14:05 UTC", cut.Find("[data-testid=available-plugins-checked]").TextContent, StringComparison.Ordinal));
+            Assert.Contains($"Last checked {_directory.LastCheckedAt.Value.ToLocalTime().ToString("g")}", cut.Find("[data-testid=available-plugins-checked]").TextContent, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=available-plugin-entry]")));
         Assert.Contains("showing the copy from 17 October 2026", cut.Find("[data-testid=available-plugins-message]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("Saved copy from 2026-10-17", cut.Find("[data-testid=available-plugins-copy]").TextContent, StringComparison.Ordinal);
+        Assert.Contains($"Saved copy from {_directory.LastSuccessAt.Value.ToLocalTime().ToString("g")}", cut.Find("[data-testid=available-plugins-copy]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class AvailablePluginsPanelTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=available-plugin-entry]")));
         Assert.Contains("Plugin directory is switched off.", cut.Find("[data-testid=available-plugins-message]").TextContent, StringComparison.Ordinal);
-        Assert.Contains("2026-10-17", cut.Find("[data-testid=available-plugins-copy]").TextContent, StringComparison.Ordinal);
+        Assert.Contains(_directory.LastSuccessAt.Value.ToLocalTime().ToString("g"), cut.Find("[data-testid=available-plugins-copy]").TextContent, StringComparison.Ordinal);
         Assert.False(cut.Find("input[role=switch]").HasAttribute("checked"));
         Assert.True(cut.Find("[data-testid=available-plugins-check]").HasAttribute("disabled"));
     }
