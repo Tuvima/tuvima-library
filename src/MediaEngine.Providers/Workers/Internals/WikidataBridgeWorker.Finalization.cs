@@ -428,24 +428,35 @@ public sealed partial class WikidataBridgeWorker
 
         try
         {
-            var result = await reconAdapter.ResolveAsync(
-                new WikidataResolveRequest
+            var rollupKey = ComicSeriesRollupKey(ctx);
+            if (!_comicSeriesRollups.TryGetValue(rollupKey, out var result))
+            {
+                // The question is about the series, so it is asked of the series alone: no issue author, no issue
+                // number, no job in the correlation key. Two issues of one run therefore always send the same request.
+                result = await reconAdapter.ResolveAsync(
+                    new WikidataResolveRequest
+                    {
+                        CorrelationKey = $"comic-series-rollup:{rollupKey}",
+                        MediaType = MediaType.Comics,
+                        Strategy = ResolveStrategy.Auto,
+                        BridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                        WikidataProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                        IsEditionAware = false,
+                        AllowConstrainedTextFallback = true,
+                        Title = ctx.SeriesHint,
+                        Author = null,
+                        Year = null,
+                        FileLanguage = ctx.LanguageHint,
+                        SeriesTitle = ctx.SeriesHint,
+                        IssueNumber = null,
+                    },
+                    ct).ConfigureAwait(false);
+
+                if (result.Found && !string.IsNullOrWhiteSpace(result.WorkQid ?? result.Qid))
                 {
-                    CorrelationKey = $"{ctx.Job.Id}:comic-series-rollup",
-                    MediaType = MediaType.Comics,
-                    Strategy = ResolveStrategy.Auto,
-                    BridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-                    WikidataProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-                    IsEditionAware = false,
-                    AllowConstrainedTextFallback = true,
-                    Title = ctx.SeriesHint,
-                    Author = ctx.AuthorHint,
-                    Year = null,
-                    FileLanguage = ctx.LanguageHint,
-                    SeriesTitle = ctx.SeriesHint,
-                    IssueNumber = null,
-                },
-                ct).ConfigureAwait(false);
+                    result = _comicSeriesRollups.GetOrAdd(rollupKey, result);
+                }
+            }
 
             if (!result.Found)
             {
@@ -485,6 +496,17 @@ public sealed partial class WikidataBridgeWorker
                 ctx.Job.EntityId,
                 ctx.SeriesHint);
         }
+    }
+
+    /// <summary>The ComicVine run when the issue has one, otherwise the series name, plus the file language.</summary>
+    private static string ComicSeriesRollupKey(JobContext ctx)
+    {
+        var volume = ctx.BridgeIds.FirstOrDefault(entry =>
+            string.Equals(entry.IdType, BridgeIdKeys.ComicVineVolumeId, StringComparison.OrdinalIgnoreCase));
+        var run = volume is not null
+            ? $"volume:{volume.IdValue}"
+            : $"series:{ctx.SeriesHint!.Trim().ToLowerInvariant()}";
+        return $"{run}|{ctx.LanguageHint?.Trim().ToLowerInvariant()}";
     }
 
     private static bool ShouldAttemptComicSeriesRollup(JobContext ctx)
