@@ -666,9 +666,13 @@ public sealed partial class IngestionEngine
         // Embedded art always wins; the sibling folder image (cover.jpg, folder.jpg, ...) is only a
         // fallback for Books, Audiobooks and Music files that carry no embedded picture.
         var hasEmbeddedCover = result.CoverImage is { Length: > 0 };
-        context.FolderCover = !hasEmbeddedCover && FolderCoverImageReader.AppliesTo(resolvedMediaType)
-            ? FolderCoverImageReader.TryRead(candidate.Path)
-            : null;
+        context.FolderCover = hasEmbeddedCover
+            ? null
+            : FolderCoverImageReader.AppliesTo(resolvedMediaType)
+                ? FolderCoverImageReader.TryRead(candidate.Path)
+                : resolvedMediaType == MediaType.Videos && ResolveVideosRoot(context.Library, candidate.Path) is { } coverRoot
+                    ? FolderCoverImageReader.TryReadForVideo(candidate.Path, coverRoot)
+                    : null;
 
         if (hasEmbeddedCover || context.FolderCover is not null)
         {
