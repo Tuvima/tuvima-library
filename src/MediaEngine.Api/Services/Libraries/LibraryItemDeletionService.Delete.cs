@@ -362,7 +362,8 @@ public sealed partial class LibraryItemDeletionService
         {
             foreach (var id in ids)
             {
-                RemoveOwnedFolder(Path.Combine(kindFolder, id.ToString("D", CultureInfo.InvariantCulture)), assetPaths.DerivedRoot);
+                RemoveOwnedFolder(
+                    Path.Combine(kindFolder, id.ToString("D", CultureInfo.InvariantCulture)), assetPaths.DerivedRoot, data.StillReferencedFiles);
             }
         }
 
@@ -370,15 +371,27 @@ public sealed partial class LibraryItemDeletionService
         {
             foreach (var id in data.AssetIds)
             {
-                RemoveOwnedFolder(Path.Combine(kindFolder, id.ToString("D", CultureInfo.InvariantCulture)), assetPaths.TextTracksRoot);
+                RemoveOwnedFolder(
+                    Path.Combine(kindFolder, id.ToString("D", CultureInfo.InvariantCulture)), assetPaths.TextTracksRoot, data.StillReferencedFiles);
             }
         }
     }
 
-    private void RemoveOwnedFolder(string folder, string root)
+    /// <summary>
+    /// Removes a folder Tuvima keyed by a deleted id, with everything in it, unless a remaining row still points at a file inside it:
+    /// then the whole folder is left, because it is not entirely the deleted title's.
+    /// </summary>
+    private void RemoveOwnedFolder(string folder, string root, IReadOnlyCollection<string> stillReferenced)
     {
         try
         {
+            var normalizedFolder = NormalizePath(folder);
+            if (stillReferenced.Any(path => ExcludedSourceFilePaths.RelativePathOf(normalizedFolder, path) is not null))
+            {
+                logger.LogInformation("Leaving {Folder}: a remaining record still uses a file in it", Path.GetFileName(folder));
+                return;
+            }
+
             if (!Directory.Exists(folder)
                 || ExcludedSourceFilePaths.RelativePathOf(NormalizePath(root), NormalizePath(folder)) is null
                 || IsReparsePoint(folder))

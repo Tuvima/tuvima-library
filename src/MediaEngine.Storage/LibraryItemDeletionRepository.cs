@@ -311,21 +311,21 @@ public sealed class LibraryItemDeletionRepository(
         var deadline = DateTimeOffset.UtcNow + limit;
 
         // Mark the jobs failed so nothing new can lease them. A job a worker is running right now keeps its lease, so the lease still
-        // shows who is on it; everything else is released. A running job cannot be interrupted from here, so it is waited for below.
-        // The marking is repeated while waiting, because a worker that finishes moves its job on to the next state.
-        await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
+        // shows who is on it; everything else is released. A running job cannot be interrupted from here, so it is waited for. The
+        // marking is repeated while waiting, because a worker that finishes moves its job on to the next state, and it reports how
+        // many live leases it found in the same write that marked them. The wait ends only when a marking finds none: that marking
+        // is the last word, because the marked jobs are failed and cannot be leased again.
         while (true)
         {
-            var running = FindRunningJobs(ids);
-            if (running.Count == 0)
+            var leased = await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
+            if (leased == 0)
             {
-                // One last marking: a job that just finished has moved on to its next state.
-                await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
                 return;
             }
 
             if (DateTimeOffset.UtcNow >= deadline)
             {
+                var running = FindRunningJobs(ids);
                 logger?.LogWarning(
                     "Deleting from the library without waiting any longer for {Count} running job(s) to finish: {JobIds}",
                     running.Count,
@@ -334,32 +334,49 @@ public sealed class LibraryItemDeletionRepository(
             }
 
             await Task.Delay(interval, ct).ConfigureAwait(false);
-            await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
         }
     }
 
-    private Task MarkJobsFailedAsync(byte[][] ids, CancellationToken ct)
+    /// <summary>Marks the jobs failed and returns how many of them had a live lease at that moment (counted in the same write).</summary>
+    private Task<int> MarkJobsFailedAsync(byte[][] ids, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow.ToString("O");
         // A short write each time, so a worker can take the write lock between looks and let go of its job.
-        return db.ExecuteWriteAsync((connection, transaction, _) => connection.Execute("""
-            UPDATE identity_jobs
-            SET state = @failed,
-                last_error = @reason,
-                lease_owner = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_owner ELSE NULL END,
-                lease_expires_at = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_expires_at ELSE NULL END,
-                next_retry_at = NULL,
-                updated_at = @now
-            WHERE (state NOT IN @resting OR (lease_owner IS NOT NULL AND lease_expires_at > @now))
-              AND (entity_id IN @ids
-                   OR entity_id IN (
-                       SELECT ma.id
-                       FROM editions e
-                       INNER JOIN media_assets ma ON ma.edition_id = e.id
-                       WHERE e.work_id IN @ids));
-            """,
-            new { failed = nameof(IdentityJobState.Failed), reason = CancelledReason, now, resting = RestingJobStates, ids },
-            transaction), ct);
+        return db.ExecuteWriteAsync((connection, transaction, _) =>
+        {
+            var leased = connection.ExecuteScalar<int>("""
+                SELECT COUNT(*)
+                FROM identity_jobs
+                WHERE lease_owner IS NOT NULL AND lease_expires_at > @now
+                  AND (entity_id IN @ids
+                       OR entity_id IN (
+                           SELECT ma.id
+                           FROM editions e
+                           INNER JOIN media_assets ma ON ma.edition_id = e.id
+                           WHERE e.work_id IN @ids));
+                """,
+                new { now, ids },
+                transaction);
+            connection.Execute("""
+                UPDATE identity_jobs
+                SET state = @failed,
+                    last_error = @reason,
+                    lease_owner = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_owner ELSE NULL END,
+                    lease_expires_at = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_expires_at ELSE NULL END,
+                    next_retry_at = NULL,
+                    updated_at = @now
+                WHERE (state NOT IN @resting OR (lease_owner IS NOT NULL AND lease_expires_at > @now))
+                  AND (entity_id IN @ids
+                       OR entity_id IN (
+                           SELECT ma.id
+                           FROM editions e
+                           INNER JOIN media_assets ma ON ma.edition_id = e.id
+                           WHERE e.work_id IN @ids));
+                """,
+                new { failed = nameof(IdentityJobState.Failed), reason = CancelledReason, now, resting = RestingJobStates, ids },
+                transaction);
+            return leased;
+        }, ct);
     }
 
     private List<Guid> FindRunningJobs(byte[][] ids)
@@ -390,7 +407,7 @@ public sealed class LibraryItemDeletionRepository(
         var distinct = workIds.Distinct().ToList();
         if (distinct.Count == 0)
         {
-            return new LibraryItemDeletionDataResult([], [], [], []);
+            return new LibraryItemDeletionDataResult([], [], [], [], []);
         }
 
         return await db.ExecuteWriteAsync((connection, transaction, _) =>
@@ -488,7 +505,7 @@ public sealed class LibraryItemDeletionRepository(
                 .ToList();
 
             ClearScratchTables(connection, transaction);
-            return new LibraryItemDeletionDataResult(editionIds, assetIds, collections, deletable);
+            return new LibraryItemDeletionDataResult(editionIds, assetIds, collections, deletable, stillReferenced);
         }, ct).ConfigureAwait(false);
     }
 
@@ -501,7 +518,6 @@ public sealed class LibraryItemDeletionRepository(
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             // Compared as written, the same way AssetFileReferences keeps a path it cannot normalise.
-            _ = ex;
             return path;
         }
     }

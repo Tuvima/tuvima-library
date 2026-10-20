@@ -499,6 +499,47 @@ public sealed class LibraryItemDeletionTests : IDisposable
     }
 
     [Fact]
+    public async Task AFolderKeyedByTheDeletedTitle_IsLeftWhole_WhenARemainingRecordStillUsesAFileInIt_ButOthersAreRemoved()
+    {
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, duneAssets) = _world.AddWork("Dune", [media]);
+        var (arrivalId, _) = _world.AddWork("Arrival", [other]);
+        var derived = Path.Combine(_world.DataRoot, "assets", "derived");
+        var sharedFolder = Path.Combine(derived, "work", duneId.ToString("D"));
+        var plainFolder = Path.Combine(derived, "audio", duneId.ToString("D"));
+        var tracksFolder = Path.Combine(_world.DataRoot, "assets", "text-tracks", "subtitles", duneAssets[0].ToString("D"));
+        Directory.CreateDirectory(sharedFolder);
+        Directory.CreateDirectory(plainFolder);
+        Directory.CreateDirectory(tracksFolder);
+        var ownFile = Path.Combine(sharedFolder, "own.bin");
+        var servedFile = Path.Combine(sharedFolder, "served.jpg");
+        var plainFile = Path.Combine(plainFolder, "a.bin");
+        var trackFile = Path.Combine(tracksFolder, "en.vtt");
+        foreach (var path in new[] { ownFile, servedFile, plainFile, trackFile })
+        {
+            File.WriteAllText(path, "x");
+        }
+
+        // Another title's artwork row names a file inside the first folder, and a person's headshot names the text-track file.
+        SeedArtwork(servedFile, arrivalId, "Work");
+        using (var connection = _world.Database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO persons (id, name, created_at, local_headshot_path) VALUES (randomblob(16), 'Someone', @now, @trackFile);",
+                new { now = DateTimeOffset.UtcNow.ToString("O"), trackFile });
+        }
+
+        await DeleteAsync(duneId);
+
+        Assert.True(File.Exists(servedFile));
+        Assert.True(File.Exists(ownFile), "The folder is left whole, not trimmed.");
+        Assert.True(File.Exists(trackFile));
+        Assert.True(Directory.Exists(tracksFolder));
+        Assert.False(Directory.Exists(plainFolder), "A folder nothing else uses is removed.");
+    }
+
+    [Fact]
     public async Task ARunningJob_DelaysTheDeleteUntilItLetsGo()
     {
         using var world = new LibraryItemDeletionTestWorld(leaseWaitLimit: TimeSpan.FromSeconds(20));

@@ -29,6 +29,13 @@ public static class AssetFileReferences
         "SELECT local_image_path FROM fictional_entities WHERE local_image_path IS NOT NULL",
         "SELECT local_path FROM text_tracks WHERE local_path IS NOT NULL",
         "SELECT sidecar_path FROM text_tracks WHERE sidecar_path IS NOT NULL",
+        "SELECT character_image_path FROM character_performer_links WHERE character_image_path IS NOT NULL",
+        """
+        SELECT cover_artwork_path FROM collections WHERE cover_artwork_path IS NOT NULL
+        UNION ALL SELECT background_artwork_path FROM collections WHERE background_artwork_path IS NOT NULL
+        UNION ALL SELECT banner_artwork_path FROM collections WHERE banner_artwork_path IS NOT NULL
+        UNION ALL SELECT logo_artwork_path FROM collections WHERE logo_artwork_path IS NOT NULL
+        """,
     ];
 
     /// <summary>The full path of every file any row still references, on the caller's connection (and transaction, when given).</summary>
@@ -51,7 +58,6 @@ public static class AssetFileReferences
                 catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
                 {
                     // A stored path that cannot be normalised is kept as written: when in doubt a file counts as still in use.
-                    _ = ex;
                     referenced.Add(path);
                 }
             }
