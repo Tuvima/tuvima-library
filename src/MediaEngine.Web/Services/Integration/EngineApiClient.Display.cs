@@ -211,4 +211,55 @@ public sealed partial class EngineApiClient
         }).ToList();
     }
 
+    // -- GET /api/v1/display/grids/{lane}/{shelfKey} ---------------------------
+
+    public async Task<DisplayGridPageDto?> GetDisplayGridAsync(
+        string lane,
+        string shelfKey,
+        string? sort,
+        string? type,
+        string? genre,
+        string? format,
+        string? status,
+        int offset,
+        int limit,
+        CancellationToken ct = default)
+    {
+        const string endpoint = "GET /api/v1/display/grids/{lane}/{shelfKey}";
+        try
+        {
+            var query = new List<string>();
+            AddQuery(query, "sort", sort);
+            AddQuery(query, "type", type);
+            AddQuery(query, "genre", genre);
+            AddQuery(query, "format", format);
+            AddQuery(query, "status", status);
+            AddQuery(query, "offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            AddQuery(query, "limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var url = $"/api/v1/display/grids/{Uri.EscapeDataString(lane)}/{Uri.EscapeDataString(shelfKey)}?{string.Join("&", query)}";
+            var page = await _http.GetFromJsonAsync<DisplayGridPageDto>(url, ct);
+            ClearFailure(endpoint);
+            return page is null ? null : page with { Items = page.Items.Select(NormalizeDisplayCard).ToList() };
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is { } code)
+        {
+            // The shared GET helper records no status code; the page needs it to tell a missing grid (404) from a failed read.
+            _failureState.RecordRawFailure(endpoint, (int)code, ex.Message);
+            return null;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            RecordExceptionFailure(endpoint, ex);
+            return null;
+        }
+    }
+
+    public Task<bool> SetDisplayGridSortAsync(string rememberKey, string sort, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/grid-preferences/{rememberKey}",
+            $"/api/v1/display/grid-preferences/{Uri.EscapeDataString(rememberKey)}",
+            new DisplayGridSortPreferenceRequest(sort),
+            ct: ct);
+
 }

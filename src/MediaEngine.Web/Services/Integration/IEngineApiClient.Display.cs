@@ -50,4 +50,24 @@ public partial interface IEngineApiClient
     /// <summary>GET /api/v1/display/contributor-shelves - logical multi-work shelves for Collections.</summary>
     Task<IReadOnlyList<ContributorShelfDto>> GetContributorShelvesAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// GET /api/v1/display/grids/{lane}/{shelfKey} - one page of a shelf's full list for the View all grid. A blank
+    /// <paramref name="sort"/> lets the Engine apply the profile's remembered sort. Returns null on failure; a 404 (no such
+    /// grid) is told apart from other failures by <see cref="LastStatusCode"/>.
+    /// </summary>
+    Task<DisplayGridPageDto?> GetDisplayGridAsync(
+        string lane,
+        string shelfKey,
+        string? sort,
+        string? type,
+        string? genre,
+        string? format,
+        string? status,
+        int offset,
+        int limit,
+        CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/grid-preferences/{rememberKey} - remembers the sort the active profile chose on a View all grid.</summary>
+    Task<bool> SetDisplayGridSortAsync(string rememberKey, string sort, CancellationToken ct = default);
+
 }
