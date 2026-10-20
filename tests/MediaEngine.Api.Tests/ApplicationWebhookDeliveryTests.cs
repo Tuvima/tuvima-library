@@ -52,7 +52,7 @@ public sealed class ApplicationWebhookDeliveryTests : IDisposable
     }
 
     private Task<StoredApplicationEvent> EventAsync() => _events.AppendAsync(new(0, Guid.NewGuid(), "ingestion.completed", 1,
-        _clock.GetUtcNow(), "synthetic-server", new("ingestion-batch", Guid.NewGuid().ToString("D")), "{\"completed\":3}"));
+        _clock.GetUtcNow(), "synthetic-server", new("ingestion", "current"), "{\"completed\":3}"));
 
     [Fact]
     public async Task SecretsAreOneTimeEncryptedAndRotationCancelsOldPendingDelivery()

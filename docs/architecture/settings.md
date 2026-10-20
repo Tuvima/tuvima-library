@@ -40,16 +40,16 @@ Use SQLite for records created or changed by product workflows:
 - profiles, profile external logins, and API keys.
 - provider health and recent failures.
 - review queue entries and resolution history.
-- ingestion batches, ingestion logs, identity jobs, and Ingestion status inputs.
+- ingestion logs, per-file work rows, identity jobs, and Ingestion status inputs.
 - system activity, encode jobs, and playback/reading progress.
 
 ## Library Admin Pages
 
-The Settings/Admin navigation exposes **Libraries**, **Ingestion**, **Providers**, and **Activity** directly under **Admin Settings**. These are first-class pages in the left navigation instead of tabs inside a shared operations page. The Ingestion page is a read-heavy operational dashboard, not a configuration editor and not a raw background-job log. Its Engine snapshot (`GET /ingestion/operations`) combines JSON-owned configuration with SQLite-owned state:
+The Settings/Admin navigation exposes **Libraries**, **Ingestion**, **Providers**, and **Activity** directly under **Admin Settings**. These are first-class pages in the left navigation instead of tabs inside a shared operations page. The Ingestion page is a read-heavy operational dashboard, not a configuration editor and not a raw background-job log. Its Engine views (`GET /ingestion/queue-progress` and `GET /ingestion/presentation`) combine JSON-owned configuration with SQLite-owned state:
 
 - JSON supplies configured source folders, provider definitions, and organization templates.
-- SQLite supplies lifecycle counts, active/recent ingestion batches, review reasons, provider health records, and pipeline progress.
-- SignalR supplies live `BatchProgress` and `IngestionProgress` updates between snapshot refreshes.
+- SQLite supplies lifecycle counts, the groups in flight and recently added, review reasons, provider health records, and pipeline progress.
+- SignalR supplies live `IngestionQueueProgress` and `IngestionProgress` updates between refreshes.
 
 When a backing signal does not exist yet, the UI should show an unavailable or not-tracked state instead of static sample data.
 

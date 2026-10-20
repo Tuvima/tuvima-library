@@ -147,9 +147,9 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     [Fact]
     public void UpdatedLivePreviewPreservesServerActivityOrderAndNewArtwork()
     {
-        var first = Guid.NewGuid(); var second = Guid.NewGuid(); var batch = Guid.NewGuid();
-        var before = new IngestionPresentationSnapshotDto { CurrentMedia = [new() { BatchId = batch, GroupId = first }, new() { BatchId = batch, GroupId = second }] };
-        var after = new IngestionPresentationSnapshotDto { CurrentMedia = [new() { BatchId = batch, GroupId = second, CoverUrl = "/stream/artwork/new" }, new() { BatchId = batch, GroupId = first }] };
+        var first = Guid.NewGuid(); var second = Guid.NewGuid();
+        var before = new IngestionPresentationSnapshotDto { CurrentMedia = [new() { GroupId = first }, new() { GroupId = second }] };
+        var after = new IngestionPresentationSnapshotDto { CurrentMedia = [new() { GroupId = second, CoverUrl = "/stream/artwork/new" }, new() { GroupId = first }] };
         var merge = typeof(IngestionLiveDashboardState).GetMethod("MergePresentation", BindingFlags.NonPublic | BindingFlags.Static)!;
         var actual = (IngestionPresentationSnapshotDto)merge.Invoke(null, [before, after])!;
         Assert.Equal(second, actual.CurrentMedia[0].GroupId);

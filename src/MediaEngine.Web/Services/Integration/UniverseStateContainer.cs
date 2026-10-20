@@ -28,11 +28,9 @@ public sealed class UniverseStateContainer : IDisposable
     private bool _loaded;
     private IngestionProgressEvent? _ingestionProgress;
     private DateTimeOffset? _ingestionProgressReceivedAt;
-    private BatchProgressEvent? _batchProgress;
     private IngestionQueueProgressDto? _ingestionQueueProgress;
     private DateTimeOffset? _ingestionQueueProgressReceivedAt;
     private EngineConnectionState _engineConnectionState = EngineConnectionState.Unknown;
-    private DateTimeOffset? _batchProgressReceivedAt;
     private readonly Dictionary<Guid, LiveIngestionItemProgress> _ingestionItemProgress = new();
     private UniverseEnrichmentProgressEvent? _universeEnrichmentProgress;
     private DateTimeOffset? _universeEnrichmentProgressReceivedAt;
@@ -75,13 +73,6 @@ public sealed class UniverseStateContainer : IDisposable
     public IngestionProgressEvent? IngestionProgress => _ingestionProgress;
     public DateTimeOffset? IngestionProgressReceivedAt => _ingestionProgressReceivedAt;
 
-    /// <summary>
-    /// Latest batch progress snapshot pushed via SignalR.
-    /// Contains running counters, progress percentage, and estimated time remaining.
-    /// Null when no batch is active.
-    /// </summary>
-    public BatchProgressEvent? BatchProgress => _batchProgress;
-
     /// <summary>The latest live ingestion numbers from the Engine, shown as sent; null until the first snapshot arrives.</summary>
     public IngestionQueueProgressDto? IngestionQueueProgress => _ingestionQueueProgress;
 
@@ -90,7 +81,6 @@ public sealed class UniverseStateContainer : IDisposable
 
     /// <summary>The Engine connection state, kept here so the menu indicator can read it without the orchestrator.</summary>
     public EngineConnectionState EngineConnectionState => _engineConnectionState;
-    public DateTimeOffset? BatchProgressReceivedAt => _batchProgressReceivedAt;
     public IReadOnlyList<LiveIngestionItemProgress> IngestionItemProgress =>
         _ingestionItemProgress.Values
             .OrderByDescending(item => item.ReceivedAt)
@@ -273,28 +263,6 @@ public sealed class UniverseStateContainer : IDisposable
 
         _engineConnectionState = state;
         NotifyStateChanged(requiresSnapshotRefresh: false);
-    }
-
-    /// <summary>
-    /// Called when a <c>"BatchProgress"</c> event arrives on the Intercom collection.
-    /// Updates batch progress state for live progress bars and time-remaining display.
-    /// </summary>
-    public void PushBatchProgress(BatchProgressEvent ev)
-    {
-        _batchProgress = ev.IsComplete ? null : ev;
-        _batchProgressReceivedAt = ev.IsComplete ? null : DateTimeOffset.UtcNow;
-
-        if (!string.IsNullOrWhiteSpace(ev.CurrentFileTitle) && !string.IsNullOrWhiteSpace(ev.CurrentStage))
-        {
-            PushActivity(new ActivityEntry(
-                DateTimeOffset.UtcNow,
-                ActivityKind.IngestionProgress,
-                "sync",
-                $"{ev.CurrentStage}: {ev.CurrentFileTitle}",
-                $"{ev.FilesProcessed} of {ev.FilesTotal} files processed"));
-        }
-
-        NotifyStateChanged(requiresSnapshotRefresh: ev.IsComplete, throttle: !ev.IsComplete);
     }
 
     /// <summary>

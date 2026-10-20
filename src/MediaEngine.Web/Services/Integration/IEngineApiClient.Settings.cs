@@ -249,58 +249,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /system/scheduled-tasks — every recurring Engine task with its last and next run. Null when the Engine could not be asked.</summary>
     Task<ScheduledTaskListResponse?> GetScheduledTasksAsync(CancellationToken ct = default);
 
-    /// <summary>GET /activity/run/{runId} — all entries for a specific ingestion run.</summary>
-    Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(Guid runId, CancellationToken ct = default);
-
     /// <summary>GET /activity/by-types?types=...&amp;limit= — entries filtered by action type for activity summaries.</summary>
     Task<List<ActivityEntryResponse>> GetActivityByTypesAsync(
         string[] actionTypes, int limit = 50, CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityBatchSummaryDto>?> GetActivityBatchesAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchSummaryDto?> GetActivityBatchAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<List<ActivityMediaTypeGroupDto>> GetActivityBatchGroupsAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchInsightsDto?> GetActivityBatchInsightsAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityBatchItemDto>?> GetActivityBatchItemsAsync(
-        Guid batchId,
-        string? mediaType = null,
-        string? search = null,
-        string? status = null,
-        string? source = null,
-        int offset = 0,
-        int limit = 25,
-        string? sort = null,
-        string? sortDirection = null,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchItemDetailDto?> GetActivityBatchItemDetailAsync(
-        Guid batchId,
-        Guid assetId,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityTechnicalEventDto>?> GetActivityBatchEventsAsync(
-        Guid batchId,
-        string? search = null,
-        string? eventType = null,
-        string? result = null,
-        int offset = 0,
-        int limit = 25,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityPersonAuditDto>?> GetActivityPeopleAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default);
 
     // ── UI Settings (/settings/ui) ───────────────────────────────────────────────
 

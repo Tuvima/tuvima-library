@@ -12,7 +12,6 @@ public sealed class WorkReadinessGuardrailTests
     // queries with lookups is not listed here; its lookups carry a "-- readiness: reason" comment inside the SQL instead.
     private static readonly IReadOnlyDictionary<string, string> NotDisplayFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["ActivityBatchReadService.cs"] = "Activity log: lists what the Library did, including items that are not ready.",
         ["ArtworkLibraryReadService.cs"] = "Artwork workspace for administrators: must reach items whose artwork is still being settled.",
         ["CatalogueResourceAuthorization.cs"] = "Authorization: works out which works a grant covers, by id, whether or not they are ready.",
         ["EditorSuggestionReadService.cs"] = "Editor suggestions for one item the administrator already opened.",

@@ -57,21 +57,30 @@ public sealed class LargeLibraryFixture : IDisposable
         return collectionId;
     }
 
-    public Guid SeedIngestionBatch(int groupCount)
+    private int _ingestedGroups;
+
+    /// <summary>
+    /// Seeds this many Ready one-file movie groups, each with its ingestion log row. The groups are shared by every test
+    /// in the class, so asking again for the same count seeds nothing more.
+    /// </summary>
+    public void SeedIngestedGroups(int groupCount)
     {
-        var batchId = Guid.NewGuid();
+        if (_ingestedGroups == groupCount)
+        {
+            return;
+        }
+
+        if (_ingestedGroups != 0)
+        {
+            throw new InvalidOperationException("The ingested groups were already seeded with a different count.");
+        }
+
+        _ingestedGroups = groupCount;
         var occurredAt = DateTimeOffset.UtcNow.ToString("O");
         using var connection = Database.CreateConnection();
         using var transaction = connection.BeginTransaction();
         connection.Execute(
             """
-            INSERT INTO ingestion_batches (
-                id, status, category, files_total, files_processed, files_registered,
-                started_at, completed_at, created_at, updated_at)
-            VALUES (
-                @batchId, 'completed', 'Performance', @groupCount, @groupCount, @groupCount,
-                @occurredAt, @occurredAt, @occurredAt, @occurredAt);
-
             CREATE TEMP TABLE performance_ingestion_seed (
                 sequence INTEGER PRIMARY KEY,
                 work_id BLOB NOT NULL,
@@ -111,7 +120,7 @@ public sealed class LargeLibraryFixture : IDisposable
 
             INSERT INTO ingestion_log (
                 id, file_path, media_asset_id, content_hash, status, media_type,
-                detected_title, normalized_title, ingestion_run_id, created_at, updated_at)
+                detected_title, normalized_title, created_at, updated_at)
             SELECT log_id,
                    'C:/performance/' || sequence || '.mkv',
                    asset_id,
@@ -120,18 +129,16 @@ public sealed class LargeLibraryFixture : IDisposable
                    'Movies',
                    'Performance Movie ' || sequence,
                    'performance movie ' || sequence,
-                   @batchId,
                    @occurredAt,
                    @occurredAt
             FROM performance_ingestion_seed;
 
             DROP TABLE performance_ingestion_seed;
             """,
-            new { batchId, groupCount, occurredAt },
+            new { groupCount, occurredAt },
             transaction,
             commandTimeout: 120);
         transaction.Commit();
-        return batchId;
     }
 
     public void Dispose()

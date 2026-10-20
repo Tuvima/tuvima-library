@@ -220,7 +220,6 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
     private static IngestionMediaGroupDto Named(string title) => new()
     {
         GroupId = Guid.NewGuid(),
-        BatchId = Guid.NewGuid(),
         MediaType = "Books",
         Title = title,
         Availability = "adding",
@@ -265,7 +264,6 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
         var row = new IngestionMediaGroupDto
         {
             GroupId = Guid.NewGuid(),
-            BatchId = Guid.NewGuid(),
             MediaType = "Books",
             Title = "Cibola Burn",
             Availability = "adding",
