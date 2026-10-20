@@ -81,7 +81,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/listen/player-popup` | `ListenPlayerPopupPage` | Detached listen window |
 | `/details/{EntityType}/{Id:guid}` | `UnifiedDetailPage` | The one detail page for every entity type (`Components/Details/`), shown as an overlay over the page you came from (`DetailsOverlayRouteView`); TV episodes open via their show with `?episode=` |
 | `/collections`, `/collections/{Section}` | `Collections` | Collections and universes |
-| `/universe/{Qid}` | `UniversePage` | A Universe: hero, each Series in order (with missing entries when the profile shows them), standalone works, Connections (Cast, Adaptations) and, for desktop administrators, Edit in the Editing Mode drawer. Pieces in `Components/Universe/`, state in `UniversePageState`, one Engine read (`/universe/{qid}/overview`) |
+| `/universe/{Qid}` | `UniversePage` | A Universe: hero, each Series in order (with missing entries when the profile shows them), standalone works, Connections (Cast, Adaptations) and, for desktop administrators, Edit, which shows the editing banner and the existing Universe editor in-line in the section slot. Pieces in `Components/Universe/`, state in `UniversePageState`, one Engine read (`/universe/{qid}/overview`) |
 | `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer (desktop; paths and family tree) |
 | `/my-library` | `MyLibrary` | The personal page (Continue, My List, Recent activity preview, Liked; Downloads in the app); the phone dock's My Library tab |
 | `/my-activity` | `MyActivity` | The signed-in person's own Activity page outside Settings (Kids profiles and quick access); same component as Settings > Overview > Activity, own scope only |
