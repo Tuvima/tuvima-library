@@ -751,37 +751,48 @@ public sealed class PersonEnrichmentWorker
         string resolvedName,
         CancellationToken ct)
     {
-        var existing = await _personRepo.FindByQidAsync(resolvedQid, ct).ConfigureAwait(false);
-
+        // The same lock the QID-linked path takes, so a reconciled and a linked credit for one person cannot both create them.
+        Person? existing;
         Guid personId;
         bool needsHarvest;
-        if (existing is not null)
+        var personLock = PersonCreationLocks.ForQid(resolvedQid);
+        await personLock.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            personId = existing.Id;
-            needsHarvest = existing.EnrichedAt is null;
-            if (!string.Equals(existing.Name, resolvedName, StringComparison.OrdinalIgnoreCase))
+            existing = await _personRepo.FindByQidAsync(resolvedQid, ct).ConfigureAwait(false);
+
+            if (existing is not null)
             {
-                await _personRepo.UpdateEnrichmentAsync(existing.Id, resolvedQid,
-                    headshotUrl: null, biography: null, name: resolvedName, ct).ConfigureAwait(false);
+                personId = existing.Id;
+                needsHarvest = existing.EnrichedAt is null;
+                if (!string.Equals(existing.Name, resolvedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    await _personRepo.UpdateEnrichmentAsync(existing.Id, resolvedQid,
+                        headshotUrl: null, biography: null, name: resolvedName, ct).ConfigureAwait(false);
+                }
+
+                await _personRepo.AddRoleAsync(existing.Id, role, ct).ConfigureAwait(false);
             }
-
-            await _personRepo.AddRoleAsync(existing.Id, role, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var newPerson = await _personRepo.CreateAsync(new Person
+            else
             {
-                Name = resolvedName,
-                Roles = [role],
-                WikidataQid = resolvedQid,
-            }, ct).ConfigureAwait(false);
+                var newPerson = await _personRepo.CreateAsync(new Person
+                {
+                    Name = resolvedName,
+                    Roles = [role],
+                    WikidataQid = resolvedQid,
+                }, ct).ConfigureAwait(false);
 
-            personId = newPerson.Id;
-            needsHarvest = true;
+                personId = newPerson.Id;
+                needsHarvest = true;
 
-            _logger.LogDebug(
-                "Created person record for reconciled '{RawName}' -> '{ResolvedName}' ({Qid}), id={Id}",
-                rawName, resolvedName, resolvedQid, personId);
+                _logger.LogDebug(
+                    "Created person record for reconciled '{RawName}' -> '{ResolvedName}' ({Qid}), id={Id}",
+                    rawName, resolvedName, resolvedQid, personId);
+            }
+        }
+        finally
+        {
+            personLock.Release();
         }
 
         try

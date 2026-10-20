@@ -574,6 +574,7 @@ else
                 if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
                 {
                     <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null) @(_sameFileHighlight.Contains(item.Id) ? "is-same-file-highlight" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
+                        <EditingRowSelect Id="@item.Id" Label="@item.Title" Overlay="true" />
                         <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
                         <SameFileChip Links="item.CoveredWith"
                                       CanHighlight="@HasVisibleSibling(item)"

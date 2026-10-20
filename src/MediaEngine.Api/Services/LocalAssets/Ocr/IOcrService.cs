@@ -25,12 +25,16 @@ public sealed record OcrRecognition(string Text, double? AverageConfidence, int 
 /// Where the helper may be found. Defaults to the real application and system locations.
 /// <paramref name="DataRoot"/> is the Tuvima data folder (its <c>tools/tesseract/</c> is searched first);
 /// <paramref name="StandardFolders"/> are the operating system's usual install folders, searched last.
+/// <paramref name="SystemLanguageDataFolders"/> are the machine-wide language data folders copied from when preparing
+/// language data; null means the real ones (<c>TESSDATA_PREFIX</c> and the usual system folders), so tests can pass an
+/// empty list and not depend on what happens to be installed.
 /// </summary>
 public sealed record OcrEnvironment(
     string BaseDirectory,
     IReadOnlyList<string> PathDirectories,
     string? DataRoot = null,
-    IReadOnlyList<string>? StandardFolders = null)
+    IReadOnlyList<string>? StandardFolders = null,
+    IReadOnlyList<string>? SystemLanguageDataFolders = null)
 {
     public static OcrEnvironment Current(string? dataRoot = null) => new(
         AppContext.BaseDirectory,

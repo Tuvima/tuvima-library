@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Playback;
@@ -10,6 +11,7 @@ public sealed class AdaptiveHlsCleanupService(
     PlaybackStateRepository playbackState,
     AdaptiveHlsService hls,
     IConfigurationLoader configuration,
+    IRecurringTaskRecorder recorder,
     ILogger<AdaptiveHlsCleanupService> logger) : BackgroundService
 {
     /// <summary>Minutes between passes when the transcoding settings cannot be read.</summary>
@@ -43,7 +45,14 @@ public sealed class AdaptiveHlsCleanupService(
     {
         try
         {
-            await CleanupAsync(stoppingToken).ConfigureAwait(false);
+            await recorder.RecordAsync(
+                ScheduledTaskKeys.AdaptiveStreamingCleanup,
+                async ct =>
+                {
+                    await CleanupAsync(ct).ConfigureAwait(false);
+                    return null;
+                },
+                stoppingToken).ConfigureAwait(false);
             return true;
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
