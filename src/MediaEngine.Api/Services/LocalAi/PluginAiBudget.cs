@@ -23,6 +23,9 @@ public sealed class PluginAiBudget
     private readonly AiSettings _settings;
     private readonly IAiUsageRecordRepository _usage;
     private readonly TimeProvider _time;
+    // One gate per installed plugin's manifest id (plugins cannot choose the id they are counted under), so this stays
+    // small. A request counts both as stored and in flight for the moment between its usage record and its disposal:
+    // that errs on the strict side and clears straight away.
     private readonly ConcurrentDictionary<string, PluginGate> _gates = new(StringComparer.Ordinal);
 
     public PluginAiBudget(AiSettings settings, IAiUsageRecordRepository usage, TimeProvider? time = null)
@@ -53,13 +56,14 @@ public sealed class PluginAiBudget
         await gate.Lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var status = await ReadStatusAsync(pluginId, gate.Pending, ct).ConfigureAwait(false);
+            var status = await ReadStatusAsync(pluginId, Volatile.Read(ref gate.Pending), ct).ConfigureAwait(false);
             if (status.IsOverBudget)
             {
                 return null;
             }
 
-            gate.Pending++;
+            // Interlocked like the decrement in Dispose, which runs without this plugin's gate held.
+            Interlocked.Increment(ref gate.Pending);
             return new PluginAdmission(gate);
         }
         finally
