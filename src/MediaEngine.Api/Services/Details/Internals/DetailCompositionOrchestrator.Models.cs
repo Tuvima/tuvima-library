@@ -62,6 +62,8 @@ internal sealed partial class DetailCompositionOrchestrator
         public string? MediaType { get; init; }
         public string? PositionLabel { get; init; }
         public double? PositionSort { get; init; }
+        /// <summary>The Work's stored position in the Series the page shows (<c>series_placement</c> pair), when it has one.</summary>
+        public string? SeriesPlacementPosition { get; init; }
         public string? SeasonLabel { get; init; }
         public string? EpisodeLabel { get; init; }
         public string? ArtworkUrl { get; init; }

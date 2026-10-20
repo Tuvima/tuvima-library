@@ -1496,7 +1496,10 @@ public sealed class CollectionCatalogReadService(
                         LIMIT 1)) AS PublicationDate,
                    COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ra.AssetId AND cv.key = 'series_position' LIMIT 1),
-                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS RetailSeriesPosition
+                       (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS RetailSeriesPosition,
+                   COALESCE(
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ra.AssetId AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @CollectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @CollectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS SeriesPlacementPosition
             FROM works w
             LEFT JOIN representative_assets ra ON ra.WorkId = w.id
             LEFT JOIN canonical_values title_work ON title_work.entity_id = w.id AND title_work.key = 'title'
@@ -1931,20 +1934,26 @@ public sealed class CollectionCatalogReadService(
         public string? PublicationDate { get; init; }
         public string? RetailSeriesPosition { get; init; }
 
+        /// <summary>The Work's stored position in this shelf's Series (its <c>series_placement</c> pair), when it has one.</summary>
+        public string? SeriesPlacementPosition { get; init; }
+
+        // The Work's own number in this Series (its stored pair) first, then today's single-number chain.
+        private double? OwnOrdinalSort => SeriesPositionPairs.SortValueOf(SeriesPlacementPosition) ?? WorkOrdinalSort;
+
         public SeriesOrderInput ToOrderInput() => SeriesOrdering.BuildInput(
             MembershipScope,
             ManifestOrdinal,
             ManifestOrdinalScopeQid,
             ManifestSeriesQid,
-            WorkOrdinalSort,
+            OwnOrdinalSort,
             PublicationDate,
             Title);
 
         public string? ToPositionLabel() => SeriesOrdering.DisplayNumber(
             MembershipScope,
             SeriesOrdering.OrdinalBelongsToSeries(ManifestOrdinalScopeQid, ManifestSeriesQid) ? ManifestRawOrdinal : null,
-            RetailSeriesPosition,
-            WorkOrdinalSort);
+            string.IsNullOrWhiteSpace(SeriesPlacementPosition) ? RetailSeriesPosition : SeriesPlacementPosition,
+            OwnOrdinalSort);
     }
 
     private sealed class CollectionDisplayWorkRow
