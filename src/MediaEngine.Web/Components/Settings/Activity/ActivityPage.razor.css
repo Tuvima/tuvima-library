@@ -191,6 +191,11 @@
     padding: var(--tl-space-4, 16px) 0;
 }
 
+/* The scroll trigger: no height of its own, it only marks where the list ends. */
+.activity-list__sentinel {
+    height: 1px;
+}
+
 /* The slim rail keeps its width; a phone swaps it for the Jump to period picker the component already draws. */
 @media (max-width: 840px) {
     .activity-page {
