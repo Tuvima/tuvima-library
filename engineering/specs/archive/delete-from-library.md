@@ -1,8 +1,8 @@
 # Spec: Delete from library
 
-> **Status:** In progress · **Version:** 5 · **Last updated:** 2026-10-19 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail page](archive/item-detail.md) (D17, D26) · [Registry retirement](archive/registry-retirement.md) (WP3) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** Built · **Version:** 5 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../../product/overview.md) · [Item Detail page](item-detail.md) (D17, D26) · [Registry retirement](registry-retirement.md) (WP3) · [Library model and intake (public)](../../../docs/architecture/library-model-and-intake.md) · [Security model (public)](../../../docs/architecture/security.md)
 
-> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Versions 2–5 (same day) record Shy's answers as D12–D24. Version 4 drops the recycle bin for library media: films, books, audiobooks, music, comics and TV can be downloaded again, so they are deleted straight away after the confirmation. A recycle bin applies only to personal files in View (D23), which get their own View spec (D24). No questions are left; Shy Locked the spec on 2026-10-17. Nothing here is built. Section 8 records what the old delete did, because it shapes the risks.
+> Written 2026-10-17 after Shy decided the old, unused delete actions go (Registry retirement WP3) and deletion is rebuilt properly. Versions 2–5 (same day) record Shy's answers as D12–D24. Version 4 drops the recycle bin for library media: films, books, audiobooks, music, comics and TV can be downloaded again, so they are deleted straight away after the confirmation. A recycle bin applies only to personal files in View (D23), which get their own View spec (D24). No questions are left; Shy Locked the spec on 2026-10-17. Built 2026-10-19 to 2026-10-20 (Shy's WP5 answer recorded as D25; as-built notes at the end of section 8). Section 8 records what the old delete did, because it shapes the risks.
 
 ## 1. Goal
 
@@ -59,6 +59,8 @@ Shy's answers (2026-10-17). To Q1–Q9: "go with your recommendations except Q5 
 - **D22. No recycle bin for library media.** Films, TV, books, audiobooks, comics and music can be downloaded again, so the confirmation dialog is the safety step and deletion is immediate. The dialog says plainly that files removed from disk can't be recovered.
 - **D23. Personal files get a recycle bin.** Photos, home videos and documents in View can't be downloaded again. Deleting one from disk always moves it to a recycle bin first (building on View's existing Trash), and the file leaves the disk only when the recycle bin is emptied. "Delete immediately" is never offered for personal files. This spec only records the rule (D24).
 - **D24. (Q11) Personal files get their own View spec** (Shy, 2026-10-17: "build the personal-files recycle bin in its own View spec; this spec covers library media only"). That spec builds deleting personal files from disk on View's Trash, with **Empty Trash** as the only step that removes a file, and proves ownership and gets a fresh confirmation as the View architecture requires. This spec covers library media only.
+
+- **D25. (WP5) Selecting songs** (Shy, 2026-10-19). Songs could not be selected in the Listen song table (the old selection toolbar was removed in April 2026), so desktop administrators get a checkbox on each song row and, when any are checked, a slim bar: "N selected · Delete… · Clear". Nothing else changes for anyone: no other bulk actions, no selection for non-administrators, and no checkbox or Delete on phones, tablets or touch-only devices. The same table also shows album and artist song lists, which get the same Delete.
 
 ## 4. UI behaviour
 
@@ -195,3 +197,12 @@ What the old delete actions did (found 2026-10-17; the single one is removed on 
 - **Left behind:** metadata claims, chosen values, identity jobs and artwork links for the deleted title stayed in the data store (D11).
 - **Wrong rule for collections:** a collection was removed when no title pointed at it as its Series, whatever its kind; hand-picked memberships were ignored and automatic collections could be removed too (D4 replaces this).
 - **Not covered by tests:** neither delete action had an Engine test.
+
+As built (2026-10-20):
+
+- **In-person administrators only.** Both Engine actions use a stricter guard than "effective administrator": the person must be signed in at the Dashboard, so a paired app or native client acting for an administrator is refused as well (D18).
+- **A delete the Engine didn't confirm.** If the Engine times out or fails after the delete was sent, the dialog says "The Engine didn't answer in time. Check your library before trying again." rather than "Nothing was deleted", which may not be true.
+- **Waiting for running work.** Delete marks the title's identification and enrichment jobs as stopped, then waits up to 30 seconds for any job already running to let go before removing records.
+- **Shared pictures stay.** A Tuvima-owned picture file that another title or person still uses is never deleted with the title.
+- **Personal activity history stays** (Settings revamp D25): it keeps its own copy of the title and is not removed.
+- **Where the dialog lives.** `DeleteFromLibraryDialog` sits in `Components/Shared/`, because a guardrail keeps `Components/LibraryItems/` free of the retired workspace.
