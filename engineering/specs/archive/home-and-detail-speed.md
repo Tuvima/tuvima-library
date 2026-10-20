@@ -1,6 +1,6 @@
 # Spec: Home and item detail speed
 
-> **Status:** In progress (locked by Shy 2026-10-20 with Q1 and Q2 answered (a); started 2026-10-20) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../reports/slow-reads-2026-10.md) (causes 3 and 4, fix options D and E, recommendation step 2) · [Spec: Library list speed](archive/library-list-speed.md) (built; section 8 records the audiobook year look-up) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** Built (2026-10-20; locked by Shy 2026-10-20 with Q1 and Q2 answered (a)) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../../product/overview.md) · [Report: Slow library and Home reads at 4,000 works](../../reports/slow-reads-2026-10.md) (causes 3 and 4, fix options D and E, recommendation step 2) · [Spec: Library list speed](library-list-speed.md) (built; section 8 records the audiobook year look-up) · [Benchmarks README](../../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -146,3 +146,29 @@ Baseline: after WP1 merges, run its `snapshot` command on `main` (seed `--scale 
 - **Open questions:** none open.
   - **Q1 (answered (a), see D10). Start with this spec (D + E), or go straight to a stored display table (option F)?** (a) This spec: removes the measured causes inside today's read, with no new stored information that can go out of date. (b) A stored table with one ready-made row per item, refreshed whenever an item's values, artwork or credits change: the fastest at any size, but every write path in the Engine must remember to refresh it, it needs a rebuild command and a consistency check, and it deserves its own architecture decision. **Recommendation: (a)**, as the report recommends. Option F stays available if 100,000-work measurements later show it is needed.
   - **Q2 (answered (a), see D11). Include the light "visible works" read (WP7) now, or defer it?** About 45 places read every visible work's full display row; at least 20 of them only need the list of work ids the person may see. After this spec the full read gets cheaper too, but still builds every row for 4,000 works whenever a series or collection screen misses the 30-second cache. (a) Include WP7: those screens read only ids, kinds and ratings, with the visibility rule tested to match exactly. (b) Defer to its own spec. **Recommendation: (a)**, since the "best long-term fix before beta" rule applies and it runs beside wave 2 without touching the same files.
+
+## 8. Gaps and drift
+
+- **Built and matches the spec:** WP1 to WP7. After every wave a snapshot of every field of Home, the all-works read, recent pages, eight sampled detail reads, the TV skeleton, the full library list and library detail on the 4,000-work benchmark library (half the audiobooks without their own year) compared identical with the snapshot taken before the first change. No ties at Home's cut-off occurred. Measured through the production code on a busy desktop:
+
+| Read (4,000 works) | Before | After |
+|---|---:|---:|
+| Home, 1,000 items | 7.8 s | 0.37 s |
+| All works (series, people, search screens on a cache miss) | 14.0 s | 0.80 s |
+| Recent pages | 1.2 s | 0.1 s |
+| One item's detail read | 0.9–1.2 s | 0.06–0.09 s |
+| Library list, unfiltered (audiobooks without a year) | 5.2 s | 1.4 s |
+| "Which works may this person see" (WP7) | full read | about 5% of the full read's work |
+
+  Guardrails (`DisplayReadGuardrailTests`, `VisibleWorksGuardrailTests`, updated `LibraryListGuardrailTests`) hold Home at 9.6 million operations (1.16× for twice the library), audiobook detail at 0.9 million (1.96×), person detail at 1.8 million (1.74×), and check that Home and detail read each item's values in one pass (7 per-field look-ups in the plan, was about 1,451) and never scan the stored-value tables. All 18 performance guardrails run in about 7 s.
+- **Built differently (what changed):**
+  - *Person detail is two reads, not one (D2, D4).* SQLite copies a shared step each time a read names it. With the person look-up nested inside the row choice, a person page exceeded SQLite's limit of 65,535 table references and preparing a detail read took over a second. A person's files are now found in a small first read on the same connection, then passed to the main read. Home, recent pages and the all-works read are still one read, so the benchmark's comparison copy still runs the product's own text. The two reads are not one snapshot: a credit added in between shows on the next visit.
+  - *The scoped credit block (D3) is written with window functions* rather than the shared credit list's self-joins, so each step is named once. The equality tests against the shared list cover it, including pen names and QIDs that match no person.
+  - *The borrowed audiobook year is keyed by work and file*, not file alone, because one file can cover several works (found in review). Its candidates in the display read are the chosen audiobook rows.
+  - *Year from the one-pass values* uses a new `DisplayOriginalYearFromPivots` rather than the grouped-rows helper named in WP5; same rule, tested against the per-key form on random data.
+  - *Operation counts do not show WP5's gain* (Home 10.4 → 9.6 million): one index seek is one operation however much it costs. WP5 is guarded by the plan check instead.
+  - *WP7 switched 24 callers*, including two in `LibraryEndpoints` and `PersonEndpoints` that fit the "only needs the work ids" pattern; the callers that read other fields stay on the full read.
+- **Found while building, not in scope:**
+  - Seven other reads still use the per-row "borrow the book's year" look-up over the whole-library credit list: the series list on an item's page, Home's Continue shelf, two series media look-ups, series search, a person's credits and the taste profile. Each costs about one whole-library credit read per audiobook without its own year in its rows.
+  - A person's page finds candidate files by reading every provider claim once per matching person (no index on claim names). It is proportional to the library, but on a very large claim history a person page may take longer than 0.2 s.
+  - Where a field accepts several stored names, the choice is alphabetical rather than the order written (section 7 observation), kept as today.
