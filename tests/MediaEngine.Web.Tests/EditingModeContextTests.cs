@@ -194,11 +194,11 @@ public sealed class EditingModeContextTests
     // -- Esc, in order -------------------------------------------------------------------------
 
     [Fact]
-    public async Task Escape_ClosesAnOpenFieldBeforeAnythingElse_AndKeepsTheSectionAndTheMode()
+    public async Task Escape_ClosesACleanOpenFieldBeforeAnythingElse_WithoutAsking_AndKeepsTheSectionAndTheMode()
     {
         var (mode, ask) = await StartedAsync();
         mode.OpenSection(EditingSection.History);
-        TypeIntoTheTitle(mode, "Typed but not saved");
+        Assert.True(mode.Fields.Begin(mode.Fields.Find("title")!, "hero"));
 
         // The section was opened first; a field opened beside it is the first thing Esc closes.
         Assert.True(await mode.HandleEscapeAsync());
@@ -206,6 +206,77 @@ public sealed class EditingModeContextTests
         Assert.False(mode.Fields.HasOpenDraft);
         Assert.True(mode.SectionOpen);
         Assert.True(mode.IsOn);
+        Assert.Equal(0, ask.Asked);
+        Assert.Empty(_saves);
+    }
+
+    [Fact]
+    public async Task Escape_FromOutsideAFieldWithTypedInput_AsksSaveOrDiscard_AndCancelKeepsTheInput()
+    {
+        var (mode, ask) = await StartedAsync(SaveOrDiscardChoice.Cancel);
+        mode.OpenSection(EditingSection.History);
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.Equal(1, ask.Asked);
+        Assert.True(mode.Fields.HasOpenDraft);
+        Assert.Equal("Typed but not saved", mode.Fields.Draft);
+        Assert.True(mode.SectionOpen);
+        Assert.Empty(_saves);
+    }
+
+    [Fact]
+    public async Task Escape_FromOutsideAFieldWithTypedInput_Discard_ClosesTheFieldWithoutSavingAndStaysInEditingMode()
+    {
+        var (mode, _) = await StartedAsync(SaveOrDiscardChoice.Discard);
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.False(mode.Fields.HasOpenDraft);
+        Assert.True(mode.IsOn);
+        Assert.Empty(_saves);
+    }
+
+    [Fact]
+    public async Task Escape_FromOutsideAFieldWithTypedInput_Save_SavesTheFieldAndClosesIt()
+    {
+        var (mode, _) = await StartedAsync(SaveOrDiscardChoice.Save);
+        TypeIntoTheTitle(mode, "Saved from the dialog");
+
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.Equal("Saved from the dialog", Assert.Single(_saves)["title"]);
+        Assert.False(mode.Fields.HasOpenDraft);
+        Assert.True(mode.IsOn);
+    }
+
+    [Fact]
+    public async Task Escape_FromOutsideAFieldWhoseSaveFails_KeepsTheFieldOpenWithItsErrorAndTheTypedValue()
+    {
+        _saveResult = false;
+        var (mode, _) = await StartedAsync(SaveOrDiscardChoice.Save);
+        TypeIntoTheTitle(mode, "Typed and kept");
+
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.True(mode.Fields.HasOpenDraft);
+        Assert.Equal("Typed and kept", mode.Fields.Draft);
+        Assert.Contains("could not write", mode.Fields.Error);
+        Assert.True(mode.IsOn);
+    }
+
+    [Fact]
+    public async Task EscInsideTheFocusedFieldStillCancelsItAsTheFieldsOwnHandlerDoes()
+    {
+        var (mode, ask) = await StartedAsync();
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        // The field's own Esc handler (EditableFieldPencil, EditorDetailsInlineField) calls the session directly, as before.
+        mode.Fields.Cancel();
+
+        Assert.False(mode.Fields.HasOpenDraft);
         Assert.Equal(0, ask.Asked);
         Assert.Empty(_saves);
     }
@@ -411,6 +482,94 @@ public sealed class EditingModeContextTests
         Assert.False(mode.SectionDirty);
     }
 
+    // -- Only one settling at a time -----------------------------------------------------------
+
+    [Fact]
+    public async Task WhileSaveOrDiscardIsBeingAnswered_ADoneAnEscAndABackAreRefusedAndNothingAsksTwice()
+    {
+        var (mode, _) = await StartedAsync();
+        var gate = new TaskCompletionSource<SaveOrDiscardChoice>();
+        var asked = 0;
+        mode.AskSaveOrDiscard = () =>
+        {
+            asked++;
+            return gate.Task;
+        };
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        var first = mode.DoneAsync();
+        Assert.True(mode.IsSettling);
+
+        Assert.False(await mode.DoneAsync());
+        Assert.False(await mode.CanDismissAsync());
+        Assert.True(await mode.HandleEscapeAsync());
+        Assert.Equal(1, asked);
+        Assert.True(mode.IsOn);
+
+        gate.SetResult(SaveOrDiscardChoice.Discard);
+        Assert.True(await first);
+
+        Assert.False(mode.IsOn);
+        Assert.False(mode.IsSettling);
+        Assert.Equal(1, asked);
+    }
+
+    [Fact]
+    public async Task ADiscardCannotRunWhileASaveFromTheDialogIsStillInFlight()
+    {
+        var (mode, _) = await StartedAsync(SaveOrDiscardChoice.Save);
+        var host = new SlowSectionHost();
+        mode.SectionHost = host;
+        mode.OpenSection(EditingSection.Artwork);
+        mode.SetSectionDirty(true);
+
+        var first = mode.DoneAsync();
+        await host.SaveStarted.Task;
+        mode.AskSaveOrDiscard = () => Task.FromResult(SaveOrDiscardChoice.Discard);
+
+        // A second Done (or X, or Esc) arriving mid-save is refused, so its Discard never runs and Leave() waits for the save.
+        Assert.False(await mode.DoneAsync());
+        Assert.True(await mode.HandleEscapeAsync());
+        Assert.True(mode.IsOn);
+        Assert.Equal(0, host.Discarded);
+
+        host.FinishSave.SetResult(true);
+        Assert.True(await first);
+
+        Assert.Equal(1, host.Saved);
+        Assert.Equal(0, host.Discarded);
+        Assert.False(mode.IsOn);
+    }
+
+    [Fact]
+    public async Task DoneIsRefusedWhileAFieldIsSaving()
+    {
+        var gate = new TaskCompletionSource<bool>();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), _ => gate.Task);
+        });
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var session = new ItemFieldEditSession(api, _device);
+        var ask = new AskSpy([SaveOrDiscardChoice.Discard]);
+        var mode = new EditingModeContext(_device, session) { HasPermission = true, AskSaveOrDiscard = ask.AskAsync };
+        mode.Loader = () => session.LoadAsync(MovieId, "Movies", "movie", null);
+        Assert.True(await mode.EnterAsync());
+        TypeIntoTheTitle(mode, "Typed");
+        var saving = session.SaveAsync();
+        Assert.True(session.Saving);
+
+        Assert.False(await mode.DoneAsync());
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.Equal(0, ask.Asked);
+        Assert.True(mode.IsOn);
+        gate.SetResult(true);
+        await saving;
+    }
+
     // -- Spies ---------------------------------------------------------------------------------
 
     private sealed class AskSpy(IEnumerable<SaveOrDiscardChoice> answers)
@@ -423,6 +582,30 @@ public sealed class EditingModeContextTests
         {
             Asked++;
             return Task.FromResult(_answers.Count > 0 ? _answers.Dequeue() : SaveOrDiscardChoice.Cancel);
+        }
+    }
+
+    private sealed class SlowSectionHost : IEditingSectionHost
+    {
+        public TaskCompletionSource SaveStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> FinishSave { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Saved { get; private set; }
+
+        public int Discarded { get; private set; }
+
+        public async Task<bool> SaveAsync()
+        {
+            Saved++;
+            SaveStarted.TrySetResult();
+            return await FinishSave.Task;
+        }
+
+        public Task DiscardAsync()
+        {
+            Discarded++;
+            return Task.CompletedTask;
         }
     }
 

@@ -7,7 +7,7 @@ using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
-using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +27,10 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(string Section, string? Slot)> _builds = [];
     private readonly Queue<SaveOrDiscardChoice> _answers = new();
+    private readonly List<Dictionary<string, string>> _overrideSaves = [];
     private int _asked;
+    private int _committed;
+    private bool _buildReturnsNull;
 
     public EditingSectionSlotTests()
     {
@@ -36,6 +39,11 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), args =>
+            {
+                _overrideSaves.Add((Dictionary<string, string>)args![1]!);
+                return Task.FromResult(true);
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
                 Task.FromResult((new List<LibraryItemHistoryDto>
                 {
@@ -80,9 +88,15 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
         var slot = Render<EditingSectionSlot>(parameters => parameters
             .Add(component => component.Mode, mode)
             .Add(component => component.HandlesEscape, handlesEscape)
+            .Add(component => component.OnCommitted, EventCallback.Factory.Create(this, () => _committed++))
             .Add(component => component.BuildRequest, (section, slotName) =>
             {
                 _builds.Add((section, slotName));
+                if (_buildReturnsNull)
+                {
+                    return null;
+                }
+
                 return new MediaEditorLaunchRequest
                 {
                     EntityIds = [MovieId],
@@ -255,25 +269,105 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OutsideTheOverlayEscClosesTheSlotButInsideItTheSlotLeavesEscToTheOverlay()
+    public async Task OutsideTheOverlayTheSlotListensForEscItselfAndEscFromTheBrowserClosesIt()
     {
         var (mode, slot) = await StartAsync(handlesEscape: true);
         await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
         slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll(".tl-editing-slot")));
+        slot.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, invocation =>
+            invocation.Identifier == "import" && Equals(invocation.Arguments[0], "./js/editing-section-escape.js")));
 
-        await slot.Find("section.tl-editing-slot").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        // The script decides whether the key is the slot's (no open popup, not a control that uses Esc); .NET gets only the yes.
+        await slot.InvokeAsync(() => slot.Instance.HandleEscapeFromBrowser());
+
         slot.WaitForAssertion(() => Assert.False(mode.SectionOpen));
+        Assert.True(mode.IsOn);
+    }
 
-        // Inside the overlay Esc arrives through the overlay's own handler, so the slot never counts it a second time.
-        mode.Leave();
-        Assert.True(await mode.EnterAsync());
-        slot.Render(parameters => parameters.Add(component => component.HandlesEscape, false));
+    [Fact]
+    public async Task InsideTheOverlayTheSlotAddsNoEscListenerBecauseTheOverlayOwnsEsc()
+    {
+        var (mode, slot) = await StartAsync(handlesEscape: false);
         await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
         slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll(".tl-editing-slot")));
 
-        await slot.Find("section.tl-editing-slot").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        Assert.DoesNotContain(JSInterop.Invocations, invocation =>
+            invocation.Identifier == "import" && Equals(invocation.Arguments[0], "./js/editing-section-escape.js"));
+    }
 
-        Assert.True(mode.SectionOpen);
+    [Fact]
+    public async Task ClosingASectionGivesFocusBackToTheOpenerOrElseTheHeroMenuThenTheOverlayScroller()
+    {
+        var (mode, slot) = await StartAsync();
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
+        slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll(".tl-editing-slot")));
+
+        await slot.InvokeAsync(() => mode.CloseSectionAsync());
+
+        slot.WaitForAssertion(() =>
+        {
+            var restore = Assert.Single(JSInterop.Invocations, invocation => invocation.Identifier == "tuvimaFocusReturn.restore");
+            var fallbacks = Assert.IsType<string[]>(restore.Arguments[0]);
+            Assert.Equal(
+                [
+                    ".tl-detail-secondary-actions button[aria-label='More actions']",
+                    ".universe-hero__edit",
+                    ".tl-details-overlay__scroller",
+                ],
+                fallbacks);
+        });
+    }
+
+    [Fact]
+    public async Task ASectionThatHasNothingToShowDoesNotStayOpenWithItsButtonPressed()
+    {
+        var (mode, slot) = await StartAsync();
+        _buildReturnsNull = true;
+
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
+
+        slot.WaitForAssertion(() => Assert.False(mode.SectionOpen));
+        Assert.Null(mode.OpenSectionKind);
+        Assert.Empty(slot.FindAll(".tl-editing-slot"));
+    }
+
+    [Fact]
+    public async Task SavingFromTheDialogSavesTheEditorsInputReportsTheCommitToThePageOnceAndClosesTheSection()
+    {
+        var (mode, slot) = await StartAsync();
+        _answers.Enqueue(SaveOrDiscardChoice.Save);
+        // The Details section is the one the real editor can be made dirty in without provider data; it saves through the same host path.
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.Details));
+        slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll("button[aria-label^='Edit ']")));
+        slot.FindAll("button[aria-label^='Edit ']").First().Click();
+        slot.WaitForAssertion(() => Assert.True(mode.SectionDirty));
+        slot.Find(".sme-details-row[data-app-escape-owner='field'] :is(input, textarea)").Input("A new value");
+
+        await slot.Find("button.tl-editing-slot__close").ClickAsync(new());
+
+        slot.WaitForAssertion(() => Assert.False(mode.SectionOpen));
+        Assert.Equal(1, _asked);
+        Assert.Equal("A new value", Assert.Single(_overrideSaves).Values.Single());
+        Assert.Equal(1, _committed);
+        Assert.Empty(slot.FindAll(".tl-editing-slot"));
+    }
+
+    [Fact]
+    public async Task DiscardingFromTheDialogSavesNothingAndTellsThePageNothing()
+    {
+        var (mode, slot) = await StartAsync();
+        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.Details));
+        slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll("button[aria-label^='Edit ']")));
+        slot.FindAll("button[aria-label^='Edit ']").First().Click();
+        slot.WaitForAssertion(() => Assert.True(mode.SectionDirty));
+        slot.Find(".sme-details-row[data-app-escape-owner='field'] :is(input, textarea)").Input("A new value");
+
+        await slot.Find("button.tl-editing-slot__close").ClickAsync(new());
+
+        slot.WaitForAssertion(() => Assert.False(mode.SectionOpen));
+        Assert.Empty(_overrideSaves);
+        Assert.Equal(0, _committed);
     }
 
     [Fact]

@@ -255,9 +255,9 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         cut.FindAll(".tl-editing-banner__section").Single(button => button.TextContent.Contains("History")).Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-slot")));
         cut.Find("button[aria-label='Close History']");
-        TypeIntoTheTitle(cut, "Dune");
+        cut.Find("button[aria-label='Edit title']").Click();
 
-        // 1. The open field cancels; the section and the mode stay.
+        // 1. The open field (nothing typed into it) cancels; the section and the mode stay.
         Assert.True(await EscAsync(cut));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
         Assert.NotEmpty(cut.FindAll(".tl-editing-slot"));
@@ -278,16 +278,117 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EscWithAnOpenFieldNeverAsksAndNeverSavesIt()
+    public async Task EscPressedInsideTheFocusedFieldCancelsThatFieldWithoutAsking()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
-        await EscAsync(cut);
+        // The field's own handler (and the overlay script, which leaves a field that owns Esc alone) keeps this as it always was.
+        cut.Find("input[aria-label='Edit Title']").KeyDown("Escape");
 
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
         Assert.Empty(host.FindAll(".app-confirm"));
         Assert.Empty(_saves);
+        Assert.Single(cut.FindAll(".tl-editing-banner"));
+    }
+
+    [Fact]
+    public async Task OverlayLevelEscWithTypedInputAsksSaveOrDiscardAndCancelKeepsTheInput()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = await StartEditingAsync();
+        TypeIntoTheTitle(cut, "Dune");
+
+        var esc = EscAsync(cut);
+        host.WaitForElement(".app-confirm");
+        host.Find("button[aria-label='Close dialog']").Click();
+
+        Assert.True(await esc);
+        Assert.Equal("Dune", cut.Find("input[aria-label='Edit Title']").GetAttribute("value"));
+        Assert.Empty(_saves);
+        Assert.Empty(_steps);
+    }
+
+    [Fact]
+    public async Task OverlayLevelEscWithTypedInputAndDiscardClosesTheFieldAndKeepsEditingAndTheOverlay()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = await StartEditingAsync();
+        TypeIntoTheTitle(cut, "Dune");
+
+        var esc = EscAsync(cut);
+        Answer(host, "Discard");
+
+        Assert.True(await esc);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
+        Assert.Single(cut.FindAll(".tl-editing-banner"));
+        Assert.Empty(_saves);
+        Assert.Empty(_steps);
+    }
+
+    [Fact]
+    public async Task OverlayLevelEscWithTypedInputAndSaveSavesTheFieldAndKeepsEditing()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = await StartEditingAsync();
+        TypeIntoTheTitle(cut, "Dune");
+
+        var esc = EscAsync(cut);
+        Answer(host, "Save");
+
+        Assert.True(await esc);
+        Assert.Equal("Dune", Assert.Single(_saves)["title"]);
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
+        Assert.Single(cut.FindAll(".tl-editing-banner"));
+    }
+
+    [Fact]
+    public async Task OverlayLevelEscWithAnOpenFieldNothingWasTypedInJustCancelsItWithoutAsking()
+    {
+        var host = Render<AppDialogHost>();
+        var cut = await StartEditingAsync();
+        cut.Find("button[aria-label='Edit title']").Click();
+
+        Assert.True(await EscAsync(cut));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("input[aria-label='Edit Title']")));
+        Assert.Empty(host.FindAll(".app-confirm"));
+        Assert.Empty(_saves);
+    }
+
+    [Fact]
+    public async Task ABackdropClickWithTypedInputAsksSaveOrDiscardThroughTheOverlayHostInsteadOfDroppingIt()
+    {
+        await UseDesktopAsync();
+        var dialogs = Render<AppDialogHost>();
+        _nav.NavigateTo("/watch");
+        State.RememberPage("/watch", new RouteData(typeof(BlankPage), new Dictionary<string, object?>()));
+        State.Attach();
+        _nav.NavigateTo($"/details/movie/{MovieId}");
+        var overlay = Render<DetailsOverlayHost>(parameters => parameters
+            .AddCascadingValue(State)
+            .AddChildContent<DetailPage>(page => page.Add(component => component.Model, Model())));
+        overlay.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+        overlay.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
+        overlay.WaitForAssertion(() => Assert.NotEmpty(overlay.FindAll("button[aria-label='Edit title']")));
+        overlay.Find("button[aria-label='Edit title']").Click();
+        overlay.Find("input[aria-label='Edit Title']").Input("Dune");
+
+        // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel.
+        var backdrop = overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
+        Answer(dialogs, "Discard");
+        await backdrop;
+
+        Assert.Empty(_steps);
+        Assert.True(State.IsOpen);
+        overlay.WaitForAssertion(() => Assert.Empty(overlay.FindAll("input[aria-label='Edit Title']")));
+        Assert.Single(overlay.FindAll(".tl-editing-banner"));
+        Assert.Empty(_saves);
+
+        // Nothing open now: the next one dismisses the overlay, leaving Editing Mode first.
+        await overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
+        Assert.Equal([1], _steps);
     }
 
     [Fact]

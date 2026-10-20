@@ -11,11 +11,11 @@
    Pressing the open section's banner button again, the close button here, or Done closes it; Esc closes it from the overlay. *@
 @if (Mode is { SectionOpen: true } mode && _request is not null)
 {
-    <section id="tl-editing-slot"
+    <section @ref="_root"
+             id="tl-editing-slot"
              class="tl-editing-slot"
              aria-labelledby="tl-editing-slot-title"
-             data-section="@SectionId(mode.OpenSectionKind)"
-             @onkeydown="HandleKeyDownAsync">
+             data-section="@SectionId(mode.OpenSectionKind)">
         <header class="tl-editing-slot__header">
             <h2 id="tl-editing-slot-title" class="tl-editing-slot__title" tabindex="-1">@Heading(mode.OpenSectionKind)</h2>
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
@@ -42,7 +42,22 @@
 }
 
 @code {
+    // Where focus goes when the control that opened the section is gone (Done closes the section and the banner with it):
+    // the hero's own "..." button on a title, the Edit button on a Universe, and last the overlay's scroller.
+    private static readonly string[] FocusFallbacks =
+    [
+        ".tl-detail-secondary-actions button[aria-label='More actions']",
+        ".universe-hero__edit",
+        ".tl-details-overlay__scroller",
+    ];
+
     private SharedMediaEditorShell? _shell;
+    private ElementReference _root;
+    private IJSObjectReference? _escapeModule;
+    private DotNetObjectReference<EditingSectionSlot>? _self;
+    private bool _attachEscape;
+    private bool _commitSeenDuringSave;
+    private bool _swallowNextCommit;
     private MediaEditorLaunchRequest? _request;
     private EditingSection? _builtFor;
     private EditingModeContext? _subscribed;
@@ -61,8 +76,9 @@
     [Parameter] public string DetailsHeading { get; set; } = "Details";
 
     /// <summary>
-    /// True when nothing above this slot hears Esc (a page outside the details overlay): the slot then closes itself on Esc.
-    /// Inside the overlay Esc arrives through the overlay's own handler, so this stays false and Esc is never counted twice.
+    /// True when nothing above this slot hears Esc (a page outside the details overlay): the slot then listens for Esc itself,
+    /// with app-dialog.js's rules (an open popup or a control that uses Esc itself keeps the key). Inside the overlay Esc
+    /// arrives through the overlay's own handler, so this stays false and Esc is never counted twice.
     /// </summary>
     [Parameter] public bool HandlesEscape { get; set; }
 
@@ -117,9 +133,19 @@
                 _request = BuildRequest(SectionId(section), Mode.OpenSectionArtworkSlot);
                 _builtFor = _request is null ? null : section;
                 _focusSlot = _request is not null;
+                _attachEscape = _request is not null && HandlesEscape;
+                _commitSeenDuringSave = false;
+                _swallowNextCommit = false;
                 if (_request is not null && !_wasOpen)
                 {
                     _ = RememberOpenerAsync();
+                }
+                else if (_request is null)
+                {
+                    // Nothing can be shown for this item: do not leave a section "open" (and its button pressed) with no slot.
+                    _wasOpen = false;
+                    Mode.CloseSection();
+                    return;
                 }
             }
 
@@ -148,6 +174,25 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_attachEscape && _request is not null)
+        {
+            _attachEscape = false;
+            try
+            {
+                // The listener lives on the slot's element and goes with it when the section closes.
+                _escapeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editing-section-escape.js");
+                _self ??= DotNetObjectReference.Create(this);
+                if (_escapeModule is not null)
+                {
+                    await _escapeModule.InvokeVoidAsync("attach", _root, _self);
+                }
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended; there is no page left to listen on.
+            }
+        }
+
         if (_focusSlot && _request is not null)
         {
             _focusSlot = false;
@@ -166,6 +211,7 @@
 
     public void Dispose()
     {
+        _self?.Dispose();
         if (_subscribed is not null)
         {
             _subscribed.Changed -= OnModeChanged;
@@ -184,7 +230,18 @@
 
     private void OnDirtyChanged(bool dirty) => Mode?.SetSectionDirty(dirty);
 
-    private Task OnCommittedAsync() => OnCommitted.InvokeAsync();
+    private Task OnCommittedAsync()
+    {
+        if (_swallowNextCommit)
+        {
+            // The save from the dialog already told the page; this is the editor's own report of the same commit.
+            _swallowNextCommit = false;
+            return Task.CompletedTask;
+        }
+
+        _commitSeenDuringSave = true;
+        return OnCommitted.InvokeAsync();
+    }
 
     // The editor closed itself (after its own Save): the section closes with it.
     private Task OnShellClosedAsync(bool applied)
@@ -202,17 +259,38 @@
         }
     }
 
-    private async Task HandleKeyDownAsync(KeyboardEventArgs args)
+    /// <summary>Esc heard by the slot's own listener (a page outside the overlay); the rules for whether it is ours are in the script.</summary>
+    [JSInvokable]
+    public async Task HandleEscapeFromBrowser()
     {
-        // A field being edited stops its own Esc before it gets here, so Esc closes the field first and the section second.
-        if (HandlesEscape && Mode is not null && string.Equals(args.Key, "Escape", StringComparison.Ordinal))
+        if (Mode is not null)
         {
             await Mode.HandleEscapeAsync();
         }
     }
 
     // IEditingSectionHost: the page's "Save or discard?" answers for what this section holds.
-    async Task<bool> IEditingSectionHost.SaveAsync() => _shell is null || await _shell.SaveChangesAsync();
+    async Task<bool> IEditingSectionHost.SaveAsync()
+    {
+        if (_shell is null)
+        {
+            return true;
+        }
+
+        var hadChanges = _shell.HasUnsavedChanges;
+        _commitSeenDuringSave = false;
+        var saved = await _shell.SaveChangesAsync();
+
+        // The editor reports a commit from its next render, but a save that closes the section removes it before that render,
+        // so the page (the hero artwork, the fields) would never refresh: report it here instead.
+        if (saved && hadChanges && !_commitSeenDuringSave)
+        {
+            _swallowNextCommit = true;
+            await OnCommitted.InvokeAsync();
+        }
+
+        return saved;
+    }
 
     Task IEditingSectionHost.DiscardAsync()
     {
@@ -228,7 +306,7 @@
 
     private async Task RestoreOpenerAsync()
     {
-        try { await JS.InvokeVoidAsync("tuvimaFocusReturn.restore"); }
+        try { await JS.InvokeVoidAsync("tuvimaFocusReturn.restore", (object)FocusFallbacks); }
         catch (JSDisconnectedException) { /* the circuit ended; focus no longer matters */ }
     }
 }

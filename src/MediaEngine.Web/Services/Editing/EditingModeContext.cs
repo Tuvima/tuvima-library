@@ -140,6 +140,12 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     }
 
     /// <summary>
+    /// True while Done, Esc, Back or a section close is working through "Save or discard?" and its save. A second one of those
+    /// arriving meanwhile is refused (and Done is disabled), so nothing asks twice and a Discard can never run in the middle of a save.
+    /// </summary>
+    public bool IsSettling { get; private set; }
+
+    /// <summary>
     /// Done: ends Editing Mode. With unsaved input (a field, or the open section) it asks "Save or discard?" first. Save
     /// saves and then leaves (a failed save stays in the mode with the input and its error showing); Discard drops the input
     /// and leaves; Cancel keeps everything as it was. Returns true when the mode ended.
@@ -151,6 +157,16 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return true;
         }
 
+        if (Fields.Saving)
+        {
+            return false;
+        }
+
+        return await SettleAsync(DoneCoreAsync, whenBusy: false);
+    }
+
+    private async Task<bool> DoneCoreAsync()
+    {
         if (HasUnsavedInput)
         {
             switch (await AskAsync())
@@ -177,9 +193,10 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     public async ValueTask<bool> CanDismissAsync() => await DoneAsync();
 
     /// <summary>
-    /// Esc, in order: an open field cancels; otherwise an open section with unsaved input asks "Save or discard?" and
-    /// otherwise closes. Returns true when the press was used, false when nothing was open (the overlay then dismisses,
-    /// which leaves the mode through <see cref="DoneAsync"/>).
+    /// Esc (and a backdrop click or the sheet's grip) from outside a field, in order: an open field closes, asking
+    /// "Save or discard?" first when it holds typed input (Esc pressed inside the focused field is that field's own and cancels
+    /// it); otherwise an open section closes, asking first when it holds unsaved input. Returns true when the press was used,
+    /// false when nothing was open (the overlay then dismisses, which leaves the mode through <see cref="DoneAsync"/>).
     /// </summary>
     public async ValueTask<bool> HandleEscapeAsync()
     {
@@ -188,18 +205,46 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return false;
         }
 
-        if (Fields.HasOpenDraft)
-        {
-            Fields.Cancel();
-            return true;
-        }
-
-        if (!SectionOpen)
+        if (!Fields.HasOpenDraft && !SectionOpen)
         {
             return false;
         }
 
-        await CloseSectionAsync();
+        if (IsSettling || Fields.Saving)
+        {
+            // Something is already being settled or saved: the press is spent, and the overlay must not close under it.
+            return true;
+        }
+
+        await SettleAsync(HandleEscapeCoreAsync, whenBusy: true);
+        return true;
+    }
+
+    private async Task<bool> HandleEscapeCoreAsync()
+    {
+        if (Fields.HasOpenDraft)
+        {
+            if (!Fields.IsDirty)
+            {
+                Fields.Cancel();
+                return true;
+            }
+
+            switch (await AskAsync())
+            {
+                case SaveOrDiscardChoice.Save:
+                    // A failed save leaves the field open with its typed value and its error showing.
+                    await Fields.SaveAsync();
+                    break;
+                case SaveOrDiscardChoice.Discard:
+                    Fields.Cancel();
+                    break;
+            }
+
+            return true;
+        }
+
+        await CloseSectionCoreAsync();
         return true;
     }
 
@@ -208,6 +253,16 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     /// save keeps it open; Discard drops the input; Cancel keeps it open). Returns true when no section is open any more.
     /// </summary>
     public async Task<bool> CloseSectionAsync()
+    {
+        if (!SectionOpen)
+        {
+            return true;
+        }
+
+        return await SettleAsync(CloseSectionCoreAsync, whenBusy: false);
+    }
+
+    private async Task<bool> CloseSectionCoreAsync()
     {
         if (!SectionOpen)
         {
@@ -239,6 +294,26 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
         CloseSection();
         return true;
+    }
+
+    private async Task<T> SettleAsync<T>(Func<Task<T>> work, T whenBusy)
+    {
+        if (IsSettling)
+        {
+            return whenBusy;
+        }
+
+        IsSettling = true;
+        RaiseChanged();
+        try
+        {
+            return await work();
+        }
+        finally
+        {
+            IsSettling = false;
+            RaiseChanged();
+        }
     }
 
     /// <summary>

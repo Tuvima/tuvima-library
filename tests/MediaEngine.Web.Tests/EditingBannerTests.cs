@@ -305,6 +305,25 @@ public sealed class EditingBannerTests : AsyncBunitContext
         Assert.Equal("Typed but not saved", mode.Fields.Draft);
     }
 
+    [Fact]
+    public async Task DoneIsDisabledWhileSaveOrDiscardIsBeingAnswered()
+    {
+        await UseDesktopAsync();
+        var mode = await StartedAsync();
+        var gate = new TaskCompletionSource<SaveOrDiscardChoice>();
+        mode.AskSaveOrDiscard = () => gate.Task;
+        Assert.True(mode.Fields.Begin(mode.Fields.Find("title")!, "hero"));
+        mode.Fields.UpdateDraft("Typed but not saved");
+        var cut = RenderBanner(mode);
+
+        cut.Find("button.tl-editing-banner__done").Click();
+
+        cut.WaitForAssertion(() => Assert.True(cut.Find("button.tl-editing-banner__done").HasAttribute("disabled")));
+        gate.SetResult(SaveOrDiscardChoice.Cancel);
+        cut.WaitForAssertion(() => Assert.False(cut.Find("button.tl-editing-banner__done").HasAttribute("disabled")));
+        Assert.True(mode.IsOn);
+    }
+
     // -- Leaving a page that has no overlay guard (a Universe) ---------------------------------
 
     [Fact]
