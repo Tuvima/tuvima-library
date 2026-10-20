@@ -532,6 +532,8 @@ The winning multi-valued claims (genres, authors, vibe tags, cast members, and a
 
 **Unique index:** `entity_id + field_key`
 
+`series_placement` holds every (Series, position) pair a Work has: `value` is the position text exactly as Wikidata gives it (for example `1.5`), `value_qid` is the Series QID, and `ordinal` follows the statement order. A Work in two Series keeps each Series' own number here, and readers ask for the pair of the Series they show before falling back to the single `series_position`. A series statement with no position adds no row (membership stays in `series` and `series_qid`).
+
 ### search_index
 
 FTS5 full-text search index with trigram tokenizer. Handles CJK and languages without word boundaries. Short queries under 3 characters fall back to a `LIKE` scan.

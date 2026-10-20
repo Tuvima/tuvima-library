@@ -60,6 +60,9 @@ internal sealed partial class DetailCompositionOrchestrator
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'series_position' LIMIT 1),
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'series_position' LIMIT 1)) AS TEXT) AS SeriesPosition,
+                   CAST(COALESCE(
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = ma.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1),
+                       (SELECT NULLIF(cva.value, '') FROM canonical_value_arrays cva WHERE cva.entity_id = w.id AND cva.key = 'series_placement' AND cva.value_qid = (SELECT c.wikidata_qid FROM collections c WHERE c.id = @collectionId) COLLATE NOCASE ORDER BY cva.ordinal LIMIT 1)) AS TEXT) AS SeriesPlacementPosition,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
                    CAST(COALESCE(
                        (SELECT NULLIF(CAST(cv.value AS TEXT), '') FROM canonical_values cv WHERE cv.entity_id = ma.id AND cv.key = 'issue_title' LIMIT 1),
@@ -242,8 +245,9 @@ internal sealed partial class DetailCompositionOrchestrator
             LastAccessed = StringValue(row.LastAccessed),
             PositionSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).PositionSeconds,
             DurationSeconds = SavedPlaybackTiming.Read((string?)StringValue(row.SavedPlaybackTiming)).DurationSeconds,
-            OrdinalSort = DoubleValue(row.OrdinalSort),
-            RetailSeriesPosition = StringValue(row.SeriesPosition),
+            // The Work's own number in this Series (its stored pair) first, then today's chain.
+            OrdinalSort = SeriesPositionPairs.SortValueOf(StringValue(row.SeriesPlacementPosition)) ?? DoubleValue(row.OrdinalSort),
+            RetailSeriesPosition = StringValue(row.SeriesPlacementPosition) ?? StringValue(row.SeriesPosition),
         }).ToList();
 
         // Dynamic collections can include an owned work before its edition and
