@@ -64,7 +64,7 @@
                         {
                             <li @key="attempt.AttemptId">
                                 <span class="application-webhook__attempt-time">@attempt.AttemptedAt.ToLocalTime().ToString("g")</span>
-                                <AppChip Text="@(attempt.Delivered ? "Delivered" : "Failed")" Tone="@(attempt.Delivered ? AppUiTone.Success : AppUiTone.Error)" />
+                                <AppChip Text="@AttemptOutcome(attempt)" Tone="@AttemptTone(attempt)" />
                                 <span>@attempt.Result</span>
                                 <small>Attempt @attempt.AttemptNumber</small>
                                 @if (attempt.IsTest)
@@ -492,4 +492,14 @@
         _lifetime.Dispose();
         return ValueTask.CompletedTask;
     }
+
+    // A skipped delivery was never sent (webhook switched off or access removed), so it is not a failure of the receiver.
+    private static bool WasSkipped(ApplicationWebhookAttemptResponse attempt) =>
+        !attempt.Delivered && attempt.Result.StartsWith("Skipped:", StringComparison.Ordinal);
+
+    private static string AttemptOutcome(ApplicationWebhookAttemptResponse attempt) =>
+        attempt.Delivered ? "Delivered" : WasSkipped(attempt) ? "Not sent" : "Failed";
+
+    private static AppUiTone AttemptTone(ApplicationWebhookAttemptResponse attempt) =>
+        attempt.Delivered ? AppUiTone.Success : WasSkipped(attempt) ? AppUiTone.Neutral : AppUiTone.Error;
 }

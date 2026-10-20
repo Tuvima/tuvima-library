@@ -415,6 +415,22 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WebhookCard_SkippedAttempt_SaysNotSentRatherThanFailed()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.Attempts.Add(new(Guid.NewGuid(), "ingestion.completed", 1, DateTimeOffset.UtcNow, false, "Skipped: webhook disabled or changed", 0, false));
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() =>
+        {
+            var row = Assert.Single(cut.FindAll(".application-webhook__attempts li"));
+            Assert.Contains("Not sent", row.TextContent);
+            Assert.DoesNotContain("Failed", row.TextContent);
+        });
+    }
+
+    [Fact]
     public void WebhookCard_WithNoAttempts_SaysNoDeliveriesYet()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
