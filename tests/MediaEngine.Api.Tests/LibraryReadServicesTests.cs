@@ -67,7 +67,7 @@ public sealed class LibraryReadServicesTests : IDisposable
     }
 
     [Fact]
-    public async Task BatchTargets_RouteParentAndAssetFieldsAcrossLargeSelections()
+    public async Task BatchEditItems_ResolveWorkAndFileSelectionsAndInheritedValuesAcrossLargeSelections()
     {
         var rootWorkId = Guid.NewGuid();
         var seasonWorkId = Guid.NewGuid();
@@ -75,22 +75,33 @@ public sealed class LibraryReadServicesTests : IDisposable
         var editionId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         SeedTvHierarchy(rootWorkId, seasonWorkId, episodeWorkId, editionId, assetId);
+        using (var conn = _db.CreateConnection())
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "INSERT INTO canonical_value_arrays (entity_id, key, value, ordinal) VALUES ($showId, 'genre', 'Drama', 0);";
+            AddGuid(cmd, "$showId", rootWorkId);
+            cmd.ExecuteNonQuery();
+        }
 
-        var selected = Enumerable.Range(0, 405)
-            .Select(_ => Guid.NewGuid())
-            .Append(rootWorkId)
-            .Append(assetId)
-            .ToArray();
+        var unknownIds = Enumerable.Range(0, 405).Select(_ => Guid.NewGuid()).ToArray();
+        var selected = unknownIds.Append(rootWorkId).Append(assetId).ToArray();
         var service = new LibraryCurationReadService(_db);
 
-        var targets = await service.ResolveBatchEditTargetsAsync(
-            selected,
-            ["show_name", "episode_title"]);
+        var items = await service.LoadBatchEditItemsAsync(selected, ["genre"]);
 
-        Assert.Equal(rootWorkId, targets[rootWorkId]["show_name"]);
-        Assert.Equal(assetId, targets[rootWorkId]["episode_title"]);
-        Assert.Equal(rootWorkId, targets[assetId]["show_name"]);
-        Assert.Equal(assetId, targets[assetId]["episode_title"]);
+        Assert.Equal(2, items.Count);
+        Assert.DoesNotContain(unknownIds[0], items.Keys);
+        var show = items[rootWorkId];
+        Assert.Equal(rootWorkId, show.WorkId);
+        Assert.False(show.HasParentWork);
+        Assert.Equal(assetId, show.RepresentativeAssetId);
+        Assert.Equal(["Drama"], show.Fields["genre"].OwnValues);
+        var episode = items[assetId];
+        Assert.Equal(episodeWorkId, episode.WorkId);
+        Assert.True(episode.HasParentWork);
+        Assert.Equal(assetId, episode.RepresentativeAssetId);
+        Assert.Empty(episode.Fields["genre"].OwnValues);
+        Assert.Equal(["Drama"], episode.Fields["genre"].InheritedValues);
     }
 
     private void SeedOwnedWork(Guid rootWorkId, Guid leafWorkId, Guid editionId, Guid assetId)

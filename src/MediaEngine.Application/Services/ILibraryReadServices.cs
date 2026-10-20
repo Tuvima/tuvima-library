@@ -7,7 +7,11 @@ namespace MediaEngine.Application.Services;
 
 public interface ILibraryCurationReadService
 {
-    Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, Guid>>> ResolveBatchEditTargetsAsync(
+    /// <summary>
+    /// Reads the selected items for a batch edit, keyed by the id that was selected. A selected id may be a work or a
+    /// media asset; an id that is neither (deleted, never existed) has no entry.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, BatchEditItemRead>> LoadBatchEditItemsAsync(
         IReadOnlyCollection<Guid> entityIds,
         IReadOnlyCollection<string> fieldKeys,
         CancellationToken ct = default);

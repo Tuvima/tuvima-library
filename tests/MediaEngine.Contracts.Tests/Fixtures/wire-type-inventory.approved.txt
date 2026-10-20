@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1057; api=0; web-client=54
+# scopes: contracts=1061; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3970,11 +3970,24 @@
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | json=subtitle_languages | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"video_resolution_label":"sample","video_codec":"sample","audio_language":"sample","audio_codec":"sample","audio_channels":"sample","subtitle_summary":"sample","audio_languages":[],"subtitle_languages":[]}
 
+[contracts] MediaEngine.Contracts.Library.LibraryBatchDistinctValue
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"value":"sample","count":7}
+
 [contracts] MediaEngine.Contracts.Library.LibraryBatchEditPreview
   kind=class | converter=default | number-handling=default | unmapped=default
   AffectedCount: System.Int32 | json=affected_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryFieldChangePreview> | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"affected_count":7,"changes":[]}
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchFieldState> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UnavailableItems: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchLockedItem> | json=unavailable_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"affected_count":7,"fields":[],"unavailable_items":[]}
+
+[contracts] MediaEngine.Contracts.Library.LibraryBatchEditPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityIds: System.Collections.Generic.List<System.Guid> | json=entity_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FieldKeys: System.Collections.Generic.List<System.String> | json=field_keys | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_ids":[],"field_keys":[]}
 
 [contracts] MediaEngine.Contracts.Library.LibraryBatchEditRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3985,22 +3998,49 @@
 [contracts] MediaEngine.Contracts.Library.LibraryBatchEditResult
   kind=class | converter=default | number-handling=default | unmapped=default
   UpdatedCount: System.Int32 | json=updated_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FailedIds: System.Collections.Generic.List<System.Guid> | json=failed_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Errors: System.Collections.Generic.List<System.String> | json=errors | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"updated_count":7,"failed_ids":[],"errors":[]}
+  SentToReviewCount: System.Int32 | json=sent_to_review_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RefusedCount: System.Int32 | json=refused_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchItemResult> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"updated_count":7,"sent_to_review_count":7,"refused_count":7,"items":[]}
+
+[contracts] MediaEngine.Contracts.Library.LibraryBatchFieldState
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Operations: System.Collections.Generic.List<System.String> | json=operations | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Editable: System.Boolean | json=editable | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LockedItems: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchLockedItem> | json=locked_items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsMixed: System.Boolean | json=is_mixed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Values: System.Collections.Generic.List<System.String> | json=values | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DistinctValues: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchDistinctValue> | json=distinct_values | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DistinctCount: System.Int32 | json=distinct_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EmptyCount: System.Int32 | json=empty_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","label":"sample","kind":"sample","operations":[],"editable":true,"locked_items":[],"is_mixed":true,"value":"sample","values":[],"distinct_values":[],"distinct_count":7,"empty_count":7}
+
+[contracts] MediaEngine.Contracts.Library.LibraryBatchItemResult
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FieldsNotApplied: System.Collections.Generic.List<System.String> | json=fields_not_applied | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReviewId: System.Guid? | json=review_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","outcome":"sample","reason":"sample","fields_not_applied":[],"review_id":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Library.LibraryBatchLockedItem
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","reason":"sample"}
 
 [contracts] MediaEngine.Contracts.Library.LibraryFieldChange
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","value":"sample"}
-
-[contracts] MediaEngine.Contracts.Library.LibraryFieldChangePreview
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  NewValue: System.String | json=new_value | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  OldValueCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | json=old_value_counts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","new_value":"sample","old_value_counts":{}}
+  Op: System.String | json=op | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Values: System.Collections.Generic.List<System.String> | json=values | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","op":"sample","value":"sample","values":[]}
 
 [contracts] MediaEngine.Contracts.Library.LibraryOverviewDto
   kind=class | converter=default | number-handling=default | unmapped=default

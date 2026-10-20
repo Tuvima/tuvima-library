@@ -3298,9 +3298,20 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.PlaybackTechnicalSummary
   AudioLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   SubtitleLanguages: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchDistinctValue
+  Value: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditOps
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditPreview
   AffectedCount: System.Int32 | nullability=not-null | accessors=get,init
-  Changes: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryFieldChangePreview> | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchFieldState> | nullability=not-null | accessors=get,init
+  UnavailableItems: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchLockedItem> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditPreviewRequest
+  EntityIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+  FieldKeys: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditRequest
   EntityIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
@@ -3308,17 +3319,44 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditRequ
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditResult
   UpdatedCount: System.Int32 | nullability=not-null | accessors=get,init
-  FailedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
-  Errors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  SentToReviewCount: System.Int32 | nullability=not-null | accessors=get,init
+  RefusedCount: System.Int32 | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchItemResult> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchFieldKinds
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchFieldState
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Operations: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  Editable: System.Boolean | nullability=not-null | accessors=get,init
+  LockedItems: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchLockedItem> | nullability=not-null | accessors=get,init
+  IsMixed: System.Boolean | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=nullable | accessors=get,init
+  Values: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  DistinctValues: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryBatchDistinctValue> | nullability=not-null | accessors=get,init
+  DistinctCount: System.Int32 | nullability=not-null | accessors=get,init
+  EmptyCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchItemOutcomes
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchItemResult
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  FieldsNotApplied: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  ReviewId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchLockedItem
+  EntityId: System.Guid | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChange
   Key: System.String | nullability=not-null | accessors=get,init
-  Value: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChangePreview
-  Key: System.String | nullability=not-null | accessors=get,init
-  NewValue: System.String | nullability=not-null | accessors=get,init
-  OldValueCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
+  Op: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=nullable | accessors=get,init
+  Values: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryOverviewDto
   TotalItems: System.Int32 | nullability=not-null | accessors=get,init

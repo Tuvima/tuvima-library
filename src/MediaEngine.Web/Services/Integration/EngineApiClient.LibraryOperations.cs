@@ -147,10 +147,12 @@ public sealed partial class EngineApiClient
     {
         try
         {
-            var body = new
+            // The editor sends one text value per field. Genres and tags are lists the editor replaces wholesale, and a
+            // blank scalar clears the field, so each maps to the matching operation.
+            var body = new LibraryBatchEditRequest
             {
-                entity_ids = entityIds,
-                field_changes = fieldChanges.Select(kv => new { key = kv.Key, value = kv.Value }).ToList(),
+                EntityIds = entityIds,
+                FieldChanges = fieldChanges.Select(ToBatchFieldChange).ToList(),
             };
             var response = await _http.PostAsJsonAsync("library/batch-edit", body, ct);
             response.EnsureSuccessStatusCode();
@@ -162,5 +164,20 @@ public sealed partial class EngineApiClient
             _logger.LogWarning(ex, "POST /library/batch-edit failed");
             return null;
         }
+    }
+
+    private static LibraryFieldChange ToBatchFieldChange(KeyValuePair<string, string> edit)
+    {
+        if (edit.Key is "genre" or "custom_tags")
+        {
+            var values = edit.Value
+                .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+            return new LibraryFieldChange { Key = edit.Key, Op = LibraryBatchEditOps.Replace, Values = values };
+        }
+
+        return string.IsNullOrWhiteSpace(edit.Value)
+            ? new LibraryFieldChange { Key = edit.Key, Op = LibraryBatchEditOps.Clear }
+            : new LibraryFieldChange { Key = edit.Key, Op = LibraryBatchEditOps.Set, Value = edit.Value };
     }
 }
