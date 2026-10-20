@@ -63,12 +63,18 @@ Numbered in a sensible order. Claude Code groups them into waves by "Depends on"
 - **Size:** …
 - **Done when:** …
 
-## 7. Risks and open questions
+## 7. Local checks
+
+What the cloud cannot verify and Shy (or a local session) must try on SHY-DESKTOP once the work has merged: real media (`C:\Temp\real_import`), Windows-only behaviour, look and feel, devices, FFmpeg/OCR versions, live metadata providers. Each is a plain-English step with what should appear and what counts as a failure. Write "None" if the cloud can prove everything. The build session appends these to `engineering/validation/batch.md` and reports "Built, awaiting your Local checks" until they pass (`.claude/rules/cloud-first.md`).
+
+- **L1.** …
+
+## 8. Risks and open questions
 
 - **Risks:** what could go wrong for users, and how we'd notice.
 - **Open questions:** numbered (Q1, Q2, …), each with the options and a recommendation. A spec can't be Locked while questions remain open.
 
-## 8. Gaps and drift (optional — for as-built or revised specs)
+## 9. Gaps and drift (optional — for as-built or revised specs)
 
 - **Built and matches the spec:** …
 - **Built differently (what changed):** …

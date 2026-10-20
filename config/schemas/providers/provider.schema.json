@@ -593,6 +593,7 @@
         "value_path": { "type": "string", "minLength": 1 },
         "path": { "type": "string", "minLength": 1 },
         "where_not_blank": { "type": "string", "minLength": 1 },
+        "distinct_by": { "type": "string", "minLength": 1 },
         "sort": { "type": "array", "items": { "$ref": "#/$defs/claimSort" } },
         "take": { "type": "integer", "minimum": 0 },
         "role": {

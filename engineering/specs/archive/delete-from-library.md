@@ -206,4 +206,4 @@ As built (2026-10-20):
 - **Shared pictures stay.** A Tuvima-owned picture file that another title or person still uses is never deleted with the title.
 - **Personal activity history stays** (Settings revamp D25): it keeps its own copy of the title and is not removed.
 - **Where the dialog lives.** `DeleteFromLibraryDialog` sits in `Components/Shared/`, because a guardrail keeps `Components/LibraryItems/` free of the retired workspace.
-- **Visual check still owed.** The rendered check of the dialog (desktop, light and dark), the Listen song table and Settings → Libraries → Excluded files was not done when this was built: the computer allows one Engine and one Dashboard at a time and another session was using them. Component tests cover the content and states; the visual check is a follow-up.
+- **Visual check done 2026-10-20** (proposed change #331): the dialog at desktop width in light and dark, the Listen song table and Settings → Libraries → Excluded files; small spacing and focus fixes landed there.

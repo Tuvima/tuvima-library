@@ -137,8 +137,8 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
                         schedule = DefaultSchedule;
                     }
 
-                    var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
-                    await Task.Delay(delay, stoppingToken);
+                    var nextRun = CronScheduler.NextRunAt(schedule, TimeSpan.FromHours(24));
+                    await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
                     await _runner.RunAsync(ScheduledTaskKeys.LibraryReconciliation, async ct =>
                     {
                         var result = await ReconcileAsync(ct);
