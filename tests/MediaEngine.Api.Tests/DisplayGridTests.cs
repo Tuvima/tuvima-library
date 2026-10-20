@@ -323,10 +323,24 @@ public sealed class DisplayGridTests
 
         Assert.Null(await composer.BuildGridAsync("watch", "no-such-shelf", new DisplayGridQuery()));
         Assert.Null(await composer.BuildGridAsync("nowhere", "movies", new DisplayGridQuery()));
-        await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Sort: "random")));
-        await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Type: "podcast")));
-        await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Format: "vhs")));
-        await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Status: "abandoned")));
+        await Assert.ThrowsAsync<DisplayGridQueryException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Sort: "random")));
+        await Assert.ThrowsAsync<DisplayGridQueryException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Type: "podcast")));
+        await Assert.ThrowsAsync<DisplayGridQueryException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Format: "vhs")));
+        await Assert.ThrowsAsync<DisplayGridQueryException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Status: "abandoned")));
+    }
+
+    [Fact]
+    public async Task Grid_AnInternalArgumentExceptionIsNotMistakenForABadQuery()
+    {
+        // The connection point answers 400 only for DisplayGridQueryException, so a fault inside the read must not be one,
+        // nor derive from ArgumentException in a way that lets a catch of one pass for the other.
+        var cards = new DisplayCardBuilder();
+        var composer = new DisplayComposerService(new FaultyProjection(), cards, new DisplayShelfBuilder(cards));
+
+        var fault = await Assert.ThrowsAsync<ArgumentException>(() => composer.BuildGridAsync("watch", "movies", new DisplayGridQuery()));
+
+        Assert.IsNotType<DisplayGridQueryException>(fault);
+        Assert.False(typeof(ArgumentException).IsAssignableFrom(typeof(DisplayGridQueryException)));
     }
 
     [Fact]
@@ -466,6 +480,25 @@ public sealed class DisplayGridTests
         ProgressPct = progress,
         LastAccessed = DateTimeOffset.Parse("2026-06-01T12:00:00Z").AddMinutes(-minutesAgo),
     };
+
+    // A projection whose read fails with an ordinary ArgumentException, as an internal fault (a duplicate key) would.
+    private sealed class FaultyProjection : IDisplayProjectionReadService
+    {
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
+            throw new ArgumentException("An item with the same key has already been added.");
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) =>
+            throw new NotSupportedException();
+    }
 
     // The shelf pages' view of the library: Home reads a capped window, everything else reads the full list.
     private sealed class GridProjection(

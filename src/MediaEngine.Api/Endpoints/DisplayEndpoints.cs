@@ -487,7 +487,7 @@ public static class DisplayEndpoints
                     ct);
                 return page is null ? ApiErrors.NotFound($"No grid found for '{lane}/{shelfKey}'.") : Results.Ok(page);
             }
-            catch (ArgumentException exception)
+            catch (DisplayGridQueryException exception)
             {
                 return ApiErrors.BadRequest(exception.Message);
             }

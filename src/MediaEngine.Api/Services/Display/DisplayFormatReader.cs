@@ -9,12 +9,14 @@ namespace MediaEngine.Api.Services.Display;
 
 /// <summary>
 /// Which file formats each Work is owned in, for the "View all" format filter: EPUB, PDF and comic files for reading,
-/// 4K, HD and SD for watching. One query covers the whole library and is cached for as long as the works list is. The
-/// answer is raw (not scoped to a viewer), so callers only ever use it for Works they have already been allowed to see.
+/// 4K, HD and SD for watching. One query covers the whole library and is cached briefly. The answer is raw (not scoped to
+/// a viewer) and is keyed by Work and library, because a Work can be owned in several libraries and a viewer may only be
+/// granted some of them: callers look a format up only for the (Work, library) pairs they were allowed to see, never
+/// for a Work as a whole.
 /// </summary>
 public sealed class DisplayFormatReader
 {
-    private const string CacheKey = "display:formats:all";
+    private const string CacheKey = "display:formats:by-library";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(30);
     private static readonly IReadOnlySet<string> NoFormats = new HashSet<string>();
 
@@ -27,9 +29,9 @@ public sealed class DisplayFormatReader
         _cache = cache;
     }
 
-    public Task<IReadOnlyDictionary<Guid, IReadOnlySet<string>>> LoadAsync(CancellationToken ct)
+    public Task<IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>>> LoadAsync(CancellationToken ct)
     {
-        if (_cache.TryGetValue(CacheKey, out IReadOnlyDictionary<Guid, IReadOnlySet<string>>? cached) && cached is not null)
+        if (_cache.TryGetValue(CacheKey, out IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>>? cached) && cached is not null)
         {
             return Task.FromResult(cached);
         }
@@ -39,6 +41,7 @@ public sealed class DisplayFormatReader
         var rows = connection.Query<FormatRow>(new CommandDefinition(
             $"""
             SELECT woa.work_id AS WorkId,
+                   ma.library_id AS LibraryId,
                    ma.file_path_root AS FilePath,
                    (SELECT CAST(cv.value AS TEXT) FROM canonical_values cv
                      WHERE cv.entity_id = ma.id AND cv.key = 'video_height' LIMIT 1) AS VideoHeight
@@ -51,32 +54,37 @@ public sealed class DisplayFormatReader
             """,
             cancellationToken: ct)).AsList();
 
-        var formats = new Dictionary<Guid, HashSet<string>>();
+        var formats = new Dictionary<(Guid WorkId, Guid LibraryId), HashSet<string>>();
         foreach (var row in rows)
         {
             var token = FormatFor(row.FilePath, row.VideoHeight);
-            if (token is null)
+            if (token is null || !Guid.TryParse(row.LibraryId, out var libraryId))
             {
                 continue;
             }
 
-            if (!formats.TryGetValue(row.WorkId, out var set))
+            var key = (row.WorkId, libraryId);
+            if (!formats.TryGetValue(key, out var set))
             {
-                formats[row.WorkId] = set = new HashSet<string>(StringComparer.Ordinal);
+                formats[key] = set = new HashSet<string>(StringComparer.Ordinal);
             }
 
             set.Add(token);
         }
 
-        IReadOnlyDictionary<Guid, IReadOnlySet<string>> result = formats.ToDictionary(
+        IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> result = formats.ToDictionary(
             entry => entry.Key,
             entry => (IReadOnlySet<string>)entry.Value);
         _cache.Set(CacheKey, result, CacheDuration);
         return Task.FromResult(result);
     }
 
-    public static IReadOnlySet<string> ForWork(IReadOnlyDictionary<Guid, IReadOnlySet<string>> formats, Guid workId) =>
-        formats.TryGetValue(workId, out var set) ? set : NoFormats;
+    /// <summary>The formats a Work is owned in within one library.</summary>
+    public static IReadOnlySet<string> ForWorkInLibrary(
+        IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> formats,
+        Guid workId,
+        Guid libraryId) =>
+        formats.TryGetValue((workId, libraryId), out var set) ? set : NoFormats;
 
     /// <summary>The format token for one owned file, or null when the file has none the filter offers (audio, unknown video size).</summary>
     internal static string? FormatFor(string? filePath, string? videoHeight)
@@ -105,6 +113,7 @@ public sealed class DisplayFormatReader
     private sealed class FormatRow
     {
         public Guid WorkId { get; init; }
+        public string? LibraryId { get; init; }
         public string? FilePath { get; init; }
         public string? VideoHeight { get; init; }
     }

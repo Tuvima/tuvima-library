@@ -32,7 +32,7 @@ public sealed partial class DisplayComposerService
     ];
 
     /// <summary>
-    /// One page of a shelf's full item list. Returns null when there is no such grid; throws <see cref="ArgumentException"/>
+    /// One page of a shelf's full item list. Returns null when there is no such grid; throws <see cref="DisplayGridQueryException"/>
     /// when the sort or a filter value is not one the grids offer. The items come from the same authorized projection
     /// the lane pages read, so the profile's content limit, library and lane grants apply exactly as they do there.
     /// </summary>
@@ -63,7 +63,8 @@ public sealed partial class DisplayComposerService
         Guid? profileId,
         CancellationToken ct)
     {
-        var source = await BuildGridSourceAsync(definition, profileId, ct);
+        var sort = selection.Sort ?? definition.DefaultSort;
+        var source = await BuildGridSourceAsync(definition, sort, profileId, ct);
         if (source is null)
         {
             return null;
@@ -75,14 +76,13 @@ public sealed partial class DisplayComposerService
         if (_formats is not null && (formatsApply || selection.Format is not null))
         {
             var formats = await _formats.LoadAsync(ct);
-            entries = entries.Select(entry => entry with { Formats = FormatsOf(entry, formats) }).ToList();
+            entries = entries.Select(entry => entry with { Formats = FormatsOf(entry, formats, source.WorkLibraries) }).ToList();
         }
         else
         {
             formatsApply = false;
         }
 
-        var sort = selection.Sort ?? definition.DefaultSort;
         var matching = entries.Where(entry => Matches(entry, selection, skip: null)).ToList();
         var ordered = SortGridEntries(matching, sort);
         var start = Math.Max(0, offset);
@@ -143,7 +143,7 @@ public sealed partial class DisplayComposerService
 
     // -- sources ----------------------------------------------------------------------------------------------
 
-    private async Task<GridSource?> BuildGridSourceAsync(DisplayGridDefinition definition, Guid? profileId, CancellationToken ct)
+    private async Task<GridSource?> BuildGridSourceAsync(DisplayGridDefinition definition, string sort, Guid? profileId, CancellationToken ct)
     {
         var works = await _readService.LoadWorksAsync(ct);
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
@@ -281,9 +281,12 @@ public sealed partial class DisplayComposerService
                 return null;
         }
 
-        var stats = await LoadGridMusicStatsAsync(cards, context, profileId, ct);
+        // Play counts only decide the order of "Last played"; every other order skips the read.
+        var stats = sort == DisplayGridValues.SortPlayed
+            ? await LoadGridMusicStatsAsync(cards, context, profileId, ct)
+            : new Dictionary<Guid, MusicPlayStat>();
         var entries = cards.Select(card => context.Entry(card, stats)).ToList();
-        return new GridSource(entries, title, subtitle);
+        return new GridSource(entries, title, subtitle, works.ToLookup(work => work.WorkId, work => work.LibraryId));
     }
 
     private async Task<List<GridCard>> BuildPersonalGridCardsAsync(
@@ -325,6 +328,7 @@ public sealed partial class DisplayComposerService
             : new Dictionary<Guid, ManagedCollectionDto>();
 
         var cards = new List<GridCard>();
+        var seen = new HashSet<Guid>();
         foreach (var entry in entries)
         {
             DisplayCardDto? card = entry.Kind switch
@@ -333,7 +337,7 @@ public sealed partial class DisplayComposerService
                 ProfileEntityKind.Playlist => playlists.TryGetValue(entry.EntityId, out var playlist) ? FromPlaylist(playlist) : null,
                 _ => media.GetValueOrDefault(entry.EntityId),
             };
-            if (card is null || cards.Any(existing => existing.Card.Id == card.Id))
+            if (card is null || !seen.Add(card.Id))
             {
                 continue;
             }
@@ -517,7 +521,12 @@ public sealed partial class DisplayComposerService
         }
     }
 
-    private static IReadOnlySet<string> FormatsOf(GridEntry entry, IReadOnlyDictionary<Guid, IReadOnlySet<string>> formats)
+    // Formats come only from the (Work, library) pairs the viewer was allowed to see: a 4K copy in a library they have no
+    // grant for must not be offered, counted or matched.
+    private static IReadOnlySet<string> FormatsOf(
+        GridEntry entry,
+        IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> formats,
+        ILookup<Guid, string?> workLibraries)
     {
         if (entry.WorkIds.Count == 0
             || entry.Type is not (DisplayGridValues.TypeMovie or DisplayGridValues.TypeTv or DisplayGridValues.TypeBook or DisplayGridValues.TypeComic))
@@ -528,7 +537,13 @@ public sealed partial class DisplayComposerService
         var found = new HashSet<string>(StringComparer.Ordinal);
         foreach (var workId in entry.WorkIds)
         {
-            found.UnionWith(DisplayFormatReader.ForWork(formats, workId));
+            foreach (var library in workLibraries[workId])
+            {
+                if (Guid.TryParse(library, out var libraryId))
+                {
+                    found.UnionWith(DisplayFormatReader.ForWorkInLibrary(formats, workId, libraryId));
+                }
+            }
         }
 
         return found;
@@ -598,7 +613,8 @@ public sealed partial class DisplayComposerService
         string Type,
         IReadOnlySet<string> Formats);
 
-    private sealed record GridSource(IReadOnlyList<GridEntry> Entries, string Title, string? Subtitle);
+    /// <param name="WorkLibraries">The library of each Work row the viewer is allowed to see, which scopes the format filter.</param>
+    private sealed record GridSource(IReadOnlyList<GridEntry> Entries, string Title, string? Subtitle, ILookup<Guid, string?> WorkLibraries);
 
     /// <summary>What a grid needs to know about each card beyond the card: when it was added, last played, and which Works it stands for.</summary>
     private sealed class GridContext(IReadOnlyList<DisplayWorkRow> works, IReadOnlyDictionary<Guid, DisplayJourneyRow> progress)

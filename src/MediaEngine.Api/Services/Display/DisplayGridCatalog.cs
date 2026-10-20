@@ -132,7 +132,7 @@ internal static class DisplayGridCatalog
         }
 
         var value = sort.Trim().ToLowerInvariant();
-        return SortOptions.Any(option => option.Value == value) ? value : throw new ArgumentException($"'{sort}' is not a sort this grid offers.");
+        return SortOptions.Any(option => option.Value == value) ? value : throw new DisplayGridQueryException($"'{sort}' is not a sort this grid offers.");
     }
 
     public static string? NormalizeType(string? type) => NormalizeOneOf(type, "type",
@@ -154,6 +154,6 @@ internal static class DisplayGridCatalog
         }
 
         var normalized = value.Trim().ToLowerInvariant();
-        return allowed.Contains(normalized) ? normalized : throw new ArgumentException($"'{value}' is not a {name} this grid offers.");
+        return allowed.Contains(normalized) ? normalized : throw new DisplayGridQueryException($"'{value}' is not a {name} this grid offers.");
     }
 }
