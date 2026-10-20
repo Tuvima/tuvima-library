@@ -78,7 +78,15 @@ public sealed partial class LibraryItemDeletionService
         var files = DeleteFiles(plan);
 
         // 5. Media files that are still on disk are remembered so the next scan does not bring the title back.
-        await RecordExclusionsAsync(plan, files, actor).ConfigureAwait(false);
+        try
+        {
+            await RecordExclusionsAsync(plan, files, actor).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Scans remember the exclusions in memory; tell them these changed, even if only some were written.
+            excludedFileFilter.Invalidate();
+        }
 
         // 6. The records, in one transaction.
         LibraryItemDeletionDataResult data;
