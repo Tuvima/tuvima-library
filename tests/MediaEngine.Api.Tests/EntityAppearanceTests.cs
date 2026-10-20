@@ -372,7 +372,8 @@ public sealed class EntityAppearanceTests : IDisposable
             new EntityRelationshipRepository(_database),
             new NarrativeRootRepository(_database),
             _people,
-            display);
+            display,
+            new PluginLoreRepository(_database));
         var universes = new UniverseClientReadService(new CollectionRepository(_database), display, cards, connections);
         var credits = new PersonCreditReadService(new CanonicalValueArrayRepository(_database), _people, _database);
         return new EntityAppearanceReadService(_entities, _people, credits, display, cards, universes);
