@@ -99,7 +99,7 @@ public sealed class BaselineRunTests : IDisposable
     }
 
     [Fact]
-    public void Prepare_HoldsEveryClockSchedule_SoARunAcrossTheNightMatchesOneThatIsNot()
+    public void Prepare_HoldsTheNightlySchedules_SoARunAcrossTheNightMatchesOneThatIsNot()
     {
         var repo = AppContext.BaseDirectory;
         while (!File.Exists(Path.Combine(repo, "MediaEngine.slnx")))
@@ -110,9 +110,19 @@ public sealed class BaselineRunTests : IDisposable
         var config = Path.Combine(_root, "config");
         Directory.CreateDirectory(config);
         File.Copy(Path.Combine(repo, "config", "maintenance.json"), Path.Combine(config, "maintenance.json"));
+        File.Copy(Path.Combine(repo, "config", "ai.json"), Path.Combine(config, "ai.json"));
 
         var start = new DateTimeOffset(2026, 10, 20, 9, 15, 0, TimeSpan.Zero);
         BaselinePrepare.HoldClockSchedules(config, start);
+
+        using var heldAi = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "ai.json")));
+        var aiScheduling = heldAi.RootElement.GetProperty("scheduling");
+        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), aiScheduling.GetProperty("series_check_cron").GetString());
+        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), aiScheduling.GetProperty("vibe_batch_cron").GetString());
+        Assert.Equal("*/15 * * * *", aiScheduling.GetProperty("description_intelligence_cron").GetString());
+        Assert.Equal("models", heldAi.RootElement.GetProperty("models_directory").GetString());
+        Assert.True(heldAi.RootElement.TryGetProperty("features", out _));
+        Assert.True(heldAi.RootElement.TryGetProperty("plugin_budget", out _));
 
         using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "maintenance.json")));
         var schedules = held.RootElement.GetProperty("schedules").EnumerateObject().ToList();
@@ -126,5 +136,23 @@ public sealed class BaselineRunTests : IDisposable
         Assert.NotNull(next);
         Assert.InRange(next.Value - start, TimeSpan.FromDays(29), TimeSpan.FromDays(31));
         Assert.True(next.Value - start < TimeSpan.FromMilliseconds(uint.MaxValue - 1));
+    }
+
+    [Fact]
+    public void Prepare_HoldsTheNightlyAiSchedules_EvenWhenTheCopiedFileLeavesThemToTheBuiltInDefaults()
+    {
+        var config = Path.Combine(_root, "config");
+        Directory.CreateDirectory(config);
+        File.WriteAllText(Path.Combine(config, "ai.json"), """{ "models_directory": "models" }""");
+
+        var start = new DateTimeOffset(2026, 10, 20, 9, 15, 0, TimeSpan.Zero);
+        BaselinePrepare.HoldClockSchedules(config, start);
+
+        using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "ai.json")));
+        var scheduling = held.RootElement.GetProperty("scheduling");
+        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), scheduling.GetProperty("series_check_cron").GetString());
+        Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), scheduling.GetProperty("vibe_batch_cron").GetString());
+        Assert.Equal("*/15 * * * *", scheduling.GetProperty("description_intelligence_cron").GetString());
+        Assert.Equal("models", held.RootElement.GetProperty("models_directory").GetString());
     }
 }
