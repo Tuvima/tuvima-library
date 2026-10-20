@@ -38,12 +38,6 @@ public sealed record WatchFolderActiveEvent(
     string WatchDirectory,
     DateTimeOffset ActivatedAt);
 
-public sealed record IngestionProgressEvent(
-    string CurrentFile,
-    int ProcessedCount,
-    int TotalCount,
-    string Stage);
-
 public sealed record IngestionItemProgressEvent(
     Guid LogEntryId,
     Guid? MediaAssetId,

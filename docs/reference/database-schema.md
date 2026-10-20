@@ -1320,19 +1320,21 @@ The unique key is `(asset_id, source_hash, profile_key)`. Cleanup scans the `(st
 
 ### system_activity
 
-Rolling log of Engine actions. Pruned automatically per `config/maintenance.json`.
+The Activity log's store: one row per thing the Library did (added media, Needs Review, failures, system events such as a missing tool, and photo or personal video counts). Pruned automatically per `config/maintenance.json`.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `run_id` | TEXT | Groups related activities into a single run |
-| `activity_type` | TEXT | Type code (e.g., `"Ingestion"`, `"Enrichment"`, `"Writeback"`) |
-| `entity_id` | TEXT | Related entity. NULL for system-level activities. |
-| `outcome` | TEXT | `"Success"`, `"Failure"`, `"Skipped"` |
-| `message` | TEXT | Human-readable description |
-| `created_at` | TEXT | Timestamp |
+| `id` | INTEGER | Auto-increment primary key |
+| `occurred_at` | TEXT | UTC timestamp |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
+| `entity_id` | BLOB | Related entity, when there is one |
+| `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
+| `profile_id` | BLOB | The profile that caused it, when a person did |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `detail` | TEXT | The plain explanation under the headline |
 
-**Index:** `run_id`, `activity_type`, `created_at`
+**Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0017).
 
 ### transaction_log
 

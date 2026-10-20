@@ -35,7 +35,9 @@ public sealed class IngestionBatchRemovalSourceGuardrailTests
     {
         var root = FindRepoRoot();
         var offences = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "src"), "*", SearchOption.AllDirectories))
+        // config/ too, so the removed Wikidata batch gate cannot come back as a setting.
+        foreach (var file in new[] { "src", "config" }.SelectMany(folder =>
+                     Directory.EnumerateFiles(Path.Combine(root, folder), "*", SearchOption.AllDirectories)))
         {
             var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
             if (IsBuildOutput(relative)

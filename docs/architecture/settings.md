@@ -49,7 +49,7 @@ The Settings/Admin navigation exposes **Libraries**, **Ingestion**, **Providers*
 
 - JSON supplies configured source folders, provider definitions, and organization templates.
 - SQLite supplies lifecycle counts, the groups in flight and recently added, review reasons, provider health records, and pipeline progress.
-- SignalR supplies live `IngestionQueueProgress` and `IngestionProgress` updates between refreshes.
+- SignalR supplies live `IngestionQueueProgress` and per-file `IngestionItemProgress` updates between refreshes.
 
 When a backing signal does not exist yet, the UI should show an unavailable or not-tracked state instead of static sample data.
 

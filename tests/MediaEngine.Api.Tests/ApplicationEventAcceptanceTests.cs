@@ -61,7 +61,6 @@ public sealed class ApplicationEventAcceptanceTests
             producer, new FixedResourceResolver(libraryId), NullLogger<ApplicationEventProjectionPublisher>.Instance);
 
         await projection.ProjectAsync(SignalREvents.IngestionStarted, new IngestionStartedEvent("C:/secret/file.mkv", DateTimeOffset.UtcNow), default);
-        await projection.ProjectAsync(SignalREvents.IngestionProgress, new IngestionProgressEvent("C:/secret/file.mkv", 1, 2, "identify"), default);
         await projection.ProjectAsync(SignalREvents.IngestionCompleted, new IngestionCompletedEvent("C:/secret/file.mkv", "Movies", DateTimeOffset.UtcNow), default);
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, new IngestionQueueProgressDto { State = "working", FilesFound = 2, FilesDone = 1 }, default);
         await projection.ProjectAsync(SignalREvents.IngestionQueueProgress, new IngestionQueueProgressDto { State = "idle", FilesFound = 2, FilesDone = 2, Progress = 1 }, default);
@@ -152,18 +151,6 @@ public sealed class ApplicationEventAcceptanceTests
         Assert.Equal(
             ["ingestion.progress", "ingestion.progress", "ingestion.completed"],
             producer.Values.Select(value => value.EventType));
-    }
-
-    [Fact]
-    public async Task PerFileProgress_IsNotPublished_SoIngestionProgressHasOnePayloadShape()
-    {
-        var producer = new CaptureProducer();
-        var projection = new ApplicationEventProjectionPublisher(
-            producer, new MissingResourceResolver(), NullLogger<ApplicationEventProjectionPublisher>.Instance);
-
-        await projection.ProjectAsync(SignalREvents.IngestionProgress, new IngestionProgressEvent("C:/media/file.mkv", 1, 2, "identify"), default);
-
-        Assert.Empty(producer.Values);
     }
 
     private static IngestionQueueProgressDto Queue(string state, int found = 0, int done = 0, double progress = 0) => new()

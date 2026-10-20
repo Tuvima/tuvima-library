@@ -6626,12 +6626,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.IngestionItemProgr
   Title: System.String | nullability=nullable | accessors=get,init
   MediaType: System.String | nullability=nullable | accessors=get,init
 
-MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.IngestionProgressEvent
-  CurrentFile: System.String | nullability=not-null | accessors=get,init
-  ProcessedCount: System.Int32 | nullability=not-null | accessors=get,init
-  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
-  Stage: System.String | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.IngestionStartedEvent
   FilePath: System.String | nullability=not-null | accessors=get,init
   StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init

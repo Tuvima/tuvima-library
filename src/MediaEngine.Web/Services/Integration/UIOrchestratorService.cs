@@ -42,7 +42,6 @@ public enum EngineConnectionState
 /// <b>SignalR events handled:</b>
 /// <list type="bullet">
 ///   <item><c>"MediaAdded"</c>  -  invalidates the collection cache; next navigation triggers a fresh load.</item>
-///   <item><c>"IngestionProgress"</c>  -  updates progress state in the container for live UI feedback.</item>
 ///   <item><c>"IngestionItemProgress"</c>  -  updates per-file stage progress for the ingestion dashboard.</item>
 /// </list>
 /// </para>
@@ -1308,16 +1307,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 "Intercom ? IngestionCompleted: File=\"{File}\" Type={MediaType}",
                 ev.FilePath, ev.MediaType);
             _state.PushIngestionCompleted(ev);
-        });
-
-        // -- "IngestionProgress" -----------------------------------------------
-        // Active ingestion tick  -  update the progress indicator.
-        _hubConnection.On<IngestionProgressEvent>(SignalREvents.IngestionProgress, ev =>
-        {
-            _logger.LogDebug(
-                "Intercom ? IngestionProgress: [{Stage}] {Done}/{Total}  -  {File}",
-                ev.Stage, ev.ProcessedCount, ev.TotalCount, ev.CurrentFile);
-            _state.PushIngestionProgress(ev);
         });
 
         // -- "IngestionItemProgress" ------------------------------------------

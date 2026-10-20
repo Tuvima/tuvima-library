@@ -15,7 +15,6 @@ public static class SignalREvents
     public const string IngestionHashed = "IngestionHashed";
     public const string IngestionCompleted = "IngestionCompleted";
     public const string IngestionFailed = "IngestionFailed";
-    public const string IngestionProgress = "IngestionProgress";
     public const string IngestionItemProgress = "IngestionItemProgress";
 
     /// <summary>The live ingestion numbers (files found, tally, bar, state), sent as one snapshot whenever they change.</summary>

@@ -49,8 +49,6 @@ public sealed class ApplicationEventProjectionPublisher(
         return (name, value) switch
         {
             (SignalREvents.IngestionStarted, IngestionStartedEvent e) => Draft("ingestion.started", "ingestion", "current", e.StartedAt, new { status = "started" }),
-            // The per-file progress event stays internal: "ingestion.progress" has one payload shape, the queue's.
-            (SignalREvents.IngestionProgress, IngestionProgressEvent) => null,
             (SignalREvents.IngestionQueueProgress, IngestionQueueProgressDto e) => QueueProgressDraft(e, now),
             (SignalREvents.IngestionCompleted, IngestionCompletedEvent) => null,
             (SignalREvents.IngestionFailed, IngestionFailedEvent e) => Draft("ingestion.failed", "ingestion", "current", e.FailedAt, new { status = "failed" }),

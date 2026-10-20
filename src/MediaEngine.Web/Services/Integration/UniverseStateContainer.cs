@@ -26,8 +26,6 @@ public sealed class UniverseStateContainer : IDisposable
     private CollectionViewModel? _selected;
     private UniverseViewModel? _universe;
     private bool _loaded;
-    private IngestionProgressEvent? _ingestionProgress;
-    private DateTimeOffset? _ingestionProgressReceivedAt;
     private IngestionQueueProgressDto? _ingestionQueueProgress;
     private DateTimeOffset? _ingestionQueueProgressReceivedAt;
     private EngineConnectionState _engineConnectionState = EngineConnectionState.Unknown;
@@ -70,8 +68,6 @@ public sealed class UniverseStateContainer : IDisposable
     /// Latest ingestion progress snapshot pushed via SignalR.
     /// Null when no ingestion is in progress or the circuit is freshly created.
     /// </summary>
-    public IngestionProgressEvent? IngestionProgress => _ingestionProgress;
-    public DateTimeOffset? IngestionProgressReceivedAt => _ingestionProgressReceivedAt;
 
     /// <summary>The latest live ingestion numbers from the Engine, shown as sent; null until the first snapshot arrives.</summary>
     public IngestionQueueProgressDto? IngestionQueueProgress => _ingestionQueueProgress;
@@ -189,38 +185,12 @@ public sealed class UniverseStateContainer : IDisposable
         _selected = null;
         _universe = null;
         _loaded = false;
-        _ingestionProgress = null;
-        _ingestionProgressReceivedAt = null;
         // Note: _activeLaneMediaTypes is NOT cleared on invalidate
         // so the user's lane selection persists across data refreshes.
         NotifyStateChanged(requiresSnapshotRefresh);
     }
 
     // ── Real-time event sinks (called by UIOrchestratorService) ───────────────
-
-    /// <summary>
-    /// Called when an <c>"IngestionProgress"</c> event arrives on the Intercom collection.
-    /// Updates the progress indicator and notifies subscribed components.
-    /// </summary>
-    public void PushIngestionProgress(IngestionProgressEvent ev)
-    {
-        var complete = string.Equals(ev.Stage, "Complete", StringComparison.OrdinalIgnoreCase);
-        _ingestionProgress = complete ? null : ev;
-        _ingestionProgressReceivedAt = complete ? null : DateTimeOffset.UtcNow;
-
-        // Only log stage transitions (Scanning/Complete), not every tick.
-        if (ev.Stage is "Scanning" or "Complete")
-        {
-            var summary = ev.Stage == "Complete"
-                ? $"Ingestion complete — {ev.ProcessedCount} files processed."
-                : $"Scanning files… ({ev.ProcessedCount} found so far)";
-            PushActivity(new ActivityEntry(
-                DateTimeOffset.UtcNow, ActivityKind.IngestionProgress,
-                "sync", summary));
-        }
-
-        NotifyStateChanged(requiresSnapshotRefresh: complete, throttle: !complete);
-    }
 
     /// <summary>
     /// Called when a <c>"IngestionItemProgress"</c> event arrives on the Intercom collection.
