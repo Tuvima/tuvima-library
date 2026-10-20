@@ -6311,6 +6311,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntry
   TrustWarning: System.String | nullability=nullable | accessors=get,set
   Permissions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Network: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto> | nullability=not-null | accessors=get,set
   Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
   MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
@@ -6380,6 +6381,10 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginManifestJsonRe
   plugin_id: System.String | nullability=not-null | accessors=get,init
   json: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto
+  Host: System.String | nullability=not-null | accessors=get,set
+  Sends: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   saved: System.Boolean | nullability=not-null | accessors=get,init
@@ -6417,6 +6422,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   ConfiguredSecrets: System.Int32 | nullability=not-null | accessors=get,set
   AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SendsDataTo: System.String | nullability=nullable | accessors=get,set
+  NetworkDestinations: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNetworkDestinationDto> | nullability=not-null | accessors=get,set
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set

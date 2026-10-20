@@ -275,6 +275,52 @@ public sealed class PluginDirectoryServiceTests : IDisposable
         Assert.Null(fine.Sha256);
     }
 
+    [Fact]
+    public async Task AnEntryThatDeclaresWhereItConnects_ShowsOneLinePerHost_AndPreviewsThem()
+    {
+        _handler.Answer("""
+            {
+              "schema_version": "2.0",
+              "plugins": [
+                { "id": "acme.lore", "name": "Lore", "kind": "service", "permissions": ["network.http", "media.read"],
+                  "network": [
+                    { "host": "www.wikidata.org", "sends": "Item IDs of Universes", "max_requests_per_minute": 60 },
+                    { "host": "*.fandom.com", "sends": "Requests for a wiki's page list" }
+                  ] }
+              ]
+            }
+            """);
+        var service = NewService();
+
+        var entry = Assert.Single((await service.GetAsync()).Plugins);
+        var preview = await service.PreviewInstallAsync("acme.lore");
+
+        Assert.Equal(["www.wikidata.org", "*.fandom.com"], entry.Network.Select(destination => destination.Host));
+        Assert.Equal("Requests for a wiki's page list", entry.Network[1].Sends);
+        Assert.Equal(
+            ["Contacts www.wikidata.org: Item IDs of Universes", "Contacts *.fandom.com: Requests for a wiki's page list", "Reads your media files"],
+            entry.AllowedTo);
+        Assert.DoesNotContain("Connects to the internet", preview.CanDo);
+        Assert.Contains("Contacts *.fandom.com: Requests for a wiki's page list", preview.CanDo);
+        Assert.Equal("www.wikidata.org, *.fandom.com", preview.SendsDataTo);
+    }
+
+    [Theory]
+    [InlineData("""{ "id": "acme.bad", "name": "Bad", "kind": "service", "permissions": ["network.http"], "network": [ { "host": "https://api.example.com/x", "sends": "Titles" } ] }""")]
+    [InlineData("""{ "id": "acme.bad", "name": "Bad", "kind": "service", "permissions": ["network.http"], "network": [ { "host": "*", "sends": "Titles" } ] }""")]
+    [InlineData("""{ "id": "acme.bad", "name": "Bad", "kind": "service", "permissions": ["network.http"], "network": [ { "host": "api.example.com", "sends": "" } ] }""")]
+    [InlineData("""{ "id": "acme.bad", "name": "Bad", "kind": "service", "permissions": ["network.http"], "network": "api.example.com" }""")]
+    [InlineData("""{ "id": "acme.bad", "name": "Bad", "kind": "service", "permissions": ["media.read"], "network": [ { "host": "api.example.com", "sends": "Titles" } ] }""")]
+    public async Task AnEntryWithAnUnreadableOrUnpermittedNetworkList_IsSkipped_NotShownAsSmaller(string entryJson)
+    {
+        _handler.Answer($$"""{ "schema_version": "2.0", "plugins": [ {{entryJson}} ] }""");
+
+        var directory = await NewService().GetAsync();
+
+        Assert.Empty(directory.Plugins);
+        Assert.Equal(1, directory.SkippedCount);
+    }
+
     [Theory]
     [InlineData("verified", "verified")]
     [InlineData("official", "official")]

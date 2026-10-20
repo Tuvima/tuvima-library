@@ -129,6 +129,10 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("sends_data_to")]
     public string? SendsDataTo { get; set; }
 
+    /// <summary>Each place the plugin says it contacts, and what it sends there. Empty when the plugin does not use the internet.</summary>
+    [JsonPropertyName("network_destinations")]
+    public List<PluginNetworkDestinationDto> NetworkDestinations { get; set; } = [];
+
     [JsonPropertyName("settings")]
     public Dictionary<string, JsonElement> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -138,6 +142,16 @@ public sealed record PluginSummaryResponse
 
     [JsonPropertyName("manifest_path")]
     public string? ManifestPath { get; set; }
+}
+
+/// <summary>One place a plugin says it contacts: a host (exact, or one leading <c>*.</c> wildcard) and a plain sentence on what it sends there.</summary>
+public sealed record PluginNetworkDestinationDto
+{
+    [JsonPropertyName("host")]
+    public string Host { get; set; } = "";
+
+    [JsonPropertyName("sends")]
+    public string Sends { get; set; } = "";
 }
 
 public sealed record PluginCapabilityDto
@@ -374,6 +388,10 @@ public sealed class PluginDirectoryEntryDto
     /// <summary>What the plugin may do, in the Engine's plain words (one line per declared permission).</summary>
     [JsonPropertyName("allowed_to")]
     public List<string> AllowedTo { get; set; } = [];
+
+    /// <summary>Where the plugin says it will send data and what it sends there (list format 2.x <c>network</c>); empty when the list does not say.</summary>
+    [JsonPropertyName("network")]
+    public List<PluginNetworkDestinationDto> Network { get; set; } = [];
 
     [JsonPropertyName("capabilities")]
     public List<string> Capabilities { get; set; } = [];

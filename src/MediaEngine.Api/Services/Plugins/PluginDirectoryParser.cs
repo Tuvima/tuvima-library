@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Contracts.Plugins;
+using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
 
@@ -103,6 +104,15 @@ internal static class PluginDirectoryParser
         }
 
         var permissions = ReadStrings(element, "permissions");
+
+        // An entry that says where it connects must say it well and must hold the internet permission; one that does not
+        // say at all is still listed (older lists), and is described only as connecting to the internet.
+        var network = ReadNetwork(element);
+        if (network is null || (network.Count > 0 && PluginNetworkRules.Validate(permissions, network) is not null))
+        {
+            return null;
+        }
+
         var trust = NormalizeTrust(ReadString(element, "trust_level"));
         return new PluginDirectoryEntryDto
         {
@@ -115,7 +125,8 @@ internal static class PluginDirectoryParser
             TrustLevel = trust,
             TrustWarning = trust == "community" ? ApprovalStatementBuilder.NotVerifiedWarning : null,
             Permissions = permissions,
-            AllowedTo = permissions.Select(ApprovalStatementBuilder.PermissionText).Distinct(StringComparer.Ordinal).ToList(),
+            AllowedTo = permissions.SelectMany(permission => ApprovalStatementBuilder.PermissionLines(permission, network)).Distinct(StringComparer.Ordinal).ToList(),
+            Network = network.Select(destination => new PluginNetworkDestinationDto { Host = destination.Host, Sends = destination.Sends.Trim() }).ToList(),
             Capabilities = ReadStrings(element, "capabilities"),
             MinimumLibraryVersion = ReadString(element, "minimum_library_version")?.Trim() is { Length: > 0 } minimum
                 ? Limit(minimum)
@@ -155,6 +166,50 @@ internal static class PluginDirectoryParser
         }
 
         return result.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    // Absent means the list does not say where the plugin connects (an empty list). Anything present but not a list of
+    // { host, sends } objects makes the whole entry unreadable (null), so a bad declaration is never shown as a smaller one.
+    private static List<PluginNetworkDestination>? ReadNetwork(JsonElement element)
+    {
+        if (!element.TryGetProperty("network", out var value) || value.ValueKind == JsonValueKind.Null)
+        {
+            return [];
+        }
+
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > MaxListLength)
+        {
+            return null;
+        }
+
+        var result = new List<PluginNetworkDestination>();
+        foreach (var item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            int? rate = null;
+            if (item.TryGetProperty("max_requests_per_minute", out var rateValue) && rateValue.ValueKind != JsonValueKind.Null)
+            {
+                if (rateValue.ValueKind != JsonValueKind.Number || !rateValue.TryGetInt32(out var parsed))
+                {
+                    return null;
+                }
+
+                rate = parsed;
+            }
+
+            result.Add(new PluginNetworkDestination
+            {
+                Host = ReadString(item, "host") ?? "",
+                Sends = ReadString(item, "sends") ?? "",
+                MaxRequestsPerMinute = rate,
+            });
+        }
+
+        return result;
     }
 
     // The Dashboard shows these as links, so only a plain https address is kept.

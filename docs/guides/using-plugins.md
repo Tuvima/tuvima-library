@@ -23,6 +23,12 @@ Open **Settings > Plugins**. It is one page: the installed plugins come first, t
 
 Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete them or edit their files. Dynamic plugins have their own folder and manifest.
 
+## What a plugin card and the approval step tell you
+
+Each installed plugin is a card. **Allowed to** lists what it may do, and **Sends data out** says **No** or **Yes, to** followed by the hosts it contacts. For a plugin that connects to the internet, the list has one line per place, such as "Contacts www.wikidata.org: Wikidata item IDs of Universes already in your Library". The same lines appear in the confirmation you see before switching a plugin on. If a plugin later changes where it connects, it stops running and asks again.
+
+A link of the form `/settings/plugins?plugin=<plugin id>` opens this page at that plugin's card, highlighted, with its settings open. If no installed plugin has that id, the page opens as usual.
+
 ## Find an available plugin
 
 **Available plugins** is a list of plugins other people have shared. It is a list, not an installer.

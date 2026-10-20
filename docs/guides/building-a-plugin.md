@@ -248,6 +248,24 @@ Common permissions:
 
 The Engine checks the live enabled state and the exact manifest permission again immediately before each host operation. Disabling a plugin therefore revokes an already-created context. Tool resolution accepts a declared tool id, and execution accepts only a resolution returned to that same context. Working and storage paths must remain inside the plugin directory.
 
+### Say where the plugin connects
+
+A plugin that declares `network.http` must also list every place it sends data in `network`. Each entry has:
+
+- `host` (required): an exact host such as `api.example.com`, or one leading wildcard label such as `*.fandom.com`. No `https://`, path, port or bare `*`.
+- `sends` (required): one plain sentence, 1 to 200 characters, saying what is sent there, for example "Searches for character and place names". Write it for a person deciding whether to switch the plugin on.
+- `max_requests_per_minute` (optional): a whole number from 1 to 600 asking for a rate cap for that host.
+
+```json
+"permissions": ["network.http"],
+"network": [
+  { "host": "www.wikidata.org", "sends": "Wikidata item IDs of Universes already in your Library", "max_requests_per_minute": 60 },
+  { "host": "*.fandom.com", "sends": "Requests for the page list of a wiki you approved", "max_requests_per_minute": 60 }
+]
+```
+
+The Library refuses to load a manifest that declares `network.http` with no destinations, lists destinations without `network.http`, repeats a host, or has a malformed host, and says why in Settings > Plugins. The destinations are part of what a person approves: the approval step and the plugin's card show one "Contacts host: what it sends" line per entry, so adding or changing a destination (a host or its `sends` sentence) asks for approval again. The Library does not yet block requests to hosts outside this list; that arrives with the plugin web connection, so list every host the plugin really uses.
+
 If a plugin uses tools, declare each `tool_requirements` entry with the executable name, license, source URL, supported platforms, download URL, SHA-256, and relative executable path when auto-install is supported.
 
 If a plugin needs a key or login, declare each one in `secrets` (`name`, `label`, `description`) and request the `secrets.plugin` permission. An administrator enters the values through the `PUT /plugins/{pluginId}/secrets/{name}` action; the plugin reads one with `await context.Secrets.GetAsync("name")`, which returns null when the name was not declared or has no value. Plugins cannot write or list secrets, never see another plugin's secrets, and must not log what they read. Secrets are kept in the config folder (`config/secrets/plugins/{plugin-id}.json`), so they survive a data store reset and are left out of backups.

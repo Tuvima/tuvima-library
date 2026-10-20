@@ -64,6 +64,9 @@ The Library only accepts HTTPS addresses on `raw.githubusercontent.com` or `gith
       "kind": "declarative",
       "trust_level": "community",
       "permissions": ["network.http"],
+      "network": [
+        { "host": "api.example.com", "sends": "Searches for titles by name" }
+      ],
       "capabilities": ["metadata-source"],
       "minimum_library_version": "1.0.0",
       "maximum_library_version": "1.9.99",
@@ -96,6 +99,7 @@ Each plugin:
 | `author`, `description`, `version` | no | Shown on the entry. |
 | `trust_level` | no | `official`, `verified` or `community`. Missing or unknown counts as `community` (not verified). |
 | `permissions` | no | The permission ids the plugin declares, for example `network.http` or `media.read`. The Library words them for people ("Connects to the internet"). |
+| `network` | no | Where the plugin sends data and what it sends there: a list of `{ "host", "sends" }` (optionally `max_requests_per_minute`), written exactly as in the plugin's manifest (see [Building a plugin](../guides/building-a-plugin.md#say-where-the-plugin-connects)). When present, the approval step shows one "Contacts host: what it sends" line per entry instead of "Connects to the internet", and the Engine returns the list as `network`. A list that gives `network` entries must also give `network.http` in `permissions`, and each entry must be a valid host with a plain sentence; an entry that breaks this is left out and counted, never shown as a smaller list. A plugin that has `network.http` but no `network` list (older lists) is still shown, described only as connecting to the internet. |
 | `capabilities` | no | Short names of what the plugin provides. |
 | `minimum_library_version`, `maximum_library_version` | no | The Library versions it works with. The minimum defaults to `1.0.0`; no maximum means no upper limit. |
 | `supported_platforms` | no | Runtime ids (`win-x64`) or OS families (`windows`, `linux`, `macos`). Empty means every platform. |

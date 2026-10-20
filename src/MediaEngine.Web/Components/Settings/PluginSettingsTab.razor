@@ -15,6 +15,7 @@
 @inject DeviceContextService DeviceContext
 @inject SettingsAttentionState Attention
 @inject ApprovalFlow Approvals
+@inject IJSRuntime JS
 
 @if (_loading)
 {
@@ -71,6 +72,16 @@ else
     private string? _configurePluginId;
     private string? _deletePluginId;
 
+    /// <summary>
+    /// The plugin a <c>/settings/plugins?plugin={id}</c> link points at. When it names an installed plugin the page scrolls to
+    /// that plugin's card, rings it and opens its settings; an id that matches nothing leaves the page as it normally opens.
+    /// </summary>
+    [Parameter] public string? FocusPluginId { get; set; }
+
+    private string? _focusedPluginId;
+    private string? _appliedFocusRequest;
+    private bool _scrollToFocused;
+
     private PluginSummaryResponse? SelectedPlugin => _plugins.FirstOrDefault(p => string.Equals(p.Id, _selectedPluginId, StringComparison.OrdinalIgnoreCase));
     private PluginSummaryResponse? ConfiguredPlugin => _plugins.FirstOrDefault(p => string.Equals(p.Id, _configurePluginId, StringComparison.OrdinalIgnoreCase));
 
@@ -111,7 +122,12 @@ else
             <div class="settings-plugin-cards" role="list">
                 @foreach (var plugin in _plugins)
                 {
-                    <div role="listitem" @key="plugin.Id">@PluginCard(plugin)</div>
+                    var focused = IsFocused(plugin);
+                    <div role="listitem"
+                         @key="plugin.Id"
+                         id="@CardElementId(plugin.Id)"
+                         class="@(focused ? "settings-plugin-card-focus" : null)"
+                         data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
                 }
             </div>
         }
@@ -321,6 +337,57 @@ else
         await LoadAsync();
     }
 
+    // A link to another plugin while this page is already open moves the ring and the scroll to that plugin.
+    protected override void OnParametersSet()
+    {
+        if (!_loading)
+            ApplyFocusRequest();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_scrollToFocused || _loading || _focusedPluginId is null)
+            return;
+
+        _scrollToFocused = false;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#" + CardElementId(_focusedPluginId));
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to scroll.
+        }
+    }
+
+    private bool IsFocused(PluginSummaryResponse plugin) =>
+        string.Equals(plugin.Id, _focusedPluginId, StringComparison.OrdinalIgnoreCase);
+
+    // Plugin ids hold dots (tuvima.fandom-lore), which would read as a class selector, so the page id keeps letters and digits only.
+    internal static string CardElementId(string pluginId) =>
+        "plugin-card-" + string.Concat(pluginId.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '-'));
+
+    // Acts once per requested id: an id that matches an installed plugin selects it, opens its settings and asks for a scroll;
+    // an unknown id (or none) changes nothing.
+    private void ApplyFocusRequest()
+    {
+        if (string.Equals(_appliedFocusRequest, FocusPluginId, StringComparison.Ordinal))
+            return;
+
+        _appliedFocusRequest = FocusPluginId;
+        var match = string.IsNullOrWhiteSpace(FocusPluginId)
+            ? null
+            : _plugins.FirstOrDefault(plugin => string.Equals(plugin.Id, FocusPluginId.Trim(), StringComparison.OrdinalIgnoreCase));
+        _focusedPluginId = match?.Id;
+        if (match is null)
+            return;
+
+        _selectedPluginId = match.Id;
+        _configurePluginId = match.Id;
+        _scrollToFocused = true;
+        _ = LoadLatestApprovalAsync(match.Id);
+    }
+
     public void Dispose()
     {
         _disposed.Cancel();
@@ -334,6 +401,7 @@ else
         try
         {
             _plugins = (await Orchestrator.GetPluginsAsync()).OrderBy(p => p.Name).ToList();
+            ApplyFocusRequest();
             if (_plugins.Count > 0 && SelectedPlugin is null)
             {
                 _selectedPluginId = _plugins[0].Id;

@@ -280,6 +280,7 @@ public sealed class PluginApplicationServiceGatewayTests
             Id = FandomLorePlugin.PluginId,
             Name = "Test Fandom",
             Permissions = [PluginPermissionIds.NetworkHttp],
+            Network = [new PluginNetworkDestination { Host = "*.fandom.com", Sends = "Requests for the page list of a wiki" }],
         };
 
         public IReadOnlyList<IPluginCapability> CreateCapabilities() => [provider];
