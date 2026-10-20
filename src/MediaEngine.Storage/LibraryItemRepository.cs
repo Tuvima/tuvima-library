@@ -660,9 +660,12 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             && explicitOriginalYear is null
             && assetId.HasValue)
         {
-            var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("@workId", "@assetId");
+            var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+                "related_book_year",
+                "SELECT @workId AS work_id, @assetId AS asset_id",
+                "rby_");
             relatedBookYear = conn.QueryFirstOrDefault<string?>(
-                $"SELECT {relatedBookYearSql};",
+                $"WITH {relatedBookYearCte} SELECT year FROM related_book_year;",
                 new { workId = entityId, assetId }) ?? string.Empty;
         }
 
@@ -897,7 +900,18 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         var explicitWorkYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "wcv.key", "wcv.value");
         var explicitAssetYearSql = MediaDateSql.ExplicitOriginalYearFromGroupedRows("w.media_type", "acv.key", "acv.value");
         var primaryAssetIdSql = "(SELECT year_asset.asset_id FROM primary_asset_data year_asset WHERE year_asset.work_id = w.id)";
-        var relatedBookYearSql = MediaDateSql.RelatedBookOriginalYear("w.id", primaryAssetIdSql);
+        // The borrowed audiobook year is worked out once for all audiobooks (set-based), not once per row.
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the year look-up only; the projection filters the rows it returns
+            SELECT audiobook_pad.work_id, audiobook_pad.asset_id
+            FROM primary_asset_data audiobook_pad
+            INNER JOIN works audiobook_work ON audiobook_work.id = audiobook_pad.work_id
+            WHERE LOWER(audiobook_work.media_type) LIKE '%audio%'
+            """,
+            "rby_");
+        var relatedBookYearSql = MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", primaryAssetIdSql);
 
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
@@ -920,6 +934,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
                 FROM ranked_primary_assets
                 WHERE asset_rank=1
             ),
+            {relatedBookYearCte},
             root_work_data AS (
                 SELECT
                     w.id AS work_id,
