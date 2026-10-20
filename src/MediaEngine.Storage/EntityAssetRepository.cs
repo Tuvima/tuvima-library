@@ -489,55 +489,97 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
     {
         ct.ThrowIfCancellationRequested();
 
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) => SetPreferred(conn, tx, assetId), ct);
+    }
+
+    /// <inheritdoc/>
+    public Task SetUserChoiceAsync(Guid assetId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
-            // Find the target asset's entity_id and asset_type.
             var target = conn.QuerySingleOrDefault<EntityAssetTargetRow>($"""
                 SELECT {GuidSql.EntityIdProjection} AS EntityId, asset_type AS AssetType
                 FROM   entity_assets
                 WHERE  id = @assetId;
                 """, new { assetId }, tx);
-
             if (target is null)
             {
                 return;
             }
 
-            // Clear preferred flag on all assets with the same entity + asset type.
-            conn.Execute("""
-                UPDATE entity_assets
-                SET    is_preferred = 0,
-                       updated_at  = datetime('now')
+            var earlierPicks = conn.Query<Guid>("""
+                SELECT id
+                FROM   entity_assets
                 WHERE  entity_id  = @entityId
                 AND    asset_type = @assetType
-                AND    is_preferred = 1;
-                """, new { entityId = ToEntityIdParameter(target.EntityId), assetType = target.AssetType }, tx);
-
-            // Set the target as preferred.
-            conn.Execute("""
-                UPDATE entity_assets
-                SET    is_preferred = 1,
-                       updated_at  = datetime('now')
-                WHERE  id = @assetId;
-                """, new { assetId }, tx);
-
-            var role = target.AssetType switch
+                AND    id <> @assetId
+                AND    is_user_override = 1
+                AND    COALESCE(source_provider, '') <> 'user_upload';
+                """, new { entityId = ToEntityIdParameter(target.EntityId), assetType = target.AssetType, assetId }, tx).ToList();
+            const string setOverride = """
+                UPDATE entity_assets SET is_user_override = @isUserOverride, updated_at = datetime('now') WHERE id = @id;
+                UPDATE entity_artwork_links SET is_user_override = @isUserOverride, updated_at = datetime('now') WHERE id = @id;
+                """;
+            foreach (var earlierPick in earlierPicks)
             {
-                "Headshot" or "CharacterPortrait" => "Portrait",
-                "Background" or "Banner" or "SeasonThumb" => "Background",
-                "Logo" or "NetworkLogo" or "StudioLogo" => "Logo",
-                _ => "Primary",
-            };
-            conn.Execute("""
-                UPDATE entity_artwork_links
-                SET is_preferred=0, updated_at=datetime('now')
-                WHERE entity_id=@entityId AND role=@role;
-                UPDATE entity_artwork_links
-                SET is_preferred=1, updated_at=datetime('now')
-                WHERE id=@assetId;
-                """, new { entityId = ToEntityIdParameter(target.EntityId), role, assetId }, tx);
+                conn.Execute(setOverride, new { id = earlierPick, isUserOverride = 0 }, tx);
+            }
 
+            conn.Execute(setOverride, new { id = assetId, isUserOverride = 1 }, tx);
+
+            SetPreferred(conn, tx, assetId);
         }, ct);
+    }
+
+    private static void SetPreferred(System.Data.IDbConnection conn, System.Data.IDbTransaction tx, Guid assetId)
+    {
+        // Find the target asset's entity_id and asset_type.
+        var target = conn.QuerySingleOrDefault<EntityAssetTargetRow>($"""
+            SELECT {GuidSql.EntityIdProjection} AS EntityId, asset_type AS AssetType
+            FROM   entity_assets
+            WHERE  id = @assetId;
+            """, new { assetId }, tx);
+
+        if (target is null)
+        {
+            return;
+        }
+
+        // Clear preferred flag on all assets with the same entity + asset type.
+        conn.Execute("""
+            UPDATE entity_assets
+            SET    is_preferred = 0,
+                   updated_at  = datetime('now')
+            WHERE  entity_id  = @entityId
+            AND    asset_type = @assetType
+            AND    is_preferred = 1;
+            """, new { entityId = ToEntityIdParameter(target.EntityId), assetType = target.AssetType }, tx);
+
+        // Set the target as preferred.
+        conn.Execute("""
+            UPDATE entity_assets
+            SET    is_preferred = 1,
+                   updated_at  = datetime('now')
+            WHERE  id = @assetId;
+            """, new { assetId }, tx);
+
+        var role = target.AssetType switch
+        {
+            "Headshot" or "CharacterPortrait" => "Portrait",
+            "Background" or "Banner" or "SeasonThumb" => "Background",
+            "Logo" or "NetworkLogo" or "StudioLogo" => "Logo",
+            _ => "Primary",
+        };
+        conn.Execute("""
+            UPDATE entity_artwork_links
+            SET is_preferred=0, updated_at=datetime('now')
+            WHERE entity_id=@entityId AND role=@role;
+            UPDATE entity_artwork_links
+            SET is_preferred=1, updated_at=datetime('now')
+            WHERE id=@assetId;
+            """, new { entityId = ToEntityIdParameter(target.EntityId), role, assetId }, tx);
     }
 
     /// <inheritdoc/>

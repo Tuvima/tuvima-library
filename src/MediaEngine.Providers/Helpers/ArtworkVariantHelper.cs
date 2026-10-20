@@ -2,6 +2,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
 namespace MediaEngine.Providers.Helpers;
@@ -106,6 +107,51 @@ public static class ArtworkVariantHelper
         }
 
         return $"#{dominant.R / dominant.Count:X2}{dominant.G / dominant.Count:X2}{dominant.B / dominant.Count:X2}";
+    }
+
+    /// <summary>
+    /// Deletes a removed variant's image and renditions. Only files under the managed asset root are touched.
+    /// </summary>
+    public static void DeleteManagedFiles(EntityAsset asset, AssetPathService assetPathService, ILogger logger)
+    {
+        var managedRoot = Path.GetFullPath(assetPathService.AssetsRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        foreach (var path in new[]
+                 {
+                     asset.LocalImagePath,
+                     asset.LocalImagePathSmall,
+                     asset.LocalImagePathMedium,
+                     asset.LocalImagePathLarge,
+                 }
+                     .Where(path => !string.IsNullOrWhiteSpace(path))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var fullPath = Path.GetFullPath(path!);
+            if (!fullPath.StartsWith(managedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning(
+                    "Skipped deletion of artwork file outside the managed asset root: {Path}",
+                    fullPath);
+                continue;
+            }
+
+            try
+            {
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                }
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to delete stale managed artwork file {Path}", fullPath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Access was denied deleting stale managed artwork file {Path}", fullPath);
+            }
+        }
     }
 
     public static bool ShouldGenerateRenditions(string assetTypeValue) => assetTypeValue switch

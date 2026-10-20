@@ -367,7 +367,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 && (string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
                     || string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(episodeId)))
             {
-                return await EnrichTvdbImagesAsync(context, tvdbId, forceRefresh, checkedAt, ct).ConfigureAwait(false);
+                return await EnrichTvdbImagesAsync(context, canonicals, tvdbId, checkedAt, ct).ConfigureAwait(false);
             }
         }
         if (context.MediaType == MediaType.TV)
@@ -416,6 +416,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var held = 0;
         var preferredUpdates = 0;
         var owner = context.MediaType == MediaType.TV ? context.RootWorkId : context.SelfWorkId;
+        var reidentified = !rootAlreadyChecked && HeldArtworkIsForAnotherIdentity(canonicals, TmdbProviderName, tmdbId);
         foreach (var mapping in RootMappings)
         {
             if (rootAlreadyChecked)
@@ -426,7 +427,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 continue;
             }
 
-            var processed = await ProcessRankedImagesAsync(response.Json?[mapping.JsonField]?.AsArray() ?? [], mapping.AssetType,
+            var imageNodes = response.Json?[mapping.JsonField]?.AsArray() ?? [];
+            var processed = await ProcessRankedImagesAsync(imageNodes, mapping.AssetType,
                 owner, mapping.UpdatePreferred, metadataLanguage, ct).ConfigureAwait(false);
             if (mapping.AssetType == AssetType.CoverArt && processed.PreferredLocalPath is not null)
             {
@@ -435,6 +437,15 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             AddCount(counts, mapping.AssetType, processed.StoredCount);
             held += processed.HeldCount;
             preferredUpdates += processed.UpdatedPreferredCount;
+            if (reidentified)
+            {
+                var offered = imageNodes
+                    .Select(node => node?["file_path"]?.GetValue<string>())
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Select(path => BuildImageUrl(path!));
+                await RemoveEarlierIdentityArtworkAsync(owner, mapping.AssetType, offered,
+                    GetValue(canonicals, MetadataFieldConstants.Cover), ct).ConfigureAwait(false);
+            }
         }
 
         foreach (var mapping in BrandMappings)
@@ -547,6 +558,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         && string.Equals(GetValue(canonicals, "tmdb_artwork_bridge_id"), tmdbId, StringComparison.OrdinalIgnoreCase)
         && GetValue(canonicals, "tmdb_artwork_status") is "Completed" or "NoImages" or "NoResult";
 
+    /// <summary>
+    /// True when the provider artwork held for the item was found for a different bridge id than the current
+    /// one: the item was re-identified without a manual rematch (a rematch replaces the artwork itself).
+    /// </summary>
+    private static bool HeldArtworkIsForAnotherIdentity(IReadOnlyDictionary<string, string> canonicals, string provider, string bridgeId) =>
+        new[] { GetValue(canonicals, $"{provider}_artwork_bridge_id"), GetValue(canonicals, ArtworkCanonicalHelper.PosterChoiceKey(provider)) }
+            .Any(earlier => !string.IsNullOrWhiteSpace(earlier) && !string.Equals(earlier, bridgeId, StringComparison.OrdinalIgnoreCase));
+
     private static readonly ArtworkMapping[] RootMappings =
     [new("backdrops", AssetType.Background, true), new("logos", AssetType.Logo, true), new("posters", AssetType.CoverArt, true)];
     private static readonly ArtworkMapping[] SeasonMappings =
@@ -555,7 +574,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     [new("network_logo_url", AssetType.NetworkLogo), new("studio_logo_url", AssetType.StudioLogo)];
 
     private async Task<ImageEnrichmentResult> EnrichTvdbImagesAsync(
-        ArtworkContext context, string showId, bool forceRefresh, DateTimeOffset checkedAt,
+        ArtworkContext context, IReadOnlyDictionary<string, string> canonicals, string showId, DateTimeOffset checkedAt,
         CancellationToken ct)
     {
         var types = await _tvdb!.GetAsync("tvdb", "artwork_types", null, ct).ConfigureAwait(false);
@@ -593,6 +612,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var held = 0;
         var showHeld = 0;
         var preferred = 0;
+        var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
         async Task AddAsync(string? value, AssetType type, Guid owner)
         {
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -602,6 +622,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 return;
             }
+            if (!offered.TryGetValue((owner, type), out var urls))
+            {
+                offered[(owner, type)] = urls = [];
+            }
+            urls.Add(uri.ToString());
             var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb")
                 .ConfigureAwait(false);
             AddCount(counts, type, processed.StoredCount);
@@ -678,6 +703,22 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             if (!heldTypes.Contains(AssetType.SeasonPoster.ToString()))
             {
                 await AddAsync(detail?["image"]?.ToString(), AssetType.SeasonPoster, season.WorkId).ConfigureAwait(false);
+            }
+        }
+
+        if (HeldArtworkIsForAnotherIdentity(canonicals, "tvdb", showId))
+        {
+            // The show was identified as a different show; the earlier show's artwork and its seasons' artwork go.
+            var scopes = new List<(Guid Owner, AssetType Type)>
+            {
+                (context.RootWorkId, AssetType.CoverArt), (context.RootWorkId, AssetType.Background), (context.RootWorkId, AssetType.Logo),
+            };
+            scopes.AddRange(offered.Keys.Where(key => key.Owner != context.RootWorkId
+                && key.Type is AssetType.SeasonPoster or AssetType.SeasonThumb));
+            foreach (var (owner, type) in scopes.Distinct())
+            {
+                await RemoveEarlierIdentityArtworkAsync(owner, type, offered.GetValueOrDefault((owner, type)) ?? [],
+                    GetValue(canonicals, MetadataFieldConstants.Cover), ct).ConfigureAwait(false);
             }
         }
 
@@ -967,6 +1008,74 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var stored = (await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false))
             .FirstOrDefault(asset => asset.Id == storedId);
         return stored?.ImageUrl;
+    }
+
+    /// <summary>
+    /// After re-identification, removes the owner's provider artwork of <paramref name="assetType"/> that the
+    /// current identity did not offer. Uploads, user picks and local covers (embedded or folder art) stay, as
+    /// does the retail cover for the current identity (<paramref name="currentCoverUrl"/>). If the preferred
+    /// variant goes and nothing new replaced it, the next best survivor takes over.
+    /// </summary>
+    private async Task RemoveEarlierIdentityArtworkAsync(Guid ownerEntityId, AssetType assetType, IEnumerable<string> offeredUrls,
+        string? currentCoverUrl, CancellationToken ct)
+    {
+        var keep = new HashSet<string>(offeredUrls, StringComparer.OrdinalIgnoreCase);
+        if (assetType == AssetType.CoverArt && !string.IsNullOrWhiteSpace(currentCoverUrl))
+        {
+            keep.Add(currentCoverUrl);
+        }
+
+        var variants = await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false);
+        var earlier = variants
+            .Where(asset => string.Equals(asset.AssetClassValue, "Artwork", StringComparison.OrdinalIgnoreCase)
+                && !asset.IsUserOverride
+                && !string.Equals(asset.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
+                && Uri.TryCreate(asset.ImageUrl, UriKind.Absolute, out var url) && url.Scheme is "http" or "https"
+                && !keep.Contains(asset.ImageUrl))
+            .ToList();
+        if (earlier.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var asset in earlier)
+        {
+            await _assetRepo.DeleteAsync(asset.Id, ct).ConfigureAwait(false);
+            ArtworkVariantHelper.DeleteManagedFiles(asset, _assetPaths, _logger);
+        }
+        _logger.LogInformation("Removed {Count} {AssetType} variant(s) of an earlier identity from {OwnerEntityId}",
+            earlier.Count, assetType, ownerEntityId);
+
+        if (!earlier.Any(asset => asset.IsPreferred))
+        {
+            return;
+        }
+
+        var survivors = variants.Except(earlier).ToList();
+        var survivor = survivors.FirstOrDefault(asset => asset.IsUserOverride)
+            ?? survivors.FirstOrDefault(asset => string.Equals(asset.ImageUrl, currentCoverUrl, StringComparison.OrdinalIgnoreCase))
+            ?? survivors.FirstOrDefault();
+        if (survivor is not null)
+        {
+            await _assetRepo.SetPreferredAsync(survivor.Id, ct).ConfigureAwait(false);
+            await PersistPreferredAssetCanonicalsAsync(ownerEntityId, survivor, ct).ConfigureAwait(false);
+            if (_assetExportService is not null)
+            {
+                await _assetExportService.ReconcileArtworkAsync(survivor.EntityId, survivor.EntityType, survivor.AssetTypeValue, ct)
+                    .ConfigureAwait(false);
+            }
+            return;
+        }
+
+        foreach (var key in ArtworkCanonicalHelper.DisplayCanonicalKeys(assetType.ToString()))
+        {
+            await _canonicalRepo.DeleteByKeyAsync(ownerEntityId, key, ct).ConfigureAwait(false);
+        }
+        if (_assetExportService is not null)
+        {
+            await _assetExportService.ClearArtworkExportAsync(ownerEntityId.ToString(), "Work", assetType.ToString(), ct)
+                .ConfigureAwait(false);
+        }
     }
 
     private async Task<int> CountHeldVariantsAsync(Guid ownerEntityId, AssetType assetType, string sourceProvider, CancellationToken ct)

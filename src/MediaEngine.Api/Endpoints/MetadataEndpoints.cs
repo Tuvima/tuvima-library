@@ -1548,7 +1548,8 @@ public static partial class MetadataEndpoints
                 return ApiErrors.NotFound($"Artwork variant {variantId} not found.");
             }
 
-            await entityAssetRepo.SetPreferredAsync(variantId, ct);
+            // Choosing a variant is the user's choice, kept through later artwork passes like an upload.
+            await entityAssetRepo.SetUserChoiceAsync(variantId, ct);
             target = await entityAssetRepo.FindByIdAsync(variantId, ct);
             if (target is null)
             {
