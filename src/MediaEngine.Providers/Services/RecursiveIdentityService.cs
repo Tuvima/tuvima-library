@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -38,12 +37,6 @@ public sealed class RecursiveIdentityService : IRecursiveIdentityService
 {
     private readonly IPersonRepository _personRepo;
     private readonly ILogger<RecursiveIdentityService> _logger;
-
-    // Prevents concurrent threads from creating duplicate Person rows for the
-    // same name+role identity.  The window is tiny (FindByName → CreateAsync),
-    // but it fires when multiple audiobooks by the same author arrive together.
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _personLocks =
-        new(StringComparer.OrdinalIgnoreCase);
 
     public RecursiveIdentityService(
         IPersonRepository personRepo,
@@ -129,8 +122,7 @@ public sealed class RecursiveIdentityService : IRecursiveIdentityService
         // QID is guaranteed non-null by EnrichAsync's guard above.
         // Serialize on QID to prevent concurrent threads from both missing
         // FindByQid → both calling CreateAsync → duplicate row.
-        var personKey = $"QID:{reference.WikidataQid}";
-        var personLock = _personLocks.GetOrAdd(personKey, _ => new SemaphoreSlim(1, 1));
+        var personLock = PersonCreationLocks.ForQid(reference.WikidataQid!);
         await personLock.WaitAsync(ct).ConfigureAwait(false);
         Person? person;
         try
