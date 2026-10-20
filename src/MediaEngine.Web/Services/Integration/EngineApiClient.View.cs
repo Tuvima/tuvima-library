@@ -24,6 +24,58 @@ public sealed partial class EngineApiClient
     public Task<ViewTrashOutcome<ViewTrashEmptyPreviewDto>> GetViewTrashEmptyPreviewAsync(CancellationToken ct = default) =>
         SendViewTrashAsync<ViewTrashEmptyPreviewDto>("POST /view/trash/empty-preview", () => new HttpRequestMessage(HttpMethod.Post, "/view/trash/empty-preview"), ct);
 
+    public async Task<ViewTrashOutcome<ViewTrashEmptyResultDto>> EmptyViewTrashAsync(string fingerprint, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        const string endpoint = "POST /view/trash/empty";
+        try
+        {
+            using var response = await _http.PostAsJsonAsync("/view/trash/empty", new ViewTrashEmptyRequestDto(fingerprint), ct);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<ViewTrashEmptyResultDto>(cancellationToken: ct);
+                ClearFailure(endpoint);
+                // The Engine said yes but the answer cannot be read: the delete happened, so this is not "nothing was deleted".
+                return result is null
+                    ? ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(ViewTrashOutcomeStatus.Unconfirmed)
+                    : ViewTrashOutcome<ViewTrashEmptyResultDto>.Ok(result);
+            }
+
+            switch (response.StatusCode)
+            {
+                case System.Net.HttpStatusCode.Conflict:
+                    var conflict = await response.Content.ReadFromJsonAsync<ViewTrashEmptyConflictDto>(cancellationToken: ct);
+                    return conflict is null
+                        ? ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(ViewTrashOutcomeStatus.Unavailable)
+                        : ViewTrashOutcome<ViewTrashEmptyResultDto>.Conflict(conflict.Preview, conflict.Message);
+                case System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.NotFound or System.Net.HttpStatusCode.Unauthorized:
+                    return ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(
+                        ViewTrashOutcomeStatus.Forbidden, await ReadViewErrorAsync(response, ct));
+                default:
+                    await RecordHttpFailureAsync(endpoint, response, ct);
+                    // A server error can arrive after files were already removed, so it is not "nothing was deleted".
+                    return ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(
+                        (int)response.StatusCode >= 500 ? ViewTrashOutcomeStatus.Unconfirmed : ViewTrashOutcomeStatus.Unavailable);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A timeout or cancellation after the request went out: the Engine may still be deleting, or may have finished.
+            _logger.LogWarning("{Endpoint} was not answered in time; the result is unknown", endpoint);
+            return ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(ViewTrashOutcomeStatus.Unconfirmed);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
+        {
+            _logger.LogWarning(ex, "{Endpoint} failed", endpoint);
+            RecordExceptionFailure(endpoint, ex);
+            // Only a failure to connect proves the request never reached the Engine; anything later leaves it unknown whether the delete ran.
+            return ViewTrashOutcome<ViewTrashEmptyResultDto>.Failed(
+                ex is HttpRequestException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.NameResolutionError or HttpRequestError.SecureConnectionError or HttpRequestError.ProxyTunnelError }
+                    ? ViewTrashOutcomeStatus.Unavailable
+                    : ViewTrashOutcomeStatus.Unconfirmed);
+        }
+    }
+
     // A refusal is an expected answer, not a failure of the Engine: the page just doesn't offer Empty Trash.
     private async Task<ViewTrashOutcome<T>> SendViewTrashAsync<T>(string endpointLabel, Func<HttpRequestMessage> build, CancellationToken ct)
     {

@@ -111,16 +111,20 @@ public sealed class BaselineRunTests : IDisposable
         Directory.CreateDirectory(config);
         File.Copy(Path.Combine(repo, "config", "maintenance.json"), Path.Combine(config, "maintenance.json"));
 
-        BaselinePrepare.HoldClockSchedules(config);
+        var start = new DateTimeOffset(2026, 10, 20, 9, 15, 0, TimeSpan.Zero);
+        BaselinePrepare.HoldClockSchedules(config, start);
 
         using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "maintenance.json")));
         var schedules = held.RootElement.GetProperty("schedules").EnumerateObject().ToList();
         Assert.NotEmpty(schedules);
-        Assert.All(schedules, schedule => Assert.Equal(BaselinePrepare.HeldSchedule, schedule.Value.GetString()));
+        Assert.All(schedules, schedule => Assert.Equal(BaselinePrepare.HeldScheduleFrom(start), schedule.Value.GetString()));
         Assert.False(held.RootElement.GetProperty("retag_sweep").GetProperty("enabled").GetBoolean());
         Assert.False(held.RootElement.GetProperty("storage_maintenance").GetProperty("enabled").GetBoolean());
-        var next = MediaEngine.Api.Services.CronScheduler.NextOccurrence(BaselinePrepare.HeldSchedule, new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero));
+        // Fires once, 30 days on: never inside a run, and short enough for a scheduled task to wait for (Task.Delay
+        // refuses anything past about 49.7 days, which stops the Engine).
+        var next = MediaEngine.Api.Services.CronScheduler.NextOccurrence(BaselinePrepare.HeldScheduleFrom(start), start);
         Assert.NotNull(next);
-        Assert.Equal((2, 29), (next.Value.Month, next.Value.Day));
+        Assert.InRange(next.Value - start, TimeSpan.FromDays(29), TimeSpan.FromDays(31));
+        Assert.True(next.Value - start < TimeSpan.FromMilliseconds(uint.MaxValue - 1));
     }
 }
