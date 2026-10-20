@@ -343,6 +343,42 @@ public sealed class PluginLoreRepository : IPluginLoreRepository
         return Task.FromResult<IReadOnlyList<PluginLoreEntityRecord>>(rows.AsList());
     }
 
+    public Task<IReadOnlyList<PluginLoreItemSource>> GetApprovedSourceNamesForItemsAsync(
+        string universeQid,
+        IReadOnlyCollection<string> wikidataQids,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(wikidataQids);
+        var qids = wikidataQids
+            .Where(qid => !string.IsNullOrWhiteSpace(qid))
+            .Select(qid => qid.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var rows = new List<PluginLoreItemSource>();
+        if (qids.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<PluginLoreItemSource>>(rows);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var batch in qids.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            rows.AddRange(conn.Query<PluginLoreItemSource>("""
+                -- Plain columns (not expressions) keep their declared TEXT type, even when nothing matches.
+                SELECT DISTINCT e.wikidata_qid AS WikidataQid, s.source_name AS SourceName
+                FROM plugin_lore_entities e
+                INNER JOIN plugin_lore_sources s ON s.id = e.source_id
+                WHERE e.universe_qid = @universeQid COLLATE NOCASE
+                  AND s.status = @approved
+                  AND e.wikidata_qid COLLATE NOCASE IN @batch
+                ORDER BY 1, 2;
+                """, new { universeQid, approved = PluginLoreSourceStatus.Approved, batch }));
+        }
+
+        return Task.FromResult<IReadOnlyList<PluginLoreItemSource>>(rows);
+    }
+
     public Task<IReadOnlyList<PluginLoreRelationshipRecord>> GetRelationshipsAsync(
         string universeQid,
         bool approvedOnly = true,

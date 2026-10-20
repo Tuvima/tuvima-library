@@ -187,7 +187,10 @@ public sealed class UniverseConnectionsReadService(
         }
 
         // Approved lore sources are named only when they hold an entity for the character's QID.
-        var loreSourceNamesByQid = await LoadLoreSourceNamesByCharacterQidAsync(universeQid, ct).ConfigureAwait(false);
+        var loreSourceNamesByQid = await LoadLoreSourceNamesByCharacterQidAsync(
+            universeQid,
+            characters.Select(character => character.WikidataQid).ToList(),
+            ct).ConfigureAwait(false);
 
         return characters
             .Select(character =>
@@ -221,35 +224,19 @@ public sealed class UniverseConnectionsReadService(
 
     private async Task<IReadOnlyDictionary<string, List<string>>> LoadLoreSourceNamesByCharacterQidAsync(
         string universeQid,
+        IReadOnlyCollection<string> characterQids,
         CancellationToken ct)
     {
-        var approvedSources = await pluginLore.GetApprovedSourcesAsync(universeQid, ct).ConfigureAwait(false);
-        if (approvedSources.Count == 0)
-        {
-            return new Dictionary<string, List<string>>();
-        }
-
-        var sourceNames = approvedSources.ToDictionary(
-            source => source.Id,
-            source => string.IsNullOrWhiteSpace(source.SourceName) ? "Lore plugin" : source.SourceName.Trim());
-        var namesByQid = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entity in await pluginLore.GetEntitiesAsync(universeQid, approvedOnly: true, ct).ConfigureAwait(false))
-        {
-            if (string.IsNullOrWhiteSpace(entity.WikidataQid) || !sourceNames.TryGetValue(entity.SourceId, out var name))
-            {
-                continue;
-            }
-
-            if (!namesByQid.TryGetValue(entity.WikidataQid, out var names))
-            {
-                names = [];
-                namesByQid[entity.WikidataQid] = names;
-            }
-
-            names.Add(name);
-        }
-
-        return namesByQid;
+        // Only the (item, source name) pairs for the listed characters are read, never the lore entities themselves.
+        var itemSources = await pluginLore.GetApprovedSourceNamesForItemsAsync(universeQid, characterQids, ct).ConfigureAwait(false);
+        return itemSources
+            .GroupBy(row => row.WikidataQid, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(row => string.IsNullOrWhiteSpace(row.SourceName) ? "Lore plugin" : row.SourceName.Trim())
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<IReadOnlyList<UniverseSourcedCastMemberDto>> BuildCastMembersAsync(

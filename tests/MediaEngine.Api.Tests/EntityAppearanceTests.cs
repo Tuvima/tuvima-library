@@ -128,6 +128,34 @@ public sealed class EntityAppearanceTests : IDisposable
     }
 
     [Fact]
+    public async Task AppearancesMarkedAsSpoilers_AreLeftOut_SoThePanelMatchesTheCharactersList()
+    {
+        var plain = Guid.NewGuid();
+        await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
+        await LinkAsync(HalQid, "Q-plain-movie");
+        await LinkAsync(HalQid, "Q-spoiler-movie", spoilerFor: "Q-spoiler-movie");
+        var service = CreateService(
+            Row(plain, "Movies", "Q-plain-movie", "Plain Film", 2011),
+            Row(Guid.NewGuid(), "Movies", "Q-spoiler-movie", "Spoiler Film", 2012));
+
+        var result = await service.GetForEntityAsync(UniverseQid, HalQid, profile: null);
+
+        Assert.NotNull(result);
+        Assert.Equal(plain, Assert.Single(Assert.Single(result.Groups).Works).WorkId);
+        Assert.Equal(1, result.TotalWorks);
+    }
+
+    [Fact]
+    public async Task EntityWhoseOnlyAppearancesAreSpoilers_IsNotConfirmed()
+    {
+        await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
+        await LinkAsync(HalQid, "Q-spoiler-movie", spoilerFor: "Q-spoiler-movie");
+        var service = CreateService(Row(Guid.NewGuid(), "Movies", "Q-spoiler-movie", "Spoiler Film", 2012));
+
+        Assert.Null(await service.GetForEntityAsync(UniverseQid, HalQid, profile: null));
+    }
+
+    [Fact]
     public async Task EntityWithOnlyHiddenWorks_IsNotConfirmedToExist()
     {
         await CreateEntityAsync(HalQid, "Hal Jordan", "Character");
@@ -396,11 +424,11 @@ public sealed class EntityAppearanceTests : IDisposable
             FictionalUniverseQid = UniverseQid,
         });
 
-    private async Task LinkAsync(string entityQid, string workQid, string? role = null)
+    private async Task LinkAsync(string entityQid, string workQid, string? role = null, string? spoilerFor = null)
     {
         var entity = await _entities.FindByQidAsync(entityQid);
         await _entities.LinkToWorkAsync(new FictionalEntityWorkLink(
-            entity!.Id, workQid, null, "appears_in", AppearanceRole: role));
+            entity!.Id, workQid, null, "appears_in", AppearanceRole: role, SpoilerForWorkQid: spoilerFor));
     }
 
     private void SeedUniverse(Guid series)
