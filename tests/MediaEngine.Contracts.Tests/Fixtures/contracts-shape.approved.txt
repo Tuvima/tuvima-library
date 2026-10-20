@@ -3370,10 +3370,14 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryBatchEditResu
   UpdatedCount: System.Int32 | nullability=not-null | accessors=get,init
   FailedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
   Errors: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  SentToReviewCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChange
   Key: System.String | nullability=not-null | accessors=get,init
   Value: System.String | nullability=not-null | accessors=get,init
+  Mode: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChangeModes
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryFieldChangePreview
   Key: System.String | nullability=not-null | accessors=get,init

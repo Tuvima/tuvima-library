@@ -4063,13 +4063,15 @@
   UpdatedCount: System.Int32 | json=updated_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FailedIds: System.Collections.Generic.List<System.Guid> | json=failed_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Errors: System.Collections.Generic.List<System.String> | json=errors | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"updated_count":7,"failed_ids":[],"errors":[]}
+  SentToReviewCount: System.Int32 | json=sent_to_review_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"updated_count":7,"failed_ids":[],"errors":[],"sent_to_review_count":7}
 
 [contracts] MediaEngine.Contracts.Library.LibraryFieldChange
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Value: System.String | json=value | nullability=not-null | accessors=get,init | required=yes | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","value":"sample"}
+  Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","value":"sample","mode":"sample"}
 
 [contracts] MediaEngine.Contracts.Library.LibraryFieldChangePreview
   kind=class | converter=default | number-handling=default | unmapped=default
