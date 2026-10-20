@@ -77,6 +77,21 @@ public sealed class ActivityLogPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ARowWithNoRecordedTime_StillShowsItsTitle_WithADashForTheTime()
+    {
+        var timeless = Entry(1, "added", "Cibola Burn", null);
+        timeless.OccurredAt = default;
+        _onLog = (_, _, offset, limit) => Page([timeless], offset, limit, hasMore: false, total: 1);
+
+        var cut = Render<ActivityLogPanel>();
+
+        var row = cut.Find("[data-testid='activity-log-row']");
+        Assert.Contains("Cibola Burn", row.TextContent, StringComparison.Ordinal);
+        Assert.Equal("—", row.QuerySelector("time")!.TextContent.Trim());
+        Assert.Equal("Time not recorded", row.QuerySelector("time")!.GetAttribute("title"));
+    }
+
+    [Fact]
     public void Panel_ChangingTheFilter_AsksAgainFromTheFirstPage()
     {
         _onLog = (_, _, offset, limit) => Page(Entries(50), offset, limit, hasMore: true, total: 120);

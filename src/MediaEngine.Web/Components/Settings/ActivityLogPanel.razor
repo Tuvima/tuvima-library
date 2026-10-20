@@ -300,6 +300,12 @@
     // Today shows just the time; an older entry shows the date as well. The tooltip always carries the full timestamp.
     private static string ShortTime(DateTimeOffset occurredAt)
     {
+        // A missing time (the default value) cannot be moved into every time zone, so it shows as a dash.
+        if (occurredAt == default)
+        {
+            return "—";
+        }
+
         var local = occurredAt.ToLocalTime();
         return local.Date == DateTimeOffset.Now.Date
             ? local.ToString("h:mm tt")
@@ -307,7 +313,7 @@
     }
 
     private static string FullTime(DateTimeOffset occurredAt) =>
-        occurredAt.ToLocalTime().ToString("dddd, MMMM d, yyyy h:mm:ss tt");
+        occurredAt == default ? "Time not recorded" : occurredAt.ToLocalTime().ToString("dddd, MMMM d, yyyy h:mm:ss tt");
 
     public void Dispose()
     {
