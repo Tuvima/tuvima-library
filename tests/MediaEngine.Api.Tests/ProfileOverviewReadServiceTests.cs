@@ -79,6 +79,61 @@ public sealed class ProfileOverviewReadServiceTests : IDisposable
         Assert.Equal("Playback", Assert.Single(result.Stats.ActivityBuckets).Key);
     }
 
+    [Fact]
+    public async Task GetOverviewAsync_ACoverIsTheEnginesOwnCopyAndNeverTheProvidersLink()
+    {
+        var managedCover = $"/stream/artwork/{Guid.NewGuid():D}";
+        var bothCovers = SeedOwnedAsset("Movies", "Both Covers.mkv", "Film", DateTimeOffset.UtcNow.AddDays(-1), progress: 10, duration: null, position: null);
+        var providerOnly = SeedOwnedAsset("Movies", "Provider Only.mkv", "Film", DateTimeOffset.UtcNow.AddDays(-2), progress: 10, duration: null, position: null);
+        // Alphabetically 'cover' comes first, but the Engine's copy (cover_url) is the one written first.
+        SetValue(WorkIdOf(bothCovers), "cover", "https://image.tmdb.org/t/p/original/both.jpg");
+        SetValue(WorkIdOf(bothCovers), "cover_url", managedCover);
+        SetValue(WorkIdOf(providerOnly), "cover", "https://image.tmdb.org/t/p/original/only.jpg");
+        SeedUserState(bothCovers, progress: 10, DateTimeOffset.UtcNow.AddMinutes(-5), "{}");
+        SeedUserState(providerOnly, progress: 10, DateTimeOffset.UtcNow.AddMinutes(-10), "{}");
+        var service = new ProfileOverviewReadService(_profiles, _db, _activity, _taste, new TasteOverrideRepository(_db));
+
+        var result = await service.GetOverviewAsync(_profileId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(managedCover, result.RecentItems.Single(item => item.AssetId == bothCovers).CoverUrl);
+        Assert.Equal(managedCover, result.RecentlyAddedItems.Single(item => item.AssetId == bothCovers).CoverUrl);
+        Assert.Equal($"/stream/{providerOnly:D}/cover", result.RecentItems.Single(item => item.AssetId == providerOnly).CoverUrl);
+        Assert.Equal($"/stream/{providerOnly:D}/cover", result.RecentlyAddedItems.Single(item => item.AssetId == providerOnly).CoverUrl);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_ATvShowSubtitleUsesTheShowNameBeforeTheFolderName()
+    {
+        var episode = SeedOwnedAsset("TV", "Doctor Who 2005 S01E01.mkv", "Drama", DateTimeOffset.UtcNow.AddDays(-1), progress: 10, duration: null, position: null);
+        SetValue(WorkIdOf(episode), "show_name", "Doctor Who");
+        SetValue(WorkIdOf(episode), "series", "Doctor Who 2005");
+        SeedUserState(episode, progress: 10, DateTimeOffset.UtcNow.AddMinutes(-5), "{}");
+        var service = new ProfileOverviewReadService(_profiles, _db, _activity, _taste, new TasteOverrideRepository(_db));
+
+        var result = await service.GetOverviewAsync(_profileId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("Doctor Who", Assert.Single(result.RecentItems).Subtitle);
+        Assert.Equal("Doctor Who", Assert.Single(result.RecentlyAddedItems).Subtitle);
+    }
+
+    private Guid WorkIdOf(Guid assetId)
+    {
+        using var conn = _db.CreateConnection();
+        return conn.QuerySingle<Guid>(
+            "SELECT e.work_id FROM media_assets ma INNER JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @assetId;",
+            new { assetId });
+    }
+
+    private void SetValue(Guid entityId, string key, string value)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT OR REPLACE INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@entityId, @key, @value, @now);",
+            new { entityId, key, value, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
     private Guid SeedOwnedAsset(string mediaType, string title, string genre, DateTimeOffset claimedAt, double progress, double? duration, double? position)
     {
         using var conn = _db.CreateConnection();

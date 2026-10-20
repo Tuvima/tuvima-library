@@ -196,11 +196,11 @@ internal sealed partial class DetailCompositionOrchestrator
                         (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'episode_still', 'still_url', 'still') LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_url', 'background') LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_url', 'background') LIMIT 1),
-                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover') LIMIT 1),
-                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('cover_url', 'cover') LIMIT 1))
+                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover') ORDER BY CASE key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1),
+                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('cover_url', 'cover') ORDER BY CASE key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1))
                     ELSE COALESCE(
-                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover') LIMIT 1),
-                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('cover_url', 'cover') LIMIT 1)) END AS TEXT) AS ArtworkUrl,
+                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('cover_url', 'cover') ORDER BY CASE key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1),
+                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('cover_url', 'cover') ORDER BY CASE key WHEN 'cover_url' THEN 0 ELSE 1 END LIMIT 1)) END AS TEXT) AS ArtworkUrl,
                     CAST(CASE WHEN @useEpisodeArtwork = 1 THEN COALESCE(
                         (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('background_state', 'hero_state') LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('background_state', 'hero_state') LIMIT 1),
@@ -210,8 +210,8 @@ internal sealed partial class DetailCompositionOrchestrator
                         (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'cover_state' LIMIT 1),
                         (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'cover_state' LIMIT 1)) END AS TEXT) AS ArtworkState,
                    CAST(COALESCE(
-                       (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('runtime', 'duration') LIMIT 1),
-                       (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('runtime', 'duration') LIMIT 1)) AS TEXT) AS Duration
+                       (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('runtime', 'duration') ORDER BY CASE key WHEN 'runtime' THEN 0 ELSE 1 END LIMIT 1),
+                       (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('runtime', 'duration') ORDER BY CASE key WHEN 'runtime' THEN 0 ELSE 1 END LIMIT 1)) AS TEXT) AS Duration
                   ,CAST(COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('publication_date', 'release_date', 'year') LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('publication_date', 'release_date', 'year') LIMIT 1)) AS TEXT) AS PublicationDate
