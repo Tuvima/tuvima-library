@@ -1,4 +1,5 @@
-﻿<CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
+﻿@using MediaEngine.Web.Components.Details
+<CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
 <CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
 <CascadingValue Name="ClientSignInRefusal" Value="ClientSignInRefusal" IsFixed="true">
 <CascadingValue Name="ClientForwarded" Value="ClientForwarded" IsFixed="true">
@@ -6,7 +7,11 @@
     <Found Context="routeData">
         <ErrorBoundary>
             <ChildContent>
-                <RouteView RouteData="routeData" DefaultLayout="typeof(MediaEngine.Web.Shared.MainLayout)" />
+                @* Renders the page like RouteView; a detail address opens over the page the person came from (spec D1).
+                   It also owns FocusOnNavigate, so opening the overlay does not pull focus to the page behind it. *@
+                <DetailsOverlayRouteView RouteData="routeData"
+                                         DefaultLayout="typeof(MediaEngine.Web.Shared.MainLayout)"
+                                         AppAssembly="typeof(Program).Assembly" />
             </ChildContent>
             <ErrorContent>
                 <LayoutView Layout="typeof(MediaEngine.Web.Shared.MainLayout)">
@@ -17,7 +22,6 @@
                 </LayoutView>
             </ErrorContent>
         </ErrorBoundary>
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
 </CascadingValue>

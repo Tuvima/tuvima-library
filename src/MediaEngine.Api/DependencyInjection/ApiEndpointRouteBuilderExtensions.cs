@@ -79,6 +79,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapCanonEndpoints();
         app.MapDeferredEnrichmentEndpoints();
         app.MapLibraryItemEndpoints();
+        app.MapExcludedFileEndpoints();
         app.MapItemCanonicalEndpoints();
         app.MapTimelineEndpoints();
         app.MapSearchEndpoints();

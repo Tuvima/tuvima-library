@@ -221,7 +221,7 @@ The media files that stayed on disk when their title was deleted from the librar
 | `library_id` | TEXT | The configured library the file sits in |
 | `source_id` | TEXT | The configured source folder the file sits in |
 | `relative_path` | TEXT | The file's place inside the source folder, written with forward slashes. With `source_id` it is unique: one row per place |
-| `content_hash` | TEXT | SHA-256 of the deleted title's media asset (nullable). A different hash, size or modified time at the same place is a different file and is scanned again |
+| `content_hash` | TEXT | SHA-256 of the deleted title's media asset (nullable). If the file at that place changes size or modified time, its content is hashed: the same hash is the same file, touched, and stays skipped; a different hash is a different file and is scanned again |
 | `file_size` | INTEGER | Size in bytes when it was excluded (nullable) |
 | `last_write_utc` | TEXT | The file's last write time, ISO 8601 UTC (nullable) |
 | `title` | TEXT | The deleted title's name, for the Settings list (nullable) |

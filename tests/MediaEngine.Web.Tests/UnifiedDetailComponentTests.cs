@@ -800,7 +800,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("EpisodeDetailRoute(item) is { } episodeRoute", sequence);
         Assert.Contains("return episodeRoute;", sequence);
         Assert.Contains("&episode={episodeId:D}", sequence);
-        Assert.Contains("SupplyParameterFromQuery(Name = \"episode\")", showPage);
+        Assert.Contains("Episode => Query.String(\"episode\")", showPage);
         Assert.Contains("DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId, Tab)", showPage);
         Assert.Contains("parsedEntityType == DetailEntityType.TvShow", routeRequest);
         Assert.Contains("DetailEntityType.TvEpisode", routeRequest);

@@ -37,7 +37,7 @@ public sealed class CollectionsHubTests
         var sectionShellStyles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css"));
 
         Assert.Contains("@page \"/collections/{Section}\"", routeSource, StringComparison.Ordinal);
-        Assert.Contains("[SupplyParameterFromQuery(Name = \"lane\")]", routeSource, StringComparison.Ordinal);
+        Assert.Contains("LaneQuery => Query.String(\"lane\")", routeSource, StringComparison.Ordinal);
         Assert.Contains("LaneQuery=\"@LaneQuery\"", routeSource, StringComparison.Ordinal);
         Assert.Contains("<MediaSectionShell", source, StringComparison.Ordinal);
         Assert.Contains("<LibrarySectionHeader", source, StringComparison.Ordinal);

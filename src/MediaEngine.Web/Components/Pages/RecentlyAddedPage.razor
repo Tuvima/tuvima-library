@@ -1,10 +1,14 @@
 @page "/recently-added"
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Navigation
 <PageTitle>Recently Added · Tuvima Library</PageTitle>
 <div class="recent-browser"><RecentMediaFeed Type="@SelectedType" TypeChanged="TypeChanged" Browse="true" /></div>
 @code {
-    [SupplyParameterFromQuery(Name = "type")] public string? Type { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    public string? Type => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("type");
     private string SelectedType => Type?.ToLowerInvariant() is "watch" or "read" or "listen" or "view" ? Type.ToLowerInvariant() : "all";
     private void TypeChanged(string type) => Navigation.NavigateTo($"/recently-added?type={type}");
 }
