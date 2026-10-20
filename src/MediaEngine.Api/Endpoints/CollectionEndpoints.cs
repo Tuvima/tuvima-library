@@ -875,6 +875,7 @@ public static class CollectionEndpoints
             IPersonRepository personRepo,
             IDisplayProjectionReadService display,
             AlbumTrackManifestService manifestService,
+            ILoggerFactory loggerFactory,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(artistName))
@@ -975,24 +976,33 @@ public static class CollectionEndpoints
                 };
             }).ToList();
 
-            // Resolve artist photo via the persons table.
+            // Resolve artist photo via the persons table. The panel is for artistName, so that
+            // person is looked up first; the picked track credit is only a fallback.
             string? artistPhotoUrl = null;
             Guid? artistPersonId = null;
-            if (!string.IsNullOrWhiteSpace(combinedCreator))
+            try
             {
-                try
+                var person = await personRepo.FindByNameAsync(artistName, ct);
+                if (person is null
+                    && !string.IsNullOrWhiteSpace(combinedCreator)
+                    && !string.Equals(combinedCreator, artistName, StringComparison.OrdinalIgnoreCase))
                 {
-                    var person = await personRepo.FindByNameAsync(combinedCreator, ct);
-                    if (person is not null)
+                    person = await personRepo.FindByNameAsync(combinedCreator, ct);
+                }
+
+                if (person is not null)
+                {
+                    artistPersonId = person.Id;
+                    if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
                     {
-                        artistPersonId = person.Id;
-                        if (!string.IsNullOrEmpty(person.LocalHeadshotPath) || !string.IsNullOrEmpty(person.HeadshotUrl))
-                        {
-                            artistPhotoUrl = $"/persons/{person.Id}/headshot";
-                        }
+                        artistPhotoUrl = $"/persons/{person.Id}/headshot";
                     }
                 }
-                catch { /* best-effort lookup */ }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                loggerFactory.CreateLogger("CollectionArtistDetail")
+                    .LogWarning(ex, "Could not look up the person for artist {ArtistName}", artistName);
             }
 
             var response = new CollectionGroupDetailDto

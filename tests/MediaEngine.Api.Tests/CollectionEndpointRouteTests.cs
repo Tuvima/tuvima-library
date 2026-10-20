@@ -5,6 +5,27 @@ namespace MediaEngine.Api.Tests;
 public sealed class CollectionEndpointRouteTests
 {
     [Fact]
+    public void ArtistDetailByName_LooksUpThePersonByTheArtistTheOpenedPanelIsForAndLogsFailures()
+    {
+        // No test host maps this endpoint with a stubbed person lookup, so the order of the lookups is checked in source.
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var start = source.IndexOf("group.MapGet(\"/artist-detail-by-name\"", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        var end = source.IndexOf(".WithName(\"GetArtistDetailByName\")", start, StringComparison.Ordinal);
+        Assert.True(end > start);
+        var handler = source[start..end];
+
+        var byPanelArtist = handler.IndexOf("personRepo.FindByNameAsync(artistName, ct)", StringComparison.Ordinal);
+        var byPickedName = handler.IndexOf("personRepo.FindByNameAsync(combinedCreator, ct)", StringComparison.Ordinal);
+        Assert.True(byPanelArtist >= 0);
+        Assert.True(byPickedName > byPanelArtist);
+        Assert.Contains("Creator = combinedCreator", handler, StringComparison.Ordinal);
+        Assert.Contains("ILoggerFactory loggerFactory", handler, StringComparison.Ordinal);
+        Assert.Contains("catch (Exception ex) when (ex is not OperationCanceledException)", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch {", handler, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CollectionEndpoints_GroupFeedsUseSharedVisibilityRulesAndRichMetadata()
     {
         // Response shaping moved out of the endpoint file into

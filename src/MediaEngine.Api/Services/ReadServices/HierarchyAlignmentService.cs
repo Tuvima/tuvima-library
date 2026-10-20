@@ -746,7 +746,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 }
 
                 targetParentId = InsertParentWork(conn, tx!, plan.MediaType, plan.RequestedParentKey!, null, null);
-                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel, ["artist"] = plan.RequestedSecondaryLabel });
+                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel });
+                ReplaceCanonicalList(conn, tx!, targetParentId.Value, "album_artist", plan.RequestedSecondaryLabel);
                 UpsertRetailIdentity(conn, tx!, targetParentId.Value, retailAlbumSuggestion);
                 stage2TargetId = targetParentId.Value;
             }
@@ -772,7 +773,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 }
 
                 targetParentId = InsertParentWork(conn, tx!, plan.MediaType, plan.RequestedParentKey!, null, null);
-                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel, ["author"] = plan.RequestedSecondaryLabel });
+                UpsertCanonicalValues(conn, tx!, targetParentId.Value, new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel });
+                ReplaceCanonicalList(conn, tx!, targetParentId.Value, "author", plan.RequestedSecondaryLabel);
                 if (retailSeriesSuggestion is not null)
                 {
                     UpsertRetailIdentity(conn, tx!, targetParentId.Value, retailSeriesSuggestion);
@@ -941,7 +943,8 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         return workId;
     }
 
-    private static void UpsertContainerIdentity(SqliteConnection conn, SqliteTransaction tx, MembershipPlan plan) =>
+    private static void UpsertContainerIdentity(SqliteConnection conn, SqliteTransaction tx, MembershipPlan plan)
+    {
         UpsertCanonicalValues(
             conn,
             tx,
@@ -949,10 +952,37 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
             plan.MediaType switch
             {
                 "TV" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["show_name"] = plan.RequestedParentLabel },
-                "Music" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel, ["artist"] = plan.RequestedSecondaryLabel },
-                "Comics" or "Books" or "Audiobooks" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel, ["author"] = plan.RequestedSecondaryLabel },
+                "Music" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["album"] = plan.RequestedParentLabel },
+                "Comics" or "Books" or "Audiobooks" => new Dictionary<string, string?> { ["title"] = plan.RequestedParentLabel, ["series"] = plan.RequestedParentLabel },
                 _ => new Dictionary<string, string?>(),
             });
+
+        // Artists and authors are credit lists; they live in canonical_value_arrays under the names ingestion uses.
+        switch (plan.MediaType)
+        {
+            case "Music":
+                ReplaceCanonicalList(conn, tx, plan.CurrentEntityId, "album_artist", plan.RequestedSecondaryLabel);
+                break;
+            case "Comics" or "Books" or "Audiobooks":
+                ReplaceCanonicalList(conn, tx, plan.CurrentEntityId, "author", plan.RequestedSecondaryLabel);
+                break;
+        }
+    }
+
+    /// <summary>Replaces an entity's list for one key with a single entry. A blank value leaves the list unchanged.</summary>
+    private static void ReplaceCanonicalList(SqliteConnection conn, SqliteTransaction tx, Guid entityId, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        conn.Execute("DELETE FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key;", new { entityId, key }, tx);
+        conn.Execute(
+            "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@entityId, @key, 0, @value, NULL);",
+            new { entityId, key, value },
+            tx);
+    }
 
     private static void UpsertCanonicalValues(SqliteConnection conn, SqliteTransaction tx, Guid entityId, IReadOnlyDictionary<string, string?> values)
     {
