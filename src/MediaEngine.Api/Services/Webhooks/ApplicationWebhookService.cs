@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Events;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -19,7 +21,8 @@ internal sealed class ApplicationWebhookService(
     ApplicationEventRegistry eventTypes,
     WebhookDestinationPolicy destinations,
     IDataProtectionProvider protection,
-    TimeProvider clock)
+    TimeProvider clock,
+    ApprovalService approvals)
 {
     public IReadOnlyList<string> EventTypes => eventTypes.ListAvailableTypes();
 
@@ -29,8 +32,14 @@ internal sealed class ApplicationWebhookService(
         return (await repository.ListAsync(applicationId, ct)).Select(Map).ToList();
     }
 
+    /// <summary>
+    /// Creates or updates a webhook. A webhook that will be switched on needs the person to have seen where events go
+    /// (the approval rule): a new one always, an existing one when it was off or its address, events or private-network
+    /// setting changed, unless its current statement is already recorded. Otherwise <see cref="ApprovalRequiredException"/>
+    /// carries what to show. Nothing is saved until the approval is covered.
+    /// </summary>
     public async Task<ApplicationWebhookSecretResponse> SaveAsync(Guid applicationId, Guid? id,
-        SaveApplicationWebhookRequest request, CancellationToken ct)
+        SaveApplicationWebhookRequest request, RequestAuthority authority, CancellationToken ct)
     {
         await RequireApplicationAsync(applicationId, ct);
         if (request.EventTypes is null || request.EventTypes.Count is < 1 or > 32
@@ -58,6 +67,33 @@ internal sealed class ApplicationWebhookService(
             throw new InvalidOperationException("The webhook changed. Reload before saving.");
         }
 
+        // The approval rule. Decided against what is stored now, before anything is changed.
+        var preview = approvals.PreviewWebhook(uri, types, request.AllowLocalNetwork, id?.ToString("D") ?? "");
+        var needsApproval = request.IsEnabled
+            && (!id.HasValue || !webhook.IsEnabled || ReceiverChanged(webhook, uri, types, request.AllowLocalNetwork));
+        var confirmedNow = false;
+        if (needsApproval
+            && !(id.HasValue && await approvals.IsCoveredAsync(ApprovalKinds.Webhook, webhook.Id.ToString("D"), preview.StatementHash, ct)))
+        {
+            if (!ApprovalService.HashMatches(request.ApprovalHash, preview.StatementHash))
+            {
+                throw new ApprovalRequiredException([preview]);
+            }
+
+            confirmedNow = true;
+        }
+
+        ApprovalActor? actor = null;
+        if (confirmedNow)
+        {
+            actor = await approvals.ResolveActorAsync(authority, ct);
+            if (id.HasValue)
+            {
+                // The webhook already exists, so its approval is recorded before the change is saved.
+                await approvals.RecordAsync(preview, ApprovalKinds.Webhook, webhook.Id.ToString("D"), actor, ct);
+            }
+        }
+
         webhook.Url = uri.AbsoluteUri;
         webhook.EventTypesJson = JsonSerializer.Serialize(types);
         webhook.IsEnabled = request.IsEnabled;
@@ -72,6 +108,26 @@ internal sealed class ApplicationWebhookService(
         }
 
         await repository.SaveAsync(webhook, !id.HasValue, ct);
+        if (confirmedNow && !id.HasValue)
+        {
+            // A new webhook has no id until now. If its approval cannot be recorded it is removed again, so no
+            // receiver is ever switched on without a record.
+            var recorded = false;
+            try
+            {
+                await approvals.RecordAsync(
+                    preview with { ItemId = webhook.Id.ToString("D") }, ApprovalKinds.Webhook, webhook.Id.ToString("D"), actor!, ct);
+                recorded = true;
+            }
+            finally
+            {
+                if (!recorded)
+                {
+                    await repository.DeleteAsync(applicationId, webhook.Id, CancellationToken.None);
+                }
+            }
+        }
+
         if (id.HasValue)
         {
             webhook.Version++;
@@ -79,6 +135,11 @@ internal sealed class ApplicationWebhookService(
 
         return new(Map(webhook), secret);
     }
+
+    private static bool ReceiverChanged(ApplicationWebhook stored, Uri receiver, IReadOnlyList<string> types, bool allowLocalNetwork) =>
+        !string.Equals(stored.Url, receiver.AbsoluteUri, StringComparison.Ordinal)
+        || stored.AllowLocalNetwork != allowLocalNetwork
+        || !(JsonSerializer.Deserialize<string[]>(stored.EventTypesJson) ?? []).Order(StringComparer.Ordinal).SequenceEqual(types, StringComparer.Ordinal);
 
     public async Task<ApplicationWebhookSecretResponse> RotateAsync(Guid applicationId, Guid id, CancellationToken ct)
     {

@@ -48,6 +48,21 @@ public interface IPluginExecutionContext : IAsyncDisposable
     IPluginStorage Storage { get; }
     IPluginToolRuntime Tools { get; }
     IPluginAiClient Ai { get; }
+
+    /// <summary>
+    /// Read access to the secrets this plugin declared in its manifest (keys and logins an administrator
+    /// entered). Needs the <c>secrets.plugin</c> permission.
+    /// </summary>
+    IPluginSecrets Secrets { get; }
+}
+
+public interface IPluginSecrets
+{
+    /// <summary>
+    /// Returns the value of a secret this plugin declared, or null when the name was not declared or is not set.
+    /// Plugins cannot write or list secrets. Never log the returned value.
+    /// </summary>
+    Task<string?> GetAsync(string name, CancellationToken cancellationToken = default);
 }
 
 public interface IPluginMediaAccess
@@ -110,6 +125,7 @@ public static class PluginPermissionIds
     public const string ToolDownload = "tool.download";
     public const string AiInfer = "ai.infer";
     public const string PluginStorage = "storage.plugin";
+    public const string PluginSecrets = "secrets.plugin";
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -119,5 +135,6 @@ public static class PluginPermissionIds
         ToolDownload,
         AiInfer,
         PluginStorage,
+        PluginSecrets,
     };
 }

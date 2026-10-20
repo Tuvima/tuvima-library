@@ -47,6 +47,30 @@ public sealed class SystemClient
         }
     }
 
+    public async Task<DevelopmentToolsResponse?> GetDevelopmentToolsAsync(CancellationToken ct = default)
+    {
+        const string endpoint = "GET /system/development-tools";
+        try
+        {
+            var response = await _http.GetAsync("/system/development-tools", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                await _failureState.RecordHttpFailureAsync(endpoint, response, _logger, ct, logAsWarning: false);
+                return null;
+            }
+
+            var tools = await response.Content.ReadFromJsonAsync<DevelopmentToolsResponse>(cancellationToken: ct);
+            _failureState.Clear(endpoint);
+            return tools;
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _failureState.RecordExceptionFailure(endpoint, ex, _logger, logAsWarning: false);
+            return null;
+        }
+    }
+
     public async Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
     {
         const string endpoint = "GET /system/readiness";

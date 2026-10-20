@@ -16,6 +16,7 @@
 @inject DashboardIdentityClient Identity
 @inject AccountNoticeState Notices
 @inject SettingsAttentionState Attention
+@inject DevelopmentToolsState DevelopmentTools
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 @inject ILogger<Settings> Logger
@@ -98,6 +99,19 @@ else
                                        StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
                         </Actions>
                     </AppPageState>
+                }
+                else if (IsDevelopmentOnlyPageLoading)
+                {
+                    <AppPageState Kind="AppPageStateKind.Loading"
+                                  Title="Checking what this Engine offers"
+                                  Class="tl-sp-py-8" />
+                }
+                else if (IsDevelopmentOnlyPageUnavailable)
+                {
+                    <AppPageState Kind="AppPageStateKind.Unavailable"
+                                  Icon="@AppMaterialIcons.Outlined.Construction"
+                                  Title="Not available in this build"
+                                  Message="This page only exists in development builds of the Library." />
                 }
                 else
                 {
@@ -286,6 +300,7 @@ else
     private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
+    private bool _developmentToolsLoading = true;
 
     private bool _drawerOpen;
     private Guid _drawerEntityId;
@@ -304,8 +319,9 @@ else
         DeviceContext.IsMobile,
         Attention.ReviewCount,
         ShowSecurityAttentionDot,
-        IsSectionEnabledByUiSettings,
-        Attention.LocalAiBlocked);
+        IsSectionOffered,
+        Attention.LocalAiBlocked,
+        Attention.PluginsBroken);
 
     // One menu tree: the desktop rail and the phone page selector are both built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
@@ -404,7 +420,9 @@ else
             return;
         }
 
+        var developmentTools = LoadDevelopmentToolsAsync();
         await LoadShellStateAsync();
+        await developmentTools;
 
         Attention.Changed += OnAttentionChanged;
         Notices.Changed += OnNoticesChanged;
@@ -500,6 +518,24 @@ else
         _shellStateLoading = false;
     }
 
+    // Only a server administrator is shown the Developer group, so only then is the Engine asked what it offers there.
+    // It is asked beside the slower system status read, so the menu and the two development pages never wait for it.
+    private async Task LoadDevelopmentToolsAsync()
+    {
+        try
+        {
+            if (CanManageAdministration)
+            {
+                await DevelopmentTools.EnsureLoadedAsync();
+            }
+        }
+        finally
+        {
+            _developmentToolsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private async Task LoadAuthorityAsync()
     {
         try
@@ -580,12 +616,6 @@ else
         if (!resolution.RequestedSectionAllowed)
         {
             Nav.NavigateTo(resolution.CanonicalRoute, replace: true);
-            return;
-        }
-
-        if (!IsSectionEnabledByUiSettings(_activeSection))
-        {
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration, CanManageHousehold)), replace: true);
             return;
         }
 
@@ -679,6 +709,7 @@ else
         _ = InvokeAsync(async () =>
         {
             await LoadAuthorityAsync();
+            await LoadDevelopmentToolsAsync();
             ResolveSectionAndNormalize();
             StateHasChanged();
         });
@@ -698,20 +729,22 @@ else
 
     private void OnDeviceContextChanged() => InvokeAsync(StateHasChanged);
 
-    private bool IsSectionEnabledByUiSettings(SettingsSection section) => section switch
+    // The Developer group is for server administrators only (the menu's own rule). Beyond that, its two sub-pages exist only
+    // when the running Engine is a development build that offers their actions; Provider Tester uses ordinary search
+    // actions, so it needs nothing more. A release Engine drops them from the menu and the phone selector, and their
+    // addresses show the not-available state.
+    private bool IsSectionOffered(SettingsSection section) => section switch
     {
-        SettingsSection.DevHarness => DeviceContext.Settings.Features.InternalTools
-            && !DeviceContext.IsFeatureDisabled("internal_tools"),
-        SettingsSection.ProviderTester => DeviceContext.Settings.Features.InternalTools
-            && DeviceContext.Settings.Features.ProviderTester
-            && !DeviceContext.IsFeatureDisabled("internal_tools")
-            && !DeviceContext.IsFeatureDisabled("provider_tester"),
-        SettingsSection.EnrichmentTester => DeviceContext.Settings.Features.InternalTools
-            && DeviceContext.Settings.Features.EnrichmentTester
-            && !DeviceContext.IsFeatureDisabled("internal_tools")
-            && !DeviceContext.IsFeatureDisabled("enrichment_tester"),
+        SettingsSection.EnrichmentTester => DevelopmentTools.EnrichmentTester,
+        SettingsSection.DevHarness => DevelopmentTools.DevelopmentData,
         _ => true,
     };
+
+    private bool IsDevelopmentOnlyPage => _activeSection is SettingsSection.EnrichmentTester or SettingsSection.DevHarness;
+
+    private bool IsDevelopmentOnlyPageLoading => IsDevelopmentOnlyPage && _developmentToolsLoading;
+
+    private bool IsDevelopmentOnlyPageUnavailable => IsDevelopmentOnlyPage && !IsSectionOffered(_activeSection);
 
     private RenderFragment RenderInternalTool(
         string typeName,
@@ -847,7 +880,7 @@ else
         SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
-        SettingsSection.DevHarness => "Reset development library data, seed deterministic fixtures, or rescan configured media.",
+        SettingsSection.DevHarness => "Development builds only: reset, seed or rescan the test library.",
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
@@ -873,8 +906,9 @@ else
         },
         SettingsSection.Server => "Protect your Library configuration and recover it when needed.",
         SettingsSection.Review => "Resolve items Library could not identify confidently.",
-        SettingsSection.ProviderTester => "Internal provider testing tool.",
-        SettingsSection.EnrichmentTester => "Internal enrichment debugging tool.",
+        SettingsSection.ProviderTester => "Try a search against each metadata provider and see what comes back.",
+        // Temporary: the Enrichment Tester is removed at beta (Developer tools spec, section 4).
+        SettingsSection.EnrichmentTester => "Development builds only: run one item through enrichment step by step.",
         _ => "Settings",
     };
 

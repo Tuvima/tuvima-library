@@ -126,15 +126,6 @@ public sealed class UIFeatureFlagsDto
 
     [JsonPropertyName("color_picker")]
     public bool ColorPicker { get; set; } = true;
-
-    [JsonPropertyName("internal_tools")]
-    public bool InternalTools { get; set; } = true;
-
-    [JsonPropertyName("provider_tester")]
-    public bool ProviderTester { get; set; } = true;
-
-    [JsonPropertyName("enrichment_tester")]
-    public bool EnrichmentTester { get; set; } = true;
 }
 
 /// <summary>Shell-level layout configuration (TopBar, logo, dock).</summary>

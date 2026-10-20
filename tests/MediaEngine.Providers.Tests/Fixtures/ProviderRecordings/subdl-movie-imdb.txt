@@ -1,0 +1,4 @@
+== requests ==
+GET https://api.subdl.com/api/v2/subtitles/search?imdb_id=tt15239678&type=movie&languages=en&unpack=1 [auth:Bearer]
+== results ==
+subdl|Subtitles|imdb1|https://subdl.com/subtitle/imdb1|en|vtt|0.855|False|-|False|Dune|False|-

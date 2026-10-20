@@ -6,6 +6,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Providers;
+using MediaEngine.Providers.Tests.ProviderRecording;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Providers.Tests;
@@ -78,7 +79,7 @@ public sealed class SubdlTextTrackProviderTests
         Assert.Empty(await provider.SearchAsync(Lookup(MediaType.TV,
             new SubtitleLookupContext(TvdbEpisode: new TvdbEpisodeIdentity("1", "2", 1, 1)))));
         Assert.Equal(0, calls);
-        var mismatch = await Assert.ThrowsAsync<SubdlLookupException>(() => provider.SearchAsync(Lookup(MediaType.TV,
+        var mismatch = await Assert.ThrowsAsync<TextTrackLookupException>(() => provider.SearchAsync(Lookup(MediaType.TV,
             new SubtitleLookupContext(TmdbEpisode: new TmdbEpisodeIdentity("1396", "789", 1, 1)))));
         Assert.Equal("IdentityMismatch", mismatch.Status);
     }
@@ -118,7 +119,7 @@ public sealed class SubdlTextTrackProviderTests
                 ? """{"error":{"code":"quota_exceeded"}}""" : "{}")
         });
 
-        var exception = await Assert.ThrowsAsync<SubdlLookupException>(() =>
+        var exception = await Assert.ThrowsAsync<TextTrackLookupException>(() =>
             provider.SearchAsync(Lookup(MediaType.Movies,
                 new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(null, "693134")))));
 
@@ -177,16 +178,12 @@ public sealed class SubdlTextTrackProviderTests
         type, "Dune: Part Two", null, null, "2024", "en", null,
         new Dictionary<string, string>(), context);
 
-    private static SubdlTextTrackProvider CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> respond)
+    private static TextTrackProviderAdapter CreateProvider(Func<HttpRequestMessage, HttpResponseMessage> respond)
     {
-        var config = new ProviderConfiguration
-        {
-            Name = "SubDL",
-            Enabled = true,
-            HttpClient = new HttpClientConfig { ApiKey = "example-key" }
-        };
+        // The provider is the shipped subdl.json run by the general adapter, with a test key.
+        var config = ShippedProviderHarness.LoadShipped("subdl", "example-key");
         return new(config, new StubFactory(respond), NullProviderHealthMonitor.Instance,
-            NullLogger<SubdlTextTrackProvider>.Instance);
+            NullLogger<TextTrackProviderAdapter>.Instance);
     }
 
     private static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK)

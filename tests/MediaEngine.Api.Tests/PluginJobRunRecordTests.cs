@@ -123,7 +123,7 @@ public sealed class PluginJobRunRecordTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(configDirectory);
         loader.SaveCore(new CoreConfiguration { LibraryRoot = libraryRoot });
         var catalog = new PluginCatalog(
-            [new IntroSkipPlugin()], new PluginSettingsService(loader), loader, NullLogger<PluginCatalog>.Instance);
+            [new IntroSkipPlugin()], new PluginSettingsService(loader), loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         var pluginId = Assert.Single(catalog.List()).Manifest.Id;
         catalog.SetEnabled(pluginId, enable);
 

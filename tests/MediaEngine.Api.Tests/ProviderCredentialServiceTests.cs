@@ -10,6 +10,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Models;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Secrets;
 
 namespace MediaEngine.Api.Tests;
 
@@ -273,7 +274,8 @@ public sealed class ProviderCredentialServiceTests : IDisposable
             ResponseBody = """{"plan":{"name":"Free"},"usage":{"search":{"remaining":5}}}""",
         };
         var cache = new StubConnectionChecks();
-        var service = new ProviderCredentialService(loader, new StubHttpClientFactory(handler), [], [], cache);
+        var service = new ProviderCredentialService(
+            loader, new ConfigFolderSecretsStore(loader.ConfigDirectoryPath), new StubHttpClientFactory(handler), [], [], cache);
         var key = new string('x', 32);
         Assert.True((await service.SaveAsync("subdl", new Dictionary<string, string> { ["api_key"] = key })).Success);
 
@@ -291,7 +293,8 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         using var loader = CreateManifestLoader("apple_api");
         var handler = new StubHandler(HttpStatusCode.OK);
         var cache = new StubConnectionChecks();
-        var service = new ProviderCredentialService(loader, new StubHttpClientFactory(handler), [], [], cache);
+        var service = new ProviderCredentialService(
+            loader, new ConfigFolderSecretsStore(loader.ConfigDirectoryPath), new StubHttpClientFactory(handler), [], [], cache);
 
         var result = await service.TestConfiguredAsync("apple_api");
 
@@ -460,6 +463,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         HttpMessageHandler handler,
         params IExternalMetadataProvider[] providers) => new(
             loader,
+            new ConfigFolderSecretsStore(loader.ConfigDirectoryPath),
             new StubHttpClientFactory(handler),
             providers,
             []);

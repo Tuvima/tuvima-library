@@ -1,6 +1,11 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Settings
+@implements IDisposable
 @inject UIOrchestratorService Orchestrator
 @inject DeviceContextService DeviceContext
+@inject SettingsAttentionState Attention
+@inject ApprovalFlow Approvals
 
 <div class="tl-page local-ai-settings">
     @switch (NormalizedSubsection)
@@ -49,6 +54,12 @@
     private int EnabledFeatureCount => FeatureDefinitions()
         .Count(feature => feature.Connected && IsFeatureEnabled(feature.Key));
 
+    protected override void OnInitialized() => Attention.Changed += OnAttentionChanged;
+
+    private void OnAttentionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Attention.Changed -= OnAttentionChanged;
+
     protected override async Task OnParametersSetAsync()
     {
         if (string.Equals(_loadedSubsection, NormalizedSubsection, StringComparison.Ordinal))
@@ -74,11 +85,9 @@
         }
         else
         {
+            @EngineCard()
+
             <div class="local-ai-settings__summary-grid">
-                <AppCard Title="Active model" Class="local-ai-settings__summary-card">
-                    <strong>@ActiveModelName()</strong>
-                    <span>@(ActiveModel is null ? "No model is currently loaded" : "Primary local model")</span>
-                </AppCard>
                 <AppCard Title="Features" Class="local-ai-settings__summary-card">
                     <strong>@EnabledFeatureCount enabled</strong>
                     <span>Connected local capabilities</span>
@@ -92,7 +101,9 @@
             @if (!DeviceContext.IsMobile)
             {
             <SettingsAdvancedLinkRow Title="Models and runtime" Description="The resource profile, runtime limits and diagnostics are on Runtime. Model files and downloads are on Tools and requirements." Href="/settings/ai/models" ActionLabel="Open" />
-            <AppCard Title="Enabled features" Description="Choose which connected Local AI capabilities Library may use.">
+            <section class="local-ai-settings__features" aria-label="Enabled features">
+                <AppText Typo="AppTypo.subtitle1">Enabled features</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Choose which connected Local AI capabilities Library may use.</AppText>
                 @if (_config is null)
                 {
                     <AppEmptyState Title="AI configuration unavailable" Message="Feature controls are hidden until saved configuration can be loaded." />
@@ -101,22 +112,20 @@
                 {
                     @if (!string.IsNullOrWhiteSpace(_featureMessage))
                     {
-                        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">@_featureMessage</AppAlert>
+                        <AppAlert Tone="AppUiTone.Info">@_featureMessage</AppAlert>
                     }
                     <div class="local-ai-settings__feature-grid">
                         @foreach (var feature in FeatureDefinitions())
                         {
-                            <AppSwitchRow Label="@feature.Name" Description="@feature.Description"
-                                          Value="@IsFeatureEnabled(feature.Key)"
-                                          ValueChanged="@(value => SetFeatureEnabled(feature.Key, value))"
-                                          Disabled="@(!feature.Connected)"
-                                          Class="@(!feature.Connected ? "local-ai-settings__feature--planned" : null)" />
+                            @FeatureCard(feature)
                         }
                     </div>
-                    <AppButton Label="Save features" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                               Class="tl-sp-mt-3" Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
+                    <div>
+                        <AppButton Label="Save features" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                   Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
+                    </div>
                 }
-            </AppCard>
+            </section>
 
             @* Feature readiness is the model and hardware dependency view of the same feature switches, so it stays with them. *@
             <AppCard Title="Feature readiness" Description="Inspect model and hardware dependencies for every Local AI capability.">
@@ -125,6 +134,47 @@
             }
         }
     </text>;
+
+    private string? FirstBlockerText() =>
+        Attention.LocalAiBlockers.FirstOrDefault() is { } blocker ? StateCardHealth.BlockerText(blocker) : null;
+
+    private RenderFragment EngineCard()
+    {
+        var health = StateCardHealth.ForLocalAiEngine(Attention.LocalAiBlocked, FirstBlockerText(), ActiveModel);
+        return @<AppStateCard Name="@ActiveModelName()"
+                              Kind="StateCardKind.LocalAiEngine"
+                              Health="@health.Word"
+                              LastProblem="@health.LastProblem"
+                              AllowedTo="@StateCardHealth.EngineAllowedTo"
+                              SendsDataOut="false"
+                              SendsDataTo="@StateCardHealth.RunsOnThisMachine"
+                              Action="@ModelsAction()" />;
+    }
+
+    // The runtime and model page is desktop and tablet only, like the other runtime controls.
+    private RenderFragment? ModelsAction() => DeviceContext.IsMobile
+        ? null
+        : @<AppButton Label="Models and runtime" Href="/settings/ai/models" Size="AppControlSize.Compact" />;
+
+    private RenderFragment FeatureCard(FeatureDefinition feature)
+    {
+        var enabled = IsFeatureEnabled(feature.Key);
+        var model = _models.FirstOrDefault(m => string.Equals(m.Role, StateCardHealth.FeatureModelRole, StringComparison.OrdinalIgnoreCase));
+        var health = StateCardHealth.ForAiFeature(enabled, Attention.LocalAiBlocked, FirstBlockerText(), StateCardHealth.IsModelReady(model));
+        return @<AppStateCard Name="@feature.Name"
+                              Kind="StateCardKind.Plugin"
+                              Description="@feature.Description"
+                              IsOn="@enabled"
+                              IsOnChanged="@(value => SetFeatureEnabled(feature.Key, value))"
+                              SwitchDisabledReason="@(feature.Connected ? null : "Planned: this is not connected to the Library yet.")"
+                              Health="@health.Word"
+                              LastProblem="@health.LastProblem"
+                              AllowedTo="@FeatureAllowedTo(feature.Key)"
+                              SendsDataOut="@(FeatureSendsDataTo(feature.Key) is not null)"
+                              SendsDataTo="@(FeatureSendsDataTo(feature.Key) ?? StateCardHealth.RunsOnThisMachine)">
+            <Badges><AppStatusBadge Text="Uses Local AI" Tone="AppUiTone.Info" /></Badges>
+        </AppStateCard>;
+    }
 
     private string ActiveModelName()
     {
@@ -137,6 +187,13 @@
     private string AutomationSummary() => _progress is null ? "Unavailable" : _progress.PendingCount == 0 ? "Up to date" : $"{_progress.PendingCount} pending";
 
     private string AutomationDescription() => _progress is null ? "Progress could not be loaded" : $"{_progress.CompletedCount} of {_progress.Total} completed";
+
+    // The Engine's own words for what a feature may do; the same ones the approval dialog shows.
+    private IReadOnlyList<string> FeatureAllowedTo(string key) =>
+        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.AllowedTo : [];
+
+    private string? FeatureSendsDataTo(string key) =>
+        _config?.FeatureInfo.TryGetValue(key, out var info) == true ? info.SendsDataTo : null;
 
     private bool IsFeatureEnabled(string key) => _config?.Features.TryGetValue(key, out var enabled) == true && enabled;
 
@@ -152,9 +209,14 @@
             return;
 
         _savingFeatures = true;
-        var saved = await Orchestrator.SaveAiConfigAsync(_config);
+        var outcome = await Approvals.SaveAiConfigAsync(Orchestrator, _config);
         _savingFeatures = false;
-        _featureMessage = saved ? "Local AI features saved." : "Local AI features could not be saved.";
+        _featureMessage = outcome switch
+        {
+            AiSaveOutcome.Saved => "Local AI features saved.",
+            AiSaveOutcome.Cancelled => "Nothing was turned on. The features are back to how they were saved.",
+            _ => "Local AI features could not be saved.",
+        };
     }
 
     private sealed record FeatureDefinition(string Key, string Name, string Description, bool Connected = true);
