@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using MediaEngine.Api.Services.Events;
 using MediaEngine.Domain.Events;
@@ -27,8 +28,10 @@ internal sealed class PluginEventDispatcher : BackgroundService
     private readonly TimeProvider _clock;
     private readonly PluginHostLimits _limits;
     private readonly ILogger<PluginEventDispatcher> _logger;
-    private readonly Dictionary<string, int> _seenGeneration = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _cursorCleared = new(StringComparer.OrdinalIgnoreCase);
+    // Each plugin's pass runs on its own task while the loop in DispatchOnceAsync reads and removes other plugins' entries,
+    // so both are concurrent collections (the value of _cursorCleared is unused; it is a set).
+    private readonly ConcurrentDictionary<string, int> _seenGeneration = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _cursorCleared = new(StringComparer.OrdinalIgnoreCase);
 
     public PluginEventDispatcher(
         PluginCatalog catalog,
@@ -106,7 +109,7 @@ internal sealed class PluginEventDispatcher : BackgroundService
                 continue;
             }
 
-            _cursorCleared.Remove(registration.Manifest.Id);
+            _cursorCleared.TryRemove(registration.Manifest.Id, out _);
             passes.Add(DispatchToPluginAsync(registration.Manifest.Id, covered, ct));
         }
 
@@ -122,8 +125,8 @@ internal sealed class PluginEventDispatcher : BackgroundService
     // event rather than receiving everything that happened while it was off.
     private async Task ForgetAsync(string pluginId, CancellationToken ct)
     {
-        _seenGeneration.Remove(pluginId);
-        if (_cursorCleared.Add(pluginId))
+        _seenGeneration.TryRemove(pluginId, out _);
+        if (_cursorCleared.TryAdd(pluginId, 0))
         {
             await _cursors.DeleteAsync(pluginId, ct).ConfigureAwait(false);
         }

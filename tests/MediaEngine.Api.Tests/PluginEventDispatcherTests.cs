@@ -312,6 +312,40 @@ public sealed class PluginEventDispatcherTests : IDisposable
         Assert.False(MediaEngine.Api.Services.Events.ApplicationEventRegistry.IsWatchActivity("library.item_added"));
     }
 
+    [Fact]
+    public async Task TwoPlugins_OneSwitchedOnWhileTheOtherIsSwitchedOff_RepeatedlyInOnePass_NeitherCorruptsTheOthersPlace()
+    {
+        // Each plugin's pass runs on its own task while the loop forgets switched-off plugins; their shared bookkeeping must be thread-safe.
+        var steady = new HostServicesTestPlugin("test.steady", name: "Steady");
+        var steadySubscriber = steady.Subscribe("library.item_added");
+        var flipping = new HostServicesTestPlugin("test.flipping", name: "Flipping");
+        flipping.Subscribe("library.item_added");
+        var host = NewHost(plugins: [steady, flipping]);
+        host.Enable(steady.Manifest.Id);
+        var dispatcher = host.NewDispatcher();
+        await dispatcher.DispatchOnceAsync(CancellationToken.None);
+
+        const int rounds = 120;
+        var sent = new List<long>();
+        for (var round = 0; round < rounds; round++)
+        {
+            if (round % 2 == 0)
+            {
+                host.Enable(flipping.Manifest.Id);
+            }
+            else
+            {
+                host.Disable(flipping.Manifest.Id);
+            }
+
+            sent.Add(await host.AppendEventAsync("library.item_added"));
+            await dispatcher.DispatchOnceAsync(CancellationToken.None);
+        }
+
+        // The steady plugin never missed an event and never saw one twice, however often the other one flipped.
+        Assert.Equal(sent, steadySubscriber.Received.Select(received => received.Sequence).ToList());
+    }
+
     public void Dispose()
     {
         foreach (var disposable in _disposables)
