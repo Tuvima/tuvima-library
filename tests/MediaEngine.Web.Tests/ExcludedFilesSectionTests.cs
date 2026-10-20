@@ -16,7 +16,7 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
     private readonly List<ExcludedFileDto> _files = [];
     private readonly List<Guid> _addedBack = [];
     private readonly List<string?> _loadedFor = [];
-    private ExcludedFileAddBackResultDto? _addBackAnswer = new() { Queued = true, Message = "Added back. Tuvima will scan it again." };
+    private ExcludedFileAddBackResultDto? _addBackAnswer = new() { Queued = true, Message = "Added back. Library will scan it again." };
     private TaskCompletionSource<ExcludedFileAddBackResultDto?>? _gate;
 
     public ExcludedFilesSectionTests()
@@ -119,7 +119,7 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["Arrival.mkv"], cut.FindAll("tbody tr td:first-child").Select(cell => cell.TextContent.Trim())));
         Assert.Equal([dune.Id], _addedBack);
-        Assert.Contains(toast.Toasts, item => item.Message == "Added back. Tuvima will scan it again." && item.Severity == AppSeverity.Success);
+        Assert.Contains(toast.Toasts, item => item.Message == "Added back. Library will scan it again." && item.Severity == AppSeverity.Success);
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
         cut.FindAll("tbody tr button")[0].Click();
 
         cut.WaitForAssertion(() => Assert.All(cut.FindAll("tbody tr button"), button => Assert.True(button.HasAttribute("disabled"))));
-        _gate.SetResult(new ExcludedFileAddBackResultDto { Queued = true, Message = "Added back. Tuvima will scan it again." });
+        _gate.SetResult(new ExcludedFileAddBackResultDto { Queued = true, Message = "Added back. Library will scan it again." });
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tbody tr")));
     }
 

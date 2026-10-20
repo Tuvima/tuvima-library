@@ -104,7 +104,7 @@
                 }
                 else if (AnyFileStays)
                 {
-                    <p class="delete-library__footer-line">The files stay where they are. Tuvima will skip them in future scans, so @(IsSeveral ? "these titles don't" : "this title doesn't") come back. You can add them back in Settings.</p>
+                    <p class="delete-library__footer-line">The files stay where they are. Library will skip them in future scans, so @(IsSeveral ? "these titles don't" : "this title doesn't") come back. You can add them back in Settings.</p>
                 }
             }
         </div>
@@ -223,7 +223,7 @@
         var phrase = outcome switch
         {
             LibraryItemDeletionOutcomes.Delete => "will be deleted from disk",
-            LibraryItemDeletionOutcomes.KeepAsIs => "stays on disk: Tuvima only reads this folder",
+            LibraryItemDeletionOutcomes.KeepAsIs => "stays on disk: Library only reads this folder",
             LibraryItemDeletionOutcomes.KeepProtected => string.IsNullOrWhiteSpace(group.Key.Reason) ? "stays on disk" : $"stays on disk: {group.Key.Reason}",
             LibraryItemDeletionOutcomes.KeepMissing => "already gone from disk",
             _ => "stays on disk",
