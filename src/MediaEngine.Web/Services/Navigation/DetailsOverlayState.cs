@@ -31,6 +31,7 @@ public sealed class DetailsOverlayState : IDisposable
     private readonly Dictionary<string, RouteData> _pages = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _pageOrder = new();
     private readonly List<IDetailsOverlayDismissGuard> _guards = [];
+    private readonly List<Func<ValueTask<bool>>> _escapeHandlers = [];
     private DetailsOverlayRoute _current;
     private string _currentUri;
     private IDisposable? _changingRegistration;
@@ -136,6 +137,31 @@ public sealed class DetailsOverlayState : IDisposable
     {
         _guards.Add(guard);
         return new GuardRegistration(this, guard);
+    }
+
+    /// <summary>
+    /// Registers a handler that is offered Esc (and the backdrop and the sheet's grip, which arrive the same way) before the
+    /// overlay closes: it returns true when it used the press (it closed a field or a section), so the overlay stays open.
+    /// Dispose the result to remove it.
+    /// </summary>
+    public IDisposable RegisterEscapeHandler(Func<ValueTask<bool>> handler)
+    {
+        _escapeHandlers.Add(handler);
+        return new EscapeRegistration(this, handler);
+    }
+
+    /// <summary>Offers an Esc press to the registered handlers; true when one used it and the overlay must stay open.</summary>
+    public async ValueTask<bool> HandleEscapeAsync()
+    {
+        foreach (var handler in _escapeHandlers.ToArray())
+        {
+            if (await handler())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Asks every registered guard whether the overlay may close; the first refusal wins.</summary>
@@ -340,6 +366,11 @@ public sealed class DetailsOverlayState : IDisposable
     private sealed class GuardRegistration(DetailsOverlayState owner, IDetailsOverlayDismissGuard guard) : IDisposable
     {
         public void Dispose() => owner._guards.Remove(guard);
+    }
+
+    private sealed class EscapeRegistration(DetailsOverlayState owner, Func<ValueTask<bool>> handler) : IDisposable
+    {
+        public void Dispose() => owner._escapeHandlers.Remove(handler);
     }
 }
 

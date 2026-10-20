@@ -103,12 +103,12 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         // Edit is an entry in the page's "..." menu; there is no standing Edit button.
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-toggle").TextContent.Trim()));
+        cut.WaitForAssertion(() => Assert.Equal("Done", cut.Find("button.tl-editing-banner__done").TextContent.Trim()));
     }
 
     private static IReadOnlyList<AngleSharp.Dom.IElement> OpenMoreMenu(IRenderedComponent<DetailPage> cut)
     {
-        cut.Find("button.tl-editing-bar__more").Click();
+        cut.Find("button.tl-editing-banner__more").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
         return cut.FindAll("[role='menuitem']");
     }
@@ -121,7 +121,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     // -- Where the entry shows -----------------------------------------------------------------
 
     [Fact]
-    public async Task Entry_IsLastInTheEditingMoreMenuAfterADividerAndInTheDestructiveTone()
+    public async Task Entry_IsTheOnlyThingInTheBannerMenuAndInTheDestructiveTone()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
@@ -130,13 +130,23 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         var items = OpenMoreMenu(cut);
 
-        var last = items[^1];
-        Assert.Equal(Label, last.TextContent.Trim());
-        Assert.Contains("app-tone--error", last.ClassList);
-        Assert.Equal("hr", last.PreviousElementSibling?.TagName.ToLowerInvariant());
-        Assert.Contains("app-menu-divider", last.PreviousElementSibling!.ClassList);
-        Assert.Equal(1, items.Count(item => item.TextContent.Contains("Delete from library")));
-        Assert.Contains(items, item => item.TextContent.Trim() == "Viewing history");
+        var only = Assert.Single(items);
+        Assert.Equal(Label, only.TextContent.Trim());
+        Assert.Contains("app-tone--error", only.ClassList);
+    }
+
+    [Fact]
+    public async Task Entry_IsNotInThePagesOwnMoreMenuWhileEditing()
+    {
+        await UseDeviceAsync("desktop");
+        SetAdministrator(true);
+        var cut = RenderPage();
+        StartEditing(cut);
+
+        cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        Assert.DoesNotContain(cut.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Delete from library"));
     }
 
     [Fact]
@@ -148,7 +158,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button.tl-editing-bar__more"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
     }
 
     [Fact]
@@ -159,9 +169,9 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
         StartEditing(cut);
 
-        var items = OpenMoreMenu(cut);
-
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        // With no Delete entry the banner draws no "..." at all.
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,9 +181,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
         StartEditing(cut);
 
-        var items = OpenMoreMenu(cut);
-
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -189,7 +198,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
         var cut = RenderPage();
 
-        Assert.Empty(cut.FindAll("button.tl-editing-toggle"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__done"));
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
@@ -203,15 +212,15 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
         var cut = RenderPage(type);
-        if (cut.FindAll("button.tl-editing-toggle").Count == 0)
+        if (cut.FindAll("button.tl-editing-banner__done").Count == 0)
         {
             return;
         }
 
         StartEditing(cut);
-        var items = OpenMoreMenu(cut);
 
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
+        Assert.Empty(cut.FindAll("button.tl-editing-banner__more"));
+        Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
     // -- The handler never trusts the button ---------------------------------------------------

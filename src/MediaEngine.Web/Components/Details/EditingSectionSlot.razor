@@ -1,0 +1,234 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@implements IEditingSectionHost
+@inject IJSRuntime JS
+
+@* The Editing Mode section slot (details overlay spec D7): the one section the banner opened (Artwork, Match and Identity or
+   History; Details for the Universe editor), directly below the hero at the full width of the page. It is the existing media
+   editor shell hosted in line with no header and no section rail, and with a height cap so the page below stays reachable.
+   Pressing the open section's banner button again, the close button here, or Done closes it; Esc closes it from the overlay. *@
+@if (Mode is { SectionOpen: true } mode && _request is not null)
+{
+    <section id="tl-editing-slot"
+             class="tl-editing-slot"
+             aria-labelledby="tl-editing-slot-title"
+             data-section="@SectionId(mode.OpenSectionKind)"
+             @onkeydown="HandleKeyDownAsync">
+        <header class="tl-editing-slot__header">
+            <h2 id="tl-editing-slot-title" class="tl-editing-slot__title" tabindex="-1">@Heading(mode.OpenSectionKind)</h2>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                           Size="AppControlSize.Large"
+                           Tone="AppUiTone.Neutral"
+                           Class="tl-editing-slot__close"
+                           Tooltip="@($"Close {Heading(mode.OpenSectionKind)}")"
+                           AriaLabel="@($"Close {Heading(mode.OpenSectionKind)}")"
+                           OnClick="CloseAsync" />
+        </header>
+        <div class="tl-editing-slot__body">
+            <SharedMediaEditorShell @key="mode.OpenSectionKind"
+                                    @ref="_shell"
+                                    Request="@_request"
+                                    Inline="true"
+                                    Section="@SectionId(mode.OpenSectionKind)"
+                                    RequestedArtworkSlot="@mode.OpenSectionArtworkSlot"
+                                    RequestVersion="@mode.SectionRequestVersion"
+                                    DirtyChanged="OnDirtyChanged"
+                                    Committed="OnCommittedAsync"
+                                    Closed="OnShellClosedAsync" />
+        </div>
+    </section>
+}
+
+@code {
+    private SharedMediaEditorShell? _shell;
+    private MediaEditorLaunchRequest? _request;
+    private EditingSection? _builtFor;
+    private EditingModeContext? _subscribed;
+    private bool _wasOpen;
+    private bool _focusSlot;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>Builds the editor request for the item shown on the page, opened on the given section id and artwork slot.</summary>
+    [Parameter, EditorRequired] public Func<string, string?, MediaEditorLaunchRequest?> BuildRequest { get; set; } = (_, _) => null;
+
+    /// <summary>Raised after the section saved something so the page behind it can refresh.</summary>
+    [Parameter] public EventCallback OnCommitted { get; set; }
+
+    /// <summary>What the Details section is called here (the Universe editor calls itself "Details"; a caller may name it better).</summary>
+    [Parameter] public string DetailsHeading { get; set; } = "Details";
+
+    /// <summary>
+    /// True when nothing above this slot hears Esc (a page outside the details overlay): the slot then closes itself on Esc.
+    /// Inside the overlay Esc arrives through the overlay's own handler, so this stays false and Esc is never counted twice.
+    /// </summary>
+    [Parameter] public bool HandlesEscape { get; set; }
+
+    private static string SectionId(EditingSection? section) => section switch
+    {
+        EditingSection.Artwork => "artwork",
+        EditingSection.Match => "links",
+        EditingSection.History => "history",
+        _ => "details",
+    };
+
+    private string Heading(EditingSection? section) => section switch
+    {
+        EditingSection.Artwork => "Manage Artwork",
+        EditingSection.Match => "Match and Identity",
+        EditingSection.History => "History",
+        _ => DetailsHeading,
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Mode))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnModeChanged;
+                if (ReferenceEquals(_subscribed.SectionHost, this))
+                {
+                    _subscribed.SectionHost = null;
+                }
+            }
+
+            _subscribed = Mode;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnModeChanged;
+            }
+        }
+
+        SyncOpenState();
+    }
+
+    private void SyncOpenState()
+    {
+        var kind = Mode is { SectionOpen: true } ? Mode.OpenSectionKind : null;
+        if (kind is { } section && Mode is not null)
+        {
+            // A fresh opening, or a swap to another section, builds a fresh editor session; asking again for the section
+            // that is open flows through the shell's parameters instead.
+            if (_builtFor != section || _request is null)
+            {
+                _request = BuildRequest(SectionId(section), Mode.OpenSectionArtworkSlot);
+                _builtFor = _request is null ? null : section;
+                _focusSlot = _request is not null;
+                if (_request is not null && !_wasOpen)
+                {
+                    _ = RememberOpenerAsync();
+                }
+            }
+
+            if (_request is not null)
+            {
+                Mode.SectionHost = this;
+            }
+        }
+        else
+        {
+            _request = null;
+            _builtFor = null;
+            if (_wasOpen)
+            {
+                _ = RestoreOpenerAsync();
+            }
+
+            if (Mode is not null && ReferenceEquals(Mode.SectionHost, this))
+            {
+                Mode.SectionHost = null;
+            }
+        }
+
+        _wasOpen = _request is not null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusSlot && _request is not null)
+        {
+            _focusSlot = false;
+            try
+            {
+                // Below a full-height hero, so bring it into view (it stops under the sticky banner), then name it for screen readers.
+                await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#tl-editing-slot");
+                await JS.InvokeVoidAsync("tuvimaFocusById", "tl-editing-slot-title");
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended; there is nothing left to scroll or focus.
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+            if (ReferenceEquals(_subscribed.SectionHost, this))
+            {
+                _subscribed.SectionHost = null;
+            }
+        }
+    }
+
+    private void OnModeChanged()
+    {
+        SyncOpenState();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnDirtyChanged(bool dirty) => Mode?.SetSectionDirty(dirty);
+
+    private Task OnCommittedAsync() => OnCommitted.InvokeAsync();
+
+    // The editor closed itself (after its own Save): the section closes with it.
+    private Task OnShellClosedAsync(bool applied)
+    {
+        Mode?.CloseSection();
+        return Task.CompletedTask;
+    }
+
+    // The close button: asks "Save or discard?" first when the section holds unsaved input.
+    private async Task CloseAsync()
+    {
+        if (Mode is not null)
+        {
+            await Mode.CloseSectionAsync();
+        }
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs args)
+    {
+        // A field being edited stops its own Esc before it gets here, so Esc closes the field first and the section second.
+        if (HandlesEscape && Mode is not null && string.Equals(args.Key, "Escape", StringComparison.Ordinal))
+        {
+            await Mode.HandleEscapeAsync();
+        }
+    }
+
+    // IEditingSectionHost: the page's "Save or discard?" answers for what this section holds.
+    async Task<bool> IEditingSectionHost.SaveAsync() => _shell is null || await _shell.SaveChangesAsync();
+
+    Task IEditingSectionHost.DiscardAsync()
+    {
+        _shell?.DiscardChanges();
+        return Task.CompletedTask;
+    }
+
+    private async Task RememberOpenerAsync()
+    {
+        try { await JS.InvokeVoidAsync("tuvimaFocusReturn.remember"); }
+        catch (JSDisconnectedException) { /* the circuit ended; there is nothing to remember */ }
+    }
+
+    private async Task RestoreOpenerAsync()
+    {
+        try { await JS.InvokeVoidAsync("tuvimaFocusReturn.restore"); }
+        catch (JSDisconnectedException) { /* the circuit ended; focus no longer matters */ }
+    }
+}
