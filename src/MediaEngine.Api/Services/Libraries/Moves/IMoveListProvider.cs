@@ -9,6 +9,7 @@ namespace MediaEngine.Api.Services.Libraries.Moves;
 /// <param name="Number">What the person reads: "2", "1.5", "S0 E3", "D2 T5".</param>
 /// <param name="IsTaken">The entry already has a file.</param>
 /// <param name="TakenByItemId">The item holding the entry, when known.</param>
+/// <param name="CanAddVersion">The entry is taken and a file can be added to it as another version. Not so for an entry owned elsewhere.</param>
 /// <param name="Target">Where an item matched to this entry is placed.</param>
 public sealed record MoveListEntry(
     string Key,
@@ -18,6 +19,7 @@ public sealed record MoveListEntry(
     bool IsTaken,
     Guid? TakenByItemId,
     string? TakenByTitle,
+    bool CanAddVersion,
     LibraryMoveTarget Target);
 
 /// <summary>

@@ -192,6 +192,36 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         return Task.FromResult(LoadDestination(connection, null, destinationId));
     }
 
+    public Task<bool> IsSameOrBeneathAsync(Guid destinationId, IReadOnlyList<Guid> workIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(workIds);
+        ct.ThrowIfCancellationRequested();
+        using var connection = db.CreateConnection();
+        return Task.FromResult(IsSameOrBeneath(connection, null, destinationId, workIds));
+    }
+
+    private static bool IsSameOrBeneath(IDbConnection connection, IDbTransaction? transaction, Guid destinationId, IReadOnlyList<Guid> workIds)
+    {
+        var set = workIds.ToHashSet();
+        var current = (Guid?)destinationId;
+
+        // The walk up is bounded so a loop that already exists in the data cannot hold this up.
+        for (var depth = 0; current is { } id && depth < 64; depth++)
+        {
+            if (set.Contains(id))
+            {
+                return true;
+            }
+
+            current = connection.QueryFirstOrDefault<Guid?>(
+                "-- readiness: moves work on titles by id or by the place they sit in, whatever their readiness\nSELECT parent_work_id FROM works WHERE id = @id;",
+                new { id },
+                transaction);
+        }
+
+        return false;
+    }
+
     public Task<IReadOnlyList<LibraryMoveChild>> GetChildrenAsync(Guid parentWorkId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -298,11 +328,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                    COALESCE(NULLIF(TRIM(c.display_name), ''), 'Untitled collection') AS Name,
                    (SELECT COUNT(DISTINCT ci.work_id) FROM collection_items ci WHERE ci.collection_id = c.id AND ci.work_id IN @ids) AS ItemsInRequest,
                    (SELECT COUNT(DISTINCT ci.work_id) FROM collection_items ci WHERE ci.collection_id = c.id) AS TotalItems,
-                   CASE WHEN c.collection_type = 'Custom' AND c.resolution = 'materialized'
-                             AND NOT EXISTS (SELECT 1 FROM collection_view_sources s WHERE s.collection_id = c.id)
-                        THEN 1 ELSE 0 END AS IsRemovable
+                   1 AS IsRemovable
             FROM collections c
-            WHERE c.id = @collectionId AND c.membership_mode = 'Manual';
+            WHERE c.id = @collectionId AND {MovableCollectionSql("c")};
             """, new { collectionId, ids = ToBlobs(workIds) });
         if (row is null || row.ItemsInRequest == 0)
         {
@@ -361,6 +389,15 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             return LibraryMoveCommitOutcome.Conflict("The place you are moving to has changed.");
         }
 
+        if (sourceCollectionId is { } checkedSource
+            && connection.ExecuteScalar<long>(
+                $"SELECT COUNT(*) FROM collections c WHERE c.id = @id AND {MovableCollectionSql("c")};",
+                new { id = checkedSource },
+                transaction) == 0)
+        {
+            return LibraryMoveCommitOutcome.Conflict("Items can't be moved out of that collection.");
+        }
+
         var items = LoadItems(connection, transaction, [.. plan.Rows.Select(row => row.ItemId)])
             .ToDictionary(item => item.ItemId);
         foreach (var row in plan.Rows)
@@ -370,9 +407,19 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 return LibraryMoveCommitOutcome.Conflict("An item was removed from your library since you reviewed this.");
             }
 
+            if (item.IsContainer)
+            {
+                return LibraryMoveCommitOutcome.Conflict("A whole show, album, series or audiobook can't be moved, only what is in it.");
+            }
+
+            // Never into itself or anything beneath it: that would make a loop.
+            if (IsSameOrBeneath(connection, transaction, plan.DestinationId, [item.WorkId]))
+            {
+                return LibraryMoveCommitOutcome.Conflict("An item can't be moved into itself or into something inside it.");
+            }
+
             if (item.ParentWorkId != row.ExpectedParentWorkId
                 || !string.Equals(item.IdentityRevision, row.ExpectedIdentityRevision, StringComparison.Ordinal)
-                || item.WorkId == plan.DestinationId
                 || item.ParentWorkId == plan.DestinationId)
             {
                 return LibraryMoveCommitOutcome.Conflict("An item changed since you reviewed this.");
@@ -394,6 +441,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             .ToList();
 
         var removedContainers = new List<string>();
+        var ownedFiles = new List<string>();
         var outcomes = new List<LibraryMoveRowOutcome>(ordered.Count);
 
         if (sourceCollectionId is { } sourceCollection)
@@ -407,8 +455,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         LibraryMoveCommitOutcome? refusal = plan.DestinationKind switch
         {
             LibraryMoveKinds.Collection => CommitIntoCollection(connection, transaction, destination, ordered, outcomes),
-            LibraryMoveKinds.Audiobook => CommitParts(connection, transaction, destination, ordered, outcomes, token, now),
-            _ => CommitIntoParent(connection, transaction, destination, ordered, outcomes, removedContainers, token, now),
+            LibraryMoveKinds.Audiobook => CommitParts(connection, transaction, destination, ordered, outcomes, ownedFiles, token, now),
+            _ => CommitIntoParent(connection, transaction, destination, ordered, outcomes, removedContainers, ownedFiles, token, now),
         };
         if (refusal is not null)
         {
@@ -434,7 +482,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         }
 
         LogActivity(connection, transaction, plan, destination, ordered.Count, removedContainers);
-        return LibraryMoveCommitOutcome.Done(outcomes, removedContainers);
+        return LibraryMoveCommitOutcome.Done(outcomes, removedContainers, [.. ownedFiles.Distinct(StringComparer.OrdinalIgnoreCase)]);
     }
 
     private static LibraryMoveCommitOutcome? CommitIntoCollection(
@@ -486,12 +534,28 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         LibraryMoveDestinationInfo destination,
         List<(LibraryMovePlanRow Row, LibraryMoveItem Item)> ordered,
         List<LibraryMoveRowOutcome> outcomes,
+        List<string> ownedFiles,
         string token,
         string now)
     {
         if (ordered.Any(pair => !pair.Item.IsEdition))
         {
             return LibraryMoveCommitOutcome.Conflict("Only a part of an audiobook can be moved into an audiobook.");
+        }
+
+        // An audiobook is emptied when the whole batch takes its last files, so the check counts what is left after the batch, not
+        // before it. Details the person set on an audiobook that would be emptied would be lost with it.
+        var movingEditions = ordered.Select(pair => pair.Item.EditionId!.Value).ToHashSet();
+        foreach (var source in ordered.Where(pair => pair.Item.HasUserManagedDetails).Select(pair => pair.Item).DistinctBy(item => item.WorkId))
+        {
+            var left = connection.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM editions WHERE work_id = @id AND id NOT IN @moving;",
+                new { id = source.WorkId, moving = ToBlobs([.. movingEditions]) },
+                transaction);
+            if (left == 0)
+            {
+                return LibraryMoveCommitOutcome.Conflict("You changed details on this audiobook yourself, so its last file can't be moved out of it.");
+            }
         }
 
         var emptiedSources = new List<LibraryMoveItem>();
@@ -520,12 +584,6 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                     }
 
                     break;
-            }
-
-            // Only an item that empties its audiobook risks losing details the person set on it.
-            if (item.WorkEditionCount <= 1 && item.HasUserManagedDetails)
-            {
-                return LibraryMoveCommitOutcome.Conflict("You changed details on this audiobook yourself, so its last file can't be moved out of it.");
             }
 
             connection.Execute(
@@ -570,7 +628,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         {
             if (connection.ExecuteScalar<long>("SELECT COUNT(*) FROM editions WHERE work_id = @id;", new { id = sourceWork }, transaction) == 0)
             {
-                LibraryItemDeletionRepository.DeleteWorksCore(connection, transaction, [sourceWork]);
+                // What people did with the emptied audiobook goes to the one that took its files.
+                WorkPersonalStateMerge.Carry(connection, transaction, sourceWork, destination.Id);
+                ownedFiles.AddRange(LibraryItemDeletionRepository.DeleteWorksCore(connection, transaction, [sourceWork]).TuvimaOwnedFiles);
             }
         }
 
@@ -584,6 +644,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         List<(LibraryMovePlanRow Row, LibraryMoveItem Item)> ordered,
         List<LibraryMoveRowOutcome> outcomes,
         List<string> removedContainers,
+        List<string> ownedFiles,
         string token,
         string now)
     {
@@ -603,7 +664,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             }
             else if (row.Target.ExistingWorkId is { } entryWork)
             {
-                var refusal = Attach(connection, transaction, destination, row, item, entryWork, removedContainers, now);
+                var refusal = Attach(connection, transaction, destination, row, item, entryWork, removedContainers, ownedFiles, now);
                 if (refusal is not null)
                 {
                     return refusal;
@@ -675,7 +736,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 ordinal = @ordinal,
                 ordinal_sort = @ordinalSort,
                 placement_unmatched = @unmatched,
-                collection_id = COALESCE(@collection, collection_id)
+                collection_id = @collection
             WHERE id = @workId;
             """,
             new
@@ -702,6 +763,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         LibraryMoveItem item,
         Guid entryWork,
         List<string> removedContainers,
+        List<string> ownedFiles,
         string now)
     {
         var entry = connection.QueryFirstOrDefault<EntryRow>(
@@ -720,7 +782,10 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         }
 
         var taken = connection.ExecuteScalar<long>(
-            "SELECT COUNT(*) FROM editions e JOIN media_assets ma ON ma.edition_id = e.id WHERE e.work_id = @id;",
+            $"""
+            -- readiness: moves work on titles by id or by the place they sit in, whatever their readiness
+            SELECT {HasFileSql("w")} FROM works w WHERE w.id = @id;
+            """,
             new { id = entryWork },
             transaction) > 0;
         if (row.Mode == LibraryMoveMode.AddAsVersion ? !taken : taken)
@@ -750,12 +815,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             transaction);
         SetNumbers(connection, transaction, item.AssetIds, NumbersFor(destination, entry.Ordinal, entry.OrdinalSort, entry.DiscNumber), now);
 
-        // Hand-picked collections that held the title now hold the entry, once.
-        connection.Execute(
-            "DELETE FROM collection_items WHERE work_id = @source AND collection_id IN (SELECT collection_id FROM collection_items WHERE work_id = @entry);",
-            new { source = item.WorkId, entry = entryWork },
-            transaction);
-        connection.Execute("UPDATE collection_items SET work_id = @entry WHERE work_id = @source;", new { source = item.WorkId, entry = entryWork }, transaction);
+        // What people did with the title (hearts, plays, listening, bookmarks, queue places, hand-picked collections, tags) goes to the
+        // entry; a move never throws it away.
+        WorkPersonalStateMerge.Carry(connection, transaction, item.WorkId, entryWork);
 
         UnlinkManifest(connection, transaction, item.WorkId);
         connection.Execute(
@@ -764,6 +826,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             transaction);
 
         var removed = LibraryItemDeletionRepository.DeleteWorksCore(connection, transaction, [item.WorkId]);
+        ownedFiles.AddRange(removed.TuvimaOwnedFiles);
         foreach (var collection in removed.CollectionsDeleted)
         {
             removedContainers.Add(collection.Name);
@@ -1023,6 +1086,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 processing.Contains(row.WorkId),
                 userManaged.Contains(row.WorkId),
                 row.EditionCount,
+                row.IsContainer != 0,
                 ownAssets);
         }).ToList();
     }
@@ -1247,6 +1311,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
     // The columns both item reads select. The title, labels and duration come from the same fragments the other reads use.
     private static readonly string ItemColumns = $"""
+        -- readiness: moves work on titles by id or by the place they sit in, whatever their readiness
         w.media_type AS MediaType,
         w.work_kind AS WorkKind,
         w.id AS WorkId,
@@ -1261,7 +1326,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         {ParentLabelSql("gp")} AS GrandparentTitle,
         COALESCE((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'identity_revision' LIMIT 1), '') AS IdentityRevision,
         {DurationSql("w")} AS DurationText,
-        (SELECT COUNT(*) FROM editions e2 WHERE e2.work_id = w.id) AS EditionCount
+        (SELECT COUNT(*) FROM editions e2 WHERE e2.work_id = w.id) AS EditionCount,
+        CASE WHEN w.work_kind = 'parent' OR EXISTS (SELECT 1 FROM works child WHERE child.parent_work_id = w.id) THEN 1 ELSE 0 END AS IsContainer
         """;
 
     private static string WorkTitleSql(string alias) => $"""
@@ -1386,6 +1452,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         public string? IdentityRevision { get; init; }
         public string? DurationText { get; init; }
         public int EditionCount { get; init; }
+        public long IsContainer { get; init; }
     }
 
     private sealed class DestinationRow

@@ -18,6 +18,7 @@ namespace MediaEngine.Api.Services.Libraries.Moves;
 public sealed class LibraryMoveService(
     ILibraryMoveRepository moves,
     MoveListRegistry registry,
+    MoveOwnedFileCleaner ownedFiles,
     IMemoryCache cache) : ILibraryMoveService
 {
     public const int MaxItems = 200;
@@ -42,6 +43,7 @@ public sealed class LibraryMoveService(
         IMoveListProvider Provider,
         IReadOnlyList<MoveListEntry> Entries,
         IReadOnlyList<LibraryMoveItem> Items,
+        IReadOnlyDictionary<Guid, string> Blocked,
         Guid? SourceCollectionId,
         LibraryMovePreview Preview,
         string Fingerprint);
@@ -61,7 +63,7 @@ public sealed class LibraryMoveService(
             return LibraryMoveResult<LibraryMoveDestinationsResponse>.Refused(LibraryMoveRefusalKind.NotFound, "This item is no longer in your library.", [itemId]);
         }
 
-        if (!await canEdit(itemId, ct).ConfigureAwait(false))
+        if (!await canEdit(itemId, LibraryMoveRight.Write, ct).ConfigureAwait(false))
         {
             return LibraryMoveResult<LibraryMoveDestinationsResponse>.Refused(LibraryMoveRefusalKind.Unavailable, "This item is unavailable for editing.", [itemId]);
         }
@@ -71,7 +73,7 @@ public sealed class LibraryMoveService(
         foreach (var row in rows)
         {
             // A place the caller may not edit is simply not offered.
-            if (!await canEdit(row.Id, ct).ConfigureAwait(false))
+            if (!await canEdit(row.Id, LibraryMoveRight.Write, ct).ConfigureAwait(false))
             {
                 continue;
             }
@@ -97,9 +99,16 @@ public sealed class LibraryMoveService(
                 LibraryMoveRefusalKind.Invalid, $"Choose between 1 and {MaxItems.ToString(CultureInfo.InvariantCulture)} items and a place to move them to.");
         }
 
-        foreach (var id in ids.Append(request.DestinationId))
+        // Previewing needs only the right to write. The source collection is checked like every item and the destination.
+        var touched = ids.Append(request.DestinationId);
+        if (request.SourceCollectionId is { } previewSource)
         {
-            if (!await canEdit(id, ct).ConfigureAwait(false))
+            touched = touched.Append(previewSource);
+        }
+
+        foreach (var id in touched)
+        {
+            if (!await canEdit(id, LibraryMoveRight.Write, ct).ConfigureAwait(false))
             {
                 return LibraryMoveResult<LibraryMovePreview>.Refused(LibraryMoveRefusalKind.Unavailable, "One of these is unavailable for editing.", [id]);
             }
@@ -134,9 +143,15 @@ public sealed class LibraryMoveService(
             return LibraryMoveResult<LibraryMoveCommitResult>.Refused(LibraryMoveRefusalKind.Expired, "The editing session changed. Review the move again.");
         }
 
-        foreach (var id in review.ItemIds.Append(review.DestinationId))
+        var reviewed = review.ItemIds.Append(review.DestinationId);
+        if (review.SourceCollectionId is { } reviewedSource)
         {
-            if (!await canEdit(id, ct).ConfigureAwait(false))
+            reviewed = reviewed.Append(reviewedSource);
+        }
+
+        foreach (var id in reviewed)
+        {
+            if (!await canEdit(id, LibraryMoveRight.Write, ct).ConfigureAwait(false))
             {
                 return LibraryMoveResult<LibraryMoveCommitResult>.Refused(LibraryMoveRefusalKind.Unavailable, "One of these is no longer editable.", [id]);
             }
@@ -163,6 +178,17 @@ public sealed class LibraryMoveService(
                 return LibraryMoveResult<LibraryMoveCommitResult>.Refused(LibraryMoveRefusalKind.Invalid, invalid!);
             }
 
+            // Matching an entry and adding another version change what an item is, so they also need the right to match, checked
+            // for each item they apply to. Adding anyway, and moves into a place with no list, need only the right to write.
+            foreach (var row in plan.Rows.Where(row => row.Mode != LibraryMoveMode.AddAnyway && state.Provider.ListKind != LibraryMoveListKinds.None))
+            {
+                if (!await canEdit(row.ItemId, LibraryMoveRight.Match, ct).ConfigureAwait(false))
+                {
+                    return LibraryMoveResult<LibraryMoveCommitResult>.Refused(
+                        LibraryMoveRefusalKind.Unavailable, "You can't match this item to an entry.", [row.ItemId]);
+                }
+            }
+
             var outcome = await moves.CommitAsync(plan, state.SourceCollectionId, ct).ConfigureAwait(false);
             if (!outcome.Committed)
             {
@@ -174,6 +200,9 @@ public sealed class LibraryMoveService(
             }
 
             cache.Remove(TokenPrefix + token);
+
+            // Pictures and text tracks Tuvima wrote for a title that was merged away, now that nothing points at them.
+            ownedFiles.Remove(outcome.OwnedFilesToRemove);
             return LibraryMoveResult<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
             {
                 MovedCount = outcome.Rows.Count,
@@ -222,6 +251,12 @@ public sealed class LibraryMoveService(
             return Refuse(LibraryMoveRefusalKind.NotFound, "That place isn't available any more.", [destinationId]);
         }
 
+        // Never into itself or anything inside it: that would make a loop.
+        if (await moves.IsSameOrBeneathAsync(destination.Id, [.. items.Select(item => item.WorkId)], ct).ConfigureAwait(false))
+        {
+            return Refuse(LibraryMoveRefusalKind.Invalid, "Items can't be moved into themselves or into something inside them.", [destination.Id]);
+        }
+
         foreach (var item in items)
         {
             var wrongKind = WrongKindReason(item, destination);
@@ -246,6 +281,22 @@ public sealed class LibraryMoveService(
         var places = await moves.GetSourcePlacesAsync(items, sourceCollectionId, ct).ConfigureAwait(false);
         var suggestions = Suggest(items, entries);
 
+        // Why an item cannot move right now. Apply stays off while any row is blocked.
+        var emptied = places.Where(place => place.BecomesEmpty).Select(place => place.ContainerId).ToHashSet();
+        var blocked = new Dictionary<Guid, string>();
+        foreach (var item in items)
+        {
+            if (item.ProcessingRunning)
+            {
+                blocked[item.ItemId] = ProcessingReason;
+            }
+            else if (item.IsEdition && item.HasUserManagedDetails && emptied.Contains(item.WorkId))
+            {
+                // The audiobook would be emptied and removed, and with it the details the person set on it.
+                blocked[item.ItemId] = "You changed details on this audiobook, so its last file can't be moved out of it.";
+            }
+        }
+
         var rows = items.Select(item =>
         {
             suggestions.TryGetValue(item.ItemId, out var suggestion);
@@ -256,7 +307,7 @@ public sealed class LibraryMoveService(
                 CurrentPlacementLabel = PlacementLabel(item),
                 SuggestedEntryKey = suggestion.Entry?.Key,
                 SuggestionReason = suggestion.Reason ?? string.Empty,
-                BlockedReason = item.ProcessingRunning ? ProcessingReason : null,
+                BlockedReason = blocked.GetValueOrDefault(item.ItemId),
             };
         }).ToList();
 
@@ -286,12 +337,13 @@ public sealed class LibraryMoveService(
                 LengthSeconds = entry.LengthSeconds,
                 TakenByItemId = entry.TakenByItemId,
                 TakenByTitle = entry.TakenByTitle,
+                CanAddVersion = entry.CanAddVersion,
             })],
             Rows = rows,
             Warnings = [.. warnings.Distinct(StringComparer.Ordinal)],
         };
 
-        var state = new State(destination, provider, entries, items, sourceCollectionId, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count));
+        var state = new State(destination, provider, entries, items, blocked, sourceCollectionId, preview, Fingerprint(destination, provider, entries, items, places, sourceCollection, missing.Count));
         return new Built(state, null);
     }
 
@@ -321,6 +373,12 @@ public sealed class LibraryMoveService(
     /// <summary>D15: wrong kind is blocked. Returns why this item can't go into this place, or null when it can.</summary>
     private static string? WrongKindReason(LibraryMoveItem item, LibraryMoveDestinationInfo destination)
     {
+        // A whole show, season, album, series or audiobook is never moved, only what is in it.
+        if (item.IsContainer)
+        {
+            return $"\"{item.Title}\" holds other items, so it can't be moved. Move what is in it instead.";
+        }
+
         var accepts = destination.Kind switch
         {
             LibraryMoveKinds.Album => !item.IsEdition && Is(item, "Music"),
@@ -404,9 +462,9 @@ public sealed class LibraryMoveService(
         foreach (var row in rows)
         {
             var item = items[row.ItemId];
-            if (item.ProcessingRunning)
+            if (state.Blocked.TryGetValue(item.ItemId, out var blockedReason))
             {
-                invalid = $"\"{item.Title}\" is still being processed. Try again when it has finished.";
+                invalid = $"\"{item.Title}\" can't be moved right now: {blockedReason.ToLowerInvariant()}.";
                 return null;
             }
 
@@ -450,6 +508,12 @@ public sealed class LibraryMoveService(
                 if (mode == LibraryMoveMode.AddAsVersion && !entry.IsTaken)
                 {
                     invalid = $"{DescribeEntry(state, entry)} has no file yet, so match \"{item.Title}\" to it instead.";
+                    return null;
+                }
+
+                if (mode == LibraryMoveMode.AddAsVersion && !entry.CanAddVersion)
+                {
+                    invalid = $"{DescribeEntry(state, entry)} can't take another version here. Pick another entry, or add \"{item.Title}\" anyway.";
                     return null;
                 }
 
@@ -534,7 +598,8 @@ public sealed class LibraryMoveService(
         foreach (var entry in entries)
         {
             text.Append("entry|").Append(entry.Key).Append('|').Append(entry.Number).Append('|').Append(entry.Title).Append('|')
-                .Append(entry.IsTaken ? "1" : "0").Append('|').Append(entry.TakenByItemId?.ToString("N")).AppendLine();
+                .Append(entry.IsTaken ? "1" : "0").Append('|').Append(entry.CanAddVersion ? "1" : "0").Append('|')
+                .Append(entry.TakenByItemId?.ToString("N")).AppendLine();
         }
 
         foreach (var item in items)

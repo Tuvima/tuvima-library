@@ -35,6 +35,7 @@ public sealed class AlbumTrackMoveListProvider(ILibraryMoveRepository moves) : I
                 child.HasFile,
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
+                child.HasFile,
                 new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
         }
 
@@ -105,6 +106,7 @@ public sealed class AlbumTrackMoveListProvider(ILibraryMoveRepository moves) : I
                     false,
                     null,
                     null,
+                    false,
                     new LibraryMoveTarget(Ordinal: trackNumber, OrdinalSort: sort, DiscNumber: disc)));
             }
         }
@@ -141,6 +143,7 @@ public sealed class SeasonEpisodeMoveListProvider(ILibraryMoveRepository moves, 
                 child.HasFile,
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
+                child.HasFile,
                 new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
         }
 
@@ -165,6 +168,7 @@ public sealed class SeasonEpisodeMoveListProvider(ILibraryMoveRepository moves, 
                         owned,
                         owned ? item.LinkedWorkId : null,
                         owned ? item.ItemLabel : null,
+                        false,
                         new LibraryMoveTarget(ManifestItemId: item.Id, Ordinal: OrdinalNormalizer.IntegerOrdinal(episode), OrdinalSort: episode))));
                 }
             }
@@ -223,6 +227,7 @@ public sealed class SeriesPositionMoveListProvider(ILibraryMoveRepository moves,
                 child.HasFile,
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
+                child.HasFile,
                 new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
         }
 
@@ -250,6 +255,7 @@ public sealed class SeriesPositionMoveListProvider(ILibraryMoveRepository moves,
                     owned,
                     owned ? item.LinkedWorkId : null,
                     owned ? item.ItemLabel : null,
+                    false,
                     new LibraryMoveTarget(ManifestItemId: item.Id, Ordinal: OrdinalNormalizer.IntegerOrdinal(position), OrdinalSort: position))));
             }
         }
@@ -286,6 +292,7 @@ public sealed class AudiobookPartMoveListProvider(ILibraryMoveRepository moves) 
                 true,
                 part.EditionId,
                 part.Title,
+                true,
                 new LibraryMoveTarget(PartNumber: part.PartNumber, TakenPartEditionId: part.EditionId))));
         }
 
@@ -303,6 +310,7 @@ public sealed class AudiobookPartMoveListProvider(ILibraryMoveRepository moves) 
                     false,
                     null,
                     null,
+                    false,
                     new LibraryMoveTarget(PartNumber: number))));
             }
         }

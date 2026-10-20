@@ -136,6 +136,68 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM media_file_write_intents WHERE status = 'pending';"));
     }
 
+    [Fact]
+    public async Task AWholeContainer_IsRefused_AndNothingCanBeMovedIntoItselfOrWhatIsInsideIt()
+    {
+        var show = Parent("TV", "Northwatch");
+        var season = Child(show, "TV", "Season one", 1, hasFile: false, kind: "parent");
+        var episode = Child(season, "TV", "Pilot", 1);
+        var items = await _repository.GetItemsAsync([show, episode]);
+
+        Assert.True(items.Single(item => item.ItemId == show).IsContainer);
+        Assert.False(items.Single(item => item.ItemId == episode).IsContainer);
+        Assert.True(await _repository.IsSameOrBeneathAsync(season, [show]));
+        Assert.True(await _repository.IsSameOrBeneathAsync(show, [show]));
+        Assert.False(await _repository.IsSameOrBeneathAsync(show, [season]));
+        Assert.False(await _repository.IsSameOrBeneathAsync(season, [episode]));
+
+        var outcome = await _repository.CommitAsync(
+            new LibraryMovePlan(season, LibraryMoveKinds.Season, [Row(items, show, LibraryMoveMode.AddAnyway, new LibraryMoveTarget())], "Shy"),
+            null);
+
+        Assert.False(outcome.Committed);
+        Assert.Null(ParentOf(show));
+        Assert.Equal(show, ParentOf(season));
+    }
+
+    [Fact]
+    public async Task AnEntryCoveredByAnotherFile_IsTakenInTheTransactionToo()
+    {
+        var album = Parent("Music", "OK Computer");
+        var source = Parent("Music", "The Best Of");
+        var song = Child(source, "Music", "Airbag", 1);
+        var host = Child(album, "Music", "Omnibus", 5);
+        var covered = Child(album, "Music", "Airbag", 1, hasFile: false);
+        var hostAsset = Scalar<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @host;", new { host });
+        Execute("INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@hostAsset, @covered, 1, 'filename');", new { hostAsset, covered });
+        var items = await _repository.GetItemsAsync([song]);
+
+        var outcome = await _repository.CommitAsync(
+            new LibraryMovePlan(album, LibraryMoveKinds.Album, [Row(items, song, LibraryMoveMode.Match, new LibraryMoveTarget(ExistingWorkId: covered))], "Shy"),
+            null);
+
+        Assert.False(outcome.Committed);
+        Assert.Contains("already has a file", outcome.ConflictReason, StringComparison.Ordinal);
+        Assert.Equal(source, ParentOf(song));
+    }
+
+    [Fact]
+    public async Task AllThreeFilesOfARenamedAudiobookCannotBeMovedInOneBatch()
+    {
+        var (target, _) = Audiobook("Dune (audiobook)", 1);
+        var (source, editions) = Audiobook("Dune disc", 3);
+        Execute("UPDATE works SET display_overrides_json = '{\"title\":\"Mine\"}' WHERE id = @source;", new { source });
+        var items = await _repository.GetItemsAsync(editions);
+
+        var outcome = await _repository.CommitAsync(
+            new LibraryMovePlan(target, LibraryMoveKinds.Audiobook, [.. editions.Select(edition => Row(items, edition, LibraryMoveMode.AddAnyway, new LibraryMoveTarget()))], "Shy"),
+            null);
+
+        Assert.False(outcome.Committed);
+        Assert.Contains("last file can't be moved", outcome.ConflictReason, StringComparison.Ordinal);
+        Assert.Equal(3, Scalar("SELECT COUNT(*) FROM editions WHERE work_id = @source;", new { source }));
+    }
+
     // ----- helpers ---------------------------------------------------------------------------------------------------------------
 
     private static LibraryMovePlanRow Row(IReadOnlyList<LibraryMoveItem> items, Guid id, LibraryMoveMode mode, LibraryMoveTarget target)
@@ -152,7 +214,7 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
         return id;
     }
 
-    private Guid Child(Guid parent, string mediaType, string title, int ordinal, bool hasFile = true, bool catalog = false)
+    private Guid Child(Guid parent, string mediaType, string title, int ordinal, bool hasFile = true, bool catalog = false, string kind = "child")
     {
         var work = Guid.NewGuid();
         var edition = Guid.NewGuid();
@@ -162,7 +224,7 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
             VALUES (@work, @mediaType, @kind, @parent, @ordinal, @ordinal, @catalog, @ownership);
             INSERT INTO editions (id, work_id) VALUES (@edition, @work);
             """,
-            new { work, edition, mediaType, parent, ordinal, kind = catalog ? "catalog" : "child", catalog = catalog ? 1 : 0, ownership = catalog ? "Unowned" : "Owned" });
+            new { work, edition, mediaType, parent, ordinal, kind = catalog ? "catalog" : kind, catalog = catalog ? 1 : 0, ownership = catalog ? "Unowned" : "Owned" });
         Put(work, "title", title);
         if (hasFile)
         {
@@ -173,6 +235,25 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
         }
 
         return work;
+    }
+
+    private (Guid Work, List<Guid> Editions) Audiobook(string title, int parts)
+    {
+        var work = Guid.NewGuid();
+        Execute("INSERT INTO works (id, media_type, work_kind) VALUES (@work, 'Audiobooks', 'standalone');", new { work });
+        Put(work, "title", title);
+        var editions = new List<Guid>();
+        for (var part = 1; part <= parts; part++)
+        {
+            var edition = Guid.NewGuid();
+            var asset = Guid.NewGuid();
+            Execute(
+                "INSERT INTO editions (id, work_id) VALUES (@edition, @work); INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at) VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP);",
+                new { edition, work, asset, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/{asset:N}.mp3" });
+            editions.Add(edition);
+        }
+
+        return (work, editions);
     }
 
     private void Put(Guid entity, string key, string value) =>

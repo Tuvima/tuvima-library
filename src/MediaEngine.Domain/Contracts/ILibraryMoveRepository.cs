@@ -25,6 +25,12 @@ public interface ILibraryMoveRepository
     Task<LibraryMoveDestinationInfo?> GetDestinationAsync(Guid destinationId, CancellationToken ct = default);
 
 
+    /// <summary>
+    /// True when the destination is one of the Works, or sits anywhere beneath one of them (a season is beneath its show). Moving a
+    /// container into itself or into what it holds would make a loop.
+    /// </summary>
+    Task<bool> IsSameOrBeneathAsync(Guid destinationId, IReadOnlyList<Guid> workIds, CancellationToken ct = default);
+
     /// <summary>The Works under an album, season, series or audiobook (its tracks, episodes, issues, volumes), with whether each has a file.</summary>
     Task<IReadOnlyList<LibraryMoveChild>> GetChildrenAsync(Guid parentWorkId, CancellationToken ct = default);
 

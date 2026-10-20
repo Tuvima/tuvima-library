@@ -6,8 +6,18 @@ namespace MediaEngine.Api.Services.Libraries.Moves;
 /// <summary>Who asked for a move. A preview works only for the person (and credential) who asked for it.</summary>
 public sealed record LibraryMoveActor(RequestAuthority Authority, Guid? CredentialId, string DisplayName);
 
-/// <summary>Whether the caller may edit one item or destination (resource scope; the route's policy has already admitted the person).</summary>
-public delegate ValueTask<bool> LibraryMoveAccess(Guid id, CancellationToken ct);
+/// <summary>What the caller needs to be allowed to do to an item or place.</summary>
+public enum LibraryMoveRight
+{
+    /// <summary>Change it (the metadata-write permission): previewing, adding anyway, and moving into a place with no list.</summary>
+    Write,
+
+    /// <summary>Change what it is (the metadata-match permission as well as write): matching an entry, or adding another version.</summary>
+    Match,
+}
+
+/// <summary>Whether the caller holds the right on one item or place (resource scope; the route's policy has already admitted the person).</summary>
+public delegate ValueTask<bool> LibraryMoveAccess(Guid id, LibraryMoveRight right, CancellationToken ct);
 
 public enum LibraryMoveRefusalKind
 {

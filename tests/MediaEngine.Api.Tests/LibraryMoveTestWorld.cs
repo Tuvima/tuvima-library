@@ -2,9 +2,11 @@ using Dapper;
 using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
@@ -26,6 +28,9 @@ internal sealed class LibraryMoveTestWorld : IDisposable
         Repository = new LibraryMoveRepository(Database);
         var manifests = new SeriesManifestRepository(Database);
         Cache = new MemoryCache(new MemoryCacheOptions());
+        Root = Path.Combine(Path.GetTempPath(), $"tuvima_moves_{Guid.NewGuid():N}");
+        DataRoot = Path.Combine(Root, "data");
+        AssetPaths = new AssetPathService(Path.Combine(Root, "library"), dataRoot: DataRoot);
         Service = new LibraryMoveService(
             Repository,
             new MoveListRegistry(
@@ -35,9 +40,13 @@ internal sealed class LibraryMoveTestWorld : IDisposable
                 new SeriesPositionMoveListProvider(Repository, manifests),
                 new AudiobookPartMoveListProvider(Repository),
             ]),
+            new MoveOwnedFileCleaner(AssetPaths, NullLogger<MoveOwnedFileCleaner>.Instance),
             Cache);
     }
 
+    public string Root { get; }
+    public string DataRoot { get; }
+    public AssetPathService AssetPaths { get; }
     public DatabaseConnection Database { get; }
     public LibraryMoveRepository Repository { get; }
     public MemoryCache Cache { get; }
@@ -50,9 +59,12 @@ internal sealed class LibraryMoveTestWorld : IDisposable
         null,
         "Shy");
 
-    public static LibraryMoveAccess Everything { get; } = (_, _) => ValueTask.FromResult(true);
+    public static LibraryMoveAccess Everything { get; } = (_, _, _) => ValueTask.FromResult(true);
 
-    public static LibraryMoveAccess Nothing { get; } = (_, _) => ValueTask.FromResult(false);
+    public static LibraryMoveAccess Nothing { get; } = (_, _, _) => ValueTask.FromResult(false);
+
+    /// <summary>An application that may write metadata but not match: the right to write only.</summary>
+    public static LibraryMoveAccess WriteOnly { get; } = (_, right, _) => ValueTask.FromResult(right == LibraryMoveRight.Write);
 
     // ----- seeding ---------------------------------------------------------------------------------------------------------
 
@@ -253,6 +265,12 @@ internal sealed class LibraryMoveTestWorld : IDisposable
 
     // ----- reading ---------------------------------------------------------------------------------------------------------
 
+    public void Execute(string sql, object? args = null)
+    {
+        using var connection = Database.CreateConnection();
+        connection.Execute(sql, args);
+    }
+
     public T Scalar<T>(string sql, object? args = null)
     {
         using var connection = Database.CreateConnection();
@@ -292,6 +310,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
     public void Dispose()
     {
         Cache.Dispose();
+        try { Directory.Delete(Root, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { _ = ex; }
         TestTemp.ReleaseSqlitePool(_databasePath);
         try { Database.Dispose(); } catch (ObjectDisposedException) { /* Already closed by the pool sweep. */ }
         try { File.Delete(_databasePath); } catch (IOException) { /* The OS temp sweep removes a handle SQLite releases late. */ }

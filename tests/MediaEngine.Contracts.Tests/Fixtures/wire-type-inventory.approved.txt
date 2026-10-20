@@ -4054,7 +4054,8 @@
   LengthSeconds: System.Double? | json=length_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TakenByItemId: System.Guid? | json=taken_by_item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TakenByTitle: System.String | json=taken_by_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"entry_key":"sample","number":"sample","title":"sample","length_seconds":7,"taken_by_item_id":"11111111-2222-3333-4444-555555555555","taken_by_title":"sample"}
+  CanAddVersion: System.Boolean | json=can_add_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entry_key":"sample","number":"sample","title":"sample","length_seconds":7,"taken_by_item_id":"11111111-2222-3333-4444-555555555555","taken_by_title":"sample","can_add_version":true}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMoveFileChange
   kind=class | converter=default | number-handling=default | unmapped=default

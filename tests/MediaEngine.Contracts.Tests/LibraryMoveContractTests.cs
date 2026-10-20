@@ -43,7 +43,7 @@ public sealed class LibraryMoveContractTests
         Assert.Equal(["destination", "list_kind", "entries", "rows", "warnings", "preview_token"], PropertyNames(json));
         Assert.Equal(["id", "kind", "label", "parent_label", "has_list"], root.GetProperty("destination").EnumerateObject().Select(property => property.Name));
         Assert.Equal(
-            ["entry_key", "number", "title", "length_seconds", "taken_by_item_id", "taken_by_title"],
+            ["entry_key", "number", "title", "length_seconds", "taken_by_item_id", "taken_by_title", "can_add_version"],
             root.GetProperty("entries")[0].EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ["item_id", "title", "current_placement_label", "suggested_entry_key", "suggestion_reason", "file_change", "file_note", "blocked_reason"],

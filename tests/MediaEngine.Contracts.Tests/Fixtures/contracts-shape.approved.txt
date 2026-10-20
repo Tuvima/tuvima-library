@@ -3361,6 +3361,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveEntry
   LengthSeconds: System.Double? | nullability=nullable | accessors=get,init
   TakenByItemId: System.Guid? | nullability=nullable | accessors=get,init
   TakenByTitle: System.String | nullability=nullable | accessors=get,init
+  CanAddVersion: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveFileChange
   From: System.String | nullability=not-null | accessors=get,init

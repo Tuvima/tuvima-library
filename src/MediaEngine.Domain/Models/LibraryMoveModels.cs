@@ -53,6 +53,7 @@ public sealed record LibraryMoveItem(
     bool ProcessingRunning,
     bool HasUserManagedDetails,
     int WorkEditionCount,
+    bool IsContainer,
     IReadOnlyList<Guid> AssetIds);
 
 /// <summary>A place an item could go, as found by the destination search.</summary>
@@ -136,12 +137,15 @@ public sealed record LibraryMoveCommitOutcome(
     bool Committed,
     string? ConflictReason,
     IReadOnlyList<LibraryMoveRowOutcome> Rows,
-    IReadOnlyList<string> RemovedContainers)
+    IReadOnlyList<string> RemovedContainers,
+    IReadOnlyList<string> OwnedFilesToRemove)
 {
-    public static LibraryMoveCommitOutcome Conflict(string reason) => new(false, reason, [], []);
+    public static LibraryMoveCommitOutcome Conflict(string reason) => new(false, reason, [], [], []);
 
-    public static LibraryMoveCommitOutcome Done(IReadOnlyList<LibraryMoveRowOutcome> rows, IReadOnlyList<string> removed) =>
-        new(true, null, rows, removed);
+    /// <param name="ownedFiles">Files Tuvima wrote for titles the move merged away (pictures, text tracks), for the caller to remove once the commit has succeeded.</param>
+    public static LibraryMoveCommitOutcome Done(
+        IReadOnlyList<LibraryMoveRowOutcome> rows, IReadOnlyList<string> removed, IReadOnlyList<string> ownedFiles) =>
+        new(true, null, rows, removed, ownedFiles);
 }
 
 /// <summary>What leaving would empty: a source place that has nothing else in it, found for the preview's warnings.</summary>
