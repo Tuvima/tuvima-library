@@ -1,6 +1,6 @@
 # Spec: Audiobook year on the remaining screens
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Spec: Home and item detail speed](archive/home-and-detail-speed.md) (built; its section 8 lists these seven reads) · [Spec: Library list speed](archive/library-list-speed.md) · [Benchmarks README](../../benchmarks/README.md)
+> **Status:** In progress (locked by Shy 2026-10-20 with Q1, Q2 and Q3 answered (a); started 2026-10-20) · **Version:** 2 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Spec: Home and item detail speed](archive/home-and-detail-speed.md) (built; its section 8 lists these seven reads) · [Spec: Library list speed](archive/library-list-speed.md) · [Benchmarks README](../../benchmarks/README.md)
 
 ## 1. Goal
 
@@ -20,14 +20,13 @@ An audiobook with no original year of its own borrows the year of the book with 
 
 Also in scope:
 - One before-and-after comparison of every value these seven reads return, on the benchmark library.
-- Guardrails that fail if any of these reads goes back to building the whole library's credit list for the year (Q1).
-- Deleting the old form once nothing uses it (Q2).
-- Optionally, the person page's search for candidate files (Q3).
+- Guardrails that fail if any of these reads goes back to building the whole library's credit list for the year (D8).
+- Deleting the old form once nothing uses it (D9).
 
 **Out of scope**
 - Places that read the whole library's credit list for their own purposes rather than for the year: series search's author column and name search, and a person's credits list itself (which reads it twice for every visit, see section 7). They stay as they are; section 7 records them as follow-ups.
 - The series search bug found while measuring (section 7). It is fixed separately.
-- New indexes or any other data store change, unless Shy picks Q3 (b).
+- New indexes or any other data store change, including the person page's search for candidate files (D10).
 - Any change to what these screens show, their order, filters, profile visibility rules or wire shapes.
 
 ## 3. Decisions made
@@ -39,6 +38,10 @@ Also in scope:
 - **D5. Each read's own rules stay untouched.** The row choice (which file a series row shows: the most recently played; Continue's progress rules; group credits on a person's page; the editor's representative file), the sort and every other field stay as they are. Only the year expression and the step that feeds it change.
 - **D6. One before-and-after comparison.** The benchmark `snapshot` command gains a section per read, run on the benchmark library before the first change and after each packet; the files must match exactly. The benchmark library gains one profile's play history, which the Continue, play history and taste sections need; the README records it so older numbers are read with that in mind.
 - **D7. Guardrails measure the year's own cost.** Today's slow form already grows in step with the library (the whole credit list is built once per visit, not once per audiobook), so the usual "twice the library costs at most 2.5 times the work" check would pass it. Instead, each read is measured twice on the guardrail library: with audiobooks that need a borrowed year and with the same number of audiobooks that have their own. The difference is the year's cost. It gets a fixed budget at 4,000 works (today about 42 million operations; after the change expected in the low millions), with the measured number written beside it. Operations are counted, not seconds, as in the earlier speed specs.
+- **D8. One year-cost guardrail per read (Q1, Shy 2026-10-20).** Seven checks, each the D7 difference against a fixed budget at 4,000 works. No extra total budgets or growth checks for these reads.
+- **D9. Delete the old form (Q2, Shy 2026-10-20).** WP4 deletes it and makes every read that shows a year say how it gets the borrowed year.
+- **D10. Leave the person page's candidate-file search as it is (Q3, Shy 2026-10-20).** It is linear and a fraction of a second at realistic claim counts; an index can be added later without a reset if a large real library shows otherwise. WP5 is not built.
+- **D11. The series search bug is fixed first, as separate work (Shy 2026-10-20).** WP3's series search part waits for it.
 
 ## 4. UI behaviour
 
@@ -54,7 +57,7 @@ Nothing changes on screen except speed.
 
 ## 5. Data / model changes
 
-None in the product, unless Q3 (b) is chosen (one new index on provider claims, added by a numbered data store upgrade step; no reset, no re-ingest). The benchmark library and the performance-test library (test tools, not the product) gain one profile's play history and an audiobook series.
+None in the product (D10). The benchmark library and the performance-test library (test tools, not the product) gain one profile's play history and an audiobook series.
 
 ## 6. Work packets
 
@@ -101,7 +104,7 @@ What the numbers say:
   - Series page (`DetailCompositionOrchestrator.Readers.cs`, `LoadCollectionWorksAsync`): move the row filter (`w.collection_id = @collectionId OR ci.collection_id … OR w.id IN @resolvedWorkIds OR (@rootWorkId …)`) into one C# string used in the main `WHERE` and in the candidate select. Candidates are those works with `LOWER(media_type) LIKE '%audio%'` joined to all their `work_owned_assets` files that pass the same status, orphan and allowed-file rules. The chosen file (most recently played) is one of them.
   - Continue shelf and play history (`DisplayJourneyProjectionReader.cs`): candidates are `user_states` of `@ProfileId` joined to file, edition and work, audiobook works only.
   - Taste profile (`TasteProfileRepository.cs`): candidates are `user_states` of `@userId` joined the same way, audiobook works only. The 1,000-row limit is not applied to the candidates (a superset is allowed, D2).
-  - Tests (behaviour sentences): per read, an audiobook without its own year shows the matching book's year (`SeriesPage_AudiobookWithoutAYear_ShowsTheMatchingBooksYear`, `ContinueShelf_…`, `TasteSignals_…`); the Q1 guardrails for these three reads.
+  - Tests (behaviour sentences): per read, an audiobook without its own year shows the matching book's year (`SeriesPage_AudiobookWithoutAYear_ShowsTheMatchingBooksYear`, `ContinueShelf_…`, `TasteSignals_…`); the D8 guardrails for these three reads.
 - **Files likely touched:** `src/MediaEngine.Api/Services/Details/Internals/DetailCompositionOrchestrator.Readers.cs`, `src/MediaEngine.Api/Services/Display/DisplayJourneyProjectionReader.cs`, `src/MediaEngine.Storage/TasteProfileRepository.cs`, tests in `tests/MediaEngine.Api.Tests/`, `tests/MediaEngine.Storage.Tests/`, `tests/MediaEngine.Performance.Tests/`
 - **Depends on:** WP1 (baseline snapshot taken first)
 - **Size:** Standard
@@ -113,20 +116,20 @@ What the numbers say:
   - "Add media" (`LookupAsync`): put today's select (same joins, `WHERE`, `ORDER BY Title COLLATE NOCASE, w.id` and `LIMIT/OFFSET`, plus the source `w.id`, root id and `ra.AssetId` the year needs) into a saved `lookup_page` step; candidates are its audiobook rows; the outer select adds `Year` and keeps the same order. Rows and their order must not change, including the duplicates the multi-name joins can produce (the C# de-duplication stays).
   - Series search (`CollectionSearchReadService.SearchAsync`): take `Year` out of `matched`, add the file id and root id to it, add a saved `search_page` step (`WHERE RowNumber = 1 ORDER BY Title COLLATE NOCASE LIMIT 20`), take candidates from its audiobook rows; the outer select adds `Year` in the same order. If rows with the same title change order, add `WorkId` as the last sort key in both steps and record it.
   - A person's credits (`PersonCreditReadService.GetLibraryCreditsAsync`): mark `effective_credit` `MATERIALIZED`; candidates are its files joined to their works, audiobook works only. The year keeps reading the same `w.id` and grouped `ma.id` as today, so the newest-first order is unchanged.
-  - Tests: per read, an audiobook without its own year shows the matching book's year; for "add media" and series search, also an audiobook on page 2; the Q1 guardrails for these four reads.
+  - Tests: per read, an audiobook without its own year shows the matching book's year; for "add media" and series search, also an audiobook on page 2; the D8 guardrails for these four reads.
 - **Files likely touched:** `src/MediaEngine.Api/Services/ReadServices/CollectionMediaLookupReadService.cs`, `src/MediaEngine.Api/Services/ReadServices/CollectionSearchReadService.cs`, `src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs`, tests in `tests/MediaEngine.Api.Tests/` and `tests/MediaEngine.Performance.Tests/`
 - **Depends on:** WP1, and the series search bug fix (section 7) for the series search part. Runs beside WP2 (different files; the second packet to finish merges the shared performance-test file).
 - **Size:** Standard
 - **Done when:** the new tests pass; `compare` reports `collection-resolve`, `collection-lookup`, `series-search` and `person-credits` identical; each year cost is within budget and over budget with the old form put back locally (record, do not commit); preparing each statement takes under 50 ms on the benchmark library (no copy blow-up, D3).
 
-### WP4 — Delete the old form (if Q2 is (a))
+### WP4 — Delete the old form (D9)
 - **What it does:** delete `MediaDateSql.RelatedBookOriginalYear`; make `relatedBookYearExpression` a required parameter of `DisplayOriginalYear` (reads that never return audiobooks pass `"NULL"`, as `LoadTvEpisodeSkeletonAsync` does); update the doc comments that mention the old form, the benchmarks README paragraph that names it, and the `MediaDateSqlTests` line that passes `"NULL"`.
 - **Files likely touched:** `src/MediaEngine.Storage/MediaDateSql.cs`, `benchmarks/README.md`, `tests/MediaEngine.Storage.Tests/MediaDateSqlTests.cs`
 - **Depends on:** WP2, WP3
 - **Size:** Mechanical
 - **Done when:** a search for `RelatedBookOriginalYear(` finds nothing; the CI-strength build and all tests pass; a final full `snapshot` compares identical with the WP1 baseline (every section, including the earlier spec's).
 
-### WP5 — Person page candidate files by index (only if Q3 is (b))
+### WP5 — Person page candidate files by index (not built: Q3 answered (a), D10)
 - **What it does:** a numbered data store upgrade step adds a partial index on `metadata_claims` over the trimmed claim value (case-insensitive) for the credit claim names only (`PersonCreditSql.CreditKeys`), and `DisplayWorkProjectionReader.PersonAssetsCtes` reads claims through it instead of scanning every claim. Same files found, same order.
 - **Files likely touched:** `src/MediaEngine.Storage/Schema/Upgrades/NNNN_credit_claim_value_index.sql`, `src/MediaEngine.Storage/Schema/schema.snapshot.sql`, `src/MediaEngine.Api/Services/Display/DisplayWorkProjectionReader.cs`, `docs/reference/database-schema.md`, `tests/MediaEngine.Performance.Tests/DisplayReadGuardrailTests.cs`
 - **Depends on:** none (separate files)
@@ -144,10 +147,10 @@ What the numbers say:
   - **Series search through the search index returns nothing (bug).** The search index finds the matching works, but the read passes their ids to the data store in a form that never equals the stored ids (a list of ids is not converted the way a single id is). Measured: 40 known works matched 0 rows; the same ids converted explicitly matched 40. The Engine always has a search index, so series search shows no results whenever the index finds matches; the existing tests only cover the no-index fallback. Other reads that pass lists of ids unconverted may have the same problem. It needs its own fix and a test before WP3's series search part; I'm proposing it as a separate piece of work.
   - **A person's credits read builds the whole credit list twice per visit for its own purposes** (84 million operations at 4,000 works even without audiobooks, about 1–2 s). Series search's author column and fallback name search do the same for every candidate file. These are the next biggest costs on those screens; candidate follow-ups once this is built.
   - **"Add media" works out a representative file for every work in the library on every page.** Proportional to the library, not the main cost today, but the largest left once the year is fixed.
-- **Open questions:**
-  - **Q1. How should the guardrails look?** (a) One check per read (seven tests) that the borrowed year's own cost (D7: with year-needing audiobooks minus with own-year audiobooks) stays under a fixed budget at 4,000 works. A read going back to the whole-library build fails by more than ten times. (b) As (a), plus a fixed budget on each read's total work and a "twice the library" growth check (21 tests), like Home and detail have. That also catches a read getting slower for other reasons, but every budget needs re-measuring whenever the shared test library changes. (c) No per-read tests: rely on deleting the old form (Q2) so no code can call it, plus the behaviour tests. Cheapest, but nothing would notice a read that hands the year step a library-sized candidate list. **Recommendation: (a).** It targets exactly the failure this spec removes, and with the old form deleted there is no other way back.
-  - **Q2. Delete the old form afterwards?** (a) Delete it and make every read that shows a year say how it gets the borrowed year, so a new screen cannot fall back to the slow form by leaving the parameter out (WP4). (b) Keep it as a convenience for one-row reads. **Recommendation: (a)**, per the "best long-term fix before beta" rule. Even for one row it costs the whole library's credit list (42 million operations at 4,000 works).
-  - **Q3. The person page's search for candidate files (from the earlier spec's section 8).** To find which files credit a person, the person page reads every stored credit, every provider claim and every stored value once (claim names have no index), then checks credits for just those files. Measured at 4,000 works: 1.8 million operations with 1 claim per file, 2.8 million with 10, 4.9 million with 30, about 26 operations per claim. So 1 million claims add about 26 million operations (roughly 0.5–1 s). The 100,000-work benchmark library has 500,000 claims (about 13 million operations); a library with 30 claims per file at that size would have 3 million (about 80 million). (a) Leave it, and revisit if a real library's person page is slow. (b) Add an index for credit claim names (WP5: one numbered data store upgrade step, no reset). The person page then reads only matching claims, at the cost of slightly slower writes of credit claims during ingestion, the busiest write path. (c) Find candidates from stored credits and values only and read claims just for those files: no data store change, but an item credited only by a provider claim (no stored credit yet) would drop off the person's page, which changes behaviour. **Recommendation: (a).** At realistic claim counts it is a fraction of a second and linear, and (b) can be added later without a reset if a large real library shows otherwise.
+- **Open questions:** none open.
+  - **Q1 (answered (a), see D8). How should the guardrails look?** (a) One check per read (seven tests) that the borrowed year's own cost (D7: with year-needing audiobooks minus with own-year audiobooks) stays under a fixed budget at 4,000 works. A read going back to the whole-library build fails by more than ten times. (b) As (a), plus a fixed budget on each read's total work and a "twice the library" growth check (21 tests), like Home and detail have. That also catches a read getting slower for other reasons, but every budget needs re-measuring whenever the shared test library changes. (c) No per-read tests: rely on deleting the old form (Q2) so no code can call it, plus the behaviour tests. Cheapest, but nothing would notice a read that hands the year step a library-sized candidate list. **Recommendation: (a).** It targets exactly the failure this spec removes, and with the old form deleted there is no other way back.
+  - **Q2 (answered (a), see D9). Delete the old form afterwards?** (a) Delete it and make every read that shows a year say how it gets the borrowed year, so a new screen cannot fall back to the slow form by leaving the parameter out (WP4). (b) Keep it as a convenience for one-row reads. **Recommendation: (a)**, per the "best long-term fix before beta" rule. Even for one row it costs the whole library's credit list (42 million operations at 4,000 works).
+  - **Q3 (answered (a), see D10). The person page's search for candidate files (from the earlier spec's section 8).** To find which files credit a person, the person page reads every stored credit, every provider claim and every stored value once (claim names have no index), then checks credits for just those files. Measured at 4,000 works: 1.8 million operations with 1 claim per file, 2.8 million with 10, 4.9 million with 30, about 26 operations per claim. So 1 million claims add about 26 million operations (roughly 0.5–1 s). The 100,000-work benchmark library has 500,000 claims (about 13 million operations); a library with 30 claims per file at that size would have 3 million (about 80 million). (a) Leave it, and revisit if a real library's person page is slow. (b) Add an index for credit claim names (WP5: one numbered data store upgrade step, no reset). The person page then reads only matching claims, at the cost of slightly slower writes of credit claims during ingestion, the busiest write path. (c) Find candidates from stored credits and values only and read claims just for those files: no data store change, but an item credited only by a provider claim (no stored credit yet) would drop off the person's page, which changes behaviour. **Recommendation: (a).** At realistic claim counts it is a fraction of a second and linear, and (b) can be added later without a reset if a large real library shows otherwise.
 
 ## 8. Gaps and drift
 
