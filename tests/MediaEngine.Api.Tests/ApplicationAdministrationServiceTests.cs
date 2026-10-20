@@ -402,6 +402,59 @@ public sealed class ApplicationAdministrationServiceTests
         Assert.Empty(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
     }
 
+    [Fact]
+    public async Task IssuingAKey_WhenTheIntegrationIsSwitchedOnJustAfterItWasRead_WithoutTheHash_RevokesTheKey_AndAsksForApproval()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+        fixture.Repository.AfterNextApplicationRead = () => fixture.Repository.SetEnabled(application.Id, true);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(result);
+        Assert.Equal(409, status);
+        var required = JsonSerializer.Deserialize<MediaEngine.Contracts.Approvals.ApprovalRequiredResponse>(body)!;
+        Assert.Equal("approval_required", required.Error);
+        Assert.Equal("application_credential", Assert.Single(required.Approvals).Kind);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        Assert.NotNull(key.RevokedAt);
+        Assert.Empty(await approvals.Records.ListAsync("application_credential", key.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WhenTheIntegrationIsSwitchedOnJustAfterItWasRead_WithTheHash_IssuesItAndRecordsTheApproval()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+        var hash = approvals.Service.PreviewCredential(application, null).StatementHash;
+        fixture.Repository.AfterNextApplicationRead = () => fixture.Repository.SetEnabled(application.Id, true);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null, hash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(result)).Status);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        Assert.Null(key.RevokedAt);
+        Assert.Single(await approvals.Records.ListAsync("application_credential", key.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_ForASwitchedOffIntegration_IsStillRefusedByTheIssueCallItself()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(result)).Status);
+        Assert.Empty(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+    }
+
     // ── Widening an integration's keys (Shy's decision, 2026-10-19) ──────────
 
     [Fact]
@@ -679,6 +732,12 @@ public sealed class ApplicationAdministrationServiceTests
         }
     }
 
+    private static async Task<ApplicationResponse> SwitchedOffIntegrationAsync(Fixture fixture)
+    {
+        var application = await CreateIntegrationAsync(fixture);
+        return await fixture.Service.UpdateApplicationAsync(Fixture.HumanAdministrator, application.Id, Update(application, enabled: false));
+    }
+
     private static Task<ApplicationResponse> CreateIntegrationAsync(Fixture fixture) => fixture.Service.CreateApplicationAsync(
         Fixture.HumanAdministrator,
         new CreateApplicationRequest(
@@ -903,8 +962,17 @@ public sealed class ApplicationAdministrationServiceTests
         private readonly Dictionary<Guid, List<ApplicationCredential>> _credentials = [];
         private readonly Dictionary<Guid, HashSet<string>> _clientIds = [];
 
-        public Task<ApplicationEntity?> GetApplicationAsync(Guid id, CancellationToken ct = default) =>
-            Task.FromResult(_applications.TryGetValue(id, out var value) ? Clone(value) : null);
+        /// <summary>Runs once, right after the next application read has been answered (to change the store between two reads).</summary>
+        public Action? AfterNextApplicationRead { get; set; }
+
+        public Task<ApplicationEntity?> GetApplicationAsync(Guid id, CancellationToken ct = default)
+        {
+            var answer = _applications.TryGetValue(id, out var value) ? Clone(value) : null;
+            var hook = AfterNextApplicationRead;
+            AfterNextApplicationRead = null;
+            hook?.Invoke();
+            return Task.FromResult(answer);
+        }
 
         public Task<ApplicationEntity?> GetApplicationByClientIdAsync(
             string clientId,
@@ -1012,6 +1080,8 @@ public sealed class ApplicationAdministrationServiceTests
             _applications[credential.ApplicationId].AuthorizationVersion++;
             return Task.CompletedTask;
         }
+
+        public void SetEnabled(Guid applicationId, bool enabled) => _applications[applicationId].IsEnabled = enabled;
 
         /// <summary>When set, revoking a credential fails (the store cannot be reached).</summary>
         public bool FailRevoke { get; set; }

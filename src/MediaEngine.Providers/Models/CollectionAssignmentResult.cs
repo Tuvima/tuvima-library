@@ -6,6 +6,7 @@ public enum CollectionAssignmentOutcome
     AlreadyAssigned,
     SkippedNoWork,
     SkippedNoShelfIdentity,
+    SkippedAmbiguousSeries,
     Failed,
 }
 

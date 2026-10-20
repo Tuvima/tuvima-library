@@ -13,8 +13,8 @@ public sealed class SettingsBreadcrumbGuardrailTests
         Assert.Contains("<AppBreadcrumbs Class=\"settings-breadcrumbs\">", frame, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppBreadcrumbs", settings, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\"", frame, StringComparison.Ordinal);
-        Assert.Contains("[SupplyParameterFromQuery(Name = \"runId\")]", settings, StringComparison.Ordinal);
-        Assert.Contains("IngestionBatchDisplay.Title(batch)", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("runId", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("IngestionBatchDisplay", settings, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.Ingestion => \"What your library holds", settings, StringComparison.Ordinal);
         Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);

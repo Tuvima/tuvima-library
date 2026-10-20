@@ -5,8 +5,8 @@
 -- updated or deleted.
 CREATE TABLE approval_records (
     id                          BLOB NOT NULL PRIMARY KEY,
-    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application_credential | webhook
-    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id or webhook id
+    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application | application_credential | webhook
+    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id, application id or webhook id
     statement_hash              TEXT NOT NULL,   -- SHA-256, lower-case hex, of the canonical statement
     statement_json              TEXT NOT NULL,   -- the statement as shown (title, can-do lines, data out, notes); never a secret value
     approved_by_account_id      BLOB NULL,       -- the account that confirmed; NULL when an application confirmed

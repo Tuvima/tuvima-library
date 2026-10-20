@@ -269,7 +269,7 @@ public static class SettingsNav
     /// <summary>
     /// The one Settings menu. Every parent opens its own main page and its children never repeat it (a sub-page of the
     /// same section is a child only when it is a different page). Recently Added and Needs Review stay out of the menu:
-    /// they open from the "View all" link on the Library and Ingestion page (see <see cref="OffMenuParents"/>). The
+    /// Recently Added opens from a Needs Review row's "Find in recent history" and Needs Review from the administrator banner (see <see cref="OffMenuParents"/>). The
     /// desktop tree, the phone page selector and the breadcrumb all read this.
     /// </summary>
     public static readonly SettingsMenuGroup[] MenuGroups =
@@ -535,9 +535,9 @@ public static class SettingsNav
     /// <summary>
     /// Finds where a page sits in the menu. A sub-page the menu does not list (a landing view, a profile or provider
     /// detail) resolves to its section's main row. A page the menu leaves out but that has a parent in
-    /// <see cref="OffMenuParents"/> (Recently Added) resolves to that parent's trail plus itself, so its breadcrumb
+    /// <see cref="OffMenuParents"/> (Recently Added, Needs Review) resolves to that parent's trail plus itself, so its breadcrumb
     /// reads Server, Library and Ingestion, Recently Added. Returns <see langword="null"/> for other pages the menu
-    /// leaves out, such as Needs Review.
+    /// leaves out.
     /// </summary>
     public static SettingsMenuLocation? FindMenuLocation(SettingsSection section, string? subsection = null)
     {
@@ -589,6 +589,7 @@ public static class SettingsNav
         new Dictionary<SettingsSection, SettingsSection>
         {
             [SettingsSection.RecentlyAdded] = SettingsSection.Ingestion,
+            [SettingsSection.Review] = SettingsSection.Ingestion,
         };
 
     /// <summary>

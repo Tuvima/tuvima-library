@@ -43,7 +43,8 @@ internal sealed partial class DetailCompositionOrchestrator
             return items.ToList();
         }
 
-        var manifestItems = await LoadManifestItemsForSequenceContainerAsync(normalizedContainerId, ct);
+        var mediaType = SeriesMediaTypeName(entityType);
+        var manifestItems = await LoadManifestItemsForSequenceContainerAsync(normalizedContainerId, mediaType, ct);
         var exactManifestItems = manifestItems
             .Where(item => SequenceContainerIdEquals(item.SeriesQid, normalizedContainerId))
             .ToList();
@@ -95,9 +96,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    membership_scope AS MembershipScope
             FROM series_manifest_items
             WHERE series_qid = @seriesQid
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { seriesQid = normalizedContainerId },
+            new { seriesQid = normalizedContainerId, mediaType = SeriesMediaTypeName(entityType) },
             cancellationToken: ct));
 
         var updated = items.ToList();
@@ -105,11 +107,6 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             var rowObject = (object)row;
             var sourcePosition = ToManifestSourcePosition(rowObject, normalizedContainerId!);
-            var positionSort = sourcePosition ?? DoubleValue(GetDapperValue(rowObject, "SortOrder"));
-            if (!positionSort.HasValue)
-            {
-                continue;
-            }
             var position = ToDisplayPositionNumber(sourcePosition);
             var positionLabel = sourcePosition.HasValue
                 ? StringHelpers.FirstNonBlankOr(string.Empty,
@@ -119,6 +116,11 @@ internal sealed partial class DetailCompositionOrchestrator
             var membershipScope = StringHelpers.FirstNonBlankOr(string.Empty,
                 StringValue(GetDapperValue(rowObject, "MembershipScope")),
                 SeriesMembershipScopeNames.MainSequence)!;
+            // The manifest's ordinal orders main-sequence members only. A member the manifest gives no position keeps
+            // its own; a manifest row number is never used as a position.
+            var positionSort = string.Equals(membershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase)
+                ? sourcePosition
+                : null;
             var group = ManifestScopeGroup(membershipScope);
 
             var linkedWorkId = StringValue(GetDapperValue(rowObject, "LinkedWorkId"));
@@ -148,7 +150,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 Duration = item.Duration,
                 PublicationDate = item.PublicationDate,
                 PositionNumber = position ?? item.PositionNumber,
-                PositionSort = positionSort,
+                PositionSort = positionSort ?? item.PositionSort,
                 PositionLabel = sourcePosition.HasValue ? positionLabel : item.PositionLabel,
                 PositionText = sourcePosition.HasValue
                     ? FormatSequencePositionText(entityType, positionLabel, position)
@@ -209,6 +211,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private async Task<IReadOnlyList<SeriesManifestItemRecord>> LoadManifestItemsForSequenceContainerAsync(
         string containerId,
+        string? mediaType,
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
@@ -246,9 +249,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE series_qid = @containerId
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId },
+            new { containerId, mediaType },
             cancellationToken: ct));
         var exactItems = exactRows.Select(row => row.ToEntity()).ToList();
         if (exactItems.Count > 0)
@@ -256,7 +260,9 @@ internal sealed partial class DetailCompositionOrchestrator
             return exactItems;
         }
 
-        var seriesItems = await _seriesManifests.GetItemsBySeriesQidAsync(containerId, ct);
+        var seriesItems = mediaType is null
+            ? await _seriesManifests.GetItemsBySeriesQidAsync(containerId, ct)
+            : await _seriesManifests.GetItemsBySeriesQidAsync(containerId, mediaType, ct);
         if (seriesItems.Count > 0)
         {
             return seriesItems;
@@ -296,9 +302,10 @@ internal sealed partial class DetailCompositionOrchestrator
                    updated_at AS UpdatedAt
             FROM series_manifest_items
             WHERE parent_collection_qid = @containerId
+              AND (@mediaType IS NULL OR LOWER(media_type) = LOWER(@mediaType))
             ORDER BY COALESCE(sort_order, 999999), COALESCE(item_label, item_qid), item_qid;
             """,
-            new { containerId },
+            new { containerId, mediaType },
             cancellationToken: ct));
 
         return rows.Select(row => row.ToEntity()).ToList();
@@ -382,7 +389,10 @@ internal sealed partial class DetailCompositionOrchestrator
         foreach (var manifestItem in manifestItems)
         {
             var sourcePosition = ManifestSourcePosition(manifestItem);
-            var positionSort = ManifestOrderingSort(manifestItem);
+            // The manifest's ordinal orders main-sequence members only; nothing else is given an invented position.
+            var positionSort = string.Equals(manifestItem.MembershipScope, SeriesMembershipScopeNames.MainSequence, StringComparison.OrdinalIgnoreCase)
+                ? sourcePosition
+                : null;
             var position = ToDisplayPositionNumber(sourcePosition);
             var positionLabel = sourcePosition.HasValue
                 ? StringHelpers.FirstNonBlankOr(string.Empty, manifestItem.RawOrdinal, FormatSequenceSort(sourcePosition))
@@ -473,9 +483,6 @@ internal sealed partial class DetailCompositionOrchestrator
 
         return TryParseSeriesPositionSort(item.RawOrdinal);
     }
-
-    private static double? ManifestOrderingSort(SeriesManifestItemRecord item)
-        => ManifestSourcePosition(item) ?? item.SortOrder;
 
     private static HashSet<string> BuildOwnedPositionSet(IEnumerable<SequenceItemViewModel> items)
         => items

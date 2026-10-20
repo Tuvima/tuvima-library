@@ -69,9 +69,34 @@ Each provider offers **Language strategy**. Keep its default unless results use 
 
 Open an item's shared editor to choose or upload artwork. Managed images live in the application asset store. Optional exports beside media files depend on storage policy. User-selected artwork is protected from automatic replacement.
 
+## Add a provider with a file alone
+
+A service that answers in JSON over HTTPS can be added without any code. The five providers that need more than a key in the URL (TheTVDB, TMDB, Comic Vine, SubDL and LRCLIB) are described this way, so their files are the examples to copy from.
+
+1. Copy the closest shipped file in `config/providers/` (for example `tvdb.json` for a service that signs in first, `subdl.json` for subtitles) to a new file named after the provider.
+2. Give it its own `name`, a new `provider_id` (a GUID that never changes afterwards), `display_name`, `media_types` under `can_handle`, and the address under `endpoints.api`.
+3. Describe what it does in the sections the file needs: search strategies and field mappings for lookups, `follow_ups` for extra requests, `candidate_ranking` for choosing between near-identical results, or `text_track` for subtitles and lyrics. The fields are listed in [Provider file sections](../reference/configuration.md#provider-file-sections).
+4. Restart the Engine. A file with a mistake is rejected with the place in the file, for example `api.allowed_hosts must list at least one host.`
+5. Open **Settings → Metadata Providers → Providers**, connect the provider, and use **Test connection**.
+
+A provider that is not described this way, or that needs behaviour a file cannot express, is a [plugin](building-a-plugin.md) instead.
+
+### Providers that sign in first
+
+Some services exchange your key for a short-lived token before any other request. Declare that in `auth` instead of putting the key in every URL:
+
+- `login`: the `path` below the API address, a JSON `body` made of your credentials (`{api_key}`, `{pin}`, `{username}`, `{password}`, `{client_key}` or `{access_token}`; write `{pin?}` to leave a property out when you did not enter one), and `token_path`, where the token is in the answer.
+- `login.lifetime_days` and `login.refresh_early_minutes`: how long the token is trusted and how early it is renewed.
+- `deliver`: the `header` and `format` that carry the token afterwards, for example `Authorization` and `Bearer {token}`.
+- `retry_on_unauthorized`: set to 1 to sign in again once and repeat a request the service refused.
+
+The sign-in only reaches the hosts listed in `api.allowed_hosts`, over HTTPS on the default port, so a mistyped address cannot send your key elsewhere. Subtitle and lyrics providers that need a key follow the same rule through `text_track.api.allowed_hosts`.
+
 ## Keep credentials private
 
-Provider definitions live in `config/providers/*.json`. Long-lived keys belong in ignored overlays at `config/secrets/{provider}.json`.
+Provider definitions live in `config/providers/*.json`. Long-lived keys belong in ignored files at `config/secrets/{provider}.json`, one flat object per provider with the names `api_key`, `api_key_override`, `client_key`, `access_token`, `pin`, `username` and `password`. A plugin's keys are kept the same way, in `config/secrets/plugins/{plugin-id}.json`. Never put a key in a provider file: provider files are committed and shared.
+
+The Dashboard writes these files when you connect a provider. They sit in the config folder, so they survive a data store reset and are left out of backups.
 
 A blank key in a base provider file can still have an effective secret overlay. Check both places before assuming a key was removed. Saved connection checks contain safe status text, not the key.
 

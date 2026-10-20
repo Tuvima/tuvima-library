@@ -107,7 +107,7 @@ public sealed class Wave5AccessibilityGuardrailTests
     {
         var plugins = Read("src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
         var metadata = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
-        var batchHistory = Read("src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor");
+        var nowRow = Read("src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor");
 
         Assert.Contains("<AppButton Label=\"Open settings\"", plugins);
         Assert.DoesNotContain("role=\"button\"", plugins);
@@ -115,8 +115,8 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("aria-label=\"Used for\"", metadata);
         Assert.Contains("role=\"table\"", metadata);
         Assert.DoesNotContain("role=\"button\"", metadata);
-        Assert.Contains("<AppNativeButton Type=\"button\"", batchHistory);
-        Assert.Contains("aria-label=\"@($\"Open batch", batchHistory);
+        Assert.Contains("<AppNativeButton Type=\"button\"", nowRow);
+        Assert.Contains("AriaLabel=\"@OpenAriaLabel\"", nowRow);
     }
 
     [Fact]

@@ -5,49 +5,49 @@
 <AppCssElement Tag="div" Class="adaptation-node" Css="@($"margin-left: {Depth * 24}px;")">
     <div class="adaptation-card">
         @* Cover thumbnail *@
-        @if (!string.IsNullOrWhiteSpace(Node.CoverImage))
+        @if (!string.IsNullOrWhiteSpace(Node.cover_image))
         {
-            <img src="@Node.CoverImage" alt="@Node.Label" class="adapt-thumb" />
+            <img src="@Node.cover_image" alt="@Node.label" class="adapt-thumb" />
         }
         else
         {
             <div class="adapt-thumb-placeholder">
-                <AppMaterialIcon Icon="@GetMediaTypeIcon(Node.MediaType)" Class="tl-u-color-hex-555" />
+                <AppMaterialIcon Icon="@GetMediaTypeIcon(Node.media_type)" Class="tl-u-color-hex-555" />
             </div>
         }
 
         @* Work info *@
         <div class="adapt-info">
-            <AppText Typo="AppTypo.subtitle2" Class="tl-u-font-weight-600">@Node.Label</AppText>
+            <AppText Typo="AppTypo.subtitle2" Class="tl-u-font-weight-600">@Node.label</AppText>
             <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="1">
-                @if (Node.Year.HasValue)
+                @if (Node.year.HasValue)
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
                              Class="tl-u-font-size-xs tl-u-height-20px">
-                        @Node.Year
+                        @Node.year
                     </AppChip>
                 }
-                @if (!string.IsNullOrWhiteSpace(Node.MediaType))
+                @if (!string.IsNullOrWhiteSpace(Node.media_type))
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
-                             Color="@GetMediaTypeColor(Node.MediaType)"
+                             Color="@GetMediaTypeColor(Node.media_type)"
                              Class="tl-u-font-size-xs tl-u-height-20px">
-                        @Node.MediaType
+                        @Node.media_type
                     </AppChip>
                 }
-                @if (!string.IsNullOrWhiteSpace(Node.RelationshipToParent))
+                @if (!string.IsNullOrWhiteSpace(Node.relationship_to_parent))
                 {
                     <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-888 tl-u-font-size-xs">
-                        (@Node.RelationshipToParent)
+                        (@Node.relationship_to_parent)
                     </AppText>
                 }
             </AppStack>
         </div>
     </div>
-@if (Node.Children.Count > 0)
+@if (Node.children.Count > 0)
     {
         <div class="adaptation-children">
-            @foreach (var child in Node.Children)
+            @foreach (var child in Node.children)
             {
                 <AdaptationTreeNode Node="@child" Depth="@(Depth + 1)" />
             }
@@ -55,7 +55,7 @@
     }
 </AppCssElement>
 @code {
-    [Parameter] public AdaptationNodeDto Node { get; set; } = new();
+    [Parameter] public UniverseAdaptationNodeDto Node { get; set; } = default!;
     [Parameter] public int Depth { get; set; }
 
     private static string GetMediaTypeIcon(string? mediaType) => mediaType?.ToLowerInvariant() switch

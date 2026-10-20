@@ -63,6 +63,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Progress | `GET/PUT /api/v1/progress/{assetId}`, `GET /recent`, `GET /journey` | `progress.read` / `progress.write` |
 | Queues | `GET /api/v1/player/state`, mutations under `/api/v1/player/queue` | `queue.read` / `queue.write` |
 | Playback session | `/api/v1/player/command`, `/heartbeat`, `/session/takeover` | `playback.write` or `progress.write` |
+| Companion | `GET /api/v1/companion/devices`, `GET /session`, `PUT /session/follow`, `PUT /session/manual`, `DELETE /session` (see [Companion](#companion)) | `queue.read` / `progress.write` |
 | Playback decision | `GET /api/v1/playback/{assetId}/manifest` | `playback.read` |
 | Cast session | `POST /api/v1/playback/{assetId}/cast` with `{"receiver":"google-cast-default"}`. A paired app only (a signed-in Dashboard session or an Application is refused `403`); answers `status` `ready` (with `mediaPath`, `contentType`, `posterPath`, `textTracks`, `expiresAt`), `preparing` (the title is being converted; ask again, no link is issued yet) or `unavailable` (with a plain `message`). The answer carries a secret link and is never cached (`Cache-Control: private, no-store`). Rate-limited to 20 per minute per device | `playback.read`, plus the catalogue's own limits for that title (a Kids limit applies) |
 | Cast receiver routes | `GET`/`HEAD`/`OPTIONS /cast/v1/{grant}/media`, `/hls/{packageId}/{**path}`, `/text/{trackId}`, `/poster`. Anonymous on purpose: a TV cannot send a token, so the signed `{grant}` in the path is the credential and the Engine re-checks all of it on every request. One title only, read only, byte ranges supported; `403` for any grant that no longer holds. The Engine answers these only on this computer; the Dashboard relays them for the home network | the cast grant (see [Security](../architecture/security.md)) |
@@ -143,7 +144,7 @@ Paired apps read the same Collections catalogue the Dashboard shows, limited to 
 |---|---|
 | `GET /api/v1/collections?cursor=&limit=` | `PagedResponse` of catalogue entries (`CollectionManagementCatalogDto`), default 24, at most 250, with `total_count` and `next_cursor`. Collections with nothing the profile may see are left out. |
 | `GET /api/v1/collections/{id}` | One catalogue entry. |
-| `GET /api/v1/collections/{id}/items?cursor=&limit=` | `PagedResponse` of `CollectionItemDto` (title, creator, media type, cover, detail route), in the collection's order, default 24, with `total_count` (at most the first 5,000 items). |
+| `GET /api/v1/collections/{id}/items?cursor=&limit=` | `PagedResponse` of `CollectionItemDto` (title, creator, media type, cover, detail route, `membership_scope`, `position_label`), default 24, with `total_count` (at most the first 5,000 items). A Series is listed in Series order: the numbered run first (`position_label` is the source's own text, so a decimal such as `1.5` stays `1.5`), then members with no position, then "Also in this world" members (`membership_scope` `Supplementary`, `CollectedContent` or `BroaderContext`), which are never numbered with the run. `sort_order` is the item's place in that list, counted from zero. |
 | `GET /api/v1/universe/{qid}` | `UniverseClientDetailDto`: the Universe's name, `item_count` and its member shelves. Each shelf is a `DisplayShelfDto` (the same card shape as `/api/v1/display`, first 24 cards, `seeAllRoute` pointing at `/api/v1/display/groups/{collection_id}`) with the member's own `collection_id`, `group_type` and total `item_count`. |
 
 `cursor` is the `next_cursor` of the previous page; pass it back unchanged. A malformed cursor is `400`. Catalogue entries carry `group_type`, the user-facing kind of group: `show`, `series`, `collection` (a rollup across shelves or a rule-built group) or `list` (a hand-picked or system list); the Universe detail uses `universe`. A catalogue entry that is a Universe has `group_type` `universe` and `universe_qid`, the Wikidata QID (`Q` and digits) that opens `GET /api/v1/universe/{qid}`; `universe_qid` is `null` for every other entry, and it is only set when that route would serve the Universe to the same profile. Authoring fields of an entry (`rule_json`, `rule_hash`, `selected_profile_ids`, `profile_id`, `refresh_schedule`, the `can_*` flags and the collection's own uploaded artwork URLs) are always blank for apps; member artwork is in `artwork_items`.
@@ -377,6 +378,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/library/items/{entityId}/history` | Processing history timeline for an item (identity, metadata, artwork and ingestion events) | Server administrator or Application with `review.read`, plus catalogue access |
 | GET | `/library/items/{entityId}/editor-preferences/{profileId}` | Profile-owned notes, local tags, hidden/recommendation flags, and optimistic editor revision | Required |
 | PUT | `/library/items/{entityId}/editor-preferences/{profileId}` | Atomically save supported display overrides and profile-owned editor preferences; returns `409` for a stale revision | Effective administrator or precise Application permission |
+| POST | `/library/items/deletion-preview` | Preview deleting 1 to 200 titles (Works) from the library without changing anything: every media file and sidecar with its folder label, size and outcome (`delete`, `keep_as_is`, `keep_protected`, `keep_missing`) as decided by the source-file safety gate, the hand-picked collections affected (and which would be deleted because they would be empty), how many profiles have progress, whether processing is running, the space freed, and a fingerprint of the plan. Refuses groups (`400`), catalog-only entries (`400`), and unknown ids or View personal items (`404`). Full disk paths are never returned | Effective administrator signed in at the Dashboard (administrator PIN unlocked where set); no paired app, native client or service application, even one acting for an administrator |
 
 ---
 
@@ -458,7 +460,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type | Effective administrator or precise Application permission |
+| POST | `/search/universe` | Search Wikidata for entity candidates by title, author, and media type; returns `candidates[]` (`qid`, `label`, `description`, `instance_of`, `year`, `author`, `director`, `cover_url`, `wikipedia_extract`, `resolution_tier`, `confidence`, `bridge_ids`, `media_type`, `media_type_metadata`, `match_scores`), `query` and `media_type` | Effective administrator or precise Application permission |
 | POST | `/search/retail` | Search configured retail providers for matching candidates | Effective administrator or precise Application permission |
 | POST | `/search/resolve` | Unified resolve search - queries all active providers and returns ranked candidates | Effective administrator or precise Application permission |
 
@@ -498,7 +500,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/universe/{qid}/family-tree` | Character family tree rooted at a specified character entity | Required |
 | GET | `/universe/{qid}/cast` | Characters with their linked performers, including era-correct actor data | Required |
 | GET | `/universe/{qid}/adaptations` | Adaptation chain - all works derived from or adapted into each other | Required |
-| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass | Required |
+| GET | `/universe/{qid}/lore-delta` | Check for Wikidata revision changes since the last enrichment pass; returns a list of `entity_qid`, `label`, `cached_revision`, `current_revision`, `has_changed` | Required |
 
 ---
 
@@ -722,6 +724,22 @@ manifest, resume data, tracks/subtitles/chapters, audiobook history and
 bookmarks, chapter-title provenance, offline variants, diagnostics, and user
 playback settings. Text-track contracts retain source and normalized formats,
 timing mode, ownership/preference/export flags, confidence, and URL.
+
+---
+
+## Companion
+
+A second device on the same profile (for example a phone) can follow where another of that person's devices is playing, or hold a position set by hand ("episode 3", "chapter 12"). Each device's live state is written from its own `POST /player/heartbeat` calls into a record separate from the shared player, so two devices playing on one profile never overwrite each other. Only the caller's own profile is ever visible: the profile and the companion's own device id come from the caller's token, a different `profileId` is refused with `404`, and there is no administrator bypass. Every item is checked against the caller's catalogue scope; a device playing something the caller cannot see is left out, and a work outside the caller's scope is refused with `404`. Nothing leaves the machine.
+
+| Method | Path | Description | Scope |
+|---|---|---|---|
+| GET | `/companion/devices` | The caller's devices that are playing or paused right now, newest first. Each carries its device id, name (the paired device's name when known), client, state, position, duration, work and asset ids and the playing item | `queue.read` |
+| GET | `/companion/session` | This device's choice: `mode` is `none`, `follow` or `manual`. When following, `followed` holds that device's latest state, or is null with `isFollowedDeviceLive` false when it is not live | `queue.read` |
+| PUT | `/companion/session/follow` | Body `{ "deviceId": "..." }`. Follow one of the caller's own devices (one that has reported playback for the profile, or one of its paired devices); any other id is `404` | `progress.write` |
+| PUT | `/companion/session/manual` | Body `{ "workId": "...", "chapterIndex": 12, "positionSeconds": 30 }`. Hold a position set by hand; a negative chapter or position is `400` | `progress.write` |
+| DELETE | `/companion/session` | Stop following and clear any manual position. `204` | `progress.write` |
+
+A device is **live** when its last heartbeat was playing or paused and arrived within 45 seconds (the same window that keeps the shared player live). A replayed offline heartbeat never counts, a stopped or finished player is ended and not live. Clients should poll `/companion/session` about every 10 seconds while following; a followed device's position is at most one heartbeat (10 to 15 seconds) old.
 
 ---
 

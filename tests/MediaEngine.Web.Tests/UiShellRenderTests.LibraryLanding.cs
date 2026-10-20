@@ -49,7 +49,7 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void LibraryAndIngestionLandingPage_ShowsTheLibrarySummary_ThenLiveIngestion_ThenRecentlyAddedWithAViewAllLink()
+    public void LibraryAndIngestionLandingPage_ShowsTheLibrarySummary_ThenLiveIngestion_ThenTheAddedSummaryWithAViewAllLinkToTheActivityLog()
     {
         UseLandingApi();
 
@@ -61,14 +61,14 @@ public sealed partial class UiShellRenderTests
             Assert.Equal(6, cut.FindAll(".library-summary__media").Count);
             Assert.Contains("2 items need review", cut.Find("[data-testid='library-summary-review']").TextContent, StringComparison.Ordinal);
             Assert.NotEmpty(cut.FindAll(".ingestion-status"));
-            var viewAll = cut.Find(".ingestion-recent-preview a[href='/settings/recently-added']");
+            var viewAll = cut.Find(".ingestion-added a[href='/settings/system/logs?tab=events&filter=added']");
             Assert.Contains("View all", viewAll.TextContent, StringComparison.Ordinal);
 
             var markup = cut.Markup;
             var summary = markup.IndexOf("data-testid=\"library-summary\"", StringComparison.Ordinal);
             var live = markup.IndexOf("ingestion-status", StringComparison.Ordinal);
-            var recent = markup.IndexOf("ingestion-recent-preview", StringComparison.Ordinal);
-            Assert.True(summary >= 0 && summary < live && live < recent, "Summary, live ingestion, then recently added.");
+            var recent = markup.IndexOf("ingestion-added", StringComparison.Ordinal);
+            Assert.True(summary >= 0 && summary < live && live < recent, "Summary, live ingestion, then the added summary.");
             Assert.DoesNotContain("Continue optional setup", markup, StringComparison.Ordinal);
         });
     }
@@ -112,18 +112,28 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void LegacySettingsReviewRoute_StillRedirectsToRecentlyAddedWithReviewExpanded()
+    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPage()
     {
         UseLandingApi();
         var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/recently-added?review=expanded");
         var visited = new List<string>();
         navigation.LocationChanged += (_, args) => visited.Add(args.Location);
 
-        var cut = RenderSettings("review");
+        var host = Render(builder =>
+        {
+            builder.OpenComponent<AppPopoverHost>(0); builder.CloseComponent();
+            builder.OpenComponent<AppDialogHost>(1); builder.CloseComponent();
+            builder.OpenComponent<AppToastHost>(2); builder.CloseComponent();
+            builder.OpenComponent<Settings>(3);
+            builder.AddAttribute(4, nameof(Settings.Section), "recently-added");
+            builder.CloseComponent();
+        });
+        var cut = host.FindComponent<Settings>();
 
         // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
         cut.WaitForAssertion(
-            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/recently-added?review=expanded", StringComparison.Ordinal)));
+            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/review", StringComparison.Ordinal)));
     }
 
     [Fact]

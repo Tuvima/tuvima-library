@@ -75,6 +75,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewSharedContributionService>();
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
+        services.AddSingleton<LibraryItemDeletionService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
         services.AddSingleton<ImportFolderApplier>();

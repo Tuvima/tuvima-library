@@ -65,14 +65,14 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `title` | TEXT | Display title |
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
-| `media_type` | TEXT | Primary media type for this collection |
+| `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
 | `updated_at` | TEXT | Timestamp |
 | `last_enriched_at` | TEXT | Timestamp of last Wikidata enrichment |
 
-**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`
+**Indices:** `wikidata_qid`, `parent_collection_id`, `collection_type`, `wikidata_qid + media_type` (Series identity)
 
 ### works
 
@@ -175,7 +175,7 @@ Links works to collections (Series to Universe relationships).
 |---|---|---|
 | `collection_id` | BLOB | FK -> `collections.id` |
 | `work_id` | BLOB | FK -> `works.id` |
-| `sort_order` | INTEGER | Position within the collection |
+| `sort_order` | INTEGER | Position within the collection. A Series shelf stores the manifest ordinal or the work's own position here **unrounded**: the column has integer affinity, which keeps a fractional value such as `2.5` as a real number. Readers order a Series with the shared Series ordering (manifest ordinal, the work's `ordinal_sort`, publication date, title) and do not rely on this column. Only the rule-chosen shelf holds a row for a work. |
 
 **Indices:** `collection_id + sort_order` for ordered paging and
 `work_id` for reverse lookup and cascade enforcement.
@@ -989,7 +989,7 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_by_name` | TEXT | Profile display name (or application name) at the time |
 | `approved_at` | TEXT | ISO 8601 UTC |
 
-**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0012_approval_records`.
+**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0014_approval_records`.
 
 ### ai_usage_records
 
@@ -1008,7 +1008,7 @@ One row for every request that reached the Local AI engine room: text written or
 | `outcome` | TEXT | `succeeded`, `failed`, `unavailable`, `refused_over_budget`, `cancelled` or `timed_out` |
 | `message` | TEXT | Plain-English result or reason |
 
-**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0014_ai_usage_records`.
+**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0015_ai_usage_records`.
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.
@@ -1284,6 +1284,42 @@ Whispersync audio-to-text alignment jobs.
 
 ---
 
+## Companion
+
+The shared player (`player_sessions` with its queue) holds one transport and one queue per profile. Live state per device, and the companion choices that read it, are kept apart so devices never overwrite each other.
+
+### player_device_states
+
+One row per device on a profile: what that device is playing, written from its own heartbeats. Rows not refreshed for 24 hours are removed when the profile writes another row. Readers treat a row as live only when it is playing or paused and was updated within 45 seconds.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `device_id` | TEXT | The device id the client reported; part of primary key |
+| `client` | TEXT | Client label, such as `web` |
+| `player_session_id` | BLOB | The player session id the heartbeat carried, when any |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade) |
+| `work_id` | BLOB | FK -> `works.id` (set null on delete) |
+| `playback_state` | TEXT | `playing`, `paused` or `ended` (CHECK-constrained) |
+| `position_seconds` | REAL | Exact position, 0 or more |
+| `duration_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp of the last heartbeat |
+
+### companion_sessions
+
+One row per companion device: either following another device or holding a position set by hand.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `companion_device_id` | TEXT | The device that is following; part of primary key |
+| `mode` | TEXT | `follow` or `manual` (CHECK-constrained) |
+| `followed_device_id` | TEXT | Required for `follow`, null for `manual` |
+| `manual_work_id` | BLOB | FK -> `works.id` (cascade); required for `manual`, null for `follow` |
+| `manual_chapter_index` | INTEGER | Optional, 0 or more |
+| `manual_position_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp |
+
 ## User
 
 ### user_states
@@ -1401,19 +1437,19 @@ What a person removed from, or added to, the taste the Library learned about the
 
 ### series_manifest_hydrations
 
-Series-level cache and provenance for Wikidata series manifests. One row is stored per canonical series QID so later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed.
+Series-level cache and provenance for Wikidata series manifests. One row is stored per shelf (the collection holding the manifest), so a book Series and an audiobook Series with the same QID each keep their own manifest and later sibling imports can link against the cached named checklist before deciding whether a Wikidata refresh is needed. Upgrade step `0012_series_identity_by_media_type` changed the key from the series QID alone to the shelf plus the series QID.
 
 | Column | Type | Notes |
 |---|---|---|
-| `series_qid` | TEXT | Wikidata QID for the series. Primary key. |
-| `collection_id` | TEXT | FK to `collections.id` for the local ContentGroup/series collection. |
+| `series_qid` | TEXT | Wikidata QID for the series. Part of the primary key (`collection_id`, `series_qid`); also indexed on its own. |
+| `collection_id` | TEXT | FK to `collections.id` for the local ContentGroup/series collection. Part of the primary key. |
 | `series_label` | TEXT | Localized display name returned by Wikidata. |
 | `manifest_source` | TEXT | Source library, normally `Tuvima.Wikidata`. |
 | `manifest_version` | TEXT | Source package/version metadata. |
 | `manifest_hash` | TEXT | Hash of the fetched manifest payload. |
 | `known_item_qids_hash` | TEXT | Hash of the ordered known item QID set. |
 | `warnings_json` | TEXT | Manifest-level warnings from Wikidata modeling. |
-| `api_metadata_json` | TEXT | Request options used for the fetch. |
+| `api_metadata_json` | TEXT | Request options used for the fetch. Whether a collection is a parent collection (for example Memory's Legion) is not stored here: it is read from the data, as a collection that another Series manifest of the same media type lists as a collection item. |
 | `last_hydrated_at` | TEXT | Last successful manifest hydration timestamp. |
 
 ### series_manifest_items

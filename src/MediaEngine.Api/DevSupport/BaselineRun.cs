@@ -392,6 +392,16 @@ public static partial class BaselineRun
                 throw new InvalidOperationException($"The Engine exited early with code {engine.ExitCode}. See {engineLog}");
             }
 
+            // Release this attempt's log writer before the next attempt reopens the same log file.
+            engine.WaitForExit();
+            engine.OutputDataReceived -= append;
+            engine.ErrorDataReceived -= append;
+            lock (gate)
+            {
+                writer.Dispose();
+            }
+
+            engine.Dispose();
             Console.WriteLine($"Another Tuvima Engine holds the process lease; retrying in 30 s (attempt {attempt} of {EngineLeaseAttempts}).");
             await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         }

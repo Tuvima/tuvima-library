@@ -412,7 +412,7 @@ public static class PlayerEndpoints
         return app;
     }
 
-    private static (Guid? ProfileId, string? DeviceId, string? Client) Bind(
+    internal static (Guid? ProfileId, string? DeviceId, string? Client) Bind(
         ClaimsPrincipal user, Guid? profileId, string? deviceId, string? client)
     {
         var trustedProfile = Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var parsedProfile)
