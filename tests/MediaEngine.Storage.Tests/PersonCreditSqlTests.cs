@@ -29,8 +29,15 @@ public sealed class PersonCreditSqlTests : IDisposable
 
     public void Dispose()
     {
-        try { _db.Dispose(); } catch { }
-        try { File.Delete(_dbPath); } catch { }
+        _db.Dispose();
+        try
+        {
+            File.Delete(_dbPath);
+        }
+        catch (IOException)
+        {
+            // A pooled connection can still hold the temp file; the OS temp folder clears it later.
+        }
     }
 
     [Fact]
