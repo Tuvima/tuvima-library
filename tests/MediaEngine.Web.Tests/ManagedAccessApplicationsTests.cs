@@ -10,16 +10,19 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Tests;
 
 public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 {
     private readonly ApplicationsHandler _handler = new();
+    private readonly CapturingLoggerProvider _logs = new();
 
     public ManagedAccessApplicationsTests()
     {
         Services.AddNativeUiServices();
+        Services.AddLogging(logging => logging.AddProvider(_logs));
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
@@ -460,6 +463,19 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WebhookCard_WhenReadingTheHistoryFailsUnexpectedly_SaysSoOnScreen_AndLogsTheFailure()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        _handler.AttemptsThrow = true;
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        cut.WaitForAssertion(() => Assert.Contains("Delivery history could not be loaded.", cut.Markup));
+        Assert.Contains(_logs.Entries, entry =>
+            entry.Level == LogLevel.Warning && entry.Exception is InvalidOperationException && entry.Message.Contains("delivery history", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void SendTest_PostsTheTestRoute_ThenShowsTheNewAttemptAndAMessage()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
@@ -868,6 +884,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         /// <summary>The attempts the webhook's history answers, newest first.</summary>
         public List<ApplicationWebhookAttemptResponse> Attempts { get; } = [];
         public HttpStatusCode AttemptsStatus { get; set; } = HttpStatusCode.OK;
+        public bool AttemptsThrow { get; set; }
         public bool WebhookIsEnabled { get; set; } = true;
         public bool TestDelivered { get; set; } = true;
         public string TestResult { get; set; } = "HTTP 204";
@@ -971,6 +988,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Get && path.EndsWith("/attempts", StringComparison.Ordinal))
             {
+                if (AttemptsThrow)
+                {
+                    throw new InvalidOperationException("The history store fell over.");
+                }
+
                 return AttemptsStatus != HttpStatusCode.OK ? new HttpResponseMessage(AttemptsStatus) : Json(Attempts.Take(6).ToList());
             }
             if (request.Method == HttpMethod.Post && path.EndsWith("/test", StringComparison.Ordinal))

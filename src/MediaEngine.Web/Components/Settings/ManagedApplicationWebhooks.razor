@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject DashboardIdentityClient Identity
 @inject ApprovalFlow Approvals
+@inject ILogger<ManagedApplicationWebhooks> Logger
 
 <section class="access-form-section application-webhooks">
     <div class="application-webhooks__heading">
@@ -208,8 +209,9 @@
         {
             return;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "The delivery history for webhook {WebhookId} could not be loaded", webhookId);
             loaded = null;
         }
 
@@ -255,8 +257,9 @@
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "The test delivery for webhook {WebhookId} could not be sent", webhook.Id);
             if (IsCurrent(generation, applicationId))
                 _error = "The test could not be sent. Try again.";
         }
