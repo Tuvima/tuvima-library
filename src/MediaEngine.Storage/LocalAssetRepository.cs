@@ -613,6 +613,41 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public string MediaKind { get; init; } = string.Empty;
     }
 
+    public IReadOnlySet<Guid> GetReadOnlyItemIds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        using var connection = database.CreateConnection();
+        return ReadOnlyItemIds(connection, itemIds.Where(id => id != Guid.Empty).Distinct().ToList(), ct);
+    }
+
+    /// <summary>
+    /// An item is read-only when any of its files has a source in a linked folder of the item's own library. Linked folders
+    /// belong to the person, so Tuvima never moves, renames or deletes what is in them. File records are shared across
+    /// libraries by content, so another person's copy of the same bytes never counts.
+    /// </summary>
+    private static HashSet<Guid> ReadOnlyItemIds(
+        SqliteConnection connection, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        var result = new HashSet<Guid>();
+        foreach (var chunk in itemIds.Chunk(500))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var id in connection.Query<Guid>(new CommandDefinition("""
+                SELECT DISTINCT lif.item_id
+                  FROM local_item_files lif
+                  JOIN local_items li ON li.id = lif.item_id
+                  JOIN local_file_sources lfs ON lfs.file_id = lif.file_id AND lfs.library_id = li.library_id
+                  JOIN view_sources vs ON vs.id = lfs.source_id
+                 WHERE vs.storage_mode = 'linked' AND lif.item_id IN @ids;
+                """, new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)))
+            {
+                result.Add(id);
+            }
+        }
+
+        return result;
+    }
+
     public (string Text, bool Cut)? GetDocumentText(Guid itemId, int maxCharacters, CancellationToken ct = default)
     {
         if (itemId == Guid.Empty)
@@ -634,7 +669,31 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         return text.Length > maxCharacters ? (text[..maxCharacters], true) : (text, false);
     }
 
-    public LocalAssetDto? Find(Guid itemId, CancellationToken ct = default)
+    public LocalAssetDto? Find(Guid itemId, CancellationToken ct = default) => FindCore(itemId, null, ct);
+
+    public IReadOnlyList<LocalAssetDto> FindMany(IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        if (itemIds.Count == 0)
+        {
+            return [];
+        }
+
+        // One read-only lookup for the whole page instead of one per item.
+        var readOnly = GetReadOnlyItemIds(itemIds, ct);
+        var items = new List<LocalAssetDto>(itemIds.Count);
+        foreach (var id in itemIds)
+        {
+            if (FindCore(id, readOnly, ct) is { } item)
+            {
+                items.Add(item);
+            }
+        }
+
+        return items;
+    }
+
+    private LocalAssetDto? FindCore(Guid itemId, IReadOnlySet<Guid>? knownReadOnly, CancellationToken ct)
     {
         if (itemId == Guid.Empty)
         {
@@ -687,7 +746,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
               LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
              WHERE li.id = @itemId;
             """, new { itemId });
-        return row is null ? null : MapItem(connection, row);
+        return row is null ? null : MapItem(connection, row, knownReadOnly);
     }
 
     public LocalAssetContentLocation? ResolveContent(
@@ -1493,7 +1552,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public string? Snippet { get; init; }
     }
 
-    private static LocalAssetDto MapItem(SqliteConnection connection, ItemRow row)
+    private static LocalAssetDto MapItem(SqliteConnection connection, ItemRow row, IReadOnlySet<Guid>? knownReadOnly = null)
     {
         var files = connection.Query<FileRow>("""
             SELECT lf.id AS Id, lif.role AS Role, lif.derivative_kind AS DerivativeKind,
@@ -1546,7 +1605,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (annotation_kind IN ('person_identity','face_identity') AND reviewed_at IS NOT NULL))
              ORDER BY annotation_value COLLATE NOCASE;
             """, new { itemId = row.Id }).ToList();
-        return MapItem(row, files, tags, people, fieldValues);
+        return MapItem(row, files, tags, people, fieldValues,
+            knownReadOnly?.Contains(row.Id) ?? ReadOnlyItemIds(connection, [row.Id]).Count != 0);
     }
 
     private static List<LocalAssetDto> MapItems(SqliteConnection connection, IReadOnlyList<ItemRow> rows)
@@ -1595,6 +1655,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
              ORDER BY lia.item_id, lia.annotation_value COLLATE NOCASE;
             """, parameters).ToLookup(person => person.ItemId);
 
+        var readOnly = ReadOnlyItemIds(connection, rows.Select(row => row.Id).ToList());
         return rows.Select(row => MapItem(
             row,
             files[row.Id].Select(file => new LocalAssetFileDto(
@@ -1602,7 +1663,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 file.ByteSize, checked((int)file.SourceCount),
                 string.IsNullOrWhiteSpace(file.FileName) ? null : Path.GetFileName(file.FileName))).ToList(),
             tags[row.Id].Select(tag => new ViewCatalogueRefDto(tag.TagId, tag.Tag, tag.Colour)).ToList(),
-            people[row.Id].Select(person => person.Person).ToList())).ToList();
+            people[row.Id].Select(person => person.Person).ToList(),
+            readOnly: readOnly.Contains(row.Id))).ToList();
     }
 
     private static LocalAssetDto MapItem(
@@ -1610,7 +1672,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         IReadOnlyList<LocalAssetFileDto> files,
         IReadOnlyList<ViewCatalogueRefDto> tags,
         IReadOnlyList<string>? people = null,
-        IReadOnlyList<ViewDocumentFieldValueDto>? fieldValues = null) => new(
+        IReadOnlyList<ViewDocumentFieldValueDto>? fieldValues = null,
+        bool readOnly = false) => new(
             row.Id,
             row.LibraryId,
             row.PersonalSpaceId,
@@ -1659,7 +1722,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.EmbeddedCapturedAt,
             row.CapturedAtUserOverride != 0,
             people ?? [],
-            DocumentInfo: MapDocumentInfo(row, tags, fieldValues));
+            DocumentInfo: MapDocumentInfo(row, tags, fieldValues),
+            // Shared Library items and items in a linked (read-only) folder never go to Trash; whether the caller
+            // owns the item is decided by the Engine connection point that sends it.
+            CanTrash: row.ScopeKind == LocalAssetScopeKinds.Personal && !readOnly);
 
     private static LocalAssetDocumentInfoDto? MapDocumentInfo(
         ItemRow row,

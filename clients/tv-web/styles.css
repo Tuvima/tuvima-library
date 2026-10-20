@@ -145,6 +145,16 @@ h2 { font-size: 1.15rem; font-weight: 600; }
 
 .row { margin-bottom: 0.6rem; }
 .row-title { margin: 0.3rem 0 0.2rem; }
+.row-meta { margin-left: 0.8rem; font-size: 1rem; font-weight: 400; color: var(--muted); }
+
+/* ---- Universe page: totals line and the read-only Cast and Adaptations lists ---- */
+
+.universe-totals { color: var(--gold); margin-bottom: 0.4rem; }
+.universe-description { max-width: 46rem; margin-bottom: 0.8rem; }
+.info-list { margin: 0.6rem 0 1rem; max-width: 46rem; }
+.info-line { padding: 0.25rem 0; font-size: 1rem; }
+.info-name { font-weight: 600; }
+.info-detail { margin-left: 0.8rem; color: var(--muted); }
 .row-track {
   display: flex;
   gap: 1rem;

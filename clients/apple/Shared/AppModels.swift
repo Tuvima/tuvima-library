@@ -190,12 +190,80 @@ public struct CollectionItem: Decodable, Identifiable, Sendable {
     }
 }
 
+/// One Series (or show) of a Universe. `itemCount` and `shelf` are the numbered run; `alsoInThisWorld` holds the
+/// Series' unnumbered items. Older Engines leave the also fields out, which reads as no also row.
 public struct UniverseShelf: Decodable, Identifiable, Sendable {
     public var id: String { shelf.key }
     public let collectionId: UUID?
     public let groupType: String?
     public let itemCount: Int?
     public let shelf: DisplayShelf
+    public let alsoInThisWorld: DisplayShelf?
+    public let alsoInThisWorldCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case collectionId, groupType, itemCount, shelf, alsoInThisWorld, alsoInThisWorldCount
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        collectionId = try container.decodeIfPresent(UUID.self, forKey: .collectionId)
+        groupType = try container.decodeIfPresent(String.self, forKey: .groupType)
+        itemCount = try container.decodeIfPresent(Int.self, forKey: .itemCount)
+        shelf = try container.decode(DisplayShelf.self, forKey: .shelf)
+        alsoInThisWorld = try container.decodeIfPresent(DisplayShelf.self, forKey: .alsoInThisWorld)
+        alsoInThisWorldCount = try container.decodeIfPresent(Int.self, forKey: .alsoInThisWorldCount) ?? 0
+    }
+}
+
+/// A character a cast member plays in a Universe.
+public struct UniverseCharacter: Decodable, Sendable {
+    public let qid: String
+    public let label: String
+}
+
+/// One person in a Universe's Cast with the characters they play there.
+public struct UniverseCastMember: Decodable, Identifiable, Sendable {
+    public var id: UUID { personId }
+    public let personId: UUID
+    public let name: String
+    public let headshotUrl: String?
+    public let characters: [UniverseCharacter]
+    public let workCount: Int
+
+    enum CodingKeys: String, CodingKey { case personId, name, headshotUrl, characters, workCount }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        personId = try container.decode(UUID.self, forKey: .personId)
+        name = try container.decode(String.self, forKey: .name)
+        headshotUrl = try container.decodeIfPresent(String.self, forKey: .headshotUrl)
+        characters = try container.decodeIfPresent([UniverseCharacter].self, forKey: .characters) ?? []
+        workCount = try container.decodeIfPresent(Int.self, forKey: .workCount) ?? 0
+    }
+}
+
+/// A work in a Universe that is an adaptation of another (`relationship` is lower case, such as "based on").
+public struct UniverseAdaptation: Decodable, Identifiable, Sendable {
+    public var id: String { "\(qid)|\(relationship)|\(sourceQid)" }
+    public let qid: String
+    public let label: String
+    public let mediaType: String?
+    public let relationship: String
+    public let sourceQid: String
+    public let sourceLabel: String
+
+    enum CodingKeys: String, CodingKey { case qid, label, mediaType, relationship, sourceQid, sourceLabel }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        qid = try container.decode(String.self, forKey: .qid)
+        label = try container.decode(String.self, forKey: .label)
+        mediaType = try container.decodeIfPresent(String.self, forKey: .mediaType)
+        relationship = try container.decodeIfPresent(String.self, forKey: .relationship) ?? ""
+        sourceQid = try container.decodeIfPresent(String.self, forKey: .sourceQid) ?? ""
+        sourceLabel = try container.decodeIfPresent(String.self, forKey: .sourceLabel) ?? ""
+    }
 }
 
 public struct UniverseDetail: Decodable, Sendable {
@@ -203,7 +271,28 @@ public struct UniverseDetail: Decodable, Sendable {
     public let name: String
     public let description: String?
     public let itemCount: Int?
+    public let seriesCount: Int
+    public let mediaTypes: [String]
     public let shelves: [UniverseShelf]
+    public let cast: [UniverseCastMember]
+    public let adaptations: [UniverseAdaptation]
+
+    enum CodingKeys: String, CodingKey {
+        case qid, name, description, itemCount, seriesCount, mediaTypes, shelves, cast, adaptations
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        qid = try container.decode(String.self, forKey: .qid)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        itemCount = try container.decodeIfPresent(Int.self, forKey: .itemCount)
+        seriesCount = try container.decodeIfPresent(Int.self, forKey: .seriesCount) ?? 0
+        mediaTypes = try container.decodeIfPresent([String].self, forKey: .mediaTypes) ?? []
+        shelves = try container.decode([UniverseShelf].self, forKey: .shelves)
+        cast = try container.decodeIfPresent([UniverseCastMember].self, forKey: .cast) ?? []
+        adaptations = try container.decodeIfPresent([UniverseAdaptation].self, forKey: .adaptations) ?? []
+    }
 }
 
 // MARK: Profiles

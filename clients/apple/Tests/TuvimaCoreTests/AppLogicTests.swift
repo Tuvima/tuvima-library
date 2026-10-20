@@ -191,15 +191,126 @@ final class AppLogicTests: XCTestCase {
     func testUniverseFixtureDecodes() throws {
         let universe = try decode(UniverseDetail.self, fixture: "universe")
         XCTAssertEqual(universe.qid, "Q4242")
-        XCTAssertEqual(universe.shelves.count, 2)
+        XCTAssertEqual(universe.shelves.count, 3)
         let shelf = universe.shelves[0]
         XCTAssertEqual(shelf.groupType, "series")
         XCTAssertEqual(shelf.shelf.title, "Series Alpha")
         XCTAssertEqual(shelf.shelf.items.count, 2)
+        XCTAssertNil(shelf.alsoInThisWorld)
+        XCTAssertEqual(shelf.alsoInThisWorldCount, 0)
         XCTAssertTrue(shelf.shelf.items[0].isPlayable)
         XCTAssertNotNil(shelf.shelf.items[0].playAssetID)
         XCTAssertFalse(universe.shelves[1].shelf.items[0].isPlayable)
         XCTAssertNil(universe.shelves[1].shelf.items[0].playAssetID)
+
+        let gamma = universe.shelves[2]
+        XCTAssertEqual(gamma.shelf.title, "Series Gamma")
+        XCTAssertEqual(gamma.itemCount, 0)
+        XCTAssertTrue(gamma.shelf.items.isEmpty)
+        XCTAssertEqual(gamma.alsoInThisWorldCount, 1)
+        XCTAssertEqual(gamma.alsoInThisWorld?.title, "Also in this world")
+        XCTAssertEqual(gamma.alsoInThisWorld?.items.first?.title, "Gamma Companion")
+
+        XCTAssertEqual(universe.seriesCount, 3)
+        XCTAssertEqual(universe.mediaTypes, ["Movie", "Book"])
+        XCTAssertEqual(universe.cast.count, 2)
+        XCTAssertEqual(universe.cast[0].name, "Ann Actor")
+        XCTAssertEqual(universe.cast[0].characters.map { $0.label }, ["Hero"])
+        XCTAssertEqual(universe.cast[0].characters.first?.qid, "Q8200")
+        XCTAssertEqual(universe.cast[0].workCount, 2)
+        XCTAssertNil(universe.cast[0].headshotUrl)
+        XCTAssertEqual(universe.cast[1].name, "Ben Narrator")
+        XCTAssertTrue(universe.cast[1].characters.isEmpty)
+        XCTAssertEqual(universe.adaptations.count, 1)
+        XCTAssertEqual(universe.adaptations[0].label, "The Film")
+        XCTAssertEqual(universe.adaptations[0].mediaType, "Object")
+        XCTAssertEqual(universe.adaptations[0].relationship, "based on")
+        XCTAssertEqual(universe.adaptations[0].sourceQid, "Q8101")
+        XCTAssertEqual(universe.adaptations[0].sourceLabel, "The Novel")
+    }
+
+    func testUniverseWithoutTheNewKeysStillDecodes() throws {
+        let json = """
+        {"qid":"Q1","name":"Old Shape","item_count":4,
+         "shelves":[{"collection_id":"6f0c2a3e-0000-0000-0000-000000000001","group_type":"series","item_count":4,
+                     "shelf":{"key":"k","title":"Only Series","items":[]}}]}
+        """
+        let universe = try decodeJSON(UniverseDetail.self, json)
+        XCTAssertEqual(universe.seriesCount, 0)
+        XCTAssertTrue(universe.mediaTypes.isEmpty)
+        XCTAssertTrue(universe.cast.isEmpty)
+        XCTAssertTrue(universe.adaptations.isEmpty)
+        XCTAssertNil(universe.shelves[0].alsoInThisWorld)
+        XCTAssertEqual(universe.shelves[0].alsoInThisWorldCount, 0)
+        XCTAssertEqual(universeTotalsLine(universe), "4 Works")
+    }
+
+    func testUniverseTotalsLineCountsSeriesWorksAndFormats() throws {
+        let universe = try decode(UniverseDetail.self, fixture: "universe")
+        XCTAssertEqual(universeTotalsLine(universe), "3 Series · 5 Works · 2 formats")
+    }
+
+    func testUniverseTotalsLineUsesSingularsAndLeavesOutZeroParts() throws {
+        let one = try decodeJSON(UniverseDetail.self, universeJSON(seriesCount: 1, itemCount: 1, mediaTypes: ["Book"], groupType: "series"))
+        XCTAssertEqual(universeTotalsLine(one), "1 Series · 1 Work · 1 format")
+        let none = try decodeJSON(UniverseDetail.self, universeJSON(seriesCount: 0, itemCount: 0, mediaTypes: [], groupType: "series"))
+        XCTAssertEqual(universeTotalsLine(none), "")
+        let worksOnly = try decodeJSON(UniverseDetail.self, universeJSON(seriesCount: 0, itemCount: 14, mediaTypes: [], groupType: "series"))
+        XCTAssertEqual(universeTotalsLine(worksOnly), "14 Works")
+    }
+
+    func testUniverseTotalsLineSaysShowsWhenEveryLineIsAShow() throws {
+        let oneShow = try decodeJSON(UniverseDetail.self, universeJSON(seriesCount: 1, itemCount: 8, mediaTypes: ["TV"], groupType: "show"))
+        XCTAssertEqual(universeTotalsLine(oneShow), "1 show · 8 Works · 1 format")
+        let twoShows = try decodeJSON(UniverseDetail.self, universeJSON(seriesCount: 2, itemCount: 8, mediaTypes: ["TV"], groupType: "Show"))
+        XCTAssertEqual(universeTotalsLine(twoShows), "2 shows · 8 Works · 1 format")
+        let mixed = try decode(UniverseDetail.self, fixture: "universe")
+        XCTAssertTrue(universeTotalsLine(mixed).hasPrefix("3 Series"))
+    }
+
+    func testCastCharactersLineJoinsCharactersAndIsNilWithoutThem() throws {
+        let universe = try decode(UniverseDetail.self, fixture: "universe")
+        XCTAssertEqual(castCharactersLine(universe.cast[0]), "as Hero")
+        XCTAssertNil(castCharactersLine(universe.cast[1]))
+        let two = try decodeJSON(UniverseCastMember.self, """
+        {"person_id":"6f0c2a3e-0000-0000-0000-000000000011","name":"Cy","characters":[{"qid":"Q1","label":"Hero"},{"qid":"Q2","label":"Villain"}]}
+        """)
+        XCTAssertEqual(castCharactersLine(two), "as Hero, Villain")
+        XCTAssertEqual(two.workCount, 0)
+    }
+
+    func testAdaptationLineCapitalisesTheRelationship() throws {
+        let universe = try decode(UniverseDetail.self, fixture: "universe")
+        XCTAssertEqual(adaptationLine(universe.adaptations[0]), "The Film — Based on The Novel")
+        let blank = try decodeJSON(UniverseAdaptation.self, """
+        {"qid":"Q1","label":"The Film","relationship":"","source_qid":"Q2","source_label":"The Novel"}
+        """)
+        XCTAssertEqual(adaptationLine(blank), "The Film")
+    }
+
+    func testUniverseShelfPresentationShowsTheRunAndNeverAZeroCount() throws {
+        let universe = try decode(UniverseDetail.self, fixture: "universe")
+
+        let alpha = try XCTUnwrap(universeShelfPresentation(universe.shelves[0]))
+        XCTAssertTrue(alpha.showsRun)
+        XCTAssertNil(alpha.alsoShelf)
+        XCTAssertEqual(alpha.title, "Series Alpha")
+        XCTAssertEqual(alpha.kindLine, "Series · 2 items")
+
+        let gamma = try XCTUnwrap(universeShelfPresentation(universe.shelves[2]))
+        XCTAssertFalse(gamma.showsRun)
+        XCTAssertEqual(gamma.title, "Series Gamma")
+        XCTAssertEqual(gamma.alsoShelf?.items.count, 1)
+        XCTAssertEqual(gamma.alsoHeading, "Also in this world · 1 item")
+        XCTAssertEqual(gamma.kindLine, "Series · Also in this world · 1 item")
+        XCTAssertFalse(gamma.kindLine.contains("0"))
+    }
+
+    func testUniverseShelfPresentationSkipsASeriesWithNeitherRunNorAlsoItems() throws {
+        let empty = try decodeJSON(UniverseShelf.self, """
+        {"group_type":"series","item_count":0,"shelf":{"key":"k","title":"Empty","items":[]},"also_in_this_world":null,"also_in_this_world_count":0}
+        """)
+        XCTAssertNil(universeShelfPresentation(empty))
     }
 
     func testDeviceProfilesFixtureDecodes() throws {
@@ -211,6 +322,20 @@ final class AppLogicTests: XCTestCase {
     }
 
     // MARK: Helpers
+
+    private func universeJSON(seriesCount: Int, itemCount: Int, mediaTypes: [String], groupType: String) -> String {
+        let formats = mediaTypes.map { "\"\($0)\"" }.joined(separator: ",")
+        return """
+        {"qid":"Q1","name":"U","item_count":\(itemCount),"series_count":\(seriesCount),"media_types":[\(formats)],
+         "shelves":[{"group_type":"\(groupType)","item_count":\(itemCount),"shelf":{"key":"k","title":"S","items":[]}}]}
+        """
+    }
+
+    private func decodeJSON<T: Decodable>(_ type: T.Type, _ json: String) throws -> T {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(T.self, from: Data(json.utf8))
+    }
 
     private func item(_ id: String) throws -> ViewItem {
         let json = "{\"id\":\"\(id)\",\"media_kind\":\"image\",\"file_name\":\"\(id).jpg\"}"
