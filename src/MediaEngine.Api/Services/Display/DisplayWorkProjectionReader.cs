@@ -53,12 +53,27 @@ public sealed class DisplayWorkProjectionReader
             AND ((CASE WHEN w.media_type = 'Music' THEN COALESCE(p.id, w.id) ELSE COALESCE(gp.id, p.id, w.id) END) IN @rootIds
                  OR w.id IN @workIds)
             """ : "";
+        // The borrowed audiobook year is worked out once for all audiobook files, not once per row. The candidates come
+        // straight from the base tables rather than from ranked_assets: the year is looked up by file, so a file that is
+        // not returned is simply never read, and reading ranked_assets from a CTE that its callers reference several
+        // times makes SQLite expand its detail filter over the credits view that many times (it then stops with
+        // "too many references to works" on a detail read).
+        var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
+            "related_book_year",
+            """
+            -- readiness: candidates for the year look-up only; the projection filters the rows it returns
+            SELECT woa.work_id AS work_id, woa.asset_id AS asset_id
+            FROM work_owned_assets woa
+            INNER JOIN works audiobook_work ON audiobook_work.id = woa.work_id
+            WHERE LOWER(COALESCE(audiobook_work.media_type, '')) LIKE '%audio%'
+            """,
+            "rby_");
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "WorkId",
             "RootWorkId",
             "AssetId",
             "MediaType",
-            "projection_credits");
+            relatedBookYearExpression: MediaDateSql.RelatedBookYearLookup("related_book_year", "AssetId"));
         var sql = $"""
             WITH projection_credits AS MATERIALIZED (SELECT * FROM primary_person_media_credits),
             asset_dates AS MATERIALIZED (
@@ -123,7 +138,8 @@ public sealed class DisplayWorkProjectionReader
                         AND person.wikidata_qid = credit.person_qid COLLATE NOCASE
                     )
                 WHERE credit.credit_key = 'artist'
-            )
+            ),
+            {relatedBookYearCte}
             SELECT
                 LibraryId,
                 WorkId,
@@ -548,11 +564,10 @@ public sealed class DisplayWorkProjectionReader
 
         var visibleWorkPredicate = WorkReadinessSql.ReadyWorkPredicate("w");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
-        // The year rule only reads credits for audiobooks, so an empty credits relation keeps this listing cheap.
-        var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", "projection_credits");
+        // This listing only reads TV rows, which never borrow a book's year, so the audiobook look-up is left out.
+        var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", relatedBookYearExpression: "NULL");
         var sql = $"""
-            WITH projection_credits AS (SELECT * FROM primary_person_media_credits WHERE 0),
-            show_assets AS (
+            WITH show_assets AS (
                 SELECT
                     w.id AS WorkId,
                     ma.library_id AS LibraryId,

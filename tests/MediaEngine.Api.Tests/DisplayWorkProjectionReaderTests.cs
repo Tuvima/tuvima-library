@@ -468,6 +468,38 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_AudiobookWithoutAYearBorrowsTheMatchingBooksYear()
+    {
+        var bookWorkId = Guid.NewGuid();
+        var audiobookWorkId = Guid.NewGuid();
+        var otherAudiobookWorkId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO persons (id, name, is_pseudonym, created_at)
+                VALUES (@personId, 'Frank Herbert', 0, CURRENT_TIMESTAMP);
+                """,
+                new { personId = Guid.NewGuid() });
+            await InsertBookAsync(conn, bookWorkId, "Dune", ["Frank Herbert"]);
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@bookWorkId, 'original_publication_year', '1965', CURRENT_TIMESTAMP);
+                """,
+                new { bookWorkId });
+            await InsertAudiobookAsync(conn, audiobookWorkId, " dune ", "Frank Herbert");
+            await InsertAudiobookAsync(conn, otherAudiobookWorkId, "Dune Messiah", "Frank Herbert");
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+
+        Assert.Equal("1965", Assert.Single(rows, row => row.WorkId == audiobookWorkId).Year);
+        Assert.Null(Assert.Single(rows, row => row.WorkId == otherAudiobookWorkId).Year);
+        Assert.Equal("1965", Assert.Single(rows, row => row.WorkId == bookWorkId).Year);
+    }
+
+    [Fact]
     public void CardBuilder_MapsSettlingFromWorkRowsAndAnyMemberOfAGroup()
     {
         var collectionId = Guid.NewGuid();
@@ -516,6 +548,25 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
                     new { assetId, index, author = authors[index] });
             }
         }
+    }
+
+    private static async Task InsertAudiobookAsync(System.Data.IDbConnection conn, Guid workId, string title, string author)
+    {
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO works (id, media_type, work_kind, curator_state)
+            VALUES (@workId, 'Audiobooks', 'standalone', 'accepted');
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+            VALUES (@assetId, @editionId, @hash, @path, CURRENT_TIMESTAMP);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+            VALUES (@assetId, 'title', @title, CURRENT_TIMESTAMP);
+            INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+            VALUES (@assetId, 'author', 0, @author);
+            """,
+            new { workId, editionId, assetId, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/{workId:N}.m4b", title, author });
     }
 
     public void Dispose()

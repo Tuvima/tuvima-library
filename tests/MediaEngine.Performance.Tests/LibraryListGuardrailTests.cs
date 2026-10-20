@@ -93,9 +93,10 @@ public sealed class LibraryListGuardrailTests : IClassFixture<LibraryListFixture
     // Proportional growth is 2x. The look-ups that read every credit for each item grew 3.97-3.98x per doubling here.
     private const double MaxGrowthForDoubleTheWorks = 2.5;
 
-    // Measured on this fixture when the budgets were set: unfiltered 12,773 and Movies 3,589 thousand instructions at
-    // 4,000 works, the same on every run. With the old credit look-ups the same reads took 2,865,068 and 502,062. Each
-    // budget is about one and a half times the fixed cost.
-    private const long UnfilteredBudgetKiloInstructions = 19_000;
+    // Measured on this fixture when the budgets were set: unfiltered 14,451 and Movies 3,606 thousand instructions at
+    // 4,000 works, the same on every run (the unfiltered read grows 2.03x for 2x the works). With the old credit look-ups
+    // the same reads took 2,865,068 and 502,062; with the old per-audiobook look-up for the borrowed year the unfiltered
+    // read took 83,876 at 4,000 works and grew 2.68x. Each budget is about one and a half times the fixed cost.
+    private const long UnfilteredBudgetKiloInstructions = 21_700;
     private const long OneMediaTypeBudgetKiloInstructions = 5_400;
 }
