@@ -73,9 +73,9 @@ public sealed class StorageMaintenanceHostedService : BackgroundService
                 _logger.LogWarning(ex, "Could not load storage maintenance schedule; using default");
             }
 
-            var delay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
-            _logger.LogInformation("Next storage maintenance pass at {NextRun}", DateTimeOffset.Now.Add(delay));
-            await Task.Delay(delay, stoppingToken);
+            var nextRun = CronScheduler.NextRunAt(schedule, TimeSpan.FromHours(24));
+            _logger.LogInformation("Next storage maintenance pass at {NextRun}", nextRun.ToLocalTime());
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
         }
     }
 }

@@ -456,8 +456,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                 ? configuredCron
                 : "0 3 * * *";
 
-            var delay = CronScheduler.UntilNext(string.IsNullOrWhiteSpace(cron) ? "0 3 * * *" : cron, TimeSpan.FromHours(24));
-            _nextMaintenanceRunUtc = DateTimeOffset.UtcNow + delay;
+            _nextMaintenanceRunUtc = CronScheduler.NextRunAt(string.IsNullOrWhiteSpace(cron) ? "0 3 * * *" : cron, TimeSpan.FromHours(24)).ToUniversalTime();
         }
         catch
         {

@@ -126,9 +126,9 @@ public sealed class RejectedFileCleanupService : BackgroundService
             {
                 cleanupSchedule = DefaultSchedule;
             }
-            var delay = CronScheduler.UntilNext(cleanupSchedule, TimeSpan.FromHours(24));
-            _logger.LogInformation("Next rejected-file cleanup at {NextRun}", DateTimeOffset.Now.Add(delay));
-            await Task.Delay(delay, stoppingToken);
+            var nextRun = CronScheduler.NextRunAt(cleanupSchedule, TimeSpan.FromHours(24));
+            _logger.LogInformation("Next rejected-file cleanup at {NextRun}", nextRun.ToLocalTime());
+            await CronScheduler.WaitUntilAsync(nextRun, stoppingToken);
         }
     }
 
