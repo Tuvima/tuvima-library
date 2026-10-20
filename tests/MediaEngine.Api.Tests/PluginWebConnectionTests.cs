@@ -150,6 +150,21 @@ public sealed class PluginWebConnectionTests : IDisposable
     }
 
     [Fact]
+    public async Task AChangedRequestsAMinuteNumber_AppliesAtOnce_WithoutARestart()
+    {
+        var limiter = new PluginHttpRateLimiter(PluginHostLimits.Default with { HttpMaxRateLimitWait = TimeSpan.FromMilliseconds(200) });
+        Task<int> Send(int perMinute) =>
+            limiter.RunAsync(PluginId, Destination("api.example.com", perMinute), _ => Task.FromResult(1), CancellationToken.None);
+
+        await Send(1);
+        await Assert.ThrowsAsync<PluginLimitExceededException>(() => Send(1));
+
+        // The plugin's manifest now declares a higher number; the same Engine run picks it up.
+        await Send(600);
+        await Send(600);
+    }
+
+    [Fact]
     public async Task EachDeclaredPlaceHasItsOwnLimit()
     {
         var limits = PluginHostLimits.Default with { HttpMaxRateLimitWait = TimeSpan.FromMilliseconds(200) };

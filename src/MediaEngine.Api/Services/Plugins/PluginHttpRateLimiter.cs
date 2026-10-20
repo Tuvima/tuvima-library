@@ -43,8 +43,10 @@ internal sealed class PluginHttpRateLimiter(PluginHostLimits limits)
         waitLimit.CancelAfter(limits.HttpMaxRateLimitWait);
         try
         {
+            // The number is part of the key: a limit the plugin's manifest changes later starts a fresh limiter at once
+            // instead of waiting for a restart (the old one only ever held the first number it was given).
             return await _coordinator.ExecuteAsync(
-                $"plugin:{pluginId}:{destination.Host}",
+                $"plugin:{pluginId}:{destination.Host}:{perMinute}",
                 configuration,
                 _ =>
                 {
