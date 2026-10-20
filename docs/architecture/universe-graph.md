@@ -34,6 +34,8 @@ Current serving rule: graph APIs and UI must remain truthful. `GET /universes` r
 
 Supplemental serving rule: approved plugin lore appears only when a caller asks for the overlay with `include_supplemental_lore=true`. Plugin nodes and edges include `supplemental=true`, `provenance=plugin`, `source_plugin`, and `source_url` so UI and API clients can distinguish them from Wikidata facts.
 
+Universe page Connections (`/universe/{qid}/overview`, built by `UniverseConnectionsReadService`) are evidence only and name a source on every row. A Character, Cast credit or adaptation's source is the provenance stored on the appearance link or relationship (`Wikidata` today); an approved plugin lore source that holds the same Wikidata item is added beside it. Characters come only from Character-type entities linked to a work the profile may see. The "spoiler for" (P7528) marker on appearances is honoured: until per-viewer progress exists (spec U-WP11), a character whose every visible appearance carries it is listed by name and source only ("No plot details"), with no work count and no "Also appears in". Character performer credits (`character_performer_links`) store no provenance of their own; they are written only from Wikidata cast statements, so a Cast row takes its source from the matching appearance link.
+
 ---
 
 ## Narrative Root Resolution
@@ -222,7 +224,7 @@ Stage 3 universe enrichment runs plugin lore after the core Wikidata enhancer pa
 | GET | `/universe/{qid}/paths` | Paths between two entities (`?from=`, `?to=`, optional `?maxHops=`, default 4) |
 | GET | `/universe/{qid}/family-tree` | Family tree for one character (`?character=`, optional `?generations=`, default 3) |
 | GET | `/universe/{qid}/cast` | Characters with their real-world performers |
-| GET | `/universe/{qid}/adaptations` | Adaptation tree built from based-on, derivative-work and inspired-by relationships |
+| GET | `/universe/{qid}/adaptations` | Adaptation tree built from based-on, derivative-work and inspired-by relationships, each child with its `source`; empty when none are recorded (never a flat list of every entity) |
 | GET | `/universe/{qid}/lore-delta` | Check for Wikidata revisions newer than stored |
 | GET | `/universe/{qid}/lore-sources` | Admin list of plugin lore sources for the universe |
 | POST | `/universe/{qid}/lore-sources/discover` | Ask enabled lore plugins to suggest source candidates |

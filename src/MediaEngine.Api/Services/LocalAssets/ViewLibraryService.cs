@@ -140,7 +140,9 @@ public sealed class ViewLibraryService(
                 continue;
             }
 
+            // Empty Trash parks files in a hidden folder inside the profile folder for a moment; they are never indexed.
             var candidates = paths
+                .Where(path => !ViewStorageService.IsInsideStagingFolder(path))
                 .Select(TryCreateCandidate)
                 .Where(candidate => candidate is not null)
                 .Cast<FileCandidate>()
@@ -210,6 +212,11 @@ public sealed class ViewLibraryService(
         }
 
         var fullPath = Path.GetFullPath(path);
+        if (ViewStorageService.IsInsideStagingFolder(fullPath))
+        {
+            throw new InvalidDataException("Files that Empty Trash is removing are never indexed.");
+        }
+
         var sourceCandidates = new List<(ViewSource Source, string Path)>();
         foreach (var candidate in (await spaces.GetSourcesAsync(space.Id, ct)).Where(candidate => candidate.Enabled))
         {

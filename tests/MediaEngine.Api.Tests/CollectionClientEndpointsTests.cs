@@ -818,13 +818,15 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         Assert.Equal(["universe_qid", "works"], tree.Select(pair => pair.Key).Order());
         var root = tree["works"]!.AsArray().Single()!;
         Assert.Equal(
-            ["children", "cover_image", "label", "media_type", "qid", "relationship_to_parent", "year"],
+            ["children", "cover_image", "label", "media_type", "qid", "relationship_to_parent", "source", "year"],
             ((JsonObject)root).Select(pair => pair.Key).Order());
         Assert.Equal("Q8101", root["qid"]!.GetValue<string>());
         Assert.Null(root["relationship_to_parent"]);
+        Assert.Null(root["source"]);
         var child = root["children"]!.AsArray().Single()!;
         Assert.Equal("Q8100", child["qid"]!.GetValue<string>());
         Assert.Equal("based on", child["relationship_to_parent"]!.GetValue<string>());
+        Assert.Equal("Wikidata", child["source"]!.GetValue<string>());
 
         // A catalogue-visible QID that is no narrative root keeps the action's not-found text.
         using var unknown = await app.Client.GetAsync("/api/v1/graph-actions/universe/Q4243/adaptations");
@@ -1228,7 +1230,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IUniverseGraphQueryService>(_ => throw new NotSupportedException());
         builder.Services.AddSingleton<IEraActorResolverService>(_ => throw new NotSupportedException());
         builder.Services.AddSingleton<ILoreDeltaService>(_ => throw new NotSupportedException());
-        builder.Services.AddSingleton<IPluginLoreRepository>(_ => throw new NotSupportedException());
+        builder.Services.AddSingleton<IPluginLoreRepository, PluginLoreRepository>();
         builder.Services.AddScoped<UniverseClientReadService>();
         // The Universe page's own read (mapped with the graph actions) and what it adds to the helper-app read.
         builder.Services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();

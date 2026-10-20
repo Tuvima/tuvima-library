@@ -80,6 +80,25 @@ public static class UniversePageText
             ? adaptation.Label
             : $"{adaptation.Label} — {CapitaliseFirst(adaptation.Relationship)} {adaptation.SourceLabel}";
 
+    /// <summary>"Source: Wikidata" for one source, "Sources: Wikidata, Dune Wiki" for several; null when none is recorded.</summary>
+    public static string? SourcesLine(IReadOnlyList<UniverseSourceDto> sources)
+    {
+        var labels = sources
+            .Select(source => source.Label)
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .ToList();
+        return labels.Count switch
+        {
+            0 => null,
+            1 => $"Source: {labels[0]}",
+            _ => $"Sources: {string.Join(", ", labels)}",
+        };
+    }
+
+    /// <summary>"In 3 of your works" (and "In 1 of your works") for a character row; null when the count is zero.</summary>
+    public static string? CharacterWorksLine(int workCount) =>
+        workCount <= 0 ? null : string.Create(CultureInfo.InvariantCulture, $"In {workCount} of your works");
+
     /// <summary>"Details found for 6 of 14 works".</summary>
     public static string EnrichmentNote(UniverseEnrichmentStateDto enrichment) =>
         string.Create(

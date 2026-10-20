@@ -847,6 +847,7 @@ public sealed class CollectionItemRootsTests : IDisposable
         builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
         builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
         builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
+        builder.Services.AddSingleton<IPluginLoreRepository, PluginLoreRepository>();
         builder.Services.AddScoped<UniverseConnectionsReadService>();
         builder.Services.AddScoped<UniverseClientReadService>();
         var app = builder.Build();

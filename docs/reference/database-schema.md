@@ -66,7 +66,7 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
 | `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
-| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0020_universe_record`. |
+| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0021_universe_record`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
@@ -417,6 +417,31 @@ Library transfer. It stores source and destination manifests and one of
 `planned`, `transferring`, `completed`, `cleanup_pending`, or `failed`.
 Shared membership is published only after every destination member verifies;
 managed-source deletion happens afterward and can remain cleanup-pending.
+
+`item_id` on both `view_shared_contribution_items` and `view_shared_transfers` is
+optional and clears itself (`ON DELETE SET NULL`) when the personal item is removed
+by Empty Trash, so a finished, failed, declined or cancelled contribution keeps its
+history row with no item link (upgrade step 0019). Work still in flight (a pending
+contribution, an accepted item that is waiting, copying or cleaning up, or a transfer
+that is planned, copying or cleaning up) never reaches that point: Empty Trash skips
+the item first. The `contribution_item_id` link from a transfer to its contribution
+item is unaffected.
+
+**Empty Trash and the data store.** Emptying a person's Trash removes each item's
+`local_items` row inside one transaction. Its cascades clear `local_item_metadata`,
+`local_item_files`, `local_item_tag_links`, `local_item_annotations`,
+`local_item_search_keys` (a delete trigger clears the search text),
+`doc_item_details`, `doc_field_values`, `doc_item_field_sources`,
+`view_gallery_items` and `device_photo_downloads`; a Gallery whose cover was the
+item has `cover_item_id` set to NULL (`view_galleries` rows themselves are never
+removed). The same transaction then deletes the item's `local_file_sources` rows
+for files that were removed from disk (or were already gone), and any `local_files`
+row left with no item link and no remaining place. Items that share a file on disk
+are removed together in one transaction. Before that, the files are parked in a
+hidden `.tuvima-staging/<item id>/` folder inside the owner's profile folder, with a
+`manifest.json`, so a failure puts every file back; View scans and the folder watcher
+ignore that folder, and a startup (and after-each-Empty-Trash) sweep puts parked files
+back when their item still exists or deletes them when it does not.
 
 ### Galleries
 
@@ -1368,12 +1393,12 @@ The Activity log's store: one row per thing the Library did (added media, Needs 
 |---|---|---|
 | `id` | INTEGER | Auto-increment primary key |
 | `occurred_at` | TEXT | UTC timestamp |
-| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`, `PersonalTrashEmptied`) |
 | `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
 | `entity_id` | BLOB | Related entity, when there is one |
 | `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
 | `profile_id` | BLOB | The profile that caused it, when a person did |
-| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, photo and video counts, or for `PersonalTrashEmptied` the item count, bytes freed and skipped count: never a file name or title) |
 | `detail` | TEXT | The plain explanation under the headline |
 
 **Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0018).
