@@ -969,10 +969,25 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         }
     }
 
-    /// <summary>Replaces an entity's list for one key with a single entry. A blank value leaves the list unchanged.</summary>
+    /// <summary>
+    /// Replaces an entity's list for one key with a single entry. A blank value, or one the list already
+    /// holds (as an entry or as the whole list joined), leaves the list unchanged, so renaming a container
+    /// without changing its credit keeps co-credits and their Wikidata links.
+    /// </summary>
     private static void ReplaceCanonicalList(SqliteConnection conn, SqliteTransaction tx, Guid entityId, string key, string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var existing = conn.Query<string>(
+            "SELECT value FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key ORDER BY ordinal;",
+            new { entityId, key },
+            tx).ToList();
+        var requested = value.Trim();
+        if (existing.Any(entry => string.Equals(entry.Trim(), requested, StringComparison.OrdinalIgnoreCase))
+            || string.Equals(string.Join("; ", existing), requested, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
