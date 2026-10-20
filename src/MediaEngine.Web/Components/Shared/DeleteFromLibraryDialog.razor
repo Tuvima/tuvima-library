@@ -31,7 +31,7 @@
                     <h3>Files</h3>
                     @if (FileGroups.Count == 0)
                     {
-                        <p>These titles have no files on disk.</p>
+                        <p>@(IsSeveral ? "These titles have no files on disk." : "This title has no files on disk.")</p>
                     }
                     else
                     {
@@ -111,7 +111,7 @@
     </ChildContent>
     <FooterContent>
         @* Cancel is the first button and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. *@
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
+        <AppButton Label="@(_state == DialogState.Failed ? "Close" : "Cancel")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
         @if (_state == DialogState.Failed && _canRetry)
         {
             <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
@@ -315,6 +315,7 @@
         _failure = status switch
         {
             LibraryItemDeletionOutcomeStatus.Unavailable => LibraryItemDeletionText.Unavailable,
+            LibraryItemDeletionOutcomeStatus.Unconfirmed => LibraryItemDeletionText.Unconfirmed,
             LibraryItemDeletionOutcomeStatus.Forbidden => LibraryItemDeletionText.Forbidden,
             _ => string.IsNullOrWhiteSpace(message) ? LibraryItemDeletionText.InvalidFallback : message,
         };

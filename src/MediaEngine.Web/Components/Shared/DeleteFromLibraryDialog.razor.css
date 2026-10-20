@@ -1,6 +1,6 @@
 .delete-library {
     display: grid;
-    gap: 14px;
+    gap: var(--tl-space-4);
     max-width: 62ch;
 }
 
@@ -15,7 +15,7 @@
 
 .delete-library__section {
     display: grid;
-    gap: 6px;
+    gap: var(--tl-space-2);
 }
 
 .delete-library__section h3 {
@@ -25,7 +25,7 @@
 
 .delete-library__files {
     display: grid;
-    gap: 6px;
+    gap: var(--tl-space-2);
     margin: 0;
     padding-left: 1.2rem;
     line-height: 1.45;

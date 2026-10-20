@@ -18,6 +18,12 @@ public enum LibraryItemDeletionOutcomeStatus
     /// <summary>The Engine could not be reached or failed.</summary>
     Unavailable,
 
+    /// <summary>
+    /// The delete request was sent but no answer came back (a timeout, a cancellation, or a connection that dropped after sending), so it is not
+    /// known whether anything was deleted. Never offered a blind retry: the person checks the library, and reopening the dialog asks for a fresh preview.
+    /// </summary>
+    Unconfirmed,
+
     /// <summary>The plan changed since the preview, so nothing was deleted. <see cref="LibraryItemDeletionOutcome{T}.FreshPreview"/> holds the updated one.</summary>
     Conflict,
 }

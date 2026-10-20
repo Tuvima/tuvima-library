@@ -98,4 +98,39 @@ public sealed class DeleteFromLibraryPlaybackTests
         Assert.True(stopped);
         Assert.True(player.IsDismissed);
     }
+
+    [Fact]
+    public async Task WhenAnItemBeforeTheCurrentOneIsDeleted_PreviousCannotPlayItAndTheCurrentItemKeepsItsPlace()
+    {
+        var gone = Song("Deleted earlier");
+        var before = Song("Kept earlier");
+        var current = Song("Playing now");
+        var player = new PlaybackSessionController(null!, null!);
+        await player.ReplaceQueueItemsAsync([gone, before, current, Song("Up next")], 2, "Album", shuffle: false);
+        Assert.Equal(current.WorkId, player.CurrentItem?.WorkId);
+
+        var stopped = await player.HandleLibraryItemsRemovedAsync([gone.WorkId], []);
+
+        Assert.False(stopped);
+        Assert.Equal(current.WorkId, player.CurrentItem?.WorkId);
+        Assert.Equal(1, player.CurrentIndex);
+        Assert.DoesNotContain(player.Queue, item => item.WorkId == gone.WorkId);
+        Assert.Equal(["Kept earlier", "Playing now", "Up next"], player.Queue.Select(item => item.Title));
+    }
+
+    [Fact]
+    public async Task APlayedTrackThatIsDeleted_LeavesTheHistory()
+    {
+        var first = Song("Played first");
+        var second = Song("Playing now");
+        var player = new PlaybackSessionController(null!, null!);
+        await player.PlayQueueItemAsync(first);
+        await player.PlayQueueItemAsync(second);
+        Assert.Contains(player.History, item => item.WorkId == first.WorkId);
+
+        await player.HandleLibraryItemsRemovedAsync([first.WorkId], []);
+
+        Assert.DoesNotContain(player.History, item => item.WorkId == first.WorkId);
+        Assert.Equal(second.WorkId, player.CurrentItem?.WorkId);
+    }
 }
