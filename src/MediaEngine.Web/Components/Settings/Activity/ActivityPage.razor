@@ -9,7 +9,8 @@
 @inject DeviceContextService DeviceContext
 @inject IAppToastService Toasts
 @inject ILogger<ActivityPage> Logger
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @* Personal > Overview > Activity (D15, D16, D27, D31, D32, D33). Everything the person watched, listened to, read and added to
    My list, newest first, with search, filters, grouping by day, week, month or title, a date rail and a CSV export. A member sees
@@ -278,6 +279,9 @@
                                    data-activity-load-more="true" />
                     </div>
                 }
+
+                @* The scroll trigger: loads the next page as the end of the list nears. Load more above stays for anyone who prefers it. *@
+                <div @ref="_sentinel" class="activity-list__sentinel" aria-hidden="true" data-activity-sentinel></div>
             }
         </div>
     </div>
@@ -406,6 +410,16 @@
     private int? _activeMonth;
 
     private string? _nextCursor;
+
+    // The scroll trigger: watches the sentinel after the list and asks for the next page. After a failed load it stays off until the
+    // person presses Load more or Try again, so a sentinel that remains on screen cannot loop.
+    private const string ObserverModule = "./js/load-more-observer.js";
+    private ElementReference _sentinel;
+    private IJSObjectReference? _observerModule;
+    private DotNetObjectReference<ActivityPage>? _self;
+    private bool _observeRequested;
+    private ElementReference? _observed;
+    private bool _moreFailed;
     private bool _includesOthers;
     private bool _loading = true;
     private bool _loadingMore;
@@ -901,6 +915,7 @@
     {
         var version = ++_loadVersion;
         _loading = true;
+        _moreFailed = false;
         _nextCursor = null;
         _items.Clear();
         _status = PersonalActivityOutcomeStatus.Ok;
@@ -956,6 +971,7 @@
 
         var version = _loadVersion;
         _loadingMore = true;
+        _moreFailed = false;
         try
         {
             var page = await Api.GetPersonalActivityAsync(ListRequest(_nextCursor), _lifetime.Token);
@@ -970,12 +986,75 @@
             }
             else
             {
+                _moreFailed = true;
+                _observeRequested = true;
                 Toasts.Add("More activity couldn't be loaded. Try again.", AppSeverity.Error);
             }
         }
         finally
         {
             _loadingMore = false;
+            // However the load ended (a page, a failure, or a newer list replacing it), the scroll trigger is re-checked afterwards.
+            _observeRequested = true;
+        }
+    }
+
+    /// <summary>Called by the scroll trigger when the end of the list is near; loads the next page unless one is loading or the last load failed.</summary>
+    [JSInvokable]
+    public Task LoadMoreFromObserverAsync() => InvokeAsync(async () =>
+    {
+        if (_moreFailed || _nextCursor is null || _loadingMore || _lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await LoadMoreAsync();
+        StateHasChanged();
+    });
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_observeRequested)
+        {
+            return;
+        }
+
+        _observeRequested = false;
+        await SyncObserverAsync();
+    }
+
+    private async Task SyncObserverAsync()
+    {
+        try
+        {
+            // A load in flight does not switch the trigger off: LoadMoreFromObserverAsync already ignores calls while one runs.
+            if (_nextCursor is not null && !_loading && !_moreFailed)
+            {
+                _observerModule ??= await JS.InvokeAsync<IJSObjectReference>("import", ObserverModule);
+                _self ??= DotNetObjectReference.Create(this);
+                if (_observed is { } previous && previous.Id != _sentinel.Id)
+                {
+                    // The list was drawn again with a new sentinel; release the old one.
+                    await _observerModule.InvokeVoidAsync("disconnect", previous);
+                }
+
+                await _observerModule.InvokeVoidAsync("observe", _sentinel, _self, new { rootMargin = "800px 0px" });
+                _observed = _sentinel;
+            }
+            else if (_observerModule is not null)
+            {
+                await _observerModule.InvokeVoidAsync("disconnect", _observed ?? _sentinel);
+                _observed = null;
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; nothing is left to observe.
+        }
+        catch (JSException ex)
+        {
+            // Load more stays under the list, so the list still works without the scroll trigger.
+            Logger.LogWarning(ex, "The scroll trigger for the activity list could not start.");
         }
     }
 
@@ -990,6 +1069,7 @@
         _items.AddRange(page.Items.Where(item => known.Add(item.Id)));
         _nextCursor = page.NextCursor;
         _includesOthers = page.IncludesOthers;
+        _observeRequested = true;
     }
 
     // ---- date rail -----------------------------------------------------------------------------------------------------------
@@ -1245,9 +1325,40 @@
         _afterUnlock = null;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _lifetime.Cancel();
         _lifetime.Dispose();
+        if (_observerModule is not null)
+        {
+            // Two separate steps, so a failed disconnect still lets the module be released.
+            await ReleaseAsync(() => _observerModule.InvokeVoidAsync("disconnect", _observed ?? _sentinel).AsTask());
+            await ReleaseAsync(() => _observerModule.DisposeAsync().AsTask());
+        }
+
+        _self?.Dispose();
+    }
+
+    private async Task ReleaseAsync(Func<Task> step)
+    {
+        try
+        {
+            await step();
+        }
+        catch (JSDisconnectedException ex)
+        {
+            // The circuit closed first; the browser has already released the observer.
+            Logger.LogDebug(ex, "Activity scroll trigger disconnected during disposal.");
+        }
+        catch (JSException ex)
+        {
+            // The sentinel may already be gone from the page; there is nothing left to release.
+            Logger.LogDebug(ex, "Activity scroll trigger clean-up failed during disposal.");
+        }
+        catch (OperationCanceledException ex)
+        {
+            // The circuit is shutting down; the browser releases the observer with the page.
+            Logger.LogDebug(ex, "Activity scroll trigger clean-up was cancelled during disposal.");
+        }
     }
 }

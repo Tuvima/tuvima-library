@@ -192,7 +192,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.Contains("Liked Film", cut.Markup);
 
         var seeAll = cut.FindAll("a.media-tile-shelf-link");
-        Assert.Equal(["/for-me?view=my-list&area=all", "/for-me?view=liked"], seeAll.Select(link => link.GetAttribute("href")!).ToArray());
+        Assert.Equal(["/all/personal/my-list", "/all/personal/liked"], seeAll.Select(link => link.GetAttribute("href")!).ToArray());
         Assert.All(seeAll, link => Assert.Equal("See All", link.TextContent.Trim()));
     }
 
@@ -340,11 +340,13 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.Contains("Tax Return", cut.Markup);
     }
 
+    // The all-areas Liked grid moved to /all/personal/liked, and the Engine's grid read never includes Documents. What is left on
+    // For Me is the per-area grid, and no area (Watch, Read, Listen, Collections) holds a Document, so one never shows there.
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(null, false)]
-    [InlineData(true, true)]
-    public void TheLikedGridHidesDocumentItemsFromProfilesThatMayNotSeeThem(bool? canView, bool documentShown)
+    [InlineData(false)]
+    [InlineData(null)]
+    [InlineData(true)]
+    public void TheForMeLikedAreaGridNeverShowsDocumentItems(bool? canView)
     {
         var document = Guid.Parse("d0000000-0000-0000-0000-000000000001");
         var film = Guid.Parse("d0000000-0000-0000-0000-000000000002");
@@ -359,12 +361,12 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
             ],
         });
         Services.AddSupplyValueFromQueryProvider();
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/for-me?view=liked");
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/for-me?view=liked&area=watch");
 
         var cut = Render<ForMe>();
 
         cut.WaitForAssertion(() => Assert.Contains("Liked Film", cut.Markup), TimeSpan.FromSeconds(10));
-        Assert.Equal(documentShown, cut.Markup.Contains("Tax Return", StringComparison.Ordinal));
+        Assert.DoesNotContain("Tax Return", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -407,6 +409,39 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.Contains("Title 003", cut.Markup);
         Assert.Contains("Title 299", cut.Markup);
         Assert.Empty(_browseCalls);
+    }
+
+    [Fact]
+    public async Task EachShelfShowsAtMostTwentyTilesAndOnlyTheNewestSixtyIdsAreLookedUp()
+    {
+        // 300 saved and 300 liked titles: the shelves show 20, and the item lookup is asked for the newest 60 of each, newest first.
+        var cards = Enumerable.Range(0, 300)
+            .Select(i => Card(Guid.Parse($"e0000000-0000-0000-0000-{i:000000000000}"), "Movie", $"Title {i:000}"))
+            .ToArray();
+        var saved = cards.Select((card, i) => new ProfileSavedItemDto(ProfileEntityKind.Movie, card.Id, Now.AddMinutes(-i), null)).Reverse().ToList();
+        var liked = cards.Select((card, i) => new ProfileReactionDto(ProfileEntityKind.Movie, card.Id, ProfileReactionKind.Like, Now.AddMinutes(-i))).Reverse().ToList();
+
+        var cut = await RenderAsync(new Data { Library = Page(cards), Saved = saved, Reactions = liked });
+
+        Assert.Equal(2, _itemCalls.Count);
+        Assert.All(_itemCalls, ids => Assert.Equal(60, ids.Count));
+        Assert.Equal(cards.Take(60).Select(card => card.Id), _itemCalls[0]);
+        Assert.Equal(cards.Take(60).Select(card => card.Id), _itemCalls[1]);
+        var shelves = cut.FindAll("section.media-tile-shelf");
+        Assert.Equal(2, shelves.Count);
+        Assert.All(shelves, shelf => Assert.Equal(20, shelf.QuerySelectorAll(".media-tile").Length));
+        Assert.Contains("Title 000", cut.Markup);
+        Assert.DoesNotContain("Title 020", cut.Markup);
+    }
+
+    [Fact]
+    public async Task TheViewAllTileEndsMyListAndLikedAndPointsAtTheGridPages()
+    {
+        var cut = await RenderAsync(Everything());
+
+        var tiles = cut.FindAll("a.media-tile-shelf-view-all");
+        Assert.Equal(["/all/personal/my-list", "/all/personal/liked"], tiles.Select(tile => tile.GetAttribute("href")!).ToArray());
+        Assert.Equal(["View all My List", "View all Liked"], tiles.Select(tile => tile.GetAttribute("aria-label")!).ToArray());
     }
 
     [Fact]
@@ -505,11 +540,15 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("/for-me?view=my-list", true)]
-    [InlineData("/for-me?view=my-list&area=listen", false)]
-    [InlineData("/for-me?view=my-list&area=all", false)]
-    [InlineData("/for-me?view=liked", false)]
-    public void TheOldForMeMyListLinkLandsOnThePageButFilteredGridLinksStayOnTheGrid(string url, bool landsOnMyLibrary)
+    [InlineData("/for-me?view=my-list", "/my-library")]
+    [InlineData("/for-me?view=my-list&area=all", "/all/personal/my-list")]
+    [InlineData("/for-me?view=my-list&area=all&sort=title", "/all/personal/my-list")]
+    [InlineData("/for-me?view=liked", "/all/personal/liked")]
+    [InlineData("/for-me?view=liked&area=all", "/all/personal/liked")]
+    [InlineData("/for-me?view=my-list&area=listen", null)]
+    [InlineData("/for-me?view=my-list&area=read", null)]
+    [InlineData("/for-me?view=liked&area=watch", null)]
+    public void TheOldForMeMyListAndLikedLinksLandOnThePageOrTheGridButAreaLinksStayOnTheForMeGrid(string url, string? landsOn)
     {
         UseData(new Data());
         Services.AddSupplyValueFromQueryProvider();
@@ -518,9 +557,9 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
 
         Render<ForMe>();
 
-        if (landsOnMyLibrary)
+        if (landsOn is not null)
         {
-            Assert.EndsWith("/my-library", nav.Uri);
+            Assert.EndsWith(landsOn, nav.Uri);
         }
         else
         {
@@ -529,11 +568,29 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnAreaMyListLinkStillRendersTheForMeGrid()
+    {
+        var film = Guid.Parse("d0000000-0000-0000-0000-000000000009");
+        UseData(new Data
+        {
+            Library = Page(Card(film, "Movie", "Saved Area Film")),
+            Saved = [new(ProfileEntityKind.Movie, film, Now, null)],
+        });
+        Services.AddSupplyValueFromQueryProvider();
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/for-me?view=my-list&area=watch");
+
+        var cut = Render<ForMe>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Saved Area Film", cut.Markup), TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
     public void MyLibraryIsTheDockDestinationAndTheListGridHasItsOwnRoute()
     {
         Assert.Equal("/my-library", ShellDock.MyLibraryPath);
         var entry = Assert.Single(ShellDock.ResolvePhone(isKids: false), tab => tab.Key == "MyLibrary");
         Assert.Equal("/my-library", entry.Path);
-        Assert.Equal("/for-me?view=my-list&area=all", ForMe.MyListGridRoute);
+        Assert.Equal("/all/personal/my-list", ForMe.MyListGridRoute);
+        Assert.Equal("/all/personal/liked", ForMe.LikedGridRoute);
     }
 }

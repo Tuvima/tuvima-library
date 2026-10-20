@@ -619,6 +619,7 @@ public sealed class DatabaseStartupSafetyTests
             ("profile_notice_dismissals", "profile_id"),
             ("profile_credentials", "id"),
             ("profile_credentials", "profile_id"),
+            ("profile_grid_preferences", "profile_id"),
             ("profile_person_preferences", "person_id"),
             ("profile_person_preferences", "profile_id"),
             ("profile_reactions", "entity_id"),

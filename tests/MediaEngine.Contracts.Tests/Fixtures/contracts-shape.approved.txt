@@ -2736,6 +2736,46 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayEpisodeContex
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
   DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridFilterGroupDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Options: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayGridFilterOptionDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridFilterOptionDto
+  Value: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Selected: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridPageDto
+  Lane: System.String | nullability=not-null | accessors=get,init
+  ShelfKey: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Subtitle: System.String | nullability=nullable | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayCardDto> | nullability=not-null | accessors=get,init
+  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
+  Offset: System.Int32 | nullability=not-null | accessors=get,init
+  Limit: System.Int32 | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  NextCursor: System.String | nullability=nullable | accessors=get,init
+  Sort: System.String | nullability=not-null | accessors=get,init
+  DefaultSort: System.String | nullability=not-null | accessors=get,init
+  RememberKey: System.String | nullability=nullable | accessors=get,init
+  SortOptions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayGridSortOptionDto> | nullability=not-null | accessors=get,init
+  Filters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayGridFilterGroupDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridPreferencesDto
+  Sorts: System.Collections.Generic.IReadOnlyDictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridSortOptionDto
+  Value: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridSortPreferenceRequest
+  Sort: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGridValues
+
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayGroupMediaCountDto
   MediaType: System.String | nullability=not-null | accessors=get,init
   Count: System.Int32 | nullability=not-null | accessors=get,init
