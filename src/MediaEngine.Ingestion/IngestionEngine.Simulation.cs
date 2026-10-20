@@ -547,8 +547,7 @@ public sealed partial class IngestionEngine
         string trigger,
         double confidence,
         string detail,
-        CancellationToken ct,
-        Guid? ingestionRunId = null)
+        CancellationToken ct)
     {
         try
         {
@@ -559,7 +558,6 @@ public sealed partial class IngestionEngine
                     trigger,
                     confidence,
                     detail,
-                    ingestionRunId,
                     ct).ConfigureAwait(false);
                 return;
             }
@@ -612,8 +610,7 @@ public sealed partial class IngestionEngine
         double confidence,
         string candidatesJson,
         string detail,
-        CancellationToken ct,
-        Guid? ingestionRunId = null)
+        CancellationToken ct)
     {
         try
         {
@@ -624,7 +621,6 @@ public sealed partial class IngestionEngine
                     ReviewTrigger.AmbiguousMediaType,
                     confidence,
                     detail,
-                    ingestionRunId,
                     ct,
                     candidatesJson: candidatesJson).ConfigureAwait(false);
                 return;
@@ -676,8 +672,7 @@ public sealed partial class IngestionEngine
         Guid entityId,
         double confidence,
         List<string> conflictedFields,
-        CancellationToken ct,
-        Guid? ingestionRunId = null)
+        CancellationToken ct)
     {
         try
         {
@@ -689,7 +684,6 @@ public sealed partial class IngestionEngine
                     ReviewTrigger.MetadataConflict,
                     confidence,
                     detail,
-                    ingestionRunId,
                     ct).ConfigureAwait(false);
                 return;
             }

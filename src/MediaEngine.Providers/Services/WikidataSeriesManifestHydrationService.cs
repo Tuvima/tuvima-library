@@ -69,7 +69,7 @@ public sealed class WikidataSeriesManifestHydrationService
         SeriesManifestCandidate candidate,
         CancellationToken ct)
     {
-        var cacheKey = $"{context.IngestionRunId?.ToString("D") ?? "process"}:{candidate.Qid}";
+        var cacheKey = candidate.Qid;
         var lazy = _inFlight.GetOrAdd(
             cacheKey,
             _ => new Lazy<Task>(() => HydrateCoreAsync(context, candidate, ct)));

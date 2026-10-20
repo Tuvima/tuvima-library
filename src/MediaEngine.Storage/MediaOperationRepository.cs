@@ -49,7 +49,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         using var conn = _db.CreateConnection();
         conn.Execute("""
             INSERT OR IGNORE INTO media_operations
-                (id, operation_type, operation_kind, entity_id, entity_kind, batch_id,
+                (id, operation_type, operation_kind, entity_id, entity_kind,
                  source_path, content_hash, capability_id, capability_version, sub_key,
                  plugin_id, plugin_version, provider_id, model_id, status, stage, priority,
                  queue_name, position_key, attempt_count, poison_attempt_count, lease_owner, lease_expires_at,
@@ -57,7 +57,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
                  items_failed, result_summary, last_error, last_outcome_category, missing_reason, created_at,
                  started_at, updated_at, completed_at, idempotency_key)
             VALUES
-                (@Id, @OperationType, @OperationKind, @EntityId, @EntityKind, @BatchId,
+                (@Id, @OperationType, @OperationKind, @EntityId, @EntityKind,
                  @SourcePath, @ContentHash, @CapabilityId, @CapabilityVersion, @SubKey,
                  @PluginId, @PluginVersion, @ProviderId, @ModelId, @Status, @Stage, @Priority,
                  @QueueName, @PositionKey, @AttemptCount, @PoisonAttemptCount, @LeaseOwner, @LeaseExpiresAt,
@@ -66,19 +66,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
                  @StartedAt, @UpdatedAt, @CompletedAt, @IdempotencyKey);
             """,
             ToParams(operation, id, createdAt, updatedAt, positionKey));
-
-        conn.Execute("""
-            UPDATE media_operations
-            SET batch_id = COALESCE(batch_id, @BatchId),
-                updated_at = CASE WHEN @BatchId IS NULL OR batch_id IS NOT NULL THEN updated_at ELSE @UpdatedAt END
-            WHERE idempotency_key = @IdempotencyKey;
-            """,
-            new
-            {
-                operation.BatchId,
-                UpdatedAt = updatedAt.ToString("O"),
-                operation.IdempotencyKey
-            });
 
         var row = conn.QueryFirst<MediaOperationRow>(
             SelectSql + " WHERE idempotency_key = @idempotencyKey LIMIT 1;",
@@ -168,16 +155,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         var rows = conn.Query<MediaOperationRow>(
             SelectSql + " WHERE entity_id = @entityId ORDER BY created_at DESC;",
             new { entityId });
-        return Task.FromResult<IReadOnlyList<MediaOperation>>(rows.Select(Map).ToList());
-    }
-
-    public Task<IReadOnlyList<MediaOperation>> GetByBatchAsync(Guid batchId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        var rows = conn.Query<MediaOperationRow>(
-            SelectSql + " WHERE batch_id = @batchId ORDER BY priority ASC, position_key ASC;",
-            new { batchId });
         return Task.FromResult<IReadOnlyList<MediaOperation>>(rows.Select(Map).ToList());
     }
 
@@ -585,7 +562,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         operation.OperationKind,
         operation.EntityId,
         operation.EntityKind,
-        operation.BatchId,
         operation.SourcePath,
         operation.ContentHash,
         operation.CapabilityId,
@@ -630,7 +606,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         operation_kind AS OperationKind,
         entity_id AS EntityId,
         entity_kind AS EntityKind,
-        batch_id AS BatchId,
         source_path AS SourcePath,
         content_hash AS ContentHash,
         capability_id AS CapabilityId,
@@ -675,7 +650,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         public string OperationKind { get; set; } = "";
         public Guid? EntityId { get; set; }
         public string? EntityKind { get; set; }
-        public Guid? BatchId { get; set; }
         public string? SourcePath { get; set; }
         public string? ContentHash { get; set; }
         public string? CapabilityId { get; set; }
@@ -718,7 +692,6 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         OperationKind = row.OperationKind,
         EntityId = row.EntityId,
         EntityKind = row.EntityKind,
-        BatchId = row.BatchId,
         SourcePath = row.SourcePath,
         ContentHash = row.ContentHash,
         CapabilityId = row.CapabilityId,

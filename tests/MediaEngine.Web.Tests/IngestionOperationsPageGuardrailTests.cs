@@ -71,10 +71,8 @@ public sealed class IngestionOperationsPageGuardrailTests
     public void UniverseStateContainer_ItemProgressDoesNotRequestSnapshotRefresh()
     {
         var state = new UniverseStateContainer();
-        var batchId = Guid.NewGuid();
 
         state.PushIngestionItemProgress(new IngestionItemProgressEvent(
-            batchId,
             Guid.NewGuid(),
             MediaAssetId: null,
             FilePath: @"C:\drop\Neuromancer.epub",

@@ -381,15 +381,10 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RecentAdditions_AnItemThatBecameReadyIsListedUnderItsFirstReadyDayWithNoBatchRowPresent()
+    public async Task RecentAdditions_AnItemThatBecameReadyIsListedUnderItsFirstReadyDay()
     {
         var firstReady = new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
         var work = AddStandalone("Movies", "Added Without A Run Record", occurredAt: firstReady);
-        using (var conn = _db.CreateConnection())
-        {
-            Assert.Equal(0, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM ingestion_batches;"));
-        }
-
         var service = new IngestionPresentationReadService(_db);
         var snapshot = await service.GetSnapshotAsync(currentLimit: 4, recentDayLimit: 7, recentItemsPerDay: 4);
         var page = await service.GetRecentAdditionsAsync(null, null, firstReady.AddHours(-1), firstReady.AddHours(1), 0, 50);

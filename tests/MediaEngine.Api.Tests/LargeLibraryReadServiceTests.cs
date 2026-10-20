@@ -37,8 +37,7 @@ public sealed class LargeLibraryReadServiceTests : IDisposable
 
         Assert.Contains("idx_canonical_values_key_value_entity", indexes);
         Assert.Contains("idx_person_media_links_person", indexes);
-        Assert.Contains("idx_ingestion_log_run_created", indexes);
-        Assert.Contains("idx_identity_jobs_run_entity_updated", indexes);
+        Assert.Contains("idx_identity_jobs_activity_latest", indexes);
 
         // The live page and Recently Added read by file and entity, with no run record.
         Assert.Contains("idx_ingestion_log_media_asset", indexes);

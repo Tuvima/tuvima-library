@@ -832,7 +832,6 @@ public sealed class LibraryItemDeletionTests : IDisposable
             "INSERT INTO review_queue (id, entity_id, entity_type, trigger) VALUES (randomblob(16), @workId, 'Work', 'LowConfidence');",
             "INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path) VALUES (randomblob(16), @workId, 'Work', 'CoverArt', NULL);",
             "INSERT INTO ingestion_log (id, file_path, media_asset_id) VALUES (randomblob(16), 'f', @assetId);",
-            "INSERT INTO ingestion_batch_artifacts (id, batch_id, artifact_type, artifact_id, parent_entity_id, action) VALUES (randomblob(16), randomblob(16), 'Work', @workId, @workId, 'created');",
             "INSERT INTO search_index (entity_id, title) VALUES (@workId, 'Dune');",
             "INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at) VALUES (@profileId, 'Movie', @workId, @now);",
             "INSERT INTO profile_reactions (profile_id, entity_kind, entity_id, reaction, updated_at) VALUES (@profileId, 'Song', @assetId, 'Like', @now);",

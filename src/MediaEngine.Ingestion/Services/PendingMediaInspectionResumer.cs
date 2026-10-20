@@ -112,7 +112,7 @@ public sealed class PendingMediaInspectionResumer(
                     switch (await writer.InspectAsync(asset, ct).ConfigureAwait(false))
                     {
                         case PlaybackInspectionOutcome.Failed:
-                            await reviews.RecordFailureAsync(assetId, null, ct).ConfigureAwait(false);
+                            await reviews.RecordFailureAsync(assetId, ct).ConfigureAwait(false);
                             failed++;
                             break;
                         case PlaybackInspectionOutcome.WaitingForTool:

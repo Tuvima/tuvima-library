@@ -275,17 +275,15 @@ public sealed partial class LogExportServiceTests : IDisposable
             using var database = new DatabaseConnection(databasePath);
             database.InitializeSchema();
             var repository = new SystemActivityRepository(database);
-            var run = Guid.NewGuid();
             var item = Guid.NewGuid();
             await repository.LogAsync(new SystemActivityEntry { ActionType = "Before", OccurredAt = Now.AddDays(-5) });
-            await repository.LogAsync(new SystemActivityEntry { ActionType = "InRange", OccurredAt = Now.AddHours(-3), IngestionRunId = run });
+            await repository.LogAsync(new SystemActivityEntry { ActionType = "InRange", OccurredAt = Now.AddHours(-3) });
             await repository.LogAsync(new SystemActivityEntry { ActionType = "ItemEvent", OccurredAt = Now.AddHours(-2), EntityId = item });
             await repository.LogAsync(new SystemActivityEntry { ActionType = "Sale", OccurredAt = Now.AddMinutes(-90), Detail = "got 50%_off today" });
             await repository.LogAsync(new SystemActivityEntry { ActionType = "Unrelated", OccurredAt = Now.AddHours(-1) });
             await repository.LogAsync(new SystemActivityEntry { ActionType = "After", OccurredAt = Now.AddDays(3) });
 
             var all = await repository.GetRangeAsync(Now.AddDays(-1), Now, null, null, null, 100);
-            var forRun = await repository.GetRangeAsync(Now.AddDays(-1), Now, run, null, null, 100);
             var forItem = await repository.GetRangeAsync(Now.AddDays(-1), Now, item, null, null, 100);
             var limited = await repository.GetRangeAsync(Now.AddDays(-1), Now, null, null, null, 2);
             var byType = await repository.GetRangeAsync(Now.AddDays(-1), Now, null, ["ItemEvent", "Unrelated"], null, 1);
@@ -293,7 +291,6 @@ public sealed partial class LogExportServiceTests : IDisposable
             var types = await repository.GetActionTypesAsync(Now.AddDays(-1), Now);
 
             Assert.Equal(["InRange", "ItemEvent", "Sale", "Unrelated"], all.Select(entry => entry.ActionType));
-            Assert.Equal(["InRange"], forRun.Select(entry => entry.ActionType));
             Assert.Equal(["ItemEvent"], forItem.Select(entry => entry.ActionType));
             // Over the limit the NEWEST entries stay, still oldest first.
             Assert.Equal(["Sale", "Unrelated"], limited.Select(entry => entry.ActionType));
@@ -482,7 +479,7 @@ public sealed partial class LogExportServiceTests : IDisposable
             IEnumerable<SystemActivityEntry> found = Entries.Where(entry => entry.OccurredAt >= from && entry.OccurredAt <= to);
             if (matchId is { } id)
             {
-                found = found.Where(entry => entry.EntityId == id || entry.IngestionRunId == id);
+                found = found.Where(entry => entry.EntityId == id);
             }
 
             if (actionTypes is not null)

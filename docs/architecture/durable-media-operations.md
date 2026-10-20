@@ -17,14 +17,13 @@ How durable operations, leases and outcomes drive recovery and truthful ingestio
 
 - `src/MediaEngine.Storage/MediaOperationRepository.cs`
 - `src/MediaEngine.Storage/MediaOperationTracker.cs`
-- `src/MediaEngine.Storage/IngestionBatchActivitySql.cs`
 
 Tuvima Library tracks operational truth in durable rows instead of inferring it
 from missing artifacts.
 
 ## Recovery and presentation
 
-Outstanding identity jobs or media operations keep a group in flight on the live ingestion page even if its intake row finished before a restart. A long wait or expired lease is not a terminal outcome. Startup requeues intermediate identity states, including unleased enrichment work from the previous process, before identity workers begin. The pipeline's own batch rows and `IngestionBatchActivitySql` still back batch-completion reconciliation until they are removed; no screen or Engine action reads them.
+Outstanding identity jobs or media operations keep a group in flight on the live ingestion page even if its intake row finished before a restart. A long wait or expired lease is not a terminal outcome. Startup requeues intermediate identity states, including unleased enrichment work from the previous process, before identity workers begin.
 
 A file that is scanned again is still one file: the page reads the newest log row and the newest `ingestion.file` row of each file, from any intake. Ingestion cards and drawers show added counts only; provider container totals do not drive per-item progress.
 

@@ -784,42 +784,9 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             row.CompletedWithArt));
     }
 
-    public Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(Guid? batchId = null, CancellationToken ct = default)
+    public Task<LibraryItemLifecycleCounts> GetFourStateCountsAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
-
-        if (batchId.HasValue)
-        {
-            var batch = conn.QueryFirstOrDefault<(int FilesIdentified, int FilesReview, int FilesNoMatch, int FilesFailed)>("""
-                SELECT files_registered AS FilesIdentified,
-                       files_review AS FilesReview,
-                       files_no_match AS FilesNoMatch,
-                       files_failed AS FilesFailed
-                FROM ingestion_batches
-                WHERE id = @batchId;
-                """, new { batchId = batchId.Value });
-
-            var batchTriggers = conn.Query<(string Trigger, int Count)>("""
-                SELECT rq.trigger AS Trigger, COUNT(*) AS Count
-                FROM review_queue rq
-                INNER JOIN media_assets ma ON ma.id = rq.entity_id
-                INNER JOIN ingestion_log il ON il.content_hash = ma.content_hash
-                WHERE rq.status = 'Pending'
-                  AND il.ingestion_run_id = @batchId
-                GROUP BY rq.trigger
-                ORDER BY Count DESC;
-                """, new { batchId = batchId.Value })
-                .ToDictionary(r => r.Trigger, r => r.Count);
-
-            return Task.FromResult(new LibraryItemLifecycleCounts(
-                batch.FilesIdentified,
-                batch.FilesReview + batch.FilesNoMatch + batch.FilesFailed,
-                0,
-                0,
-                0,
-                0,
-                batchTriggers));
-        }
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = BuildProjectionSql() + """

@@ -36,14 +36,6 @@ public interface ISystemActivityRepository
     Task<long> CountAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Returns all activity entries for a given ingestion run, ordered by timestamp.
-    /// Used by the Dashboard to expand a consolidated "Media Added" card.
-    /// </summary>
-    Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(
-        Guid runId,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Returns recent activity entries filtered by one or more action types.
     /// Used by activity summaries to show events of specific categories
     /// (ingestion, universe, reports, curator actions).

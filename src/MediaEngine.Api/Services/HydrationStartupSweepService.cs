@@ -1,6 +1,5 @@
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Providers.Contracts;
-using MediaEngine.Providers.Services;
 
 namespace MediaEngine.Api.Services;
 
@@ -12,21 +11,15 @@ namespace MediaEngine.Api.Services;
 public sealed class HydrationStartupSweepService : BackgroundService
 {
     private readonly IIdentityJobRepository _jobs;
-    private readonly IIngestionBatchRepository _batches;
-    private readonly BatchProgressService _batchProgress;
     private readonly IIdentityPipelineSignal _signal;
     private readonly ILogger<HydrationStartupSweepService> _logger;
 
     public HydrationStartupSweepService(
         IIdentityJobRepository jobs,
-        IIngestionBatchRepository batches,
-        BatchProgressService batchProgress,
         IIdentityPipelineSignal signal,
         ILogger<HydrationStartupSweepService> logger)
     {
         _jobs = jobs;
-        _batches = batches;
-        _batchProgress = batchProgress;
         _signal = signal;
         _logger = logger;
     }
@@ -36,13 +29,6 @@ public sealed class HydrationStartupSweepService : BackgroundService
         try
         {
             var recovered = await _jobs.RecoverInterruptedJobsAsync(cancellationToken).ConfigureAwait(false);
-            var activeBatches = await _batches.GetActiveAsync(cancellationToken).ConfigureAwait(false);
-
-            foreach (var batch in activeBatches)
-            {
-                await _batchProgress.EmitProgressAsync(batch.Id, isFinal: false, ct: cancellationToken)
-                    .ConfigureAwait(false);
-            }
 
             if (recovered == 0)
             {

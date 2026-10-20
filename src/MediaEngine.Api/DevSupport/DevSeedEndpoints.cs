@@ -1548,10 +1548,9 @@ public static partial class DevSeedEndpoints
         var seedResult = await SeedLibraryAsync(context, options, configLoader, logger);
 
         // ── Step 3: Enqueue each seeded file directly into the pipeline ────────
-        // ScanDirectory bypasses the 30-second FSW quiet-period buffer because it
-        // stamps each event with a BatchId before calling Enqueue. Files flow
-        // directly into the debounce queue and are processed without any timing
-        // ambiguity — no Task.Delay, no settle uncertainty.
+        // ScanDirectory bypasses the 30-second FSW quiet-period buffer: it calls
+        // Enqueue directly. Files flow directly into the debounce queue and are
+        // processed without any timing ambiguity — no Task.Delay, no settle uncertainty.
         var libConfig = configLoader.LoadLibraries();
         var scanTargets = libConfig.Libraries
             .Where(lib =>

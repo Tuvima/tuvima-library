@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1025; api=0; web-client=54
+# scopes: contracts=1024; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7665,30 +7665,6 @@
   MediaType: System.String | json=media_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Timestamp: System.DateTimeOffset | json=timestamp | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
-[contracts] MediaEngine.Contracts.Realtime.BatchProgressEvent
-  kind=class | converter=default | number-handling=default | unmapped=default
-  BatchId: System.Guid | json=batchId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesTotal: System.Int32 | json=filesTotal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesProcessed: System.Int32 | json=filesProcessed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesIdentified: System.Int32 | json=filesIdentified | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesReview: System.Int32 | json=filesReview | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesNoMatch: System.Int32 | json=filesNoMatch | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesFailed: System.Int32 | json=filesFailed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ProgressPercent: System.Int32 | json=progressPercent | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EstimatedSecondsRemaining: System.Int32? | json=estimatedSecondsRemaining | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsComplete: System.Boolean | json=isComplete | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  RecentTitles: System.Collections.Generic.IReadOnlyList<System.String> | json=recentTitles | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CurrentStage: System.String | json=currentStage | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesQueued: System.Int32 | json=filesQueued | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesActive: System.Int32 | json=filesActive | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesReady: System.Int32 | json=filesReady | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  FilesReadyWithoutUniverse: System.Int32 | json=filesReadyWithoutUniverse | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CurrentFileTitle: System.String | json=currentFileTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LifecycleStage: System.String | json=lifecycleStage | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  WorkUnitsTotal: System.Int32 | json=workUnitsTotal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  WorkUnitsCompleted: System.Int32 | json=workUnitsCompleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ProgressIsIndeterminate: System.Boolean | json=progressIsIndeterminate | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-
 [contracts] MediaEngine.Contracts.Realtime.EntityReviewResolvedEvent
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7730,7 +7706,6 @@
 
 [contracts] MediaEngine.Contracts.Realtime.IngestionItemProgressEvent
   kind=class | converter=default | number-handling=default | unmapped=default
-  BatchId: System.Guid | json=batchId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LogEntryId: System.Guid | json=logEntryId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaAssetId: System.Guid? | json=mediaAssetId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FilePath: System.String | json=filePath | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9814,9 +9789,8 @@
   ScoreCoverArt: System.Double? | json=scoreCoverArt | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ScoreComposite: System.Double? | json=scoreComposite | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OccurredAt: System.DateTimeOffset | json=occurredAt | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IngestionRunId: System.Guid? | json=ingestionRunId | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Detail: System.String | json=detail | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","entityId":"11111111-2222-3333-4444-555555555555","entityType":"sample","eventType":"sample","stage":7,"trigger":"sample","providerId":"sample","providerName":"sample","bridgeIdType":"sample","bridgeIdValue":"sample","resolvedQid":"sample","confidence":7,"scoreTitle":7,"scoreAuthor":7,"scoreYear":7,"scoreFormat":7,"scoreCrossField":7,"scoreCoverArt":7,"scoreComposite":7,"occurredAt":"2025-01-02T03:04:05+00:00","ingestionRunId":"11111111-2222-3333-4444-555555555555","detail":"sample"}
+  sample={"id":"11111111-2222-3333-4444-555555555555","entityId":"11111111-2222-3333-4444-555555555555","entityType":"sample","eventType":"sample","stage":7,"trigger":"sample","providerId":"sample","providerName":"sample","bridgeIdType":"sample","bridgeIdValue":"sample","resolvedQid":"sample","confidence":7,"scoreTitle":7,"scoreAuthor":7,"scoreYear":7,"scoreFormat":7,"scoreCrossField":7,"scoreCoverArt":7,"scoreComposite":7,"occurredAt":"2025-01-02T03:04:05+00:00","detail":"sample"}
 
 [contracts] MediaEngine.Contracts.Timeline.EntityTimelineFieldChangeDto
   kind=class | converter=default | number-handling=default | unmapped=default

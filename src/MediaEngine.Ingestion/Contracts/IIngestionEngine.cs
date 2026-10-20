@@ -44,9 +44,8 @@ public interface IIngestionEngine
     Task ScanDirectory(string directory, bool includeSubdirectories = true, CancellationToken ct = default);
 
     /// <summary>
-    /// Scans multiple directories as one logical ingestion run. All accepted files
-    /// share a single ingestion batch ID so the Dashboard shows one user-facing
-    /// library update rather than one row per source folder.
+    /// Scans multiple directories in one pass, so a file reachable from more than one
+    /// source folder is accepted once.
     /// </summary>
     Task ScanDirectories(IReadOnlyList<IngestionScanTarget> targets, CancellationToken ct = default);
 
