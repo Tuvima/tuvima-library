@@ -56,7 +56,6 @@ public sealed class AiConfigurationService : IDisposable
             _current.AudioPackEnabled = proposed.AudioPackEnabled;
             _current.IdleUnloadSeconds = proposed.IdleUnloadSeconds;
             _current.InferenceTimeoutSeconds = proposed.InferenceTimeoutSeconds;
-            _current.MaxConcurrentInferences = proposed.MaxConcurrentInferences;
             _current.MinimumFreeDiskMB = proposed.MinimumFreeDiskMB;
             _current.Features = proposed.Features;
             _current.VibeVocabulary = proposed.VibeVocabulary;

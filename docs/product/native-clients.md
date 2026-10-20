@@ -84,6 +84,25 @@ collections, cannot read a Universe's relationship graph or lore, and never see
 personal-media sources or Documents through collections. Routes and fields are in the
 [API reference](../reference/api-endpoints.md#collections-and-universes-read-only).
 
+What each app shows for a Universe (all read-only, nothing to edit):
+
+- **Android phone, Android TV, iPhone and iPad, and the TV web app** (Samsung and
+  LG): the Universe's name and one line of totals ("3 Series · 14 Works · 2
+  formats", or "shows" when every line is a TV show, as on the Dashboard); then
+  each Series as its own row, in the order the Engine gives, with its "Also in
+  this world" row underneath; then a Cast list (the person and "as Character,
+  Character") and an Adaptations list ("Title — Based on Source"). A Series whose
+  only items are "Also in this world" members shows just that row, never an empty
+  row or "0 items". There is no graph, no character list beyond the cast's
+  character names, and no editing.
+- **Roku**: a Universe tile in the Collections row opens a list of its Series;
+  choosing one opens that Series' items. Roku shows no cast or adaptations.
+- A Universe the profile can't see is "not found", exactly like one that does
+  not exist.
+
+A Series' see-all list (`/api/v1/display/groups/{id}`) lists the same run as the
+Universe row, with the "Also in this world" members in their own second shelf.
+
 ## Product boundaries
 
 A paired phone or television switches profile inside the app without

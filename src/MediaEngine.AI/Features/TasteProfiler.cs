@@ -1,5 +1,5 @@
 using System.Text;
-using MediaEngine.AI.Llama;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -13,19 +13,21 @@ public sealed class TasteProfiler : ITasteProfiler
     private const int MinimumTasteSignals = 3;
     private const int MaximumTasteSignals = 500;
 
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.Person(AiCallerIds.TasteSummary);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly ITasteProfileRepository _profiles;
     private readonly ILogger<TasteProfiler> _logger;
 
     public TasteProfiler(
-        ILlamaInferenceService llama,
+        IAiEngineRoom engineRoom,
         ITasteProfileRepository profiles,
         ILogger<TasteProfiler> logger)
     {
-        ArgumentNullException.ThrowIfNull(llama);
+        ArgumentNullException.ThrowIfNull(engineRoom);
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(logger);
-        _llama = llama;
+        _engineRoom = engineRoom;
         _profiles = profiles;
         _logger = logger;
     }
@@ -126,7 +128,7 @@ public sealed class TasteProfiler : ITasteProfiler
 
         try
         {
-            var summary = await _llama.InferAsync(AiModelRole.TextFast, prompt, ct: ct)
+            var summary = await _engineRoom.WriteTextOrThrowAsync(Caller, AiAbility.WriteTextQuick, prompt, ct: ct)
                 .ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(summary)
                 ? "Profile generated from this profile's listening, reading, and viewing history."

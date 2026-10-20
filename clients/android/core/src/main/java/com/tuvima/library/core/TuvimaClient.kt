@@ -507,23 +507,8 @@ class TuvimaClient(
         )
 
     /** A Universe by Wikidata QID, with its member shelves. */
-    suspend fun universe(qid: String): UniverseDetail {
-        val json = requestJson("GET", ClientRoutes.universe(qid))
-        return UniverseDetail(
-            qid = json.optString("qid", qid),
-            name = json.optString("name", qid),
-            description = json.optionalString("description"),
-            itemCount = json.optInt("item_count"),
-            shelves = json.optJSONArray("shelves")?.objects { shelf ->
-                UniverseShelf(
-                    collectionId = shelf.optString("collection_id"),
-                    groupType = shelf.optString("group_type", "series"),
-                    itemCount = shelf.optInt("item_count"),
-                    shelf = parseShelf(shelf.optJSONObject("shelf") ?: JSONObject()),
-                )
-            }.orEmpty(),
-        )
-    }
+    suspend fun universe(qid: String): UniverseDetail =
+        parseUniverseDetail(requestJson("GET", ClientRoutes.universe(qid)), ::absolute, qid)
 
     /** The people this paired app may switch to. */
     suspend fun deviceProfiles(): List<DeviceProfile> =
@@ -802,54 +787,9 @@ class TuvimaClient(
         shelves = json.optJSONArray("shelves")?.objects(::parseShelf).orEmpty(),
     )
 
-    private fun parseShelf(json: JSONObject): DisplayShelf = DisplayShelf(
-        key = json.optString("key"),
-        title = json.optString("title"),
-        subtitle = json.optionalString("subtitle"),
-        items = json.optJSONArray("items")?.objects(::parseCard).orEmpty(),
-        seeAllRoute = json.optionalString("seeAllRoute"),
-    )
+    private fun parseShelf(json: JSONObject): DisplayShelf = parseDisplayShelf(json, ::absolute)
 
-    private fun parseCard(json: JSONObject): DisplayCard {
-        val artwork = json.optJSONObject("artwork") ?: JSONObject()
-        val progress = json.optJSONObject("progress")
-        return DisplayCard(
-            id = json.optString("id"),
-            workId = json.optionalString("workId"),
-            assetId = json.optionalString("assetId"),
-            collectionId = json.optionalString("collectionId"),
-            mediaType = json.optString("mediaType"),
-            title = json.optString("title"),
-            subtitle = json.optionalString("subtitle"),
-            facts = json.optJSONArray("facts")?.strings().orEmpty(),
-            description = json.optionalString("description"),
-            artworkUrl = absolute(
-                artwork.optionalString("backgroundLargeUrl")
-                    ?: artwork.optionalString("coverLargeUrl")
-                    ?: artwork.optionalString("squareLargeUrl")
-                    ?: artwork.optionalString("backgroundUrl")
-                    ?: artwork.optionalString("coverUrl")
-                    ?: artwork.optionalString("squareUrl"),
-            ),
-            actions = json.optJSONArray("actions")?.objects { action ->
-                DisplayAction(
-                    type = action.optString("type"),
-                    label = action.optString("label"),
-                    workId = action.optionalString("workId"),
-                    assetId = action.optionalString("assetId"),
-                    collectionId = action.optionalString("collectionId"),
-                    webUrl = action.optionalString("webUrl"),
-                )
-            }.orEmpty(),
-            progressPercent = progress?.optDouble("percent")?.takeUnless(Double::isNaN),
-            posterUrl = absolute(
-                artwork.optionalString("coverLargeUrl")
-                    ?: artwork.optionalString("coverUrl")
-                    ?: artwork.optionalString("squareLargeUrl")
-                    ?: artwork.optionalString("squareUrl"),
-            ),
-        )
-    }
+    private fun parseCard(json: JSONObject): DisplayCard = parseDisplayCard(json, ::absolute)
 
     /** A server path as an absolute URL on the address in use now (parsed models carry these; [resolveUrl] fixes stale ones). */
     private fun absolute(path: String?): String? = addresses.resolve(path)

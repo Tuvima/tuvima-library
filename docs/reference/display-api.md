@@ -28,7 +28,7 @@ The Engine owns consumer display composition for Home, Watch, Read, Listen, musi
 - `GET /api/v1/display/continue?lane=read`
 - `GET /api/v1/display/search?q=dune`
 - `GET /api/v1/display/shelves/{shelfKey}?lane=listen&mediaType=Music&grouping=home&cursor=...`
-- `GET /api/v1/display/groups/{groupId}`
+- `GET /api/v1/display/groups/{groupId}` (a Series' see-all list: the run as the `items` shelf, "Also in this world" members as a second shelf, split like the Universe read)
 
 ## Payload Rules
 

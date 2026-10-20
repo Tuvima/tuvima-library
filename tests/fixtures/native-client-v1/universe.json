@@ -3,8 +3,8 @@
   "name": "Test Universe",
   "description": null,
   "group_type": "universe",
-  "item_count": 4,
-  "series_count": 2,
+  "item_count": 5,
+  "series_count": 3,
   "media_types": [
     "Movie",
     "Book"
@@ -451,6 +451,130 @@
       },
       "also_in_this_world": null,
       "also_in_this_world_count": 0
+    },
+    {
+      "collection_id": "6f0c2a3e-0000-0000-0000-000000000020",
+      "group_type": "series",
+      "item_count": 0,
+      "shelf": {
+        "key": "6f0c2a3e-0000-0000-0000-000000000020",
+        "title": "Series Gamma",
+        "subtitle": "0 items",
+        "items": [],
+        "seeAllRoute": "/api/v1/display/groups/6f0c2a3e-0000-0000-0000-000000000020"
+      },
+      "also_in_this_world": {
+        "key": "6f0c2a3e-0000-0000-0000-000000000020:also-in-this-world",
+        "title": "Also in this world",
+        "subtitle": "1 item",
+        "items": [
+          {
+            "id": "6f0c2a3e-0000-0000-0000-000000000021",
+            "workId": "6f0c2a3e-0000-0000-0000-000000000021",
+            "assetId": "6f0c2a3e-0000-0000-0000-000000000022",
+            "collectionId": "6f0c2a3e-0000-0000-0000-000000000020",
+            "mediaType": "Book",
+            "groupingType": "work",
+            "title": "Gamma Companion",
+            "subtitle": null,
+            "facts": [
+              "G"
+            ],
+            "artwork": {
+              "coverUrl": "/stream/6f0c2a3e-0000-0000-0000-000000000022/cover",
+              "coverSmallUrl": null,
+              "coverMediumUrl": null,
+              "coverLargeUrl": null,
+              "squareUrl": null,
+              "squareSmallUrl": null,
+              "squareMediumUrl": null,
+              "squareLargeUrl": null,
+              "bannerUrl": null,
+              "bannerSmallUrl": null,
+              "bannerMediumUrl": null,
+              "bannerLargeUrl": null,
+              "backgroundUrl": null,
+              "backgroundSmallUrl": null,
+              "backgroundMediumUrl": null,
+              "backgroundLargeUrl": null,
+              "logoUrl": null,
+              "coverWidthPx": null,
+              "coverHeightPx": null,
+              "squareWidthPx": null,
+              "squareHeightPx": null,
+              "bannerWidthPx": null,
+              "bannerHeightPx": null,
+              "backgroundWidthPx": null,
+              "backgroundHeightPx": null,
+              "accentColor": null
+            },
+            "preferredShape": "portrait",
+            "presentation": "book",
+            "tileTextMode": "caption",
+            "previewPlacement": "smart",
+            "progress": null,
+            "actions": [
+              {
+                "type": "readWork",
+                "label": "Read",
+                "workId": "6f0c2a3e-0000-0000-0000-000000000021",
+                "assetId": "6f0c2a3e-0000-0000-0000-000000000022",
+                "collectionId": "6f0c2a3e-0000-0000-0000-000000000020",
+                "webUrl": "/details/work/6f0c2a3e-0000-0000-0000-000000000021?context=read"
+              },
+              {
+                "type": "openWork",
+                "label": "Details",
+                "workId": "6f0c2a3e-0000-0000-0000-000000000021",
+                "assetId": null,
+                "collectionId": "6f0c2a3e-0000-0000-0000-000000000020",
+                "webUrl": "/details/work/6f0c2a3e-0000-0000-0000-000000000021?context=read"
+              }
+            ],
+            "flags": {
+              "isPlayable": false,
+              "isReadable": true,
+              "isCollection": false,
+              "isFavorite": false
+            },
+            "sortTimestamp": "2026-10-01T09:30:00+00:00",
+            "subject": "Work",
+            "continuationState": "Unstarted",
+            "episodeContext": null,
+            "tagline": null,
+            "description": null,
+            "genres": [],
+            "badges": [],
+            "previewItems": [],
+            "previewTotalCount": null,
+            "groupSummary": null,
+            "sortYear": 0,
+            "listMetadata": {
+              "author": null,
+              "artist": null,
+              "director": null,
+              "narrator": null,
+              "album": null,
+              "series": null,
+              "genre": null,
+              "duration": null,
+              "trackNumber": null,
+              "year": null,
+              "showName": "Gamma Companion",
+              "seasonNumber": null,
+              "episodeNumber": null,
+              "playCount": null,
+              "lastPlayedAt": null,
+              "rootWorkId": "6f0c2a3e-0000-0000-0000-000000000021",
+              "artistPersonId": null,
+              "isUpdatingDetails": false
+            },
+            "isSettling": false
+          }
+        ],
+        "seeAllRoute": null
+      },
+      "also_in_this_world_count": 1
     }
   ],
   "cast": [
@@ -465,6 +589,13 @@
         }
       ],
       "work_count": 2
+    },
+    {
+      "person_id": "6f0c2a3e-0000-0000-0000-000000000012",
+      "name": "Ben Narrator",
+      "headshot_url": null,
+      "characters": [],
+      "work_count": 1
     }
   ],
   "adaptations": [

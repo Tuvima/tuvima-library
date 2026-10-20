@@ -64,8 +64,11 @@ public sealed class Phase7AiConfigurationTests
             catalog.Keys.Order());
         Assert.All(catalog.Values, entry =>
         {
+            // A catalogue entry knows only that its definition is complete; the runtime and the model file are facts about
+            // this machine, read live by the advisor, so they are never claimed here.
             Assert.True(entry.Readiness.ConfigurationReady);
-            Assert.True(entry.Readiness.RuntimeReady);
+            Assert.False(entry.Readiness.RuntimeReady);
+            Assert.False(entry.Readiness.Validated);
             Assert.False(string.IsNullOrWhiteSpace(entry.Sha256));
             Assert.False(string.IsNullOrWhiteSpace(entry.DownloadUrl));
         });
@@ -113,7 +116,10 @@ public sealed class Phase7AiConfigurationTests
         settings.Features.VibeTags = false;
         var inventory = new ModelInventory(settings, NullLogger<ModelInventory>.Instance);
         inventory.SetState(AiModelRole.TextQuality, AiModelState.Ready);
-        var gate = new AiFeatureGate(settings, inventory, new AiModelSelectionAdvisor(settings));
+        var gate = new AiFeatureGate(
+            settings,
+            inventory,
+            new AiModelSelectionAdvisor(settings, inventory, new FixedRuntimeStatus(textLoads: true)));
 
         Assert.False(gate.CanExecute(AiFeature.VibeTags, AiModelRole.TextQuality));
 

@@ -160,10 +160,14 @@ struct PosterTile: View {
 struct ShelfRow: View {
     let shelf: DisplayShelf
     var title: String? = nil
+    /// False when the caller draws its own heading above the row (the Universe screen).
+    var showsTitle: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title ?? shelf.title).font(.title3.bold()).padding(.horizontal)
+            if showsTitle {
+                Text(title ?? shelf.title).font(.title3.bold()).padding(.horizontal)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(shelf.items) { card in
