@@ -50,6 +50,12 @@ public sealed class DetailPageViewModel
     public MusicAlbumCompanionViewModel? MusicAlbumCompanion { get; init; }
 
     public LibraryStatus LibraryStatus { get; init; } = LibraryStatus.Unknown;
+
+    /// <summary>
+    /// True when this title was moved into its album, season or series with "Add anyway": it has no number and no details borrowed
+    /// from any entry, and the page shows it as "Not matched". A later Match clears it.
+    /// </summary>
+    public bool IsUnmatched { get; set; }
 }
 
 /// <summary>A link from an item page to the Universe page: the Universe's Wikidata QID and its name.</summary>
@@ -473,6 +479,9 @@ public sealed class SequenceItemViewModel
     public bool IsCurrent { get; init; }
     public bool IsOwned { get; init; }
     public LibraryProgressState ProgressState { get; init; } = LibraryProgressState.Unknown;
+
+    /// <summary>True for a title added to this Series or season anyway: no number, shown as "Not matched" (Details overlay D13).</summary>
+    public bool IsUnmatched { get; set; }
 }
 
 public sealed class OwnedFormatViewModel
@@ -636,6 +645,9 @@ public sealed class MediaGroupingItemViewModel
     public bool IsOwned { get; init; } = true;
     public bool IsFavorite { get; init; }
     public LibraryProgressState ProgressState { get; init; } = LibraryProgressState.Unknown;
+
+    /// <summary>True for a track, episode or audiobook part added anyway: no number, shown as "Not matched" (Details overlay D13).</summary>
+    public bool IsUnmatched { get; set; }
 }
 
 public enum CanonicalIdentityStatus

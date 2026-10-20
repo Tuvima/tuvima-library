@@ -291,6 +291,31 @@ public sealed class MappedEndpointInventoryTests
         Assert.True(requirement.SurfaceUnlock);
     }
 
+    [Fact]
+    public async Task LibraryItemMoves_AreAuthorisedLikeTheOtherStructuralEdits_AndTheOldRoutesStillExist()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        // Moving changes library structure, so each action needs the same permission membership-apply uses (metadata write).
+        foreach (var (pattern, method, name) in new[]
+        {
+            ("/library/items/{id:guid}/move-destinations", "GET", "GetLibraryItemMoveDestinations"),
+            ("/library/items/move-preview", "POST", "PreviewLibraryItemMove"),
+            ("/library/items/move", "POST", "MoveLibraryItems"),
+        })
+        {
+            var route = inventory.Require(pattern, method);
+            Assert.Equal(name, route.Name);
+            route.RequiresAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite);
+            Assert.False(route.AllowsAnonymousEndpoint);
+        }
+
+        // The old actions stay until the Dashboard has moved to the new ones.
+        Assert.Contains(inventory.Endpoints, endpoint => endpoint.Name == "ApplyMediaEditorMembershipChange");
+        Assert.Contains(inventory.Endpoints, endpoint => endpoint.Name == "SaveMusicTrackMove");
+    }
+
     private static WebApplication BuildEndpointOnlyApplication()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions

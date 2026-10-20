@@ -25,7 +25,10 @@ internal static class CuratedCollectionCleanup
     /// Deletes every empty curated collection on the caller's connection (and transaction, when
     /// given) and records one system activity entry for each. Returns what was removed.
     /// </summary>
-    internal static IReadOnlyList<RemovedCollection> DeleteEmpty(IDbConnection conn, IDbTransaction? transaction)
+    internal static IReadOnlyList<RemovedCollection> DeleteEmpty(
+        IDbConnection conn,
+        IDbTransaction? transaction,
+        string reason = "its last item left the library")
     {
         var empty = conn.Query<(Guid Id, string? Name)>("""
             SELECT c.id AS Id, c.display_name AS Name
@@ -61,7 +64,7 @@ internal static class CuratedCollectionCleanup
                 CollectionName = name,
                 EntityId = id,
                 EntityType = "Collection",
-                Detail = $"Removed the collection '{name}' because its last item left the library.",
+                Detail = $"Removed the collection '{name}' because {reason}.",
             });
             removed.Add(new RemovedCollection(id, name));
         }
