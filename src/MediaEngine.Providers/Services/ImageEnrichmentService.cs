@@ -367,7 +367,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 && (string.Equals(source, "tvdb", StringComparison.OrdinalIgnoreCase)
                     || string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(episodeId)))
             {
-                return await EnrichTvdbImagesAsync(context, tvdbId, forceRefresh, checkedAt, ct).ConfigureAwait(false);
+                return await EnrichTvdbImagesAsync(context, canonicals, tvdbId, checkedAt, ct).ConfigureAwait(false);
             }
         }
         if (context.MediaType == MediaType.TV)
@@ -399,11 +399,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         var metadataLanguage = ResolveMetadataLanguage();
 
-        var endpoint = context.MediaType == MediaType.Movies
-            ? $"{TmdbApiBaseUrl}/movie/{Uri.EscapeDataString(tmdbId)}/images"
-            : $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/images";
-        var rootAlreadyChecked = !forceRefresh
-            && !string.IsNullOrWhiteSpace(GetValue(canonicals, "tmdb_artwork_last_checked_at"));
+        var endpoint = $"{TmdbApiBaseUrl}/movie/{Uri.EscapeDataString(tmdbId)}/images";
+        var rootAlreadyChecked = !forceRefresh && LastPassAnsweredFor(canonicals, tmdbId);
         var response = rootAlreadyChecked
             ? (Json: (JsonNode?)null, Status: "Completed", HttpStatusCode: (int?)null, SkippedReason: (string?)null, Message: (string?)null)
             : await GetImagesAsync(endpoint, apiKey, metadataLanguage, ct).ConfigureAwait(false);
@@ -416,7 +413,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var held = 0;
         var preferredUpdates = 0;
-        var owner = context.MediaType == MediaType.TV ? context.RootWorkId : context.SelfWorkId;
+        var owner = context.SelfWorkId;
+        var reidentified = !rootAlreadyChecked && HeldArtworkIsForAnotherIdentity(canonicals, TmdbProviderName, tmdbId);
         foreach (var mapping in RootMappings)
         {
             if (rootAlreadyChecked)
@@ -427,7 +425,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 continue;
             }
 
-            var processed = await ProcessRankedImagesAsync(response.Json?[mapping.JsonField]?.AsArray() ?? [], mapping.AssetType,
+            var imageNodes = response.Json?[mapping.JsonField]?.AsArray() ?? [];
+            var processed = await ProcessRankedImagesAsync(imageNodes, mapping.AssetType,
                 owner, mapping.UpdatePreferred, metadataLanguage, ct).ConfigureAwait(false);
             if (mapping.AssetType == AssetType.CoverArt && processed.PreferredLocalPath is not null)
             {
@@ -436,6 +435,15 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             AddCount(counts, mapping.AssetType, processed.StoredCount);
             held += processed.HeldCount;
             preferredUpdates += processed.UpdatedPreferredCount;
+            if (reidentified)
+            {
+                var offered = imageNodes
+                    .Select(node => node?["file_path"]?.GetValue<string>())
+                    .Where(path => !string.IsNullOrWhiteSpace(path))
+                    .Select(path => BuildImageUrl(path!));
+                await RemoveEarlierIdentityArtworkAsync(owner, mapping.AssetType, offered,
+                    await ReadCurrentCoverUrlAsync(context, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
+            }
         }
 
         foreach (var mapping in BrandMappings)
@@ -453,83 +461,6 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             preferredUpdates += processed.UpdatedPreferredCount;
         }
 
-        if (context.MediaType == MediaType.TV)
-        {
-            foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
-            {
-                var seasonCanonicals = await _canonicalRepo.GetByEntityAsync(season.WorkId, ct).ConfigureAwait(false);
-                var seasonSource = seasonCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
-                var tvdbSeasonId = seasonCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, BridgeIdKeys.TvdbSeasonId, StringComparison.OrdinalIgnoreCase))?.Value;
-                if (string.Equals(seasonSource, "tvdb", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (_tvdb?.IsConfigured("tvdb") == true && !string.IsNullOrWhiteSpace(tvdbSeasonId))
-                    {
-                        var seasonResult = await RefreshTvdbScopeImagesAsync(season.WorkId, "season", tvdbSeasonId, ct)
-                            .ConfigureAwait(false);
-                        MergeCounts(counts, seasonResult.StoredVariantCounts);
-                        held += seasonResult.HeldCount;
-                        preferredUpdates += seasonResult.UpdatedPreferredCount;
-                    }
-                    continue;
-                }
-                if (!forceRefresh && seasonCanonicals.Any(value =>
-                        string.Equals(value.Key, "tmdb_season_artwork_last_checked_at", StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
-
-                var seasonEndpoint = $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/season/{season.SeasonNumber}/images";
-                var seasonResponse = await GetImagesAsync(seasonEndpoint, apiKey, metadataLanguage, ct).ConfigureAwait(false);
-                if (seasonResponse.Json is null)
-                {
-                    continue;
-                }
-
-                foreach (var mapping in SeasonMappings)
-                {
-                    var processed = await ProcessRankedImagesAsync(
-                        seasonResponse.Json[mapping.JsonField]?.AsArray() ?? [],
-                        mapping.AssetType,
-                        season.WorkId,
-                        updatePreferred: true,
-                        metadataLanguage,
-                        ct).ConfigureAwait(false);
-                    AddCount(counts, mapping.AssetType, processed.StoredCount);
-                    held += processed.HeldCount;
-                    preferredUpdates += processed.UpdatedPreferredCount;
-                }
-
-                await _canonicalRepo.UpsertBatchAsync(
-                [
-                    new CanonicalValue
-                    {
-                        EntityId = season.WorkId,
-                        Key = "tmdb_season_artwork_last_checked_at",
-                        Value = checkedAt.ToString("O", CultureInfo.InvariantCulture),
-                        LastScoredAt = checkedAt,
-                        WinningProviderId = WellKnownProviders.Tmdb,
-                    },
-                ], ct).ConfigureAwait(false);
-            }
-
-            var ownCanonicals = await _canonicalRepo.GetByEntityAsync(context.SelfWorkId, ct).ConfigureAwait(false);
-            if (string.Equals(ownCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value,
-                    "tvdb", StringComparison.OrdinalIgnoreCase)
-                && ownCanonicals.FirstOrDefault(value =>
-                    string.Equals(value.Key, BridgeIdKeys.TvdbEpisodeId, StringComparison.OrdinalIgnoreCase))?.Value is { } tvdbEpisodeId
-                && _tvdb?.IsConfigured("tvdb") == true)
-            {
-                var episodeResult = await RefreshTvdbScopeImagesAsync(context.SelfWorkId, "episode", tvdbEpisodeId, ct)
-                    .ConfigureAwait(false);
-                MergeCounts(counts, episodeResult.StoredVariantCounts);
-                held += episodeResult.HeldCount;
-                preferredUpdates += episodeResult.UpdatedPreferredCount;
-            }
-        }
-
         var downloaded = counts.Values.Sum();
         return await PersistDiagnosticsAsync(context, CreateResult(held > 0 || preferredUpdates > 0 ? "Completed" : "NoImages",
             checkedAt, mediaType, BridgeIdKeys.TmdbId, tmdbId, endpoint, response.HttpStatusCode,
@@ -538,15 +469,31 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             storedCounts: counts, updatedPreferredCount: preferredUpdates, heldCount: held), ct);
     }
 
+    /// <summary>
+    /// A repeat pass may skip the provider call only when the last pass got TMDB's artwork for the item's
+    /// current id. After re-identification the stored artwork belongs to the earlier film, and a pass that
+    /// was skipped, failed or found no TMDB record has nothing to repeat, so each calls TMDB again.
+    /// </summary>
+    private static bool LastPassAnsweredFor(IReadOnlyDictionary<string, string> canonicals, string tmdbId) =>
+        !string.IsNullOrWhiteSpace(GetValue(canonicals, "tmdb_artwork_last_checked_at"))
+        && string.Equals(GetValue(canonicals, "tmdb_artwork_bridge_id"), tmdbId, StringComparison.OrdinalIgnoreCase)
+        && GetValue(canonicals, "tmdb_artwork_status") is "Completed" or "NoImages";
+
+    /// <summary>
+    /// True when the provider artwork held for the item was found for a different bridge id than the current
+    /// one: the item was re-identified without a manual rematch (a rematch replaces the artwork itself).
+    /// </summary>
+    private static bool HeldArtworkIsForAnotherIdentity(IReadOnlyDictionary<string, string> canonicals, string provider, string bridgeId) =>
+        new[] { GetValue(canonicals, $"{provider}_artwork_bridge_id"), GetValue(canonicals, ArtworkCanonicalHelper.PosterChoiceKey(provider)) }
+            .Any(earlier => !string.IsNullOrWhiteSpace(earlier) && !string.Equals(earlier, bridgeId, StringComparison.OrdinalIgnoreCase));
+
     private static readonly ArtworkMapping[] RootMappings =
     [new("backdrops", AssetType.Background, true), new("logos", AssetType.Logo, true), new("posters", AssetType.CoverArt, true)];
-    private static readonly ArtworkMapping[] SeasonMappings =
-    [new("posters", AssetType.SeasonPoster, true), new("backdrops", AssetType.SeasonThumb, true)];
     private static readonly BrandArtworkMapping[] BrandMappings =
     [new("network_logo_url", AssetType.NetworkLogo), new("studio_logo_url", AssetType.StudioLogo)];
 
     private async Task<ImageEnrichmentResult> EnrichTvdbImagesAsync(
-        ArtworkContext context, string showId, bool forceRefresh, DateTimeOffset checkedAt,
+        ArtworkContext context, IReadOnlyDictionary<string, string> canonicals, string showId, DateTimeOffset checkedAt,
         CancellationToken ct)
     {
         var types = await _tvdb!.GetAsync("tvdb", "artwork_types", null, ct).ConfigureAwait(false);
@@ -584,6 +531,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var held = 0;
         var showHeld = 0;
         var preferred = 0;
+        var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
         async Task AddAsync(string? value, AssetType type, Guid owner)
         {
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
@@ -593,6 +541,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 return;
             }
+            if (!offered.TryGetValue((owner, type), out var urls))
+            {
+                offered[(owner, type)] = urls = [];
+            }
+            urls.Add(uri.ToString());
             var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb")
                 .ConfigureAwait(false);
             AddCount(counts, type, processed.StoredCount);
@@ -641,16 +594,21 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 continue;
             }
-            var seasonId = seasonValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbSeasonId)?.Value;
-            seasonId ??= show["seasons"]?.AsArray().FirstOrDefault(node =>
-                node?["number"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
-                && (show["defaultSeasonType"] is null || node?["type"]?["id"]?.ToString()
-                    == show["defaultSeasonType"]?.ToString()))?["id"]?.ToString();
+            var storedSeasonId = seasonValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbSeasonId)?.Value;
+            var showSeasons = show["seasons"] as JsonArray;
+            // A season id found under the show's earlier identity is not one of this show's seasons.
+            var seasonId = storedSeasonId is not null
+                && (showSeasons is not { Count: > 0 } || showSeasons.Any(node => node?["id"]?.ToString() == storedSeasonId))
+                    ? storedSeasonId
+                    : showSeasons?.FirstOrDefault(node =>
+                        node?["number"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
+                        && (show["defaultSeasonType"] is null || node?["type"]?["id"]?.ToString()
+                            == show["defaultSeasonType"]?.ToString()))?["id"]?.ToString();
             if (string.IsNullOrWhiteSpace(seasonId))
             {
                 continue;
             }
-            if (seasonValues.All(value => value.Key != BridgeIdKeys.TvdbSeasonId))
+            if (!string.Equals(seasonId, storedSeasonId, StringComparison.Ordinal))
             {
                 await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
                     {
@@ -664,6 +622,22 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             if (!heldTypes.Contains(AssetType.SeasonPoster.ToString()))
             {
                 await AddAsync(detail?["image"]?.ToString(), AssetType.SeasonPoster, season.WorkId).ConfigureAwait(false);
+            }
+        }
+
+        if (HeldArtworkIsForAnotherIdentity(canonicals, "tvdb", showId))
+        {
+            // The show was identified as a different show; the earlier show's artwork and its seasons' artwork go.
+            var scopes = new List<(Guid Owner, AssetType Type)>
+            {
+                (context.RootWorkId, AssetType.CoverArt), (context.RootWorkId, AssetType.Background), (context.RootWorkId, AssetType.Logo),
+            };
+            scopes.AddRange(offered.Keys.Where(key => key.Owner != context.RootWorkId
+                && key.Type is AssetType.SeasonPoster or AssetType.SeasonThumb));
+            foreach (var (owner, type) in scopes.Distinct())
+            {
+                await RemoveEarlierIdentityArtworkAsync(owner, type, offered.GetValueOrDefault((owner, type)) ?? [],
+                    await ReadCurrentCoverUrlAsync(context, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
             }
         }
 
@@ -955,6 +929,81 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         return stored?.ImageUrl;
     }
 
+    /// <summary>
+    /// Read fresh rather than from the pass's opening snapshot: a cover pass running alongside may have stored the
+    /// current identity's retail cover since.
+    /// </summary>
+    private async Task<string?> ReadCurrentCoverUrlAsync(ArtworkContext context, CancellationToken ct) =>
+        GetValue(await LoadCanonicalsAsync(context, ct).ConfigureAwait(false), MetadataFieldConstants.Cover);
+
+    /// <summary>
+    /// After re-identification, removes the owner's provider artwork of <paramref name="assetType"/> that the
+    /// current identity did not offer. Uploads, user picks and local covers (embedded or folder art) stay, as
+    /// does the retail cover for the current identity (<paramref name="currentCoverUrl"/>); unlike an explicit
+    /// retail rematch, which replaces picked provider images too. If the preferred variant goes and nothing new
+    /// replaced it, the next best survivor takes over.
+    /// </summary>
+    private async Task RemoveEarlierIdentityArtworkAsync(Guid ownerEntityId, AssetType assetType, IEnumerable<string> offeredUrls,
+        string? currentCoverUrl, CancellationToken ct)
+    {
+        var keep = new HashSet<string>(offeredUrls, StringComparer.OrdinalIgnoreCase);
+        if (assetType == AssetType.CoverArt && !string.IsNullOrWhiteSpace(currentCoverUrl))
+        {
+            keep.Add(currentCoverUrl);
+        }
+
+        var variants = await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false);
+        var earlier = variants
+            .Where(asset => string.Equals(asset.AssetClassValue, "Artwork", StringComparison.OrdinalIgnoreCase)
+                && !asset.IsUserOverride
+                && !string.Equals(asset.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
+                && Uri.TryCreate(asset.ImageUrl, UriKind.Absolute, out var url) && url.Scheme is "http" or "https"
+                && !keep.Contains(asset.ImageUrl))
+            .ToList();
+        if (earlier.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var asset in earlier)
+        {
+            await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_assetRepo, asset, _assetPaths, _logger, ct).ConfigureAwait(false);
+        }
+        _logger.LogInformation("Removed {Count} {AssetType} variant(s) of an earlier identity from {OwnerEntityId}",
+            earlier.Count, assetType, ownerEntityId);
+
+        if (!earlier.Any(asset => asset.IsPreferred))
+        {
+            return;
+        }
+
+        var survivors = variants.Except(earlier).ToList();
+        var survivor = survivors.FirstOrDefault(asset => asset.IsUserOverride)
+            ?? survivors.FirstOrDefault(asset => string.Equals(asset.ImageUrl, currentCoverUrl, StringComparison.OrdinalIgnoreCase))
+            ?? survivors.FirstOrDefault();
+        if (survivor is not null)
+        {
+            await _assetRepo.SetPreferredAsync(survivor.Id, ct).ConfigureAwait(false);
+            await PersistPreferredAssetCanonicalsAsync(ownerEntityId, survivor, ct).ConfigureAwait(false);
+            if (_assetExportService is not null)
+            {
+                await _assetExportService.ReconcileArtworkAsync(survivor.EntityId, survivor.EntityType, survivor.AssetTypeValue, ct)
+                    .ConfigureAwait(false);
+            }
+            return;
+        }
+
+        foreach (var key in ArtworkCanonicalHelper.DisplayCanonicalKeys(assetType.ToString()))
+        {
+            await _canonicalRepo.DeleteByKeyAsync(ownerEntityId, key, ct).ConfigureAwait(false);
+        }
+        if (_assetExportService is not null)
+        {
+            await _assetExportService.ClearArtworkExportAsync(ownerEntityId.ToString(), "Work", assetType.ToString(), ct)
+                .ConfigureAwait(false);
+        }
+    }
+
     private async Task<int> CountHeldVariantsAsync(Guid ownerEntityId, AssetType assetType, string sourceProvider, CancellationToken ct)
     {
         var variants = await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false);
@@ -1214,7 +1263,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             AddDiagnostic(values, id, $"{providerName}_artwork_status", status, now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_last_checked_at", result.LastCheckedAt.ToString("O", CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_held_count", heldCount.ToString(CultureInfo.InvariantCulture), now, providerId);
-            AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
+            if (result.Success)
+            {
+                // The id the held artwork was found for: a skipped or failed pass holds nothing for its id.
+                AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
+            }
             AddDiagnostic(values, id, $"{providerName}_artwork_http_status", result.HttpStatusCode?.ToString(CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_skipped_reason", result.SkippedReason, now, providerId);
         }

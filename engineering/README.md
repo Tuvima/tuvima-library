@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 and WP27 built 2026-10-20) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
-| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2, started 2026-10-20) |
+| [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Built, awaiting your Local checks (v2) |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v29, 2026-10-20) |
 | [Spec: Audiobook year on the remaining screens](specs/audiobook-year-other-reads.md) | In progress (v2, locked by Shy 2026-10-20 with Q1–Q3 (a)) |
 | [Archive](specs/archive/README.md) | Built specs |

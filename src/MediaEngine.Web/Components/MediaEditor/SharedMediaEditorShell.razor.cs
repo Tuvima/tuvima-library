@@ -4991,6 +4991,30 @@ public partial class SharedMediaEditorShell
         && !string.IsNullOrWhiteSpace(candidate.ProviderName)
         && !string.IsNullOrWhiteSpace(candidate.ProviderItemId);
 
+    // Songs, episodes and audiobook parts can move to another album, season or audiobook through the Match step (the Engine decides
+    // whether this exact title can; otherwise the panel draws nothing).
+    protected bool CanMoveCurrentTarget => EditorMediaType is "Music" or "TV" or "Audiobooks";
+
+    private async Task OnItemMovedAsync(MediaEngine.Contracts.Items.ItemMoveResultDto moved)
+    {
+        _hasCommittedChanges = true;
+        _movedItemNotice = moved.Mode == MediaEngine.Contracts.Items.ItemMoveModes.AddAnyway
+            ? $"Added to {moved.DestinationTitle} with no number. It is tagged Not matched until you match it."
+            : $"Moved to {moved.DestinationTitle}.";
+        _movedItemDestinationId = moved.LandedWorkId;
+        Snackbar.Add(_movedItemNotice, AppSeverity.Success);
+        try
+        {
+            await NotifyParentArtworkChangedAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Refreshing after moving item {WorkId} failed", moved.WorkId);
+        }
+
+        StateHasChanged();
+    }
+
     protected bool IsMusicTrackMoveTarget => EditorMediaType == "Music"
         && string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase);
 

@@ -1,0 +1,319 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+
+@* Moving several ticked rows at once (details overlay spec, Match step): choose where they go, then a mapping table says which entry of
+   that place's list each one is (current -> new entry). The Engine's best guess fills each row; a row nobody fits is highlighted and
+   Apply stays off until every row is matched, or the person chooses "Add unmatched without numbers" (D13). Each row is then moved
+   through the same preview-and-confirm Engine check as a single move, so a changed plan moves nothing for that row. *@
+<section class="item-batch-move" aria-label="@($"Move {Count} {Plural}")">
+    @if (_step == Step.Closed)
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.DriveFileMove" Disabled="@_busy" OnClick="OpenAsync">Move @Count…</AppButton>
+    }
+    else if (_step == Step.ChooseDestination)
+    {
+        <div class="item-batch-move__head">
+            <strong>Where do they go?</strong>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Close">Cancel</AppButton>
+        </div>
+        <AppTextField Label="@($"Find a {Noun}")" Value="@_query" ValueChanged="SearchAsync" Placeholder="@($"Search your {Noun}s")" DebounceInterval="250" />
+        @if (_busy)
+        {
+            <p class="item-batch-move__note" role="status">Looking…</p>
+        }
+        else if (_destinations.Count == 0)
+        {
+            <p class="item-batch-move__note">No other @(Noun)s take these.</p>
+        }
+        else
+        {
+            <ul class="item-batch-move__list" aria-label="Places they can go">
+                @foreach (var destination in _destinations)
+                {
+                    <li>
+                        <AppNativeButton Type="button" Class="item-batch-move__pick" OnClick="@(() => PickDestinationAsync(destination))">
+                            <strong>@destination.Title</strong>
+                            <span>@destination.EntryCount @(destination.EntryCount == 1 ? "entry" : "entries")</span>
+                        </AppNativeButton>
+                    </li>
+                }
+            </ul>
+        }
+    }
+    else
+    {
+        <div class="item-batch-move__head">
+            <strong>Match to @_destinationTitle</strong>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_busy" OnClick="BackAsync">Back</AppButton>
+        </div>
+        <table class="item-batch-move__table">
+            <thead>
+                <tr><th scope="col">Now</th><th scope="col">Becomes</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    var current = row;
+                    <tr class="@(current.EntryId is null ? "is-unmatched" : null)">
+                        <td>@current.Title</td>
+                        <td>
+                            <AppSelect Label="@($"Entry for {current.Title}")" HideLabel="true" Native="true"
+                                       Value="@(current.EntryId?.ToString("D") ?? string.Empty)"
+                                       ValueChanged="@(value => SetEntry(current, value))"
+                                       Options="OptionsFor(current)" Disabled="@_busy" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (_unmatchedCount > 0)
+        {
+            <AppCheckbox Label="Add unmatched without numbers" Value="@_addUnmatched" ValueChanged="SetAddUnmatched" Disabled="@_busy" />
+            <p class="item-batch-move__note" role="status">@_unmatchedCount @(_unmatchedCount == 1 ? "row has" : "rows have") no entry yet.</p>
+        }
+        <div class="item-batch-move__actions">
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <span class="item-batch-move__error" role="alert">@_error</span>
+            }
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_busy" OnClick="Close">Cancel</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanApply)" OnClick="ApplyAsync">
+                @(_busy ? "Moving…" : $"Move {Count} {Plural}")
+            </AppButton>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_result))
+    {
+        <p class="item-batch-move__note" role="status">@_result</p>
+    }
+</section>
+
+@code {
+    private enum Step { Closed, ChooseDestination, Map }
+
+    private sealed class Row
+    {
+        public Guid WorkId { get; init; }
+        public string Title { get; init; } = string.Empty;
+        public Guid? EntryId { get; set; }
+    }
+
+    private Step _step = Step.Closed;
+    private bool _busy;
+    private bool _addUnmatched;
+    private string? _query;
+    private string? _error;
+    private string? _result;
+    private string _destinationTitle = string.Empty;
+    private Guid _destinationId;
+    private IReadOnlyList<ItemMoveDestinationDto> _destinations = [];
+    private IReadOnlyList<ItemMoveEntryDto> _entries = [];
+    private List<Row> _rows = [];
+
+    /// <summary>The ticked rows.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+
+    /// <summary>"Music", "TV" or "Audiobooks"; picks the words album, season or audiobook.</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    [Parameter] public string Plural { get; set; } = "items";
+
+    /// <summary>Raised after at least one row moved so the page can refresh.</summary>
+    [Parameter] public EventCallback OnMoved { get; set; }
+
+    private int Count => WorkIds.Count;
+
+    private string Noun => MediaType switch
+    {
+        "TV" => "season",
+        "Audiobooks" => "audiobook",
+        _ => "album",
+    };
+
+    private int _unmatchedCount => _rows.Count(r => r.EntryId is null);
+
+    private bool CanApply => _rows.Count > 0 && (_unmatchedCount == 0 || _addUnmatched);
+
+    private IReadOnlyList<AppSelectOption> OptionsFor(Row row)
+    {
+        var used = _rows.Where(r => r != row && r.EntryId is not null).Select(r => r.EntryId!.Value).ToHashSet();
+        var options = new List<AppSelectOption> { new(string.Empty, "Not matched") };
+        foreach (var entry in _entries.Where(e => !e.Taken && !used.Contains(e.Id)).OrderBy(e => e.Number is null).ThenBy(e => e.Number))
+        {
+            options.Add(new(entry.Id.ToString("D"), entry.Number is { } number ? $"{number}. {entry.Title}" : entry.Title));
+        }
+
+        return options;
+    }
+
+    private void SetEntry(Row row, string? value) =>
+        row.EntryId = Guid.TryParse(value, out var id) ? id : null;
+
+    private void SetAddUnmatched(bool value) => _addUnmatched = value;
+
+    private async Task OpenAsync()
+    {
+        _result = null;
+        _error = null;
+        _step = Step.ChooseDestination;
+        await SearchAsync(_query);
+    }
+
+    private void Close()
+    {
+        _step = Step.Closed;
+        _rows = [];
+        _error = null;
+        _addUnmatched = false;
+    }
+
+    private async Task SearchAsync(string? query)
+    {
+        _query = query;
+        _busy = true;
+        try
+        {
+            var found = WorkIds.Count == 0 ? null : await Api.FindItemMoveDestinationsAsync(WorkIds[0], query);
+            _destinations = found is { IsOk: true } ? found.Value!.Destinations : [];
+            _error = found is null || found.IsOk ? null : found.Message ?? "The places could not be loaded.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task BackAsync()
+    {
+        _rows = [];
+        _addUnmatched = false;
+        _step = Step.ChooseDestination;
+        await SearchAsync(_query);
+    }
+
+    // The Engine's best guess fills each row; a guess that is taken, or already given to an earlier row, is left for the person.
+    private async Task PickDestinationAsync(ItemMoveDestinationDto destination)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var rows = new List<Row>();
+            IReadOnlyList<ItemMoveEntryDto> entries = [];
+            var used = new HashSet<Guid>();
+            foreach (var id in WorkIds)
+            {
+                var outcome = await Api.GetItemMovePreviewAsync(id, destination.Id, null, null);
+                if (!outcome.IsOk)
+                {
+                    _error = outcome.Message ?? "That place could not be checked. Try again.";
+                    return;
+                }
+
+                var preview = outcome.Value!;
+                entries = preview.Entries;
+                var guess = preview.SelectedEntryId is { } selected
+                    && !preview.SelectedEntryTaken
+                    && preview.Entries.Any(e => e.Id == selected && !e.Taken)
+                    && used.Add(selected)
+                        ? selected
+                        : (Guid?)null;
+                rows.Add(new Row { WorkId = id, Title = preview.Title, EntryId = guess });
+            }
+
+            _destinationId = destination.Id;
+            _destinationTitle = destination.Title;
+            _entries = entries;
+            _rows = rows;
+            _addUnmatched = false;
+            _step = Step.Map;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (!CanApply)
+        {
+            return;
+        }
+
+        var unmatched = _unmatchedCount;
+        var message = unmatched == 0
+            ? $"Each file is renamed to fit and moved to {_destinationTitle}."
+            : $"{unmatched} will be added without a number and tagged Not matched. Each file is renamed to fit and moved to {_destinationTitle}.";
+        var answer = await AppConfirmDialog.ShowAsync(
+            Dialogs,
+            $"Move {Count} {Plural} to {_destinationTitle}?",
+            message,
+            primaryLabel: "Move",
+            secondaryLabel: "Cancel");
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        var moved = 0;
+        var failed = 0;
+        try
+        {
+            // One at a time: each move changes which entries are free, so the Engine re-checks every row against the list as it is now.
+            foreach (var row in _rows)
+            {
+                var mode = row.EntryId is null ? ItemMoveModes.AddAnyway : ItemMoveModes.Match;
+                var preview = await Api.GetItemMovePreviewAsync(row.WorkId, _destinationId, row.EntryId, mode);
+                if (!preview.IsOk || preview.Value!.BlockedReason is not null)
+                {
+                    failed++;
+                    continue;
+                }
+
+                var outcome = await Api.MoveItemAsync(new ItemMoveRequest
+                {
+                    WorkId = row.WorkId,
+                    DestinationId = _destinationId,
+                    EntryId = preview.Value.SelectedEntryId,
+                    Mode = preview.Value.Mode,
+                    Fingerprint = preview.Value.Fingerprint,
+                });
+                if (outcome.IsOk)
+                {
+                    moved++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        _result = ResultLine(moved, failed);
+        Close();
+        if (moved > 0)
+        {
+            await OnMoved.InvokeAsync();
+        }
+    }
+
+    /// <summary>"3 moved" or "2 moved, 1 could not be moved and was left where it was".</summary>
+    internal static string ResultLine(int moved, int failed) =>
+        failed == 0
+            ? $"{moved} moved"
+            : failed == 1
+                ? $"{moved} moved, 1 could not be moved and was left where it was"
+                : $"{moved} moved, {failed} could not be moved and were left where they were";
+}

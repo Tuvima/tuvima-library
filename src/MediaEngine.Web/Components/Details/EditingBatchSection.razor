@@ -1,0 +1,358 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@implements IEditingSectionHost
+@inject IEngineApiClient Api
+
+@* Batch editing (details overlay spec D8): ticking rows in Editing Mode shows a selection bar; "Edit N" opens this section above the
+   rows. Every field says "No change" until it is filled in, and "Mixed" where the ticked rows differ. Tags can be added to, replaced
+   or removed from; the other fields replace. One "Apply to N episodes" commits the batch, and a row that cannot take it is sent to
+   Needs Review while the rest still apply. Metadata only: renaming, moving files and moving between albums or seasons are Match
+   steps. *@
+@if (Mode is { IsOn: true, CanEdit: true } mode && mode.BatchSelection.Count > 0)
+{
+    var count = mode.BatchSelection.Count;
+    <section class="tl-batch" aria-label="Batch editing">
+        <div class="tl-batch__bar" role="status">
+            <strong>@count @(count == 1 ? Singular : Plural) selected</strong>
+            <div class="tl-batch__bar-actions">
+                @if (!mode.BatchSectionOpen)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(mode.Fields.HasOpenDraft || mode.IsSettling)" OnClick="OpenAsync">Edit @count</AppButton>
+                }
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(_applying || mode.IsSettling)" OnClick="ClearAsync">Clear</AppButton>
+            </div>
+        </div>
+
+        @if (!mode.BatchSectionOpen && MoveMediaType is not null)
+        {
+            <ItemBatchMovePanel WorkIds="@mode.BatchSelection.ToList()" MediaType="@MoveMediaType" Plural="@Plural" OnMoved="OnMovedAsync" />
+        }
+
+        @if (mode.BatchSectionOpen)
+        {
+            <div class="tl-batch__panel">
+                <div class="tl-batch__field">
+                    <label for="@_tagsId">Tags</label>
+                    <AppSegmentedControl Options="TagModes" Value="@_tagMode" ValueChanged="SetTagMode" AriaLabel="How tags change" Disabled="@_applying" />
+                    <AppTextField Value="@_tags" ValueChanged="SetTags" Placeholder="@TagPlaceholder" HideLabel="true" Label="Tags" Disabled="@_applying" />
+                    <small class="tl-batch__hint">@TagHint</small>
+                </div>
+                @foreach (var field in ScalarFields)
+                {
+                    var key = field.Key;
+                    <div class="tl-batch__field">
+                        <label>@field.Label</label>
+                        <AppTextField Value="@ValueOf(key)" ValueChanged="@(v => SetScalar(key, v))" Label="@field.Label" HideLabel="true"
+                                      Placeholder="@PlaceholderFor(key)" Disabled="@_applying" />
+                    </div>
+                }
+
+                <div class="tl-batch__actions">
+                    @if (!string.IsNullOrWhiteSpace(_error))
+                    {
+                        <span class="tl-batch__error" role="alert">@_error</span>
+                    }
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@_applying" OnClick="CloseAsync">Cancel</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_applying || !IsDirty)" OnClick="ApplyAsync">
+                        @(_applying ? "Applying…" : $"Apply to {count} {(count == 1 ? Singular : Plural)}")
+                    </AppButton>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_result))
+        {
+            <p class="tl-batch__result" role="status">@_result</p>
+        }
+    </section>
+}
+
+@code {
+    private sealed record ScalarField(string Key, string Label);
+
+    private static readonly ScalarField[] ScalarFields =
+    [
+        new("content_rating", "Content rating"),
+        new("language", "Language"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> TagModes =
+    [
+        new(LibraryFieldChangeModes.Add, "Add"),
+        new(LibraryFieldChangeModes.Replace, "Replace"),
+        new(LibraryFieldChangeModes.Remove, "Remove"),
+    ];
+
+    private readonly string _tagsId = "batch-tags-" + Guid.NewGuid().ToString("N");
+    private readonly Dictionary<string, string> _scalars = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, bool> _mixed = new(StringComparer.OrdinalIgnoreCase);
+    private EditingModeContext? _subscribed;
+    private string _tagMode = LibraryFieldChangeModes.Add;
+    private string _tags = string.Empty;
+    private bool _applying;
+    private bool _loadedPreview;
+    private string? _error;
+    private string? _result;
+    private int _lastCount;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>"episode", "track" or "part": what the ticked rows are called.</summary>
+    [Parameter] public string Singular { get; set; } = "item";
+
+    [Parameter] public string Plural { get; set; } = "items";
+
+    /// <summary>"Music", "TV" or "Audiobooks" where the ticked rows can be moved to another album, season or audiobook; null hides Move.</summary>
+    [Parameter] public string? MoveMediaType { get; set; }
+
+    /// <summary>Raised after an apply so the page can refresh what it shows.</summary>
+    [Parameter] public EventCallback OnApplied { get; set; }
+
+    private bool IsDirty => _tags.Trim().Length > 0 || _scalars.Values.Any(v => v.Trim().Length > 0);
+
+    private string TagPlaceholder => _mixed.GetValueOrDefault("custom_tags") ? "Mixed" : "No change";
+
+    private string TagHint => _tagMode switch
+    {
+        LibraryFieldChangeModes.Replace => "Every ticked row ends up with exactly these tags. Separate tags with semicolons.",
+        LibraryFieldChangeModes.Remove => "These tags are taken away from every ticked row that has them.",
+        _ => "These tags are added to what each row already has. Separate tags with semicolons.",
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Mode))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+            if (ReferenceEquals(_subscribed.BatchHost, this))
+            {
+                _subscribed.BatchHost = null;
+            }
+        }
+
+        _subscribed = Mode;
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed += OnChanged;
+            _subscribed.BatchHost = this;
+        }
+    }
+
+    private void OnChanged()
+    {
+        _ = InvokeAsync(async () =>
+        {
+            var count = Mode?.BatchSelection.Count ?? 0;
+            if (Mode is not { BatchSectionOpen: true })
+            {
+                _loadedPreview = false;
+            }
+            else if (!_loadedPreview || count != _lastCount)
+            {
+                _lastCount = count;
+                await LoadPreviewAsync();
+            }
+
+            if (count == 0)
+            {
+                Reset();
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private string ValueOf(string key) => _scalars.GetValueOrDefault(key, string.Empty);
+
+    private string PlaceholderFor(string key) => _mixed.GetValueOrDefault(key) ? "Mixed" : "No change";
+
+    private void SetTagMode(string mode)
+    {
+        _tagMode = mode;
+        ReportDirty();
+    }
+
+    private void SetTags(string? value)
+    {
+        _tags = value ?? string.Empty;
+        ReportDirty();
+    }
+
+    private void SetScalar(string key, string? value)
+    {
+        _scalars[key] = value ?? string.Empty;
+        ReportDirty();
+    }
+
+    private void ReportDirty() => Mode?.SetBatchDirty(IsDirty);
+
+    // Moved rows are no longer on this page, so the ticks go and the page refreshes.
+    private async Task OnMovedAsync()
+    {
+        Mode?.ClearBatchSelection();
+        await OnApplied.InvokeAsync();
+    }
+
+    private async Task OpenAsync()
+    {
+        _result = null;
+        _error = null;
+        if (Mode?.OpenBatchSection() == true)
+        {
+            _lastCount = Mode.BatchSelection.Count;
+            await LoadPreviewAsync();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (Mode is not null && await Mode.CloseBatchSectionAsync())
+        {
+            Reset();
+        }
+    }
+
+    private async Task ClearAsync()
+    {
+        if (Mode is null)
+        {
+            return;
+        }
+
+        if (Mode.BatchSectionOpen && !await Mode.CloseBatchSectionAsync())
+        {
+            return;
+        }
+
+        Mode.ClearBatchSelection();
+        Reset();
+    }
+
+    private void Reset()
+    {
+        _tags = string.Empty;
+        _tagMode = LibraryFieldChangeModes.Add;
+        _scalars.Clear();
+        _mixed.Clear();
+        _error = null;
+        _loadedPreview = false;
+    }
+
+    // "Mixed" where the ticked rows have different values now; the engine's preview counts the current values per field.
+    private async Task LoadPreviewAsync()
+    {
+        _loadedPreview = true;
+        if (Mode is null || Mode.BatchSelection.Count == 0)
+        {
+            return;
+        }
+
+        var keys = ScalarFields.Select(f => f.Key).Append("custom_tags");
+        var preview = await Api.PreviewBatchEditAsync(new LibraryBatchEditRequest
+        {
+            EntityIds = [.. Mode.BatchSelection],
+            FieldChanges = [.. keys.Select(key => new LibraryFieldChange { Key = key, Value = string.Empty })],
+        });
+        _mixed.Clear();
+        if (preview is null)
+        {
+            return;
+        }
+
+        foreach (var change in preview.Changes)
+        {
+            _mixed[change.Key] = change.OldValueCounts.Count > 1;
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (Mode is null || _applying || !IsDirty)
+        {
+            return;
+        }
+
+        var changes = new List<LibraryFieldChange>();
+        if (_tags.Trim().Length > 0)
+        {
+            changes.Add(new LibraryFieldChange { Key = "custom_tags", Value = _tags.Trim(), Mode = _tagMode });
+        }
+
+        foreach (var (key, value) in _scalars.Where(pair => pair.Value.Trim().Length > 0))
+        {
+            changes.Add(new LibraryFieldChange { Key = key, Value = value.Trim() });
+        }
+
+        _applying = true;
+        _error = null;
+        Mode.SetBatchSaving(true);
+        try
+        {
+            var count = Mode.BatchSelection.Count;
+            var result = await Api.ApplyBatchEditAsync(new LibraryBatchEditRequest { EntityIds = [.. Mode.BatchSelection], FieldChanges = changes });
+            if (result is null)
+            {
+                _error = "The changes could not be applied. Nothing was changed.";
+                return;
+            }
+
+            _result = ResultLine(result);
+            Reset();
+            Mode.SetBatchDirty(false);
+            await Mode.CloseBatchSectionAsync();
+            await OnApplied.InvokeAsync();
+        }
+        finally
+        {
+            _applying = false;
+            Mode.SetBatchSaving(false);
+        }
+    }
+
+    /// <summary>"3 updated" or "2 updated, 1 sent to Needs Review" (spec: Batch).</summary>
+    internal static string ResultLine(LibraryBatchEditResult result)
+    {
+        var failed = result.FailedIds.Count;
+        if (failed == 0)
+        {
+            return $"{result.UpdatedCount} updated";
+        }
+
+        return result.SentToReviewCount >= failed
+            ? $"{result.UpdatedCount} updated, {failed} sent to Needs Review"
+            : $"{result.UpdatedCount} updated, {failed} could not be updated";
+    }
+
+    async Task<bool> IEditingSectionHost.SaveAsync()
+    {
+        await ApplyAsync();
+        return string.IsNullOrWhiteSpace(_error);
+    }
+
+    async Task IEditingSectionHost.DiscardAsync()
+    {
+        Reset();
+        Mode?.SetBatchDirty(false);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+            if (ReferenceEquals(_subscribed.BatchHost, this))
+            {
+                _subscribed.BatchHost = null;
+            }
+        }
+    }
+}

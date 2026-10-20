@@ -69,6 +69,60 @@ public static class ArtworkCanonicalHelper
         return Guid.TryParse(queryStart >= 0 ? idPart[..queryStart] : idPart, out assetId);
     }
 
+    /// <summary>Display canonicals written for an owner's preferred variant of <paramref name="assetType"/>.</summary>
+    public static IReadOnlyList<string> DisplayCanonicalKeys(string assetType)
+    {
+        var prefix = assetType switch
+        {
+            "CoverArt" => "cover",
+            "Background" => "background",
+            "Logo" => "logo",
+            "SeasonPoster" => "season_poster",
+            "SeasonThumb" => "season_thumb",
+            "EpisodeStill" => "episode_still",
+            _ => null,
+        };
+        if (prefix is null)
+        {
+            return [];
+        }
+
+        var keys = new List<string>
+        {
+            $"{prefix}_url_s",
+            $"{prefix}_url_m",
+            $"{prefix}_url_l",
+            $"{prefix}_aspect_class",
+            $"{prefix}_width_px",
+            $"{prefix}_height_px",
+            $"{prefix}_primary_hex",
+            $"{prefix}_secondary_hex",
+            $"{prefix}_accent_hex",
+        };
+        keys.AddRange(assetType switch
+        {
+            "CoverArt" => [MetadataFieldConstants.CoverUrl],
+            "Background" => ["background", "background_url"],
+            "Logo" => ["logo", "logo_url"],
+            "SeasonPoster" => ["season_poster", "season_poster_url"],
+            "SeasonThumb" => ["season_thumb", "season_thumb_url"],
+            "EpisodeStill" => ["episode_still", "episode_still_url"],
+            _ => [],
+        });
+        if (assetType == "CoverArt")
+        {
+            keys.AddRange(
+            [
+                MetadataFieldConstants.ArtworkPrimaryHex,
+                MetadataFieldConstants.ArtworkSecondaryHex,
+                MetadataFieldConstants.ArtworkAccentHex,
+                "dominant_color",
+            ]);
+        }
+
+        return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static List<CanonicalValue> CreatePreferredAssetCanonicals(
         Guid entityId,
         EntityAsset asset,
