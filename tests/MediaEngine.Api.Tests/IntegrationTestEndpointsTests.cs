@@ -28,12 +28,15 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     public void Program_MapsIntegrationTestEndpointsOnlyInDevelopment()
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs"));
-        var developmentGuard = "if (app.Environment.IsDevelopment())";
+        var developmentGuard = "if (app.Environment.OffersDevelopmentEndpoints())";
         var guardIndex = source.IndexOf(developmentGuard, StringComparison.Ordinal);
         var mapIndex = source.IndexOf("app.MapIntegrationTestEndpoints();", StringComparison.Ordinal);
 
         Assert.True(guardIndex >= 0);
         Assert.True(mapIndex > guardIndex);
+        // The shared guard offers development actions only in a DEBUG build running in Development.
+        var helper = source[source.IndexOf("OffersDevelopmentEndpoints(this IHostEnvironment", StringComparison.Ordinal)..];
+        Assert.Matches(@"#if DEBUG\s+return environment\.IsDevelopment\(\);\s+#else\s+[^#]*return false;", helper);
         Assert.DoesNotContain(
             "app.MapIntegrationTestEndpoints();",
             source[..guardIndex],

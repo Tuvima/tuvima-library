@@ -29,7 +29,7 @@ public sealed class PluginCatalogTests
                 [new FandomLorePlugin()],
                 new PluginSettingsService(loader),
                 loader,
-                NullLogger<PluginCatalog>.Instance);
+                AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
 
             var registration = Assert.Single(catalog.List());
             Assert.True(registration.IsBuiltIn);
@@ -85,7 +85,7 @@ public sealed class PluginCatalogTests
                 }
                 """);
 
-            var catalog = new PluginCatalog([], settingsService, loader, NullLogger<PluginCatalog>.Instance);
+            var catalog = new PluginCatalog([], settingsService, loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
             var plugin = Assert.Single(catalog.List());
             Assert.False(plugin.IsBuiltIn);
             Assert.Equal("Dynamic Test", plugin.Manifest.Name);

@@ -1,0 +1,139 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Settings
+
+@* The one state card the Developer area uses for every plugin, integration, tester and the Local AI engine itself
+   (Developer tools spec D-B): name and kind, switch, one of the four health words, what it is allowed to do, whether it
+   sends data out, when it last did something and its last problem. Health is always written as text, never colour alone. *@
+<AppCard Class="app-state-card">
+    <div class="app-state-card__body" data-state-card="@Kind.ToString().ToLowerInvariant()" data-health="@Health.ToString().ToLowerInvariant()">
+        <div class="app-state-card__top">
+            <div class="app-state-card__identity">
+                <span class="app-state-card__kind">@StateCardHealth.KindLabel(Kind)</span>
+                <strong class="app-state-card__name">@Name</strong>
+                @if (!string.IsNullOrWhiteSpace(Description))
+                {
+                    <span class="app-state-card__description">@Description</span>
+                }
+                @if (Badges is not null)
+                {
+                    <span class="app-state-card__badges">@Badges</span>
+                }
+            </div>
+            <div class="app-state-card__status">
+                @if (Loading)
+                {
+                    <AppSkeleton Width="6rem" Height="1.5rem" Class="app-state-card__placeholder" />
+                }
+                else
+                {
+                    <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
+                }
+                @if (IsOn is { } on)
+                {
+                    <AppSwitchRow Value="@on"
+                                  ValueChanged="@IsOnChanged"
+                                  Disabled="@(!string.IsNullOrWhiteSpace(SwitchDisabledReason))"
+                                  AriaLabel="@Name"
+                                  StopClickPropagation="true" />
+                }
+            </div>
+        </div>
+        @if (IsOn is not null && !string.IsNullOrWhiteSpace(SwitchDisabledReason))
+        {
+            <p class="app-state-card__reason">@SwitchDisabledReason</p>
+        }
+        <dl class="app-state-card__facts">
+            <div class="app-state-card__fact">
+                <dt>Allowed to</dt>
+                <dd>
+                    @if (AllowedTo.Count == 0)
+                    {
+                        <span>Nothing special</span>
+                    }
+                    else
+                    {
+                        <ul class="app-state-card__list">
+                            @foreach (var line in AllowedTo)
+                            {
+                                <li>@line</li>
+                            }
+                        </ul>
+                    }
+                </dd>
+            </div>
+            <div class="app-state-card__fact">
+                <dt>Sends data out</dt>
+                <dd data-testid="sends-data">@SendsDataText</dd>
+            </div>
+            <div class="app-state-card__fact">
+                <dt>Last activity</dt>
+                <dd data-testid="last-activity" title="@LastActivityTitle">
+                    @if (Loading)
+                    {
+                        <AppSkeleton Width="7rem" Height="1rem" Class="app-state-card__placeholder" />
+                    }
+                    else
+                    {
+                        @LastActivityText
+                    }
+                </dd>
+            </div>
+            @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
+            {
+                <div class="app-state-card__fact app-state-card__fact--problem">
+                    <dt>Last problem</dt>
+                    <dd data-testid="last-problem">@LastProblem</dd>
+                </div>
+            }
+        </dl>
+        @if (Action is not null)
+        {
+            <div class="app-state-card__action">@Action</div>
+        }
+    </div>
+</AppCard>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter] public StateCardKind Kind { get; set; } = StateCardKind.Plugin;
+
+    /// <summary>One line saying what the item is for, under the name.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Small chips beside the name, for example the trust level or "Uses Local AI".</summary>
+    [Parameter] public RenderFragment? Badges { get; set; }
+
+    /// <summary>Whether the item is switched on. Null means the item has no switch (the Local AI engine card).</summary>
+    [Parameter] public bool? IsOn { get; set; }
+    [Parameter] public EventCallback<bool> IsOnChanged { get; set; }
+
+    /// <summary>When set, the switch is disabled and this explains why (for example "Planned: not connected yet").</summary>
+    [Parameter] public string? SwitchDisabledReason { get; set; }
+
+    [Parameter] public HealthWord Health { get; set; } = HealthWord.Working;
+    [Parameter] public IReadOnlyList<string> AllowedTo { get; set; } = [];
+    [Parameter] public bool SendsDataOut { get; set; }
+
+    /// <summary>Where the data goes ("the internet") when it leaves; when it does not leave, a short note on where it stays.</summary>
+    [Parameter] public string? SendsDataTo { get; set; }
+    [Parameter] public DateTimeOffset? LastActivity { get; set; }
+    [Parameter] public string? LastProblem { get; set; }
+
+    /// <summary>The one button the card offers (Retry, Open settings, Download).</summary>
+    [Parameter] public RenderFragment? Action { get; set; }
+
+    /// <summary>Shows a quiet placeholder for the health and last activity while the checks are still running.</summary>
+    [Parameter] public bool Loading { get; set; }
+
+    private string SendsDataText => SendsDataOut
+        ? string.IsNullOrWhiteSpace(SendsDataTo) ? "Yes" : $"Yes, to {SendsDataTo}"
+        : string.IsNullOrWhiteSpace(SendsDataTo) ? "No" : $"No. {SendsDataTo}.";
+
+    private string LastActivityText => LastActivity is { } when
+        ? StateCardHealth.RelativeTime(when, DateTimeOffset.Now)
+        : "No activity yet";
+
+    private string? LastActivityTitle => LastActivity is { } when
+        ? when.ToLocalTime().ToString("f", System.Globalization.CultureInfo.CurrentCulture)
+        : null;
+}

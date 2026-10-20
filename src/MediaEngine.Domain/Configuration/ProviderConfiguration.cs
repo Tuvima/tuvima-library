@@ -177,6 +177,51 @@ public sealed class ProviderConfiguration
     [JsonPropertyName("search_strategies")]
     public List<SearchStrategyConfig>? SearchStrategies { get; set; }
 
+    /// <summary>How the provider signs in. See <see cref="ProviderAuthConfiguration"/>.</summary>
+    [JsonPropertyName("auth")]
+    public ProviderAuthConfiguration? Auth { get; set; }
+
+    /// <summary>Named API endpoints other code can call. See <see cref="ProviderApiConfiguration"/>.</summary>
+    [JsonPropertyName("api")]
+    public ProviderApiConfiguration? Api { get; set; }
+
+    /// <summary>Multi-step fetch and search lookups. See <see cref="ProviderFlowsConfiguration"/>.</summary>
+    [JsonPropertyName("flows")]
+    public ProviderFlowsConfiguration? Flows { get; set; }
+
+    /// <summary>
+    /// Where the provider registers among the others: providers with a positive number register
+    /// after the built-in reconciliation provider, in ascending order. Order is behaviour, since
+    /// it decides which provider answers first.
+    /// </summary>
+    [JsonPropertyName("registration_order")]
+    public int RegistrationOrder { get; set; }
+
+    /// <summary>
+    /// How a subtitle or lyrics provider is searched and downloaded; used when <c>adapter_type</c>
+    /// is <c>text_track</c>. See <see cref="TextTrackConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("text_track")]
+    public TextTrackConfiguration? TextTrack { get; set; }
+
+    /// <summary>
+    /// Declared ways to choose between near-identical search results. See
+    /// <see cref="CandidateRankingConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("candidate_ranking")]
+    public List<CandidateRankingConfiguration>? CandidateRanking { get; set; }
+
+    /// <summary>Rules run on a matched result to add claims. See <see cref="ResultClaimRulesConfiguration"/>.</summary>
+    [JsonPropertyName("result_rules")]
+    public List<ResultClaimRulesConfiguration>? ResultRules { get; set; }
+
+    /// <summary>
+    /// Extra lookups made after a strategy matched a result, each turning its response into more
+    /// claims. See <see cref="LookupFollowUpConfiguration"/>.
+    /// </summary>
+    [JsonPropertyName("follow_ups")]
+    public List<LookupFollowUpConfiguration>? FollowUps { get; set; }
+
     /// <summary>Optional provider-neutral ordered member enumeration request.</summary>
     [JsonPropertyName("sequence_manifest")]
     public ProviderSequenceManifestRequestConfiguration? SequenceManifest { get; set; }
@@ -725,6 +770,22 @@ public sealed class SearchStrategyConfig
     /// </summary>
     [JsonPropertyName("request_claim_overrides")]
     public Dictionary<string, string> RequestClaimOverrides { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary><c>container</c> when the strategy returns a run of a series, <c>item</c> when it returns single items.</summary>
+    [JsonPropertyName("role")]
+    public string? Role { get; set; }
+
+    /// <summary>Reshapes the claims this strategy produced.</summary>
+    [JsonPropertyName("claim_rules")]
+    public StrategyClaimRulesConfiguration? ClaimRules { get; set; }
+
+    /// <summary>
+    /// Extra names a mapped field is also kept under in search results, for example the same
+    /// <c>id</c> kept as a run identifier by a strategy that returns runs.
+    /// </summary>
+    [JsonPropertyName("extra_field_aliases")]
+    public Dictionary<string, string> ExtraFieldAliases { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 }
 

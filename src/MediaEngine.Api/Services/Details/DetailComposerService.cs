@@ -72,7 +72,8 @@ public sealed class DetailComposerService
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlyList<Guid>? authorizedAssetIds = null,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
-        SequenceWindowRequest? sequenceWindow = null)
+        SequenceWindowRequest? sequenceWindow = null,
+        UniverseLinkResolver? universeLinks = null)
         => _composer.BuildAsync(
             entityType,
             id,
@@ -83,7 +84,8 @@ public sealed class DetailComposerService
             actionAuthorization,
             authorizedAssetIds,
             authorizedWorks,
-            sequenceWindow);
+            sequenceWindow,
+            universeLinks);
 
     public static bool TryParseEntityType(string value, out DetailEntityType entityType)
         => DetailPresentationPolicy.TryParseEntityType(value, out entityType);

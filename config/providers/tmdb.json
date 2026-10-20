@@ -74,6 +74,528 @@
       "MediaAsset"
     ]
   },
+  "follow_ups": [
+    {
+      "name": "movie_detail",
+      "media_types": [
+        "Movies"
+      ],
+      "inputs": {
+        "id": [
+          "claim:tmdb_id",
+          "result:id"
+        ]
+      },
+      "url": "{base_url}/movie/{id}?language=en-US&append_to_response=credits,release_dates,external_ids,images&api_key={api_key}",
+      "cache": {
+        "store": "response_cache"
+      },
+      "rules": [
+        {
+          "claim_key": "description",
+          "json_path": "overview",
+          "confidence": 0.85
+        },
+        {
+          "claim_key": "short_description",
+          "json_path": "overview",
+          "confidence": 0.84
+        },
+        {
+          "claim_key": "tagline",
+          "json_path": "tagline",
+          "confidence": 0.95
+        },
+        {
+          "claim_key": "runtime",
+          "json_path": "runtime",
+          "confidence": 0.9
+        },
+        {
+          "kind": "priority_pick",
+          "claim_key": "content_rating",
+          "array": "release_dates.results",
+          "key_path": "iso_3166_1",
+          "order": [
+            "US",
+            "GB",
+            "CA",
+            "AU"
+          ],
+          "value_path": "release_dates[*].certification",
+          "confidence": 0.88
+        },
+        {
+          "claim_key": "tmdb_collection_id",
+          "json_path": "belongs_to_collection.id",
+          "confidence": 1.0
+        },
+        {
+          "claim_key": "tmdb_collection_name",
+          "json_path": "belongs_to_collection.name",
+          "confidence": 0.94
+        },
+        {
+          "claim_key": "series",
+          "json_path": "belongs_to_collection.name",
+          "confidence": 0.9
+        },
+        {
+          "kind": "lookup",
+          "lookup": {
+            "name": "collection",
+            "inputs": {
+              "collection_id": [
+                "parent:belongs_to_collection.id"
+              ],
+              "movie_id": [
+                "parent:id"
+              ],
+              "collection_name?": [
+                "parent:belongs_to_collection.name"
+              ]
+            },
+            "url": "{base_url}/collection/{collection_id}?language={locale}&api_key={api_key}",
+            "cache": {
+              "store": "response_cache"
+            },
+            "rules": [
+              {
+                "kind": "sequence",
+                "items_path": "parts",
+                "item": {
+                  "id_path": "id",
+                  "title_paths": [
+                    "title",
+                    "name"
+                  ],
+                  "date_path": "release_date"
+                },
+                "order_by": [
+                  "date",
+                  "title"
+                ],
+                "current_id": "{movie_id}",
+                "emit": [
+                  {
+                    "claim_key": "series_position",
+                    "from": "position",
+                    "confidence": 0.9
+                  },
+                  {
+                    "claim_key": "sequence_total",
+                    "from": "count",
+                    "confidence": 0.9
+                  },
+                  {
+                    "claim_key": "sequence_total_scope",
+                    "value": "MainSequence",
+                    "confidence": 0.9
+                  },
+                  {
+                    "claim_key": "sequence_format",
+                    "value": "Standard",
+                    "confidence": 0.8
+                  }
+                ],
+                "manifest": {
+                  "claim_key": "sequence_manifest_json",
+                  "confidence": 1.0,
+                  "container_id": "tmdb:collection:{collection_id}",
+                  "container_label": "{collection_name}",
+                  "external_id_key": "tmdb_id",
+                  "authoritative": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "items",
+          "path": "production_companies",
+          "where_not_blank": "name",
+          "take": 5,
+          "first": [
+            {
+              "claim_key": "studio",
+              "json_path": "name",
+              "confidence": 0.88
+            },
+            {
+              "claim_key": "studio_logo_url",
+              "json_path": "logo_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.84
+            }
+          ],
+          "joined": [
+            {
+              "claim_key": "production_company",
+              "item_path": "name",
+              "separator": "; ",
+              "confidence": 0.86
+            }
+          ]
+        },
+        {
+          "claim_key": "imdb_id",
+          "json_path": "external_ids.imdb_id",
+          "confidence": 0.98
+        },
+        {
+          "claim_key": "tvdb_id",
+          "json_path": "external_ids.tvdb_id",
+          "confidence": 0.98
+        },
+        {
+          "claim_key": "wikidata_qid",
+          "json_path": "external_ids.wikidata_id",
+          "confidence": 0.98
+        },
+        {
+          "kind": "items",
+          "path": "credits.cast",
+          "where_not_blank": "name",
+          "add": "always",
+          "sort": [
+            {
+              "path": "order",
+              "type": "number"
+            },
+            {
+              "path": "name",
+              "type": "text",
+              "ci": true
+            }
+          ],
+          "each": [
+            {
+              "claim_key": "cast_member",
+              "json_path": "name",
+              "confidence": 0.9
+            },
+            {
+              "claim_key": "cast_member_character",
+              "json_path": "character",
+              "confidence": 0.9
+            },
+            {
+              "claim_key": "cast_member_tmdb_id",
+              "json_path": "id",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "cast_member_tmdb_identity",
+              "template": "{id}::{name}",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "cast_member_profile_url",
+              "json_path": "profile_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.9
+            }
+          ]
+        },
+        {
+          "kind": "items",
+          "path": "credits.crew",
+          "where_not_blank": "name",
+          "add": "always",
+          "role": {
+            "paths": [
+              "job",
+              "jobs[*].job"
+            ],
+            "map": [
+              {
+                "contains": [
+                  "Director"
+                ],
+                "claim_key": "director"
+              },
+              {
+                "contains": [
+                  "Screenplay",
+                  "Writer",
+                  "Story"
+                ],
+                "claim_key": "screenwriter"
+              },
+              {
+                "contains": [
+                  "Composer",
+                  "Music"
+                ],
+                "claim_key": "composer"
+              },
+              {
+                "contains": [
+                  "Producer"
+                ],
+                "claim_key": "producer"
+              }
+            ]
+          },
+          "each": [
+            {
+              "claim_key": "{role}",
+              "json_path": "name",
+              "confidence": 0.88
+            },
+            {
+              "claim_key": "{role}_tmdb_id",
+              "json_path": "id",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "{role}_profile_url",
+              "json_path": "profile_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tv_detail",
+      "media_types": [
+        "TV"
+      ],
+      "inputs": {
+        "id": [
+          "claim:tmdb_id",
+          "result:id"
+        ]
+      },
+      "url": "{base_url}/tv/{id}?language=en-US&append_to_response=aggregate_credits,content_ratings,external_ids,images&api_key={api_key}",
+      "cache": {
+        "store": "response_cache"
+      },
+      "rules": [
+        {
+          "claim_key": "description",
+          "json_path": "overview",
+          "confidence": 0.85
+        },
+        {
+          "claim_key": "short_description",
+          "json_path": "overview",
+          "confidence": 0.84
+        },
+        {
+          "claim_key": "tagline",
+          "json_path": "tagline",
+          "confidence": 0.95
+        },
+        {
+          "claim_key": "runtime",
+          "json_path": "runtime",
+          "confidence": 0.9
+        },
+        {
+          "kind": "priority_pick",
+          "claim_key": "content_rating",
+          "array": "content_ratings.results",
+          "key_path": "iso_3166_1",
+          "order": [
+            "US",
+            "GB",
+            "CA",
+            "AU"
+          ],
+          "value_path": "rating",
+          "confidence": 0.88
+        },
+        {
+          "kind": "items",
+          "path": "networks",
+          "where_not_blank": "name",
+          "take": 1,
+          "first": [
+            {
+              "claim_key": "network",
+              "json_path": "name",
+              "confidence": 0.88
+            },
+            {
+              "claim_key": "network_logo_url",
+              "json_path": "logo_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.84
+            }
+          ]
+        },
+        {
+          "kind": "items",
+          "path": "production_companies",
+          "where_not_blank": "name",
+          "take": 5,
+          "first": [
+            {
+              "claim_key": "studio",
+              "json_path": "name",
+              "confidence": 0.88
+            },
+            {
+              "claim_key": "studio_logo_url",
+              "json_path": "logo_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.84
+            }
+          ],
+          "joined": [
+            {
+              "claim_key": "production_company",
+              "item_path": "name",
+              "separator": "; ",
+              "confidence": 0.86
+            }
+          ]
+        },
+        {
+          "claim_key": "imdb_id",
+          "json_path": "external_ids.imdb_id",
+          "confidence": 0.98
+        },
+        {
+          "claim_key": "tvdb_id",
+          "json_path": "external_ids.tvdb_id",
+          "confidence": 0.98
+        },
+        {
+          "claim_key": "wikidata_qid",
+          "json_path": "external_ids.wikidata_id",
+          "confidence": 0.98
+        },
+        {
+          "kind": "items",
+          "path": "aggregate_credits.cast",
+          "where_not_blank": "name",
+          "add": "always",
+          "sort": [
+            {
+              "path": "order",
+              "type": "number"
+            },
+            {
+              "path": "name",
+              "type": "text",
+              "ci": true
+            }
+          ],
+          "each": [
+            {
+              "claim_key": "cast_member",
+              "json_path": "name",
+              "confidence": 0.9
+            },
+            {
+              "claim_key": "cast_member_character",
+              "json_path": "character",
+              "confidence": 0.9,
+              "join": {
+                "array": "roles",
+                "item_path": "character",
+                "sort": {
+                  "path": "episode_count",
+                  "type": "number",
+                  "order": "asc_then_reverse",
+                  "null_as": 0
+                },
+                "distinct": true,
+                "take": 3,
+                "separator": " / "
+              }
+            },
+            {
+              "claim_key": "cast_member_tmdb_id",
+              "json_path": "id",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "cast_member_tmdb_identity",
+              "template": "{id}::{name}",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "cast_member_profile_url",
+              "json_path": "profile_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.9
+            }
+          ]
+        },
+        {
+          "kind": "items",
+          "path": "aggregate_credits.crew",
+          "where_not_blank": "name",
+          "add": "always",
+          "role": {
+            "paths": [
+              "job",
+              "jobs[*].job"
+            ],
+            "map": [
+              {
+                "contains": [
+                  "Director"
+                ],
+                "claim_key": "director"
+              },
+              {
+                "contains": [
+                  "Screenplay",
+                  "Writer",
+                  "Story"
+                ],
+                "claim_key": "screenwriter"
+              },
+              {
+                "contains": [
+                  "Composer",
+                  "Music"
+                ],
+                "claim_key": "composer"
+              },
+              {
+                "contains": [
+                  "Producer"
+                ],
+                "claim_key": "producer"
+              }
+            ]
+          },
+          "each": [
+            {
+              "claim_key": "{role}",
+              "json_path": "name",
+              "confidence": 0.88
+            },
+            {
+              "claim_key": "{role}_tmdb_id",
+              "json_path": "id",
+              "confidence": 0.92
+            },
+            {
+              "claim_key": "{role}_profile_url",
+              "json_path": "profile_path",
+              "prefix": "https://image.tmdb.org/t/p/original/",
+              "trim_leading_slash": true,
+              "confidence": 0.9
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "search_strategies": [
     {
       "name": "movie_search",

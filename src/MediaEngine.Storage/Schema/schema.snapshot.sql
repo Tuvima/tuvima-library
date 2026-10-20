@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0016 profile_grid_preferences).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0017 approval_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -240,6 +240,19 @@ CREATE TABLE applications (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     last_used_at TEXT
+);
+
+CREATE TABLE approval_records (
+    id                          BLOB NOT NULL PRIMARY KEY,
+    item_kind                   TEXT NOT NULL,   -- plugin | ai_feature | application | application_credential | webhook
+    item_id                     TEXT NOT NULL,   -- plugin id, AI feature key, credential id, application id or webhook id
+    statement_hash              TEXT NOT NULL,   -- SHA-256, lower-case hex, of the canonical statement
+    statement_json              TEXT NOT NULL,   -- the statement as shown (title, can-do lines, data out, notes); never a secret value
+    approved_by_account_id      BLOB NULL,       -- the account that confirmed; NULL when an application confirmed
+    approved_by_profile_id      BLOB NULL,       -- the profile that was active when a person confirmed
+    approved_by_application_id  BLOB NULL,       -- the application that confirmed; NULL when a person confirmed
+    approved_by_name            TEXT NOT NULL,   -- profile display name (or application name) at the time
+    approved_at                 TEXT NOT NULL    -- ISO 8601 UTC
 );
 
 CREATE TABLE artwork_asset_context (
@@ -3197,6 +3210,8 @@ CREATE INDEX ix_application_events_type_sequence ON application_events(event_typ
 CREATE INDEX ix_application_webhook_delivery_due ON application_webhook_deliveries(status,next_attempt_at);
 
 CREATE INDEX ix_application_webhooks_application ON application_webhooks(application_id);
+
+CREATE INDEX ix_approval_records_item ON approval_records(item_kind, item_id, approved_at);
 
 CREATE INDEX ix_collection_view_sources_collection
     ON collection_view_sources(collection_id, position, id);

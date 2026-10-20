@@ -19,7 +19,8 @@ public sealed record SaveApplicationWebhookRequest(
     [property: JsonPropertyName("event_types")] IReadOnlyList<string> EventTypes,
     [property: JsonPropertyName("allow_local_network")] bool AllowLocalNetwork,
     [property: JsonPropertyName("is_enabled")] bool IsEnabled,
-    [property: JsonPropertyName("expected_version")] long? ExpectedVersion);
+    [property: JsonPropertyName("expected_version")] long? ExpectedVersion,
+    [property: JsonPropertyName("approval_hash")] string? ApprovalHash = null);
 
 public sealed record ApplicationWebhookSecretResponse(
     [property: JsonPropertyName("webhook")] ApplicationWebhookResponse Webhook,

@@ -1,0 +1,6 @@
+== requests ==
+POST https://api4.thetvdb.com/v4/login | {"apikey":"installation-key"}
+GET https://api4.thetvdb.com/v4/series/389597/extended [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/389597/translations/eng [auth:Bearer]
+GET https://api4.thetvdb.com/v4/episodes/222/extended [auth:Bearer]
+== claims ==

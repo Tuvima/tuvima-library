@@ -32,27 +32,19 @@
     color: var(--tl-text-primary);
 }
 
-.settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(1) {
-    min-width: 180px;
+.settings-plugin-cards-section {
+    display: grid;
+    gap: 12px;
 }
 
-.settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(2) {
-    width: 42%;
-}
-
-.settings-plugin-page ::deep .settings-plugin-installed-table td:last-child {
-    text-align: right;
+.settings-plugin-cards {
+    display: grid;
+    gap: 16px;
 }
 
 .settings-plugin-configure-panel {
     scroll-margin-top: 96px;
 }
-
-.settings-plugin-mobile-list { display: grid; }
-.settings-plugin-mobile-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 14px 0; border-top: 1px solid var(--tl-divider); }
-.settings-plugin-mobile-row:first-child { border-top: 0; }
-.settings-plugin-mobile-row span, .settings-plugin-mobile-row strong, .settings-plugin-mobile-row small { display: block; min-width: 0; }
-.settings-plugin-mobile-row small { margin-top: 3px; color: var(--tl-text-muted); font-size: 14px; line-height: 1.45; }
 
 .settings-plugin-detail-stack {
     display: grid;
@@ -98,19 +90,5 @@
 @media (max-width: 840px) {
     .settings-plugin-summary__grid {
         grid-template-columns: 1fr;
-    }
-
-    .settings-plugin-page ::deep .settings-plugin-installed-table th:nth-child(2),
-    .settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(2),
-    .settings-plugin-page ::deep .settings-plugin-installed-table th:nth-child(4),
-    .settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(4) {
-        display: none;
-    }
-}
-
-@media (max-width: 600px) {
-    .settings-plugin-page ::deep .settings-plugin-installed-table th:nth-child(3),
-    .settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(3) {
-        display: none;
     }
 }

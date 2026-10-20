@@ -1,0 +1,15 @@
+.app-state-card__body { display: grid; min-width: 0; gap: 12px; }
+.app-state-card__top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
+.app-state-card__identity { display: grid; min-width: 0; flex: 1 1 14rem; gap: 2px; }
+.app-state-card__kind { color: var(--tl-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.app-state-card__name { min-width: 0; overflow-wrap: anywhere; color: var(--tl-text-primary); font-size: 16px; }
+.app-state-card__description { color: var(--tl-text-muted); font-size: 14px; }
+.app-state-card__badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-state-card__status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.app-state-card__reason { margin: 0; color: var(--tl-text-muted); font-size: 14px; }
+.app-state-card__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin: 0; gap: 10px 20px; }
+.app-state-card__fact { min-width: 0; }
+.app-state-card__fact dt { color: var(--tl-text-muted); font-size: 12px; }
+.app-state-card__fact dd { margin: 2px 0 0; overflow-wrap: anywhere; color: var(--tl-text-primary); font-size: 14px; }
+.app-state-card__list { margin: 0; padding-left: 18px; }
+.app-state-card__action { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -49,7 +49,7 @@ Retail providers are a **rich data source for matching** - descriptions, narrato
 |---|---|---|---|---|---|
 | Apple API | Books, Audiobooks, Music | None | 500ms throttle | Localized (user language) | Active |
 | TMDB | Movies, TV | API key query parameter | 500ms throttle, max 1 concurrent | Localized (user language) | Active (requires key) |
-| TheTVDB | TV | Project or administrator key | Configured provider throttle | Localized (user language) | First TV identity source when connected |
+| TheTVDB | TV | Project or administrator key (an administrator-set key override is used in place of the project key) | Configured provider throttle | Localized (user language) | First TV identity source when connected |
 | MusicBrainz | Music | None | 1 request/sec, max 1 concurrent | Source (English only) | Active music identity |
 | Comic Vine | Comics | API key | 500ms, max 1 concurrent | Source (English only) | Active (requires key) |
 | LRCLIB | Music | None | Configured provider throttle | Source | Text-track provider |
@@ -275,6 +275,27 @@ Embedded cover art from the file is perceptually hashed (aHash - 64-bit fingerpr
 ## Provider Configuration
 
 All provider configs live in `config/providers/` as individual JSON files. Each is self-contained with connection details, search strategies, response mappings, and bridge ID preferences. Adding a new REST+JSON provider is a zero-code operation: create a config file, restart the Engine.
+
+### Declarative blocks
+
+Beyond `search_strategies` and `field_mappings`, a provider file may carry the blocks below. They are
+how the shipped providers work; none of them is tied to a provider name in code.
+
+| Block | What it declares | Shipped use |
+|---|---|---|
+| `auth`, `api` | Sign-in request, token lifetime and delivery; named endpoints with argument checks, paging and caching; allowed hosts | `tvdb.json` |
+| `flows` | `fetch` and `search` as step programs over the named endpoints | `tvdb.json` |
+| `follow_ups` | Extra lookups after a match and the rules that turn them into claims | `tmdb.json` (detail, collection), `comicvine.json` (volume details, issue manifest) |
+| `candidate_ranking` | Facts, matching, scoring terms, preferred-run search and ordering for near-identical results | `comicvine.json` |
+| `result_rules` | Claim rules run on the matched result | `comicvine.json` (creator credits) |
+| `search_strategies[].claim_rules`, `.role`, `.extra_field_aliases` | Drop, derive and language-guard claims; what a strategy returns | `comicvine.json` |
+| `sequence_manifest` | The paged request a `paged_sequence` rule reads | `comicvine.json` |
+| `text_track` (with `adapter_type: "text_track"`) | Subtitle and lyrics search, download, archive limits, error mapping | `subdl.json`, `lrclib.json` |
+| `registration_order` | A positive number registers the provider after the ordinary file-based providers and the built-in reconciliation provider, lowest number first; registration order decides which provider answers first. Default 0 registers with the ordinary providers. | `tvdb.json` |
+
+All blocks are validated when the file loads (unknown properties and bad shapes name their path) and are
+documented in `config/schemas/providers/provider.schema.json`. See
+[How to add a metadata provider](../guides/adding-a-provider.md#step-2b---beyond-search-and-field-mappings-the-declarative-blocks).
 
 ### Config File Structure
 

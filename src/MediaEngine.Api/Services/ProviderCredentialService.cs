@@ -21,22 +21,24 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class ProviderCredentialService
 {
-    private static readonly JsonSerializerOptions SecretJsonOptions = new() { WriteIndented = true };
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromMilliseconds(250);
 
     private readonly IConfigurationLoader _configuration;
+    private readonly IConfigSecretsStore _secrets;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IReadOnlyList<IProviderCredentialConsumer> _consumers;
     private readonly IProviderConnectionCheckRepository? _connectionChecks;
 
     public ProviderCredentialService(
         IConfigurationLoader configuration,
+        IConfigSecretsStore secrets,
         IHttpClientFactory httpClientFactory,
         IEnumerable<IExternalMetadataProvider> metadataProviders,
         IEnumerable<ITextTrackProvider> textTrackProviders,
         IProviderConnectionCheckRepository? connectionChecks = null)
     {
         _configuration = configuration;
+        _secrets = secrets;
         _httpClientFactory = httpClientFactory;
         _consumers = metadataProviders.Cast<object>()
             .Concat(textTrackProviders)
@@ -277,7 +279,7 @@ public sealed class ProviderCredentialService
                 pair => pair.Value.Trim(),
                 StringComparer.OrdinalIgnoreCase);
 
-        WriteSecretFile(provider, normalized);
+        await _secrets.ReplaceAsync(SecretOwner.Provider(provider.Name), normalized, ct).ConfigureAwait(false);
         ApplyRuntimeCredentials(provider.Name, normalized.ToDictionary(
             pair => pair.Key,
             pair => (string?)pair.Value,
@@ -308,15 +310,8 @@ public sealed class ProviderCredentialService
                 pair => pair.Value!,
                 StringComparer.OrdinalIgnoreCase);
 
-        var path = GetSecretPath(provider);
-        if (retained.Count > 0)
-        {
-            WriteSecretFile(provider, retained);
-        }
-        else if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
+        // An empty set removes the provider's secrets file.
+        _secrets.ReplaceAsync(SecretOwner.Provider(provider.Name), retained).GetAwaiter().GetResult();
 
         ApplyRuntimeCredentials(provider.Name, retained.ToDictionary(
             pair => pair.Key,
@@ -496,55 +491,6 @@ public sealed class ProviderCredentialService
             "pin" => provider.HttpClient?.Pin,
             _ => null,
         };
-
-    private void WriteSecretFile(ProviderConfiguration provider, IReadOnlyDictionary<string, string> credentials)
-    {
-        var path = GetSecretPath(provider);
-        var directory = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(
-                directory.FullName,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        }
-
-        var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-        try
-        {
-            File.WriteAllText(temporaryPath, JsonSerializer.Serialize(credentials, SecretJsonOptions));
-            if (!OperatingSystem.IsWindows())
-            {
-                File.SetUnixFileMode(temporaryPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
-
-            File.Move(temporaryPath, path, overwrite: true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
-    }
-
-    private string GetSecretPath(ProviderConfiguration provider)
-    {
-        if (!string.Equals(Path.GetFileName(provider.Name), provider.Name, StringComparison.Ordinal)
-            || provider.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-        {
-            throw new InvalidOperationException("The provider has an invalid credential storage name.");
-        }
-
-        var directory = Path.GetFullPath(Path.Combine(_configuration.ConfigDirectoryPath, "secrets"));
-        var path = Path.GetFullPath(Path.Combine(directory, $"{provider.Name}.json"));
-        if (!path.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("The provider credential path escaped the secrets directory.");
-        }
-
-        return path;
-    }
 
     private void ApplyRuntimeCredentials(string providerName, IReadOnlyDictionary<string, string?> credentials)
     {

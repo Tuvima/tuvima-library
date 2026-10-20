@@ -39,7 +39,7 @@ namespace MediaEngine.Api.Tests;
 /// The library holds one Universe (two series), one hand-picked list, and some R-rated items, so the Kids cases can
 /// prove that nothing over the limit is listed or counted.
 /// </summary>
-public sealed class CollectionClientEndpointsTests : IDisposable
+public sealed partial class CollectionClientEndpointsTests : IDisposable
 {
     private const string UniverseQid = "Q4242";
     private static readonly Guid OtherProfile = Guid.Parse("00000000-0000-0000-0000-0000000000a1");
@@ -1163,8 +1163,9 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<DisplayCardBuilder>();
         builder.Services.AddSingleton<IRawDisplayProjectionReadService, LiveProjection>();
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
-        builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>
-            provider.GetRequiredService<AuthorizedDisplayProjectionReadService>());
+        builder.Services.AddScoped<IDisplayProjectionReadService>(provider => new CountingProjection(
+            provider.GetRequiredService<AuthorizedDisplayProjectionReadService>(),
+            () => Interlocked.Increment(ref _projectionLoads)));
         builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
         builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
         builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
@@ -1175,6 +1176,12 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<ILoreDeltaService>(_ => throw new NotSupportedException());
         builder.Services.AddSingleton<IPluginLoreRepository>(_ => throw new NotSupportedException());
         builder.Services.AddScoped<UniverseClientReadService>();
+        // The Universe page's own read (mapped with the graph actions) and what it adds to the helper-app read.
+        builder.Services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
+        builder.Services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
+        builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => _libraryPreferences));
+        builder.Services.AddScoped<UniversePageReadService>();
+        builder.Services.AddSingleton<UniverseLinkCache>();
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -1183,6 +1190,7 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         {
             // The older Universe graph actions behind a test-only prefix, to prove their answers did not change.
             app.MapGroup("/api/v1/graph-actions").MapUniverseGraphEndpoints();
+            MapUniverseMembershipProbe(app);
         }
 
         await app.StartAsync();

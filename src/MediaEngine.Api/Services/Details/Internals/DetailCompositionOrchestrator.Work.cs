@@ -41,7 +41,8 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<Guid>? authorizedAssetIds,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
         CancellationToken ct,
-        SequenceWindowRequest? sequenceWindow = null)
+        SequenceWindowRequest? sequenceWindow = null,
+        UniverseLinkResolver? universeLinks = null)
     {
         using (var redirectConnection = _db.CreateConnection())
         {
@@ -218,12 +219,17 @@ internal sealed partial class DetailCompositionOrchestrator
         var descriptionAttribution = displayDescription is null
             ? BuildDescriptionAttribution(descriptionSelection, detail, values)
             : BuildLocalDescriptionAttribution();
+        var universeQid = detail.UniverseSummary?.UniverseQid;
+        var universeLink = universeLinks is not null && !string.IsNullOrWhiteSpace(universeQid)
+            ? await universeLinks(universeQid, ct)
+            : null;
 
         return new DetailPageViewModel
         {
             Id = workId.ToString("D"),
             EntityType = entityType,
             PresentationContext = context,
+            UniverseLink = universeLink,
             EditorTarget = new DetailEditorTarget
             {
                 EntityId = workId.ToString("D"),

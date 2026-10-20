@@ -27,6 +27,8 @@ public sealed class BaselineRunTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         File.WriteAllText(file, "original");
         File.SetLastWriteTimeUtc(file, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        // Windows can update a folder's time a moment after a file is written into it; pin it so only the file moves.
+        Directory.SetLastWriteTimeUtc(Path.GetDirectoryName(file)!, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
         var before = BaselineRun.Inventory(_root);
         var again = BaselineRun.Inventory(_root);

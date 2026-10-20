@@ -77,7 +77,7 @@ public sealed class VisibleWorksGuardrailTests : IClassFixture<LibraryListFixtur
     private const double MaxGrowthForDoubleTheWorks = 2.5;
 
     // Measured on this fixture when the budget was set: 1,469 thousand instructions at 4,000 works (2,939 at 8,000), the
-    // same on every run. The full display read of the same 4,000 works took 32,292, so the light read does under a
+    // same on every run. The full display read of the same 4,000 works took 33,955, so the light read does under a
     // twentieth of the work. The budget is about one and a half times the fixed cost.
     private const long VisibleWorksBudgetKiloInstructions = 2_200;
 }

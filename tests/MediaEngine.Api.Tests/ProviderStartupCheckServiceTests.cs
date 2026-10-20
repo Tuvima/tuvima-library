@@ -4,6 +4,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Secrets;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -110,7 +111,7 @@ public sealed class ProviderStartupCheckServiceTests : IDisposable
     private ProviderStartupCheckService CreateService(OnboardingActivationGate? gate)
     {
         var credentials = new ProviderCredentialService(
-            _loader, new HandlerHttpClientFactory(_handler), [], [], _checks);
+            _loader, new ConfigFolderSecretsStore(_loader.ConfigDirectoryPath), new HandlerHttpClientFactory(_handler), [], [], _checks);
         return new ProviderStartupCheckService(
             credentials, _loader, _health, NullLogger<ProviderStartupCheckService>.Instance, gate)
         {

@@ -17,6 +17,7 @@ internal static class NativeUiTestServices
         // Components that vary by form factor read it; tests that care register their own, initialised service first.
         services.TryAddScoped(_ => new DeviceContextService(EngineApiClientStub.CreateDefault()));
         services.TryAddScoped<IAppToastService>(provider => provider.GetRequiredService<AppToastService>());
+        services.TryAddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
         return services;
     }
 }

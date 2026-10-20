@@ -118,6 +118,27 @@ public static class UniverseGraphEndpoints
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
 
+        // GET /universe/{qid}/overview — the one read behind the Dashboard's Universe page.
+        group.MapGet("/universe/{qid}/overview", async (
+            string qid,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniversePageReadService pages,
+            CancellationToken ct) =>
+        {
+            var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
+            var page = await pages.LoadAsync(qid, profile, ct);
+            return page is null
+                ? ApiErrors.NotFound(CollectionClientEndpoints.NotFoundDetail)
+                : Results.Ok(page);
+        })
+        .WithName("GetUniverseOverview")
+        .WithSummary("Returns one Universe's page: shelves, standalone works, missing entries, enrichment state and graph size, limited to what the active profile may see.")
+        .Produces<UniversePageDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
+        .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
+
         // GET /universe/{qid}/lore-delta — check for Wikidata revision changes.
         group.MapGet("/universe/{qid}/lore-delta", async (
             string qid,

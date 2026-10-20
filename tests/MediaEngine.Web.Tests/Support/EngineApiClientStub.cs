@@ -399,6 +399,15 @@ internal class EngineApiClientStub : DispatchProxy
                     ["tldr"] = true,
                     ["description_intelligence"] = true,
                 },
+                FeatureInfo = new Dictionary<string, AiFeatureInfoDto>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["smart_labeling"] = new() { AllowedTo = ["Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added"] },
+                    ["type_logic"] = new() { AllowedTo = ["Reads file names and basic file facts", "Decides the media type when it is unclear"] },
+                    ["series_alignment"] = new() { AllowedTo = ["Reads series and title details", "Suggests the order within a series"] },
+                    ["vibe_tags"] = new() { AllowedTo = ["Reads descriptions and genres", "Adds mood tags"] },
+                    ["tldr"] = new() { AllowedTo = ["Shows the short summary made by Description insights"] },
+                    ["description_intelligence"] = new() { AllowedTo = ["Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people"] },
+                },
                 VibeVocabulary = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["books"] = ["atmospheric", "cozy"],
@@ -557,6 +566,7 @@ internal class EngineApiClientStub : DispatchProxy
                     Name = "Dune Universe",
                     Description = "A generated Wikidata-backed universe across formats.",
                     CollectionType = "Universe",
+                    UniverseQid = "Q4242",
                     Family = "Global",
                     Visibility = "shared",
                     IsGlobal = true,
