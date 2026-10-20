@@ -223,7 +223,7 @@ public sealed class ShelfGridPageTests : AsyncBunitContext
 
         await cut.InvokeAsync(() => Select(cut, "Sort by").Instance.ValueChanged.InvokeAsync(DisplayGridValues.SortYear));
 
-        Assert.Equal("Couldn't save this sort for next time", Assert.Single(_toasts.Messages));
+        Assert.Equal("Your sort could not be remembered. It still applies for now.", Assert.Single(_toasts.Messages));
         Assert.Contains("sort=year", Nav.Uri);
         cut.WaitForAssertion(() => Assert.Equal(DisplayGridValues.SortYear, _gridCalls[^1].Sort));
     }

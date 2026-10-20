@@ -266,7 +266,7 @@ public partial class ShelfGridPage
         if (_page?.RememberKey is { } rememberKey && !await ApiClient.SetDisplayGridSortAsync(rememberKey, sort))
         {
             // The new sort still applies for this visit; only next time is affected.
-            Toasts.Add("Couldn't save this sort for next time", AppSeverity.Warning);
+            Toasts.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
         }
 
         Nav.NavigateTo(Nav.GetUriWithQueryParameter("sort", sort), replace: true);
