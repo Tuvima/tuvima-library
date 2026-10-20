@@ -24,7 +24,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | Spec | Status |
 |---|---|
 | [Spec: Delete from library](specs/delete-from-library.md) | In progress (v5, started 2026-10-19) |
-| [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
+| [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | In progress (v3, started 2026-10-20) |
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1 to WP10 and WP12 built; WP8 awaits the log line) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19) |
