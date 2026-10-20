@@ -37,6 +37,12 @@ public sealed class PluginCatalog
     private List<PluginRegistration> _registrations = [];
     private bool _loaded;
 
+    /// <summary>
+    /// Raised with the plugin id after a plugin is switched on or off. The plugin host services clear what they remember
+    /// about the plugin (limit stops, pauses), which is how a plugin stopped for going over a limit starts again.
+    /// </summary>
+    public event Action<string>? EnabledChanged;
+
     public PluginCatalog(
         IEnumerable<ITuvimaPlugin> builtInPlugins,
         PluginSettingsService settingsService,
@@ -105,6 +111,7 @@ public sealed class PluginCatalog
 
         _settingsService.SetEnabled(registration.Manifest, enabled);
         Reload();
+        EnabledChanged?.Invoke(registration.Manifest.Id);
     }
 
     public void SaveSettings(string pluginId, Dictionary<string, JsonElement> settings)
@@ -263,6 +270,8 @@ public sealed class PluginCatalog
                 _logger.LogWarning(ex, "Plugin {PluginId} failed to create capabilities", manifest.Id);
                 loadError = ex.Message;
             }
+
+            loadError ??= PluginHostCapabilityRules.Validate(capabilities);
         }
 
         var settingsSchema = ResolveSettingsSchema(manifest, capabilities);
@@ -309,7 +318,8 @@ public sealed class PluginCatalog
             manifestPath,
             trust,
             compatibility,
-            NeedsApproval: switchedOn && !approved);
+            NeedsApproval: switchedOn && !approved,
+            Schedules: config.Schedules);
     }
 
     private PluginRegistration LoadFailure(PluginManifest? manifest, string message, string manifestPath) =>
@@ -577,7 +587,8 @@ public sealed record PluginRegistration(
     string? ManifestPath,
     PluginTrustLevel Trust,
     PluginCompatibilityResult Compatibility,
-    bool NeedsApproval = false);
+    bool NeedsApproval = false,
+    IReadOnlyDictionary<string, string>? Schedules = null);
 
 /// <summary>Switching a plugin on was refused; <see cref="Exception.Message"/> is the plain-English reason.</summary>
 public sealed class PluginCannotBeEnabledException(string pluginId, string problem) : InvalidOperationException(problem)

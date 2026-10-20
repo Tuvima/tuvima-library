@@ -6,7 +6,8 @@ namespace MediaEngine.Api.Services.Plugins;
 
 /// <summary>
 /// Builds a plugin's health answer from its own health checks plus the Engine's view of it. A plugin that has used up its
-/// Local AI allowance for the hour reports degraded, which the Dashboard shows as Needs attention.
+/// Local AI allowance for the hour, or that was stopped or refused for going over a host-service limit (its records, jobs,
+/// events, always-on work or web connection), reports degraded, which the Dashboard shows as Needs attention.
 /// </summary>
 internal static class PluginHealthComposer
 {
@@ -14,7 +15,8 @@ internal static class PluginHealthComposer
         string pluginId,
         IReadOnlyList<PluginHealthResult> checks,
         PluginAiBudget aiBudget,
-        CancellationToken ct)
+        CancellationToken ct,
+        PluginHostServicesDto? hostServices = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(checks);
@@ -34,6 +36,15 @@ internal static class PluginHealthComposer
             {
                 Status = "degraded",
                 Message = PluginAiBudget.OverBudgetMessage,
+            });
+        }
+
+        if (hostServices is { State: not "working", Problem: { } hostProblem })
+        {
+            dtos.Add(new PluginHealthCheckDto
+            {
+                Status = "degraded",
+                Message = hostProblem,
             });
         }
 

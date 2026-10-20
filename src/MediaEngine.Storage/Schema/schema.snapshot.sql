@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0020 webhook_delivery_attempts).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0021 plugin_host_services).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1874,6 +1874,12 @@ CREATE TABLE player_sessions (
     last_heartbeat_at     TEXT
 );
 
+CREATE TABLE plugin_event_cursors (
+    plugin_id      TEXT    NOT NULL PRIMARY KEY,   -- the plugin's manifest id
+    last_sequence  INTEGER NOT NULL,               -- the newest application_events.sequence already delivered
+    updated_at     TEXT    NOT NULL                -- ISO 8601 UTC
+);
+
 CREATE TABLE plugin_lore_entities (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
@@ -1933,6 +1939,16 @@ CREATE TABLE plugin_lore_sources (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     UNIQUE (universe_qid, plugin_id, source_key)
+);
+
+CREATE TABLE plugin_records (
+    plugin_id    TEXT    NOT NULL,   -- the plugin's manifest id
+    collection   TEXT    NOT NULL,   -- the plugin's own grouping name, 1 to 128 printable characters
+    record_key   TEXT    NOT NULL,   -- the key inside the collection, 1 to 128 printable characters
+    value_json   TEXT    NOT NULL,   -- the record, a JSON document, at most 64 KB
+    size_bytes   INTEGER NOT NULL,   -- UTF-8 size of value_json, so a plugin's total is a cheap sum
+    updated_at   TEXT    NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (plugin_id, collection, record_key)
 );
 
 CREATE TABLE profile_credentials (

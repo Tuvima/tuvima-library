@@ -6355,6 +6355,21 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthResponse
   Status: System.String | nullability=not-null | accessors=get,set
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHealthCheckDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostJobDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHostServicesDto
+  State: System.String | nullability=not-null | accessors=get,set
+  Problem: System.String | nullability=nullable | accessors=get,set
+  LastProblem: System.String | nullability=nullable | accessors=get,set
+  RecordsUsed: System.Int32 | nullability=not-null | accessors=get,set
+  RecordBytesUsed: System.Int64 | nullability=not-null | accessors=get,set
+  Jobs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginHostJobDto> | nullability=not-null | accessors=get,set
+  EventSubscription: System.String | nullability=nullable | accessors=get,set
+  BackgroundService: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginJobSnapshot
   Id: System.Guid | nullability=not-null | accessors=get,init
   PluginId: System.String | nullability=not-null | accessors=get,init
@@ -6426,6 +6441,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   Settings: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
   SettingsSchema: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
   ManifestPath: System.String | nullability=nullable | accessors=get,set
+  HostServices: MediaEngine.Contracts.Plugins.PluginHostServicesDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginToolPlatformDto
   Rid: System.String | nullability=not-null | accessors=get,set

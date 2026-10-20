@@ -142,6 +142,60 @@ public sealed record PluginSummaryResponse
 
     [JsonPropertyName("manifest_path")]
     public string? ManifestPath { get; set; }
+
+    /// <summary>How the plugin is getting on with the Library's host services (its own records, recurring jobs, events, background work and web connection). Always present; kept in memory, so it starts clean after an Engine restart.</summary>
+    [JsonPropertyName("host_services")]
+    public PluginHostServicesDto HostServices { get; set; } = new();
+}
+
+/// <summary>The state of a plugin's host services. <see cref="State"/> is <c>working</c>, <c>needs_attention</c> or <c>broken</c>.</summary>
+public sealed record PluginHostServicesDto
+{
+    /// <summary><c>working</c>, <c>needs_attention</c> (a limit was reached; see <see cref="Problem"/>) or <c>broken</c> (its always-on work stopped for good).</summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = "working";
+
+    /// <summary>The plain-English reason behind <see cref="State"/>, or null while it is <c>working</c>. Examples: "Reached its storage limit (16 MB)", "Stopped after crashing 5 times in an hour".</summary>
+    [JsonPropertyName("problem")]
+    public string? Problem { get; set; }
+
+    /// <summary>The most recent thing that went wrong that does not change <see cref="State"/> (an event handler failed, a web address was refused), or null.</summary>
+    [JsonPropertyName("last_problem")]
+    public string? LastProblem { get; set; }
+
+    /// <summary>How many records the plugin keeps in the Library's data store.</summary>
+    [JsonPropertyName("records_used")]
+    public int RecordsUsed { get; set; }
+
+    /// <summary>How much space those records take, in bytes.</summary>
+    [JsonPropertyName("record_bytes_used")]
+    public long RecordBytesUsed { get; set; }
+
+    /// <summary>The plugin's recurring jobs. Empty when it has none or is switched off.</summary>
+    [JsonPropertyName("jobs")]
+    public List<PluginHostJobDto> Jobs { get; set; } = [];
+
+    /// <summary><c>active</c> or <c>paused</c> when the plugin subscribes to Library events; null when it does not.</summary>
+    [JsonPropertyName("event_subscription")]
+    public string? EventSubscription { get; set; }
+
+    /// <summary><c>running</c>, <c>restarting</c> or <c>stopped</c> when the plugin has always-on work; null when it does not.</summary>
+    [JsonPropertyName("background_service")]
+    public string? BackgroundService { get; set; }
+}
+
+/// <summary>One recurring job of a plugin.</summary>
+public sealed record PluginHostJobDto
+{
+    [JsonPropertyName("key")]
+    public string Key { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    /// <summary><c>scheduled</c>, <c>running</c> or <c>paused</c> (stopped after running too long three times in a row).</summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = "scheduled";
 }
 
 /// <summary>One place a plugin says it contacts: a host (exact, or one leading <c>*.</c> wildcard) and a plain sentence on what it sends there.</summary>
