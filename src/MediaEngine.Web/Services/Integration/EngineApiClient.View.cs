@@ -18,6 +18,48 @@ public sealed partial class EngineApiClient
     public Task<ViewPreferencesDto?> GetViewPreferencesAsync(CancellationToken ct = default) =>
         GetAsync<ViewPreferencesDto>("GET /view/preferences", "/view/preferences", ct: ct);
 
+    public Task<ViewTrashOutcome<ViewTrashSummaryDto>> GetViewTrashSummaryAsync(CancellationToken ct = default) =>
+        SendViewTrashAsync<ViewTrashSummaryDto>("GET /view/trash/summary", () => new HttpRequestMessage(HttpMethod.Get, "/view/trash/summary"), ct);
+
+    public Task<ViewTrashOutcome<ViewTrashEmptyPreviewDto>> GetViewTrashEmptyPreviewAsync(CancellationToken ct = default) =>
+        SendViewTrashAsync<ViewTrashEmptyPreviewDto>("POST /view/trash/empty-preview", () => new HttpRequestMessage(HttpMethod.Post, "/view/trash/empty-preview"), ct);
+
+    // A refusal is an expected answer, not a failure of the Engine: the page just doesn't offer Empty Trash.
+    private async Task<ViewTrashOutcome<T>> SendViewTrashAsync<T>(string endpointLabel, Func<HttpRequestMessage> build, CancellationToken ct)
+    {
+        try
+        {
+            using var message = build();
+            using var response = await _http.SendAsync(message, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
+                ClearFailure(endpointLabel);
+                return value is null
+                    ? ViewTrashOutcome<T>.Failed(ViewTrashOutcomeStatus.Unavailable)
+                    : ViewTrashOutcome<T>.Ok(value);
+            }
+
+            if (response.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.NotFound)
+            {
+                return ViewTrashOutcome<T>.Failed(ViewTrashOutcomeStatus.Forbidden, await ReadViewErrorAsync(response, ct));
+            }
+
+            await RecordHttpFailureAsync(endpointLabel, response, ct);
+            return ViewTrashOutcome<T>.Failed(ViewTrashOutcomeStatus.Unavailable);
+        }
+        catch (OperationCanceledException)
+        {
+            return ViewTrashOutcome<T>.Failed(ViewTrashOutcomeStatus.Unavailable);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
+        {
+            _logger.LogDebug(ex, "{Endpoint} failed", endpointLabel);
+            RecordExceptionFailure(endpointLabel, ex);
+            return ViewTrashOutcome<T>.Failed(ViewTrashOutcomeStatus.Unavailable);
+        }
+    }
+
     public Task<ViewOtherPeopleDto?> GetViewOtherPeopleAsync(CancellationToken ct = default) =>
         GetAsync<ViewOtherPeopleDto>("GET /view/other-people", "/view/other-people", ct: ct);
 
