@@ -7,6 +7,7 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
     private const int HomeProjectionLimit = 1_000;
     private static readonly TimeSpan ProjectionCacheDuration = TimeSpan.FromSeconds(30);
     private readonly DisplayWorkProjectionReader _works;
+    private readonly DisplayVisibleWorkReader _visibleWorks;
     private readonly DisplayJourneyProjectionReader _journey;
     private readonly DisplayFavoriteProjectionReader _favorites;
     private readonly DisplayHomeCollectionProjectionReader _homeCollections;
@@ -14,12 +15,14 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
 
     public DisplayProjectionReadService(
         DisplayWorkProjectionReader works,
+        DisplayVisibleWorkReader visibleWorks,
         DisplayJourneyProjectionReader journey,
         DisplayFavoriteProjectionReader favorites,
         DisplayHomeCollectionProjectionReader homeCollections,
         IMemoryCache cache)
     {
         _works = works;
+        _visibleWorks = visibleWorks;
         _journey = journey;
         _favorites = favorites;
         _homeCollections = homeCollections;
@@ -37,6 +40,32 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         var rows = await _works.LoadAsync(ct);
         _cache.Set(cacheKey, rows, ProjectionCacheDuration);
         return rows;
+    }
+
+    public async Task<IReadOnlyList<DisplayVisibleWorkRow>> LoadVisibleWorkRowsAsync(CancellationToken ct)
+    {
+        const string cacheKey = "display:visible-work-rows";
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayVisibleWorkRow>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var rows = await _visibleWorks.LoadAsync(ct);
+        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
+        return rows;
+    }
+
+    public async Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsAsync(CancellationToken ct)
+    {
+        const string cacheKey = "display:visible-work-ids";
+        if (_cache.TryGetValue(cacheKey, out IReadOnlySet<Guid>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var ids = (await LoadVisibleWorkRowsAsync(ct)).Select(row => row.WorkId).ToHashSet();
+        _cache.Set(cacheKey, ids, ProjectionCacheDuration);
+        return ids;
     }
 
     public Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) =>

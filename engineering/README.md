@@ -30,7 +30,8 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Locked (v2, 2026-10-20) |
 | [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v25, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
-| [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; the audiobook year look-up and Home are follow-ups) |
+| [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
+| [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; Home, detail and the audiobook year look-up done in the Home and detail speed spec) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
 | [Spec: Editing Mode on the item page (as built)](specs/archive/editing-mode.md) | Built (v1, archived 2026-10-19) |
 | [Spec: Profiles and setup (as built)](specs/archive/profiles-setup-redesign.md) | Built (v2, archived 2026-10-19) |
@@ -81,7 +82,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Dapper vs Entity Framework Core: benchmark results](proposals/ef-vs-dapper-benchmark-results-2026-10.md) | Current — outcome recorded in ADR 0001 |
 | [Universe U-WP0: what really mixes up The Expanse](reports/universe-expanse-check-2026-10-19.md) | Current — feeds U-WP3 |
-| [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 feed the Home speed spec to follow |
+| [Slow library and Home reads at 4,000 works](reports/slow-reads-2026-10.md) | Current — causes 1–2 fixed by the library list speed spec; causes 3–4 fixed by the Home and detail speed spec |
 
 ## History (pre-2026-10-17 engineering records)
 
