@@ -57,7 +57,7 @@
                            Size="AppControlSize.Large"
                            Class="tl-editing-banner__done"
                            StartIcon="@AppMaterialIcons.Outlined.Check"
-                           Disabled="@(mode.Fields.Saving || mode.IsSettling)"
+                           Disabled="@(mode.Fields.Saving || mode.SectionSaving || mode.IsSettling)"
                            OnClick="DoneAsync">
                     Done
                 </AppButton>

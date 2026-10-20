@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Services.Editing
-@implements IDisposable
+@implements IAsyncDisposable
 @implements IEditingSectionHost
 @inject IJSRuntime JS
+@inject ILogger<EditingSectionSlot> Logger
 
 @* The Editing Mode section slot (details overlay spec D7): the one section the banner opened (Artwork, Match and Identity or
    History; Details for the Universe editor), directly below the hero at the full width of the page. It is the existing media
@@ -35,6 +36,7 @@
                                     RequestedArtworkSlot="@mode.OpenSectionArtworkSlot"
                                     RequestVersion="@mode.SectionRequestVersion"
                                     DirtyChanged="OnDirtyChanged"
+                                    SavingChanged="OnSavingChanged"
                                     Committed="OnCommittedAsync"
                                     Closed="OnShellClosedAsync" />
         </div>
@@ -191,6 +193,11 @@
             {
                 // The circuit ended; there is no page left to listen on.
             }
+            catch (JSException ex)
+            {
+                // The Esc script could not load or attach: the slot still works, Esc just is not heard here.
+                Logger.LogWarning(ex, "The editing section Esc listener could not be attached.");
+            }
         }
 
         if (_focusSlot && _request is not null)
@@ -209,7 +216,7 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _self?.Dispose();
         if (_subscribed is not null)
@@ -218,6 +225,23 @@
             if (ReferenceEquals(_subscribed.SectionHost, this))
             {
                 _subscribed.SectionHost = null;
+            }
+        }
+
+        if (_escapeModule is { } module)
+        {
+            _escapeModule = null;
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended; the browser already dropped the module.
+            }
+            catch (JSException ex)
+            {
+                Logger.LogWarning(ex, "The editing section Esc script could not be released.");
             }
         }
     }
@@ -229,6 +253,8 @@
     }
 
     private void OnDirtyChanged(bool dirty) => Mode?.SetSectionDirty(dirty);
+
+    private void OnSavingChanged(bool saving) => Mode?.SetSectionSaving(saving);
 
     private Task OnCommittedAsync()
     {

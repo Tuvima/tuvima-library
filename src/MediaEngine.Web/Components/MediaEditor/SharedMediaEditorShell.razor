@@ -940,6 +940,7 @@
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
                                    Class="sme-footer-btn sme-footer-btn--primary"
+                                   Disabled="@IsArtworkRetryRunning"
                                    OnClick="RetryFailedArtworkUploadsAsync">
                             Retry upload
                         </AppButton>

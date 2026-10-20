@@ -67,7 +67,9 @@ A curated collection (a manually built Custom collection) can never be empty. Th
 
 Delete from library is the one way to remove a title from the library. It is for administrators on a desktop with a fine, hover-capable pointer (`EditorDeviceRule.CanEdit`), and the Engine checks every call. It appears in three places and nowhere else:
 
-- **Detail page, Editing Mode.** **More** lists **Delete from library…** last, in red, below a divider. It shows only in Editing Mode, never on a deep link, and only for single titles such as a movie, an episode, a book, an audiobook or a comic issue.
+- **Detail page.** **Delete from library…** is the last entry in the page's **...** menu, in red below a divider, whether or not Editing Mode is on. When Editing Mode is on it is also in the editing bar's **...** menu. Both open the same dialog. It is offered only for single titles such as a movie, an episode, a book, an audiobook or a comic issue.
+
+If someone else removes a title while you have it open, the page stays open with a notice that the title is no longer in the library, and Editing Mode ends. Anything you had typed in a field is kept on the notice with a **Copy** button, so it is not lost.
 - **Listen song table.** Each song row has a Delete icon, and selecting songs shows "N selected", **Delete…** and **Clear**. Phones, touch-only devices and anyone who is not an administrator see neither.
 - **Settings > Libraries > Excluded files.** The files that stayed on disk, each with **Add back**.
 
