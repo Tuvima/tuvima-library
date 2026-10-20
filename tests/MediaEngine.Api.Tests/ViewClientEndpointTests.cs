@@ -200,6 +200,8 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
             Assert.Equal($"/api/v1/view/items/{item.Id:D}/original", item.ContentUrl);
             Assert.Null(item.DocumentInfo);
             Assert.Null(item.Snippet);
+            // A paired app can never move anything to Trash.
+            Assert.False(item.CanTrash);
         });
     }
 

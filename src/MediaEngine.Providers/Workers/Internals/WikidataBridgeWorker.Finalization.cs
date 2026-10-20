@@ -65,6 +65,7 @@ public sealed partial class WikidataBridgeWorker
                 "bridge_id" => (1.0, true),
                 "comic_series_rollup" => (0.90, true),
                 "sibling_variant" => (0.93, true),
+                QidResolutionMethods.OwnedBookNoRetail => (0.93, true),
                 _ => (0.75, false)
             };
 
@@ -368,7 +369,7 @@ public sealed partial class WikidataBridgeWorker
                 ctx.TitleHint!,
                 creator,
                 lineage?.TargetForSelfScope,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
 
             if (match is null || string.IsNullOrWhiteSpace(match.WikidataQid))
             {

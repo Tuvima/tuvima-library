@@ -120,7 +120,12 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
             connection.Execute(new CommandDefinition("""
                 UPDATE view_galleries SET
                     name = @Name, description = @Description, gallery_kind = @Kind,
-                    smart_rule_json = @SmartRuleJson, cover_item_id = @CoverItemId,
+                    smart_rule_json = @SmartRuleJson,
+                    -- A cover in Trash reads as no cover, so a save that sends none keeps it for Restore.
+                    cover_item_id = CASE WHEN @CoverItemId IS NULL AND EXISTS (
+                            SELECT 1 FROM local_items cv
+                             WHERE cv.id = view_galleries.cover_item_id AND cv.trashed_at IS NOT NULL)
+                        THEN cover_item_id ELSE @CoverItemId END,
                     soundtrack_playlist_id = @SoundtrackPlaylistId,
                     sort_order = @SortOrder, updated_at = @now
                  WHERE id = @GalleryId;
@@ -137,7 +142,11 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 now,
             }, transaction, cancellationToken: token));
             var count = connection.ExecuteScalar<int>(new CommandDefinition(
-                "SELECT COUNT(1) FROM view_gallery_items WHERE gallery_id = @GalleryId;",
+                """
+                SELECT COUNT(1) FROM view_gallery_items vgi
+                 WHERE vgi.gallery_id = @GalleryId
+                   AND NOT EXISTS (SELECT 1 FROM local_items li WHERE li.id = vgi.item_id AND li.trashed_at IS NOT NULL);
+                """,
                 command, transaction, cancellationToken: token));
             var row = connection.QuerySingle<GalleryRow>(new CommandDefinition(
                 SelectGallerySql + " WHERE vg.id = @GalleryId GROUP BY vg.id;",
@@ -185,6 +194,10 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                AND (@includeDocuments = 1 OR NOT EXISTS (
                         SELECT 1 FROM local_items li
                          WHERE li.id = view_gallery_items.item_id AND li.media_kind = 'document'))
+               -- An item in Trash leaves the Gallery while it is there; its place is kept, so Restore brings it back.
+               AND NOT EXISTS (
+                        SELECT 1 FROM local_items li
+                         WHERE li.id = view_gallery_items.item_id AND li.trashed_at IS NOT NULL)
              ORDER BY position, item_id
              LIMIT @take;
             """, new
@@ -380,10 +393,13 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
         SELECT vg.id AS Id, vg.owner_profile_id AS OwnerProfileId,
                vg.personal_space_id AS PersonalSpaceId, vg.name AS Name,
                vg.description AS Description, vg.gallery_kind AS GalleryKind,
-               vg.smart_rule_json AS SmartRuleJson, vg.cover_item_id AS CoverItemId,
+               vg.smart_rule_json AS SmartRuleJson,
+               -- A cover in Trash reads as no cover (the Gallery falls back to its newest photo); Restore brings it back.
+               CASE WHEN EXISTS (SELECT 1 FROM local_items cv WHERE cv.id = vg.cover_item_id AND cv.trashed_at IS NOT NULL)
+                    THEN NULL ELSE vg.cover_item_id END AS CoverItemId,
                vg.soundtrack_playlist_id AS SoundtrackPlaylistId,
                vg.sort_order AS SortOrder,
-               COUNT(CASE WHEN @includeDocuments = 1 OR vli.media_kind <> 'document' THEN vgi.item_id END) AS ItemCount,
+               COUNT(CASE WHEN (@includeDocuments = 1 OR vli.media_kind <> 'document') AND vli.trashed_at IS NULL THEN vgi.item_id END) AS ItemCount,
                vg.created_at AS CreatedAt, vg.updated_at AS UpdatedAt
           FROM view_galleries vg
           LEFT JOIN view_gallery_items vgi ON vgi.gallery_id = vg.id
@@ -431,6 +447,14 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 """, new { coverItemId, spaceId }, transaction, cancellationToken: ct)) == 0)
         {
             throw new InvalidOperationException("Gallery cover must belong to its owner's Personal Space.");
+        }
+
+        // An item in Trash is out of every Manual Gallery, so it cannot be chosen as a cover.
+        if (coverItemId.HasValue && connection.ExecuteScalar<long>(new CommandDefinition("""
+                SELECT COUNT(1) FROM local_items WHERE id = @coverItemId AND trashed_at IS NOT NULL;
+                """, new { coverItemId }, transaction, cancellationToken: ct)) != 0)
+        {
+            throw new InvalidOperationException("An item in Trash cannot be a Gallery cover.");
         }
     }
 
@@ -501,6 +525,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                       FROM view_gallery_items vgi
                       JOIN view_galleries vg ON vg.id = vgi.gallery_id AND vg.gallery_kind = 'manual'
                       JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
+                      JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL
                      WHERE vgi.item_id = @itemId AND vgs.profile_id = @profileId
                 );
                 """, new { itemId, profileId }, cancellationToken: ct)) != 0)
@@ -575,6 +600,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                   FROM view_gallery_items vgi
                   JOIN view_galleries vg ON vg.id = vgi.gallery_id AND vg.gallery_kind = 'manual'
                   JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
+                  JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL
                  WHERE vgs.profile_id = @profileId AND vgi.item_id IN @itemIds;
                 """, new { profileId, itemIds = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)));
         }

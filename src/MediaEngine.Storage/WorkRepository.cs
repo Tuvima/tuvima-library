@@ -252,6 +252,7 @@ public sealed class WorkRepository : IWorkRepository
         string title,
         string? creator,
         Guid? excludeWorkId = null,
+        bool requireSettledIdentity = false,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -325,8 +326,8 @@ public sealed class WorkRepository : IWorkRepository
             """ + string.Join(", ", mediaPlaceholders) + """
             )
               AND  w.is_catalog_only = 0
-              AND  w.ownership = 'Owned';
-            """, parameters).AsList();
+              AND  w.ownership = 'Owned'
+            """ + (requireSettledIdentity ? SettledIdentitySql : string.Empty) + ";", parameters).AsList();
 
         if (excludeWorkId.HasValue)
         {
@@ -973,6 +974,26 @@ public sealed class WorkRepository : IWorkRepository
         public string WorkKind { get; set; } = string.Empty;
         public bool IsCatalogOnly { get; set; }
     }
+
+    /// <summary>
+    /// Extra <c>WHERE</c> terms for <see cref="FindConfirmedSiblingQidAsync"/> when a settled identity is required:
+    /// the Work or one of its files has no identity job waiting in Needs Review, and no open identity review item.
+    /// </summary>
+    private static readonly string SettledIdentitySql = $"""
+
+              AND  NOT EXISTS (
+                       SELECT 1 FROM identity_jobs ij
+                       WHERE  ij.entity_id IN (w.id, ma.id)
+                         AND  ij.state IN ('{nameof(IdentityJobState.RetailMatchedNeedsReview)}', '{nameof(IdentityJobState.QidNeedsReview)}'))
+              AND  NOT EXISTS (
+                       SELECT 1 FROM review_queue rq
+                       WHERE  rq.entity_id IN (w.id, ma.id)
+                         AND  rq.status = 'Pending'
+                         AND  rq.trigger IN ('{ReviewTrigger.RetailMatchFailed}', '{ReviewTrigger.RetailMatchAmbiguous}',
+                                             '{ReviewTrigger.LowConfidence}', '{ReviewTrigger.StagedUnidentifiable}',
+                                             '{ReviewTrigger.MissingQid}', '{ReviewTrigger.MultipleQidMatches}',
+                                             '{ReviewTrigger.WikidataBridgeFailed}', '{ReviewTrigger.UserFixMatch}'))
+            """;
 
     private sealed class SiblingQidRow
     {

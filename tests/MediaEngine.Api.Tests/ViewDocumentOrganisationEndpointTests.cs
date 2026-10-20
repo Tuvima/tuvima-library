@@ -141,6 +141,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         typeof(ViewSharedContributionService),
         typeof(ViewSharedSourceService),
         typeof(ViewSourceIndexingHostedService),
+        typeof(ViewTrashDeletionPlanner),
         typeof(MediaEngine.Api.Services.Settings.ServerFolderBrowserService),
     ];
 
@@ -703,6 +704,94 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         var trash = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MoveToTrash));
         Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(trash.Items).Reason);
         Assert.Null(_assets.Find(sharedDocument)!.TrashedAt);
+    }
+
+    [Fact]
+    public async Task AnItemInAReadOnlyFolderCannotBeMovedToTrash_ButOneAlreadyInTrashCanBeRestored()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var managed = await AddItem(alice, '1', LocalAssetMediaKinds.Image, "Managed");
+        var linked = await AddLinkedItem(alice, '2', "Linked");
+        var livePhoto = await AddLivePhotoWithOneLinkedFile(alice, '3');
+        _actor.Current = alice.Authority;
+
+        // A managed item goes to Trash as before.
+        using var trashed = await _client.PostAsync($"/view/items/{managed:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, trashed.StatusCode);
+        Assert.NotNull(_assets.Find(managed)!.TrashedAt);
+
+        // A read-only item, and a Live Photo with one file in a read-only folder, are refused and left alone.
+        foreach (var id in new[] { linked, livePhoto })
+        {
+            using var refused = await _client.PostAsync($"/view/items/{id:D}/trash", null);
+            Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+            var problem = await refused.Content.ReadAsStringAsync();
+            Assert.Contains("read-only folder", problem, StringComparison.Ordinal);
+            Assert.Contains(ViewDocumentBulkReasonCodes.ReadOnlySource, problem, StringComparison.Ordinal);
+            Assert.Null(_assets.Find(id)!.TrashedAt);
+        }
+
+        // Archive stays available for a read-only item, and an item that is already in Trash can be restored.
+        using var archived = await _client.PostAsync($"/view/items/{linked:D}/archive", null);
+        Assert.Equal(HttpStatusCode.NoContent, archived.StatusCode);
+        await _assets.SetLifecycleStateAsync(linked, LocalAssetLifecycleState.Trashed);
+        using var restored = await _client.PostAsync($"/view/items/{linked:D}/restore", null);
+        Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
+        Assert.Null(_assets.Find(linked)!.TrashedAt);
+    }
+
+    [Fact]
+    public async Task ABulkMoveToTrashSkipsDocumentsInAReadOnlyFolderAndTrashesTheOthers()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var managed = await AddDocument(alice, 'a');
+        var linked = await AddLinkedItem(alice, 'b', "Linked letter", LocalAssetMediaKinds.Document);
+        _actor.Current = alice.Authority;
+
+        var result = await BulkAsync(new ViewDocumentBulkRequest([managed, linked], ViewDocumentBulkOperations.MoveToTrash));
+
+        Assert.Equal((1, 1, 0), (result.Done, result.Skipped, result.Failed));
+        var skipped = result.Items.Single(item => item.ItemId == linked);
+        Assert.Equal(ViewDocumentBulkStatuses.Skipped, skipped.Status);
+        Assert.Equal(ViewDocumentBulkReasonCodes.ReadOnlySource, skipped.ReasonCode);
+        Assert.Equal(ViewDocumentBulkService.ReadOnlySourceReason, skipped.Reason);
+        Assert.Null(result.Items.Single(item => item.ItemId == managed).ReasonCode);
+        Assert.NotNull(_assets.Find(managed)!.TrashedAt);
+        Assert.Null(_assets.Find(linked)!.TrashedAt);
+
+        // Restore still works for a read-only document that is already in Trash.
+        await _assets.SetLifecycleStateAsync(linked, LocalAssetLifecycleState.Trashed);
+        var restore = await BulkAsync(new ViewDocumentBulkRequest([linked], ViewDocumentBulkOperations.Restore));
+        Assert.Equal(1, restore.Done);
+        Assert.Null(_assets.Find(linked)!.TrashedAt);
+    }
+
+    [Fact]
+    public async Task CanTrashIsTrueOnlyForTheOwnersManagedPersonalItems()
+    {
+        var household = Guid.NewGuid();
+        var alice = await CreatePerson("StandardUser", household);
+        var bob = await CreatePerson("StandardUser", household);
+        var managed = await AddItem(alice, '1', LocalAssetMediaKinds.Image, "Managed");
+        var linked = await AddLinkedItem(alice, '2', "Linked");
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
+        var sharedPhoto = await AddSharedPhoto(shared.LibraryId, '6');
+        _actor.Current = alice.Authority;
+
+        Assert.True((await _client.GetFromJsonAsync<LocalAssetDto>($"/view/items/{managed:D}?scope=mine"))!.CanTrash);
+        Assert.False((await _client.GetFromJsonAsync<LocalAssetDto>($"/view/items/{linked:D}?scope=mine"))!.CanTrash);
+        Assert.False((await _client.GetFromJsonAsync<LocalAssetDto>($"/view/items/{sharedPhoto:D}?scope=shared"))!.CanTrash);
+
+        // The timeline page says the same, item by item.
+        var page = (await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>("/view/assets?scope=mine"))!;
+        Assert.True(page.Items.Single(item => item.Id == managed).CanTrash);
+        Assert.False(page.Items.Single(item => item.Id == linked).CanTrash);
+
+        // Someone else's item is never trashable by the viewer, whatever the data store says about the item itself.
+        var item = _assets.Find(managed)!;
+        Assert.True(ViewItemCapabilities.ForViewer(item, alice.ProfileId).CanTrash);
+        Assert.False(ViewItemCapabilities.ForViewer(item, bob.ProfileId).CanTrash);
+        Assert.False(ViewItemCapabilities.ForViewer(item, null).CanTrash);
     }
 
     [Fact]
@@ -1567,6 +1656,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
     private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
     private const string ClientDocuments = "AProfileWithoutDocumentsLearnsOfNoDocumentThroughTimelineGalleriesCountsPeoplePlacesItemsOrFiles";
+    private const string TrashWithoutDocuments = "AProfileWithoutDocuments_NeverSeesDocumentsInItsTrash";
     private const string NoItems = "none:";
 
     /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
@@ -1621,6 +1711,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/shared/contributions"] = Covers(ContributionRoutes, "mode=review"),
         ["GET /view/shared/contributions/{id:guid}"] = Covers(ContributionRoutes, "contributions/{documentsOnly"),
         ["GET /view/tag-suggestions"] = Covers(TagSuggestions, "/view/tag-suggestions"),
+        ["GET /view/trash/summary"] = Covers(TrashWithoutDocuments, "/view/trash/summary"),
         ["POST /view/admin/profiles/{profileId:guid}/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
         ["POST /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["POST /view/admin/shared/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
@@ -1645,6 +1736,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["POST /view/shared/contributions/preview"] = Covers(ContributionSend, "PreviewAsync"),
         ["POST /view/shared/items/direct"] = Covers(ContributionSend, "AddDirectAsync"),
         ["POST /view/tags"] = Refused,
+        ["POST /view/trash/empty-preview"] = Covers(TrashWithoutDocuments, "/view/trash/empty-preview"),
         ["POST /view/uploads"] = Covers(UploadRefusal, "\"Lease.pdf\""),
         ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
         ["PUT /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
@@ -1814,6 +1906,66 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             person.LibraryId, space!.Id, person.ProfileId, kind, title, null,
             [new LocalAssetFileRegistration($@"C:\items\{seed}.{extension}", new string(seed, 64), $"{seed}.{extension}",
                 isDocument ? "application/pdf" : "image/jpeg", 1024, DateTimeOffset.UtcNow) with { SourceId = sourceId }]))).ItemId;
+    }
+
+    /// <summary>An item whose only file comes from a linked (read-only) folder.</summary>
+    private async Task<Guid> AddLinkedItem(Person person, char seed, string title, string kind = LocalAssetMediaKinds.Image)
+    {
+        var space = await _spaces.GetByOwnerAsync(person.ProfileId);
+        var isDocument = kind == LocalAssetMediaKinds.Document;
+        var extension = isDocument ? "pdf" : "jpg";
+        return (await _assets.UpsertAsync(new LocalAssetRegistration(
+            person.LibraryId, space!.Id, person.ProfileId, kind, title, null,
+            [new LocalAssetFileRegistration($@"D:\Linked\{seed}.{extension}", new string(seed, 64), $"{seed}.{extension}",
+                isDocument ? "application/pdf" : "image/jpeg", 1024, DateTimeOffset.UtcNow)
+                with { SourceId = InsertPersonalSource(person, space.Id, "linked") }]))).ItemId;
+    }
+
+    /// <summary>A Live Photo whose still is managed but whose video comes from a linked folder.</summary>
+    private async Task<Guid> AddLivePhotoWithOneLinkedFile(Person person, char seed)
+    {
+        var space = await _spaces.GetByOwnerAsync(person.ProfileId);
+        var other = (char)(seed + 1);
+        return (await _assets.UpsertAsync(new LocalAssetRegistration(
+            person.LibraryId, space!.Id, person.ProfileId, LocalAssetMediaKinds.Image, "Live", null,
+            [
+                new LocalAssetFileRegistration($@"C:\items\{seed}.jpg", new string(seed, 64), $"{seed}.jpg", "image/jpeg",
+                    1024, DateTimeOffset.UtcNow) with { SourceId = InsertPersonalSource(person, space.Id, "managed") },
+                new LocalAssetFileRegistration($@"D:\Linked\{other}.mov", new string(other, 64), $"{other}.mov", "video/quicktime",
+                    1024, DateTimeOffset.UtcNow) with
+                {
+                    Role = LocalAssetFileRoles.LivePhotoVideo,
+                    SourceId = InsertPersonalSource(person, space.Id, "linked"),
+                },
+            ]))).ItemId;
+    }
+
+    private Guid InsertPersonalSource(Person person, Guid spaceId, string storageMode)
+    {
+        var sourceId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO view_sources
+                (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
+                 relative_path, external_path, include_subdirectories, enabled, created_at, updated_at)
+            VALUES (@sourceId, 'personal', @spaceId, @libraryId, 'folder', @storageMode, @sourceKey, @storageMode,
+                    @relative, @external, 1, 1, @now, @now);
+            """, new
+        {
+            sourceId,
+            spaceId,
+            libraryId = person.LibraryId,
+            storageMode,
+            sourceKey = $"test:{sourceId:N}",
+            relative = storageMode == "managed" ? "Personal/Uploads/test" : null,
+            external = storageMode == "linked" ? @"D:\Linked" : null,
+            now = DateTimeOffset.UtcNow,
+        });
+        // Show the folder's photos on the timeline, so the page tests can see them.
+        connection.Execute("""
+            INSERT INTO view_source_policies (source_id, include_in_timeline, updated_at) VALUES (@sourceId, 1, @now);
+            """, new { sourceId, now = DateTimeOffset.UtcNow });
+        return sourceId;
     }
 
     private async Task<Guid> AddSharedDocument(Guid libraryId, string title, char seed)
