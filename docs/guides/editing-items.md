@@ -28,6 +28,10 @@ Genre and tag fields suggest values already used in your library. Type a full va
 
 People, dates, language, runtime, and source ratings come from the file or provider. To fix a wrong source match, use Matching. These facts are not all fields you can type over.
 
+## Mark a video Explicit
+
+On a video or a series of videos, Editing Mode on the Overview has an **Explicit** switch. It saves straight away and hides the item from every profile that has a content limit, whatever the library setting says; profiles set to Everything still see it. Nothing is shown for other kinds of item.
+
 ## Choose artwork
 
 Open **Artwork** to choose or add images. The top of the editor shows the item's main image. [Artwork types](../reference/artwork-types.md) explains covers, backgrounds, logos, and other image roles.

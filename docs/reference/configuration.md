@@ -204,7 +204,7 @@ Default strategies:
 - **Cascade:** Books
 - **Sequential:** Audiobooks, Music
 
-All six media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry.
+The catalogued media types (Books, Audiobooks, Movies, TV, Music, Comics) must have at least one provider entry. Videos needs none: it is identified from local files, and its optional YouTube lookup is the `youtube` provider.
 
 Music is configured as a sequential Stage 1 chain: MusicBrainz has `purpose: "identity"` and Apple API has `purpose: "enrichment"`. That means MusicBrainz owns track, album, artist, release, and recording identity fields when available, while Apple can still win configured enrichment fields such as cover art, genre, storefront IDs, year, and retail metadata. This is a configuration rule, not a music-specific provider-order branch in orchestration code.
 
