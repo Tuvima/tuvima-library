@@ -3,6 +3,7 @@ using BenchmarkDotNet.Running;
 using MediaEngine.Storage.Benchmarks.Benchmarks;
 using MediaEngine.Storage.Benchmarks.Concurrency;
 using MediaEngine.Storage.Benchmarks.Seeding;
+using MediaEngine.Storage.Benchmarks.Snapshot;
 using MediaEngine.Storage.Benchmarks.Verification;
 using Microsoft.Data.Sqlite;
 
@@ -24,6 +25,9 @@ internal static class Program
           bench        --db <path> [BenchmarkDotNet args]      timing and allocation run (for example: --filter "*" or --job dry)
           concurrency  --db <path> [--seconds <n>]             reader/writer contention run on a copy of the file
                        [--writer-tps <n>]                      writer rate in transactions/s (default 50; 0 = unthrottled)
+          snapshot     --db <path> --out <file>                write every field of every row of Home, detail, recent, library list reads
+                       [--only home,detail,library-list]       (only sections whose name starts with one of these)
+          compare      --before <file> --after <file>          compare two snapshot files; exit code 1 when they differ
           clean        --db <path>                             delete the database, -wal, -shm and dataset description
         """;
 
@@ -91,6 +95,13 @@ internal static class Program
                         Options.Required(rest, "--stack"),
                         int.Parse(Options.Required(rest, "--seconds"), CultureInfo.InvariantCulture),
                         Options.WriterTps(rest));
+                case "snapshot":
+                    return await SnapshotCommand.RunAsync(
+                        Options.Required(rest, "--db"),
+                        Options.Required(rest, "--out"),
+                        Options.Optional(rest, "--only"));
+                case "compare":
+                    return CompareCommand.Run(Options.Required(rest, "--before"), Options.Required(rest, "--after"));
                 case "clean":
                     Clean(Options.Required(rest, "--db"));
                     return 0;
