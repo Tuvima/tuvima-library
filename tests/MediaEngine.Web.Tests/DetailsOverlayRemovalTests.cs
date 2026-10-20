@@ -17,8 +17,8 @@ using RouteData = Microsoft.AspNetCore.Components.RouteData;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// When the open title is deleted (here or in another window), "leave the page" means dismissing the details overlay
-/// entirely, back to the page under it, through the same path as the close button (spec D1, Delete from library).
+/// When the open title is deleted in another window, the overlay stays open with a notice and its Close button dismisses the
+/// overlay entirely, back to the page under it, through the same path as the close button (spec D1, section 4, Delete from library).
 /// </summary>
 public sealed class DetailsOverlayRemovalTests : AsyncBunitContext
 {
@@ -72,27 +72,71 @@ public sealed class DetailsOverlayRemovalTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task WhenTheOpenTitleIsDeletedElsewhere_TheOverlayIsDismissedEntirelyAndNoPageIsNavigatedTo()
+    public async Task WhenTheOpenTitleIsDeletedElsewhere_TheOverlayStaysOpenWithANoticeInsteadOfDismissing()
     {
         var cut = RenderInOpenOverlay();
         var toasts = Services.GetRequiredService<AppToastService>();
 
         await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
 
-        cut.WaitForAssertion(() => Assert.Equal([1], _steps));
-        Assert.Equal(["This item is no longer in your library."], toasts.Toasts.Select(toast => toast.Message));
+        cut.WaitForAssertion(() => Assert.Equal("This item is no longer in your library", cut.Find(".tl-removed-notice__title").TextContent.Trim()));
+        Assert.Empty(_steps);
+        Assert.True(Services.GetRequiredService<DetailsOverlayState>().IsOpen);
+        Assert.Empty(toasts.Toasts);
+        Assert.Empty(cut.FindAll(".tl-detail-stage"));
         Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "detailOrigin.back");
     }
 
     [Fact]
-    public async Task ARefusingDismissGuard_DoesNotStopTheOverlayLeavingATitleThatNoLongerExists()
+    public async Task TheNoticeShowsNoCopyBoxWhenNothingWasBeingTyped()
     {
         var cut = RenderInOpenOverlay();
-        using var registration = Services.GetRequiredService<DetailsOverlayState>().RegisterDismissGuard(new RefusingGuard());
 
         await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
 
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice")));
+        Assert.Empty(cut.FindAll(".tl-removed-notice__input"));
+        Assert.Empty(cut.FindAll(".tl-removed-notice__copy"));
+    }
+
+    [Fact]
+    public async Task ClosingTheNotice_DismissesTheOverlayEntirely()
+    {
+        var cut = RenderInOpenOverlay();
+        await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__close")));
+
+        cut.Find(".tl-removed-notice__close").Click();
+
         cut.WaitForAssertion(() => Assert.Equal([1], _steps));
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "detailOrigin.back");
+    }
+
+    [Fact]
+    public async Task ARefusingDismissGuard_DoesNotStopClosingTheNoticeOfATitleThatNoLongerExists()
+    {
+        var cut = RenderInOpenOverlay();
+        using var registration = Services.GetRequiredService<DetailsOverlayState>().RegisterDismissGuard(new RefusingGuard());
+        await cut.InvokeAsync(() => Services.GetRequiredService<UIOrchestratorService>().RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__close")));
+
+        cut.Find(".tl-removed-notice__close").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal([1], _steps));
+    }
+
+    [Fact]
+    public async Task ASecondRemovedEventForTheSameTitle_LeavesTheNoticeAsItWas()
+    {
+        var cut = RenderInOpenOverlay();
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+        await cut.InvokeAsync(() => orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice")));
+
+        await cut.InvokeAsync(() => orchestrator.RaiseLibraryItemsRemoved(new LibraryItemsRemovedEvent([MovieId], [])));
+
+        Assert.Single(cut.FindAll(".tl-removed-notice"));
+        Assert.Empty(_steps);
     }
 
     [Fact]
