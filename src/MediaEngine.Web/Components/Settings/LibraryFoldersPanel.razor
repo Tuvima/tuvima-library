@@ -223,6 +223,10 @@
                     {
                         <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
                     }
+                    @if (!Embedded)
+                    {
+                        <ExcludedFilesSection LibraryId="@SelectedLibrary.Id" ReadOnly="@ReadOnly" />
+                    }
                 }
             </AppCard>
         }
