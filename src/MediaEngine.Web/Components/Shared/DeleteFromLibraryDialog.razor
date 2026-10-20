@@ -1,0 +1,323 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+
+@* The one confirmation for taking titles out of the library. It asks the Engine what would happen, shows every file and what becomes of
+   it, the hand-picked collections the titles leave, and the progress that goes with them, then deletes exactly that plan. Cancel has the
+   focus when it opens (the autofocus attribute is honoured by the native dialog), and Escape cancels. The caller shows the toast. *@
+<AppDialogShell Title="@Heading" Size="Medium">
+    <ChildContent>
+        <div class="delete-library">
+            @if (_state == DialogState.Loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@LibraryItemDeletionText.Checking" />
+            }
+            else if (_state == DialogState.Failed)
+            {
+                <AppAlert Tone="AppUiTone.Error">@_failure</AppAlert>
+            }
+            else if (_preview is not null)
+            {
+                @if (_notice is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Class="delete-library__notice">@_notice</AppAlert>
+                }
+
+                <section class="delete-library__section" aria-label="Files">
+                    <h3>Files</h3>
+                    @if (FileGroups.Count == 0)
+                    {
+                        <p>These titles have no files on disk.</p>
+                    }
+                    else
+                    {
+                        <ul class="delete-library__files">
+                            @foreach (var group in FileGroups)
+                            {
+                                <li class="delete-library__file" data-outcome="@group.Outcome">
+                                    <span class="delete-library__file-label">@group.Label</span>
+                                    @if (group.Detail is not null)
+                                    {
+                                        <span class="delete-library__file-detail"> &mdash; @group.Detail</span>
+                                    }
+                                    <em class="delete-library__file-outcome"> &mdash; @group.Phrase</em>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+
+                @if (Collections.Count > 0)
+                {
+                    <section class="delete-library__section" aria-label="Hand-picked collections">
+                        <h3>Hand-picked collections</h3>
+                        <p>
+                            @CollectionsLead@for (var i = 0; i < ShownCollections.Count; i++)
+                            {
+                                var collection = ShownCollections[i];
+                                <strong>@collection.Name</strong>@if (IsSeveral) { <text> (@collection.ItemsInRequest of these)</text> }@(i < ShownCollections.Count - 1 ? ", " : string.Empty)
+                            }
+                            @if (HiddenCollectionCount > 0)
+                            {
+                                <text>, </text><AppNativeButton Type="button" Class="delete-library__more" aria-expanded="false" OnClick="ExpandCollections">and @HiddenCollectionCount more</AppNativeButton>
+                            }.
+                            @(Collections.Count == 1 ? "It will be taken out of it." : "It will be taken out of them.")
+                        </p>
+                        @if (EmptiedCollections.Count > 0)
+                        {
+                            <p class="delete-library__emptied">
+                                @for (var i = 0; i < EmptiedCollections.Count; i++)
+                                {
+                                    <strong>@EmptiedCollections[i].Name</strong>@(Joiner(i, EmptiedCollections.Count))
+                                }
+                                @(EmptiedCollections.Count == 1
+                                    ? " has nothing else in it, so it will be deleted too."
+                                    : " have nothing else in them, so they will be deleted too.")
+                            </p>
+                        }
+                    </section>
+                }
+
+                @if (_preview.ProfilesWithProgress > 0)
+                {
+                    <section class="delete-library__section" aria-label="Progress">
+                        <h3>Progress</h3>
+                        <p>
+                            @(_preview.ProfilesWithProgress == 1 ? "1 person has" : $"{DisplayFormat.FormatCount(_preview.ProfilesWithProgress)} people have")
+                            progress on @(IsSeveral ? "these" : "this"). It will be removed.
+                        </p>
+                    </section>
+                }
+
+                @if (_preview.ProcessingRunning)
+                {
+                    <p class="delete-library__processing">Processing for @(IsSeveral ? "these titles" : "this title") will be stopped.</p>
+                }
+
+                @if (AnyFileDeleted)
+                {
+                    <p class="delete-library__footer-line">@FreedLine Files deleted from disk can't be recovered.</p>
+                }
+                else if (AnyFileStays)
+                {
+                    <p class="delete-library__footer-line">The files stay where they are. Tuvima will skip them in future scans, so @(IsSeveral ? "these titles don't" : "this title doesn't") come back. You can add them back in Settings.</p>
+                }
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @* Cancel is the first button and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. *@
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
+        @if (_state == DialogState.Failed && _canRetry)
+        {
+            <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
+        }
+        else if (_state is DialogState.Ready or DialogState.Deleting && _preview is not null)
+        {
+            <AppButton Label="@(_state == DialogState.Deleting ? "Deleting…" : ConfirmLabel)"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Error"
+                       Loading="@(_state == DialogState.Deleting)"
+                       Disabled="@(_state == DialogState.Deleting)"
+                       OnClick="ConfirmAsync" />
+        }
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    private const int CollectionsShownBeforeMore = 5;
+
+    private enum DialogState { Loading, Ready, Deleting, Failed }
+
+    private sealed record FileGroup(string Label, string? Detail, string Outcome, string Phrase);
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The Works to delete (a title's Work, or the songs chosen in the Listen table).</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+
+    /// <summary>The title to name in the question when there is one title; the Engine's own title is used when this is empty.</summary>
+    [Parameter] public string? ItemTitle { get; set; }
+
+    private DialogState _state = DialogState.Loading;
+    private LibraryItemDeletionPreview? _preview;
+    private string? _notice;
+    private string? _failure;
+    private bool _canRetry;
+    private bool _collectionsExpanded;
+    private IDisposable? _closeGuard;
+
+    private IReadOnlyCollection<LibraryItemDeletionItemDto> Items => _preview?.Items ?? [];
+    private string Heading => LibraryItemDeletionText.Heading(ItemTitle, Items, WorkIds.Count);
+    private bool IsSeveral => (Items.Count > 0 ? Items.Count : WorkIds.Count) > 1;
+    private bool AnyFileDeleted => _preview?.Files.Any(file => file.Outcome == LibraryItemDeletionOutcomes.Delete) == true;
+    private bool AnyFileStays => _preview?.Files.Any(file => file.Outcome is LibraryItemDeletionOutcomes.KeepAsIs or LibraryItemDeletionOutcomes.KeepProtected) == true;
+    private string ConfirmLabel => AnyFileDeleted ? "Delete from library and disk" : "Delete from library";
+
+    private string FreedLine => DisplayFormat.FormatFileSize(_preview?.BytesFreed ?? 0) is { } freed ? $"Deleting frees {freed}." : string.Empty;
+
+    // Hand-picked collections, A to Z the way the person's language sorts them.
+    private IReadOnlyList<LibraryItemDeletionCollectionDto> Collections => (_preview?.CuratedCollections ?? [])
+        .OrderBy(collection => collection.Name, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    private string CollectionsLead => (IsSeveral ? "These are" : "This is") + " in " +
+        (Collections.Count == 1 ? "1 collection" : $"{DisplayFormat.FormatCount(Collections.Count)} collections") + " you made: ";
+
+    private IReadOnlyList<LibraryItemDeletionCollectionDto> ShownCollections =>
+        _collectionsExpanded ? Collections : Collections.Take(CollectionsShownBeforeMore).ToList();
+
+    private int HiddenCollectionCount => _collectionsExpanded ? 0 : Math.Max(0, Collections.Count - CollectionsShownBeforeMore);
+
+    private IReadOnlyList<LibraryItemDeletionCollectionDto> EmptiedCollections => Collections.Where(collection => collection.WillBeDeleted).ToList();
+
+    // "A", "A and B", "A, B and C": the separator that follows item i of count.
+    private static string Joiner(int index, int count) =>
+        index == count - 1 ? string.Empty : index == count - 2 ? " and " : ", ";
+
+    // One line per folder and outcome, so several songs in one folder read as one row with totals.
+    private IReadOnlyList<FileGroup> FileGroups => (_preview?.Files ?? [])
+        .GroupBy(file => (Label: FolderOf(file), file.Outcome, Reason: file.Outcome == LibraryItemDeletionOutcomes.KeepProtected ? file.Reason : null))
+        .OrderBy(group => OutcomeRank(group.Key.Outcome))
+        .ThenBy(group => group.Key.Label, StringComparer.CurrentCultureIgnoreCase)
+        .Select(ToGroup)
+        .ToList();
+
+    private static string FolderOf(LibraryItemDeletionFileDto file) =>
+        !string.IsNullOrWhiteSpace(file.FolderLabel) ? file.FolderLabel
+        : !string.IsNullOrWhiteSpace(file.LibraryName) ? file.LibraryName
+        : "Outside your library folders";
+
+    private static int OutcomeRank(string outcome) => outcome switch
+    {
+        LibraryItemDeletionOutcomes.Delete => 0,
+        LibraryItemDeletionOutcomes.KeepAsIs => 1,
+        LibraryItemDeletionOutcomes.KeepProtected => 2,
+        LibraryItemDeletionOutcomes.KeepMissing => 3,
+        _ => 4,
+    };
+
+    private static FileGroup ToGroup(IGrouping<(string Label, string Outcome, string? Reason), LibraryItemDeletionFileDto> group)
+    {
+        var files = group.ToList();
+        var outcome = group.Key.Outcome;
+        var label = files.Count == 1 && outcome != LibraryItemDeletionOutcomes.Delete
+            ? $"{group.Key.Label} › {files[0].FileName}"
+            : group.Key.Label;
+        string? detail = null;
+        if (outcome == LibraryItemDeletionOutcomes.Delete)
+        {
+            var size = DisplayFormat.FormatFileSize(files.Sum(file => file.SizeBytes ?? 0));
+            var count = files.Count == 1 ? "1 file" : $"{DisplayFormat.FormatCount(files.Count)} files";
+            detail = size is null ? count : $"{count}, {size}";
+        }
+        else if (files.Count > 1)
+        {
+            detail = $"{DisplayFormat.FormatCount(files.Count)} files";
+        }
+
+        var phrase = outcome switch
+        {
+            LibraryItemDeletionOutcomes.Delete => "will be deleted from disk",
+            LibraryItemDeletionOutcomes.KeepAsIs => "stays on disk: Tuvima only reads this folder",
+            LibraryItemDeletionOutcomes.KeepProtected => string.IsNullOrWhiteSpace(group.Key.Reason) ? "stays on disk" : $"stays on disk: {group.Key.Reason}",
+            LibraryItemDeletionOutcomes.KeepMissing => "already gone from disk",
+            _ => "stays on disk",
+        };
+        return new FileGroup(label, detail, outcome, phrase);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Escape, the backdrop and Cancel all end up here: nothing may close the dialog while the Engine is deleting.
+        _closeGuard = Dialog.RegisterCloseGuard(() => Task.FromResult(_state != DialogState.Deleting));
+        await LoadPreviewAsync();
+    }
+
+    public void Dispose() => _closeGuard?.Dispose();
+
+    private void ExpandCollections() => _collectionsExpanded = true;
+
+    private Task CancelAsync() => Dialog.CancelAsync();
+
+    private async Task LoadPreviewAsync()
+    {
+        _state = DialogState.Loading;
+        _notice = null;
+        _failure = null;
+        StateHasChanged();
+
+        var outcome = await ApiClient.GetLibraryItemDeletionPreviewAsync(WorkIds);
+        if (outcome.IsOk)
+        {
+            _preview = outcome.Value;
+            _state = DialogState.Ready;
+            return;
+        }
+
+        await FailAsync(outcome.Status, outcome.Message);
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (_preview is null || _state != DialogState.Ready)
+        {
+            return;
+        }
+
+        _state = DialogState.Deleting;
+        StateHasChanged();
+
+        var outcome = await ApiClient.DeleteLibraryItemsAsync(WorkIds, _preview.Fingerprint);
+        if (outcome.IsOk)
+        {
+            var noun = LibraryItemDeletionText.Noun(Items);
+            _state = DialogState.Ready;
+            await Dialog.CloseAsync(AppDialogResult.Ok(new LibraryItemDeletionDialogResult(outcome.Value, false, noun)));
+            return;
+        }
+
+        if (outcome.Status == LibraryItemDeletionOutcomeStatus.Conflict)
+        {
+            // Nothing was deleted: show what is true now and let the person decide again.
+            _state = DialogState.Ready;
+            if (outcome.FreshPreview is not null)
+            {
+                _preview = outcome.FreshPreview;
+                _notice = LibraryItemDeletionText.Changed;
+                _collectionsExpanded = false;
+                return;
+            }
+
+            await LoadPreviewAsync();
+            _notice ??= LibraryItemDeletionText.Changed;
+            return;
+        }
+
+        await FailAsync(outcome.Status, outcome.Message);
+    }
+
+    private async Task FailAsync(LibraryItemDeletionOutcomeStatus status, string? message)
+    {
+        if (status == LibraryItemDeletionOutcomeStatus.NotFound)
+        {
+            // The title is already gone (deleted in another window): the caller closes the page it was opened from.
+            _state = DialogState.Ready;
+            await Dialog.CloseAsync(AppDialogResult.Ok(new LibraryItemDeletionDialogResult(null, true, LibraryItemDeletionText.Noun(Items))));
+            return;
+        }
+
+        _canRetry = status == LibraryItemDeletionOutcomeStatus.Unavailable;
+        _failure = status switch
+        {
+            LibraryItemDeletionOutcomeStatus.Unavailable => LibraryItemDeletionText.Unavailable,
+            LibraryItemDeletionOutcomeStatus.Forbidden => LibraryItemDeletionText.Forbidden,
+            _ => string.IsNullOrWhiteSpace(message) ? LibraryItemDeletionText.InvalidFallback : message,
+        };
+        _state = DialogState.Failed;
+    }
+}

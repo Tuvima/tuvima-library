@@ -86,6 +86,45 @@ public sealed partial class PlaybackSessionController
         NotifyChanged();
     }
 
+    /// <summary>
+    /// Titles were deleted from the library by an administrator. The one playing stops and the player closes (true is returned so the
+    /// caller can say why); upcoming and recent entries for the deleted titles quietly leave the queue and history. The Engine has already
+    /// removed its saved queue rows, so nothing is sent back.
+    /// </summary>
+    public async Task<bool> HandleLibraryItemsRemovedAsync(IReadOnlyCollection<Guid> workIds, IReadOnlyCollection<Guid> assetIds)
+    {
+        bool Gone(ListenQueueItem item) =>
+            workIds.Contains(item.WorkId)
+            || (item.AudiobookWorkId is { } audiobookWorkId && workIds.Contains(audiobookWorkId))
+            || (item.AssetId is { } assetId && assetIds.Contains(assetId));
+
+        if (!IsDismissed && CurrentItem is { } current && Gone(current))
+        {
+            await DispatchAsync(PlaybackCommand.Pause());
+            ClosePlayer();
+            return true;
+        }
+
+        var changed = false;
+        for (var index = _queue.Count - 1; index > CurrentIndex; index--)
+        {
+            if (Gone(_queue[index]))
+            {
+                _persistedQueueEntries.Remove(_queue[index].QueueEntryId);
+                _queue.RemoveAt(index);
+                changed = true;
+            }
+        }
+
+        changed |= _history.RemoveAll(Gone) > 0;
+        if (changed)
+        {
+            NotifyChanged();
+        }
+
+        return false;
+    }
+
     private bool SavedQueueMatches(PlayerStateDto? state) => state is not null
         && (_preferences?.ActiveProfileId is not Guid profile || state.ProfileId == profile)
         && _persistedQueueEntries.Count == _queue.Count

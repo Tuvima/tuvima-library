@@ -199,6 +199,7 @@
     protected override async Task OnInitializedAsync()
     {
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         await LoadAsync();
     }
 
@@ -390,9 +391,13 @@
 
     private void OnProfileChanged() => _ = InvokeAsync(LoadAsync);
 
+    // Continue and My List drop titles an administrator deleted from the library.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) => _ = InvokeAsync(LoadAsync);
+
     public void Dispose()
     {
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         _loadVersion++;
     }
 }

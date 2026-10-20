@@ -481,6 +481,7 @@
 
             Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
             Orchestrator.OnProfileChanged += OnProfileChanged;
+            Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
 
             StateHasChanged();
         }
@@ -837,6 +838,17 @@
         }
     }
 
+    // A title deleted from the library stops here if it is playing (any device's player on this circuit shares this controller);
+    // other entries just leave the queue.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        if (await Playback.HandleLibraryItemsRemovedAsync(removed.WorkIds, removed.AssetIds))
+        {
+            Toasts.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+        }
+    });
+
     private void OnReviewCountChanged()
     {
         if (_disposed) return;
@@ -882,6 +894,7 @@
         Nav.LocationChanged -= OnLocationChanged;
         Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
         _session.OnSecureAccountRequired -= OnSecureAccountRequired;

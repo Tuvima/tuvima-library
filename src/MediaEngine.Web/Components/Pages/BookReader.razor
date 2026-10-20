@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject ILogger<BookReader> Logger
 @inject UIOrchestratorService Orchestrator
+@inject IAppToastService Toast
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 
 @implements IAsyncDisposable
@@ -352,6 +353,30 @@
         "changed" => "This book was updated",
         _ => "Book failed to load",
     };
+
+    protected override void OnInitialized() => Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+
+    // The title being read was deleted from the library (here or in another window): stop reading, say why, and leave. Nothing is saved
+    // for it, because its progress went with it.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent removed)
+    {
+        if (!removed.AssetIds.Contains(AssetId))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_exited || _disposed || _disposing)
+            {
+                return;
+            }
+
+            _exited = true;
+            Toast.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            Nav.NavigateTo("/", replace: true);
+        });
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -1176,6 +1201,7 @@
 
         // From here an open that is still in flight must not start a new save timer.
         _disposing = true;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
 
         if (_saveTimer is { } timer)
         {
