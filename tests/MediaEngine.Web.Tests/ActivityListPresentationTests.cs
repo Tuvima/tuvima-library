@@ -149,6 +149,23 @@ public sealed class ActivityListPresentationTests
         Assert.Equal((string.Empty, string.Empty), ActivityListPresentation.Section(At("2026-10-12T12:00:00Z"), ActivityGrouping.Title, now));
     }
 
+    // Just after UTC midnight the UTC date is already tomorrow for a viewer west of Greenwich (and still yesterday for one far east).
+    [Theory]
+    [InlineData(-5, "2026-10-19T20:00:00Z", "Today")]      // 3:00 PM on Oct 19 for the viewer, while "now" is already Oct 20 in UTC
+    [InlineData(-5, "2026-10-19T03:00:00Z", "Yesterday")]  // 10:00 PM on Oct 18
+    [InlineData(-5, "2026-10-20T00:30:00Z", "Today")]      // 7:30 PM on Oct 19, a UTC "tomorrow"
+    [InlineData(13, "2026-10-19T12:00:00Z", "Today")]      // 1:00 AM on Oct 20 for the viewer
+    [InlineData(13, "2026-10-19T10:30:00Z", "Yesterday")]  // 11:30 PM on Oct 19
+    public void Today_IsTheViewersLocalDay_NotTheUtcDate_JustAfterUtcMidnight(int offsetHours, string started, string label)
+    {
+        var zone = TimeZoneInfo.CreateCustomTimeZone("viewer", TimeSpan.FromHours(offsetHours), "viewer", "viewer");
+        var now = offsetHours < 0
+            ? new DateTimeOffset(2026, 10, 20, 1, 24, 0, TimeSpan.Zero) // 8:24 PM Oct 19 for the viewer
+            : new DateTimeOffset(2026, 10, 19, 12, 0, 0, TimeSpan.Zero); // 1:00 AM Oct 20 for the viewer
+
+        Assert.Equal(label, ActivityListPresentation.Section(new PersonalActivityItemDto { StartedAt = started }, ActivityGrouping.Day, now, zone).Label);
+    }
+
     [Fact]
     public void Periods_AreYearsNewestFirst_EachWithItsMonths_AndLeaveOutEmptyOnes()
     {
