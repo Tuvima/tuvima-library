@@ -28,6 +28,12 @@ public sealed class DetailPageViewModel
     public MultiFormatState MultiFormatState { get; init; } = MultiFormatState.SingleFormat;
     public SequencePlacementViewModel? SequencePlacement { get; init; }
 
+    /// <summary>
+    /// The Universe this item belongs to, set only when the Library holds at least two Series or two formats in it that
+    /// the requesting profile can see. Null otherwise, and on every page that is not a single work.
+    /// </summary>
+    public UniverseLinkViewModel? UniverseLink { get; init; }
+
     public IReadOnlyList<MetadataPill> Metadata { get; init; } = [];
     public IReadOnlyList<DetailAction> PrimaryActions { get; init; } = [];
     public IReadOnlyList<DetailAction> SecondaryActions { get; init; } = [];
@@ -44,6 +50,13 @@ public sealed class DetailPageViewModel
     public MusicAlbumCompanionViewModel? MusicAlbumCompanion { get; init; }
 
     public LibraryStatus LibraryStatus { get; init; } = LibraryStatus.Unknown;
+}
+
+/// <summary>A link from an item page to the Universe page: the Universe's Wikidata QID and its name.</summary>
+public sealed class UniverseLinkViewModel
+{
+    public string Qid { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 }
 
 public sealed class MusicAlbumCompanionViewModel

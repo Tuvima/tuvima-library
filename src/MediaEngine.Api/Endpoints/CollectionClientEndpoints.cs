@@ -27,7 +27,7 @@ public static class CollectionClientEndpoints
     private const string Tag = "Collections (client)";
 
     // One message for every reason a collection or universe is not available, so the answers cannot be told apart.
-    private const string NotFoundDetail = "That collection or universe is not available.";
+    internal const string NotFoundDetail = "That collection or universe is not available.";
 
     private const int MaxOffset = 100_000;
 
