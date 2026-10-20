@@ -13,7 +13,14 @@
 @* The Series block of Matching: which Series this item is on, the Series that list it, a search over the other Series of its
    media type, "Not in a Series" and, once a person has chosen, "Let the Library decide". A chosen Series is saved as a lock the
    Engine always respects. Choosing follows the Match section's pattern: select a result, review it, then save. *@
-@if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.CanEdit(Device))
+@if (_loadFailed && EditorDeviceRule.CanEdit(Device))
+{
+    <AppErrorState Title="Series could not be loaded"
+                   Message="The Engine did not return the Series for this item."
+                   Compact="true"
+                   Retry="ReloadAsync" />
+}
+else if (_placement is { SupportsSeries: true } placement && EditorDeviceRule.CanEdit(Device))
 {
     <section class="sme-series" aria-label="Series">
         <h3>Series</h3>
@@ -37,14 +44,11 @@
                 <span class="sme-series__label">Listed in</span>
                 @foreach (var shelf in placement.Listed)
                 {
-                    <AppNativeButton Type="button"
-                                     Class="@RowClass(shelf.CollectionId)"
-                                     aria-pressed="@IsSelected(shelf.CollectionId)"
-                                     Disabled="@_saving"
-                                     OnClick="@(() => Select(shelf))">
-                        <span class="sme-series__row-copy"><strong>@shelf.Label</strong><span>@ScopeText(shelf)</span></span>
-                        <AppMaterialIcon Icon="@(IsSelected(shelf.CollectionId) ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
-                    </AppNativeButton>
+                    <AppChoiceRow Title="@shelf.Label"
+                                  Description="@ScopeText(shelf)"
+                                  Selected="@IsSelected(shelf.CollectionId)"
+                                  Disabled="@_saving"
+                                  OnClick="@(() => Select(shelf))" />
                 }
             </div>
         }
@@ -70,27 +74,20 @@
             {
                 @foreach (var shelf in placement.Candidates)
                 {
-                    <AppNativeButton Type="button"
-                                     Class="@RowClass(shelf.CollectionId)"
-                                     aria-pressed="@IsSelected(shelf.CollectionId)"
-                                     Disabled="@_saving"
-                                     OnClick="@(() => Select(shelf))">
-                        <span class="sme-series__row-copy"><strong>@shelf.Label</strong></span>
-                        <AppMaterialIcon Icon="@(IsSelected(shelf.CollectionId) ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
-                    </AppNativeButton>
+                    <AppChoiceRow Title="@shelf.Label"
+                                  Selected="@IsSelected(shelf.CollectionId)"
+                                  Disabled="@_saving"
+                                  OnClick="@(() => Select(shelf))" />
                 }
             }
         </div>
 
         <div class="sme-series__group">
-            <AppNativeButton Type="button"
-                             Class="@(_chooseNone ? "sme-series__row is-selected" : "sme-series__row")"
-                             aria-pressed="@_chooseNone"
-                             Disabled="@_saving"
-                             OnClick="SelectNone">
-                <span class="sme-series__row-copy"><strong>Not in a Series</strong><span>Keep this item out of every Series.</span></span>
-                <AppMaterialIcon Icon="@(_chooseNone ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" Class="sme-series__radio" />
-            </AppNativeButton>
+            <AppChoiceRow Title="Not in a Series"
+                          Description="Keep this item out of every Series."
+                          Selected="@_chooseNone"
+                          Disabled="@_saving"
+                          OnClick="SelectNone" />
         </div>
 
         @if (HasSelection)
@@ -131,6 +128,7 @@
     [Parameter] public EventCallback Applied { get; set; }
 
     private SeriesPlacementDto? _placement;
+    private bool _loadFailed;
     private Guid _loadedFor;
     private string _query = string.Empty;
     private int _searchVersion;
@@ -152,8 +150,21 @@
         _query = string.Empty;
         CancelSelection();
         _error = null;
-        // An item the Engine cannot place on Series (a TV episode, a music track) returns no Series block at all.
+        await LoadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _error = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        // An item the Engine cannot place on Series (a TV episode, a music track) answers with no Series block at all;
+        // no answer is a failed load, shown with a way to try again.
         _placement = await ApiClient.GetSeriesPlacementAsync(EntityId);
+        _loadFailed = _placement is null;
     }
 
     private async Task SearchChangedAsync(string? value)
@@ -195,8 +206,6 @@
     }
 
     private bool IsSelected(Guid collectionId) => _selected?.CollectionId == collectionId;
-
-    private string RowClass(Guid collectionId) => IsSelected(collectionId) ? "sme-series__row is-selected" : "sme-series__row";
 
     private Task SaveChoiceAsync() => ApplyAsync(_chooseNone ? null : _selected?.CollectionId, locked: true);
 

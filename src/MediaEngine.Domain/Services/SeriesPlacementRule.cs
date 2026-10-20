@@ -118,6 +118,9 @@ public sealed record SeriesPlacementLock(Guid? CollectionId, string? SeriesQid, 
 /// <summary>A work that two or more Series claim equally as main sequence, found while linking manifest rows.</summary>
 public sealed record AmbiguousSeriesPlacement(Guid WorkId, IReadOnlyList<SeriesPlacementCandidate> Candidates);
 
+/// <summary>What linking manifest rows decided: the ambiguous works, and every other work it placed (or left alone) without a tie.</summary>
+public sealed record SeriesLinkOutcome(IReadOnlyList<AmbiguousSeriesPlacement> Ambiguous, IReadOnlyList<Guid> DecidedWorkIds);
+
 /// <summary>
 /// The one rule that says which Series a Work belongs to. Collection assignment and manifest linking both call it, so
 /// running either any number of times, in any order, leaves the Work on the same shelf.

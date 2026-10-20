@@ -105,6 +105,11 @@ public sealed class CollectionAssignmentService
             }
         }
 
+        // The Series the work's claims name: the lineage root first, then every file of the work in file-id order. This is the
+        // same set, in the same order, that manifest linking reads, so both paths give the same shelf. (The retail identity
+        // above still comes from the one file being assigned.)
+        var claimValues = await LoadClaimValuesAsync(canonicalEntityId, entityId, workId.Value, ct).ConfigureAwait(false);
+
         var mediaType = lineage?.MediaType ?? ResolveMediaType(lookup);
         await MergeArrayBackedRelationshipHintsAsync(lookup, canonicalEntityId, entityId, ct).ConfigureAwait(false);
 
@@ -125,7 +130,7 @@ public sealed class CollectionAssignmentService
             mediaType.ToString(),
             memberships,
             retail?.ToIdentity(),
-            ClaimedSeriesQid: ClaimedSeriesQidReader.Resolve(mediaType.ToString(), lookup),
+            ClaimedSeriesQid: ClaimedSeriesQidReader.Resolve(mediaType.ToString(), claimValues),
             Lock: held));
 
         if (decision.Basis == SeriesPlacementBasis.PersonChoice)
@@ -365,6 +370,27 @@ public sealed class CollectionAssignmentService
             entityId,
             workId,
             Message: detail);
+    }
+
+    private async Task<Dictionary<string, string>> LoadClaimValuesAsync(
+        Guid rootEntityId,
+        Guid assignedFileId,
+        Guid workId,
+        CancellationToken ct)
+    {
+        var fileIds = _placementRepo is null
+            ? [assignedFileId]
+            : await _placementRepo.GetFileIdsAsync(workId, ct).ConfigureAwait(false);
+        var entities = new List<IEnumerable<KeyValuePair<string, string>>>();
+        foreach (var id in new[] { rootEntityId }.Concat(fileIds).Distinct())
+        {
+            var values = await _canonicalRepo.GetByEntityAsync(id, ct).ConfigureAwait(false);
+            entities.Add(values
+                .Where(v => ClaimedSeriesQidReader.Keys.Contains(v.Key, StringComparer.OrdinalIgnoreCase))
+                .Select(v => new KeyValuePair<string, string>(v.Key, v.Value)));
+        }
+
+        return ClaimedSeriesQidReader.Merge(entities);
     }
 
     private Task ResolveAmbiguityAsync(Guid workId, CancellationToken ct)
@@ -607,22 +633,16 @@ public sealed class CollectionAssignmentService
         };
 
         await _manifestRepo.UpsertManifestAsync(hydration, rows, ct).ConfigureAwait(false);
-        var ambiguous = await _manifestRepo.LinkOwnedWorksAsync(collectionId, rows, ct).ConfigureAwait(false);
+        var linked = await _manifestRepo.LinkOwnedWorksWithOutcomeAsync(collectionId, rows, ct).ConfigureAwait(false);
         if (_ambiguityReviewer is not null)
         {
-            foreach (var work in ambiguous)
+            foreach (var work in linked.Ambiguous)
             {
                 await _ambiguityReviewer.RaiseAsync(work.WorkId, work.Candidates, work.WorkId, ct).ConfigureAwait(false);
             }
 
-            var stillAmbiguous = ambiguous.Select(a => a.WorkId).ToHashSet();
-            foreach (var workId in rows.Where(r => r.LinkedWorkId.HasValue).Select(r => r.LinkedWorkId!.Value).Distinct())
-            {
-                if (!stillAmbiguous.Contains(workId))
-                {
-                    await _ambiguityReviewer.ResolveAsync(workId, ct).ConfigureAwait(false);
-                }
-            }
+            // Every other work the linking decided (including works reached through a parent collection) is answered.
+            await _ambiguityReviewer.ResolveManyAsync(linked.DecidedWorkIds.ToList(), ct).ConfigureAwait(false);
         }
     }
 

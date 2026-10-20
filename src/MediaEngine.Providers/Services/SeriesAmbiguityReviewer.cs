@@ -107,6 +107,26 @@ public sealed class SeriesAmbiguityReviewer
         return detail;
     }
 
+    /// <summary>Closes the "which Series?" questions of many works at once: a few statements, not a few per work.</summary>
+    public async Task ResolveManyAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        if (_reviews is null || workIds.Count == 0)
+        {
+            return;
+        }
+
+        var entityIds = _placements is null
+            ? workIds
+            : await _placements.GetReviewEntityIdsAsync(workIds, ct).ConfigureAwait(false);
+        await _reviews
+            .ResolvePendingByEntitiesAndTriggersAsync(
+                entityIds,
+                [ReviewTrigger.AmbiguousSeriesMembership],
+                "system:series-placement",
+                ct)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>
     /// The work's placement was decided without a tie, so any pending "which Series?" item about it (on the work or on any
     /// of its files) is answered.

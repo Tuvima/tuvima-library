@@ -120,15 +120,20 @@ unchanged).
 
 **One claimed-Series reader.** `ClaimedSeriesQidReader` (Domain) names the Series a
 work's own claims point to, for the tie-break above: `series_qid` from the lineage
-root's canonicals, then the file's; then a QID-shaped `series` value; then, for
-comics, `wikidata_qid`. Assignment and manifest linking both feed it the same
-values, so the same work gets the same shelf from either path.
+root's canonicals, then from the work's files (read in file-id order); then a
+QID-shaped `series` value; then, for comics, `wikidata_qid`. Assignment and manifest
+linking both feed it the same values (the root, then every file of the work), so the
+same work gets the same shelf from either path. If the chosen Series shelf is deleted,
+a database trigger clears the lock with it.
 
 **One "which Series?" question.** `SeriesAmbiguityReviewer` raises the
 `AmbiguousSeriesMembership` item on the work's earliest-stored Normal original
 file, skips it when a pending one already exists on the work or any of its files,
 and resolves it whenever the work is later placed without a tie (any path,
-including a person's choice).
+including a person's choice). Manifest linking reports every work it decided
+(including works reached through a parent collection) and the items are closed in one
+batch. Saving or releasing a choice also runs the Universe (parent-collection) step for
+the Series the work joined and the one it left.
 
 A work moves only when the rule's shelf differs from its current one, and the
 log gives the real reason. A work with no manifest row (retail only) is

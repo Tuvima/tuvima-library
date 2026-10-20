@@ -224,6 +224,7 @@ Generated from source by `generate-endpoint-ledger.ps1`. It is a syntactic inven
 | POST | `/library/universe-candidates/{workId:guid}/reject` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs:354` |
 | POST | `/library/universe-candidates/batch-accept` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs:387` |
 | GET | `/library/universe-unlinked` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs:458` |
+| POST | `/library/universe-assign` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs:470` |
 | GET | `/library/items` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs:33` |
 | GET | `/library/items/{entityId}/detail` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs:67` |
 | GET | `/library/items/counts` | fallback policy / middleware | Production | `src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs:84` |

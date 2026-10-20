@@ -73,6 +73,15 @@ public interface ISeriesPlacementRepository
     /// <summary>The entities Needs Review items about this work may hang on, and the stable one for new items.</summary>
     Task<SeriesReviewEntities> GetReviewEntitiesAsync(Guid workId, CancellationToken ct = default);
 
+    /// <summary>The work and every file of the given works, in one batch (a few queries, not one per work), for closing Needs Review items.</summary>
+    Task<IReadOnlyList<Guid>> GetReviewEntityIdsAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default);
+
+    /// <summary>The Series shelf the work is on now (person's choice or not), or null.</summary>
+    Task<Guid?> GetCurrentShelfIdAsync(Guid workId, CancellationToken ct = default);
+
+    /// <summary>Every file of the work, ordered by file id: the fixed order in which their claims are read.</summary>
+    Task<IReadOnlyList<Guid>> GetFileIdsAsync(Guid workId, CancellationToken ct = default);
+
     /// <summary>The Series block data for one work; null when the work does not exist.</summary>
     /// <param name="query">Optional name filter for <see cref="SeriesPlacementView.Candidates"/>.</param>
     /// <param name="candidateLimit">Maximum candidates returned.</param>

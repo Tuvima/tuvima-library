@@ -66,6 +66,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<IUniverseEnrichmentScheduler>(sp =>
             sp.GetRequiredService<UniverseEnrichmentService>());
         services.AddSingleton<SeriesAmbiguityReviewer>();
+        services.AddSingleton<SeriesPlacementChoiceService>();
         services.AddSingleton<CollectionAssignmentService>();
         services.AddSingleton<CollectionFinalizationService>();
         services.AddSingleton<WikidataSeriesManifestHydrationService>();

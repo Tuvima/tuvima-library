@@ -369,10 +369,8 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<IDeferredEnrichmentService, DeferredEnrichmentService>();
         builder.Services.AddSingleton<WikidataMatchPreviewService>();
         builder.Services.AddSingleton<TimelineRecorder>();
-        builder.Services.AddSingleton<MediaEngine.Providers.Services.CollectionFinalizationService>(_ => throw new InvalidOperationException(
+        builder.Services.AddSingleton<MediaEngine.Providers.Services.SeriesPlacementChoiceService>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve collection placement."));
-        builder.Services.AddSingleton<MediaEngine.Providers.Services.SeriesAmbiguityReviewer>(_ => throw new InvalidOperationException(
-            "Endpoint inventory must not resolve the Series review."));
         builder.Services.AddSingleton<Tuvima.Wikidata.WikidataReconciler>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not resolve external reconciliation."));
         builder.Services.AddScoped<DashboardAuthorityProjector>();

@@ -3435,6 +3435,10 @@ CREATE TRIGGER trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,persona
     SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
 
+CREATE TRIGGER trg_works_series_lock_released_with_shelf
+BEFORE DELETE ON collections
+BEGIN UPDATE works SET series_placement_locked = 0 WHERE collection_id = OLD.id AND series_placement_locked = 1; END;
+
 CREATE VIEW primary_person_media_credits AS
 WITH asset_scope AS (
     SELECT ma.id AS media_asset_id,

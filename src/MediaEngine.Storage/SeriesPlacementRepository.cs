@@ -73,13 +73,64 @@ public sealed class SeriesPlacementRepository : ISeriesPlacementRepository
             JOIN editions e ON e.id = ma.edition_id
             WHERE e.work_id = @workId
             ORDER BY CASE WHEN ma.status = 'Normal' AND ma.is_orphaned = 0 AND ma.rendition_purpose = 'Original' THEN 0 ELSE 1 END,
-                     ma.rowid;
+                     ma.rowid, ma.id;
             """,
             new { workId }).AsList();
 
         var stable = rows.FirstOrDefault(r => r.IsStable == 1)?.Id;
         var ids = rows.Select(r => r.Id).Append(workId).ToList();
         return Task.FromResult(new SeriesReviewEntities(stable, ids));
+    }
+
+    public Task<IReadOnlyList<Guid>> GetReviewEntityIdsAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var ids = new List<Guid>();
+        if (workIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<Guid>>(ids);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in workIds.Distinct().Chunk(500))
+        {
+            ids.AddRange(chunk);
+            ids.AddRange(conn.Query<Guid>(
+                """
+                SELECT ma.id
+                FROM media_assets ma
+                JOIN editions e ON e.id = ma.edition_id
+                WHERE e.work_id IN @workIds;
+                """,
+                new { workIds = chunk.Select(GuidSql.ToBlob).ToArray() }));
+        }
+
+        return Task.FromResult<IReadOnlyList<Guid>>(ids);
+    }
+
+    public Task<Guid?> GetCurrentShelfIdAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<Guid?>(
+            "-- readiness: current shelf of one work, looked up by id\nSELECT collection_id FROM works WHERE id = @workId;",
+            new { workId }));
+    }
+
+    public Task<IReadOnlyList<Guid>> GetFileIdsAsync(Guid workId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        IReadOnlyList<Guid> ids = conn.Query<Guid>(
+            """
+            SELECT ma.id
+            FROM media_assets ma
+            JOIN editions e ON e.id = ma.edition_id
+            WHERE e.work_id = @workId
+            ORDER BY ma.id;
+            """,
+            new { workId }).AsList();
+        return Task.FromResult(ids);
     }
 
     /// <summary>Reads the lock inside a connection the caller owns (the linking pass holds its own transaction).</summary>
