@@ -157,6 +157,7 @@
         State.OnStateChanged += OnStateChanged;
         State.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         ProgressChanges.Changed += OnProgressChanged;
         Playback.Changed += OnPlaybackChanged;
         _observedPlayback = (Playback.CurrentItem?.AssetId, Playback.IsPlaying, Playback.IsDismissed);
@@ -342,6 +343,8 @@
         QueueRefresh(HomeRefreshReason.Profile);
     }
     private void OnMediaAdded(MediaAddedEvent ev) => QueueRefresh(HomeRefreshReason.MediaAdded);
+    // Titles deleted from the library leave every shelf, Continue and Recently Added included, like a new title arrives: one debounced reload.
+    private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent ev) => QueueRefresh(HomeRefreshReason.MediaAdded);
     private void QueueRefresh(HomeRefreshReason reason, TimeSpan? delay = null)
     {
         if (!_disposed) _ = InvokeAsync(() => ScheduleRefresh(reason, delay));
@@ -383,6 +386,7 @@
         State.OnStateChanged -= OnStateChanged;
         State.MediaAddedReceived -= OnMediaAdded;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         ProgressChanges.Changed -= OnProgressChanged;
         Playback.Changed -= OnPlaybackChanged;
         _stateReloadCts?.Cancel();

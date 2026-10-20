@@ -61,7 +61,8 @@ public sealed class EngineApiClientLibraryItemDeletionTests
     [InlineData(HttpStatusCode.Forbidden, LibraryItemDeletionOutcomeStatus.Forbidden)]
     [InlineData(HttpStatusCode.NotFound, LibraryItemDeletionOutcomeStatus.NotFound)]
     [InlineData(HttpStatusCode.BadRequest, LibraryItemDeletionOutcomeStatus.Invalid)]
-    [InlineData(HttpStatusCode.InternalServerError, LibraryItemDeletionOutcomeStatus.Unavailable)]
+    [InlineData(HttpStatusCode.InternalServerError, LibraryItemDeletionOutcomeStatus.Unconfirmed)]
+    [InlineData(HttpStatusCode.TooManyRequests, LibraryItemDeletionOutcomeStatus.Unavailable)]
     public async Task EachRefusal_IsItsOwnOutcome(HttpStatusCode status, LibraryItemDeletionOutcomeStatus expected)
     {
         var handler = new StaticHandler(status, """{"detail":"A plain sentence."}""");

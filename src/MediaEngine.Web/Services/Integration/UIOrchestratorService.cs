@@ -1537,7 +1537,7 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _logger.LogInformation(
                 "Intercom ? LibraryItemsRemoved: {Count} title(s), invalidating collection cache", ev.WorkIds.Count);
             _state.Invalidate();
-            OnLibraryItemsRemoved?.Invoke(ev);
+            RaiseLibraryItemsRemoved(ev);
         });
 
         // -- "WatchFolderActive" -----------------------------------------------
@@ -1711,6 +1711,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public EngineConnectionState EngineConnectionState => _engineConnectionState;
 
     public event Action<EngineConnectionState>? OnEngineConnectionStateChanged;
+
+    /// <summary>Tells every open screen that titles were deleted; the live handler and tests share this one way to raise the event.</summary>
+    internal void RaiseLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => OnLibraryItemsRemoved?.Invoke(removed);
 
     internal void SetEngineConnectionState(EngineConnectionState state)
     {

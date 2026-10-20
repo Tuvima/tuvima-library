@@ -80,6 +80,7 @@ public sealed partial class IngestionEngine
         var resumedEvents = new List<FileEvent>();
         var acceptedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var skipped = 0;
+        var excluded = 0;
         var resumed = 0;
 
         foreach (var target in scanTargets)
@@ -98,6 +99,13 @@ public sealed partial class IngestionEngine
                     // live here and must not be re-ingested automatically.
                     if (IsIgnoredScanFile(filePath))
                     {
+                        continue;
+                    }
+
+                    // A file that stayed on disk when its title was deleted from the library is not added back by a scan.
+                    if (await IsExcludedScanFileAsync(_excludedFileFilter, _logger, filePath, ct).ConfigureAwait(false))
+                    {
+                        excluded++;
                         continue;
                     }
 
@@ -193,6 +201,13 @@ public sealed partial class IngestionEngine
             }
         }
 
+        if (excluded > 0)
+        {
+            _logger.LogInformation(
+                "Initial scan: left {Excluded} excluded file(s) alone across {TargetCount} scan target(s)",
+                excluded, scanTargets.Count);
+        }
+
         if (skipped > 0)
         {
             _logger.LogInformation(
@@ -253,6 +268,30 @@ public sealed partial class IngestionEngine
             _debounce.Enqueue(evt);
         }
         _concurrencyGuard.Cleanup();
+    }
+
+    /// <summary>
+    /// True when the file is one that stayed on disk when its title was deleted from the library, so it must not be ingested again.
+    /// A check that fails is logged and answers true: the file is left alone for this pass, so a deleted title cannot come back because the
+    /// check could not run. Untracked files are looked at again on every pass, so a genuinely new file is only delayed.
+    /// </summary>
+    private static async Task<bool> IsExcludedScanFileAsync(
+        IExcludedSourceFileFilter? excludedFileFilter, ILogger logger, string filePath, CancellationToken ct)
+    {
+        if (excludedFileFilter is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await excludedFileFilter.ShouldSkipAsync(filePath, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not check {FileName} against the excluded files; skipping it this pass", Path.GetFileName(filePath));
+            return true;
+        }
     }
 
     internal static bool IsIgnoredScanFile(string filePath)
@@ -380,6 +419,13 @@ public sealed partial class IngestionEngine
                         }
 
                         if (IsIgnoredScanFile(filePath))
+                        {
+                            ignored++;
+                            continue;
+                        }
+
+                        // Counted with the ignored files: it is left alone on purpose.
+                        if (await IsExcludedScanFileAsync(_excludedFileFilter, _logger, filePath, ct).ConfigureAwait(false))
                         {
                             ignored++;
                             continue;
@@ -726,6 +772,14 @@ public sealed partial class IngestionEngine
 
             if (evt.EventType != FileEventType.Deleted
                 && !File.Exists(normalizedPath))
+            {
+                ReleaseActivePath(evt.Path);
+                continue;
+            }
+
+            // The folder watcher reports a file put back or changed in a source folder; one that was deleted from the library stays out.
+            if (evt.EventType != FileEventType.Deleted
+                && await IsExcludedScanFileAsync(_excludedFileFilter, _logger, normalizedPath, ct).ConfigureAwait(false))
             {
                 ReleaseActivePath(evt.Path);
                 continue;
