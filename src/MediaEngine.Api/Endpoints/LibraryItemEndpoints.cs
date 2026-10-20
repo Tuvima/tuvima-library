@@ -4,6 +4,8 @@ using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Storage;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -119,6 +121,86 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
 
+        // Match first, then move (details overlay spec D12 to D17): where a title can go, what moving it would do, and the confirmed
+        // move. The preview changes nothing; the move acts only on the plan the person confirmed by its fingerprint.
+        group.MapPost("/{entityId:guid}/move-destinations", async (
+            Guid entityId, ItemMoveDestinationsRequest request, HttpContext http,
+            [FromServices] CatalogueResourceAuthorizationService resources, [FromServices] ItemMoveService moves, CancellationToken ct) =>
+        {
+            if (request.WorkId != entityId || !await CanMoveAsync(http, resources, entityId, ct))
+            {
+                return ApiErrors.NotFound("This title is unavailable for moving.");
+            }
+
+            var result = await moves.FindDestinationsAsync(entityId, request.Query, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiErrors.BadRequest(result.Refusal!.Message);
+        })
+        .WithName("FindItemMoveDestinations")
+        .WithSummary("The places a title can move to: only places that accept this kind of title.")
+        .Produces<ItemMoveDestinationsResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
+
+        group.MapPost("/{entityId:guid}/move-preview", async (
+            Guid entityId, ItemMovePreviewRequest request, HttpContext http,
+            [FromServices] CatalogueResourceAuthorizationService resources, [FromServices] ItemMoveService moves, CancellationToken ct) =>
+        {
+            if (request.WorkId != entityId || !await CanMoveAsync(http, resources, entityId, ct))
+            {
+                return ApiErrors.NotFound("This title is unavailable for moving.");
+            }
+
+            var result = await moves.PreviewAsync(request, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : ApiErrors.BadRequest(result.Refusal!.Message);
+        })
+        .WithName("PreviewItemMove")
+        .WithSummary("Preview moving a title: the destination's own list, the Engine's best guess, the plain sentence to confirm and a fingerprint of the plan.")
+        .Produces<ItemMovePreview>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
+
+        group.MapPost("/{entityId:guid}/move", async (
+            Guid entityId, ItemMoveRequest request, HttpContext http,
+            [FromServices] CatalogueResourceAuthorizationService resources, [FromServices] ItemMoveService moves, CancellationToken ct) =>
+        {
+            if (request.WorkId != entityId || !await CanMoveAsync(http, resources, entityId, ct))
+            {
+                return ApiErrors.NotFound("This title is unavailable for moving.");
+            }
+
+            var result = await moves.MoveAsync(request, ct);
+            if (result.IsSuccess)
+            {
+                return Results.Ok(result.Value);
+            }
+
+            var refusal = result.Refusal!;
+            return refusal.Kind switch
+            {
+                ItemMoveRefusalKind.Changed => Results.Json(
+                    new ItemMoveConflictDto { Message = refusal.Message, Preview = refusal.FreshPreview },
+                    statusCode: StatusCodes.Status409Conflict),
+                _ => ApiErrors.BadRequest(refusal.Message),
+            };
+        })
+        .WithName("MoveItem")
+        .WithSummary("Move a title to another place in the same kind of list. Confirms the plan by its fingerprint: a changed plan answers 409 with a fresh preview and nothing moves.")
+        .Produces<ItemMoveResultDto>(StatusCodes.Status200OK)
+        .Produces<ItemMoveConflictDto>(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+        .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
+
         return app;
     }
+
+    // Moving changes where a title sits, so it needs both the match and write permissions on the title (like the music track move).
+    private static async Task<bool> CanMoveAsync(HttpContext http, CatalogueResourceAuthorizationService resources, Guid workId, CancellationToken ct) =>
+        await resources.EvaluateEntityAsync(http, "Work", workId, ApplicationPermissionIds.MetadataMatch, ct) == CatalogueResourceAccess.Allowed
+        && await resources.EvaluateEntityAsync(http, "Work", workId, ApplicationPermissionIds.MetadataWrite, ct) == CatalogueResourceAccess.Allowed;
 }
