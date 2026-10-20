@@ -88,9 +88,6 @@ public sealed class EntityEvent
     /// <summary>When this event occurred.</summary>
     public DateTimeOffset OccurredAt { get; set; } = DateTimeOffset.UtcNow;
 
-    /// <summary>Groups events from the same ingestion run.</summary>
-    public Guid? IngestionRunId { get; set; }
-
     /// <summary>Human-readable summary (e.g. "ISBN-13 → Q83471", "Auto-accepted: Apple API at 0.94").</summary>
     public string? Detail { get; set; }
 }

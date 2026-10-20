@@ -67,11 +67,6 @@
       "retail": 50,
       "wikidata": 50,
       "hydration": 20
-    },
-    "batch_gate": {
-      "enabled": true,
-      "small_batch_threshold": 5,
-      "timeout_seconds": 300
     }
   },
   "storage_policy": {

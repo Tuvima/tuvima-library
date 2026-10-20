@@ -162,7 +162,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                     request,
                     hasUniversePath: false,
                     services.JobRepository,
-                    services.BatchProgress,
                     ct).ConfigureAwait(false);
             }
 
@@ -254,7 +253,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
             requests.Add(new UniverseEnrichmentRequest(
                 Guid.Empty,
                 entityId,
-                null,
                 workQid,
                 mediaType,
                 $"maintenance:{mediaType}",
@@ -394,11 +392,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                     "[UNIVERSE-ENRICH] Enhancer phase failed for {Qid} ({EntityId}); leaving item retryable",
                     request.WorkQid,
                     request.EntityId);
-                if (request.IngestionRunId.HasValue)
-                {
-                    await services.BatchProgress.EmitProgressAsync(request.IngestionRunId.Value, isFinal: false, ct)
-                        .ConfigureAwait(false);
-                }
 
                 return;
             }
@@ -409,7 +402,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                     request,
                     hasUniversePath && stage3Settled,
                     services.JobRepository,
-                    services.BatchProgress,
                     ct).ConfigureAwait(false);
             }
         }
@@ -433,12 +425,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                     IdentityJobState.Failed,
                     ex.Message,
                     ct).ConfigureAwait(false);
-
-                if (request.IngestionRunId.HasValue)
-                {
-                    await services.BatchProgress.EmitProgressAsync(request.IngestionRunId.Value, isFinal: false, ct)
-                        .ConfigureAwait(false);
-                }
             }
         }
     }
@@ -447,7 +433,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         UniverseEnrichmentRequest request,
         bool hasUniversePath,
         IIdentityJobRepository jobRepository,
-        BatchProgressService batchProgress,
         CancellationToken ct)
     {
         if (request.JobId != Guid.Empty)
@@ -458,11 +443,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
                 ct: ct).ConfigureAwait(false);
         }
 
-        if (request.IngestionRunId.HasValue)
-        {
-            await batchProgress.EmitProgressAsync(request.IngestionRunId.Value, isFinal: false, ct)
-                .ConfigureAwait(false);
-        }
     }
 
     private void ReloadMaintenanceSchedule()
@@ -681,7 +661,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
             services.GetRequiredService<IFictionalEntityRepository>(),
             services.GetRequiredService<INarrativeRootResolver>(),
             services.GetRequiredService<IIdentityJobRepository>(),
-            services.GetRequiredService<BatchProgressService>(),
             services.GetRequiredService<IEventPublisher>(),
             services.GetRequiredService<PluginUniverseLoreService>());
 
@@ -720,7 +699,6 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         IFictionalEntityRepository FictionalEntityRepository,
         INarrativeRootResolver NarrativeRootResolver,
         IIdentityJobRepository JobRepository,
-        BatchProgressService BatchProgress,
         IEventPublisher EventPublisher,
         PluginUniverseLoreService PluginUniverseLore);
 

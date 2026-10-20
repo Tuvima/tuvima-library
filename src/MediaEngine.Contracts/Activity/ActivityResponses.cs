@@ -30,9 +30,6 @@ public sealed class ActivityEntryResponse
 
     [JsonPropertyName("detail")]
     public string? Detail { get; set; }
-
-    [JsonPropertyName("ingestion_run_id")]
-    public string? IngestionRunId { get; set; }
 }
 
 public sealed class PruneResponse

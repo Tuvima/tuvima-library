@@ -23,7 +23,6 @@ public sealed class EntityTimelineEventDto
     public double? ScoreCoverArt { get; set; }
     public double? ScoreComposite { get; set; }
     public DateTimeOffset OccurredAt { get; set; }
-    public Guid? IngestionRunId { get; set; }
     public string? Detail { get; set; }
 }
 

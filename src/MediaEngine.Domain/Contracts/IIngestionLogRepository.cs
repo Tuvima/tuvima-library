@@ -39,13 +39,6 @@ public interface IIngestionLogRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// Returns all log entries for a given ingestion run.
-    /// </summary>
-    Task<IReadOnlyList<IngestionLogEntry>> GetByRunIdAsync(
-        Guid runId,
-        CancellationToken ct = default);
-
-    /// <summary>
     /// Finds a log entry by its unique ID.
     /// </summary>
     Task<IngestionLogEntry?> FindByIdAsync(Guid id, CancellationToken ct = default);

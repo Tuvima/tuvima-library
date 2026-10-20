@@ -55,7 +55,6 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<BridgeIdHelper>();
         services.AddSingleton<StageOutcomeFactory>();
         services.AddSingleton<TimelineRecorder>();
-        services.AddSingleton<BatchProgressService>();
         services.AddSingleton<CoverArtWorker>();
         services.AddSingleton<PersonImageEnrichmentWorker>();
         services.AddSingleton<PersonEnrichmentWorker>();
@@ -94,9 +93,6 @@ public static class TuvimaProviderServiceCollectionExtensions
             sp.GetRequiredService<ProviderHealthMonitorService>());
         // Shared by the Settings/Setup endpoints and the startup provider connection checks.
         services.AddSingleton<ProviderCredentialService>();
-        services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
-        services.AddSingleton<IngestionNotificationReadService>();
-        services.AddSingleton<IIngestionBatchResponseService, IngestionBatchResponseService>();
         services.AddSingleton<InitialSweepCommandService>();
         services.AddSingleton<IInitialSweepCommandService>(sp =>
             sp.GetRequiredService<InitialSweepCommandService>());

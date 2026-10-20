@@ -16,6 +16,8 @@ public sealed class ApplicationEventRegistry(IPermissionRegistry permissions)
         Definition("library.item_removed", ApplicationPermissionIds.LibraryChangesRead, true),
         Definition("library.item_updated", ApplicationPermissionIds.LibraryChangesRead, true),
         Definition("ingestion.started", ApplicationPermissionIds.IngestionStatusRead, false),
+        // ingestion.progress is sent while the live queue is working, ingestion.completed once when it returns to idle;
+        // both are subject "ingestion/current" with payload { files_found, files_done, files_waiting, progress, state }.
         Definition("ingestion.progress", ApplicationPermissionIds.IngestionStatusRead, false),
         Definition("ingestion.completed", ApplicationPermissionIds.IngestionStatusRead, false),
         Definition("ingestion.failed", ApplicationPermissionIds.IngestionStatusRead, false),

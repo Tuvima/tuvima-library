@@ -38,6 +38,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor", "@key=\"item.Id\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor", "@key=\"item.GroupId\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor", "@key=\"item.GroupId\"")]
     [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {

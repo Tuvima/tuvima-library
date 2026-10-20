@@ -251,7 +251,6 @@ public static class JsonConfigValidator
         AddPositive(errors, core.Pipeline.LeaseSizes.Retail, "pipeline.lease_sizes.retail");
         AddPositive(errors, core.Pipeline.LeaseSizes.Wikidata, "pipeline.lease_sizes.wikidata");
         AddPositive(errors, core.Pipeline.LeaseSizes.Hydration, "pipeline.lease_sizes.hydration");
-        AddPositive(errors, core.Pipeline.BatchGate.TimeoutSeconds, "pipeline.batch_gate.timeout_seconds");
     }
 
     private static void ValidateAuthentication(AuthSettings auth, List<string> errors)

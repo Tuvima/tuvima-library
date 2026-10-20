@@ -41,7 +41,6 @@ public sealed class CollectionFinalizationService
     public async Task<CollectionFinalizationResult> FinalizeAsync(
         Guid entityId,
         CollectionFinalizationReason reason,
-        Guid? ingestionRunId = null,
         CancellationToken ct = default)
     {
         CollectionAssignmentResult assignment;
@@ -57,7 +56,7 @@ public sealed class CollectionFinalizationService
                 entityId,
                 reason);
 
-            await LogFailureAsync(entityId, reason, ingestionRunId, "assignment", ex, ct).ConfigureAwait(false);
+            await LogFailureAsync(entityId, reason, "assignment", ex, ct).ConfigureAwait(false);
             return new CollectionFinalizationResult(new CollectionAssignmentResult(
                 CollectionAssignmentOutcome.Failed,
                 entityId,
@@ -82,7 +81,7 @@ public sealed class CollectionFinalizationService
                 assignment.CollectionId.Value,
                 reason);
 
-            await LogFailureAsync(entityId, reason, ingestionRunId, "parent_rollup", ex, ct).ConfigureAwait(false);
+            await LogFailureAsync(entityId, reason, "parent_rollup", ex, ct).ConfigureAwait(false);
             return new CollectionFinalizationResult(
                 assignment,
                 ParentResolutionAttempted: true,
@@ -93,7 +92,6 @@ public sealed class CollectionFinalizationService
     private async Task LogFailureAsync(
         Guid entityId,
         CollectionFinalizationReason reason,
-        Guid? ingestionRunId,
         string stage,
         Exception ex,
         CancellationToken ct)
@@ -105,7 +103,6 @@ public sealed class CollectionFinalizationService
                 ActionType = CollectionAssignmentFailedActionType,
                 EntityId = entityId,
                 EntityType = "MediaAsset",
-                IngestionRunId = ingestionRunId,
                 Detail = $"Collection finalization failed during {stage}.",
                 ChangesJson = JsonSerializer.Serialize(new
                 {

@@ -24,7 +24,7 @@ namespace MediaEngine.Ingestion.Tests;
 
 /// <summary>
 /// A machine without the media tool (FFmpeg), or a file the tool cannot read, must not leave a registered file stranded:
-/// every scanned file ends up queued for identity or in Needs Review, and the other files in the batch keep moving.
+/// every scanned file ends up queued for identity or in Needs Review, and the other files scanned with it keep moving.
 /// Runs the real ingestion engine on temp folders and a real SQLite data store; only the media tool is a fake.
 /// </summary>
 public sealed class MissingMediaToolIngestionTests : IDisposable
@@ -50,7 +50,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
         Assert.Equal(0, await run.FailedLogCountAsync(movie));
         Assert.Equal(1, await run.AssetCountAsync(movie));
         Assert.Equal(1, await run.IdentityJobCountAsync(movie));
-        Assert.Equal(0, await run.BatchFilesFailedAsync());
+        Assert.Equal(0, await run.FailedFileOperationCountAsync());
         Assert.Equal(1, await run.HoldCountAsync(movie));
         Assert.Equal(0, await run.ReviewCountAsync(movie, MediaInspectionFailedTrigger));
         Assert.Empty(run.Ffmpeg.ProbedPaths);
@@ -65,7 +65,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
         Assert.Equal(0, await run.FailedLogCountAsync(song));
         Assert.Equal(1, await run.AssetCountAsync(song));
         Assert.Equal(1, await run.IdentityJobCountAsync(song));
-        Assert.Equal(0, await run.BatchFilesFailedAsync());
+        Assert.Equal(0, await run.FailedFileOperationCountAsync());
         Assert.Equal(1, await run.HoldCountAsync(song));
     }
 
@@ -78,7 +78,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
         Assert.Equal(0, await run.FailedLogCountAsync(book));
         Assert.Equal(1, await run.AssetCountAsync(book));
         Assert.Equal(1, await run.IdentityJobCountAsync(book));
-        Assert.Equal(0, await run.BatchFilesFailedAsync());
+        Assert.Equal(0, await run.FailedFileOperationCountAsync());
         Assert.Equal(0, await run.HoldCountAsync(book));
     }
 
@@ -103,7 +103,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
         Assert.False(corruptAssets > 0 && corruptJobs == 0, "the corrupt video was left registered with no identity job");
         Assert.Equal(1, await run.ReviewCountAsync(corrupt, MediaInspectionFailedTrigger));
         Assert.Equal(0, await run.HoldCountAsync(corrupt));
-        Assert.Equal(0, await run.BatchFilesFailedAsync());
+        Assert.Equal(0, await run.FailedFileOperationCountAsync());
     }
 
     [Fact]
@@ -383,7 +383,6 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
             new StubMediaTypeAdvisor(),
             new StubEntityTimelineRepository(),
             new ScoringConfiguration(),
-            new IngestionBatchRepository(db),
             h.Jobs,
             new MediaTypeResolver(
                 monitor,
@@ -414,7 +413,7 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
         try
         {
             await engine.StartAsync(cts.Token);
-            // Every scanned file ends in a terminal ingestion state; wait for the whole batch, not just the first file.
+            // Every scanned file ends in a terminal ingestion state; wait for every scanned file, not just the first.
             while (!cts.IsCancellationRequested && !await settled())
             {
                 await Task.Delay(100, cts.Token);
@@ -608,10 +607,11 @@ public sealed class MissingMediaToolIngestionTests : IDisposable
                 new { path = Path.GetFullPath(file) });
         }
 
-        public async Task<int> BatchFilesFailedAsync()
+        public async Task<int> FailedFileOperationCountAsync()
         {
             using var connection = h.Db.Connection.CreateConnection();
-            return await connection.ExecuteScalarAsync<int>("SELECT COALESCE(SUM(files_failed), 0) FROM ingestion_batches;");
+            return await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM media_operations WHERE operation_type = 'ingestion.file' AND status = 'failed_terminal';");
         }
     }
 }

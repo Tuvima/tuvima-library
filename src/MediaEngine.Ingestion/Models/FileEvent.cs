@@ -26,12 +26,6 @@ public sealed class FileEvent
     public required DateTimeOffset OccurredAt { get; init; }
 
     /// <summary>
-    /// Optional batch identifier linking this event to an ingestion batch.
-    /// Populated when files are enqueued by <see cref="IngestionEngine.ScanExistingFiles"/>.
-    /// </summary>
-    public Guid? BatchId { get; set; }
-
-    /// <summary>
     /// Optional routing context supplied by direct intake. This remains attached
     /// while the event is debounced so a known destination is not inferred again.
     /// </summary>

@@ -44,3 +44,12 @@
 }
 @keyframes ingestion-facet-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ingestion-facet__spinner { animation: none; } }
+
+/* Touch: the symbol's tooltip holder is focusable and takes the symbol's size, so the symbol is a full 44px target. */
+@media (pointer: coarse) {
+    .ingestion-facet {
+        justify-content: center;
+        min-width: var(--tl-tap-target-min, 44px);
+        min-height: var(--tl-tap-target-min, 44px);
+    }
+}

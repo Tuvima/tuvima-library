@@ -38,9 +38,9 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
     {
         conn.Execute("""
             INSERT INTO system_activity
-                (occurred_at, action_type, collection_name, entity_id, entity_type, profile_id, changes_json, detail, ingestion_run_id)
+                (occurred_at, action_type, collection_name, entity_id, entity_type, profile_id, changes_json, detail)
             VALUES
-                (@OccurredAt, @ActionType, @CollectionName, @EntityId, @EntityType, @ProfileId, @ChangesJson, @Detail, @IngestionRunId);
+                (@OccurredAt, @ActionType, @CollectionName, @EntityId, @EntityType, @ProfileId, @ChangesJson, @Detail);
             """,
             new
             {
@@ -52,7 +52,6 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                 ProfileId = entry.ProfileId,
                 entry.ChangesJson,
                 entry.Detail,
-                IngestionRunId = entry.IngestionRunId,
             },
             transaction);
     }
@@ -72,8 +71,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                    entity_type    AS EntityType,
                    profile_id     AS ProfileId,
                    changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
+                   detail         AS Detail
             FROM   system_activity
             ORDER BY id DESC
             LIMIT  @limit;
@@ -174,11 +172,10 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                        entity_type    AS EntityType,
                        profile_id     AS ProfileId,
                        changes_json   AS ChangesJson,
-                       detail         AS Detail,
-                       ingestion_run_id AS IngestionRunId
+                       detail         AS Detail
                 FROM   system_activity
                 WHERE  occurred_at >= @from AND occurred_at <= @to
-                  AND  (@useMatch = 0 OR ingestion_run_id = @matchId OR entity_id = @matchId)
+                  AND  (@useMatch = 0 OR entity_id = @matchId)
                   AND  (@useTypes = 0 OR action_type IN @types)
                   AND  (@detail IS NULL OR detail LIKE @detail ESCAPE '\')
                 ORDER BY id DESC
@@ -193,33 +190,6 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
         using var conn = _db.CreateConnection();
         var count = conn.ExecuteScalar<long>("SELECT COUNT(*) FROM system_activity;");
         return Task.FromResult(count);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(
-        Guid runId,
-        CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-        var results = conn.Query<SystemActivityEntry>("""
-            SELECT id             AS Id,
-                   occurred_at    AS OccurredAt,
-                   action_type    AS ActionType,
-                   collection_name       AS CollectionName,
-                   entity_id      AS EntityId,
-                   entity_type    AS EntityType,
-                   profile_id     AS ProfileId,
-                   changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
-            FROM   system_activity
-            WHERE  ingestion_run_id = @runId
-            ORDER BY id ASC;
-            """,
-            new { runId })
-            .AsList();
-
-        return Task.FromResult<IReadOnlyList<SystemActivityEntry>>(results);
     }
 
     /// <inheritdoc/>
@@ -256,8 +226,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                    entity_type    AS EntityType,
                    profile_id     AS ProfileId,
                    changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
+                   detail         AS Detail
             FROM   system_activity
             WHERE  action_type IN ({inClause})
             ORDER BY id DESC
@@ -315,8 +284,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                    entity_type    AS EntityType,
                    profile_id     AS ProfileId,
                    changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
+                   detail         AS Detail
             FROM   system_activity
             WHERE  action_type IN @types{searchClause}
             ORDER BY occurred_at DESC, id DESC
@@ -344,8 +312,7 @@ public sealed class SystemActivityRepository : ISystemActivityRepository, ISyste
                    entity_type    AS EntityType,
                    profile_id     AS ProfileId,
                    changes_json   AS ChangesJson,
-                   detail         AS Detail,
-                   ingestion_run_id AS IngestionRunId
+                   detail         AS Detail
             FROM   system_activity
             WHERE  profile_id = @profileId
             ORDER BY id DESC

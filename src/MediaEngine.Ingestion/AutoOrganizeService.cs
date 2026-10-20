@@ -89,7 +89,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     }
 
     /// <inheritdoc/>
-    public async Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default, Guid? ingestionRunId = null)
+    public async Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
     {
         var asset = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         if (asset is null)
@@ -118,7 +118,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                     && File.Exists(current.FilePathRoot)
                     && _importFolders.IsInImportFolder(current.FilePathRoot))
                 {
-                    await TryFileFromImportAsync(current, assetId, ingestionRunId, ct).ConfigureAwait(false);
+                    await TryFileFromImportAsync(current, assetId, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -348,7 +348,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                 EntityType = "MediaAsset",
                 CollectionName = metadata.GetValueOrDefault("title", "Unknown"),
                 Detail = $"Promoted from staging: {Path.GetFileName(asset.FilePathRoot)} → {Path.GetRelativePath(libraryRoot, promotedPath)}",
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -403,7 +402,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private async Task TryFileFromImportAsync(
         Domain.Aggregates.MediaAsset asset,
         Guid assetId,
-        Guid? ingestionRunId,
         CancellationToken ct)
     {
         var canonicals = await _canonicalRepo.GetByEntityAsync(assetId, ct).ConfigureAwait(false);
@@ -533,7 +531,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                 EntityType = "MediaAsset",
                 CollectionName = title,
                 Detail = $"Filed from the Import folder: {Path.GetFileName(sourcePath)} -> {Path.GetRelativePath(destination.Source.Path, finalPath)}",
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

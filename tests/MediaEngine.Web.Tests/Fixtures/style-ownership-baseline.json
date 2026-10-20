@@ -687,10 +687,6 @@
       "important": 0,
       "deep": 20
     },
-    "src/MediaEngine.Web/Components/Shared/AppEvidenceList.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/AppExpandableAuditTable.razor.css": {
       "important": 0,
       "deep": 3
@@ -734,10 +730,6 @@
     "src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css": {
       "important": 0,
       "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Shared/AppTimelineList.razor.css": {
-      "important": 0,
-      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css": {
       "important": 0,
@@ -1677,10 +1669,6 @@
       "important": 0,
       "deep": 20
     },
-    "src/MediaEngine.Web/Components/Shared/AppEvidenceList.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/AppFilterBar.razor.css": {
       "important": 0,
       "deep": 0
@@ -1732,10 +1720,6 @@
     "src/MediaEngine.Web/Components/Shared/AppTimelineGroupingControl.razor.css": {
       "important": 0,
       "deep": 1
-    },
-    "src/MediaEngine.Web/Components/Shared/AppTimelineList.razor.css": {
-      "important": 0,
-      "deep": 0
     },
     "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css": {
       "important": 0,

@@ -181,20 +181,6 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
             AssertBlob(conn, "editions", "id", "id", edition.Id);
             AssertBlob(conn, "editions", "work_id", "id", edition.Id);
         }
-
-        var batchId = Guid.NewGuid();
-        using (var conn = _db.CreateConnection())
-        {
-            conn.Execute("""
-                INSERT INTO ingestion_batches
-                    (id, files_registered, files_review, files_no_match, files_failed)
-                VALUES (@batchId, 7, 2, 1, 1);
-                """, new { batchId });
-        }
-
-        var counts = await new LibraryItemRepository(_db).GetFourStateCountsAsync(batchId);
-        Assert.Equal(7, counts.Identified);
-        Assert.Equal(4, counts.InReview);
     }
 
     [Fact]
