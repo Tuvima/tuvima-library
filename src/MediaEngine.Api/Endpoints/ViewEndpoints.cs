@@ -222,7 +222,9 @@ public static partial class ViewEndpoints
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     AnchorBefore: anchorBefore, WithoutLocation: withoutLocation == true,
                     PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter), ct);
-                return Access(result.Outcome, result.Page);
+                return Access(result.Outcome, result.Page is { } timelinePage
+                    ? timelinePage with { Items = ViewItemCapabilities.ForViewer(timelinePage.Items, authority.ActiveProfileId) }
+                    : null);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
             catch (InvalidOperationException exception) { return ApiErrors.Unprocessable(exception.Message); }
@@ -461,7 +463,8 @@ public static partial class ViewEndpoints
             }
 
             return decision.IsAllowed && assets.Find(id, ct) is { } item
-                ? Results.Ok(item) : Access(decision.Outcome);
+                ? Results.Ok(ViewItemCapabilities.ForViewer(item, (await identity.ResolveAuthorityAsync(ct)).ActiveProfileId))
+                : Access(decision.Outcome);
         }).WithName("GetViewItem").Produces<LocalAssetDto>();
 
         group.MapGet("/items/{id:guid}/text", async (Guid id, string? scope, Guid? scopeProfileId,
@@ -1574,9 +1577,19 @@ public static partial class ViewEndpoints
                 return DocumentsNotAllowed();
             }
 
+            // An item with a file in a linked (read-only) folder cannot go to Trash. Restoring one that is already
+            // there, and archiving, stay available.
+            if (state == LocalAssetLifecycleState.Trashed && assets.GetReadOnlyItemIds([id], ct).Contains(id))
+            {
+                return ApiErrors.Conflict(ViewDocumentBulkReasonCodes.ReadOnlySource, ReadOnlyTrashMessage);
+            }
+
             return await assets.SetLifecycleStateAsync(id, state, ct) ? Results.NoContent() : Missing();
         }).WithName($"{char.ToUpperInvariant(name[0])}{name[1..]}ViewItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
+
+    /// <summary>What Move to Trash answers (409) for an item in a read-only folder.</summary>
+    internal const string ReadOnlyTrashMessage = "This item is in a read-only folder, so it can't be moved to Trash.";
 
     internal static bool IsDocumentView(ViewGallery gallery) =>
         gallery.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(gallery.SmartRuleJson);

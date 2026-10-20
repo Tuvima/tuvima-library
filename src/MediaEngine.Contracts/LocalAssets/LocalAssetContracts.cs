@@ -58,7 +58,8 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("captured_at_user_override")] bool CapturedAtUserOverride = false,
     [property: JsonPropertyName("people")] IReadOnlyList<string>? People = null,
     [property: JsonPropertyName("snippet")] string? Snippet = null,
-    [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto? DocumentInfo = null);
+    [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto? DocumentInfo = null,
+    [property: JsonPropertyName("can_trash")] bool CanTrash = true);
 
 /// <summary>
 /// What is known about the words read from a document, and how it has been organised. <c>text_source</c> is

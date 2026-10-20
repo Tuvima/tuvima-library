@@ -3808,6 +3808,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDt
   People: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
   Snippet: System.String | nullability=nullable | accessors=get,init
   DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=nullable | accessors=get,init
+  CanTrash: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3982,8 +3983,11 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
   ItemId: System.Guid | nullability=not-null | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
   Reason: System.String | nullability=nullable | accessors=get,init
+  ReasonCode: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkOperations
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkReasonCodes
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkRequest
   ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
