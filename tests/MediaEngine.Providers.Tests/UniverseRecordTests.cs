@@ -147,11 +147,17 @@ public sealed class UniverseRecordTests : IDisposable
         // Two book lines of one franchise. Only the second line's works also name the fictional universe above it.
         AddWork("Prequel", "Books", new Dictionary<string, string>
         {
-            ["series"] = "Prequels", ["series_qid"] = "Q701", ["franchise"] = "The Franchise", ["franchise_qid"] = Franchise,
+            ["series"] = "Prequels",
+            ["series_qid"] = "Q701",
+            ["franchise"] = "The Franchise",
+            ["franchise_qid"] = Franchise,
         });
         AddWork("Main", "Books", new Dictionary<string, string>
         {
-            ["series"] = "Main line", ["series_qid"] = "Q702", ["franchise"] = "The Franchise", ["franchise_qid"] = Franchise,
+            ["series"] = "Main line",
+            ["series_qid"] = "Q702",
+            ["franchise"] = "The Franchise",
+            ["franchise_qid"] = Franchise,
         });
         AddArray("Main", "fictional_universe", ("The Universe", Universe));
 

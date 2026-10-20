@@ -1052,12 +1052,13 @@ public sealed class CollectionAssignmentService
         string claimKey,
         CanonicalArrayEntry entry)
     {
-        if (string.IsNullOrWhiteSpace(entry.ValueQid))
+        // The label and the QID always come from the same value: an earlier source wins only when it supplied both.
+        if (string.IsNullOrWhiteSpace(entry.ValueQid) || lookup.ContainsKey($"{claimKey}_qid"))
         {
             return;
         }
 
-        lookup.TryAdd(claimKey, entry.Value);
+        lookup[claimKey] = entry.Value;
         lookup.TryAdd($"{claimKey}_qid", entry.ValueQid);
     }
 }
