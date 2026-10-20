@@ -254,7 +254,7 @@ public sealed class UniverseComponentTests : AsyncBunitContext
 
     [Theory]
     [InlineData(0, null)]
-    [InlineData(1, "In 1 of your work")]
+    [InlineData(1, "In 1 of your works")]
     [InlineData(3, "In 3 of your works")]
     public void TheCharacterWorksLine_CountsTheOwnedWorks_AndIsNullForNone(int count, string? expected) =>
         Assert.Equal(expected, UniversePageText.CharacterWorksLine(count));
@@ -314,7 +314,7 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MoreThanTwelveCharacters_ShowTwelveFirst_AndAllAfterShowAll()
+    public void MoreThanTwelveCharacters_ShowTwelveFirst_AndOneToggleShowsAllThenFewer()
     {
         var characters = Enumerable.Range(1, 15).Select(index => Character($"Q{index}", $"Character {index}", 1)).ToList();
 
@@ -328,8 +328,14 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         showAll.Click();
 
         Assert.Equal(15, cut.FindAll(".universe-characters__item").Count);
-        Assert.Empty(cut.FindAll(".universe-characters__more"));
         Assert.Equal("Character 15", cut.FindAll(".universe-characters__name")[14].TextContent);
+
+        // The same button stays in place (focus is never lost) and folds the list back.
+        var showFewer = cut.Find(".universe-characters__more button");
+        Assert.Equal("Show fewer characters", showFewer.TextContent.Trim());
+        Assert.Equal("true", showFewer.GetAttribute("aria-expanded"));
+        showFewer.Click();
+        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
     }
 
     [Fact]

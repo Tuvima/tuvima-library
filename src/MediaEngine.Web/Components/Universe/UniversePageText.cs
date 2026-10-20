@@ -95,9 +95,9 @@ public static class UniversePageText
         };
     }
 
-    /// <summary>"In 3 of your works" for a character row; null when the count is zero.</summary>
+    /// <summary>"In 3 of your works" (and "In 1 of your works") for a character row; null when the count is zero.</summary>
     public static string? CharacterWorksLine(int workCount) =>
-        workCount <= 0 ? null : string.Create(CultureInfo.InvariantCulture, $"In {workCount} of your {(workCount == 1 ? "work" : "works")}");
+        workCount <= 0 ? null : string.Create(CultureInfo.InvariantCulture, $"In {workCount} of your works");
 
     /// <summary>"Details found for 6 of 14 works".</summary>
     public static string EnrichmentNote(UniverseEnrichmentStateDto enrichment) =>

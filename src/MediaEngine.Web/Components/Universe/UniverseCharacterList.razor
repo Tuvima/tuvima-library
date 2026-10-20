@@ -5,7 +5,7 @@
    learned it. No portraits, no relationship graph and no character page. Choosing a row raises OnCharacterSelected (the
    host opens "Also appears in"); without a listener a row is plain text. A character with no plot details (every visible
    appearance is marked as a spoiler) is shown by name and source only, and is never a button. The first rows are shown and
-   the rest sit behind "Show all". As in the cast list, the frame belongs to the list item and a button row takes the shared
+   the rest sit behind a "Show all" toggle. As in the cast list, the frame belongs to the list item and a button row takes the shared
    list-row button class, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
 <ul class="universe-characters" aria-label="Characters">
     @foreach (var character in VisibleCharacters)
@@ -27,11 +27,13 @@
     }
 </ul>
 
-@if (HiddenCount > 0)
+@if (Characters.Count > InitialRows)
 {
+    @* One toggle that stays in place, so keyboard and remote focus is never lost when the list grows or shrinks. *@
     <div class="universe-characters__more">
-        <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Large" OnClick="ShowAll">
-            Show all @Characters.Count characters
+        <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Large" OnClick="ToggleShowAll"
+                   aria-expanded="@(_showAll ? "true" : "false")">
+            @(_showAll ? "Show fewer characters" : $"Show all {Characters.Count} characters")
         </AppButton>
     </div>
 }
@@ -56,9 +58,7 @@
 
     private IEnumerable<UniverseCharacterDto> VisibleCharacters => _showAll ? Characters : Characters.Take(InitialRows);
 
-    private int HiddenCount => _showAll ? 0 : Math.Max(0, Characters.Count - InitialRows);
-
-    private void ShowAll() => _showAll = true;
+    private void ToggleShowAll() => _showAll = !_showAll;
 
     private RenderFragment RowContent(UniverseCharacterDto character) => __builder =>
     {

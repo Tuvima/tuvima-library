@@ -252,7 +252,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         {
             Assert.Equal(["Cast", "Adaptations", "Characters"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
             Assert.Equal(["Paul", "Chani", "Jessica"], cut.FindAll(".universe-characters__name").Select(n => n.TextContent).ToArray());
-            Assert.Equal(["In 3 of your works", "In 1 of your work"], cut.FindAll(".universe-characters__works").Select(n => n.TextContent).ToArray());
+            Assert.Equal(["In 3 of your works", "In 1 of your works"], cut.FindAll(".universe-characters__works").Select(n => n.TextContent).ToArray());
             Assert.All(cut.FindAll(".universe-characters__source"), source => Assert.Equal("Source: Wikidata", source.TextContent));
             Assert.Equal(3, cut.FindAll(".universe-characters__source").Count);
             Assert.DoesNotContain("Still learning", cut.Markup);
