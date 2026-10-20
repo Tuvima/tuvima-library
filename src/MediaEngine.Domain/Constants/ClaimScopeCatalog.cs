@@ -102,6 +102,7 @@ public static class ClaimScopeCatalog
             [MetadataFieldConstants.FilmingLocation] = ClaimScope.Parent,
             [MetadataFieldConstants.MainSubject] = ClaimScope.Parent,
             [MetadataFieldConstants.BasedOn] = ClaimScope.Parent,
+            [MetadataFieldConstants.DerivativeWork] = ClaimScope.Parent,
         };
 
     // ── Per-media-type overrides applied AFTER the default map. ──────────
