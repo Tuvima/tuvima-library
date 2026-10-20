@@ -163,7 +163,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         {
             Assert.Contains("Still learning about this Universe", cut.Markup);
             Assert.Contains("Details found for 6 of 14 works", cut.Markup);
-            Assert.DoesNotContain("No cast or adaptations recorded", cut.Markup);
+            Assert.DoesNotContain("recorded for this Universe yet", cut.Markup);
             Assert.Empty(cut.FindAll(".universe-cast"));
         });
     }
@@ -178,7 +178,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("No cast or adaptations recorded for this Universe yet.", cut.Markup);
+            Assert.Contains("No characters, cast or adaptations recorded for this Universe yet.", cut.Markup);
             Assert.DoesNotContain("Still learning", cut.Markup);
         });
     }
@@ -206,7 +206,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         var person = Guid.NewGuid();
         _overview = () => UniversePageLoadResult.Loaded(Overview(
             cast: [Cast(person, "Timothee C", ("Q1", "Paul"), ("Q2", "Muad'Dib"))],
-            adaptations: [new UniverseClientAdaptationDto { Qid = "based on:Q9", Label = "Dune: Part One", Relationship = "based on", SourceQid = "Q9", SourceLabel = "Dune" }]));
+            adaptations: [Adaptation("Dune: Part One", "based on", "Dune")]));
         await UseDeviceAsync("web", "desktop");
 
         var cut = RenderPage();
@@ -217,6 +217,82 @@ public sealed class UniversePageTests : AsyncBunitContext
             Assert.Equal("as Paul, Muad'Dib", cut.Find(".universe-cast__characters").TextContent);
             Assert.Equal("Dune: Part One — Based on Dune", cut.Find(".universe-adaptations__line").TextContent);
             Assert.DoesNotContain("Still learning", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public async Task Connections_ShowTheSourceOnEveryCastAndAdaptationRow()
+    {
+        _overview = () => UniversePageLoadResult.Loaded(Overview(
+            cast: [Cast(Guid.NewGuid(), "Ann", [Wikidata, new UniverseSourceDto { Kind = UniverseSourceDto.LorePlugin, Label = "Dune Wiki" }], ("Q1", "Hero"))],
+            adaptations: [Adaptation("Dune: Part One", "based on", "Dune")]));
+        await UseDeviceAsync("web", "desktop");
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Sources: Wikidata, Dune Wiki", cut.Find(".universe-cast__source").TextContent);
+            Assert.Equal("Source: Wikidata", cut.Find(".universe-adaptations__source").TextContent);
+        });
+    }
+
+    [Fact]
+    public async Task Connections_ListCastThenAdaptationsThenCharacters_AndCharactersKeepTheEngineOrderWithTheirSource()
+    {
+        _overview = () => UniversePageLoadResult.Loaded(Overview(
+            cast: [Cast(Guid.NewGuid(), "Ann", ("Q1", "Hero"))],
+            adaptations: [Adaptation("Dune: Part One", "based on", "Dune")],
+            characters: [Character("Q10", "Paul", 3), Character("Q11", "Chani", 1), Character("Q12", "Jessica", 0)]));
+        await UseDeviceAsync("web", "desktop");
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(["Cast", "Adaptations", "Characters"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
+            Assert.Equal(["Paul", "Chani", "Jessica"], cut.FindAll(".universe-characters__name").Select(n => n.TextContent).ToArray());
+            Assert.Equal(["In 3 of your works", "In 1 of your works"], cut.FindAll(".universe-characters__works").Select(n => n.TextContent).ToArray());
+            Assert.All(cut.FindAll(".universe-characters__source"), source => Assert.Equal("Source: Wikidata", source.TextContent));
+            Assert.Equal(3, cut.FindAll(".universe-characters__source").Count);
+            Assert.DoesNotContain("Still learning", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public async Task ChoosingACharacter_OpensAlsoAppearsIn_ForThatOneCharacterAndNoPerson()
+    {
+        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3), Character("Q11", "Chani", 1)]));
+        await UseDeviceAsync("web", "desktop");
+        var dialogs = (AppDialogService)Services.GetRequiredService<IAppDialogService>();
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("button.universe-characters__row").Count));
+        cut.FindAll("button.universe-characters__row")[1].Click();
+
+        var dialog = Assert.Single(dialogs.Dialogs);
+        Assert.Equal(typeof(AlsoAppearsInPanel), dialog.ComponentType);
+        Assert.Equal(Qid, dialog.Parameters[nameof(AlsoAppearsInPanel.UniverseQid)]);
+        var characters = Assert.IsAssignableFrom<IReadOnlyList<(string Qid, string Label)>>(dialog.Parameters[nameof(AlsoAppearsInPanel.Characters)]);
+        Assert.Equal(("Q11", "Chani"), Assert.Single(characters));
+        Assert.False(dialog.Parameters.ContainsKey(nameof(AlsoAppearsInPanel.PersonId)) && dialog.Parameters[nameof(AlsoAppearsInPanel.PersonId)] is not null);
+    }
+
+    [Fact]
+    public async Task AUniverseWithOnlyCharacters_IsNotEmptyAndNotStillLearning()
+    {
+        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3)]));
+        await UseDeviceAsync("web", "desktop");
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(".universe-characters__item"));
+            Assert.DoesNotContain("Still learning", cut.Markup);
+            Assert.DoesNotContain("recorded for this Universe yet", cut.Markup);
+            Assert.Empty(cut.FindAll(".universe-cast"));
+            Assert.Empty(cut.FindAll(".universe-adaptations"));
         });
     }
 
@@ -599,12 +675,36 @@ public sealed class UniversePageTests : AsyncBunitContext
         [new SharedEntityEditorCapabilityDto("details", true, editable)],
         "ready");
 
-    private static UniverseClientCastMemberDto Cast(Guid person, string name, params (string Qid, string Label)[] characters) => new()
+    private static readonly UniverseSourceDto Wikidata = new() { Kind = UniverseSourceDto.Wikidata, Label = "Wikidata" };
+
+    private static UniverseSourcedCastMemberDto Cast(Guid person, string name, params (string Qid, string Label)[] characters) =>
+        Cast(person, name, [Wikidata], characters);
+
+    private static UniverseSourcedCastMemberDto Cast(Guid person, string name, IReadOnlyList<UniverseSourceDto> sources, params (string Qid, string Label)[] characters) => new()
     {
-        PersonId = person,
-        Name = name,
-        Characters = characters.Select(character => new UniverseClientCastCharacterDto { Qid = character.Qid, Label = character.Label }).ToList(),
-        WorkCount = 1,
+        Member = new UniverseClientCastMemberDto
+        {
+            PersonId = person,
+            Name = name,
+            Characters = characters.Select(character => new UniverseClientCastCharacterDto { Qid = character.Qid, Label = character.Label }).ToList(),
+            WorkCount = 1,
+        },
+        Sources = sources,
+    };
+
+    private static UniverseSourcedAdaptationDto Adaptation(string label, string relationship, string sourceLabel) => new()
+    {
+        Adaptation = new UniverseClientAdaptationDto { Qid = $"{relationship}:{label}", Label = label, Relationship = relationship, SourceQid = "Q9", SourceLabel = sourceLabel },
+        Sources = [Wikidata],
+    };
+
+    private static UniverseCharacterDto Character(string qid, string label, int workCount, bool noPlotDetails = false) => new()
+    {
+        Qid = qid,
+        Label = label,
+        WorkCount = workCount,
+        NoPlotDetails = noPlotDetails,
+        Sources = [Wikidata],
     };
 
     private static UniversePageDto Overview(
@@ -613,8 +713,9 @@ public sealed class UniversePageTests : AsyncBunitContext
         IReadOnlyList<string>? mediaTypes = null,
         IReadOnlyList<UniverseMemberShelfDto>? shelves = null,
         DisplayShelfDto? standalone = null,
-        IReadOnlyList<UniverseClientCastMemberDto>? cast = null,
-        IReadOnlyList<UniverseClientAdaptationDto>? adaptations = null,
+        IReadOnlyList<UniverseSourcedCastMemberDto>? cast = null,
+        IReadOnlyList<UniverseSourcedAdaptationDto>? adaptations = null,
+        IReadOnlyList<UniverseCharacterDto>? characters = null,
         UniverseEnrichmentStateDto? enrichment = null) => new()
         {
             Detail = new UniverseClientDetailDto
@@ -625,12 +726,17 @@ public sealed class UniversePageTests : AsyncBunitContext
                 SeriesCount = seriesCount,
                 MediaTypes = mediaTypes ?? ["Book"],
                 Shelves = shelves ?? [Shelf("The Novels", "Book", "Dune")],
+            },
+            Connections = new UniverseConnectionsDto
+            {
+                Characters = characters ?? [],
+                CharacterCount = characters?.Count ?? 0,
                 Cast = cast ?? [],
                 Adaptations = adaptations ?? [],
             },
             Standalone = standalone,
             Enrichment = enrichment ?? new UniverseEnrichmentStateDto { State = "not_started", WorkCount = 3 },
-            GraphEntityCount = cast is { Count: > 0 } ? 4 : 0,
+            GraphEntityCount = cast is { Count: > 0 } || characters is { Count: > 0 } ? 4 : 0,
         };
 
     private static UniverseMemberShelfDto AsShow(UniverseMemberShelfDto shelf) => new()

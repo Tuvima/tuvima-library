@@ -7,25 +7,30 @@ using MediaEngine.Domain.Entities;
 namespace MediaEngine.Api.Services.ReadServices;
 
 /// <summary>
-/// Reads how one Universe's characters and works connect: the Cast (characters and the people who play them) and the
-/// adaptation relationships between works. The visibility rule is the one every Universe read uses: an entity is
-/// listed only when it is linked to a work the requesting profile may see, judged through the authorised display
-/// projection (<see cref="IDisplayProjectionReadService"/>). Backs the Universe graph actions
-/// (<c>/universe/{qid}/cast</c>, <c>/universe/{qid}/adaptations</c>) and the compact read-only lists on
-/// <c>/api/v1/universe/{qid}</c>, so the queries exist once.
+/// Reads how one Universe's characters and works connect: the Characters themselves, the Cast (characters and the people
+/// who play them) and the adaptation relationships between works. Every row carries the source it was learned from
+/// ("Wikidata", an approved lore source, or whatever else was recorded). The visibility rule is the one every Universe
+/// read uses: an entity is listed only when it is linked to a work the requesting profile may see, judged through the
+/// authorised display projection (<see cref="IDisplayProjectionReadService"/>). Backs the Universe graph actions
+/// (<c>/universe/{qid}/cast</c>, <c>/universe/{qid}/adaptations</c>), the compact read-only lists on
+/// <c>/api/v1/universe/{qid}</c> and the Connections of the Universe page, so the queries exist once.
 /// </summary>
 public sealed class UniverseConnectionsReadService(
     IFictionalEntityRepository entities,
     IEntityRelationshipRepository relationships,
     INarrativeRootRepository roots,
     IPersonRepository people,
-    IDisplayProjectionReadService display)
+    IDisplayProjectionReadService display,
+    IPluginLoreRepository pluginLore)
 {
     /// <summary>Most people listed in the compact Cast.</summary>
     public const int MaxCastMembers = 50;
 
     /// <summary>Most relationships listed in the compact Adaptations.</summary>
     public const int MaxAdaptations = 50;
+
+    /// <summary>Most characters listed in the Connections; the full number is still reported.</summary>
+    public const int MaxCharacters = 60;
 
     private static readonly string[] AdaptationTypes = ["based_on", "derivative_work", "inspired_by"];
 
@@ -76,8 +81,9 @@ public sealed class UniverseConnectionsReadService(
     }
 
     /// <summary>
-    /// The adaptation chain as a tree, or null when the narrative root is unknown. With no adaptation relationships
-    /// every entity comes back as a flat root (the Universe graph's Adaptations action; the compact list never does that).
+    /// The adaptation chain as a tree, or null when the narrative root is unknown. With no adaptation relationships the
+    /// tree is empty: evidence only, the same as the compact list (entities are never listed as if they were adaptations).
+    /// Each child names the source of its relationship to its parent; roots have none.
     /// </summary>
     public async Task<UniverseAdaptationTreeResponse?> GetAdaptationTreeAsync(string qid, CancellationToken ct = default)
     {
@@ -108,18 +114,9 @@ public sealed class UniverseConnectionsReadService(
             .Where(q => !childQids.Contains(q))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // If no adaptation relationships exist, return all works as flat roots.
         if (adaptationRels.Count == 0)
         {
-            var flatWorks = allEntities.Select(e => new UniverseAdaptationNodeDto(
-                qid: e.WikidataQid,
-                label: e.Label,
-                year: (int?)null,
-                media_type: e.EntitySubType,
-                cover_image: e.ImageUrl,
-                relationship_to_parent: (string?)null,
-                children: Array.Empty<UniverseAdaptationNodeDto>())).ToList();
-            return new UniverseAdaptationTreeResponse(universe_qid: qid, works: flatWorks);
+            return new UniverseAdaptationTreeResponse(qid, []);
         }
 
         var tree = rootWorkQids.Select(rootQid =>
@@ -139,31 +136,115 @@ public sealed class UniverseConnectionsReadService(
     }
 
     /// <summary>
-    /// The compact read-only Cast and Adaptations lists the helper apps and the Universe page show. Both are limited to
-    /// what the profile may see; Adaptations lists only real adaptation relationships and is empty without them.
+    /// The Universe's Characters, Cast and Adaptations with the source of every row, from one read of the visible scope.
+    /// Cast and Adaptations are exactly the helper-app rows (same filter, order and cap), only wrapped with their sources.
     /// </summary>
     /// <param name="visibleWorkQids">
     /// Identity QIDs of every work the profile may see, when the caller already loaded the authorised projection;
     /// null to read it here.
     /// </param>
-    public async Task<UniverseHelperLists> GetHelperListsAsync(
+    /// <param name="includeCharacters">
+    /// Whether to build the Characters list (and read the approved lore sources for it); false leaves it empty with a
+    /// character count of 0.
+    /// </param>
+    internal async Task<UniverseConnectionsDto> GetConnectionsAsync(
         string qid,
         IReadOnlySet<string>? visibleWorkQids,
+        bool includeCharacters,
         CancellationToken ct = default)
     {
         visibleWorkQids ??= await LoadVisibleWorkQidsAsync(display, ct).ConfigureAwait(false);
         var scope = await LoadVisibleUniverseScopeAsync(qid, entities, visibleWorkQids, ct).ConfigureAwait(false);
-        var cast = await BuildCastMembersAsync(scope.Entities, visibleWorkQids, ct).ConfigureAwait(false);
+        var cast = await BuildCastMembersAsync(scope, visibleWorkQids, ct).ConfigureAwait(false);
         var adaptations = await BuildAdaptationsAsync(scope.Entities, ct).ConfigureAwait(false);
-        return new UniverseHelperLists(cast, adaptations);
+        if (!includeCharacters)
+        {
+            return new UniverseConnectionsDto { Cast = cast, Adaptations = adaptations };
+        }
+
+        var allCharacters = await BuildCharactersAsync(qid, scope, ct).ConfigureAwait(false);
+        return new UniverseConnectionsDto
+        {
+            Characters = allCharacters.Take(MaxCharacters).ToList(),
+            CharacterCount = allCharacters.Count,
+            Cast = cast,
+            Adaptations = adaptations,
+        };
     }
 
-    private async Task<IReadOnlyList<UniverseClientCastMemberDto>> BuildCastMembersAsync(
-        IReadOnlyList<FictionalEntity> visibleEntities,
+    private async Task<IReadOnlyList<UniverseCharacterDto>> BuildCharactersAsync(
+        string universeQid,
+        VisibleUniverseScope scope,
+        CancellationToken ct)
+    {
+        var characters = scope.Entities
+            .Where(entity => string.Equals(entity.EntitySubType, "Character", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entity.WikidataQid))
+            .ToList();
+        if (characters.Count == 0)
+        {
+            return [];
+        }
+
+        // Approved lore sources are named only when they hold an entity for the character's QID.
+        var loreSourceNamesByQid = await LoadLoreSourceNamesByCharacterQidAsync(
+            universeQid,
+            characters.Select(character => character.WikidataQid).ToList(),
+            ct).ConfigureAwait(false);
+
+        return characters
+            .Select(character =>
+            {
+                var links = scope.WorkLinks[character.Id].ToList();
+                // A link marked as a spoiler for a work is held back until the Library knows how far the viewer has got.
+                var plainLinks = links.Where(link => string.IsNullOrWhiteSpace(link.SpoilerForWorkQid)).ToList();
+                var sources = links
+                    .Select(link => UniverseSourceLabels.FromProvenance(link.Provenance, link.SourceProvider))
+                    .Concat(loreSourceNamesByQid.TryGetValue(character.WikidataQid, out var loreNames)
+                        ? loreNames.Select(name => new UniverseSourceDto { Kind = UniverseSourceDto.LorePlugin, Label = name })
+                        : []);
+                return new UniverseCharacterDto
+                {
+                    Qid = character.WikidataQid,
+                    Label = character.Label,
+                    NoPlotDetails = plainLinks.Count == 0,
+                    WorkCount = plainLinks
+                        .Select(link => link.WorkQid)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Count(),
+                    Sources = UniverseSourceLabels.Combine(sources),
+                };
+            })
+            .OrderBy(character => character.NoPlotDetails)
+            .ThenByDescending(character => character.WorkCount)
+            .ThenBy(character => character.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(character => character.Qid, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyDictionary<string, List<string>>> LoadLoreSourceNamesByCharacterQidAsync(
+        string universeQid,
+        IReadOnlyCollection<string> characterQids,
+        CancellationToken ct)
+    {
+        // Only the (item, source name) pairs for the listed characters are read, never the lore entities themselves.
+        var itemSources = await pluginLore.GetApprovedSourceNamesForItemsAsync(universeQid, characterQids, ct).ConfigureAwait(false);
+        return itemSources
+            .GroupBy(row => row.WikidataQid, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(row => string.IsNullOrWhiteSpace(row.SourceName) ? "Lore plugin" : row.SourceName.Trim())
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<IReadOnlyList<UniverseSourcedCastMemberDto>> BuildCastMembersAsync(
+        VisibleUniverseScope scope,
         IReadOnlySet<string> visibleWorkQids,
         CancellationToken ct)
     {
-        var characters = visibleEntities
+        var characters = scope.Entities
             .Where(entity => string.Equals(entity.EntitySubType, "Character", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(entity => entity.Id);
         if (characters.Count == 0)
@@ -179,41 +260,61 @@ public sealed class UniverseConnectionsReadService(
             .Select(person =>
             {
                 var first = person.First();
-                return new UniverseClientCastMemberDto
-                {
-                    PersonId = person.Key,
-                    Name = first.PerformerName,
-                    HeadshotUrl = ApiImageUrls.BuildPersonHeadshotUrl(
-                        person.Key,
-                        first.LocalHeadshotPath,
-                        first.HeadshotUrl),
-                    Characters = person
-                        .Where(credit => characters.ContainsKey(credit.FictionalEntityId))
-                        .Select(credit => characters[credit.FictionalEntityId])
-                        .Where(character => !string.IsNullOrWhiteSpace(character.WikidataQid))
-                        .DistinctBy(character => character.WikidataQid, StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(character => character.Label, StringComparer.OrdinalIgnoreCase)
-                        .ThenBy(character => character.WikidataQid, StringComparer.OrdinalIgnoreCase)
-                        .Select(character => new UniverseClientCastCharacterDto
-                        {
-                            Qid = character.WikidataQid,
-                            Label = character.Label,
-                        })
-                        .ToList(),
-                    WorkCount = person
-                        .Select(credit => credit.WorkQid!)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .Count(),
-                };
+                return (
+                    Member: new UniverseClientCastMemberDto
+                    {
+                        PersonId = person.Key,
+                        Name = first.PerformerName,
+                        HeadshotUrl = ApiImageUrls.BuildPersonHeadshotUrl(
+                            person.Key,
+                            first.LocalHeadshotPath,
+                            first.HeadshotUrl),
+                        Characters = person
+                            .Where(credit => characters.ContainsKey(credit.FictionalEntityId))
+                            .Select(credit => characters[credit.FictionalEntityId])
+                            .Where(character => !string.IsNullOrWhiteSpace(character.WikidataQid))
+                            .DistinctBy(character => character.WikidataQid, StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(character => character.Label, StringComparer.OrdinalIgnoreCase)
+                            .ThenBy(character => character.WikidataQid, StringComparer.OrdinalIgnoreCase)
+                            .Select(character => new UniverseClientCastCharacterDto
+                            {
+                                Qid = character.WikidataQid,
+                                Label = character.Label,
+                            })
+                            .ToList(),
+                        WorkCount = person
+                            .Select(credit => credit.WorkQid!)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Count(),
+                    },
+                    Sources: UniverseSourceLabels.Combine(person.Select(credit => SourceOfCredit(scope, credit))));
             })
-            .OrderByDescending(member => member.WorkCount)
-            .ThenBy(member => member.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(member => member.PersonId)
+            .OrderByDescending(item => item.Member.WorkCount)
+            .ThenBy(item => item.Member.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Member.PersonId)
             .Take(MaxCastMembers)
+            .Select(item => new UniverseSourcedCastMemberDto { Member = item.Member, Sources = item.Sources })
             .ToList();
     }
 
-    private async Task<IReadOnlyList<UniverseClientAdaptationDto>> BuildAdaptationsAsync(
+    private static UniverseSourceDto SourceOfCredit(VisibleUniverseScope scope, CharacterPerformerCredit credit)
+    {
+        // The credit's visible appearance link for the same work; "portrayed_in" is the one written for a credit.
+        var link = scope.WorkLinks[credit.FictionalEntityId]
+            .Where(candidate => string.Equals(candidate.WorkQid, credit.WorkQid, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(candidate => string.Equals(candidate.LinkType, "portrayed_in", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .FirstOrDefault();
+        if (link is not null)
+        {
+            return UniverseSourceLabels.FromProvenance(link.Provenance, link.SourceProvider);
+        }
+
+        // A performer credit is written only by PersonEnrichmentWorker from Wikidata cast statements (P161 with a P453
+        // qualifier), and the credit stores no provenance of its own, so a credit with no matching link is Wikidata.
+        return UniverseSourceLabels.FromProvenance(null, null);
+    }
+
+    private async Task<IReadOnlyList<UniverseSourcedAdaptationDto>> BuildAdaptationsAsync(
         IReadOnlyList<FictionalEntity> visibleEntities,
         CancellationToken ct)
     {
@@ -230,20 +331,28 @@ public sealed class UniverseConnectionsReadService(
             {
                 entityByQid.TryGetValue(rel.SubjectQid, out var subject);
                 entityByQid.TryGetValue(rel.ObjectQid, out var source);
-                return new UniverseClientAdaptationDto
-                {
-                    Qid = rel.SubjectQid,
-                    Label = subject?.Label ?? rel.SubjectQid,
-                    MediaType = subject?.EntitySubType,
-                    Relationship = FormatEdgeLabel(rel.RelationshipTypeValue),
-                    SourceQid = rel.ObjectQid,
-                    SourceLabel = source?.Label ?? rel.ObjectQid,
-                };
+                return (
+                    Row: new UniverseClientAdaptationDto
+                    {
+                        Qid = rel.SubjectQid,
+                        Label = subject?.Label ?? rel.SubjectQid,
+                        MediaType = subject?.EntitySubType,
+                        Relationship = FormatEdgeLabel(rel.RelationshipTypeValue),
+                        SourceQid = rel.ObjectQid,
+                        SourceLabel = source?.Label ?? rel.ObjectQid,
+                    },
+                    Source: UniverseSourceLabels.FromProvenance(rel.Provenance, rel.SourceProvider));
             })
-            .DistinctBy(row => (row.Qid.ToUpperInvariant(), row.Relationship, row.SourceQid.ToUpperInvariant()))
-            .OrderBy(row => row.SourceLabel, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(row => row.Label, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(row => row.Qid, StringComparer.OrdinalIgnoreCase)
+            // Relationships that collapse into one row keep the first one's fields and contribute all their sources.
+            .GroupBy(item => (item.Row.Qid.ToUpperInvariant(), item.Row.Relationship, item.Row.SourceQid.ToUpperInvariant()))
+            .Select(group => new UniverseSourcedAdaptationDto
+            {
+                Adaptation = group.First().Row,
+                Sources = UniverseSourceLabels.Combine(group.Select(item => item.Source)),
+            })
+            .OrderBy(row => row.Adaptation.SourceLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.Adaptation.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.Adaptation.Qid, StringComparer.OrdinalIgnoreCase)
             .Take(MaxAdaptations)
             .ToList();
     }
@@ -279,7 +388,8 @@ public sealed class UniverseConnectionsReadService(
                 media_type: child?.EntitySubType ?? "Unknown",
                 cover_image: child?.ImageUrl,
                 relationship_to_parent: FormatEdgeLabel(rel.RelationshipTypeValue),
-                children: BuildChildren(rel.SubjectQid, rels, byQid, depth + 1).ToList());
+                children: BuildChildren(rel.SubjectQid, rels, byQid, depth + 1).ToList(),
+                source: UniverseSourceLabels.FromProvenance(rel.Provenance, rel.SourceProvider).Label);
         }
     }
 
@@ -354,8 +464,3 @@ public sealed class UniverseConnectionsReadService(
         _ => relType.Replace('_', ' '),
     };
 }
-
-/// <summary>The compact Cast and Adaptations lists of one Universe.</summary>
-public sealed record UniverseHelperLists(
-    IReadOnlyList<UniverseClientCastMemberDto> Cast,
-    IReadOnlyList<UniverseClientAdaptationDto> Adaptations);
