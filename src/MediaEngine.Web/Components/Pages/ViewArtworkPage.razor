@@ -7,15 +7,16 @@
 @using MediaEngine.Web.Components.Artwork
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Navigation
 @inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
 
-<PageTitle>Artwork Library - Tuvima Library</PageTitle>
+<PageTitle>Artwork Library - Library</PageTitle>
 
 <ViewSectionShell>
     <ViewContentPage Title="Artwork Library"
-                     Subtitle="Search and reuse artwork stored across your Tuvima library."
+                     Subtitle="Search and reuse artwork stored across your library."
                      Class="view-artwork-page">
         <HeaderActions>
             <span class="view-artwork-header__count">@_total.ToString("N0") @(_total == 1 ? "image" : "images")</span>
@@ -34,7 +35,9 @@
     private ArtworkAssetDto? _selected;
     private int _total;
 
-    private ArtworkAssetQuery InitialQuery => LegacyQuery(Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath);
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    private ArtworkAssetQuery InitialQuery => LegacyQuery(new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath);
 
     private static ArtworkAssetQuery LegacyQuery(string path) => path.EndsWith("/people", StringComparison.OrdinalIgnoreCase)
         ? new ArtworkAssetQuery(Roles: ["Portrait"], EntityTypes: ["Person"], Sort: ArtworkAssetSort.Newest)

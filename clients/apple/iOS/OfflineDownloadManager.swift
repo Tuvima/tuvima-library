@@ -233,7 +233,7 @@ final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownlo
         guard (200...299).contains(status) else {
             let message = status == 401
                 ? "The sign-in for this download expired. Tap Resume to try again."
-                : "Tuvima returned HTTP \(status)."
+                : "Library returned HTTP \(status)."
             Task { @MainActor in self.taskFailed(info, message: message, resumeData: nil, cancelled: false) }
             return
         }

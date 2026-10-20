@@ -140,7 +140,7 @@ public sealed class DataStoreUpgradeRunnerTests : IDisposable
         Assert.Equal(0, hookCalls);
         Assert.Equal([1L, 2L], Query<long>("SELECT number FROM data_store_upgrades ORDER BY number;"));
         Assert.Contains(Path.GetFileName(_dbPath), exception.Message);
-        Assert.Contains("newer version of Tuvima", exception.Message);
+        Assert.Contains("newer version of Library", exception.Message);
         Assert.Contains("0002", exception.Message);
         Assert.Contains("Install that version", exception.Message);
         Assert.Contains("the Backups folder", exception.Message);

@@ -10,10 +10,10 @@
     </div>
 
     <SettingsSectionPanel Title="Connection Status"
-                          Description="A live summary of how devices can reach Tuvima Library."
+                          Description="A live summary of how devices can reach Library."
                           Icon="@AppMaterialIcons.Outlined.WifiTethering">
         <div class="network-status-grid">
-            @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Tuvima Library.", AppMaterialIcons.Outlined.Home)
+            @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Library.", AppMaterialIcons.Outlined.Home)
             @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)
             @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", AppMaterialIcons.Outlined.VerifiedUser)
         </div>

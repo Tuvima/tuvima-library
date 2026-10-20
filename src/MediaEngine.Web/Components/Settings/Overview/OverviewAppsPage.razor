@@ -14,7 +14,7 @@
 <div class="overview-apps" data-settings-overview-apps>
     <SettingsSectionPanel Title="Get the app"
                           Icon="@AppMaterialIcons.Outlined.Smartphone"
-                          Description="Install Tuvima on your phone or TV.">
+                          Description="Install Library on your phone or TV.">
         @if (Stores.Count > 0)
         {
             <ul class="overview-apps__stores" role="list" data-apps-stores>
@@ -32,7 +32,7 @@
         }
         else
         {
-            <p class="overview-apps__note" data-apps-stores-empty>The Tuvima apps will be linked here once they are published.</p>
+            <p class="overview-apps__note" data-apps-stores-empty>The Library apps will be linked here once they are published.</p>
         }
         <MediaEngine.Web.Components.Navigation.PwaInstallAction />
     </SettingsSectionPanel>
@@ -98,7 +98,7 @@
                     <div class="overview-apps__qr" data-qr-payload="@QrPayload">@((MarkupString)QrCodeSvg.Render(QrPayload))</div>
                     <div class="overview-apps__qr-copy">
                         <strong>@QrLabel</strong>
-                        <p class="overview-apps__note">Scan with the Tuvima app on your phone to fill in the server, then sign in as usual.</p>
+                        <p class="overview-apps__note">Scan with the Library app on your phone to fill in the server, then sign in as usual.</p>
                     </div>
                 </div>
             }

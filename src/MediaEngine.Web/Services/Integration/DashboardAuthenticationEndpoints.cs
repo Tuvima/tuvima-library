@@ -104,7 +104,7 @@ public static class DashboardAuthenticationEndpoints
                     {
                         DeviceId = deviceId,
                         DeviceName = deviceName,
-                        Client = "Tuvima Library Dashboard",
+                        Client = "Library Dashboard",
                     }, context.RequestAborted).ConfigureAwait(false),
                     HttpStatusCode.OK,
                     null)
@@ -114,7 +114,7 @@ public static class DashboardAuthenticationEndpoints
                     Password = form["password"].ToString(),
                     DeviceId = deviceId,
                     DeviceName = deviceName,
-                    Client = "Tuvima Library Dashboard",
+                    Client = "Library Dashboard",
                     OriginalClientIngress = context.ClientIngress(),
                     OriginalClientIsHttps = context.Request.IsHttps,
                 }, context.RequestAborted).ConfigureAwait(false);
@@ -481,7 +481,7 @@ public static class DashboardAuthenticationEndpoints
                 Password = password,
                 DeviceId = EnsureDeviceCookie(context),
                 DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
-                Client = "Tuvima Library Dashboard",
+                Client = "Library Dashboard",
             }, context.RequestAborted).ConfigureAwait(false);
             if (!result.Succeeded || result.Value is not { } issued)
             {
@@ -509,7 +509,7 @@ public static class DashboardAuthenticationEndpoints
                 }).ConfigureAwait(false);
 
             return Results.Content(
-                RecoveryCodesPage(issued.RecoveryCodes, "/settings/account", "Continue to Tuvima Library",
+                RecoveryCodesPage(issued.RecoveryCodes, "/settings/account", "Continue to Library",
                     "Your account is secure. You can now sign in from other devices at home."),
                 "text/html", Encoding.UTF8);
         });
@@ -638,11 +638,11 @@ public static class DashboardAuthenticationEndpoints
             : $"""
               <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
               <button id="continue-on-this-computer">Go back in as {H(thisComputerName)}</button></form>
-              <p class="supporting">This computer only. Add a password later to use Tuvima on other devices.</p>
+              <p class="supporting">This computer only. Add a password later to use Library on other devices.</p>
               """;
         var form = $"""
-              <p class="eyebrow">Tuvima Library</p>
-              <h1>Sign in to Tuvima Library</h1>
+              <p class="eyebrow">Library</p>
+              <h1>Sign in to Library</h1>
               {(message is null ? string.Empty : $"<p class=\"error\" role=\"alert\">{H(message)}</p>")}
               {continueAs}
               {(methods.Password ? passwordForm : "<p class=\"supporting\">Password sign-in isn't available from here.</p>")}
@@ -680,7 +680,7 @@ public static class DashboardAuthenticationEndpoints
         {
             DeviceId = deviceId,
             DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
-            Client = "Tuvima Library Dashboard",
+            Client = "Library Dashboard",
         }, context.RequestAborted).ConfigureAwait(false);
         return issued is null ? null : await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
     }
@@ -729,7 +729,7 @@ public static class DashboardAuthenticationEndpoints
         if (issued.RecoveryCodes.Count > 0)
         {
             return Results.Content(
-                RecoveryCodesPage(issued.RecoveryCodes, issued.ChooseProfile ? ProfilePickerRoute.For(returnUrl) : "/", "Continue to Tuvima Library"),
+                RecoveryCodesPage(issued.RecoveryCodes, issued.ChooseProfile ? ProfilePickerRoute.For(returnUrl) : "/", "Continue to Library"),
                 "text/html",
                 Encoding.UTF8);
         }
@@ -740,7 +740,7 @@ public static class DashboardAuthenticationEndpoints
 
     internal static string TwoStepCodePage(string antiforgeryToken, string pendingToken, string returnUrl, string? error) =>
         Shell($"""
-            <p class="eyebrow">Tuvima Library</p>
+            <p class="eyebrow">Library</p>
             <h1>Enter your code</h1>
             <p class="supporting">Enter the 6-digit code from your authenticator app.</p>
             {(string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")}
@@ -759,7 +759,7 @@ public static class DashboardAuthenticationEndpoints
             : "<h2>Email reset link</h2><p class=\"supporting\">Email delivery is not configured. Use a saved recovery code, or ask the server administrator to run the local recovery command below.</p>";
 
         return Shell($$"""
-            <p class="eyebrow">Tuvima Library</p>
+            <p class="eyebrow">Library</p>
             <h1>Recover your account</h1>
             <p><a href="/auth/login">Back to sign in</a></p>
             {{emailReset}}
@@ -767,7 +767,7 @@ public static class DashboardAuthenticationEndpoints
             <p class="supporting">Use one of the one-time recovery codes saved when the account was created.</p>
             <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{{H(token)}}"><input type="hidden" name="action" value="recover"><label>Email<input type="email" name="email" autocomplete="username" required></label><label>Recovery code<input name="recoveryCode" autocomplete="off" spellcheck="false" required></label><label>New password<input type="password" name="newPassword" minlength="12" autocomplete="new-password" required><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Reset with recovery code</button></form>
             <h2>Local administrator recovery</h2>
-            <p class="supporting">No recovery code or email access? Open an elevated terminal on the computer running Tuvima Library and run <code>tuvima-admin auth reset-password --email you@example.com</code>. From a source checkout, run <code>dotnet run --project src/MediaEngine.Admin -- auth reset-password --email you@example.com</code>.</p>
+            <p class="supporting">No recovery code or email access? Open an elevated terminal on the computer running Library and run <code>tuvima-admin auth reset-password --email you@example.com</code>. From a source checkout, run <code>dotnet run --project src/MediaEngine.Admin -- auth reset-password --email you@example.com</code>.</p>
             <p class="supporting">This recovery command is local-only: it is not an HTTP endpoint and cannot be invoked through an externally exposed Dashboard. It revokes all sessions and replaces the recovery codes.</p>
             """);
     }
@@ -838,19 +838,19 @@ public static class DashboardAuthenticationEndpoints
     private const string InvalidInvitationMessage = "That invitation code is not valid, has expired, or was already used.";
 
     private static string InviteCodeEntryBody(string? error) =>
-        "<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1>"
+        "<p class=\"eyebrow\">Library invitation</p><h1>Enter your invitation code</h1>"
         + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
         + "<form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"code\" autocomplete=\"off\" autocapitalize=\"characters\" spellcheck=\"false\" placeholder=\"XXXXX-XXXXX\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>";
 
     private static string InvitePasswordBody(string antiforgeryToken, string deviceId, string code, string email, string? error) =>
-        "<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p>"
+        "<p class=\"eyebrow\">Library invitation</p><h1>Create your sign-in</h1><p class=\"supporting\">This invitation grants access only to the profiles chosen by the server administrator.</p>"
         + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
         + $"<form method=\"post\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(antiforgeryToken)}\"><input type=\"hidden\" name=\"code\" value=\"{H(code)}\"><input type=\"hidden\" name=\"deviceId\" value=\"{H(deviceId)}\">"
         + $"<label>Email<input type=\"email\" value=\"{H(email)}\" readonly aria-readonly=\"true\"></label>"
         + "<label>Choose a password<input type=\"password\" name=\"password\" minlength=\"12\" autocomplete=\"new-password\" required autofocus><small>Use at least 12 characters, and avoid common passwords or your email address.</small></label><button>Create my sign-in</button></form>";
 
     private static string ChangePasswordBody(string antiforgeryToken, string? error) =>
-        "<p class=\"eyebrow\">Tuvima Library</p><h1>Choose a new password</h1><p class=\"supporting\">Your administrator gave you a temporary password. Choose a password of your own to continue.</p>"
+        "<p class=\"eyebrow\">Library</p><h1>Choose a new password</h1><p class=\"supporting\">Your administrator gave you a temporary password. Choose a password of your own to continue.</p>"
         + (string.IsNullOrWhiteSpace(error) ? string.Empty : $"<p class=\"notice\" role=\"alert\">{H(error)}</p>")
         + $"<form method=\"post\" action=\"/auth/change-password\"><input type=\"hidden\" name=\"__RequestVerificationToken\" value=\"{H(antiforgeryToken)}\">"
         + "<label>Temporary password<input type=\"password\" name=\"currentPassword\" autocomplete=\"current-password\" required></label>"
@@ -864,7 +864,7 @@ public static class DashboardAuthenticationEndpoints
         "text/html",
         Encoding.UTF8,
         StatusCodes.Status503ServiceUnavailable);
-    private static string EngineUnavailablePage(string returnUrl) => Shell($"<p class=\"eyebrow\">Tuvima Library</p><h1>Engine unavailable</h1><p class=\"supporting\">Tuvima Library cannot reach the library Engine yet. Start or restart the Engine, then try again.</p><p><a class=\"button\" href=\"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}\">Try again</a></p>");
+    private static string EngineUnavailablePage(string returnUrl) => Shell($"<p class=\"eyebrow\">Library</p><h1>Engine unavailable</h1><p class=\"supporting\">Library cannot reach the library Engine yet. Start or restart the Engine, then try again.</p><p><a class=\"button\" href=\"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}\">Try again</a></p>");
     private static string Shell(string body) => $$"""
         <!doctype html>
         <html lang="en">
@@ -872,14 +872,14 @@ public static class DashboardAuthenticationEndpoints
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
           <meta name="theme-color" content="#0B1020">
-          <meta name="description" content="Sign in to your local Tuvima Library.">
+          <meta name="description" content="Sign in to your local Library.">
           <meta name="mobile-web-app-capable" content="yes">
           <meta name="apple-mobile-web-app-capable" content="yes">
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-          <meta name="apple-mobile-web-app-title" content="Tuvima Library">
+          <meta name="apple-mobile-web-app-title" content="Library">
           <link rel="manifest" href="/manifest.webmanifest">
           <link rel="apple-touch-icon" sizes="192x192" href="/icons/tuvima-192.png">
-          <title>Tuvima Library</title>
+          <title>Library</title>
           <style>
             :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
             * { box-sizing: border-box; }

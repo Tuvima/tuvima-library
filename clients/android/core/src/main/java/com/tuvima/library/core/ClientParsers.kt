@@ -125,7 +125,7 @@ internal fun parseDetailModel(json: JSONObject, absolute: (String?) -> String?):
         )
     }.orEmpty().filter { it.name.isNotBlank() }.distinctBy { it.name }
     return DetailModel(
-        title = json.optString("title", "Tuvima Library"),
+        title = json.optString("title", "Library"),
         subtitle = json.optionalString("subtitle"),
         tagline = json.optionalString("tagline"),
         description = json.optionalString("description"),

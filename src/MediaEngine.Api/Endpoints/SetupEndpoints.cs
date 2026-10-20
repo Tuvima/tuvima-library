@@ -201,13 +201,13 @@ public static class SetupEndpoints
                     }
 
                     issued = await identity.BootstrapThisComputerAdministratorAsync(
-                        null, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                        null, request.DisplayName, request.DeviceId, request.DeviceName, "Library Setup", ct, request.Pin).ConfigureAwait(false);
                 }
                 else
                 {
                     issued = await identity.BootstrapAdministratorAsync(
                         request.Email, request.Password, request.DisplayName,
-                        request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                        request.DeviceId, request.DeviceName, "Library Setup", ct, request.Pin).ConfigureAwait(false);
                 }
 
                 await onboarding.SetStepAsync(
@@ -398,7 +398,7 @@ public static class SetupEndpoints
                 var file = form.Files.GetFile("backup");
                 if (file is null || file.Length == 0)
                 {
-                    return ApiErrors.BadRequest("Choose a Tuvima backup ZIP file.");
+                    return ApiErrors.BadRequest("Choose a Library backup ZIP file.");
                 }
 
                 await using var stream = file.OpenReadStream();

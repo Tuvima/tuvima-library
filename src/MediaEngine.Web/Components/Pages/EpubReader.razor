@@ -24,7 +24,7 @@
 }
 else
 {
-<PageTitle>@((_metadata?.Title ?? "Reader")) - Tuvima Library</PageTitle>
+<PageTitle>@((_metadata?.Title ?? "Reader")) - Library</PageTitle>
 
 <link href="css/epub-reader.css" rel="stylesheet" />
 
@@ -896,7 +896,7 @@ else
         var returnUrl = ReturnCollectionId.HasValue
             ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
             : "/";
-        Nav.NavigateTo(returnUrl, replace: true);
+        DetailsOverlayNavigation.ReplacePage(Nav, returnUrl);
     }
 
     public async ValueTask DisposeAsync()

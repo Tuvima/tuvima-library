@@ -408,7 +408,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
         await ClickHandlingChipAsync(cut, 2);
-        dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains("Let Library manage F:\\Movies?", dialogs.Markup));
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);
         await ClickButtonAsync(dialogs, "Convert");
@@ -433,7 +433,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("Keep one copy", text);
         Assert.Contains("This can take hours for a large folder", text);
         Assert.Contains("about 3 h here, based on 2,140 files", text);
-        Assert.Contains("You can keep using Tuvima while it runs", text);
+        Assert.Contains("You can keep using Library while it runs", text);
         Assert.Contains("Plex, Jellyfin", text);
         Assert.Contains("This cannot be undone automatically", text);
         Assert.Contains("full log of every move", text);
@@ -478,7 +478,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Open("Movies");
         await ClickHandlingChipAsync(cut, 2);
         dialogs.WaitForAssertion(() => Assert.Contains("no media files in this folder yet", dialogs.Markup));
-        await ClickButtonAsync(dialogs, "Let Tuvima manage it");
+        await ClickButtonAsync(dialogs, "Let Library manage it");
         cut.WaitForAssertion(() => Assert.Equal("managed_by_tuvima", _lastLibrary?.Sources.Single(x => x.Id == "movies-old").ManagementMode));
         Assert.Empty(_converted);
     }
@@ -632,7 +632,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         // A folder used as-is can only be copied.
         Assert.DoesNotContain("Move instead of copy", dialogs.Markup);
-        Assert.Contains("Move is not offered because Tuvima uses this folder as-is", dialogs.Markup);
+        Assert.Contains("Move is not offered because Library uses this folder as-is", dialogs.Markup);
         Assert.Contains("Your folder is never changed", dialogs.Markup);
         Assert.Empty(_merges);
 
@@ -761,14 +761,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         }
 
         var with = await AskAsync(canMerge: true, pick: "Merge into Movies");
-        Assert.Equal(["Use as-is (recommended)", "Merge into Movies", "Let Tuvima manage it"], with.Labels);
+        Assert.Equal(["Use as-is (recommended)", "Merge into Movies", "Let Library manage it"], with.Labels);
         Assert.Equal(AddFolderChoiceDialog.Merge, with.Data);
 
         var without = await AskAsync(canMerge: false, pick: "Use as-is (recommended)");
-        Assert.Equal(["Use as-is (recommended)", "Let Tuvima manage it"], without.Labels);
+        Assert.Equal(["Use as-is (recommended)", "Let Library manage it"], without.Labels);
         Assert.Equal(AddFolderChoiceDialog.AsIs, without.Data);
 
-        var managed = await AskAsync(canMerge: true, pick: "Let Tuvima manage it");
+        var managed = await AskAsync(canMerge: true, pick: "Let Library manage it");
         Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
     }
 
@@ -818,7 +818,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Open("Movies");
         cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
         dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
-        Assert.Contains("Tuvima will stop organising this folder", dialogs.Markup);
+        Assert.Contains("Library will stop organising this folder", dialogs.Markup);
         Assert.Contains("Files already renamed keep their new names", dialogs.Markup);
     }
 
@@ -828,7 +828,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
         cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains("Let Library manage F:\\Movies?", dialogs.Markup));
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep as-is").Click();
         Assert.Equal(0, _saves);
         Assert.Empty(_converted);

@@ -16,14 +16,14 @@ public sealed record LibraryItemDeletionActor(Guid? AccountId, Guid? ProfileId, 
 /// <summary>
 /// The second half of Delete from library: acts on a plan the person confirmed. Order matters and is fixed: re-check the plan, stop
 /// processing, delete files through the safety gate (checked again immediately before each one), remember the files that stayed,
-/// remove the records in one transaction, then tidy up (Tuvima's own files, empty groups, empty folders), log one activity entry
+/// remove the records in one transaction, then tidy up (Library's own files, empty groups, empty folders), log one activity entry
 /// and tell open screens.
 /// </summary>
 public sealed partial class LibraryItemDeletionService
 {
     public const string ChangedMessage = "Something changed since you opened this. Here's the updated list.";
     public const string FileInUseReason = "The file is in use";
-    public const string FileNotAllowedReason = "Tuvima isn't allowed to change this file";
+    public const string FileNotAllowedReason = "Library isn't allowed to change this file";
 
     // Two deletions never overlap: the second one plans against what the first left, so it gets "not found" or a fresh preview.
     private readonly SemaphoreSlim _deleteLock = new(1, 1);
@@ -357,7 +357,7 @@ public sealed partial class LibraryItemDeletionService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning(ex, "Could not remove Tuvima's own file {FileName}", Path.GetFileName(full));
+                logger.LogWarning(ex, "Could not remove Library's own file {FileName}", Path.GetFileName(full));
                 continue;
             }
 
@@ -411,7 +411,7 @@ public sealed partial class LibraryItemDeletionService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(ex, "Could not remove Tuvima's own folder {Folder}", Path.GetFileName(folder));
+            logger.LogWarning(ex, "Could not remove Library's own folder {Folder}", Path.GetFileName(folder));
         }
     }
 

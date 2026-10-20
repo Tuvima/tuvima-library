@@ -80,7 +80,7 @@
       {
         "id": "connect",
         "title": "Verify connection",
-        "description": "Tuvima checks the key and account usage, then saves it for future subtitle requests.",
+        "description": "Library checks the key and account usage, then saves it for future subtitle requests.",
         "action": { "kind": "credential_probe", "label": "Verify & connect" },
         "credential_keys": ["api_key"]
       }
@@ -90,7 +90,7 @@
       { "status": "quota_exhausted", "title": "SubDL quota reached", "message": "The account's daily allowance is used up. Try again after it resets.", "instructions": [], "help_url": "https://subdl.com/developers#errors" },
       { "status": "rate_limited", "title": "SubDL is slowing requests", "message": "Wait for the retry time before trying again.", "instructions": [] },
       { "status": "provider_outage", "title": "SubDL is temporarily unavailable", "message": "Your key may still be valid. Try again later.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach SubDL", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach SubDL", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       { "lane": "watch", "summary": "Embedded and local subtitle files still work; new online subtitles will not be downloaded from SubDL.", "unavailable_capabilities": ["subtitles"] }

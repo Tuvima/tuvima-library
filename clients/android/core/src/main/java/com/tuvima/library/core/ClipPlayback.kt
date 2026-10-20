@@ -4,7 +4,7 @@ import java.io.IOException
 
 /** The words the Photos clip player shows. */
 object ClipMessages {
-    const val OFFLINE = "Connect to your Tuvima server to watch this video."
+    const val OFFLINE = "Connect to your Library server to watch this video."
     const val MISSING = "This video is no longer available."
     const val OTHER = "This video could not be played."
 }

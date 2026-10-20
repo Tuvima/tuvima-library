@@ -257,8 +257,8 @@
     }
 
     private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
-        ? $"{source.DisplayName()} is managed by Tuvima. Choose to use it as-is."
-        : $"{source.DisplayName()} is used as-is. Choose to let Tuvima manage it.";
+        ? $"{source.DisplayName()} is managed by Library. Choose to use it as-is."
+        : $"{source.DisplayName()} is used as-is. Choose to let Library manage it.";
 
     private string RowClass(LibrarySourceDto source) =>
         $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}";

@@ -688,7 +688,7 @@ else
                                                  Class="listen-button listen-button--secondary"
                                                  aria-pressed="@_activePlaylistSaved"
                                                  OnClick="ToggleActivePlaylistSavedAsync">
-                                    <AppMaterialIcon Icon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Bookmark : AppMaterialIcons.Outlined.BookmarkBorder)" Size="AppSize.Small" />
+                                    <AppMaterialIcon Icon="@(_activePlaylistSaved ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                     <span>@(_activePlaylistSaved ? "In My List" : "Add to My List")</span>
                                 </AppNativeButton>
                             }

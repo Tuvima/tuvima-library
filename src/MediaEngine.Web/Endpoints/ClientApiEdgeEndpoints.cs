@@ -530,7 +530,7 @@ public static class ClientApiEdgeEndpoints
 
     private static string Layout(string body) => """
         <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-        <title>Tuvima Library device pairing</title>
+        <title>Library device pairing</title>
         <style>body{font:16px system-ui;background:#0e0b17;color:#f7f3ff;max-width:42rem;margin:10vh auto;padding:2rem}form{display:grid;gap:1rem}input{font:inherit;padding:.7rem}button{font:inherit;padding:.8rem 1rem;background:#8852FC;color:white;border:0;border-radius:.5rem}button.secondary{background:#40384f}li{margin:.5rem 0}.error{color:#fca5a5}.photos{border:1px solid #40384f;border-radius:.5rem;padding:1rem}.photos p{margin:.5rem 0 0}.note{color:#b9b0cc;font-size:.9rem}</style>
         <main>
         """ + body + """

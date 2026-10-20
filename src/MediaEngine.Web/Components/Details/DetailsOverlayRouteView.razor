@@ -4,6 +4,7 @@
 @using RouteData = Microsoft.AspNetCore.Components.RouteData
 @inject DetailsOverlayState Overlay
 @inject NavigationManager Nav
+@implements IDisposable
 
 @* The route view for the whole Dashboard (spec D1). It renders a routed page in its own layout exactly as RouteView does,
    and when the address is a detail address it renders the page the person came from under it, in the same place in the
@@ -42,10 +43,42 @@
     private string _overlayUri = "/";
     private Type? _layout;
     private RouteData? _homeData;
+    private string _routeDataUri = "/";
+
+    protected override void OnInitialized() => Overlay.Changed += OnOverlayChanged;
 
     protected override void OnParametersSet()
     {
+        _routeDataUri = Overlay.ToAppPath(Nav.Uri);
+        Recompute();
+    }
+
+    // The overlay worked out the address after this view rendered for it (the state is normally ahead of the Router,
+    // but nothing here depends on that): render again with the settled answer. When the Router has not yet handed this
+    // view the page for the new address, RouteData is still the old page and the Router's own render will follow.
+    private void OnOverlayChanged() => _ = InvokeAsync(() =>
+    {
+        if (_pageData is not null && string.Equals(_routeDataUri, Overlay.ToAppPath(Nav.Uri), StringComparison.Ordinal) && Recompute())
+        {
+            StateHasChanged();
+        }
+    });
+
+    public void Dispose() => Overlay.Changed -= OnOverlayChanged;
+
+    // Returns whether what is shown changed. While the overlay's answer is for another address the view keeps what it
+    // shows (never tearing the page under the overlay down on a stale answer) and waits for Changed.
+    private bool Recompute()
+    {
         var currentUri = Overlay.ToAppPath(Nav.Uri);
+        if (_pageData is not null && !Overlay.IsCurrentFor(Nav.Uri))
+        {
+            return false;
+        }
+
+        var shownPage = _pageData;
+        var shownOverlay = _overlayData;
+        var shownOverlayUri = _overlayUri;
         var route = Overlay.Current;
         var previousPage = _pageData;
         var overlayWasOpen = _overlayData is not null;
@@ -70,11 +103,12 @@
                 ? previousPage
                 : RouteData;
             _pageUri = currentUri;
-            if (!DetailsOverlayRoute.IsDetailUri(currentUri) && LayoutOf(_pageData) == DefaultLayout)
+            if (!DetailsOverlayRoute.IsDetailUri(currentUri))
                 Overlay.RememberPage(currentUri, _pageData);
         }
 
         _layout = LayoutOf(_pageData);
+        return !ReferenceEquals(shownPage, _pageData) || !ReferenceEquals(shownOverlay, _overlayData) || shownOverlayUri != _overlayUri;
     }
 
     protected override void OnAfterRender(bool firstRender)

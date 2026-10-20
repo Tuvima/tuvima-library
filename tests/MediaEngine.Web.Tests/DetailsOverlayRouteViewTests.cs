@@ -257,6 +257,85 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
         Assert.Equal("/listen", underlay);
     }
 
+    [Fact]
+    public async Task AFailedHistoryStep_FallsBackToTheUnderlayAndDoesNotLeaveTheGuardBypassed()
+    {
+        var view = RenderAt("/listen", Underlay());
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+        _history.Succeeds = false;
+
+        Assert.True(await State.DismissAsync());
+
+        Assert.Equal([1], _history.Steps);
+        Assert.EndsWith("/listen", _nav.Uri);
+        var fallback = History.First(item => item.State == Bunit.TestDoubles.NavigationState.Succeeded);
+        Assert.True(fallback.Options.ReplaceHistoryEntry);
+        RouterShows(view, Underlay());
+        Assert.False(State.IsOpen);
+
+        // The "already answered" mark covered that one navigation only: a later one is asked again.
+        _nav.NavigateTo(DetailUri(OtherTitleId));
+        RouterShows(view, Detail(OtherTitleId));
+        var guard = new RecordingGuard(allow: false);
+        using var registration = State.RegisterDismissGuard(guard);
+        _nav.NavigateTo("/watch");
+        Assert.Equal(1, guard.Asked);
+        Assert.True(State.IsOpen);
+    }
+
+    [Fact]
+    public void TheRememberedPages_AreCappedAndTheLeastRecentlyShownAreForgotten()
+    {
+        var page = Underlay();
+
+        for (var index = 0; index < DetailsOverlayState.MaxRememberedPages + 10; index++)
+        {
+            State.RememberPage($"/page-{index}", page);
+        }
+
+        Assert.False(State.TryGetPage("/page-0", out _));
+        Assert.False(State.TryGetPage("/page-9", out _));
+        Assert.True(State.TryGetPage("/page-10", out _));
+        Assert.True(State.TryGetPage($"/page-{DetailsOverlayState.MaxRememberedPages + 9}", out _));
+
+        // Showing a page again keeps it.
+        State.RememberPage("/page-10", page);
+        State.RememberPage("/another", page);
+        Assert.True(State.TryGetPage("/page-10", out _));
+        Assert.False(State.TryGetPage("/page-11", out _));
+    }
+
+    [Fact]
+    public void AReplaceToADetailAddressForAnotherPage_OpensOverHomeSoTheReplacedPageDoesNotStayUnderIt()
+    {
+        var home = new RouteData(typeof(HomePage), new Dictionary<string, object?>());
+        var view = RenderAt("/read/abc", Underlay(), home);
+
+        DetailsOverlayNavigation.ReplacePage(_nav, DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+
+        Assert.Equal(DetailsOverlayRoute.Home, State.UnderlayUri);
+        Assert.Equal(0, State.Current.Depth);
+        var entry = History.First(item => item.State == Bunit.TestDoubles.NavigationState.Succeeded);
+        Assert.True(entry.Options.ReplaceHistoryEntry);
+    }
+
+    [Fact]
+    public void AnyPageIsKeptUnderTheOverlay_WhateverLayoutItUses()
+    {
+        var reader = new RouteData(typeof(ReaderLayoutPage), new Dictionary<string, object?>());
+        var view = RenderAt("/read/abc", reader);
+
+        _nav.NavigateTo(DetailUri(TitleId));
+        RouterShows(view, Detail(TitleId));
+
+        Assert.Equal("/read/abc", State.UnderlayUri);
+        Assert.Single(view.FindAll("#reader-page"));
+        Assert.Single(view.FindAll("dialog[data-details-overlay]"));
+        Assert.Single(view.FindAll("#reader-layout"));
+    }
+
     // -- Presentation ------------------------------------------------------------------------------
 
     [Fact]
@@ -318,10 +397,13 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
     {
         public List<int> Steps { get; } = [];
 
-        public ValueTask GoBackAsync(int steps)
+        // False simulates a browser that could not be asked to step back.
+        public bool Succeeds { get; set; } = true;
+
+        public ValueTask<bool> GoBackAsync(int steps)
         {
             Steps.Add(steps);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(Succeeds);
         }
     }
 
@@ -364,6 +446,28 @@ public sealed class DetailsOverlayRouteViewTests : AsyncBunitContext
             builder.OpenElement(0, "section");
             builder.AddAttribute(1, "id", "underlay");
             builder.AddContent(2, RoutedUri);
+            builder.CloseElement();
+        }
+    }
+
+    private sealed class ReaderLayout : LayoutComponentBase
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "id", "reader-layout");
+            builder.AddContent(2, Body);
+            builder.CloseElement();
+        }
+    }
+
+    [Layout(typeof(ReaderLayout))]
+    private sealed class ReaderLayoutPage : ComponentBase
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "section");
+            builder.AddAttribute(1, "id", "reader-page");
             builder.CloseElement();
         }
     }

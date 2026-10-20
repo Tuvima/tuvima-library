@@ -304,13 +304,13 @@
     "steps": [
       { "id": "account", "title": "Account", "description": "Sign in to Comic Vine or create an account.", "instructions": ["Open the Comic Vine API page while signed in."], "action": { "kind": "external_link", "label": "Open Comic Vine API page", "url": "https://comicvine.gamespot.com/api/", "url_role": "signup" } },
       { "id": "credential", "title": "Get credential", "description": "Copy the API key shown on your Comic Vine API page.", "instructions": ["Locate your API key.", "Copy the complete value."], "action": { "kind": "credential_entry", "label": "Enter API key" }, "credential_keys": ["api_key"] },
-      { "id": "connect", "title": "Connect", "description": "Tuvima will perform a read-only connection check.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key"] }
+      { "id": "connect", "title": "Connect", "description": "Library will perform a read-only connection check.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key"] }
     ],
     "troubleshooting": [
       { "status": "invalid_credential", "title": "Comic Vine did not accept this key", "message": "Copy the API key again from your Comic Vine API page.", "instructions": ["Make sure you are signed in to the account that owns the key."], "help_url": "https://comicvine.gamespot.com/api/" },
       { "status": "rate_limited", "title": "Comic Vine rate limit reached", "message": "Comic Vine limits API traffic. Wait before trying again.", "instructions": [] },
       { "status": "provider_outage", "title": "Comic Vine is temporarily unavailable", "message": "Your key may be valid. Try again later.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach Comic Vine", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach Comic Vine", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       { "lane": "read", "summary": "Comics will not receive Comic Vine issue identity, covers, creators, publisher facts, or volume sequencing.", "unavailable_capabilities": ["identity", "metadata", "artwork", "people", "relationships"] }

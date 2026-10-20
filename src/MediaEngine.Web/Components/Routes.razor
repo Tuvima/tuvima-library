@@ -1,4 +1,8 @@
 ﻿@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Navigation
+@* Injected here so the overlay state exists, and watches location changes, before the Router does: its answer for a new
+   address is then ready when the Router renders. *@
+@inject DetailsOverlayState Overlay
 <CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
 <CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
 <CascadingValue Name="ClientSignInRefusal" Value="ClientSignInRefusal" IsFixed="true">

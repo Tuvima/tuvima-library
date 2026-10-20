@@ -52,7 +52,7 @@ public sealed class ServerFolderBrowserService(
         // Tuvima's own folders are never browsed, even when they are still reachable by id for validation.
         if (TuvimaOwnFolders.IsOwnLocation(configurationSnapshot, location.Id))
         {
-            throw new ServerFolderAccessException("This folder belongs to Tuvima and cannot be browsed.");
+            throw new ServerFolderAccessException("This folder belongs to Library and cannot be browsed.");
         }
 
         var resolved = ResolveSelection(location, request.RelativePath);
@@ -62,7 +62,7 @@ public sealed class ServerFolderBrowserService(
         ownFolders.AddRange(OwnLocationRoots(configurationSnapshot));
         if (IsInsideOwnFolder(ownFolders, resolved.Path))
         {
-            throw new ServerFolderAccessException("This folder belongs to Tuvima and cannot be browsed.");
+            throw new ServerFolderAccessException("This folder belongs to Library and cannot be browsed.");
         }
 
         var search = request.Search?.Trim();
@@ -85,7 +85,7 @@ public sealed class ServerFolderBrowserService(
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
         {
-            throw new ServerFolderAccessException("Tuvima cannot read this folder from the server.", exception);
+            throw new ServerFolderAccessException("Library cannot read this folder from the server.", exception);
         }
 
         var relative = NormalizeRelative(request.RelativePath);
@@ -160,7 +160,7 @@ public sealed class ServerFolderBrowserService(
 
         if (!hasRead)
         {
-            issues.Add(Issue("read_required", "Tuvima cannot read this folder from the server."));
+            issues.Add(Issue("read_required", "Library cannot read this folder from the server."));
         }
 
         if (ServerFolderSelectionModes.RequiresWrite(request.SelectionMode) && !hasWrite)
@@ -308,7 +308,7 @@ public sealed class ServerFolderBrowserService(
     {
         if (!Path.IsPathFullyQualified(manualPath))
         {
-            throw new ServerFolderAccessException("Enter an absolute path that is visible to the Tuvima server.");
+            throw new ServerFolderAccessException("Enter an absolute path that is visible to the Library server.");
         }
 
         var candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(manualPath.Trim()));
@@ -318,7 +318,7 @@ public sealed class ServerFolderBrowserService(
             .OrderByDescending(item => item.Root.Length)
             .Select(item => item.Location)
             .FirstOrDefault()
-            ?? throw new ServerFolderAccessException("This path is outside the server storage locations approved for Tuvima.");
+            ?? throw new ServerFolderAccessException("This path is outside the server storage locations approved for Library.");
     }
 
     private static bool TypedFolderExists(string manualPath)
@@ -343,7 +343,7 @@ public sealed class ServerFolderBrowserService(
         var candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(manualPath.Trim()));
         if (!IsWithin(root, candidate) || (!allowCreate && !Directory.Exists(candidate)) || File.Exists(candidate))
         {
-            throw new ServerFolderAccessException("Tuvima cannot access this folder inside an approved server storage location.");
+            throw new ServerFolderAccessException("Library cannot access this folder inside an approved server storage location.");
         }
 
         var physical = ResolvePhysicalPath(root, candidate);
@@ -396,7 +396,7 @@ public sealed class ServerFolderBrowserService(
 
         if ((!allowCreate && !Directory.Exists(candidate)) || File.Exists(candidate))
         {
-            throw new ServerFolderAccessException("Tuvima cannot access this folder from the server.");
+            throw new ServerFolderAccessException("Library cannot access this folder from the server.");
         }
 
         var physical = ResolvePhysicalPath(root, candidate);
@@ -636,7 +636,7 @@ public sealed class ServerFolderBrowserService(
 
             if (PathEquals(selection.Path, selection.RootPath) && ServerFolderSelectionModes.RequiresWrite(selectionMode))
             {
-                issues.Add(Issue("drive_root_managed", "Tuvima cannot manage a whole drive. Choose a folder on it, or leave the drive as-is (read-only)."));
+                issues.Add(Issue("drive_root_managed", "Library cannot manage a whole drive. Choose a folder on it, or leave the drive as-is (read-only)."));
             }
 
             return;

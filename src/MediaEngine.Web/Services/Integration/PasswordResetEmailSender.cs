@@ -29,15 +29,15 @@ public sealed class PasswordResetEmailSender(
         var resetUri = new Uri(baseUri, $"auth/reset?token={Uri.EscapeDataString(token)}");
         return await SendMessageAsync(
             email,
-            "Reset your Tuvima Library password",
-            $"A password reset was requested for your Tuvima Library account.\n\nOpen this link within 30 minutes:\n{resetUri}\n\nIf you did not request this, you can ignore this email.",
+            "Reset your Library password",
+            $"A password reset was requested for your Library account.\n\nOpen this link within 30 minutes:\n{resetUri}\n\nIf you did not request this, you can ignore this email.",
             ct).ConfigureAwait(false);
     }
 
     public Task<bool> SendTestAsync(string email, CancellationToken ct) => SendMessageAsync(
         email,
-        "Tuvima Library email test",
-        "Email delivery is configured correctly for this Tuvima Library server. No action is required.",
+        "Library email test",
+        "Email delivery is configured correctly for this Library server. No action is required.",
         ct);
 
     private async Task<bool> SendMessageAsync(string email, string subject, string body, CancellationToken ct)
