@@ -320,9 +320,15 @@
             if (!CanEditMedia) return;
 
             // Single items edit in place; shelves, collections and people keep their own editor dialogs.
+            // The menu entry only ever turns Editing Mode on; choosing it while already editing keeps it on
+            // (Done is the way out).
             if (_editing is { HasPermission: true })
             {
-                await _editing.ToggleAsync();
+                if (!_editing.IsOn)
+                {
+                    await _editing.EnterAsync();
+                }
+
                 return;
             }
 

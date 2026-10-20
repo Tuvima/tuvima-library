@@ -809,12 +809,7 @@ internal sealed partial class DetailCompositionOrchestrator
         bool updatingDetails = false)
     {
         _ = id;
-        _ = entityType;
-        DetailAction[] candidates =
-        [
-            new() { Key = "edit", Label = "Edit details", Icon = "edit", IsDisabled = updatingDetails,
-                Tooltip = updatingDetails ? "Updating details. Editing is available when ingestion finishes." : null },
-        ];
+        DetailAction[] candidates = [DetailEditAction.Build(entityType, updatingDetails)];
         return candidates.Where(action => authorization.Allows(action.Key)).ToList();
     }
 

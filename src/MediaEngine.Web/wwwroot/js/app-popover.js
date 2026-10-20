@@ -25,6 +25,13 @@ function position(state) {
     const height = surface.getBoundingClientRect().height;
     let left = box.left + box.width * af[0] - width * tf[0];
     let top = box.top + box.height * af[1] - height * tf[1];
+    // Flip sideways before clamping: a box that runs off the right edge mirrors around the anchor (a left-aligned
+    // menu becomes right-aligned to its button), and one that runs off the left edge mirrors the other way. The
+    // mirrored spot is used only when it fits, so a popover that already fits never moves.
+    if (left + width > innerWidth - edge || left < edge) {
+        const mirrored = box.left + box.width * (1 - af[0]) - width * (1 - tf[0]);
+        if (mirrored >= edge && mirrored + width <= innerWidth - edge) left = mirrored;
+    }
     if (top + height > innerHeight - edge && box.top > innerHeight - box.bottom) top = box.top - height;
     if (top < edge && box.bottom + height <= innerHeight - edge) top = box.bottom;
     left = Math.max(edge, Math.min(left, innerWidth - width - edge));
