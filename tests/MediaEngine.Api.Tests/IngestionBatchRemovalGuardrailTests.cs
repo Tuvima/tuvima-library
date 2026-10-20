@@ -27,14 +27,7 @@ public sealed class IngestionBatchRemovalGuardrailTests
         "ingestion_batches",
     ];
 
-    // The progress event goes with its emitter when the pipeline stops writing batches.
-    private static readonly string[] Allowed =
-    [
-        "src/MediaEngine.Contracts/Realtime/IngestionEvents.cs",
-        // The timeline's ingestion run id goes with the pipeline's batch rows (WP11b).
-        "src/MediaEngine.Contracts/Timeline/TimelineDtos.cs",
-        "src/MediaEngine.Api/Endpoints/TimelineEndpoints.cs",
-    ];
+    private static readonly string[] Allowed = [];
 
     private static readonly string[] TextExtensions = [".cs", ".razor", ".js", ".mjs", ".json", ".css"];
 

@@ -211,4 +211,71 @@ public sealed partial class EngineApiClient
         }).ToList();
     }
 
+    // -- GET /api/v1/display/grids/{lane}/{shelfKey} ---------------------------
+
+    public async Task<DisplayGridLoadResult> GetDisplayGridAsync(
+        string lane,
+        string shelfKey,
+        string? sort,
+        string? type,
+        string? genre,
+        string? format,
+        string? status,
+        int offset,
+        int limit,
+        CancellationToken ct = default)
+    {
+        const string endpoint = "GET /api/v1/display/grids/{lane}/{shelfKey}";
+        try
+        {
+            var query = new List<string>();
+            AddQuery(query, "sort", sort);
+            AddQuery(query, "type", type);
+            AddQuery(query, "genre", genre);
+            AddQuery(query, "format", format);
+            AddQuery(query, "status", status);
+            AddQuery(query, "offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            AddQuery(query, "limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var url = $"/api/v1/display/grids/{Uri.EscapeDataString(lane)}/{Uri.EscapeDataString(shelfKey)}?{string.Join("&", query)}";
+            var page = await _http.GetFromJsonAsync<DisplayGridPageDto>(url, ct);
+            if (page is null)
+            {
+                return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
+            }
+
+            ClearFailure(endpoint);
+            return DisplayGridLoadResult.Loaded(page with { Items = page.Items.Select(NormalizeDisplayCard).ToList() });
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is { } code)
+        {
+            // GetFromJsonAsync throws on a non-success status. Keep the status on the shared failure state like the other
+            // reads do, and hand the page its own answer so it never reads a status another call left behind.
+            _logger.LogWarning(ex, "{Endpoint} returned {Status}", endpoint, (int)code);
+            _failureState.RecordRawFailure(endpoint, (int)code, ex.Message);
+            return DisplayGridLoadResult.Failed(code switch
+            {
+                HttpStatusCode.NotFound => DisplayGridLoadFailure.NotFound,
+                HttpStatusCode.BadRequest => DisplayGridLoadFailure.BadRequest,
+                _ => DisplayGridLoadFailure.Failed,
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "{Endpoint} failed", endpoint);
+            RecordExceptionFailure(endpoint, ex);
+            return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
+        }
+    }
+
+    public Task<bool> SetDisplayGridSortAsync(string rememberKey, string sort, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/grid-preferences/{rememberKey}",
+            $"/api/v1/display/grid-preferences/{Uri.EscapeDataString(rememberKey)}",
+            new DisplayGridSortPreferenceRequest(sort),
+            ct: ct);
+
 }

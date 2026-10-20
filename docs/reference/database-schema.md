@@ -1375,6 +1375,17 @@ Each person's own record of what they watched, listened to and read, and what th
 
 The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
 
+### profile_grid_preferences
+
+The order a person last chose on each "View all" grid (Watch, Read, Listen, My list, Liked), remembered per profile so it follows them to every device. Added by upgrade step `0016_profile_grid_preferences`. One row per profile and grid; a grid with no row uses its default order. Deleting a profile removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Part of the primary key. |
+| `grid_key` | TEXT | `watch`, `read`, `listen`, `my-list` or `liked`. Anything else is refused by a CHECK. Part of the primary key. |
+| `sort` | TEXT | `added`, `title`, `year` or `played`. Anything else is refused by a CHECK. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
+
 ### profile_taste_overrides
 
 What a person removed from, or added to, the taste the Library learned about them (Settings > Personal > Overview > Taste). Added by upgrade step `0010_profile_taste_overrides`. The learned taste (the taste profiler's reading of their history) is never changed; these rows are applied on top whenever taste is shown, so a removed value is hidden and an added value is shown as "Added by you". One row per `profile_id` (cascades on profile deletion), `taste_group` (`genre`, `mood` or `era`) and `value` (trimmed and lower-cased, the way the profiler writes its keys), with `action` (`removed` or `added`) and `created_at` (UTC). Setting a value again replaces its row. Only the signed-in person writes their own rows.

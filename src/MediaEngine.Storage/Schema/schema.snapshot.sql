@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0016 remove_ingestion_batches).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0017 remove_ingestion_batches).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1908,6 +1908,14 @@ CREATE TABLE profile_credentials (
     updated_at           TEXT NOT NULL,
     last_used_at         TEXT,
     UNIQUE(profile_id, credential_kind)
+);
+
+CREATE TABLE profile_grid_preferences (
+    profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
+    sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
+    updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, grid_key)
 );
 
 CREATE TABLE profile_notice_dismissals (
