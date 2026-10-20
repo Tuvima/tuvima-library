@@ -26,7 +26,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3; waves 1–2 and WP27 built 2026-10-20) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5 to U-WP8, U-WP10, U-WP12 built 2026-10-20) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | In progress (v2, started 2026-10-20) |
-| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v27, 2026-10-20) |
+| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v28, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: The live ingestion page and when items appear](specs/archive/ingestion-and-readiness.md) | Built (v4, archived 2026-10-20; bug 13 still needs the log line from that moment) |
 | [Spec: Home and item detail speed](specs/archive/home-and-detail-speed.md) | Built (v2, archived 2026-10-20; seven other reads still use the per-row audiobook year look-up) |
