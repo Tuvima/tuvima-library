@@ -52,6 +52,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<ILibraryFolderResolver, LibraryFolderResolver>();
         services.TryAddSingleton<IInitialSweepService, InitialSweepService>();
         services.TryAddSingleton<IAssetHasher, AssetHasher>();
+        services.TryAddSingleton<IExcludedSourceFileFilter, ExcludedSourceFileFilter>();
         services.TryAddSingleton<IFileWatcher, FileWatcher>();
         services.TryAddSingleton<DebounceQueue>();
         services.TryAddSingleton<IFileOrganizer, FileOrganizer>();
