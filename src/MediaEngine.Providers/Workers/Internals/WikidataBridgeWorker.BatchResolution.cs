@@ -191,6 +191,15 @@ public sealed partial class WikidataBridgeWorker
                 {
                     Operation = operationByJobId.GetValueOrDefault(job.Id)
                 };
+
+                // An audiobook that took its Wikidata ID from an owned, confirmed book keeps it: no
+                // bridge-ID or text lookup runs for it.
+                var ownedBookQid = await FindOwnedBookHandoffQidAsync(job, mediaType, ct).ConfigureAwait(false);
+                if (ownedBookQid is not null)
+                {
+                    ApplyOwnedBookHandoff(context, ownedBookQid);
+                }
+
                 contexts.Add(context);
             }
 
@@ -208,10 +217,13 @@ public sealed partial class WikidataBridgeWorker
             }
 
             var resolveRequests = contexts
+                .Where(ctx => ctx.ResolvedQid is null)
                 .Select(ctx => BuildResolveRequest(ctx, ctx.Job.Id.ToString()))
                 .ToList();
 
-            var resolveResults = await reconAdapter.ResolveBatchAsync(resolveRequests, ct);
+            var resolveResults = resolveRequests.Count == 0
+                ? new Dictionary<string, WikidataResolveResult>()
+                : await reconAdapter.ResolveBatchAsync(resolveRequests, ct);
 
             // ── Phase 5: Distribute results onto each job context ──────────────────
             foreach (var ctx in contexts)

@@ -68,6 +68,32 @@ public sealed class TimelineRecorder
     }
 
     /// <summary>
+    /// Records an audiobook with no retail match that took its Wikidata identity from an owned,
+    /// confirmed book of the same title and author.
+    /// </summary>
+    /// <param name="entityId">The audiobook entity.</param>
+    /// <param name="bookTitle">The title of the owned book the identity came from.</param>
+    /// <param name="qid">The Wikidata QID taken from that book.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public async Task RecordOwnedBookMatchedAsync(
+        Guid entityId,
+        string bookTitle,
+        string qid,
+        CancellationToken ct = default)
+    {
+        await _timelineRepo.InsertEventAsync(new EntityEvent
+        {
+            EntityId = entityId,
+            EntityType = "Work",
+            EventType = "owned_book_matched",
+            Stage = 1,
+            Trigger = "ingestion",
+            ResolvedQid = qid,
+            Detail = $"Matched to the owned book \"{bookTitle}\"",
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Records a successful Wikidata bridge resolution (QID found via bridge ID).
     /// </summary>
     /// <param name="entityId">The resolved entity.</param>
