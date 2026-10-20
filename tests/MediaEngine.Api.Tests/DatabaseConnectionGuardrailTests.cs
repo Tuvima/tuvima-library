@@ -134,8 +134,6 @@ public sealed class DatabaseConnectionGuardrailTests
         // Startup/schema lifecycle owns the shared connection.
         "src/MediaEngine.Api/Program.cs",
         "src/MediaEngine.Storage/DatabaseConnection.cs",
-        // Dev harness reset is a non-production database maintenance path.
-        "src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs",
     ];
 
     private static readonly string[] AllowedSilentCatchFiles =

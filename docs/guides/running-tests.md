@@ -291,6 +291,8 @@ curl -X POST "http://localhost:61495/dev/reset-and-seed?types=books,tv,music&fix
 
 Use `fixtureSet=standard` for a small deterministic structural regression set or `fixtureSet=stress` for the full high-volume fixture catalog.
 
+A reset that cannot start safely answers `409` straight away, with nothing deleted: when the library folder overlaps a source folder, or when a background worker or another data store writer does not let go within 20 seconds (the message names it). Try again once it has finished.
+
 ### POST /dev/reset-library-data
 
 Clears catalogued media, relationships, enrichment, generated artwork, and ingestion/activity state while preserving accounts, profiles, configured libraries, permissions, application settings, provider configuration, and source files.
