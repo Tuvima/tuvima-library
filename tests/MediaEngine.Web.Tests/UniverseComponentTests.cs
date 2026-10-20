@@ -240,6 +240,25 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Equal("Movie", cut.Find(".universe-adaptations__kind").TextContent);
     }
 
+    [Fact]
+    public void AWorkAdaptedFromTwoSources_IsTwoRows_AndRendersAgainWithoutAKeyClash()
+    {
+        UniverseSourcedAdaptationDto Row(string relationship, string sourceQid, string sourceLabel) => new()
+        {
+            Adaptation = new UniverseClientAdaptationDto { Qid = "QM2", Label = "Dune: Part Two", Relationship = relationship, SourceQid = sourceQid, SourceLabel = sourceLabel },
+            Sources = [new UniverseSourceDto { Label = "Wikidata" }],
+        };
+        IReadOnlyList<UniverseSourcedAdaptationDto> rows = [Row("based on", "QB1", "Dune"), Row("inspired by", "QB2", "Dune Messiah")];
+
+        var cut = Render<UniverseAdaptationsList>(parameters => parameters.Add(p => p.Adaptations, rows));
+        // A second render diffs the keyed rows; a key shared by both rows would throw here.
+        cut.Render(parameters => parameters.Add(p => p.Adaptations, rows.Reverse().ToList()));
+
+        Assert.Equal(
+            ["Dune: Part Two — Inspired by Dune Messiah", "Dune: Part Two — Based on Dune"],
+            cut.FindAll(".universe-adaptations__line").Select(line => line.TextContent));
+    }
+
     // The source and works lines --------------------------------------------------------------------------------------
 
     [Fact]

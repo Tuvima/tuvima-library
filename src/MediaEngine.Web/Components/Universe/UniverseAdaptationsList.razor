@@ -7,7 +7,8 @@
     @foreach (var row in Adaptations)
     {
         var adaptation = row.Adaptation;
-        <li class="universe-adaptations__item" @key="adaptation.Qid">
+        @* One work can be adapted from several sources, so a row is keyed by the whole relationship, not the work alone. *@
+        <li class="universe-adaptations__item" @key="RowKey(adaptation)">
             <span class="universe-adaptations__copy">
                 <span class="universe-adaptations__line">@UniversePageText.AdaptationLine(adaptation)</span>
                 @if (UniversePageText.SourcesLine(row.Sources) is { } sources)
@@ -25,4 +26,8 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<UniverseSourcedAdaptationDto> Adaptations { get; set; } = [];
+
+    // The Engine lists each (work, relationship, source) once, so this is unique where the work's QID alone is not.
+    private static string RowKey(UniverseClientAdaptationDto adaptation) =>
+        $"{adaptation.Qid}|{adaptation.Relationship}|{adaptation.SourceQid}";
 }

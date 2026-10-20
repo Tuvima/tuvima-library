@@ -27,8 +27,11 @@
     padding: var(--tl-space-2, 0.5rem) var(--tl-space-4, 1rem);
 }
 
+/* The row button centres its content, so the body fills the row to keep the text at the start edge. */
 .universe-characters__body {
     display: flex;
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
     min-height: var(--tl-tap-target-min, 44px);
     flex-direction: column;

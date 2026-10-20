@@ -27,8 +27,11 @@ a.universe-cast__row {
     text-decoration: none;
 }
 
+/* The row button centres its content, so the body fills the row to keep the headshot and name at the start edge. */
 .universe-cast__body {
     display: flex;
+    box-sizing: border-box;
+    width: 100%;
     min-height: var(--tl-tap-target-min, 44px);
     align-items: center;
     gap: var(--tl-space-3, 0.75rem);
