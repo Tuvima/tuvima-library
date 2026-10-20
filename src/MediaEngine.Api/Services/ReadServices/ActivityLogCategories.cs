@@ -33,6 +33,7 @@ public static class ActivityLogCategories
     [
         SystemActionType.ServerStarted,
         SystemActionType.ServerStopped,
+        SystemActionType.MediaRemoved,
         SystemActionType.ToolMissing,
         SystemActionType.ToolFound,
         SystemActionType.ToolDownloadStarted,

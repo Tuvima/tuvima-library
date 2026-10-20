@@ -122,6 +122,31 @@ public sealed class EntityRelationshipRepository : IEntityRelationshipRepository
             facts.Where(fact => qidSet.Contains(fact.ObjectQid)).ToList());
     }
 
+    public Task<IReadOnlyList<EntityRelationship>> GetByUniverseAsync(
+        IReadOnlyCollection<string> entityQids,
+        IReadOnlyCollection<string> relationshipTypes,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entityQids);
+        ArgumentNullException.ThrowIfNull(relationshipTypes);
+        ct.ThrowIfCancellationRequested();
+        var qids = NormalizeQids(entityQids);
+        var types = relationshipTypes
+            .Where(type => !string.IsNullOrWhiteSpace(type))
+            .Select(type => type.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (qids.Count == 0 || types.Length == 0)
+        {
+            return Task.FromResult<IReadOnlyList<EntityRelationship>>([]);
+        }
+
+        var facts = LoadFactsByQids("subject_qid", qids, types);
+        var qidSet = qids.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult<IReadOnlyList<EntityRelationship>>(
+            facts.Where(fact => qidSet.Contains(fact.ObjectQid)).ToList());
+    }
+
     public Task<IReadOnlyList<EntityRelationship>> GetByQualifierAsync(
         string qualifierType,
         string value,
@@ -164,7 +189,10 @@ public sealed class EntityRelationshipRepository : IEntityRelationshipRepository
         return MaterializeFacts(conn, rows);
     }
 
-    private IReadOnlyList<EntityRelationship> LoadFactsByQids(string column, IEnumerable<string> rawQids)
+    private IReadOnlyList<EntityRelationship> LoadFactsByQids(
+        string column,
+        IEnumerable<string> rawQids,
+        IReadOnlyCollection<string>? relationshipTypes = null)
     {
         var qids = NormalizeQids(rawQids);
         if (qids.Count == 0)
@@ -172,6 +200,7 @@ public sealed class EntityRelationshipRepository : IEntityRelationshipRepository
             return [];
         }
 
+        var typeClause = relationshipTypes is null ? string.Empty : "AND relationship_type COLLATE NOCASE IN @types";
         using var conn = _db.CreateConnection();
         var rows = new List<EntityRelationshipRow>();
         foreach (var batch in qids.Chunk(SqliteBatching.MaxParametersPerQuery))
@@ -179,8 +208,9 @@ public sealed class EntityRelationshipRepository : IEntityRelationshipRepository
             rows.AddRange(conn.Query<EntityRelationshipRow>($"""
                 {FactSelect}
                 WHERE {column} COLLATE NOCASE IN @qids
+                  {typeClause}
                 ORDER BY relationship_type, object_qid, statement_key;
-                """, new { qids = batch }));
+                """, new { qids = batch, types = relationshipTypes?.ToArray() }));
         }
 
         return MaterializeFacts(conn, rows);

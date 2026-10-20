@@ -441,7 +441,7 @@ public sealed class FolderMergeRunner
                 await _ledger.UpsertAsync(
                     new FolderOrganiseLogEntry(
                         job.OperationId, job.SourceId, file, file, FolderOrganiseOutcomes.NotMoved, DateTimeOffset.UtcNow,
-                        "Left where it was: Tuvima does not know how to move this kind of file."),
+                        "Left where it was: Library does not know how to move this kind of file."),
                     ct).ConfigureAwait(false);
                 listed++;
             }

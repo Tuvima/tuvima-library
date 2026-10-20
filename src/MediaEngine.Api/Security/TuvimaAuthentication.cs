@@ -124,7 +124,7 @@ public sealed class TuvimaAuthenticationHandler(
             var claims = new List<Claim>
             {
                 new(ClaimTypes.NameIdentifier, "service:dashboard"),
-                new(ClaimTypes.Name, "Tuvima Dashboard"),
+                new(ClaimTypes.Name, "Library Dashboard"),
                 new(TuvimaClaimTypes.DashboardService, "true"),
                 new(TuvimaClaimTypes.PrincipalKind, Domain.Authorization.PrincipalKind.DashboardTransport.ToString()),
             };

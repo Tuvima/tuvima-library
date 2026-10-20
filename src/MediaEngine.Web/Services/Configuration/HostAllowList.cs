@@ -10,7 +10,7 @@ namespace MediaEngine.Web.Services.Configuration;
 /// </summary>
 public sealed class HostAllowList
 {
-    public const string RefusalMessage = "This address isn't allowed for Tuvima Library. Add it under Settings > Network.";
+    public const string RefusalMessage = "This address isn't allowed for Library. Add it under Settings > Network.";
 
     private readonly HashSet<string> _names = new(StringComparer.OrdinalIgnoreCase) { "localhost" };
 

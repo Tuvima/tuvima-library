@@ -35,7 +35,7 @@ using Microsoft.Extensions.Hosting.WindowsServices;
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
 if (!processInstanceLease.IsAcquired)
 {
-    Console.WriteLine("Tuvima Library Dashboard is already running; the duplicate launch will exit without replacing it.");
+    Console.WriteLine("Library Dashboard is already running; the duplicate launch will exit without replacing it.");
     return;
 }
 
@@ -613,8 +613,8 @@ try
 }
 catch (IOException ex) when (StartupFailureClassifier.IsAddressAlreadyInUse(ex))
 {
-    app.Logger.LogError(ex, "Tuvima Library Dashboard could not start because one of its configured addresses is already in use");
-    Console.Error.WriteLine("Tuvima Library Dashboard could not start because port 5016 is already in use. Stop the process using that port, then start Tuvima Library again.");
+    app.Logger.LogError(ex, "Library Dashboard could not start because one of its configured addresses is already in use");
+    Console.Error.WriteLine("Library Dashboard could not start because port 5016 is already in use. Stop the process using that port, then start Library again.");
     Environment.ExitCode = 98;
 }
 

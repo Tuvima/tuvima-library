@@ -2,7 +2,7 @@ using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Domain.Contracts;
 
-/// <summary>Read-only facts the Engine needs to preview deleting titles from the library.</summary>
+/// <summary>The facts the Engine needs to preview deleting titles from the library, and the one write that removes their records.</summary>
 public interface ILibraryItemDeletionRepository
 {
     /// <summary>
@@ -28,5 +28,25 @@ public interface ILibraryItemDeletionRepository
     Task<IReadOnlySet<string>> FindPathsUsedOutsideRequestAsync(
         IReadOnlyList<Guid> workIds,
         IReadOnlyCollection<string> paths,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Stops processing for the titles: every identification or enrichment job that is queued or running for a title or one of its
+    /// files is marked failed, so no worker picks it up. A job a worker is running right now cannot be interrupted, so this waits
+    /// (up to about 30 seconds) for it to let go, then carries on and logs a warning naming the jobs that did not. The jobs themselves
+    /// are removed by <see cref="DeleteWorksAsync"/>.
+    /// </summary>
+    Task CancelProcessingAsync(
+        IReadOnlyList<Guid> workIds,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// In one transaction, removes the titles (Works), their editions and media assets and every record tied to them: chosen values,
+    /// metadata claims, jobs, Needs Review rows, artwork links and the artwork only they used, search entries, saved items and
+    /// ratings, every profile's progress, the titles' own activity history, and hand-picked collections left empty. Personal activity
+    /// history (<c>personal_activity</c>) is never touched. Returns what was removed.
+    /// </summary>
+    Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
+        IReadOnlyList<Guid> workIds,
         CancellationToken ct = default);
 }

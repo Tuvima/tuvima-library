@@ -42,6 +42,8 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddSingleton<DisplayLaneGroupPolicy>();
         services.AddSingleton<DisplayCardBuilder>();
         services.AddSingleton<DisplayShelfBuilder>();
+        services.AddSingleton<DisplayFormatReader>();
+        services.AddSingleton<DisplayGridPersonalReader>();
         services.AddScoped<DisplayComposerService>();
         services.AddScoped<RecentCatalogueReadService>();
         services.AddScoped<DisplayRecentComposerService>();

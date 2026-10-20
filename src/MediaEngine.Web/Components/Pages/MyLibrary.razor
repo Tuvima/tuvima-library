@@ -16,7 +16,7 @@
 @inject ViewWorkspaceService Workspace
 @inject ILogger<MyLibrary> Logger
 
-<PageTitle>My Library - Tuvima Library</PageTitle>
+<PageTitle>My Library - Library</PageTitle>
 
 @* My Library: the personal page. One column, phones first. Profile header, Downloads (the Tuvima app only), Continue, My List,
    Recent activity (a short preview of the Activity page) and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
@@ -118,7 +118,7 @@
         else if (!_failed.Contains(MyLibrarySection.MyList))
         {
             <div class="my-library-slot my-library-slot--empty">
-                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the + My List button" />
+                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the My List heart" />
             </div>
         }
 
@@ -163,7 +163,10 @@
     private enum MyLibrarySection { Continue, MyList, Activity, Liked }
 
     private const int SectionCount = 4;
-    private const int ShelfLimit = 12;
+    private const int ShelfLimit = 20;
+
+    // Only the newest items the shelves can show are looked up; the rest stay on the grid page, which pages through them itself.
+    private const int LookupLimit = 60;
     private const int ContinueLimit = 24;
 
     /// <summary>How many of the latest activity entries the preview shows; the Activity page has the rest.</summary>
@@ -199,6 +202,7 @@
     protected override async Task OnInitializedAsync()
     {
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         await LoadAsync();
     }
 
@@ -261,7 +265,7 @@
                 var (catalog, managed) = await collectionsTask;
                 var index = new PersonalTileIndex(await likedCardsTask, catalog, managed);
                 var documentsAllowed = await documentsTask;
-                _likedShelf = Shelf("liked", "Liked", index.Liked(reactions, documentsAllowed).Take(ShelfLimit).ToList(), "/for-me?view=liked");
+                _likedShelf = Shelf("liked", "Liked", index.Liked(reactions, documentsAllowed).Take(ShelfLimit).ToList(), "/all/personal/liked");
             }));
     }
 
@@ -317,10 +321,10 @@
     }
 
     private async Task<IReadOnlyList<DisplayCardDto>> LookupSavedAsync(Task<IReadOnlyList<ProfileSavedItemDto>> savedTask) =>
-        await PersonalTileIndex.LookupAsync(ApiClient, PersonalTileIndex.SavedMediaIds(await savedTask));
+        await PersonalTileIndex.LookupAsync(ApiClient, [.. PersonalTileIndex.SavedMediaIds((await savedTask).OrderByDescending(item => item.SavedAt)).Take(LookupLimit)]);
 
     private async Task<IReadOnlyList<DisplayCardDto>> LookupLikedAsync(Task<IReadOnlyList<ProfileReactionDto>> reactionsTask) =>
-        await PersonalTileIndex.LookupAsync(ApiClient, PersonalTileIndex.ReactionMediaIds(await reactionsTask));
+        await PersonalTileIndex.LookupAsync(ApiClient, [.. PersonalTileIndex.ReactionMediaIds((await reactionsTask).OrderByDescending(item => item.UpdatedAt)).Take(LookupLimit)]);
 
     // Documents are never part of the item lookup or the lane reads, but a profile that may not see them must not meet one here either.
     // Until the View settings say Documents are allowed they stay hidden.
@@ -390,9 +394,13 @@
 
     private void OnProfileChanged() => _ = InvokeAsync(LoadAsync);
 
+    // Continue and My List drop titles an administrator deleted from the library.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) => _ = InvokeAsync(LoadAsync);
+
     public void Dispose()
     {
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         _loadVersion++;
     }
 }

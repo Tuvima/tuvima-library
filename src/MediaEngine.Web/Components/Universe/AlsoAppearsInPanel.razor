@@ -1,0 +1,278 @@
+@namespace MediaEngine.Web.Components.Universe
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+
+@* "Also appears in": where else a character from a Universe (matched by its Wikidata item, never its name) or a person shows up
+   in the Library, grouped by format. Opened as a panel from the Universe page through AlsoAppearsInPanel.OpenAsync: a bottom
+   sheet on phones and tablets, a dialog panel on desktop and TV. Each section loads on its own, so one failure never hides
+   the others. There is no character, place or organisation page. *@
+<AppDialogShell Title="Also appears in" Size="Medium" OnClose="CloseAsync">
+    <ChildContent>
+        <div class="also-appears-in">
+            @foreach (var section in _sections)
+            {
+                <section class="also-appears-in__section" aria-labelledby="@section.HeadingId" data-section="@section.Key">
+                    <h3 id="@section.HeadingId" class="also-appears-in__heading">@section.Heading</h3>
+                    @if (section.State == SectionState.Loading)
+                    {
+                        <div class="also-appears-in__loading">
+                            <AppSkeleton Height="44px" Width="100%" aria-label="Loading where else this appears" />
+                            <AppSkeleton Height="44px" Width="100%" aria-hidden="true" />
+                        </div>
+                    }
+                    else if (section.State == SectionState.Failed)
+                    {
+                        <AppErrorState Compact="true"
+                                       Title="@section.Heading"
+                                       Message="Couldn't load this right now"
+                                       Retry="@(() => LoadAsync(section))" />
+                    }
+                    else
+                    {
+                        @if (section.Result is { Groups.Count: > 0 } result)
+                        {
+                            @foreach (var group in result.Groups)
+                            {
+                                <h4 class="also-appears-in__group" data-media-kind="@group.MediaKind">@group.Label</h4>
+                                <ul class="also-appears-in__list">
+                                    @foreach (var work in group.Works)
+                                    {
+                                        <li>
+                                            <a class="also-appears-in__row" href="@work.Route" @onclick="CloseAsync">
+                                                <span class="also-appears-in__thumb">
+                                                    @if (!string.IsNullOrWhiteSpace(work.CoverUrl))
+                                                    {
+                                                        <img src="@ApiClient.ToAbsoluteEngineUrl(work.CoverUrl)" alt="" loading="lazy" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
+                                                    }
+                                                </span>
+                                                <span class="also-appears-in__copy">
+                                                    <span class="also-appears-in__title">@work.Title</span>
+                                                    @if (Detail(work) is { } detail)
+                                                    {
+                                                        <span class="also-appears-in__detail">@detail</span>
+                                                    }
+                                                </span>
+                                            </a>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        }
+                        else
+                        {
+                            <p class="also-appears-in__empty">@section.EmptyText</p>
+                        }
+
+                        @if (section.IsCharacter && section.Result is { } counted)
+                        {
+                            @if (counted.WorksWithoutCharacterData > 0)
+                            {
+                                <p class="also-appears-in__note" data-note="no-character-data">@NoCharacterDataNote(counted.WorksWithoutCharacterData)</p>
+                            }
+                            @if (counted.WorksNotYetChecked > 0)
+                            {
+                                <p class="also-appears-in__note" data-note="not-yet-checked">@NotYetCheckedNote(counted.WorksNotYetChecked)</p>
+                            }
+                        }
+                    }
+                </section>
+            }
+        </div>
+    </ChildContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>The most characters one panel looks up; the Cast row that opens it passes one, a later Characters list a few.</summary>
+    public const int MaxCharacters = 6;
+
+    [CascadingParameter] private IAppDialogContext? Dialog { get; set; }
+
+    [Parameter] public string UniverseQid { get; set; } = string.Empty;
+
+    /// <summary>When set, a "More with {PersonName}" section lists the person's other credits in the Library.</summary>
+    [Parameter] public Guid? PersonId { get; set; }
+
+    [Parameter] public string? PersonName { get; set; }
+
+    /// <summary>The characters to look up, each by its Wikidata QID. May be empty (a person-only panel).</summary>
+    [Parameter] public IReadOnlyList<(string Qid, string Label)> Characters { get; set; } = [];
+
+    /// <summary>Raised once when the panel closes.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private enum SectionState { Loading, Loaded, Failed }
+
+    private sealed class Section
+    {
+        public required string Key { get; init; }
+        public required string Heading { get; init; }
+        public required string EmptyText { get; init; }
+        public required string Label { get; init; }
+        public string? EntityQid { get; init; }
+        public Guid? PersonId { get; init; }
+        public bool IsCharacter => EntityQid is not null;
+        public string HeadingId { get; } = $"also-appears-in-{Guid.NewGuid():N}";
+        public SectionState State { get; set; } = SectionState.Loading;
+        public EntityAppearancesDto? Result { get; set; }
+    }
+
+    private readonly List<Section> _sections = [];
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _closed;
+    private IDisposable? _closeGuard;
+
+    /// <summary>
+    /// Opens the panel through the dialog service: a bottom sheet on phones and tablets, a dialog panel on desktop and TV.
+    /// Completes when the panel is closed (Escape, Back, the close button, a tap outside or following a link).
+    /// </summary>
+    public static async Task OpenAsync(
+        IAppDialogService dialogs,
+        string universeQid,
+        IReadOnlyList<(string Qid, string Label)> characters,
+        Guid? personId = null,
+        string? personName = null,
+        EventCallback onClose = default)
+    {
+        ArgumentNullException.ThrowIfNull(dialogs);
+        var parameters = new AppDialogParameters<AlsoAppearsInPanel>
+        {
+            { component => component.UniverseQid, universeQid },
+            { component => component.Characters, characters },
+            { component => component.PersonId, personId },
+            { component => component.PersonName, personName },
+            { component => component.OnClose, onClose },
+        };
+        var dialog = await dialogs.ShowAsync<AlsoAppearsInPanel>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            NoHeader = true,
+            CloseOnEscapeKey = true,
+            BackdropClick = true,
+            Sheet = AppDialogSheetMode.PhoneAndTablet,
+        });
+        await dialog.Result;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Escape, a tap outside and the close button all close through the dialog context, so OnClose is raised from here.
+        _closeGuard = Dialog?.RegisterCloseGuard(NotifyClosedAsync);
+        foreach (var (qid, label) in Characters.Take(MaxCharacters))
+        {
+            _sections.Add(new Section
+            {
+                Key = $"entity:{qid}",
+                Heading = $"{label} also appears in",
+                EmptyText = $"Nothing else in your Library shares {label}.",
+                Label = label,
+                EntityQid = qid,
+            });
+        }
+
+        if (PersonId is { } personId)
+        {
+            var name = string.IsNullOrWhiteSpace(PersonName) ? "this person" : PersonName.Trim();
+            _sections.Add(new Section
+            {
+                Key = $"person:{personId:D}",
+                Heading = $"More with {name}",
+                EmptyText = $"Nothing else in your Library features {name}.",
+                Label = name,
+                PersonId = personId,
+            });
+        }
+
+        // One lookup per section, all in flight together.
+        await Task.WhenAll(_sections.Select(LoadAsync));
+    }
+
+    private async Task LoadAsync(Section section)
+    {
+        section.State = SectionState.Loading;
+        section.Result = null;
+        await InvokeAsync(StateHasChanged);
+
+        EntityAppearancesDto? result;
+        try
+        {
+            result = await ApiClient.GetEntityAppearancesAsync(UniverseQid, section.EntityQid, section.PersonId, _lifetime.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+
+        section.Result = result;
+        section.State = result is null ? SectionState.Failed : SectionState.Loaded;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string? Detail(EntityAppearanceWorkDto work)
+    {
+        var parts = new List<string>(2);
+        if (work.Year is { } year)
+        {
+            parts.Add(year.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (!string.IsNullOrWhiteSpace(work.Role))
+        {
+            parts.Add(work.Role);
+        }
+
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    private static string NoCharacterDataNote(int count) => count == 1
+        ? "1 work in this Universe has no character details on Wikidata, so it may be missing here."
+        : $"{count} works in this Universe have no character details on Wikidata, so they may be missing here.";
+
+    private static string NotYetCheckedNote(int count) => count == 1
+        ? "1 work hasn't been checked yet."
+        : $"{count} works haven't been checked yet.";
+
+    private async Task CloseAsync()
+    {
+        if (Dialog is not null)
+        {
+            // The close guard below raises OnClose, the same as when the dialog service closes the panel itself.
+            await Dialog.CancelAsync();
+            return;
+        }
+
+        await NotifyClosedAsync();
+    }
+
+    /// <summary>Raises OnClose once, whichever way the panel closes; never blocks the close.</summary>
+    private async Task<bool> NotifyClosedAsync()
+    {
+        if (!_closed)
+        {
+            _closed = true;
+            if (OnClose.HasDelegate)
+            {
+                await OnClose.InvokeAsync();
+            }
+        }
+
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _closeGuard?.Dispose();
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

@@ -9,3 +9,7 @@
     stroke-linejoin: round;
     flex: 0 0 22px;
 }
+
+.playback-utility-glyph[data-filled="true"] {
+    fill: currentColor;
+}

@@ -688,7 +688,7 @@ public sealed class SettingsNavTests
         Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("- Profiles - Tuvima Library", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Profiles - Library", settingsSource, StringComparison.Ordinal);
         // A non-id subsection still goes through the normal lookup, which only knows Households for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);

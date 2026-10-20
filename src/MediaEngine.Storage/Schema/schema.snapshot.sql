@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0015 ai_usage_records).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0018 ai_usage_records).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -963,6 +963,22 @@ CREATE TABLE entity_relationships (
     discovered_at           TEXT NOT NULL,
     start_time              TEXT,
     end_time                TEXT
+);
+
+CREATE TABLE excluded_source_files (
+    id                     BLOB NOT NULL PRIMARY KEY,
+    library_id             TEXT NOT NULL,
+    source_id              TEXT NOT NULL,
+    relative_path          TEXT NOT NULL,
+    content_hash           TEXT,                -- SHA-256 hex of the deleted title's media asset
+    file_size              INTEGER,
+    last_write_utc         TEXT,                -- ISO 8601 UTC
+    title                  TEXT,
+    excluded_at            TEXT NOT NULL,       -- ISO 8601 UTC
+    excluded_by_account_id BLOB,
+    excluded_by_name       TEXT,
+    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed')),
+    UNIQUE (source_id, relative_path)
 );
 
 CREATE TABLE fictional_entities (
@@ -1957,6 +1973,14 @@ CREATE TABLE profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
+CREATE TABLE profile_grid_preferences (
+    profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
+    sort        TEXT NOT NULL CHECK (sort IN ('added', 'title', 'year', 'played')),
+    updated_at  TEXT NOT NULL,   -- ISO 8601 UTC
+    PRIMARY KEY (profile_id, grid_key)
+);
+
 CREATE TABLE profile_notice_dismissals (
     profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     notice_key   TEXT NOT NULL,   -- a known notice, for example needs-review or missing-tools
@@ -2701,9 +2725,6 @@ CREATE INDEX idx_canonical_value_arrays_key_value_entity
 CREATE INDEX idx_canonical_values_artwork_scored ON canonical_values (last_scored_at)
     WHERE key IN ('cover_state', 'cover_url', 'artwork_settled_at');
 
-CREATE INDEX idx_canonical_values_entity_key
-    ON canonical_values(entity_id, key);
-
 CREATE INDEX idx_canonical_values_key_value_entity
     ON canonical_values(key, value, entity_id);
 
@@ -2835,6 +2856,8 @@ CREATE INDEX idx_events_occurred ON entity_events(occurred_at);
 CREATE INDEX idx_events_provider ON entity_events(provider_id);
 
 CREATE INDEX idx_events_type ON entity_events(event_type);
+
+CREATE INDEX idx_excluded_source_files_library ON excluded_source_files(library_id);
 
 CREATE INDEX idx_fewl_entity_work
     ON fictional_entity_work_links (entity_id, work_qid);

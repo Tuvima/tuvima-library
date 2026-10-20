@@ -81,7 +81,7 @@
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
                         <h3 id="library-import-title">Import folder</h3>
-                        <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Tuvima files them into your libraries.</p>
+                        <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Library files them into your libraries.</p>
                     </div>
                     @if (!ImportStatus.Configured)
                     {
@@ -199,7 +199,7 @@
                     <div class="library-folders__empty">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
                         <strong>No folders yet</strong>
-                        <span class="library-folders__empty-action">Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
+                        <span class="library-folders__empty-action">Choose Add Folder to point Library at where your @Selected.PluralLabel live.</span>
                     </div>
                 }
                 else
@@ -223,6 +223,12 @@
                     {
                         <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
                     }
+                }
+
+                @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
+                @if (!Embedded && SelectedLibrary is not null)
+                {
+                    <ExcludedFilesSection LibraryId="@SelectedLibrary.Id" ReadOnly="@ReadOnly" />
                 }
             </AppCard>
         }
@@ -467,7 +473,7 @@
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.HelpText, $"Choose a folder on the Tuvima Library server to add to {_selected.Label}." },
+            { component => component.HelpText, $"Choose a folder on the Library server to add to {_selected.Label}." },
             { component => component.SetupSession, SetupSession },
             { component => component.MediaType, _selected.MediaTypes.FirstOrDefault() },
         };
@@ -502,8 +508,8 @@
             {
                 managed = false;
                 _notice = writable is null
-                    ? "Tuvima couldn't check whether it can write to this folder, so it will be used as-is (read only)."
-                    : "Tuvima can't write to this folder, so it will be used as-is (read only).";
+                    ? "Library couldn't check whether it can write to this folder, so it will be used as-is (read only)."
+                    : "Library can't write to this folder, so it will be used as-is (read only).";
             }
         }
 
@@ -597,12 +603,12 @@
         finally { _saving = false; }
         if (job is null)
         {
-            _notice = ApiClient.LastError ?? "Tuvima could not start merging this folder.";
+            _notice = ApiClient.LastError ?? "Library could not start merging this folder.";
             return;
         }
 
         var targetName = targets.FirstOrDefault(target => target.Id == request.TargetSourceId)?.DisplayName() ?? "the folder you chose";
-        Snackbar.Add($"Tuvima is merging {source.DisplayName()} into {targetName}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        Snackbar.Add($"Library is merging {source.DisplayName()} into {targetName}. You can keep using Library meanwhile.", AppSeverity.Success);
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();
         await Changed.InvokeAsync();
@@ -624,12 +630,12 @@
 
         var confirmed = managed
             ? await DialogService.ShowMessageBoxAsync(
-                $"Let Tuvima manage {target.Path}?",
-                "Tuvima may rename and reorganise files in this folder, which could affect other applications that use it.",
-                yesText: "Let Tuvima manage it", cancelText: "Keep as-is")
+                $"Let Library manage {target.Path}?",
+                "Library may rename and reorganise files in this folder, which could affect other applications that use it.",
+                yesText: "Let Library manage it", cancelText: "Keep as-is")
             : await DialogService.ShowMessageBoxAsync(
                 $"Use {target.Path} as-is?",
-                "Tuvima will stop organising this folder, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
+                "Library will stop organising this folder, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
                 yesText: "Use as-is", cancelText: "Keep managed");
         if (confirmed != true) return;
         await ApplyModeAsync(library, target, managed);
@@ -653,7 +659,7 @@
             target.ConversionState = "none";
             target.ConversionOperationId = null;
         }
-        await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
+        await SaveAsync(library, managed ? "Library will now manage this folder." : "This folder will be used as-is.");
     }
 
     // As-is to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
@@ -669,16 +675,16 @@
         var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = target.Id, Quick = true });
         if (quick is null)
         {
-            _notice = ApiClient.LastError ?? "Tuvima could not count the files in this folder, so it was not changed.";
+            _notice = ApiClient.LastError ?? "Library could not count the files in this folder, so it was not changed.";
             return;
         }
 
         if (quick.TotalFiles == 0)
         {
             var plain = await DialogService.ShowMessageBoxAsync(
-                $"Let Tuvima manage {target.Path}?",
-                "There are no media files in this folder yet. Tuvima will name and organise the files it adds here from now on.",
-                yesText: "Let Tuvima manage it", cancelText: "Keep as-is");
+                $"Let Library manage {target.Path}?",
+                "There are no media files in this folder yet. Library will name and organise the files it adds here from now on.",
+                yesText: "Let Library manage it", cancelText: "Keep as-is");
             if (plain == true) await ApplyModeAsync(library, target, managed: true);
             return;
         }
@@ -717,11 +723,11 @@
         finally { _saving = false; }
         if (job is null)
         {
-            _notice = ApiClient.LastError ?? "Tuvima could not start organising this folder.";
+            _notice = ApiClient.LastError ?? "Library could not start organising this folder.";
             return;
         }
 
-        Snackbar.Add($"Tuvima is organising {source.DisplayName()}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        Snackbar.Add($"Library is organising {source.DisplayName()}. You can keep using Library meanwhile.", AppSeverity.Success);
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();
         await Changed.InvokeAsync();
@@ -736,7 +742,7 @@
         var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
         if (quick is null)
         {
-            if (!quiet) _notice = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            if (!quiet) _notice = ApiClient.LastError ?? "Library could not count the files in this folder.";
             return;
         }
 
@@ -804,8 +810,8 @@
         var apply = await DialogService.ShowMessageBoxAsync(
             $"Apply the new naming to your existing {name}?",
             $"{files:N0} {(files == 1 ? "file" : "files")} in your managed {(managed.Count == 1 ? "folder" : "folders")} would be renamed. " +
-            "This can take hours for a large folder; you can keep using Tuvima while it runs. Other programs that use these folders (Plex, Jellyfin) will need to rescan, " +
-            "and it cannot be undone automatically (Tuvima keeps a full log of every move). Or choose Only new files: nothing is renamed now, and the new naming applies to files added from now on.",
+            "This can take hours for a large folder; you can keep using Library while it runs. Other programs that use these folders (Plex, Jellyfin) will need to rescan, " +
+            "and it cannot be undone automatically (Library keeps a full log of every move). Or choose Only new files: nothing is renamed now, and the new naming applies to files added from now on.",
             yesText: "Apply to existing files now", noText: "Only new files");
         if (apply != true) return;
 
@@ -814,12 +820,12 @@
             var job = await ApiClient.ConvertFolderAsync(folder.Id);
             if (job is null)
             {
-                _notice = ApiClient.LastError ?? $"Tuvima could not start organising {folder.DisplayName()}.";
+                _notice = ApiClient.LastError ?? $"Library could not start organising {folder.DisplayName()}.";
                 break;
             }
         }
 
-        Snackbar.Add($"Tuvima is renaming your existing {name}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        Snackbar.Add($"Library is renaming your existing {name}. You can keep using Library meanwhile.", AppSeverity.Success);
         await ReloadConfigurationAsync();
         await RefreshJobsAsync();
         await Changed.InvokeAsync();
@@ -855,7 +861,7 @@
             { component => component.SelectionMode, ServerFolderSelectionModes.ManagedLibrary },
             { component => component.CurrentSourceId, ImportLocationId },
             { component => component.InitialPath, ImportStatus.Configured ? ImportStatus.Path : SuggestedImportPath },
-            { component => component.HelpText, "Choose a folder on the Tuvima Library server where new media will be dropped. It must be separate from your library folders." },
+            { component => component.HelpText, "Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders." },
             { component => component.SetupSession, SetupSession },
         };
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
@@ -873,7 +879,7 @@
     {
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove the import folder?",
-            "Tuvima stops importing from it. Files in the folder stay on disk.",
+            "Library stops importing from it. Files in the folder stay on disk.",
             yesText: "Remove", cancelText: "Keep");
         if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
     }
@@ -885,7 +891,7 @@
             .ToList();
         if (path is not null)
         {
-            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Tuvima import folder", Path = path, AllowWrite = true });
+            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Library import folder", Path = path, AllowWrite = true });
         }
 
         return new UpdateLibrariesRequest

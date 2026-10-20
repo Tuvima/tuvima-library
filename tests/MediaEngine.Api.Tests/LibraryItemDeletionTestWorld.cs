@@ -3,11 +3,15 @@ using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion;
+using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Services;
 using MediaEngine.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace MediaEngine.Api.Tests;
@@ -25,7 +29,11 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_delete_preview_{Guid.NewGuid():N}.db");
     private readonly IngestionOptions _options;
 
-    public LibraryItemDeletionTestWorld()
+    /// <param name="wrapGate">Lets a test stand between the service and the real safety gate (a spy that changes its answer on the second look).</param>
+    /// <param name="leaseWaitLimit">How long the delete waits for a running job to let go; short in the tests that never release one.</param>
+    public LibraryItemDeletionTestWorld(
+        Func<ISourceMutationPolicyGate, ISourceMutationPolicyGate>? wrapGate = null,
+        TimeSpan? leaseWaitLimit = null)
     {
         DapperConfiguration.Configure();
         Root = Path.Combine(Path.GetTempPath(), $"tuvima_delete_preview_{Guid.NewGuid():N}");
@@ -40,11 +48,33 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         _options = new IngestionOptions { LibraryFolders = BuildFolders(moviesIsAsIs: false) };
 
         MergeLedger = new FolderOrganiseLogRepository(Database);
-        Service = new LibraryItemDeletionService(
-            new LibraryItemDeletionRepository(Database),
+        Excluded = new ExcludedSourceFileRepository(Database);
+        ExcludedFilter = new ExcludedSourceFileFilter(
             new LibraryFolderResolver(new StaticMonitor(_options)),
-            new SourceMutationPolicyGate(MergeLedger),
-            new FixedExtensionCatalog());
+            Excluded,
+            new AssetHasher(),
+            NullLogger<ExcludedSourceFileFilter>.Instance);
+        Activity = new SystemActivityRepository(Database);
+        DataRoot = Path.Combine(Root, "data");
+        AssetPaths = new AssetPathService(Path.Combine(Root, "library"), dataRoot: DataRoot);
+        Events = new RecordingEvents();
+        var gate = new SourceMutationPolicyGate(MergeLedger);
+        Service = new LibraryItemDeletionService(
+            new LibraryItemDeletionRepository(
+                Database,
+                NullLogger<LibraryItemDeletionRepository>.Instance,
+                leaseWaitLimit,
+                leasePollInterval: TimeSpan.FromMilliseconds(50)),
+            new LibraryFolderResolver(new StaticMonitor(_options)),
+            wrapGate is null ? gate : wrapGate(gate),
+            new FixedExtensionCatalog(),
+            Excluded,
+            ExcludedFilter,
+            new WorkHierarchyMaintenanceService(Database),
+            Activity,
+            Events,
+            AssetPaths,
+            NullLogger<LibraryItemDeletionService>.Instance);
     }
 
     /// <summary>Switches the managed Movies folder to as-is, as a person can in Settings, without touching any file.</summary>
@@ -95,7 +125,16 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
     public string Outside { get; }
     public DatabaseConnection Database { get; }
     public FolderOrganiseLogRepository MergeLedger { get; }
+    public ExcludedSourceFileRepository Excluded { get; }
+    public ExcludedSourceFileFilter ExcludedFilter { get; }
+    public SystemActivityRepository Activity { get; }
+    public AssetPathService AssetPaths { get; }
+    public string DataRoot { get; }
+    public RecordingEvents Events { get; }
     public LibraryItemDeletionService Service { get; }
+
+    /// <summary>The person who confirms a deletion in these tests.</summary>
+    public static LibraryItemDeletionActor Actor { get; } = new(Guid.NewGuid(), Guid.NewGuid(), "Shy");
 
     /// <summary>Writes a real file (and its folder) and returns its full path.</summary>
     public string WriteFile(string folder, string relativePath, int bytes = 100)
@@ -257,6 +296,19 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
             VALUES (@assetId, @editionId, @hash, @path, 'Normal');
             """,
             new { assetId, editionId, hash = Guid.NewGuid().ToString("N"), path });
+
+    /// <summary>Remembers every event the service publishes.</summary>
+    internal sealed class RecordingEvents : IEventPublisher
+    {
+        public List<(string Name, object Payload)> Published { get; } = [];
+
+        public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default)
+            where TPayload : notnull
+        {
+            Published.Add((eventName, payload));
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class StaticMonitor(IngestionOptions value) : IOptionsMonitor<IngestionOptions>
     {

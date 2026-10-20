@@ -2,7 +2,8 @@
 @using MediaEngine.Contracts.Ingestion
 
 @* Always five slots in the same order (artwork, text, people, links, lyrics or subtitles) so nothing shifts between rows.
-   A symbol that does not apply to the item's type is a dim dash in the same slot. The tooltip and the accessible name are the same words. *@
+   A symbol the Engine reports as notApplicable (it does not apply to the item's type) is a dim dash in the same slot; one that
+   applies but has not started is a pending symbol. The tooltip and the accessible name are the same words. *@
 <div class="ingestion-facets" role="group" aria-label="Enrichment status">
     @foreach (var facet in Facets)
     {
@@ -36,8 +37,9 @@
 @code {
     [Parameter, EditorRequired] public IngestionMediaGroupDto Item { get; set; } = new();
 
-    private sealed record Facet(string Name, string Icon, IngestionFacetStateDto State, bool DoesNotApply)
+    private sealed record Facet(string Name, string Icon, IngestionFacetStateDto State)
     {
+        public bool DoesNotApply => State.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase);
         public string Label => string.IsNullOrWhiteSpace(State.Label) ? Name : State.Label;
     }
 
@@ -55,20 +57,15 @@
         _ => IngestionMediaCard.FriendlyType(mediaType).ToLowerInvariant(),
     };
 
-    // Lyrics and subtitles belong to music, movies and TV only; the Engine reports the same rule. Every other symbol
-    // applies to every type, so one that has not started yet stays a dim symbol rather than becoming a dash.
-    private bool TextTracksApply => Item.MediaType is "Music" or "Movies" or "TV";
-
     private IReadOnlyList<Facet> Facets =>
     [
-        new("Artwork", AppMaterialIcons.Outlined.Image, Item.Artwork, false),
-        new("Text", AppMaterialIcons.Outlined.Description, Item.Metadata, false),
-        new("People", AppMaterialIcons.Outlined.Groups, Item.People, false),
-        new("Links", AppMaterialIcons.Outlined.AccountTree, Item.Relationships, false),
+        new("Artwork", AppMaterialIcons.Outlined.Image, Item.Artwork),
+        new("Text", AppMaterialIcons.Outlined.Description, Item.Metadata),
+        new("People", AppMaterialIcons.Outlined.Groups, Item.People),
+        new("Links", AppMaterialIcons.Outlined.AccountTree, Item.Relationships),
         new(Item.MediaType == "Music" ? "Lyrics" : "Subtitles",
             Item.MediaType == "Music" ? AppMaterialIcons.Outlined.Lyrics : AppMaterialIcons.Outlined.ClosedCaption,
-            Item.TextTracks,
-            !TextTracksApply),
+            Item.TextTracks),
     ];
 
     private static string StateIcon(string state) => state.ToLowerInvariant() switch

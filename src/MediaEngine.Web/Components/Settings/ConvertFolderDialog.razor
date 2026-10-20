@@ -68,17 +68,17 @@
         {
             <div class="convert-folder">
                 <p>
-                    Tuvima will rename and reorganise the <strong>@Count(_total) @(_total == 1 ? "file" : "files")</strong> in this folder
+                    Library will rename and reorganise the <strong>@Count(_total) @(_total == 1 ? "file" : "files")</strong> in this folder
                     to its standard naming, and write tags where the file type allows it. It will also remove exact duplicate copies
                     (your &ldquo;same file twice&rdquo; setting is <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "" : ", so both copies are kept under different names")).
                 </p>
                 <p>
                     <strong>This can take hours for a large folder</strong> (@FolderJobFormat.Duration(_estimateSeconds) here, based on @Count(_total) @(_total == 1 ? "file" : "files")).
-                    You can keep using Tuvima while it runs; a film that is being moved may be unavailable for a few seconds.
+                    You can keep using Library while it runs; a film that is being moved may be unavailable for a few seconds.
                     Other programs that use this folder (Plex, Jellyfin) will need to rescan afterwards.
                 </p>
                 <p>
-                    <strong>This cannot be undone automatically.</strong> Tuvima keeps a full log of every move.
+                    <strong>This cannot be undone automatically.</strong> Library keeps a full log of every move.
                     Nothing is ever deleted except exact duplicate copies.
                 </p>
             </div>
@@ -124,7 +124,7 @@
     private bool _scanning;
     private FolderConversionPreviewResponse? _preview;
 
-    private string Title => AlreadyManaged ? $"Organise {Path} now?" : $"Let Tuvima manage {Path}?";
+    private string Title => AlreadyManaged ? $"Organise {Path} now?" : $"Let Library manage {Path}?";
     private string ConvertText => AlreadyManaged ? "Organise now" : "Convert";
     private string KeepText => AlreadyManaged ? "Not now" : "Keep as-is";
 
@@ -134,7 +134,7 @@
         _loading = false;
         if (quick is null)
         {
-            _error = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            _error = ApiClient.LastError ?? "Library could not count the files in this folder.";
             return;
         }
 
@@ -156,7 +156,7 @@
             _preview = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = SourceId, FileLimit = PreviewSample });
             if (_preview is null)
             {
-                _error = ApiClient.LastError ?? "Tuvima could not preview this folder.";
+                _error = ApiClient.LastError ?? "Library could not preview this folder.";
                 return;
             }
 
@@ -173,7 +173,7 @@
             var full = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = SourceId, FileLimit = 0 });
             if (full is null)
             {
-                _error = ApiClient.LastError ?? "Tuvima could not preview this folder.";
+                _error = ApiClient.LastError ?? "Library could not preview this folder.";
                 return;
             }
 

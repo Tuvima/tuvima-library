@@ -716,6 +716,12 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     /// <summary>Fires when the active profile is updated (display name or avatar colour).</summary>
     public event Action? OnProfileChanged;
 
+    /// <summary>
+    /// Fires when an administrator deleted titles from the library: the work and file ids that are gone, so open screens (browse rows,
+    /// Home, Continue lists, collection pages, Needs Review) can drop them without a reload.
+    /// </summary>
+    public event Action<LibraryItemsRemovedEvent>? OnLibraryItemsRemoved;
+
     /// <summary>Fires on every re-tag sweep progress tick broadcast by the Engine.</summary>
     public event Action<RetagSweepProgressEvent>? OnRetagSweepProgress;
 
@@ -1527,6 +1533,17 @@ public sealed class UIOrchestratorService : IAsyncDisposable
             _state.Invalidate();
         });
 
+        // -- "LibraryItemsRemoved" ---------------------------------------------
+        // An administrator deleted titles from the library. Invalidate the same state a removed file does, then let
+        // screens that hold their own copy of the list drop the ids.
+        _hubConnection.On<LibraryItemsRemovedEvent>(SignalREvents.LibraryItemsRemoved, ev =>
+        {
+            _logger.LogInformation(
+                "Intercom ? LibraryItemsRemoved: {Count} title(s), invalidating collection cache", ev.WorkIds.Count);
+            _state.Invalidate();
+            RaiseLibraryItemsRemoved(ev);
+        });
+
         // -- "WatchFolderActive" -----------------------------------------------
         // The Watch Folder has been updated; notify state container so interested
         // components (e.g. Settings page connection indicator) can react.
@@ -1698,6 +1715,9 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public EngineConnectionState EngineConnectionState => _engineConnectionState;
 
     public event Action<EngineConnectionState>? OnEngineConnectionStateChanged;
+
+    /// <summary>Tells every open screen that titles were deleted; the live handler and tests share this one way to raise the event.</summary>
+    internal void RaiseLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => OnLibraryItemsRemoved?.Invoke(removed);
 
     internal void SetEngineConnectionState(EngineConnectionState state)
     {

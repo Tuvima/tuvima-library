@@ -91,9 +91,13 @@ public static class WorkReadinessSql
     /// </summary>
     public static string ReadyMarkPredicate(string workAlias) => $"{workAlias}.ready_at IS NOT NULL";
 
-    // The latest identity job across the Work's assets says the Work was matched to a real title, or the Work lives in
-    // a library that never runs identity (local-only or manual metadata policy).
-    private static string MatchedPredicate(string workAlias) => $"""
+    /// <summary>
+    /// The "matched" condition of the Ready rule: the latest identity job across the Work's assets says the Work was
+    /// matched to a real title, or the Work lives in a library that never runs identity (local-only or manual metadata
+    /// policy). Reads the <see cref="BypassIdentityLibraryIdsParameter"/> list parameter. The live ingestion page uses
+    /// this same text to say which condition a not-yet-Ready row is still waiting for.
+    /// </summary>
+    public static string MatchedPredicate(string workAlias) => $"""
         ({LatestJobState(workAlias)} IN ({MatchedStates}) OR {InBypassLibrary(workAlias)})
         """;
 
@@ -123,10 +127,12 @@ public static class WorkReadinessSql
         )
         """;
 
-    // An episode must sit under a show, directly or through a season that itself sits under a show (a season is a
-    // parent that has a number; one whose show is gone does not count as the show). A track must sit under an album.
-    // Other media types stand alone by design.
-    private static string PlacedPredicate(string workAlias) => $"""
+    /// <summary>
+    /// The "placed" condition of the Ready rule. An episode must sit under a show, directly or through a season that
+    /// itself sits under a show (a season is a parent that has a number; one whose show is gone does not count as the
+    /// show). A track must sit under an album. Other media types stand alone by design, so this is always true for them.
+    /// </summary>
+    public static string PlacedPredicate(string workAlias) => $"""
         (
             CASE
                 WHEN {workAlias}.media_type = 'TV' THEN

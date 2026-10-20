@@ -10,7 +10,9 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -449,6 +451,52 @@ public static class DisplayEndpoints
             .WithName("GetDisplayShelf")
             .WithSummary("Returns one paged display shelf for native and TV clients.")
             .Produces<DisplayShelfPageDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
+        group.MapGet("/grids/{lane}/{shelfKey}", async (
+            string lane,
+            string shelfKey,
+            string? sort,
+            string? type,
+            string? genre,
+            string? format,
+            string? status,
+            string? cursor,
+            int? offset,
+            int? limit,
+            ClaimsPrincipal user,
+            DisplayComposerService display,
+            [FromServices] IProfileGridPreferenceRepository preferences,
+            CancellationToken ct) =>
+        {
+            var profileId = ProfileId(user);
+            sort = await DisplayGridSortResolver.ResolveAsync(lane, shelfKey, sort, profileId, preferences, ct);
+
+            var paged = PagedRequest.From(
+                int.TryParse(cursor, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cursorOffset) ? cursorOffset : offset,
+                limit,
+                defaultLimit: DisplayGridValues.DefaultPageSize,
+                maxLimit: DisplayGridValues.MaxPageSize);
+            try
+            {
+                var page = await display.BuildGridAsync(
+                    lane,
+                    shelfKey,
+                    new DisplayGridQuery(sort, type, genre, format, status, paged.Offset, paged.Limit),
+                    profileId,
+                    ct);
+                return page is null ? ApiErrors.NotFound($"No grid found for '{lane}/{shelfKey}'.") : Results.Ok(page);
+            }
+            catch (DisplayGridQueryException exception)
+            {
+                return ApiErrors.BadRequest(exception.Message);
+            }
+        })
+            .WithName("GetDisplayGrid")
+            .WithSummary("Returns one page of a shelf's full item list for the View all grid, with sort, filters and paging.")
+            .Produces<DisplayGridPageDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 

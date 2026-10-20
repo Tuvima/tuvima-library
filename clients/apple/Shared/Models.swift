@@ -366,11 +366,11 @@ public enum TuvimaClientError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidServer: "Enter a valid Tuvima Dashboard address."
-        case .insecureRemoteServer: "Remote Tuvima connections require HTTPS."
+        case .invalidServer: "Enter a valid Library Dashboard address."
+        case .insecureRemoteServer: "Remote Library connections require HTTPS."
         case .unsupportedAPI: "This server does not advertise API v1."
         case .notPaired: "This device has not been paired."
-        case let .http(status, _): "Tuvima returned HTTP \(status)."
+        case let .http(status, _): "Library returned HTTP \(status)."
         case .noPlayableDelivery: "The server did not provide a playable delivery."
         case .invalidIdentifier: "That item could not be opened."
         case .photoAccessDenied: photoAccessDeniedMessage

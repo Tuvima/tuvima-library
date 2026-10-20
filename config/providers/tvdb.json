@@ -918,14 +918,14 @@
     "intro": { "title": "Connect TheTVDB", "summary": "Adds TV series, season, and episode matches and artwork from TheTVDB." },
     "steps": [
       { "id": "account", "title": "TVDB access", "description": "TheTVDB issues v4 keys to approved projects, not to individual users of an app.", "instructions": ["Open TheTVDB API information and confirm your project or self-hosted installation has approved access.", "If your access is user-supported, obtain your own subscriber PIN for the project key."], "action": { "kind": "external_link", "label": "Open TheTVDB API information", "url": "https://thetvdb.com/api-information", "url_role": "signup" } },
-      { "id": "credential", "title": "Enter credentials", "description": "Enter the approved project API key for this installation. Add your subscriber PIN only when that key requires one. Tuvima does not provide a key or proxy.", "action": { "kind": "credential_entry", "label": "Enter TVDB credentials" }, "credential_keys": ["api_key", "pin"] },
-      { "id": "connect", "title": "Verify connection", "description": "Tuvima will log in directly to TheTVDB using these credentials and store them on this server.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key", "pin"] }
+      { "id": "credential", "title": "Enter credentials", "description": "Enter the approved project API key for this installation. Add your subscriber PIN only when that key requires one. Library does not provide a key or proxy.", "action": { "kind": "credential_entry", "label": "Enter TVDB credentials" }, "credential_keys": ["api_key", "pin"] },
+      { "id": "connect", "title": "Verify connection", "description": "Library will log in directly to TheTVDB using these credentials and store them on this server.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key", "pin"] }
     ],
     "troubleshooting": [
       { "status": "invalid_credential", "title": "TheTVDB rejected these credentials", "message": "Check the project key and, if required, subscriber PIN.", "instructions": ["Confirm the project key is approved for this installation.", "Check whether its access model requires a subscriber PIN."], "help_url": "https://support.thetvdb.com/kb/faq.php?id=81" },
       { "status": "rate_limited", "title": "TheTVDB is receiving too many requests", "message": "Wait and try again.", "instructions": [] },
       { "status": "provider_outage", "title": "TheTVDB is temporarily unavailable", "message": "Try again later.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach TheTVDB", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach TheTVDB", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       { "lane": "watch", "summary": "TV seasons and episodes will use another configured provider where available.", "unavailable_capabilities": ["tvdb_episode_identity", "tvdb_artwork"] }

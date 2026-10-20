@@ -1197,7 +1197,7 @@ else
         _ => "Automatic stacked is the default and updates with membership. Custom posters work best at a 2:3 ratio near 1000 × 1500.",
     };
     private string ArtworkEmptyTitle => _activeArtworkSlot switch { "background" => "Neutral collection background", "logo" => "No custom logo", _ => "Automatic stacked artwork" };
-    private string ArtworkEmptyDescription => _activeArtworkSlot switch { "background" => "The standard Tuvima Library collection wash will be used until a custom background is uploaded.", "logo" => "The collection name remains the visual identity until a transparent logo is uploaded.", _ => "Representative item art appears as members become available." };
+    private string ArtworkEmptyDescription => _activeArtworkSlot switch { "background" => "The standard Library collection wash will be used until a custom background is uploaded.", "logo" => "The collection name remains the visual identity until a transparent logo is uploaded.", _ => "Representative item art appears as members become available." };
     private string ArtworkSlotIcon => _activeArtworkSlot switch { "background" => AppMaterialIcons.Outlined.Panorama, "logo" => AppMaterialIcons.Outlined.BrandingWatermark, _ => AppMaterialIcons.Outlined.AutoAwesomeMotion };
     private IReadOnlyList<ArtworkStackItem> AutomaticArtworkItems => (SupportsManualItems
             ? _manualItems.Select(item => (item.WorkId, item.Title, item.CoverUrl, item.MediaType))
@@ -1298,7 +1298,7 @@ else
     private RenderFragment RenderDetailsTab() => @<div class="collection-editor-pane collection-editor-details">
         <div class="collection-editor-details-grid">
             <div class="collection-editor-panel-stack">
-                <MediaEditorPanel Title="Basic information" Description="The name and description shown throughout Tuvima Library.">
+                <MediaEditorPanel Title="Basic information" Description="The name and description shown throughout Library.">
                     @if (IsPlaylistDialog && EditingCollection is not null)
                     {
                         <label class="app-artwork-picker collection-editor-artwork-picker">
@@ -1451,7 +1451,7 @@ else
 
                 @if (EditingCollection is not null)
                 {
-                    <MediaEditorPanel Title="System details" Description="Read-only information maintained by Tuvima Library.">
+                    <MediaEditorPanel Title="System details" Description="Read-only information maintained by Library.">
                         <div class="collection-editor-system-list">
                             <div><span>Created</span><strong>@EditingCollection.CreatedAt.ToLocalTime().ToString("g")</strong></div>
                             <div><span>Updated</span><strong>Not recorded</strong></div>

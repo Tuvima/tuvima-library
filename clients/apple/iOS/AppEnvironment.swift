@@ -88,7 +88,7 @@ final class AppEnvironment: ObservableObject {
     func handleDeepLink(_ url: URL) {
         guard url.scheme == "tuvima" else { return }
         if url.host == "play", let id = url.pathComponents.dropFirst().first.flatMap(UUID.init(uuidString:)) {
-            playback.play(assetID: id, title: "Tuvima Library")
+            playback.play(assetID: id, title: "Library")
         } else if url.host == "details" {
             let parts = Array(url.pathComponents.dropFirst())
             if parts.count >= 2, let id = UUID(uuidString: parts[1]) {

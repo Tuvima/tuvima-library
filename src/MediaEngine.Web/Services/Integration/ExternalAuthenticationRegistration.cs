@@ -104,7 +104,7 @@ public static partial class ExternalAuthenticationRegistration
                     "OIDC").ConfigureAwait(false);
                 if (issued is null)
                 {
-                    context.Fail("This external identity is not linked to a Tuvima Library account.");
+                    context.Fail("This external identity is not linked to a Library account.");
                     return;
                 }
 
@@ -177,7 +177,7 @@ public static partial class ExternalAuthenticationRegistration
                     "OAuth").ConfigureAwait(false);
                 if (issued is null)
                 {
-                    context.Fail("This external identity is not linked to a Tuvima Library account.");
+                    context.Fail("This external identity is not linked to a Library account.");
                     return;
                 }
 
@@ -263,7 +263,7 @@ public static partial class ExternalAuthenticationRegistration
             TransactionTicket = transaction.Ticket,
             DeviceId = deviceId!,
             DeviceName = context.Request.Headers.UserAgent.ToString(),
-            Client = $"Tuvima Library Dashboard {protocol}",
+            Client = $"Library Dashboard {protocol}",
             OriginalClientIngress = context.ClientIngress(),
             OriginalClientIsHttps = context.Request.IsHttps,
         };

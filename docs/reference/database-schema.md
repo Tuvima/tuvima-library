@@ -211,6 +211,27 @@ The ledger of the organising job: one row for each file, and each sidecar, the j
 
 Indexes: `idx_folder_organise_log_source (source_id, at)` and `idx_folder_organise_log_old_path (old_path COLLATE NOCASE)`. The second one backs the check the mutation gate makes before every delete, move or rename: a path with a merge line whose original stays in place (`copied`, `copied_unique_name`, `duplicate_skipped`, `sidecar_copied`, `merged_for_review`, `left_in_source`) is never deleted, moved or renamed by anything except the merge job itself, even after the merge is cancelled. A restarted merge also reads this table (any earlier operation for the same `source_id`) to carry on from copies already made.
 
+### excluded_source_files
+
+The media files that stayed on disk when their title was deleted from the library: a file in an as-is folder, a file a folder merge left in place, or a file Tuvima tried to delete and could not. Scans skip an excluded file so the deleted title does not come back; Settings lists them and **Add back** removes the row. The row outlives the title, so it has no foreign keys: the library and source folder are configured folders, identified by their ids.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | Primary key |
+| `library_id` | TEXT | The configured library the file sits in |
+| `source_id` | TEXT | The configured source folder the file sits in |
+| `relative_path` | TEXT | The file's place inside the source folder, written with forward slashes. With `source_id` it is unique: one row per place |
+| `content_hash` | TEXT | SHA-256 of the deleted title's media asset (nullable). If the file at that place changes size or modified time, its content is hashed: the same hash is the same file, touched, and stays skipped; a different hash is a different file and is scanned again |
+| `file_size` | INTEGER | Size in bytes when it was excluded (nullable) |
+| `last_write_utc` | TEXT | The file's last write time, ISO 8601 UTC (nullable) |
+| `title` | TEXT | The deleted title's name, for the Settings list (nullable) |
+| `excluded_at` | TEXT | When, ISO 8601 UTC |
+| `excluded_by_account_id` | BLOB | The account that confirmed the deletion (nullable) |
+| `excluded_by_name` | TEXT | That person's name as it was then (nullable) |
+| `reason` | TEXT | `as_is`, `protected` or `delete_failed` (nullable) |
+
+Index: `idx_excluded_source_files_library (library_id)`. Deleting a title also removes every row tied to its Work, editions and media assets (chosen values, metadata claims, jobs, Needs Review rows, artwork links and the artwork only it used, search entries, saved items and ratings, every profile's progress and bookmarks, and its own activity history). `personal_activity` is the one exception: it keeps its own snapshot of the title.
+
 ---
 
 ## View Personal Media
@@ -989,7 +1010,7 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_by_name` | TEXT | Profile display name (or application name) at the time |
 | `approved_at` | TEXT | ISO 8601 UTC |
 
-**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0014_approval_records`.
+**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0017_approval_records`.
 
 ### ai_usage_records
 
@@ -1008,7 +1029,7 @@ One row for every request that reached the Local AI engine room: text written or
 | `outcome` | TEXT | `succeeded`, `failed`, `unavailable`, `refused_over_budget`, `cancelled` or `timed_out` |
 | `message` | TEXT | Plain-English result or reason |
 
-**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0015_ai_usage_records`.
+**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0018_ai_usage_records`.
 
 ### media_operations (file intake rows)
 
@@ -1425,6 +1446,17 @@ Each person's own record of what they watched, listened to and read, and what th
 ### personal_activity_artwork
 
 The small pictures `personal_activity` rows point at: a copy of the cover with a longest edge of at most 240 px (JPEG, or WebP when the cover has transparency), made once when the activity began and shared by every row with the same source cover. `key` is the SHA-256 of the source cover file (primary key), with `image` (BLOB), `content_type`, `width`, `height` and `created_at`. Deleting history removes the pictures no row uses any more.
+
+### profile_grid_preferences
+
+The order a person last chose on each "View all" grid (Watch, Read, Listen, My list, Liked), remembered per profile so it follows them to every device. Added by upgrade step `0016_profile_grid_preferences`. One row per profile and grid; a grid with no row uses its default order. Deleting a profile removes its rows.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `profile_id` | BLOB | The profile. References `profiles(id)` with `ON DELETE CASCADE`. Part of the primary key. |
+| `grid_key` | TEXT | `watch`, `read`, `listen`, `my-list` or `liked`. Anything else is refused by a CHECK. Part of the primary key. |
+| `sort` | TEXT | `added`, `title`, `year` or `played`. Anything else is refused by a CHECK. |
+| `updated_at` | TEXT | ISO 8601 UTC. |
 
 ### profile_taste_overrides
 

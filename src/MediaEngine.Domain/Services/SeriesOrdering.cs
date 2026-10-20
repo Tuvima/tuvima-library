@@ -43,6 +43,15 @@ public static class SeriesOrdering
            || string.Equals(scope, SeriesMembershipScopeNames.CollectedContent, StringComparison.OrdinalIgnoreCase)
            || string.Equals(scope, SeriesMembershipScopeNames.BroaderContext, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// True for the display kinds whose Series set "Also in this world" members apart from the numbered run: Book, Comic
+    /// and Movie. A Series of any other kind (music, audiobooks, personal) is never split.
+    /// </summary>
+    public static bool SplitsAlsoInThisWorld(string? displayKind)
+        => string.Equals(displayKind, "Book", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(displayKind, "Comic", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(displayKind, "Movie", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>True when a manifest ordinal may be used: its ordinal scope is this Series (or unstated).</summary>
     public static bool OrdinalBelongsToSeries(string? ordinalScopeQid, string? seriesQid)
         => string.IsNullOrWhiteSpace(ordinalScopeQid)

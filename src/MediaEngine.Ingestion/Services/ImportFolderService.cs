@@ -107,7 +107,7 @@ public sealed class ImportFolderService : IImportFolderService
         var configuration = Load();
         if (configuration is null)
         {
-            return new ImportDestination(label, ImportDestinationState.Unavailable, Reason: "Tuvima can't read its folder settings right now.");
+            return new ImportDestination(label, ImportDestinationState.Unavailable, Reason: "Library can't read its folder settings right now.");
         }
 
         // FindLibrary only returns a library whose marked destination is a managed folder; an as-is folder never qualifies.

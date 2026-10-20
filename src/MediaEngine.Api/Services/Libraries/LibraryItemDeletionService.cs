@@ -4,10 +4,13 @@ using System.Text;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Services;
+using MediaEngine.Storage.Services;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Services.Libraries;
 
@@ -19,13 +22,20 @@ public enum LibraryItemDeletionRefusalKind
 
     /// <summary>One or more ids are not titles in the library.</summary>
     NotFound,
+
+    /// <summary>The person confirmed a plan that is out of date: something changed since the preview. Nothing was changed; the refusal carries the fresh preview.</summary>
+    Changed,
 }
 
-/// <summary>A typed refusal. <see cref="WorkIds"/> lists the ids the refusal is about (the unknown ones for <see cref="LibraryItemDeletionRefusalKind.NotFound"/>).</summary>
+/// <summary>
+/// A typed refusal. <see cref="WorkIds"/> lists the ids the refusal is about (the unknown ones for <see cref="LibraryItemDeletionRefusalKind.NotFound"/>).
+/// <see cref="FreshPreview"/> is set only for <see cref="LibraryItemDeletionRefusalKind.Changed"/>.
+/// </summary>
 public sealed record LibraryItemDeletionRefusal(
     LibraryItemDeletionRefusalKind Kind,
     string Message,
-    IReadOnlyList<Guid> WorkIds);
+    IReadOnlyList<Guid> WorkIds,
+    LibraryItemDeletionPreview? FreshPreview = null);
 
 /// <summary>Either the answer or a typed refusal.</summary>
 public sealed class LibraryItemDeletionResult<T> where T : class
@@ -75,18 +85,26 @@ public sealed record LibraryItemDeletionPlan(
     LibraryItemDeletionPreview Preview);
 
 /// <summary>
-/// Works out what deleting titles from the library would do, without changing anything. Whether a file may be deleted is decided
-/// only by the shared source-file safety gate; the folder's management mode is read only to choose the words used for a file that stays.
+/// Works out what deleting titles from the library would do (<see cref="PreviewAsync"/>, which changes nothing) and does it
+/// (<c>DeleteAsync</c>, in the other part of this class). Whether a file may be deleted is decided only by the shared source-file
+/// safety gate; the folder's management mode is read only to choose the words used for a file that stays.
 /// </summary>
-public sealed class LibraryItemDeletionService(
+public sealed partial class LibraryItemDeletionService(
     ILibraryItemDeletionRepository repository,
     ILibraryFolderResolver folders,
     ISourceMutationPolicyGate gate,
-    IMediaTypeExtensionCatalog extensions)
+    IMediaTypeExtensionCatalog extensions,
+    IExcludedSourceFileRepository excludedFiles,
+    IExcludedSourceFileFilter excludedFileFilter,
+    WorkHierarchyMaintenanceService hierarchy,
+    ISystemActivityRepository activity,
+    IEventPublisher events,
+    AssetPathService assetPaths,
+    ILogger<LibraryItemDeletionService> logger)
 {
     public const int MaxWorks = 200;
 
-    public const string OutsideLibraryReason = "This file is not inside any library folder Tuvima manages.";
+    public const string OutsideLibraryReason = "This file is not inside any library folder Library manages.";
     public const string MissingReason = "This file is no longer on disk.";
     public const string UsedElsewhereReason = "Another item in your library uses this same file.";
     private const string GroupRefusal = "Only individual titles can be deleted.";
