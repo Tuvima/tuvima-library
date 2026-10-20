@@ -46,15 +46,16 @@
             <div class="recent-history__list">
                 @foreach (var item in _history.Items)
                 {
-                    <article class="history-row" @key="(item.BatchId, item.GroupId)">
-                        <time datetime="@item.AddedAt.ToString("O")"><strong>@item.AddedAt.ToLocalTime().ToString("h:mm tt")</strong><small>@RelativeDate(item.AddedAt)</small></time>
+                    <AppRowErrorBoundary @key="(item.BatchId, item.GroupId)" ItemTitle="@IngestionMediaCard.DisplayTitleFor(item.Title)" ResetKey="@item">
+                    <article class="history-row">
+                        <time datetime="@item.AddedAt.ToString("O")"><strong>@LocalClock(item.AddedAt)</strong><small>@RelativeDate(item.AddedAt)</small></time>
                         <span class="history-row__identity">
                             <span class="history-row__art"><AppMediaArtwork ImageUrl="@item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(item.MediaType)" /></span>
-                            <span><strong>@item.Title</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
+                            <span><strong>@IngestionMediaCard.DisplayTitleFor(item.Title)</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
                         </span>
                         <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
                         <span class="history-row__status"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.CheckCircle)" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
-                        <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
+                        <AppOverflowMenu AriaLabel="@($"More actions for {IngestionMediaCard.DisplayTitleFor(item.Title)}")" Size="AppControlSize.Compact">
                             @if (DeviceContext.CanEdit)
                             {
                                 <AppMenuItem Label="Edit" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
@@ -65,6 +66,7 @@
                             }
                         </AppOverflowMenu>
                     </article>
+                    </AppRowErrorBoundary>
                 }
             </div>
             <AppCompactPager Offset="@_history.Offset" Limit="@_history.Limit" HasMore="@_history.HasMore" TotalCount="@_history.TotalCount" Loading="@_historyLoading" OffsetChanged="OnPageChanged" />
@@ -176,7 +178,9 @@
     }
 
     private static string RelativeAge(DateTimeOffset value) { var age = DateTimeOffset.UtcNow - value; return age.TotalDays >= 1 ? $"{Math.Max(1, (int)age.TotalDays)}d" : age.TotalHours >= 1 ? $"{Math.Max(1, (int)age.TotalHours)}h" : $"{Math.Max(1, (int)age.TotalMinutes)}m"; }
-    private static string RelativeDate(DateTimeOffset value) => value.ToLocalTime().Date == DateTime.Today ? "Today" : value.ToLocalTime().ToString("MMM d, yyyy");
+    // A missing time (the default value) cannot be moved into every time zone, so it shows as a dash.
+    private static string LocalClock(DateTimeOffset value) => value == default ? "—" : value.ToLocalTime().ToString("h:mm tt");
+    private static string RelativeDate(DateTimeOffset value) => value == default ? string.Empty : value.ToLocalTime().Date == DateTime.Today ? "Today" : value.ToLocalTime().ToString("MMM d, yyyy");
     private static string ContextSuffix(IngestionMediaGroupDto item) => string.IsNullOrWhiteSpace(item.Subtitle) ? string.Empty : $" · {item.Subtitle}";
     private static string ResultSummary(IngestionMediaGroupDto item) => item.ChildUnit is not null && item.ChildCompleted > 0 ? $"{item.ChildCompleted:N0} {Pluralize(item.ChildUnit, item.ChildCompleted)} added" : IngestionMediaCard.FriendlyType(item.MediaType) + " added successfully";
     private static string Pluralize(string value, int count) => count == 1 && value.EndsWith('s') ? value[..^1] : value;
