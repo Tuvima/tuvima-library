@@ -57,7 +57,8 @@ public sealed class Wave5AccessibilityGuardrailTests
 
         // The slot is a labelled region; Esc closes it and focus returns to the control that opened it.
         Assert.Contains("aria-labelledby=\"tl-editing-slot-title\"", slot);
-        Assert.Contains("string.Equals(args.Key, \"Escape\", StringComparison.Ordinal)", slot);
+        Assert.Contains("HandleEscapeFromBrowser", slot);
+        Assert.Contains("./js/editing-section-escape.js", slot);
         Assert.Contains("tuvimaFocusReturn.remember", slot);
         Assert.Contains("tuvimaFocusReturn.restore", slot);
         Assert.Contains("Tooltip=\"@($\"Close {Heading(mode.OpenSectionKind)}\")\"", slot);
