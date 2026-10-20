@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Ingestion.Videos;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 
@@ -11,7 +12,8 @@ namespace MediaEngine.Api.Services.Settings;
 /// </summary>
 public sealed class ServerFolderBrowserService(
     IConfigurationLoader configuration,
-    ILogger<ServerFolderBrowserService> logger)
+    ILogger<ServerFolderBrowserService> logger,
+    VideoNamingConfigurationProvider? videoNaming = null)
 {
     private static readonly string[] ProtectedSegments = [".data", "config", "logs", "bin", "obj"];
 
@@ -190,6 +192,7 @@ public sealed class ServerFolderBrowserService(
             HasRead = hasRead,
             HasWrite = hasWrite,
             ContainsFiles = exists && hasRead && ProbeContainsFiles(resolved.Path),
+            LooksLikePhoneFootage = exists && hasRead && videoNaming is not null && VideoPhoneFootageDetector.Looks(resolved.Path, videoNaming.Current.PhoneFootage),
             AvailableBytes = availableBytes,
             FileSystem = fileSystem,
             CanSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),

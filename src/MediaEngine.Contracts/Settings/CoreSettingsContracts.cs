@@ -152,6 +152,10 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("media_types")]
     public List<string> MediaTypes { get; set; } = [];
 
+    /// <summary>Videos libraries only: ask YouTube about videos named by a YouTube ID. On by default.</summary>
+    [JsonPropertyName("youtube_lookup")]
+    public bool YoutubeLookup { get; set; } = true;
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceDto> Sources { get; set; } = [];
 
@@ -536,6 +540,10 @@ public sealed class ServerFolderValidationResultDto
     /// <summary>True when the folder (or a folder beneath it) already holds files.</summary>
     [JsonPropertyName("contains_files")]
     public bool ContainsFiles { get; init; }
+
+    /// <summary>True when the folder looks like phone or camera footage, so adding it as Videos can suggest View instead.</summary>
+    [JsonPropertyName("looks_like_phone_footage")]
+    public bool LooksLikePhoneFootage { get; init; }
 
     [JsonPropertyName("available_bytes")]
     public long? AvailableBytes { get; init; }

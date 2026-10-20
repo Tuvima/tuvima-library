@@ -772,6 +772,39 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
     }
 
+    [Fact]
+    public async Task AddingAVideosFolderAlwaysAsksWatchOrViewAndOnlySuggestsViewForPhoneFootage()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var service = Services.GetRequiredService<IAppDialogService>();
+
+        async Task<(bool Hint, AddFolderPlaceDialog.AddFolderPlaceAnswer? Answer)> AskAsync(bool phone, string pick, bool lookup = true)
+        {
+            var parameters = new AppDialogParameters<AddFolderPlaceDialog>
+            {
+                { component => component.LooksLikePhoneFootage, phone },
+                { component => component.YoutubeLookup, lookup },
+            };
+            var reference = await service.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions());
+            dialogs.WaitForAssertion(() => Assert.Contains("Where does this folder belong?", dialogs.Markup));
+            var hint = dialogs.FindAll(".add-folder-place__hint").Count > 0;
+            Assert.Contains("contacts YouTube", dialogs.Markup);
+            dialogs.FindAll(".add-folder-place button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
+            var result = await reference.Result;
+            return (hint, result?.Data as AddFolderPlaceDialog.AddFolderPlaceAnswer);
+        }
+
+        var ordinary = await AskAsync(phone: false, pick: "Videos (Watch)");
+        Assert.False(ordinary.Hint);
+        Assert.True(ordinary.Answer!.Watch);
+        Assert.True(ordinary.Answer.YoutubeLookup);
+
+        var phoneFolder = await AskAsync(phone: true, pick: "Photos and personal videos (View)", lookup: false);
+        Assert.True(phoneFolder.Hint);
+        Assert.False(phoneFolder.Answer!.Watch);
+        Assert.False(phoneFolder.Answer.YoutubeLookup);
+    }
+
     // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.
     [Fact]
     public void ANamingChangeAsksWhetherToApplyToExistingFilesAndNeverStartsAJobSilently()

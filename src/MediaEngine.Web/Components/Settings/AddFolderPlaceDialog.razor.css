@@ -1,0 +1,13 @@
+.add-folder-place {
+    display: grid;
+    gap: 10px;
+}
+
+.add-folder-place__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+}
+
+.add-folder-place ::deep .add-folder-place__card--suggested {
+    border-color: var(--tl-accent-primary);
+}

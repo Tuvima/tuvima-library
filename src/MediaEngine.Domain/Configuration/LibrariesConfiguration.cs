@@ -151,6 +151,10 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("media_types")]
     public List<string> MediaTypes { get; set; } = [];
 
+    /// <summary>Videos libraries only: ask YouTube about videos named by a YouTube ID (sends only the ID). On by default.</summary>
+    [JsonPropertyName("youtube_lookup")]
+    public bool YoutubeLookup { get; set; } = true;
+
     [JsonPropertyName("sources")]
     public List<LibrarySourceConfig> Sources { get; set; } = [];
 

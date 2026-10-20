@@ -225,6 +225,15 @@
                     }
                 }
 
+                @if (IsVideosSelected && SelectedLibrary is not null)
+                {
+                    <AppSwitchRow Label="Look up YouTube videos online"
+                                  Description="Only for videos named with a YouTube ID. This contacts YouTube and sends just that ID, never your files. Your own edits always win."
+                                  Value="@SelectedLibrary.YoutubeLookup"
+                                  Disabled="@(_saving || ReadOnly)"
+                                  ValueChanged="@((bool value) => SetYoutubeLookupAsync(value))" />
+                }
+
                 @* Shown even when the last folder has been removed: files that stayed on disk can still be listed and added back. *@
                 @if (!Embedded && SelectedLibrary is not null)
                 {
@@ -487,6 +496,20 @@
         });
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
 
+        // Real videos and phone memories are presented differently, so a Videos folder always asks which one it is.
+        if (IsVideosSelected)
+        {
+            var place = await AskAddFolderPlaceAsync(selected.LooksLikePhoneFootage);
+            if (place is null) return;
+            if (!place.Watch)
+            {
+                _notice = "Add this folder under Photos and personal videos (Settings > Libraries > Photos) so it gets a gallery and timeline.";
+                return;
+            }
+
+            _pendingYoutubeLookup = place.YoutubeLookup;
+        }
+
         // An empty folder is ours to manage. A folder that already holds files is used as-is unless the person says otherwise,
         // because managing it could rename or move files other apps depend on. Merging adds it as-is first, then brings its
         // files into a managed folder once.
@@ -515,6 +538,8 @@
         }
 
         var library = Clone(SelectedLibrary) ?? NewLibrary(_selected);
+        if (IsVideosSelected && _pendingYoutubeLookup is { } youtubeLookup) library.YoutubeLookup = youtubeLookup;
+        _pendingYoutubeLookup = null;
         // The Engine makes the first managed folder the library's destination when it saves.
         var source = new LibrarySourceDto
         {
@@ -541,6 +566,30 @@
             var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
             if (added is not null) await MergeIntoAsync(added);
         }
+    }
+
+    private bool IsVideosSelected => _selected.MediaTypes.Contains("Videos", StringComparer.OrdinalIgnoreCase);
+
+    private bool? _pendingYoutubeLookup;
+
+    // Videos (Watch) or Photos and personal videos (View). Returns the answer, or null when the person cancels.
+    private async Task<AddFolderPlaceDialog.AddFolderPlaceAnswer?> AskAddFolderPlaceAsync(bool looksLikePhoneFootage)
+    {
+        var parameters = new AppDialogParameters<AddFolderPlaceDialog>
+        {
+            { component => component.LooksLikePhoneFootage, looksLikePhoneFootage },
+            { component => component.YoutubeLookup, SelectedLibrary?.YoutubeLookup ?? true },
+        };
+        var dialog = await DialogService.ShowAsync<AddFolderPlaceDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            NoHeader = true,
+            CloseOnEscapeKey = true,
+            Sheet = AppDialogSheetMode.PhoneAndTablet,
+        });
+        return await dialog.Result is { Canceled: false, Data: AddFolderPlaceDialog.AddFolderPlaceAnswer answer } ? answer : null;
     }
 
     // The three ways to use a folder that already has files. Returns the answer, or null when the person cancels.
@@ -936,11 +985,20 @@
         if (library is null || _saving) return;
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
-            $"{source.DisplayName()} stops being part of {_selected.Label}. Your files stay on disk.",
+            $"{source.DisplayName()} stops being part of {_selected.Label}. Your files stay on disk."
+                + (IsVideosSelected ? " To move it to Photos and personal videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
             yesText: "Remove", cancelText: "Keep");
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
         await SaveAsync(library, "Folder removed.");
+    }
+
+    private async Task SetYoutubeLookupAsync(bool value)
+    {
+        var library = Clone(SelectedLibrary);
+        if (library is null || _saving) return;
+        library.YoutubeLookup = value;
+        await SaveAsync(library, value ? "YouTube lookup is on." : "YouTube lookup is off.");
     }
 
     private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
@@ -1134,7 +1192,7 @@
         Kind = "catalogued",
         Area = option.Area,
         Presentation = "catalogue",
-        MetadataPolicy = "enriched",
+        MetadataPolicy = option.MediaTypes[0] == "Videos" ? "local_only" : "enriched",
         MediaTypes = [option.MediaTypes[0]],
         Visibility = "household",
         AcceptedIntakeModes = ["incoming_folder"],
