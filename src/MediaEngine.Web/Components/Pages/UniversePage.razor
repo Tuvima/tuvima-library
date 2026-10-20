@@ -23,8 +23,11 @@
 
 @* A Universe: what the Library holds of one fictional world across every format, as a page to read, not a screen to manage.
    Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe happens
-   in the same side drawer Editing Mode uses, beside this page, for desktop administrators only. *@
-<div class="@PageClass">
+   in line, with the same banner and section slot Editing Mode uses on a title, for desktop administrators only. The Universe
+   editor brings its own sections, so the banner here has no Artwork, Match and Identity or History buttons. *@
+<div class="universe-page">
+    <EditingBanner Mode="_editing" ShowSections="false" InPage="true" />
+
     @switch (_state.Status)
     {
         case UniversePageStatus.Loading:
@@ -60,6 +63,12 @@
                               OnEdit="EditUniverseAsync"
                               EnrichmentRunning="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)" />
 
+                <EditingSectionSlot Mode="_editing"
+                                    BuildRequest="BuildSectionRequest"
+                                    OnCommitted="ReloadAfterEditAsync"
+                                    DetailsHeading="Universe details"
+                                    HandlesEscape="true" />
+
                 <div class="universe-page__series">
                     @foreach (var shelf in overview.Detail.Shelves)
                     {
@@ -80,11 +89,6 @@
             }
             break;
     }
-
-    <EditingDrawer Mode="_editing"
-                   BuildRequest="BuildDrawerRequest"
-                   ItemTitle="@(_state.Page?.Detail.Name ?? string.Empty)"
-                   OnCommitted="ReloadAfterEditAsync" />
 </div>
 
 @code {
@@ -100,8 +104,6 @@
     private bool _disposed;
 
     private string PageTitleText => _state.Page?.Detail.Name is { Length: > 0 } name ? name : "Universe";
-
-    private string PageClass => _editing.DrawerOpen ? "universe-page universe-page--editing-drawer" : "universe-page";
 
     private bool _isAdministrator;
 
@@ -138,7 +140,10 @@
     protected override void OnInitialized()
     {
         _state = new UniversePageState(ApiClient);
-        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger));
+        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
+        {
+            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
+        };
         _editing.Changed += OnEditingChanged;
         State.OnStateChanged += OnEngineStateChanged;
         DeviceContext.OnChanged += OnAccessContextChanged;
@@ -232,7 +237,7 @@
             _editing.HasPermission = true;
             if (await _editing.EnterAsync())
             {
-                _editing.OpenDrawer(EditingDrawerTab.Details);
+                _editing.OpenSection(EditingSection.Details);
             }
         }
         catch (OperationCanceledException)
@@ -250,7 +255,7 @@
         }
     }
 
-    private MediaEditorLaunchRequest? BuildDrawerRequest(string tab, string? artworkSlot)
+    private MediaEditorLaunchRequest? BuildSectionRequest(string tab, string? artworkSlot)
     {
         if (!_canEditUniverse)
         {
@@ -266,7 +271,7 @@
         };
     }
 
-    // The drawer saved something: read the page again without blanking it.
+    // The editor saved something: read the page again without blanking it.
     private async Task ReloadAfterEditAsync()
     {
         try
@@ -287,9 +292,9 @@
 
     private void OnEditingChanged()
     {
-        // The drawer closed: Editing Mode ends with it, since this page has no other editing surface. (While the drawer is
-        // still being opened the mode is already on and the drawer not yet open, so that moment is left alone.)
-        if (!_openingEditor && _editing.IsOn && !_editing.DrawerOpen && !_editing.HasUnsavedInput)
+        // The editor closed: Editing Mode ends with it, since this page has no other editing surface. (While the editor is
+        // still being opened the mode is already on and the section not yet open, so that moment is left alone.)
+        if (!_openingEditor && _editing.IsOn && !_editing.SectionOpen && !_editing.HasUnsavedInput)
         {
             _editing.Leave();
         }

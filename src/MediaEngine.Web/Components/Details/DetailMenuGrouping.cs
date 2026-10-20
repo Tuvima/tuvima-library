@@ -21,6 +21,18 @@ public static class DetailMenuGrouping
     public const int EditGroup = 3;
     public const int DestructiveGroup = 9;
 
+    /// <summary>
+    /// The Delete from library entry (Delete spec D17; details overlay spec D18, D19). The page adds it to its "..." menu and to
+    /// the editing banner's "..." for a person who may delete a single title; the Engine never sends it.
+    /// </summary>
+    public static DetailAction DeleteFromLibraryAction { get; } = new()
+    {
+        Key = DetailActionKeys.DeleteFromLibrary,
+        Label = "Delete from library…",
+        Icon = "delete",
+        IsDestructive = true,
+    };
+
     public static bool IsEditAction(DetailAction action) =>
         action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia;
 
