@@ -414,6 +414,12 @@
     private bool _hasLoadedOnce;
     private bool _hasMore;
     private bool _navigatingInternally;
+
+    /// <summary>The details overlay state, cascaded by the route view; null where the shell is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    // The routed page's own address: while the details overlay is open the address bar names the title, not this page.
+    private RoutedPageAddress? _address;
     private bool _loadFailed;
     private string? _loadError;
     private Guid? _activeProfileId;
@@ -624,6 +630,7 @@
 
     protected override void OnInitialized()
     {
+        _address = new RoutedPageAddress(Nav, Overlay);
         Nav.LocationChanged += OnLocationChanged;
         StateContainer.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
@@ -646,7 +653,7 @@
             _activeProfileResolved = true;
         }
 
-        ReadUrlState();
+        ReadUrlState(_address!.Absolute);
         var queryKey = BuildCurrentQueryKey();
         if (string.Equals(queryKey, _lastParameterQueryKey, StringComparison.Ordinal))
             return;
@@ -662,10 +669,17 @@
             if (_navigatingInternally)
             {
                 _navigatingInternally = false;
+                _address!.Accept(e.Location);
                 return;
             }
 
-            ReadUrlState();
+            // The details overlay opening, swapping titles or closing leaves this page where it was: no re-read, no reload.
+            if (!_address!.Accept(e.Location))
+            {
+                return;
+            }
+
+            ReadUrlState(_address.Absolute);
             await InvokeAsync(async () =>
             {
                 if (_lastParameterQueryKey == BuildCurrentQueryKey()) { StateHasChanged(); return; }
@@ -680,9 +694,9 @@
         }
     }
 
-    private void ReadUrlState()
+    private void ReadUrlState(string address)
     {
-        var state = BrowseQueryBuilder.Read(Preset, Tab, Nav.Uri);
+        var state = BrowseQueryBuilder.Read(Preset, Tab, address);
         _activeTabId = state.ActiveTabId;
         _grouping = state.Grouping;
         _layout = state.Layout;
@@ -700,7 +714,7 @@
         _status = state.Status;
         _selectedYears.Clear();
         _selectedYears.UnionWith(state.Years);
-        var query = System.Web.HttpUtility.ParseQueryString(Nav.ToAbsoluteUri(Nav.Uri).Query);
+        var query = System.Web.HttpUtility.ParseQueryString(new Uri(address).Query);
         _requestedTrackId = Guid.TryParse(query["track"], out var trackId) ? trackId : null;
         if (state.TileSize is int tileSize)
         {

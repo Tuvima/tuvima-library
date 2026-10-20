@@ -57,6 +57,8 @@ public partial class ListenPage
     // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
     public Guid? Track => Query.Guid("track");
     public bool Edit => Query.Bool("edit");
@@ -161,7 +163,7 @@ public partial class ListenPage
     private int _resizeStartWidth;
     private int _listenLoadVersion;
 
-    private string CurrentPath => Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath;
+    private string CurrentPath => new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).AbsolutePath;
     private string NormalizedSection => string.IsNullOrWhiteSpace(Section) ? string.Empty : Section.Trim().ToLowerInvariant();
     private bool IsDefaultEntry => string.Equals(CurrentPath, "/listen", StringComparison.OrdinalIgnoreCase);
     private bool IsListenHub => IsDefaultEntry;
@@ -1651,7 +1653,7 @@ public partial class ListenPage
         }
 
         var routeUri = Nav.ToAbsoluteUri(route);
-        var currentUri = Nav.ToAbsoluteUri(Nav.Uri);
+        var currentUri = new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay));
         if (!string.IsNullOrWhiteSpace(routeUri.Query))
         {
             return string.Equals(CurrentPath, routeUri.AbsolutePath, StringComparison.OrdinalIgnoreCase)

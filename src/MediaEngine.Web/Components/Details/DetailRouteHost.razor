@@ -267,10 +267,7 @@ else
             return;
 
         // In the overlay the entry is replaced with its underlay kept, so Back and Forward still restore it.
-        if (Overlay is { IsOpen: true } overlay)
-            overlay.ReplaceCurrentEntry(target);
-        else
-            Nav.NavigateTo(target, replace: true);
+        DetailsOverlayNavigation.ReplaceAddress(Nav, Overlay, target);
     }
 
     private void ApplyDetailTabRoute()

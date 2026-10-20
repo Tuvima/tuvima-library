@@ -261,6 +261,8 @@ else
     // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
     public string? IngestionView => Query.String("view");
     public string? ReviewState => Query.String("review");
@@ -635,7 +637,7 @@ else
             return;
         }
 
-        var currentPath = NormalizePath(Nav.ToBaseRelativePath(Nav.Uri));
+        var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
             ? $"/settings/libraries/{_activeSubsection}"
             : IsProfileDetailRoute

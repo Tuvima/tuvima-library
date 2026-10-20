@@ -896,7 +896,7 @@ else
         var returnUrl = ReturnCollectionId.HasValue
             ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
             : "/";
-        Nav.NavigateTo(returnUrl, replace: true);
+        DetailsOverlayNavigation.ReplacePage(Nav, returnUrl);
     }
 
     public async ValueTask DisposeAsync()

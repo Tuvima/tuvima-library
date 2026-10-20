@@ -112,10 +112,10 @@ public sealed class DetailsOverlayRemovalTests : AsyncBunitContext
 
     private sealed class StepRecorder(List<int> steps) : IDetailsOverlayHistory
     {
-        public ValueTask GoBackAsync(int count)
+        public ValueTask<bool> GoBackAsync(int count)
         {
             steps.Add(count);
-            return ValueTask.CompletedTask;
+            return ValueTask.FromResult(true);
         }
     }
 

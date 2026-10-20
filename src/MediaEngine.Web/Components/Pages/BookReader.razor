@@ -5,6 +5,7 @@
 @using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
@@ -1168,7 +1169,7 @@
         var returnUrl = ReturnCollectionId.HasValue
             ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
             : "/";
-        Nav.NavigateTo(returnUrl, replace: true);
+        DetailsOverlayNavigation.ReplacePage(Nav, returnUrl);
     }
 
     // The script reports positions after a short pause; ask it for the very latest one before saving on exit.

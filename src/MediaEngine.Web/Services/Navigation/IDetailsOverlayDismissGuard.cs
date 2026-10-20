@@ -15,6 +15,9 @@ public interface IDetailsOverlayDismissGuard
 /// <summary>Steps the browser history back; the one thing the overlay needs that <see cref="Microsoft.AspNetCore.Components.NavigationManager"/> cannot do.</summary>
 public interface IDetailsOverlayHistory
 {
-    /// <summary>Goes back <paramref name="steps"/> history entries (the equivalent of <c>history.go(-steps)</c>).</summary>
-    ValueTask GoBackAsync(int steps);
+    /// <summary>
+    /// Goes back <paramref name="steps"/> history entries (the equivalent of <c>history.go(-steps)</c>).
+    /// Returns false when the browser could not be asked, so the caller can go to the page another way.
+    /// </summary>
+    ValueTask<bool> GoBackAsync(int steps);
 }
