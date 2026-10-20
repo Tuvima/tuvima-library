@@ -55,7 +55,10 @@ public sealed class ItemMoveServiceTests : IDisposable
         var open = (await _service.PreviewAsync(new ItemMovePreviewRequest { WorkId = song, DestinationId = ok, EntryId = taken })).Value!;
         var chosen = (await _service.PreviewAsync(new ItemMovePreviewRequest
         {
-            WorkId = song, DestinationId = ok, EntryId = taken, Mode = ItemMoveModes.AnotherVersion,
+            WorkId = song,
+            DestinationId = ok,
+            EntryId = taken,
+            Mode = ItemMoveModes.AnotherVersion,
         })).Value!;
 
         Assert.NotNull(open.BlockedReason);
@@ -74,7 +77,11 @@ public sealed class ItemMoveServiceTests : IDisposable
 
         var result = await _service.MoveAsync(new ItemMoveRequest
         {
-            WorkId = song, DestinationId = ok, EntryId = preview.SelectedEntryId, Mode = preview.Mode, Fingerprint = preview.Fingerprint,
+            WorkId = song,
+            DestinationId = ok,
+            EntryId = preview.SelectedEntryId,
+            Mode = preview.Mode,
+            Fingerprint = preview.Fingerprint,
         });
 
         Assert.True(result.IsSuccess);
@@ -99,7 +106,11 @@ public sealed class ItemMoveServiceTests : IDisposable
 
         var result = await _service.MoveAsync(new ItemMoveRequest
         {
-            WorkId = song, DestinationId = ok, EntryId = preview.SelectedEntryId, Mode = preview.Mode, Fingerprint = preview.Fingerprint,
+            WorkId = song,
+            DestinationId = ok,
+            EntryId = preview.SelectedEntryId,
+            Mode = preview.Mode,
+            Fingerprint = preview.Fingerprint,
         });
 
         Assert.False(result.IsSuccess);
