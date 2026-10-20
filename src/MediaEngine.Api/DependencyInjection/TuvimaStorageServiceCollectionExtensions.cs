@@ -176,6 +176,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITasteOverrideRepository, TasteOverrideRepository>();
         services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
+        services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<MusicPairingCommitRepository>();

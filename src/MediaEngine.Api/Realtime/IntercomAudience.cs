@@ -53,6 +53,13 @@ public sealed class IntercomAudienceAuthorizer(
             return false;
         }
 
+        // Titles deleted from the library carry only ids of things that no longer exist, so there is nothing to protect:
+        // every signed-in person's open screens must drop them, not just administrators'.
+        if (eventName == SignalREvents.LibraryItemsRemoved)
+        {
+            return true;
+        }
+
         // A child (restricted) profile never gets administrator authority, as on Engine requests.
         var activeProfile = await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false);
         var administrator = account.IsAdministrator && grant.AdminEnabled &&

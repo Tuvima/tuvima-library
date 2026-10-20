@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1058; api=0; web-client=55
+# scopes: contracts=1064; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4179,6 +4179,19 @@
   WillBeDeleted: System.Boolean | json=will_be_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"collection_id":"11111111-2222-3333-4444-555555555555","name":"sample","items_in_request":7,"will_be_deleted":true}
 
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionConflictDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Preview: MediaEngine.Contracts.Items.LibraryItemDeletionPreview | json=preview | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"message":"sample","preview":null}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FolderLabel: System.String | json=folder_label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"file_name":"sample","folder_label":"sample","reason":"sample"}
+
 [contracts] MediaEngine.Contracts.Items.LibraryItemDeletionFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
   WorkId: System.Guid | json=work_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4215,6 +4228,29 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"work_ids":[]}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collection_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collection_id":"11111111-2222-3333-4444-555555555555","name":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Fingerprint: System.String | json=fingerprint | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"work_ids":[],"fingerprint":"sample"}
+
+[contracts] MediaEngine.Contracts.Items.LibraryItemDeletionResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DeletedWorkIds: System.Collections.Generic.List<System.Guid> | json=deleted_work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Titles: System.Collections.Generic.List<System.String> | json=titles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesDeleted: System.Int32 | json=files_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesLeftOnDisk: System.Int32 | json=files_left_on_disk | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FilesFailed: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFailedFileDto> | json=files_failed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BytesFreed: System.Int64 | json=bytes_freed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CollectionsDeleted: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionRemovedCollectionDto> | json=collections_deleted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"deleted_work_ids":[],"titles":[],"files_deleted":7,"files_left_on_disk":7,"files_failed":[],"bytes_freed":7,"collections_deleted":[]}
 
 [contracts] MediaEngine.Contracts.Items.LibraryItemDetailDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8244,6 +8280,11 @@
 [contracts] MediaEngine.Contracts.Realtime.LibraryChangedEvent
   kind=class | converter=default | number-handling=default | unmapped=default
   sample={}
+
+[contracts] MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=asset_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Realtime.ManualMetadataHarvestedEvent
   kind=class | converter=default | number-handling=default | unmapped=default
