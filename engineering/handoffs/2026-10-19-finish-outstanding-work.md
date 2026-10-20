@@ -35,7 +35,7 @@
 | 2a | Small fixes: Library wording and heart | 2b | Touches many files, so run it when ingestion is merged. |
 | 2b | Universe page and Engine actions | 2a | Needs the Expanse fix merged (step 0). |
 | 3 | Developer tools waves 3 to 8 | one other thread | Continue wave by wave, one thread per wave. |
-| 3 | Lane View all grid (3d) |  any gap | Approved 2026-10-16, unbuilt. |
+| 3 | Lane View all grid (3d) |  any gap | Built 2026-10-20, merged in PR #297 (rules: `docs/product/presentation-rules.md` › Shelves and View all grids). |
 | 3 | Deletion specs, then slow-read investigation | any gap | Locked specs, unscheduled. The investigation is read-only. |
 | 4 | Details overlay and Editing Mode planning | needs Shy | Planning first (Claude Code cannot start without a spec). |
 
