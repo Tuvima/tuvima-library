@@ -10,6 +10,7 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Endpoints;
@@ -465,8 +466,12 @@ public static class DisplayEndpoints
             int? limit,
             ClaimsPrincipal user,
             DisplayComposerService display,
+            IProfileGridPreferenceRepository preferences,
             CancellationToken ct) =>
         {
+            var profileId = ProfileId(user);
+            sort = await DisplayGridSortResolver.ResolveAsync(lane, shelfKey, sort, profileId, preferences, ct);
+
             var paged = PagedRequest.From(
                 int.TryParse(cursor, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cursorOffset) ? cursorOffset : offset,
                 limit,
@@ -478,7 +483,7 @@ public static class DisplayEndpoints
                     lane,
                     shelfKey,
                     new DisplayGridQuery(sort, type, genre, format, status, paged.Offset, paged.Limit),
-                    ProfileId(user),
+                    profileId,
                     ct);
                 return page is null ? ApiErrors.NotFound($"No grid found for '{lane}/{shelfKey}'.") : Results.Ok(page);
             }

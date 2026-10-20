@@ -15,8 +15,16 @@ namespace MediaEngine.Api.Endpoints;
 public static class DisplayGridPreferenceEndpoints
 {
     // Kept in step with the values the data structure allows (profile_grid_preferences CHECK constraints).
-    private static readonly string[] GridKeys = ["watch", "read", "listen", "my-list", "liked"];
-    private static readonly string[] Sorts = ["added", "title", "year", "played"];
+    private static readonly string[] GridKeys =
+    [
+        DisplayGridValues.RememberWatch, DisplayGridValues.RememberRead, DisplayGridValues.RememberListen,
+        DisplayGridValues.RememberMyList, DisplayGridValues.RememberLiked,
+    ];
+
+    private static readonly string[] Sorts =
+    [
+        DisplayGridValues.SortAdded, DisplayGridValues.SortTitle, DisplayGridValues.SortYear, DisplayGridValues.SortPlayed,
+    ];
 
     public static IEndpointRouteBuilder MapDisplayGridPreferenceEndpoints(this IEndpointRouteBuilder app)
     {
