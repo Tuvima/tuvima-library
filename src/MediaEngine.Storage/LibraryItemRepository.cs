@@ -567,9 +567,20 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         var universeName = Canonical("fictional_universe")
             ?? Canonical("franchise")
             ?? Canonical("series");
-        var narrativeRootQid = Canonical("fictional_universe_qid")
-            ?? Canonical("franchise_qid")
-            ?? Canonical("series_qid");
+        // The Universe record the Library stores: the Universe its Series shelf names, otherwise the root stored on the
+        // work itself. There is no third rule here; both come from the one Universe rule.
+        var narrativeRootQid = conn.QueryFirstOrDefault<string?>("""
+                -- readiness: universe record of one work, looked up by id
+                SELECT c.universe_qid
+                FROM works w
+                INNER JOIN collections c ON c.id = w.collection_id
+                WHERE w.id IN (@entityId, @rootParentId)
+                  AND c.collection_type IN ('ContentGroup', 'Series')
+                  AND c.universe_qid IS NOT NULL
+                ORDER BY CASE WHEN w.id = @entityId THEN 0 ELSE 1 END
+                LIMIT 1;
+                """, new { entityId, rootParentId })
+            ?? Canonical("narrative_root_qid");
         var stage3EnrichedAt = ParseDateTimeOffset(Canonical("stage3_enriched_at"));
         var workQidForUniverse = projection?.WikidataQid ?? Canonical(BridgeIdKeys.WikidataQid);
         var linkedEntityCount = 0;

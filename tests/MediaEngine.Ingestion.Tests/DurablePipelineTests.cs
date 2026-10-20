@@ -1293,7 +1293,7 @@ public sealed class DurablePipelineTests : IDisposable
             NullLogger<CollectionAssignmentService>.Instance);
         var collectionFinalization = new CollectionFinalizationService(
             collectionAssignment,
-            new ParentCollectionResolver(collectionRepo, NullLogger<ParentCollectionResolver>.Instance),
+            new ParentCollectionResolver(collectionRepo, new NoOpNarrativeRootRepository(), new NoOpCanonicalValueRepository(), NullLogger<ParentCollectionResolver>.Instance),
             new NoOpSystemActivityRepository(),
             NullLogger<CollectionFinalizationService>.Instance);
 
@@ -1368,7 +1368,7 @@ public sealed class DurablePipelineTests : IDisposable
             NullLogger<CollectionAssignmentService>.Instance);
         var collectionFinalization = new CollectionFinalizationService(
             collectionAssignment,
-            new ParentCollectionResolver(collectionRepo, NullLogger<ParentCollectionResolver>.Instance),
+            new ParentCollectionResolver(collectionRepo, new NoOpNarrativeRootRepository(), new NoOpCanonicalValueRepository(), NullLogger<ParentCollectionResolver>.Instance),
             new NoOpSystemActivityRepository(),
             NullLogger<CollectionFinalizationService>.Instance);
 
@@ -2446,6 +2446,19 @@ public sealed class DurablePipelineTests : IDisposable
         public Task DeleteByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.CompletedTask;
     }
 
+    /// <summary>No-op INarrativeRootRepository: nothing is known and nothing is stored.</summary>
+    private sealed class NoOpNarrativeRootRepository : INarrativeRootRepository
+    {
+        public Task<NarrativeRoot?> FindByQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<NarrativeRoot?>(null);
+        public Task<IReadOnlyList<NarrativeRoot>> ListAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<NarrativeRoot>>([]);
+        public Task UpsertAsync(NarrativeRoot root, CancellationToken ct = default) => Task.CompletedTask;
+        public Task EnsureAsync(NarrativeRoot root, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateUserDetailsAsync(string qid, string label, string? description, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<Guid>> FindWorkIdsByProvenanceQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<IReadOnlyList<NarrativeRoot>> GetChildrenAsync(string parentQid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<NarrativeRoot>>([]);
+        public Task<int> CountAsync(CancellationToken ct = default) => Task.FromResult(0);
+    }
+
     /// <summary>
     /// Minimal no-op ICollectionRepository — only implements methods used by CollectionAssignmentService.
     /// All lookups return null/empty; assignment is a no-op.
@@ -2468,8 +2481,14 @@ public sealed class DurablePipelineTests : IDisposable
         public Task<int> PruneOrphanedHierarchyAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task<IReadOnlyList<Collection>> GetChildCollectionsAsync(Guid parentCollectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
         public Task SetParentCollectionAsync(Guid collectionId, Guid? parentCollectionId, CancellationToken ct = default) => Task.CompletedTask;
-        public Task<Collection?> FindParentCollectionByRelationshipAsync(string qid, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
-        public Task<IReadOnlyList<Guid>> FindCollectionIdsByFranchiseQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task SetUniverseAsync(Guid collectionId, string? universeQid, Guid? parentCollectionId, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<Collection?> FindUniverseShelfByUniverseQidAsync(string universeQid, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
+        public Task<IReadOnlyList<Collection>> ListSeriesShelvesByUniverseQidAsync(string universeQid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<IReadOnlyList<Collection>> FindSeriesShelvesByQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<IReadOnlyList<Collection>> ListShelvesWithRollupRelationshipQidAsync(string qid, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
+        public Task<bool> DeleteUnusedUniverseShelfAsync(Guid universeShelfId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<Collection?> FindSeriesShelfForWorkTreeAsync(Guid rootWorkId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
+        public Task<IReadOnlyList<Guid>> GetRootWorkIdsOnShelfAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<IReadOnlyList<CollectionRelationship>> GetRelationshipsAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CollectionRelationship>>([]);
         public Task<Collection?> GetByIdAsync(Guid collectionId, CancellationToken ct = default) => Task.FromResult<Collection?>(null);
         public Task<IReadOnlyList<Collection>> GetByIdsAsync(IEnumerable<Guid> collectionIds, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Collection>>([]);
