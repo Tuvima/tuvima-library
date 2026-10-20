@@ -119,9 +119,10 @@ public static class ActivityListPresentation
         return $"/details/work/{workId:D}{context}";
     }
 
-    public static DateTimeOffset? StartedAt(PersonalActivityItemDto item) =>
+    /// <summary>When the item started, in the viewer's time zone (the machine's, unless a zone is given).</summary>
+    public static DateTimeOffset? StartedAt(PersonalActivityItemDto item, TimeZoneInfo? zone = null) =>
         DateTimeOffset.TryParse(item.StartedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var started)
-            ? started.ToLocalTime()
+            ? TimeZoneInfo.ConvertTime(started, zone ?? TimeZoneInfo.Local)
             : null;
 
     /// <summary>"9:41 PM", the time of day in the viewer's local time.</summary>
@@ -181,17 +182,20 @@ public static class ActivityListPresentation
         return $"{count} {(count == 1 ? "session" : "sessions")}";
     }
 
-    /// <summary>The key and heading of the date section a row falls under, in the viewer's local time.</summary>
-    public static (string Key, string Label) Section(PersonalActivityItemDto item, ActivityGrouping grouping, DateTimeOffset now)
+    /// <summary>
+    /// The key and heading of the date section a row falls under. Both the row and <paramref name="now"/> are placed in the same time
+    /// zone (the viewer's, unless a zone is given), so "Today" follows the viewer's day and not the UTC date.
+    /// </summary>
+    public static (string Key, string Label) Section(PersonalActivityItemDto item, ActivityGrouping grouping, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
-        var started = StartedAt(item);
+        var started = StartedAt(item, zone);
         if (started is null || grouping == ActivityGrouping.Title)
         {
             return (string.Empty, string.Empty);
         }
 
         var date = started.Value.Date;
-        var today = now.ToLocalTime().Date;
+        var today = TimeZoneInfo.ConvertTime(now, zone ?? TimeZoneInfo.Local).Date;
         switch (grouping)
         {
             case ActivityGrouping.Day:

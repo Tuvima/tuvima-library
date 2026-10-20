@@ -35,7 +35,7 @@
 | 2a | Small fixes: Library wording and heart | 2b | Touches many files, so run it when ingestion is merged. |
 | 2b | Universe page and Engine actions | 2a | Needs the Expanse fix merged (step 0). |
 | 3 | Developer tools waves 3 to 8 | one other thread | Continue wave by wave, one thread per wave. |
-| 3 | Lane View all grid (3d) |  any gap | Approved 2026-10-16, unbuilt. |
+| 3 | Lane View all grid (3d) |  any gap | Built 2026-10-20, merged in PR #297 (rules: `docs/product/presentation-rules.md` › Shelves and View all grids). |
 | 3 | Deletion specs, then slow-read investigation | any gap | Locked specs, unscheduled. The investigation is read-only. |
 | 4 | Details overlay and Editing Mode planning | needs Shy | Planning first (Claude Code cannot start without a spec). |
 
@@ -93,6 +93,12 @@ Continue engineering/specs/universe.md (v4). Read CLAUDE.md and the spec first a
 Do, two at a time: U-WP5 (Universe page, entry points, empty and partly-ready states, "Part of" line), U-WP7 (Engine actions for helper apps), U-WP12 (companion session service), then U-WP10 (Also appears in). Leave U-WP4 until Developer tools WP9 is merged, and U-WP6, U-WP8, U-WP9, U-WP11, U-WP13 to U-WP15 for later threads. Stop and ask Shy if any packet goes beyond the spec. Visual checks at phone, tablet, desktop and TV widths. Finish with a Plain English summary and the Shy-owned device checks (companion on iPhone and Android, Universe page on TV).
 ```
 
+### Thread 3e: Videos, Wave 1 (spec Locked v25, 2026-10-20)
+Depends on: the ingestion finish and Developer tools foundation threads being merged. Waves 2 and 3 (Vault) follow in their own sessions. Vault packets WP9, WP12, WP13 and WP17 need an independent security review plus a StashDB terms check before merge.
+```
+Implement engineering/specs/videos.md, Wave 1 only. Read CLAUDE.md first.
+```
+
 ### Thread 3d: Lane "View all" grid (H4e)
 ```
 Build the Home lane "View all" grid (Shy approved 2026-10-16). Read CLAUDE.md and docs/product/presentation-rules.md first. There is no spec file: plan briefly, show Shy the plan, and build on "go ahead".
@@ -115,7 +121,7 @@ Investigate why the library list takes about 14 seconds unfiltered and uncached 
 ```
 
 ## 5. Planning that must happen before Claude Code can build
-- **Videos** (approved 2026-10-13, Documents plan packets V0 to V6): not built, no Videos library type on main. Shy asked on 2026-10-20 for a planning thread; a spec is written and locked first, then a prompt is added here.
+- **Videos:** planned and Locked on 2026-10-20 (`engineering/specs/videos.md`, v25). Its build prompt is Thread 3e above.
 - **Group 4: details overlay, Edit in the "..." menu, menu alignment, squished Editing drawer.** No spec exists. Shy shares the Editing drawer screenshots in the planning project; a spec is written and locked; then a Claude Code prompt is added here. It also settles the older "per-type edit pages" step (U2) versus the Item Detail rule that per-type pages stay gone.
 - **Lane "View all" grid (H4e) and My Library on desktop/tablet (H4c).** Not confirmed from the repo; decide whether to keep them in scope.
 

@@ -23,12 +23,12 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Delete from library](specs/delete-from-library.md) | In progress (v5, started 2026-10-19) |
 | [Spec: Deleting personal files in View](specs/view-personal-file-deletion.md) | Locked (v3, 2026-10-18; build after the paired-app fix #248 merges) |
 | [Spec: The live ingestion page and when items appear](specs/ingestion-and-readiness.md) | In progress (v4, 2026-10-19; WP1 to WP10 and WP12 built; WP8 awaits the log line) |
 | [Spec: Developer tools as one family (Local AI, Plugins, Integrations, Developer Tools)](specs/developer-tools.md) | In progress (v3, 2026-10-19) |
 | [Spec: Universes (page, Series grouping, companion, clean-up)](specs/universe.md) | In progress (v4; U-WP0 to U-WP3 built 2026-10-19; U-WP5, U-WP7, U-WP10, U-WP12 built 2026-10-20) |
 | [Spec: Details overlay and page-based Editing Mode](specs/details-overlay-and-edit-mode.md) | Locked (v2, 2026-10-20) |
+| [Spec: Videos in Watch and the Vault](specs/videos.md) | Locked (v25, 2026-10-20) |
 | [Archive](specs/archive/README.md) | Built specs |
 | [Spec: Library list speed](specs/archive/library-list-speed.md) | Built (v2, archived 2026-10-19; the audiobook year look-up and Home are follow-ups) |
 | [Spec: Settings revamp (one look, one menu, one attention banner)](specs/archive/settings-revamp.md) | Built (v1.1, archived 2026-10-19; Logs > Events is filled by the ingestion spec's WP12) |
@@ -39,6 +39,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: One file covering several TV episodes](specs/archive/multi-episode-files.md) | Built (v2, archived 2026-10-17) |
 | [Spec: Item Detail page](specs/archive/item-detail.md) | Built (v5, archived 2026-10-17) |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/archive/registry-retirement.md) | Built (v5, archived 2026-10-17) |
+| [Spec: Delete from library](specs/archive/delete-from-library.md) | Built (v5, archived 2026-10-20) |
 | [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/archive/data-store-upgrade-scripts.md) | Built (v2, archived 2026-10-18) |
 

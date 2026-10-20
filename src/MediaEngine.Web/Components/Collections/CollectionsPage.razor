@@ -632,6 +632,8 @@
             };
 
     private string MembershipFilterLabel => _membership == "manual" ? "Hand-picked" : "Rule-driven";
+    protected override void OnInitialized() => Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+
     protected override async Task OnParametersSetAsync()
     {
         _activeSection = CollectionsSectionConfiguration.NormalizeSection(Section);
@@ -676,8 +678,13 @@
         return next;
     }
 
+    // Titles deleted from the library leave the shelves, hand-picked collections and universes shown here.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) =>
+        _ = InvokeAsync(() => _loaded && !_pageCts.IsCancellationRequested ? ReloadAsync() : Task.CompletedTask);
+
     public void Dispose()
     {
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         _pageCts.Cancel();
         _peopleCts?.Dispose();
         _loadCts?.Dispose();

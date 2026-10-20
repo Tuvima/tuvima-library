@@ -67,6 +67,16 @@ You can pause, resume or stop a merge. Stopping keeps what was already copied, a
 
 A stopped merge reads "Merge stopped. Nothing was deleted. You can start it again." (a Move says the files already moved stay in the target) and the folder is a normal folder again. Two limits are known: starting it again into a different target, or restarting a Move of files that went to **From merge**, can add a numbered copy; and after a stopped merge of a Managed folder, ordinary scans cannot rename or move the originals that merge listed, to keep them safe.
 
+## Excluded files
+
+When you delete a title from the library, the files that stayed on disk are listed under the folders of that library: files in an as-is folder, the original of a merged file, and any file Tuvima could not remove. Scans skip them, so the deleted title does not come back. The list appears only when there are excluded files, and shows each file, its folder, when it was excluded and who deleted the title.
+
+1. Open **Settings > Libraries** and choose the media type.
+2. Find **Excluded files** and check the row for the file.
+3. Choose **Add back**. Tuvima scans that one file again, so the title comes back after the scan.
+
+If the file is no longer on disk, **Add back** removes the row and nothing is scanned. Only administrators can add a file back.
+
 ## Import folder
 
 The **Import folder** is the seventh entry in the Libraries list. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.

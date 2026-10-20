@@ -387,6 +387,9 @@
     /// <summary>Opens the page already narrowed to one person, household or everyone, such as from a person's page. Ignored unless the viewer may use it.</summary>
     [Parameter] public string? Scope { get; set; }
 
+    /// <summary>The clock the date headings count "Today" from; the system clock unless a test supplies one.</summary>
+    [Parameter] public TimeProvider? Clock { get; set; }
+
     private readonly CancellationTokenSource _lifetime = new();
     private readonly List<PersonalActivityItemDto> _items = [];
     private readonly HashSet<string> _kinds = new(StringComparer.Ordinal);
@@ -620,7 +623,7 @@
     {
         get
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = (Clock ?? TimeProvider.System).GetUtcNow();
             var sections = new List<ActivitySection>();
             foreach (var item in _items)
             {
@@ -1123,7 +1126,7 @@
         _songsLoading.Add(session.Id);
         try
         {
-            var upper = (ActivityListPresentation.StartedAt(session) ?? DateTimeOffset.UtcNow).ToUniversalTime();
+            var upper = (ActivityListPresentation.StartedAt(session) ?? (Clock ?? TimeProvider.System).GetUtcNow()).ToUniversalTime();
             var ended = DateTimeOffset.TryParse(session.EndedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var end)
                 ? end.ToUniversalTime()
                 : upper;

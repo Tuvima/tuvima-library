@@ -61,7 +61,26 @@ An item that is not Ready appears only on the live ingestion page (Settings, Lib
 
 Current presentation rules: the Collections landing route is labeled **Discovery**, while Automatic, Curated, Shelves, and People retain their names. Shelves opens with Read, Watch, and Listen preview lanes and filters by Books, Movies, and Audiobooks. Albums and comic issue series remain native lane groups. Same-name duplicate contributor records collapse into one enriched shelf presentation. Discover rows show a small title and optional year for individual items, but group tiles do not repeat text they already embed. TV Shows rows keep episode counts but omit the redundant `TV Show` pill. Completed TV shows show a provider-backed premiere-to-finale year range; TV detail pages always keep the season selector visible, including when only one season is owned.
 
-A curated collection (a manually built Custom collection) can never be empty. The editor does not let it be created or saved without at least one item and sends the chosen items with the create request; the Engine refuses to take out its last item or its last attached personal-media source ("A collection needs at least one item. Delete the collection instead.") and refuses an update that would leave it empty. When the last item of a curated collection leaves the library the collection is deleted automatically and a "Removed the collection 'X' because its last item left the library." entry is written to the activity history. Playlists, playlist folders and rule-driven (live) collections are not affected, and automatic collections follow the canonical metadata. Warning before deleting a library item that sits in a curated collection belongs to the future "Delete from library" work.
+A curated collection (a manually built Custom collection) can never be empty. The editor does not let it be created or saved without at least one item and sends the chosen items with the create request; the Engine refuses to take out its last item or its last attached personal-media source ("A collection needs at least one item. Delete the collection instead.") and refuses an update that would leave it empty. When the last item of a curated collection leaves the library the collection is deleted automatically and a "Removed the collection 'X' because its last item left the library." entry is written to the activity history. Playlists, playlist folders and rule-driven (live) collections are not affected, and automatic collections follow the canonical metadata. Deleting a title from the library names each hand-picked collection it sits in, and a hand-picked collection left with nothing in it is deleted with the title. Automatic collections are never named (see Delete from library).
+
+## Delete from library
+
+Delete from library is the one way to remove a title from the library. It is for administrators on a desktop with a fine, hover-capable pointer (`EditorDeviceRule.CanEdit`), and the Engine checks every call. It appears in three places and nowhere else:
+
+- **Detail page, Editing Mode.** **More** lists **Delete from library…** last, in red, below a divider. It shows only in Editing Mode, never on a deep link, and only for single titles such as a movie, an episode, a book, an audiobook or a comic issue.
+- **Listen song table.** Each song row has a Delete icon, and selecting songs shows "N selected", **Delete…** and **Clear**. Phones, touch-only devices and anyone who is not an administrator see neither.
+- **Settings > Libraries > Excluded files.** The files that stayed on disk, each with **Add back**.
+
+The dialog first checks what will happen ("Checking what will be deleted…") and then shows:
+
+- **Files**: every media file and sidecar, with its folder and size, each marked as deleted from disk or as staying where it is (in an as-is folder, the original of a merge, or a file that is protected or cannot be removed). Files that stay are excluded from future scans.
+- **Hand-picked collections**: each collection the title is in that someone made by hand, with a note that the title is taken out of it. A hand-picked collection left with nothing in it is deleted too, and the dialog names it. Automatic collections are never listed.
+- **Progress**: how many people have progress on the title. The count is shown, not their names, and the progress is removed.
+- **Space freed**, and "Files deleted from disk can't be recovered." when at least one file will be deleted.
+
+The red button reads **Delete from library and disk** when at least one file will be deleted, and **Delete from library** when every file stays. Cancel has the focus when the dialog opens, and Escape cancels. Collections are sorted A to Z, and after five the list ends with "and N more". The dialog warns when processing for the title will be stopped. If the plan has changed since the dialog opened, the dialog shows the updated list and nothing is deleted.
+
+Library media has no recycle bin. Films, TV, books, audiobooks, comics and music can be downloaded again, so deletion is immediate after the confirmation. Only titles and songs can be deleted this way. A whole show, season, album or series, a single edition or file, and personal items in View cannot be deleted this way yet.
 
 ## Universe page
 
