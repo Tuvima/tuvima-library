@@ -975,6 +975,7 @@ public sealed class PersonCreditReadService : IPersonCreditReadService
         var relatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
             "credit_related_book_year",
             """
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
             SELECT credit_work.id AS work_id, credit_asset.id AS asset_id
             FROM effective_credit candidate_credit
             INNER JOIN media_assets credit_asset ON credit_asset.id = candidate_credit.media_asset_id

@@ -237,7 +237,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                        Rating
                 FROM matched
                 WHERE RowNumber = 1
-                ORDER BY Title COLLATE NOCASE
+                ORDER BY Title COLLATE NOCASE, WorkId
                 LIMIT 20
             ),
             {searchRelatedBookYearCte}
@@ -257,7 +257,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
                    page.Description,
                    page.Rating
             FROM search_page page
-            ORDER BY page.Title COLLATE NOCASE;
+            ORDER BY page.Title COLLATE NOCASE, page.WorkId;
             """, new { like, workIds = matchedWorkIds?.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
 
         return rows.Select(row => new SearchResultDto

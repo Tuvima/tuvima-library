@@ -24,6 +24,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
         var resolvedRelatedBookYearCte = MediaDateSql.RelatedBookOriginalYearCte(
             "resolved_related_book_year",
             """
+            -- readiness: candidates for the borrowed year only; the read's own rows carry the Ready filter
             SELECT ra_candidate.WorkId AS work_id, ra_candidate.AssetId AS asset_id
             FROM representative_assets ra_candidate
             INNER JOIN works audiobook_work ON audiobook_work.id = ra_candidate.WorkId

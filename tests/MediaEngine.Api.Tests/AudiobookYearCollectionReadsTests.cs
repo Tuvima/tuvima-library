@@ -1,3 +1,4 @@
+using System.Globalization;
 using Dapper;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
@@ -31,8 +32,15 @@ public sealed class AudiobookYearCollectionReadsTests : IDisposable
 
     public void Dispose()
     {
-        try { _db.Dispose(); } catch { }
-        try { File.Delete(_dbPath); } catch { }
+        _db.Dispose();
+        try
+        {
+            File.Delete(_dbPath);
+        }
+        catch (IOException)
+        {
+            // A pooled connection can still hold the temp file; the OS temp folder clears it later.
+        }
     }
 
     [Fact]
@@ -206,6 +214,23 @@ public sealed class AudiobookYearCollectionReadsTests : IDisposable
 
         Assert.Equal("2007", Assert.Single(results, result => result.WorkId == audiobook).Year);
         Assert.Equal("1965", Assert.Single(results, result => result.WorkId == book).Year);
+    }
+
+    [Fact]
+    public async Task SeriesSearch_AudiobookAtTheEndOfAFullPage_ShowsTheMatchingBooksYear()
+    {
+        for (var number = 1; number <= 25; number++)
+        {
+            await AddWorkAsync("Books", $"Saga {number:00}", (1900 + number).ToString(CultureInfo.InvariantCulture), Author);
+        }
+
+        // Sorted by title, the book and the audiobook "Saga 19" are the 19th and 20th of 26 matches: the last rows of the page.
+        var audiobook = await AddWorkAsync("Audiobooks", "Saga 19", null, Author);
+
+        var results = await SearchThroughTheIndexAsync("Saga");
+
+        Assert.Equal(20, results.Count);
+        Assert.Equal("1919", Assert.Single(results, result => result.WorkId == audiobook).Year);
     }
 
     private async Task<List<SearchResultDto>> SearchThroughTheIndexAsync(string query)
