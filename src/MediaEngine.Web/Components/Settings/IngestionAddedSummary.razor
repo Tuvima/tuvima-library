@@ -19,13 +19,20 @@
         <ul class="ingestion-added__list">
             @foreach (var day in Days)
             {
-                <li @key="day.Date">
-                    <strong>@IngestionNowText.DayLabel(day.Date, Today):</strong>
-                    @foreach (var (count, position) in Counts(day))
-                    {
-                        <text>@(position == 0 ? " " : ", ")<a href="@LogRoute">@count</a></text>
-                    }
-                </li>
+                <AppRowErrorBoundary @key="day.Date" ItemTitle="@IngestionNowText.DayLabel(day.Date, Today)" ResetKey="@day">
+                    <ChildContent>
+                        <li>
+                            <strong>@IngestionNowText.DayLabel(day.Date, Today):</strong>
+                            @foreach (var (count, position) in Counts(day))
+                            {
+                                <text>@(position == 0 ? " " : ", ")<a href="@LogRoute">@count</a></text>
+                            }
+                        </li>
+                    </ChildContent>
+                    <ErrorContent>
+                        <li data-testid="row-error"><strong>@IngestionNowText.DayLabel(day.Date, Today):</strong> @AppRowErrorBoundary.Headline</li>
+                    </ErrorContent>
+                </AppRowErrorBoundary>
             }
         </ul>
     }
