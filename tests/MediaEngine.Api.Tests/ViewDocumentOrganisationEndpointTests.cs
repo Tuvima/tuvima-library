@@ -141,6 +141,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         typeof(ViewSharedContributionService),
         typeof(ViewSharedSourceService),
         typeof(ViewSourceIndexingHostedService),
+        typeof(ViewTrashDeletionPlanner),
         typeof(MediaEngine.Api.Services.Settings.ServerFolderBrowserService),
     ];
 
@@ -1567,6 +1568,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
     private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
     private const string ClientDocuments = "AProfileWithoutDocumentsLearnsOfNoDocumentThroughTimelineGalleriesCountsPeoplePlacesItemsOrFiles";
+    private const string TrashWithoutDocuments = "AProfileWithoutDocuments_NeverSeesDocumentsInItsTrash";
     private const string NoItems = "none:";
 
     /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
@@ -1621,6 +1623,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/shared/contributions"] = Covers(ContributionRoutes, "mode=review"),
         ["GET /view/shared/contributions/{id:guid}"] = Covers(ContributionRoutes, "contributions/{documentsOnly"),
         ["GET /view/tag-suggestions"] = Covers(TagSuggestions, "/view/tag-suggestions"),
+        ["GET /view/trash/summary"] = Covers(TrashWithoutDocuments, "/view/trash/summary"),
         ["POST /view/admin/profiles/{profileId:guid}/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
         ["POST /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["POST /view/admin/shared/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
@@ -1645,6 +1648,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["POST /view/shared/contributions/preview"] = Covers(ContributionSend, "PreviewAsync"),
         ["POST /view/shared/items/direct"] = Covers(ContributionSend, "AddDirectAsync"),
         ["POST /view/tags"] = Refused,
+        ["POST /view/trash/empty-preview"] = Covers(TrashWithoutDocuments, "/view/trash/empty-preview"),
         ["POST /view/uploads"] = Covers(UploadRefusal, "\"Lease.pdf\""),
         ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
         ["PUT /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",

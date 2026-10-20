@@ -633,6 +633,7 @@ public static partial class ViewEndpoints
         MapDocumentOrganisation(group);
         MapDocumentFiling(group);
         MapDocumentBulk(group);
+        MapTrash(group);
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,

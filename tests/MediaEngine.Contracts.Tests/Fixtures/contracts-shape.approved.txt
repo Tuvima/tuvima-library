@@ -4507,6 +4507,45 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimeline
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimelineIndexDto
   Buckets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTimelineBucketDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyPreviewDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto> | nullability=not-null | accessors=get,init
+  Galleries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto> | nullability=not-null | accessors=get,init
+  DeleteCount: System.Int32 | nullability=not-null | accessors=get,init
+  PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
+  VideoCount: System.Int32 | nullability=not-null | accessors=get,init
+  DocumentCount: System.Int32 | nullability=not-null | accessors=get,init
+  OtherCount: System.Int32 | nullability=not-null | accessors=get,init
+  Skipped: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewSkippedDto> | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  HasCompound: System.Boolean | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashOutcomes
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto
+  GalleryId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  MediaKind: System.String | nullability=not-null | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewSkippedDto
+  ReasonCode: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashSummaryDto
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
+  VideoCount: System.Int32 | nullability=not-null | accessors=get,init
+  DocumentCount: System.Int32 | nullability=not-null | accessors=get,init
+  OtherCount: System.Int32 | nullability=not-null | accessors=get,init
+  Bytes: System.Int64 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewUploadResponseDto
   ItemId: System.Guid | nullability=not-null | accessors=get,init
   ItemAdded: System.Boolean | nullability=not-null | accessors=get,init

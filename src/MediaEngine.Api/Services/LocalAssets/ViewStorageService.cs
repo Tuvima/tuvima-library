@@ -330,6 +330,102 @@ public sealed class ViewStorageService(
             || string.Equals(Path.GetDirectoryName(fullPath), fullRoot, PathComparison);
     }
 
+    /// <summary>
+    /// Decides whether a file path really lies beneath a folder once every symbolic link and junction is followed, including
+    /// the file itself (the string-only <see cref="Contains"/> cannot see a link). On success <paramref name="resolved"/> holds the
+    /// real folder and the real path the file is stored at (they differ from the inputs only when a folder above the root is a link). Anything that leaves the folder after resolution is refused, and so is a path that
+    /// reaches the file through a link even when the link stays inside the folder: removing "the file" would then be
+    /// ambiguous between the link and its target, so such a file is never treated as removable. The reason never names a path.
+    /// </summary>
+    public static bool TryResolveContainedPath(string root, string path, out ViewResolvedPath resolved, out string reason)
+    {
+        resolved = default;
+        reason = string.Empty;
+        string fullRoot;
+        string fullPath;
+        try
+        {
+            fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+            fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            reason = "The file location is not a valid path.";
+            return false;
+        }
+
+        if (string.Equals(fullRoot, fullPath, PathComparison) || !IsWithin(fullRoot, fullPath))
+        {
+            reason = "The file is outside this person's own folder.";
+            return false;
+        }
+
+        string realRoot;
+        string realPath;
+        try
+        {
+            realRoot = ResolveRealPath(fullRoot, 0);
+            realPath = ResolveRealPath(fullPath, 0);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException
+            or NotSupportedException)
+        {
+            // The links on the way to the file could not be followed, so it cannot be shown to be inside the folder.
+            _ = exception;
+            reason = "The file's location could not be checked, so it was left where it is.";
+            return false;
+        }
+
+        if (string.Equals(realRoot, realPath, PathComparison) || !IsWithin(realRoot, realPath))
+        {
+            reason = "The file is a link that leads outside this person's own folder.";
+            return false;
+        }
+
+        // The same steps below the folder before and after following links means no link was crossed on the way.
+        var lexical = Path.GetRelativePath(fullRoot, fullPath);
+        var real = Path.GetRelativePath(realRoot, realPath);
+        if (!string.Equals(lexical, real, PathComparison))
+        {
+            reason = "The file is reached through a link, so it was left where it is.";
+            return false;
+        }
+
+        resolved = new ViewResolvedPath(realRoot, realPath);
+        return true;
+    }
+
+    /// <summary>Follows every link on the way to <paramref name="fullPath"/>, directory or file, as the filesystem would.</summary>
+    private static string ResolveRealPath(string fullPath, int depth)
+    {
+        const int MaximumLinkDepth = 40;
+        if (depth > MaximumLinkDepth)
+        {
+            throw new IOException("Too many levels of symbolic links.");
+        }
+
+        var pathRoot = Path.GetPathRoot(fullPath) ?? string.Empty;
+        var current = pathRoot;
+        var segments = fullPath[pathRoot.Length..]
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 0; index < segments.Length; index++)
+        {
+            var next = Path.Combine(current, segments[index]);
+            FileSystemInfo info = Directory.Exists(next) ? new DirectoryInfo(next) : new FileInfo(next);
+            if (info.LinkTarget is null)
+            {
+                current = next;
+                continue;
+            }
+
+            var target = info.ResolveLinkTarget(returnFinalTarget: true);
+            var targetPath = target?.FullName ?? Path.GetFullPath(info.LinkTarget, current);
+            current = ResolveRealPath(Path.TrimEndingDirectorySeparator(targetPath), depth + 1);
+        }
+
+        return Path.TrimEndingDirectorySeparator(current);
+    }
+
     private string ResolveManagedRelativePath(string relative)
     {
         if (Path.IsPathRooted(relative))
@@ -375,3 +471,6 @@ public sealed class ViewStorageService(
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 }
+
+/// <summary>A folder and a file inside it, both with every symbolic link and junction followed.</summary>
+public readonly record struct ViewResolvedPath(string Root, string Path);
