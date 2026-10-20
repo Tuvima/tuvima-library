@@ -458,8 +458,9 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
             _nextMaintenanceRunUtc = CronScheduler.NextRunAt(string.IsNullOrWhiteSpace(cron) ? "0 3 * * *" : cron, TimeSpan.FromHours(24)).ToUniversalTime();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Could not load the Universe enrichment schedule; next sweep in 24 hours");
             _nextMaintenanceRunUtc = DateTimeOffset.UtcNow.AddHours(24);
         }
     }

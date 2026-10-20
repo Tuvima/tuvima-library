@@ -14,10 +14,11 @@ namespace MediaEngine.Api.Services;
 public static class CronScheduler
 {
     /// <summary>
-    /// The longest single timer used while waiting. Comfortably below the ~49.7 day <c>Task.Delay</c> limit; the
-    /// clock is re-read after each piece, so a wait never ends early and follows wall-clock changes.
+    /// The longest single timer used while waiting, far below the ~49.7 day <c>Task.Delay</c> limit. The clock is
+    /// re-read after each piece, so a wait never ends early, and a wall-clock jump or a sleeping machine makes a
+    /// run at most this late.
     /// </summary>
-    public static readonly TimeSpan LongestSingleWait = TimeSpan.FromDays(24);
+    public static readonly TimeSpan LongestSingleWait = TimeSpan.FromDays(1);
 
     /// <summary>
     /// The next time the cron expression fires after <paramref name="from"/> (default: now), or null when the

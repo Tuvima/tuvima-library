@@ -31,7 +31,7 @@ public sealed class CronSchedulerTests
 
         await wait;
         Assert.Equal(dueAt, clock.GetUtcNow());
-        Assert.True(pieces >= 17, $"Expected 400 days to take at least 17 pieces, took {pieces}.");
+        Assert.Equal((int)Math.Ceiling((dueAt - Start) / CronScheduler.LongestSingleWait), pieces);
     }
 
     [Fact]

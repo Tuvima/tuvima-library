@@ -11,7 +11,9 @@ namespace MediaEngine.Api.Tests;
 /// </summary>
 public sealed class CronScheduleWaitGuardrailTests
 {
+    // A statement that hands a cron run time to Task.Delay, or turns one into a gap by subtraction.
     private static readonly Regex DelayForCronRun = new(@"Task\.Delay\([^;]*(NextRunAt|NextOccurrence|nextRun)", RegexOptions.Compiled);
+    private static readonly Regex GapToCronRun = new(@"(NextRunAt|NextOccurrence|nextRun)\b[^;]*\s-\s|\s-\s[^;]*(NextRunAt|NextOccurrence|nextRun)\b", RegexOptions.Compiled);
 
     [Fact]
     public void CronScheduler_OffersNoDelayToHandToTaskDelay()
@@ -39,7 +41,7 @@ public sealed class CronScheduleWaitGuardrailTests
             }
 
             var source = File.ReadAllText(path);
-            if (source.Contains("CronScheduler.UntilNext", StringComparison.Ordinal) || DelayForCronRun.IsMatch(source))
+            if (source.Contains("CronScheduler.UntilNext", StringComparison.Ordinal) || DelayForCronRun.IsMatch(source) || GapToCronRun.IsMatch(source))
             {
                 offenders.Add(Path.GetFileName(path));
             }
