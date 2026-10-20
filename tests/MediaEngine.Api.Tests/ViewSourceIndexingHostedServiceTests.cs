@@ -128,6 +128,33 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task FilesInTheHiddenTrashStagingFolderAreNeverDispatchedForIndexing()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(_root, "staging-events")).FullName;
+        AddSource(Guid.NewGuid(), root, true);
+        var factory = new FakeWatcherFactory();
+        var indexer = new RecordingIndexer();
+        using var service = Service(indexer, factory);
+        await service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => factory.Watchers.Count == 1);
+        var watcher = Assert.Single(factory.Watchers);
+
+        var staging = Directory.CreateDirectory(Path.Combine(root, ViewStorageService.StagingFolderName, Guid.NewGuid().ToString("D"))).FullName;
+        var parked = Path.Combine(staging, "0000_parked.jpg");
+        File.WriteAllBytes(parked, [1, 2, 3]);
+        var ordinary = Path.Combine(root, "ordinary.jpg");
+        File.WriteAllBytes(ordinary, [1, 2, 3]);
+        watcher.Raise(new ViewSourceFileEvent(parked, ViewSourceFileEventKind.Created));
+        watcher.Raise(new ViewSourceFileEvent(ordinary, ViewSourceFileEventKind.Created));
+
+        await indexer.FirstSuccessfulDispatch.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await Task.Delay(150);
+        Assert.DoesNotContain(indexer.AttemptedPaths, path => path.Contains(ViewStorageService.StagingFolderName, StringComparison.Ordinal));
+        Assert.Contains(indexer.AttemptedPaths, path => string.Equals(path, Path.GetFullPath(ordinary), StringComparison.OrdinalIgnoreCase));
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task StopAndDisposeReleaseEveryWatcherWhenThereAreMultipleSources()
     {
         var first = Directory.CreateDirectory(Path.Combine(_root, "one")).FullName;

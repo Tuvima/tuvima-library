@@ -16,6 +16,24 @@ public sealed class ViewStorageService(
     private static readonly SemaphoreSlim PersonalSpaceGate = new(1, 1);
     private static readonly SemaphoreSlim ManagedSourceGate = new(1, 1);
 
+    /// <summary>
+    /// The hidden folder, directly inside a person's profile folder, where Empty Trash parks an item's files for a moment before
+    /// they are deleted for good. It is never a View source, and scans and the folder watcher ignore anything beneath it.
+    /// </summary>
+    public const string StagingFolderName = ".tuvima-staging";
+
+    /// <summary>True when any step of the path is the hidden staging folder, so scans and watchers can skip it.</summary>
+    public static bool IsInsideStagingFolder(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => string.Equals(segment, StagingFolderName, PathComparison));
+    }
+
     public string GetRootPath() => GetRootPath(requireWrite: true);
 
     /// <summary>

@@ -34,3 +34,34 @@ public sealed record ViewTrashTotals(
     int DocumentCount,
     int OtherCount,
     long Bytes);
+
+/// <summary>
+/// What Empty Trash asks the data store to remove for one item. <see cref="PlannedSourceRowIds"/> is every indexed place
+/// (<c>local_file_sources</c> row) the plan saw under the item's files, whatever was decided for it; <see cref="RemovedSourceRowIds"/>
+/// is the subset whose files were removed from disk or were already gone. Places for files kept on disk are never in the second list.
+/// </summary>
+public sealed record ViewTrashPurgeRequest(
+    Guid ItemId,
+    Guid PersonalSpaceId,
+    Guid OwnerProfileId,
+    IReadOnlyCollection<Guid> PlannedSourceRowIds,
+    IReadOnlyCollection<Guid> RemovedSourceRowIds);
+
+/// <summary>What happened when an item's records were removed.</summary>
+public enum ViewTrashPurgeOutcome
+{
+    /// <summary>The item and everything tied to it is gone from the data store.</summary>
+    Removed,
+
+    /// <summary>The item is not in this person's Trash any more (restored, or gone), so nothing was changed.</summary>
+    NotInTrash,
+
+    /// <summary>The item now has indexed places the plan did not see, so nothing was changed.</summary>
+    ChangedSincePlanned,
+
+    /// <summary>Shared Library work on the item started since the plan was made, so nothing was changed.</summary>
+    SharedWorkInFlight,
+}
+
+/// <summary>The outcome of removing a group of items; <see cref="ItemId"/> names the item that stopped it, when one did.</summary>
+public sealed record ViewTrashPurgeResult(ViewTrashPurgeOutcome Outcome, Guid? ItemId = null);

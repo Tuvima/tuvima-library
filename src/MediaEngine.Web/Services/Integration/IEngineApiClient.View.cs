@@ -16,6 +16,11 @@ public partial interface IEngineApiClient
     Task<ViewTrashOutcome<ViewTrashSummaryDto>> GetViewTrashSummaryAsync(CancellationToken ct = default);
     /// <summary>What Empty Trash would do right now, with the fingerprint to confirm. Changes nothing; Forbidden for anyone but the signed-in owner.</summary>
     Task<ViewTrashOutcome<ViewTrashEmptyPreviewDto>> GetViewTrashEmptyPreviewAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Permanently deletes the signed-in person's own Trash, but only if <paramref name="fingerprint"/> is the one the latest summary returned.
+    /// Conflict carries the fresh summary (nothing deleted); Unconfirmed means the request went out but its result is unknown.
+    /// </summary>
+    Task<ViewTrashOutcome<ViewTrashEmptyResultDto>> EmptyViewTrashAsync(string fingerprint, CancellationToken ct = default);
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
