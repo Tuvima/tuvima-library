@@ -172,7 +172,7 @@ internal static partial class ProviderDeclarativeValidator
         [ClaimRuleKinds.PriorityPick] = ["claim_key", "confidence", "add", "array", "key_path", "order", "value_path"],
         [ClaimRuleKinds.Items] =
         [
-            "add", "path", "where_not_blank", "where", "sort", "take", "role", "each", "first", "joined",
+            "add", "path", "where_not_blank", "where", "sort", "take", "distinct_by", "role", "each", "first", "joined",
         ],
         [ClaimRuleKinds.Lookup] = ["lookup"],
         [ClaimRuleKinds.Sequence] =
@@ -277,6 +277,7 @@ internal static partial class ProviderDeclarativeValidator
             ("where_not_blank", rule.WhereNotBlank is not null),
             ("sort", rule.Sort is not null),
             ("take", rule.Take != 0),
+            ("distinct_by", rule.DistinctBy is not null),
             ("role", rule.Role is not null),
             ("each", rule.Each is not null),
             ("first", rule.First is not null),

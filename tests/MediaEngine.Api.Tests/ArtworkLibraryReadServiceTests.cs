@@ -83,4 +83,56 @@ public sealed class ArtworkLibraryReadServiceTests : IDisposable
         Assert.Equal(personId, person.EntityId);
         Assert.Equal("Keanu Reeves", person.DisplayTitle);
     }
+
+    [Fact]
+    public async Task ManagedArtworkSummary_CountsTheVariantsStoredForAShowOrAlbum()
+    {
+        var showId = Guid.NewGuid();
+        var otherWorkId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, image_url)
+            VALUES (@coverId, @showId, 'Work', 'CoverArt', 'https://example.test/cover.jpg'),
+                   (@backgroundId, @showId, 'Work', 'Background', 'https://example.test/background.jpg'),
+                   (@otherId, @otherWorkId, 'Work', 'CoverArt', 'https://example.test/other.jpg');
+            """,
+            new
+            {
+                coverId = Guid.NewGuid(),
+                backgroundId = Guid.NewGuid(),
+                otherId = Guid.NewGuid(),
+                showId,
+                otherWorkId,
+            });
+
+        var summaries = ArtworkLibraryReadService.LoadManagedAssets(connection, [showId], CancellationToken.None);
+
+        var summary = Assert.Single(summaries);
+        Assert.Equal(showId, summary.Key);
+        Assert.Equal(2, summary.Value.VariantCount);
+        Assert.NotNull(summary.Value.PreferredCoverId);
+    }
+
+    [Fact]
+    public async Task CollectionArtworkSummary_ReadsTheSeriesOwnCoverBackgroundAndLogo()
+    {
+        var seriesId = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        await connection.ExecuteAsync(
+            """
+            INSERT INTO collections (id, display_name, collection_type, cover_artwork_path, background_artwork_path, logo_artwork_path)
+            VALUES (@seriesId, 'Dune Novels', 'Series', 'covers/dune.jpg', 'backgrounds/dune.jpg', NULL);
+            """,
+            new { seriesId });
+
+        var summaries = ArtworkLibraryReadService.LoadCollectionArtwork(connection, [seriesId], CancellationToken.None);
+
+        var summary = Assert.Single(summaries);
+        Assert.Equal(seriesId, summary.Key);
+        Assert.True(summary.Value.HasCover);
+        Assert.True(summary.Value.HasBackground);
+        Assert.False(summary.Value.HasLogo);
+        Assert.Equal(2, summary.Value.VariantCount);
+    }
 }

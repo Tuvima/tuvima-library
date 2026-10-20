@@ -661,11 +661,18 @@ public sealed class CoverArtWorker
                 settled: true),
             ct);
 
-    private static string InferCoverSource(IReadOnlyList<CanonicalValue> canonicals, string? coverUrl)
+    // Written only while an owner has no cover. A later successful download is the cover's source, so
+    // whether an earlier attempt failed (a sibling's pass, a sweep that ran first) must not stay visible.
+    private static readonly HashSet<string> MissingCoverSources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "none", "provider_unavailable", "provider_empty", "provider_download_failed", "selected_match_has_no_cover",
+    };
+
+    internal static string InferCoverSource(IReadOnlyList<CanonicalValue> canonicals, string? coverUrl)
     {
         var existing = canonicals.FirstOrDefault(c =>
             string.Equals(c.Key, MetadataFieldConstants.CoverSource, StringComparison.OrdinalIgnoreCase))?.Value;
-        if (!string.IsNullOrWhiteSpace(existing))
+        if (!string.IsNullOrWhiteSpace(existing) && !MissingCoverSources.Contains(existing))
         {
             return existing;
         }

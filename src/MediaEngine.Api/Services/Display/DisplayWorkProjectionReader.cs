@@ -178,7 +178,10 @@ public sealed class DisplayWorkProjectionReader
     //
     // Two quiet rules of the old read are kept on purpose:
     //  * Where a field accepts several stored names, the data store gave the alphabetically first name that exists for
-    //    the entity (the key order of the primary index), not the first one listed. `Value` does the same.
+    //    the entity (the key order of the primary index), not the first one listed. `Value` does the same. The covers
+    //    are the exception: they take the Engine's own copy (cover_url) before the provider's link (cover), in the
+    //    order written (engineering/reports/stored-name-order-2026-10.md). Every other field with several names
+    //    shows the same either way, because the names that coexist hold the same value.
     //  * An empty value is a value: it ends a COALESCE. Only a missing name is NULL.
 
     private enum Slot { Asset, Work, Root, Edition, Collection }
@@ -390,6 +393,8 @@ public sealed class DisplayWorkProjectionReader
         static ProjectionColumn SearchOnly(string name, Func<PivotReads, string> build) => new(name, true, build);
         static ProjectionColumn From(string name, Slot[] slots, params string[] keys) =>
             Column(name, r => FirstOf(slots.Select(slot => r.Value(slot, keys))));
+        static ProjectionColumn FromInOrder(string name, Slot[] slots, params string[] keys) =>
+            Column(name, r => FirstOf(slots.Select(slot => r.ValueInOrder(slot, keys))));
         static ProjectionColumn ArrayFrom(string name, Slot[] slots, ArrayGroup group) =>
             Column(name, r => FirstOf(slots.Select(slot => r.ArrayValue(slot, group))));
         // Artwork comes in three more sizes, each with its own stored names.
@@ -586,7 +591,7 @@ public sealed class DisplayWorkProjectionReader
             From("SeasonNumber", asset, "season_number"),
             From("EpisodeNumber", asset, "episode_number"),
             From("TrackNumber", asset, "track_number"),
-            From("CoverUrl", assetWorkRoot, "cover_url", "cover", "poster_url", "poster", "episode_still_url", "episode_still", "still_url", "still"),
+            FromInOrder("CoverUrl", assetWorkRoot, "cover_url", "cover", "poster_url", "poster", "episode_still_url", "episode_still", "still_url", "still"),
         ]);
         columns.AddRange(Sizes("Cover", assetWorkRoot, suffix => [$"cover_url{suffix}", $"poster_url{suffix}", $"episode_still_url{suffix}", $"still_url{suffix}"]));
         columns.Add(From("SquareUrl", assetWorkRoot, "square_url", "square"));
@@ -603,13 +608,13 @@ public sealed class DisplayWorkProjectionReader
 
         columns.AddRange(
         [
-            From("CollectionCoverUrl", collection, "cover_url", "cover", "poster_url", "poster"),
+            FromInOrder("CollectionCoverUrl", collection, "cover_url", "cover", "poster_url", "poster"),
             From("CollectionSquareUrl", collection, "square_url", "square"),
             From("CollectionBannerUrl", collection, "banner_url", "banner"),
             From("CollectionBackgroundUrl", collection, "background_url", "background", "hero_url", "hero"),
             From("CollectionLogoUrl", collection, "logo_url", "logo"),
             From("CollectionAccentColor", collection, "artwork_accent_hex"),
-            From("RootCoverUrl", root, "cover_url", "cover", "poster_url", "poster"),
+            FromInOrder("RootCoverUrl", root, "cover_url", "cover", "poster_url", "poster"),
             From("RootCoverSmallUrl", root, "cover_url_s", "poster_url_s"),
             From("RootCoverMediumUrl", root, "cover_url_m", "poster_url_m"),
             From("RootCoverLargeUrl", root, "cover_url_l", "poster_url_l"),

@@ -266,6 +266,14 @@ public sealed class ClaimRuleConfiguration
     public int Take { get; set; }
 
     /// <summary>
+    /// Keeps only the first item per value at this path (per decided role when <see cref="Role"/> is set), so a
+    /// person a provider lists once per job (TMDB credits a composer for "Original Music Composer" and "Music") is
+    /// one credit, not a repeat.
+    /// </summary>
+    [JsonPropertyName("distinct_by")]
+    public string? DistinctBy { get; set; }
+
+    /// <summary>
     /// Decides a claim key for each item from a job or role text. Items without a match are
     /// skipped. Rules in <see cref="Each"/> may use <c>{role}</c> inside <c>claim_key</c>.
     /// </summary>

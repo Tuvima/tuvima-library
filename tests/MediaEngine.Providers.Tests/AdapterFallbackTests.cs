@@ -1888,6 +1888,67 @@ public sealed class AdapterFallbackTests
     }
 
     [Fact]
+    public async Task Tmdb_MovieSearch_PersonListedForTwoMusicJobs_IsOneComposerCredit()
+    {
+        var config = LoadExampleConfig("tmdb");
+        config.HttpClient ??= new HttpClientConfig();
+        config.HttpClient.ApiKey = "test-key";
+
+        var factory = BuildFactory(
+            config.Name,
+            new RoutingStubHttpMessageHandler(request =>
+            {
+                var url = request.RequestUri?.ToString() ?? string.Empty;
+
+                if (url.Contains("/search/movie?", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JsonResponse("""
+                        { "results": [ { "id": 438631, "title": "Dune", "release_date": "2021-09-15" } ] }
+                        """);
+                }
+
+                if (url.Contains("/movie/438631?", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JsonResponse("""
+                        {
+                          "id": 438631,
+                          "credits": {
+                            "cast": [],
+                            "crew": [
+                              { "id": 947, "name": "Hans Zimmer", "job": "Original Music Composer", "profile_path": "/zimmer.jpg" },
+                              { "id": 1769622, "name": "Pedro Eustache", "job": "Musician", "profile_path": "/pedro.jpg" },
+                              { "id": 947, "name": "Hans Zimmer", "job": "Music", "profile_path": "/zimmer.jpg" }
+                            ]
+                          }
+                        }
+                        """);
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            }));
+
+        var adapter = new ConfigDrivenAdapter(
+            config, factory, NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+
+        var claims = await adapter.FetchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.MediaAsset,
+            MediaType = MediaType.Movies,
+            Title = "Dune",
+            Language = "en",
+            Country = "US",
+        });
+
+        Assert.Equal(
+            ["Hans Zimmer", "Pedro Eustache"],
+            claims.Where(c => c.Key == "composer").Select(c => c.Value));
+        Assert.Equal(
+            ["947", "1769622"],
+            claims.Where(c => c.Key == "composer_tmdb_id").Select(c => c.Value));
+    }
+
+    [Fact]
     public async Task Tmdb_MovieSearch_PreservesCastProfileHints()
     {
         var config = LoadExampleConfig("tmdb");
