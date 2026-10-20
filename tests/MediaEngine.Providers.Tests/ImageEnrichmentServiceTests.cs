@@ -361,6 +361,126 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.Equal(2, covers.Count);
     }
 
+    [Fact]
+    public async Task OrdinaryImagesPass_AfterReidentification_RanksTheNewFilmsArtwork()
+    {
+        // Re-identification without a manual rematch changes tmdb_id only. The next ordinary pass asks TMDB
+        // about the new film instead of repeating the earlier film's result, and only then repeats itself.
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Reranked.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "611"));
+        var requested = new List<string>();
+        var poster = CreatePosterJpeg(200, 300);
+        var service = CreateService(request =>
+        {
+            var url = request.RequestUri?.ToString() ?? string.Empty;
+            foreach (var film in new[] { "611", "612" })
+            {
+                if (url.Contains($"/movie/{film}/images?", StringComparison.OrdinalIgnoreCase))
+                {
+                    requested.Add(film);
+                    return JsonResponse($$"""
+                        {
+                          "posters": [ { "file_path": "/poster-{{film}}.jpg", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ],
+                          "logos": [],
+                          "backdrops": [ { "file_path": "/backdrop-{{film}}.jpg", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ]
+                        }
+                        """);
+                }
+            }
+
+            return ImageResponse(poster);
+        });
+        await service.EnrichWorkImagesAsync(movie.AssetId, null);
+
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "612"));
+        var reidentified = await service.EnrichWorkImagesAsync(movie.AssetId, null);
+        var repeat = await service.EnrichWorkImagesAsync(movie.AssetId, null);
+
+        Assert.Equal(["611", "612"], requested);
+        Assert.Equal("Completed", reidentified.Status);
+        Assert.Equal(2, reidentified.DownloadedCount);
+        Assert.Equal(0, repeat.DownloadedCount);
+        Assert.EndsWith("/poster-612.jpg", Assert.Single(await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "CoverArt"),
+            asset => asset.IsPreferred).ImageUrl, StringComparison.Ordinal);
+        Assert.EndsWith("/backdrop-612.jpg", Assert.Single(await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "Background"),
+            asset => asset.IsPreferred).ImageUrl, StringComparison.Ordinal);
+        Assert.Equal("612", await GetCanonicalAsync(movie.WorkId, ArtworkCanonicalHelper.PosterChoiceKey("tmdb")));
+        Assert.Equal("612", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_bridge_id"));
+    }
+
+    [Fact]
+    public async Task OrdinaryImagesPass_AfterAFailedPass_AsksTmdbAgain()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Retried.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "621"));
+        var imagesRequests = 0;
+        var service = CreateService(request =>
+        {
+            if (request.RequestUri?.ToString().Contains("/movie/621/images?", StringComparison.OrdinalIgnoreCase) != true)
+            {
+                return ImageResponse(CreatePosterJpeg(200, 300));
+            }
+
+            return ++imagesRequests == 1
+                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                : JsonResponse("""
+                    { "posters": [ { "file_path": "/retried.jpg", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ], "logos": [], "backdrops": [] }
+                    """);
+        });
+
+        var failed = await service.EnrichWorkImagesAsync(movie.AssetId, null);
+        var retried = await service.EnrichWorkImagesAsync(movie.AssetId, null);
+
+        Assert.Equal("Error", failed.Status);
+        Assert.Equal(2, imagesRequests);
+        Assert.Equal("Completed", retried.Status);
+        Assert.Equal(1, retried.DownloadedCount);
+    }
+
+    [Fact]
+    public async Task TvdbImagesPass_AfterShowReidentification_UsesTheNewShowsSeason()
+    {
+        // The season kept the season id found under the show's earlier identity; that id is not one of the
+        // current show's seasons, so the pass looks the season up again and records the new id.
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:reidentified-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var episode = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var asset = await SeedAssetForExistingWorkAsync(episode, Path.Combine("TV", "Reidentified", "Season 01", "Reidentified - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"), (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbId, "99"));
+        await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"), (BridgeIdKeys.TvdbSeasonId, "500"));
+        await SeedCanonicalsAsync(episode, (MetadataFieldConstants.IdentityProvider, "tvdb"));
+        var paths = new List<string>();
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            paths.Add(path);
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"},{"id":7,"name":"Season Poster"}]}"""),
+                "/v4/series/99/extended" => JsonResponse("""{"data":{"id":99,"defaultSeasonType":1,"seasons":[{"id":77,"number":1,"type":{"id":1}}],"artworks":[]}}"""),
+                "/v4/seasons/77/extended" => JsonResponse("""{"data":{"id":77,"artworks":[{"type":7,"image":"https://artworks.thetvdb.com/new-season.png"}]}}"""),
+                _ => ImageResponse(image),
+            };
+        });
+        var client = new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, tvdb: client);
+
+        await service.EnrichWorkImagesAsync(asset.AssetId, null);
+
+        Assert.DoesNotContain("/v4/seasons/500/extended", paths);
+        Assert.Equal("77", await GetCanonicalAsync(season, BridgeIdKeys.TvdbSeasonId));
+        var seasonPoster = Assert.Single(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
+        Assert.Equal("https://artworks.thetvdb.com/new-season.png", seasonPoster.ImageUrl);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

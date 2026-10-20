@@ -402,8 +402,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var endpoint = context.MediaType == MediaType.Movies
             ? $"{TmdbApiBaseUrl}/movie/{Uri.EscapeDataString(tmdbId)}/images"
             : $"{TmdbApiBaseUrl}/tv/{Uri.EscapeDataString(tmdbId)}/images";
-        var rootAlreadyChecked = !forceRefresh
-            && !string.IsNullOrWhiteSpace(GetValue(canonicals, "tmdb_artwork_last_checked_at"));
+        var rootAlreadyChecked = !forceRefresh && LastPassAnsweredFor(canonicals, tmdbId);
         var response = rootAlreadyChecked
             ? (Json: (JsonNode?)null, Status: "Completed", HttpStatusCode: (int?)null, SkippedReason: (string?)null, Message: (string?)null)
             : await GetImagesAsync(endpoint, apiKey, metadataLanguage, ct).ConfigureAwait(false);
@@ -538,6 +537,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             storedCounts: counts, updatedPreferredCount: preferredUpdates, heldCount: held), ct);
     }
 
+    /// <summary>
+    /// A repeat pass may skip the provider call only when the last pass got TMDB's answer for the item's
+    /// current id. After re-identification the stored artwork belongs to the earlier film, and a pass that
+    /// was skipped or failed has nothing to repeat, so both call TMDB again.
+    /// </summary>
+    private static bool LastPassAnsweredFor(IReadOnlyDictionary<string, string> canonicals, string tmdbId) =>
+        !string.IsNullOrWhiteSpace(GetValue(canonicals, "tmdb_artwork_last_checked_at"))
+        && string.Equals(GetValue(canonicals, "tmdb_artwork_bridge_id"), tmdbId, StringComparison.OrdinalIgnoreCase)
+        && GetValue(canonicals, "tmdb_artwork_status") is "Completed" or "NoImages" or "NoResult";
+
     private static readonly ArtworkMapping[] RootMappings =
     [new("backdrops", AssetType.Background, true), new("logos", AssetType.Logo, true), new("posters", AssetType.CoverArt, true)];
     private static readonly ArtworkMapping[] SeasonMappings =
@@ -641,16 +650,21 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 continue;
             }
-            var seasonId = seasonValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbSeasonId)?.Value;
-            seasonId ??= show["seasons"]?.AsArray().FirstOrDefault(node =>
-                node?["number"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
-                && (show["defaultSeasonType"] is null || node?["type"]?["id"]?.ToString()
-                    == show["defaultSeasonType"]?.ToString()))?["id"]?.ToString();
+            var storedSeasonId = seasonValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbSeasonId)?.Value;
+            var showSeasons = show["seasons"] as JsonArray;
+            // A season id found under the show's earlier identity is not one of this show's seasons.
+            var seasonId = storedSeasonId is not null
+                && (showSeasons is not { Count: > 0 } || showSeasons.Any(node => node?["id"]?.ToString() == storedSeasonId))
+                    ? storedSeasonId
+                    : showSeasons?.FirstOrDefault(node =>
+                        node?["number"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
+                        && (show["defaultSeasonType"] is null || node?["type"]?["id"]?.ToString()
+                            == show["defaultSeasonType"]?.ToString()))?["id"]?.ToString();
             if (string.IsNullOrWhiteSpace(seasonId))
             {
                 continue;
             }
-            if (seasonValues.All(value => value.Key != BridgeIdKeys.TvdbSeasonId))
+            if (!string.Equals(seasonId, storedSeasonId, StringComparison.Ordinal))
             {
                 await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
                     {
