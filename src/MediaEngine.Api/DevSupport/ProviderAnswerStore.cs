@@ -521,8 +521,10 @@ public sealed class ProviderAnswerHandler(ProviderAnswerStore store) : Delegatin
         var key = store.KeyFor(request.Method, uri, body);
         if (store.Mode == ProviderAnswerMode.Replay)
         {
+            // A miss answers "not found", never "unavailable": the Library waits for an unavailable provider, so a
+            // replay that missed would never settle. The miss is listed, and the comparison shows what it changed.
             return store.Replay(key, request)
-                ?? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                ?? new HttpResponseMessage(HttpStatusCode.NotFound)
                 {
                     RequestMessage = request,
                     ReasonPhrase = ProviderAnswerStore.MissReason,

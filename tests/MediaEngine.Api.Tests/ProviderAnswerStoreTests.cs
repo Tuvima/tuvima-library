@@ -56,7 +56,7 @@ public sealed class ProviderAnswerStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ReplayMiss_ReturnsServiceUnavailable_AndListsTheRequestWithoutItsKey()
+    public async Task ReplayMiss_ReturnsNotFound_SoTheRunSettles_AndListsTheRequestWithoutItsKey()
     {
         using (var recording = Client(Store(ProviderAnswerMode.Record), new FakeNetwork(_ => Json(HttpStatusCode.OK, "{}"))))
         {
@@ -67,7 +67,7 @@ public sealed class ProviderAnswerStoreTests : IDisposable
 
         var missed = await replaying.GetAsync($"https://api.example.org/b?api_key={ApiKey}");
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, missed.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missed.StatusCode);
         var misses = await File.ReadAllTextAsync(Path.Combine(_root, "misses.txt"));
         Assert.Contains("https://api.example.org/b?api_key=REDACTED", misses, StringComparison.Ordinal);
         Assert.DoesNotContain(ApiKey, misses, StringComparison.Ordinal);
@@ -152,9 +152,9 @@ public sealed class ProviderAnswerStoreTests : IDisposable
         Assert.Equal("label Q1", (string?)assembled["entities"]!["Q1"]!["labels"]!["en"]!["value"]);
 
         using var unknown = await replaying.GetAsync(Path + "Q1%7CQ9" + Rest);
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, unknown.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         using var otherProps = await replaying.GetAsync(Path + "Q1%7CQ3&format=json&props=claims");
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, otherProps.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, otherProps.StatusCode);
     }
 
     [Fact]
