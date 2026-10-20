@@ -384,7 +384,7 @@ come from `claim:`, `result:`, `parent:`, `request:` and `hint:` sources; a foll
 is blank (or whose URL needs a key that is not set) is skipped. `cache.store` is `response_cache` (the
 shared provider cache) or `memory`. A failure keeps the claims gathered so far (`on_error: log_and_continue`).
 Rules are `field` (with `json_path`, `json_paths`, `template`, `value`, `prefix`, `transform`, `join`, `trim`,
-`min_length`), `priority_pick`, `items` (sorting, `where`, a `role` map, per-item claims and a joined claim),
+`min_length`), `priority_pick`, `items` (sorting, `where`, `distinct_by` to keep one item per role and id, a `role` map, per-item claims and a joined claim),
 nested `lookup`, `sequence` and `paged_sequence` (a manifest of ordered members read page by page through
 `sequence_manifest`). See `tmdb.json` (movie and TV details, collection order) and `comicvine.json`
 (volume facts and the issue manifest).

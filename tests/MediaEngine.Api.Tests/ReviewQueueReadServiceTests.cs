@@ -70,6 +70,30 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PendingReviews_ShowTheEnginesOwnCoverAndNeverTheProvidersLink()
+    {
+        var managedCover = $"/stream/artwork/{Guid.NewGuid():D}";
+        var (bothWork, bothAsset) = (Guid.NewGuid(), Guid.NewGuid());
+        var (providerWork, providerAsset) = (Guid.NewGuid(), Guid.NewGuid());
+        SeedMediaAsset(bothWork, Guid.NewGuid(), bothAsset);
+        SeedMediaAsset(providerWork, Guid.NewGuid(), providerAsset);
+        // Alphabetically 'cover' comes first, but the Engine's copy (cover_url) is the one written first.
+        SeedCanonicalValue(bothWork, "cover", "https://image.tmdb.org/t/p/original/both.jpg");
+        SeedCanonicalValue(bothWork, "cover_url", managedCover);
+        SeedCanonicalValue(providerWork, "cover", "https://image.tmdb.org/t/p/original/only.jpg");
+
+        var repository = new ReviewQueueRepository(_db);
+        await repository.InsertAsync(Review(Guid.NewGuid(), bothAsset, "MediaAsset", "Both covers"));
+        await repository.InsertAsync(Review(Guid.NewGuid(), providerAsset, "MediaAsset", "Provider cover only"));
+
+        var pending = await new ReviewQueueReadService(_db).GetPendingAsync(10, CancellationToken.None);
+
+        Assert.Equal(managedCover, Assert.Single(pending, item => item.EntityId == bothAsset).CoverUrl);
+        // No saved copy yet: the work's cover route lets the Engine fetch the candidate's artwork for the browser.
+        Assert.Equal($"/stream/entity/work/{providerWork:D}/cover", Assert.Single(pending, item => item.EntityId == providerAsset).CoverUrl);
+    }
+
+    [Fact]
     public async Task PendingReasonCounts_MaterializeSqliteCountValues()
     {
         var workId = Guid.NewGuid();

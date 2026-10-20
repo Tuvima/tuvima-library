@@ -280,6 +280,10 @@
                                             break;
                                         case "title":
                                             <td class="tl-detail-track-row__title">
+                                                @if (item.IsOwned)
+                                                {
+                                                    <EditingRowSelect Id="@item.Id" Label="@item.Title" />
+                                                }
                                                 <span class="tl-detail-track-row__name">@item.Title</span>
                                                 @if (item.IsExplicit)
                                                 {

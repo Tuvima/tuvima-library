@@ -1171,13 +1171,15 @@ External provider identifiers (ISBN, ASIN, TMDB ID, MBID) used for cross-provide
 
 | Column | Type | Notes |
 |---|---|---|
-| `entity_id` | TEXT | |
-| `entity_type` | TEXT | |
-| `id_type` | TEXT | `"ISBN"`, `"ASIN"`, `"TMDB"`, `"MBID"`, etc. |
-| `value` | TEXT | The identifier value |
-| `source_id` | TEXT | Which provider supplied this ID |
+| `id` | BLOB | Primary key |
+| `entity_id` | BLOB | Asset or Work the identifier describes |
+| `id_type` | TEXT | Bridge key such as `isbn`, `asin`, `tmdb_id`, `musicbrainz_release_id` |
+| `id_value` | TEXT | The identifier value |
+| `wikidata_property` | TEXT | Matching Wikidata property, when there is one |
+| `provider_id` | TEXT | Which provider supplied this ID. A Wikidata confirmation of the same value keeps the earlier non-Wikidata source, because Stage 2 resolves only from ids Wikidata did not supply. |
+| `created_at` | TEXT | Timestamp |
 
-**Index:** `entity_id + id_type`, `value + id_type` (for reverse lookup)
+**Unique:** `entity_id + id_type`
 
 ---
 

@@ -29,6 +29,15 @@ public sealed class DisplayJourneyProjectionReader
             "COALESCE(gpw.id, pw.id, w.id)",
             "ma.id",
             "w.media_type");
+        // One cover row per entity, in the order written: the Engine's own copy before the provider's link
+        // (engineering/reports/stored-name-order-2026-10.md). Joining every name would leave the choice to the GROUP BY.
+        static string CoverJoin(string alias, string entityId) => $"""
+            LEFT JOIN canonical_values {alias} ON {alias}.entity_id = {entityId} AND {alias}.key = (
+                SELECT pick.key FROM canonical_values pick
+                WHERE pick.entity_id = {entityId} AND pick.key IN ('cover_url', 'cover', 'poster_url', 'poster')
+                ORDER BY CASE pick.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 WHEN 'poster_url' THEN 2 ELSE 3 END
+                LIMIT 1)
+            """;
         var sql = $"""
             SELECT
                 COALESCE((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('episode_still_url', 'still_url') LIMIT 1), (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('episode_still_url', 'still_url') LIMIT 1)) AS EpisodeStillUrl,
@@ -251,17 +260,17 @@ public sealed class DisplayJourneyProjectionReader
             LEFT JOIN canonical_values cv_issue_a ON cv_issue_a.entity_id = ma.id AND cv_issue_a.key = 'issue_number'
             LEFT JOIN canonical_values cv_issue_w ON cv_issue_w.entity_id = w.id AND cv_issue_w.key = 'issue_number'
             LEFT JOIN canonical_values cv_show_w ON cv_show_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_show_w.key = 'show_name'
-            LEFT JOIN canonical_values cv_cover_a ON cv_cover_a.entity_id = ma.id AND cv_cover_a.key IN ('cover_url', 'cover', 'poster_url', 'poster')
+            {CoverJoin("cv_cover_a", "ma.id")}
             LEFT JOIN canonical_values cv_square_a ON cv_square_a.entity_id = ma.id AND cv_square_a.key IN ('square_url', 'square')
             LEFT JOIN canonical_values cv_background_a ON cv_background_a.entity_id = ma.id AND cv_background_a.key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still')
             LEFT JOIN canonical_values cv_banner_a ON cv_banner_a.entity_id = ma.id AND cv_banner_a.key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still')
             LEFT JOIN canonical_values cv_logo_a ON cv_logo_a.entity_id = ma.id AND cv_logo_a.key IN ('logo_url', 'logo')
-            LEFT JOIN canonical_values cv_cover_item ON cv_cover_item.entity_id = w.id AND cv_cover_item.key IN ('cover_url', 'cover', 'poster_url', 'poster')
+            {CoverJoin("cv_cover_item", "w.id")}
             LEFT JOIN canonical_values cv_square_item ON cv_square_item.entity_id = w.id AND cv_square_item.key IN ('square_url', 'square')
             LEFT JOIN canonical_values cv_background_item ON cv_background_item.entity_id = w.id AND cv_background_item.key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still')
             LEFT JOIN canonical_values cv_banner_item ON cv_banner_item.entity_id = w.id AND cv_banner_item.key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still')
             LEFT JOIN canonical_values cv_logo_item ON cv_logo_item.entity_id = w.id AND cv_logo_item.key IN ('logo_url', 'logo')
-            LEFT JOIN canonical_values cv_cover_w ON cv_cover_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_cover_w.key IN ('cover_url', 'cover', 'poster_url', 'poster')
+            {CoverJoin("cv_cover_w", "COALESCE(gpw.id, pw.id, w.id)")}
             LEFT JOIN canonical_values cv_square_w ON cv_square_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_square_w.key IN ('square_url', 'square')
             LEFT JOIN canonical_values cv_background_w ON cv_background_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_background_w.key IN ('background_url', 'background', 'episode_still_url', 'episode_still', 'still_url', 'still')
             LEFT JOIN canonical_values cv_banner_w ON cv_banner_w.entity_id = COALESCE(gpw.id, pw.id, w.id) AND cv_banner_w.key IN ('banner_url', 'banner', 'episode_still_url', 'episode_still', 'still_url', 'still')

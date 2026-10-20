@@ -397,8 +397,13 @@ public sealed class CollectionBrowseReadService(
                     COALESCE(
                         (SELECT NULLIF(value, '') FROM canonical_values
                          WHERE entity_id = {hierarchyRootSql}
-                           AND key IN ('cover_url', 'cover', 'poster_url', 'poster') LIMIT 1),
-                        MAX(CASE WHEN cv.key IN ('cover_url', 'cover', 'poster_url', 'poster') THEN NULLIF(cv.value, '') END)) AS Cover,
+                           AND key IN ('cover_url', 'cover', 'poster_url', 'poster') ORDER BY CASE key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 WHEN 'poster_url' THEN 2 ELSE 3 END LIMIT 1),
+                        -- In the order written: one MAX across all four names would let a provider's https link
+                        -- outrank the Engine's own /stream copy, because 'h' sorts after '/'.
+                        MAX(CASE WHEN cv.key = 'cover_url' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'cover' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'poster_url' THEN NULLIF(cv.value, '') END),
+                        MAX(CASE WHEN cv.key = 'poster' THEN NULLIF(cv.value, '') END)) AS Cover,
                     COALESCE(
                         (SELECT NULLIF(value, '') FROM canonical_values
                          WHERE entity_id = {hierarchyRootSql}

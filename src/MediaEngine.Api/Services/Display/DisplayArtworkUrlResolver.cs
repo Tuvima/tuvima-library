@@ -19,7 +19,8 @@ internal static class DisplayArtworkUrlResolver
             : null;
     }
 
-    private static bool IsExternalProviderUrl(string value)
+    /// <summary>True for a provider's http(s) link, which must be swapped for an Engine route before it reaches a browser.</summary>
+    internal static bool IsExternalProviderUrl(string? value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri)
            && (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
                || string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));

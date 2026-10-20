@@ -86,7 +86,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
             try
             {
                 using var executionLease =
-                    await _executionGate.EnterAsync(stoppingToken).ConfigureAwait(false);
+                    await _executionGate.EnterAsync(nameof(MusicBrainzEnrichmentHostedService), stoppingToken).ConfigureAwait(false);
                 resetCancellationToken = executionLease.PauseCancellationToken;
                 using var sweepCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     stoppingToken,
@@ -169,7 +169,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
     }
 
-    private async Task<IReadOnlyList<MusicBrainzCandidate>> LoadCandidatesAsync(CancellationToken ct)
+    internal async Task<IReadOnlyList<MusicBrainzCandidate>> LoadCandidatesAsync(CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
         var rows = await conn.QueryAsync<MusicBrainzCandidate>(new CommandDefinition(
@@ -212,6 +212,13 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
               AND COALESCE(a.file_path_root, '') NOT LIKE '%\.data\staging\%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%/quarantine/%'
               AND COALESCE(a.file_path_root, '') NOT LIKE '%\quarantine\%'
+              -- A track whose identity job is still running gets its MusicBrainz identity from that job;
+              -- a second lookup now would race it for the album's release and cover.
+              AND NOT EXISTS (
+                    SELECT 1 FROM identity_jobs active_job
+                    WHERE active_job.entity_id = a.id
+                      AND active_job.state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview')
+                  )
               AND (
                     NOT EXISTS (
                         SELECT 1 FROM canonical_values mb
@@ -269,34 +276,41 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
 
         var lineage = await _workRepo.GetLineageByAssetAsync(candidate.AssetId, ct).ConfigureAwait(false);
-        await ScoringHelper.PersistAndScoreWithLineageAsync(
-            candidate.AssetId,
-            claims,
-            provider.ProviderId,
-            lineage,
-            _claimRepo,
-            _canonicalRepo,
-            _scoringEngine,
-            _configLoader,
-            _providers,
-            ct,
-            arrayRepo: _arrayRepo,
-            logger: _logger).ConfigureAwait(false);
 
-        var bridgeEntries = claims
-            .Where(claim => BridgeIdHelper.IsBridgeId(claim.Key) && !string.IsNullOrWhiteSpace(claim.Value))
-            .Select(claim => new BridgeIdEntry
-            {
-                EntityId = ResolveBridgeIdEntityId(lineage, candidate.AssetId, claim.Key),
-                IdType = claim.Key,
-                IdValue = claim.Value,
-                ProviderId = provider.ProviderId.ToString(),
-            })
-            .ToList();
-
-        if (bridgeEntries.Count > 0)
+        // The album's tracks report its release; the per-album lock and the claims as written keep the
+        // album's bridge ids on the release the album agreed on (SharedParentIdentity).
+        using (await SharedParentIdentity.AcquireForLineageAsync(lineage, ct).ConfigureAwait(false))
         {
-            await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct).ConfigureAwait(false);
+            var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
+                candidate.AssetId,
+                claims,
+                provider.ProviderId,
+                lineage,
+                _claimRepo,
+                _canonicalRepo,
+                _scoringEngine,
+                _configLoader,
+                _providers,
+                ct,
+                arrayRepo: _arrayRepo,
+                logger: _logger).ConfigureAwait(false);
+            claims = written.Claims;
+
+            var bridgeEntries = claims
+                .Where(claim => BridgeIdHelper.IsBridgeId(claim.Key) && !string.IsNullOrWhiteSpace(claim.Value))
+                .Select(claim => new BridgeIdEntry
+                {
+                    EntityId = ResolveBridgeIdEntityId(lineage, candidate.AssetId, claim.Key),
+                    IdType = claim.Key,
+                    IdValue = claim.Value,
+                    ProviderId = provider.ProviderId.ToString(),
+                })
+                .ToList();
+
+            if (bridgeEntries.Count > 0)
+            {
+                await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct).ConfigureAwait(false);
+            }
         }
 
         if (claims.Any(claim =>
@@ -333,7 +347,7 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
         }
     }
 
-    private sealed class MusicBrainzCandidate
+    internal sealed class MusicBrainzCandidate
     {
         public Guid AssetId { get; set; }
         public Guid WorkId { get; set; }

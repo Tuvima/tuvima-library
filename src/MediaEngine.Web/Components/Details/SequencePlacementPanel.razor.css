@@ -1675,7 +1675,7 @@
     }
 }
 
-.sequence-episode-tile { min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
+.sequence-episode-tile { position: relative; min-width: 0; scroll-snap-align: start; --media-tile-media-height: auto; }
 .sequence-episode-tile ::deep .media-tile { width: 100%; }
 .sequence-episode-tile ::deep .media-tile-media { height: auto; aspect-ratio: 16 / 9; }
 .sequence-episode-tile.is-current ::deep .media-tile-media { outline: 2px solid var(--tl-accent-primary, #8852FC); box-shadow: 0 0 22px rgba(136, 82, 252,.5); }

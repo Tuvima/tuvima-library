@@ -226,7 +226,7 @@ public sealed class CollectionSearchReadService : ICollectionSearchReadService
             WHERE RowNumber = 1
             ORDER BY Title COLLATE NOCASE
             LIMIT 20;
-            """, new { like, workIds = matchedWorkIds }, cancellationToken: ct))).ToList();
+            """, new { like, workIds = matchedWorkIds?.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
 
         return rows.Select(row => new SearchResultDto
         {

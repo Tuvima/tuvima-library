@@ -305,12 +305,22 @@ public sealed partial class OcrService : IOcrService
         }
     }
 
-    private static IEnumerable<string> SeedSources(string executable)
+    private IEnumerable<string> SeedSources(string executable)
     {
         var beside = Path.GetDirectoryName(executable);
         if (beside is not null)
         {
             yield return Path.Combine(beside, "tessdata");
+        }
+
+        if (_environment.SystemLanguageDataFolders is { } folders)
+        {
+            foreach (var folder in folders)
+            {
+                yield return folder;
+            }
+
+            yield break;
         }
 
         var prefix = Environment.GetEnvironmentVariable("TESSDATA_PREFIX");

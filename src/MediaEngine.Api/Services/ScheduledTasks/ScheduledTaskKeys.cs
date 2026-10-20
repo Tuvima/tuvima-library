@@ -20,4 +20,9 @@ public static class ScheduledTaskKeys
     public const string SeriesOrder = "series_order";
     public const string DescriptionInsights = "description_insights";
     public const string WebhookDelivery = "webhook_delivery";
+    public const string ProviderHealthChecks = "provider_health_checks";
+    public const string PlaybackSessionCleanup = "playback_session_cleanup";
+    public const string FolderHealthCheck = "folder_health_check";
+    public const string AdaptiveStreamingCleanup = "adaptive_streaming_cleanup";
+    public const string EnrichmentRefreshSchedule = "enrichment_refresh_schedule";
 }
