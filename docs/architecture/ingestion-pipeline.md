@@ -69,6 +69,10 @@ recreates the selected Standard or Stress fixtures, queues them through grouped
 normal ingestion scans, and resumes watching. `POST /ingestion/rescan` remains the
 canonical no-wipe operation for configured source media. Reset paths include guards
 that refuse destructive cleanup when a library output path overlaps a source folder.
+Before deleting anything, a reset waits at most 20 seconds for background enrichment
+workers to stop and at most 20 seconds for the data store's write lock. If either does
+not let go, or the folders overlap, the reset stops with nothing deleted, answers `409`
+with a message naming what is blocking it, and turns file watching back on.
 
 Fresh-ingest validation is the proof path for sequence, artwork, and attribution
 changes. Do not repair bad historical rows in place for these fixes. Stop the

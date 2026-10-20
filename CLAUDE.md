@@ -37,6 +37,7 @@ dotnet test MediaEngine.slnx --no-build
 | CI-strength build | `dotnet build MediaEngine.slnx --no-restore --warnaserror` |
 | One test project | `dotnet test tests/MediaEngine.Storage.Tests/MediaEngine.Storage.Tests.csproj` |
 | Filtered tests | `dotnet test tests/<Project>.Tests --filter "FullyQualifiedName~Name"` |
+| Cloud quick check | while building, test only the affected project (`dotnet test tests/<Project>.Tests --no-build`); run the CI-strength build and the CI test filter once at the end |
 | CI test filter | `dotnet test MediaEngine.slnx --no-build --filter "Category!=LiveProvider"` |
 | Format check | `dotnet format MediaEngine.slnx --verify-no-changes --no-restore` |
 | Node tests | `node --test tests/build/*.test.mjs tests/MediaEngine.Web.Tests/JavaScript/*.test.mjs` |
@@ -87,7 +88,7 @@ Only one Engine may run on the machine at a time, across all sessions: claim the
 | Subsystem deep dives | `docs/architecture/architecture-summary.md` → `docs/architecture/*.md` |
 | Dashboard code map and UI rules | `src/MediaEngine.Web/CLAUDE.md` |
 | Developer code tour | `AGENTS.md` (large — search it) |
-| Detailed rules | `.claude/rules/` — `product-owner`, `model-routing`, `data-store`, `architecture-boundaries`, `security`, `build-and-ai-runtime`, `docs`, `dependencies`, `dashboard-surfaces`, `end-to-end-runs`, `one-engine-at-a-time` |
+| Detailed rules | `.claude/rules/` — `product-owner`, `model-routing`, `data-store`, `architecture-boundaries`, `security`, `build-and-ai-runtime`, `docs`, `dependencies`, `dashboard-surfaces`, `end-to-end-runs`, `one-engine-at-a-time`, `cloud-first` |
 | Public docs site | https://tuvima.github.io/tuvima-library/ (source `docs/`, built by `website/`) |
 
 ## Agent workflow
@@ -104,6 +105,7 @@ Only one Engine may run on the machine at a time, across all sessions: claim the
 10. **Close out with an explicit status.** A session ends in exactly one of two states, named in the first sentence of its final `wrap_up` recap (that sentence becomes the sidebar status), so Shy knows whether to follow up or archive:
     - **Complete:** start the recap with "Complete: nothing left to do." Use it only when the work is merged (or the question is fully answered), the session's worktrees and branches are cleaned up, and nothing remains: no follow-up, open finding, unverified piece, spec gap, or anything Shy owes. Send a recap only (no question), then `mark_completed` with `self`. Never archive yourself; Shy archives Complete sessions.
     - **Waiting on Shy:** start the recap with "Waiting on you:" and say what is left. Use it whenever anything remains, even when the main work merged: a follow-up it turned up, a proposed follow-up card not yet started, a decision, something not verified, or something Shy owes. End with one question and a recommendation in the next-step box, with `blocked: true`. List every follow-up and propose each as a card.
+    - **Cloud builds:** work is built in the cloud and validated locally as one batch (`.claude/rules/cloud-first.md`). A spec with open Local checks ends "Built, awaiting your Local checks" (Waiting state), appends them to `engineering/validation/batch.md`, and includes the Local test pack in its final summary.
     - Finding more work means Waiting, not Complete. Example: a library-list speed fix that merged but found Home is also slow stays Waiting on you until Shy starts, schedules or drops the Home fix. Never end on "waiting for approval" for work Shy already approved (step 9). Linked sessions use the same two states in their final report; a coordinator is Complete only when every linked session is Complete.
 11. **Run handoffs end to end.** A handoff file, or approved work with several waves or threads, is run to completion by the session that receives it: it coordinates, starts each next wave or thread itself (linked sessions, at most three at once) and comes back to Shy only for real decisions and the final close-out (`.claude/rules/end-to-end-runs.md`).
 

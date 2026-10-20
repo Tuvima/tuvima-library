@@ -1,0 +1,16 @@
+# Dapper Guid list guardrail allowlist (DapperGuidListParameterGuardrailTests).
+# Format: Namespace.Type.Method:member  # reason
+# Blank lines and text after # are ignored. An entry the code no longer builds fails the guardrail,
+# so remove it when the site is fixed.
+#
+# Each entry is an anonymous object with a Guid list that the guardrail cannot tell apart from a Dapper
+# parameter object. Add one only with a reason it never reaches Dapper, or a named open decision.
+
+# Dev-only real-media repair harness: rows of the JSON report written to disk, never bound by Dapper.
+MediaEngine.Api.DevSupport.RealMediaRepair.RunAsync:assets
+MediaEngine.Api.DevSupport.RealMediaRepair.RunAsync:works
+
+# OPEN (security, waiting on Shy, 2026-10-20): revoking all of an account's sessions binds the revoked session
+# ids unconverted, so their admin PIN unlocks in grant_admin_unlocks are never deleted. Security fixes found
+# along the way need Shy's approval; remove this entry with the fix (.Select(GuidSql.ToBlob).ToArray()).
+MediaEngine.Storage.IdentityRepository.RevokeAccountSessionsAsync:affected

@@ -46,15 +46,16 @@ internal sealed class SqliteWorkCounter : IDatabaseConnection
 
     public void RunStartupChecks() => _inner.RunStartupChecks();
 
-    public Task AcquireWriteLockAsync(CancellationToken ct = default) => _inner.AcquireWriteLockAsync(ct);
+    public Task AcquireWriteLockAsync(CancellationToken ct = default, string holderFile = "", string holderMember = "") => _inner.AcquireWriteLockAsync(ct, holderFile, holderMember);
 
     public void ReleaseWriteLock() => _inner.ReleaseWriteLock();
+    public string? DescribeWriteLockHolder() => _inner.DescribeWriteLockHolder();
 
-    public Task<T> ExecuteWriteAsync<T>(Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default) =>
-        _inner.ExecuteWriteAsync(body, ct);
+    public Task<T> ExecuteWriteAsync<T>(Func<SqliteConnection, SqliteTransaction, CancellationToken, T> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") =>
+        _inner.ExecuteWriteAsync(body, ct, holderFile, holderMember);
 
-    public Task ExecuteWriteAsync(Action<SqliteConnection, SqliteTransaction, CancellationToken> body, CancellationToken ct = default) =>
-        _inner.ExecuteWriteAsync(body, ct);
+    public Task ExecuteWriteAsync(Action<SqliteConnection, SqliteTransaction, CancellationToken> body, CancellationToken ct = default, string holderFile = "", string holderMember = "") =>
+        _inner.ExecuteWriteAsync(body, ct, holderFile, holderMember);
 
     // The fixture owns the wrapped data store.
     public void Dispose()

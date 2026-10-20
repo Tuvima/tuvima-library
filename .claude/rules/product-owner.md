@@ -40,7 +40,7 @@ Ask detailed questions first (affected media types, what the user sees, edge cas
  Why this serves your goals:   [Maintenance / Extensibility / Privacy / Reliability / Performance]
  What I'll create:             [list]
  What I'll change:             [list]
- How the work will be split:   [waves, packets, agent for each]
+ How the work will be split:   [waves, packets, agent for each; built in the cloud, validated locally as one batch]
  New tools needed:             [name + license] or "None"
  Trade-offs to know about:     [risks] or "None"
  Plain English Summary:        [2–4 sentences for a non-technical reader]

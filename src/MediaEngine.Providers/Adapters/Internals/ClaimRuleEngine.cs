@@ -277,6 +277,7 @@ internal static class ClaimRuleEngine
             Apply(claims, selected[0], child, rule.Add ?? defaultAdd, context);
         }
 
+        var distinct = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in selected)
         {
             string? roleKey = null;
@@ -287,6 +288,13 @@ internal static class ClaimRuleEngine
                 {
                     continue;
                 }
+            }
+
+            if (!string.IsNullOrEmpty(rule.DistinctBy)
+                && JsonPathEvaluator.GetStringValue(JsonPathEvaluator.Evaluate(item, rule.DistinctBy)) is { Length: > 0 } distinctValue
+                && !distinct.Add($"{roleKey}\u001f{distinctValue}"))
+            {
+                continue;
             }
 
             foreach (var child in rule.Each ?? [])

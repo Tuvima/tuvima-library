@@ -195,4 +195,4 @@ As built (2026-10-20):
 - **Wording.** The dialog's last line reads "Library has no other copy." (the app is called Library in everything people see). The dialog shows "Deleting…" without a running count, because the Engine answers once at the end.
 - **Galleries in the dialog** use a count of distinct items in any of your Galleries (`gallery_item_count`).
 - **Places and Gallery pages** already offered Move to Trash from the shared photo viewer before this spec (section 4 lists them as having no trash actions); that viewer now hides it for read-only items like everywhere else.
-- **Visual check still owed.** The rendered check (desktop light and dark, phone width) was not done: the computer allows one Engine and one Dashboard at a time and another session was using them. Component tests cover the content and states.
+- **Visual check done 2026-10-20** (proposed change #331): desktop light and dark and phone width; small footer-spacing, Cancel-focus and tile-note fixes landed there.

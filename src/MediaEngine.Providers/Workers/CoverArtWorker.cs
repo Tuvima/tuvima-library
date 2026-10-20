@@ -366,6 +366,8 @@ public sealed class CoverArtWorker
                 coverUrl,
                 coverPath,
                 InferCoverSource(coverSourceCanonicals, coverUrl),
+                keepRankedPreferred: normalizedExplicitCoverUrl is null,
+                canonicals,
                 ct);
             await _canonicalRepo.UpsertBatchAsync(
                 BuildCoverCanonicals(
@@ -479,7 +481,15 @@ public sealed class CoverArtWorker
         }
 
         var coverSource = InferCoverSource(coverSourceCanonicals, coverUrl);
-        var coverVariant = await EnsureCoverVariantAsync(ownerEntityId, coverVariantId, coverUrl, coverPath, coverSource, ct);
+        var coverVariant = await EnsureCoverVariantAsync(
+            ownerEntityId,
+            coverVariantId,
+            coverUrl,
+            coverPath,
+            coverSource,
+            keepRankedPreferred: normalizedExplicitCoverUrl is null,
+            canonicals,
+            ct);
         await _canonicalRepo.UpsertBatchAsync(
             BuildCoverCanonicals(
                 ownerEntityId,
@@ -652,11 +662,18 @@ public sealed class CoverArtWorker
                 settled: true),
             ct);
 
-    private static string InferCoverSource(IReadOnlyList<CanonicalValue> canonicals, string? coverUrl)
+    // Written only while an owner has no cover. A later successful download is the cover's source, so
+    // whether an earlier attempt failed (a sibling's pass, a sweep that ran first) must not stay visible.
+    private static readonly HashSet<string> MissingCoverSources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "none", "provider_unavailable", "provider_empty", "provider_download_failed", "selected_match_has_no_cover",
+    };
+
+    internal static string InferCoverSource(IReadOnlyList<CanonicalValue> canonicals, string? coverUrl)
     {
         var existing = canonicals.FirstOrDefault(c =>
             string.Equals(c.Key, MetadataFieldConstants.CoverSource, StringComparison.OrdinalIgnoreCase))?.Value;
-        if (!string.IsNullOrWhiteSpace(existing))
+        if (!string.IsNullOrWhiteSpace(existing) && !MissingCoverSources.Contains(existing))
         {
             return existing;
         }
@@ -850,12 +867,22 @@ public sealed class CoverArtWorker
         return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>
+    /// Stores the cover pass's variant and returns the owner's preferred cover afterwards. With
+    /// <paramref name="keepRankedPreferred"/>, a preferred poster chosen by the user or by the ranked
+    /// images pass stays preferred: the cover pass only fills the poster slot, so running it after the
+    /// images pass (a maintenance sweep that ran first, a later re-hydration) leaves the same poster as
+    /// running it before. An explicit retail rematch passes false so the selected cover takes over.
+    /// <paramref name="itemCanonicals"/> are the item's own values, read for its current bridge id.
+    /// </summary>
     private async Task<EntityAsset?> EnsureCoverVariantAsync(
         Guid entityId,
         Guid variantId,
         string? providerUrl,
         string coverPath,
         string sourceProvider,
+        bool keepRankedPreferred,
+        IReadOnlyList<CanonicalValue> itemCanonicals,
         CancellationToken ct)
     {
         if (_entityAssetRepo is null)
@@ -863,7 +890,8 @@ public sealed class CoverArtWorker
             return null;
         }
 
-        var existing = (await _entityAssetRepo.GetByEntityAsync(entityId.ToString(), "CoverArt", ct))
+        var variants = await _entityAssetRepo.GetByEntityAsync(entityId.ToString(), "CoverArt", ct);
+        var existing = variants
             .FirstOrDefault(asset =>
                 (!string.IsNullOrWhiteSpace(providerUrl)
                  && string.Equals(asset.ImageUrl, providerUrl, StringComparison.OrdinalIgnoreCase))
@@ -881,19 +909,83 @@ public sealed class CoverArtWorker
             OwnerScope = "Work",
         };
 
+        var currentPreferred = keepRankedPreferred
+            ? variants.FirstOrDefault(asset => asset.IsPreferred && asset.Id != variant.Id)
+            : null;
+        var rankedPreferred = currentPreferred is not null
+            && await OutranksCoverPassAsync(currentPreferred, entityId, itemCanonicals, ct).ConfigureAwait(false)
+                ? currentPreferred
+                : null;
+
         variant.ImageUrl = providerUrl;
         variant.LocalImagePath = coverPath;
         variant.SourceProvider = sourceProvider;
-        variant.IsPreferred = true;
+        variant.IsPreferred = rankedPreferred is null;
         variant.IsUserOverride = false;
         variant.IsLocallyExported = false;
         variant.IsPreferredExported = false;
         ArtworkVariantHelper.StampMetadataAndRenditions(variant, _assetPaths);
 
         await _entityAssetRepo.UpsertAsync(variant, ct);
+        if (rankedPreferred is not null)
+        {
+            _logger.LogDebug(
+                "Cover art: owner {OwnerEntityId} keeps preferred {Provider} poster {PreferredId}; stored {Url} as an alternative",
+                entityId, rankedPreferred.SourceProvider, rankedPreferred.Id, providerUrl);
+            return rankedPreferred;
+        }
+
         await _entityAssetRepo.SetPreferredAsync(variant.Id, ct);
         return variant;
     }
+
+    // Providers whose posters ImageEnrichmentService chooses across every candidate, with the bridge id
+    // the choice belongs to and the canonical in which that pass records the id it chose the poster for.
+    private static readonly Dictionary<string, (string BridgeKey, string ChosenForKey)> RankedArtworkProviders =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tmdb"] = (BridgeIdKeys.TmdbId, ArtworkCanonicalHelper.PosterChoiceKey("tmdb")),
+            ["tvdb"] = (BridgeIdKeys.TvdbId, ArtworkCanonicalHelper.PosterChoiceKey("tvdb")),
+        };
+
+    /// <summary>
+    /// A held user choice always outranks the cover pass. A held images-pass poster does while that pass ran
+    /// for the item's current identity; after a rematch or re-identification the cover pass takes over again.
+    /// </summary>
+    private async Task<bool> OutranksCoverPassAsync(
+        EntityAsset preferred,
+        Guid ownerEntityId,
+        IReadOnlyList<CanonicalValue> itemCanonicals,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(preferred.LocalImagePath) || !File.Exists(preferred.LocalImagePath))
+        {
+            return false;
+        }
+
+        if (preferred.IsUserOverride
+            || string.Equals(preferred.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (preferred.SourceProvider is not { } provider
+            || !RankedArtworkProviders.TryGetValue(provider, out var keys))
+        {
+            return false;
+        }
+
+        var ownerCanonicals = await _canonicalRepo.GetByEntityAsync(ownerEntityId, ct).ConfigureAwait(false);
+        var chosenFor = CanonicalValueOf(ownerCanonicals, keys.ChosenForKey);
+        var currentId = CanonicalValueOf(ownerCanonicals, keys.BridgeKey) ?? CanonicalValueOf(itemCanonicals, keys.BridgeKey);
+        return !string.IsNullOrWhiteSpace(chosenFor)
+            && string.Equals(chosenFor, currentId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? CanonicalValueOf(IReadOnlyList<CanonicalValue> canonicals, string key) =>
+        canonicals.FirstOrDefault(value =>
+            string.Equals(value.Key, key, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(value.Value))?.Value;
 
     private async Task<EntityAsset?> FindExistingCoverVariantAsync(Guid entityId, string? providerUrl, CancellationToken ct)
     {

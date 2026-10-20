@@ -1,6 +1,6 @@
 # Spec: Videos in Watch (downloads, courses and saved channels) and the Vault
 
-> **Status:** Locked · **Version:** 28 · **Last updated:** 2026-10-20 · **Related docs:** [Details overlay and edit mode spec](details-overlay-and-edit-mode.md) · [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Ingestion and readiness spec](ingestion-and-readiness.md) · [Developer tools spec](developer-tools.md) · [Universe spec](universe.md) · [Delete from library spec](delete-from-library.md) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
+> **Status:** Locked · **Version:** 29 · **Last updated:** 2026-10-20 · **Related docs:** [Details overlay and edit mode spec](details-overlay-and-edit-mode.md) · [Product overview](../product/overview.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Ingestion and readiness spec](ingestion-and-readiness.md) · [Developer tools spec](developer-tools.md) · [Universe spec](universe.md) · [Delete from library spec](delete-from-library.md) · [Privacy and local-first](../../docs/explanation/privacy-local-first.md)
 
 ## 1. Goal
 
@@ -280,6 +280,19 @@ Three waves. **Wave 1 is the first build (WP1 to WP4), the original V0 to V2.** 
 - **R10. Search (D27).** Vault is never in normal search; in NSFW mode it appears as its own group and searches only what is stored. Recommended: yes.
 - **R7. Viewing options.** Layout (Shelf, Grid, Details, Timeline), group, sort, cover mode (Show / Blur / Hide, Blur by default), titles shown or hidden (D24). Recommended: yes. Anything to add or drop?
 - **R5. Adult provider.** Stash-box plugin ships, off until a Vault library and NSFW access exist; fingerprint matching is a separate opt-in (D21). Settled by Shy 2026-10-20; terms check before building.
+
+## Local checks
+
+Built in the cloud, validated locally in one batch (`.claude/rules/cloud-first.md`). Cloud sessions append these to `engineering/validation/batch.md`; they do not run them.
+
+1. **Add-folder choice and Videos library (WP1-WP4):** on SHY-DESKTOP with `C:\\Temp\\real_import`, add a Videos folder with real YouTube downloads and phone clips; confirm Watch shows the first group and the clips land in View, with Windows paths.
+2. **YouTube plugin (WP8):** a real download is identified from its filename ID; thumbnail, title and channel appear; Identify then "Identifying..." behaves.
+3. **Thumbnails and sidecars (WP6, WP7):** real files with .nfo/.info.json sidecars; random still thumbnails look right on the TV and phone.
+4. **Bookmarks (WP15):** add, Saved, quick look, scene range with Play this part, global bookmark as server admin, pack export and import, on a real film and an audiobook; iPhone and Android player.
+5. **Vault access (WP9, WP10):** NSFW mode toggle in profile settings and the top nav, admin PIN versus NSFW PIN, a Kids profile that never sees any hint of the Vault, blur toggle.
+6. **Stash-box plugin (WP11, WP12, WP14):** needs Shy's StashDB account and API key, and a terms-of-use check; real file matching by fingerprint and by product code; unmatched shelf and Identify.
+7. **Leak audit (WP17):** confirm no Vault title shows on Home, search of normal profiles, people pages, history, notifications or casting.
+8. **Vault images (WP16):** gallery browse on a small test set.
 
 ## 8. Gaps and drift
 

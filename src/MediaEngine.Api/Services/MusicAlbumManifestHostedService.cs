@@ -45,7 +45,7 @@ public sealed class MusicAlbumManifestHostedService(
             try
             {
                 using var executionLease =
-                    await executionGate.EnterAsync(stoppingToken).ConfigureAwait(false);
+                    await executionGate.EnterAsync(nameof(MusicAlbumManifestHostedService), stoppingToken).ConfigureAwait(false);
                 resetCancellationToken = executionLease.PauseCancellationToken;
                 using var sweepCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                     stoppingToken,
@@ -132,7 +132,7 @@ public sealed class MusicAlbumManifestHostedService(
         return allComplete;
     }
 
-    private IReadOnlyList<MusicAlbumManifestCandidate> LoadCandidates(CancellationToken ct)
+    internal IReadOnlyList<MusicAlbumManifestCandidate> LoadCandidates(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
@@ -159,6 +159,16 @@ public sealed class MusicAlbumManifestHostedService(
               AND COALESCE(parent.curator_state, '') NOT IN ('rejected', 'provisional')
               AND COALESCE(parent.is_catalog_only, 0) = 0
               AND asset.presented_at IS NOT NULL
+              -- An album whose tracks are still being identified belongs to that work: repairing it now
+              -- would download whichever cover the first finished track left, not the album's settled one.
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM works busy_child
+                  INNER JOIN editions busy_edition ON busy_edition.work_id = busy_child.id
+                  INNER JOIN media_assets busy_asset ON busy_asset.edition_id = busy_edition.id
+                  INNER JOIN identity_jobs busy_job ON busy_job.entity_id = busy_asset.id
+                  WHERE busy_child.parent_work_id = parent.id
+                    AND busy_job.state NOT IN ('Ready', 'ReadyWithoutUniverse', 'Failed', 'RetailNoMatch', 'QidNoMatch', 'QidNeedsReview'))
             GROUP BY parent.id
             ORDER BY parent.id
             LIMIT @BatchSize
@@ -167,7 +177,7 @@ public sealed class MusicAlbumManifestHostedService(
             cancellationToken: ct)).AsList();
     }
 
-    private sealed class MusicAlbumManifestCandidate
+    internal sealed class MusicAlbumManifestCandidate
     {
         public Guid RootWorkId { get; init; }
         public Guid AssetId { get; init; }

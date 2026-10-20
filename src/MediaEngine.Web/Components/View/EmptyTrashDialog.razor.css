@@ -2,6 +2,8 @@
     display: grid;
     gap: var(--tl-space-4);
     max-width: 62ch;
+    /* Lines up with the shell's title and keeps the summary off the header and footer dividers. */
+    padding: var(--tl-space-4) 22px;
 }
 
 .empty-trash p,

@@ -152,6 +152,12 @@
 }
 
 .app-dialog-shell__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 22px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
     background: rgba(0, 0, 0, 0.14);
 }

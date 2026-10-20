@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Review;
@@ -139,8 +140,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     w.media_type
                 ) AS MediaType,
                 COALESCE(
-                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1),
-                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1)
+                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1),
+                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1)
                 ) AS CoverUrl,
                 ma.file_path_root AS FilePath
             FROM pending p
@@ -162,7 +163,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             var bridgeIds = await ReadBridgeIdentifiersAsync(conn, row, ct).ConfigureAwait(false);
             var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
             result.Add(ToContract(
-                entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
+                entry, row.MediaType, row.EntityTitle, ResolveCoverUrl(row), bridgeIds, detectedFacts,
                 IsFromImportFolder(importPath, row.FilePath),
                 IsFromMerge(managedRoots, row.FilePath)));
         }
@@ -253,8 +254,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     w.media_type
                 ) AS MediaType,
                 COALESCE(
-                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1),
-                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1)
+                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1),
+                    (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1)
                 ) AS CoverUrl,
                 ma.file_path_root AS FilePath
             FROM item i
@@ -274,7 +275,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         var bridgeIds = await ReadBridgeIdentifiersAsync(conn, row, ct).ConfigureAwait(false);
         var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
         return ToContract(
-            entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
+            entry, row.MediaType, row.EntityTitle, ResolveCoverUrl(row), bridgeIds, detectedFacts,
             IsFromImportFolder(_importFolders?.GetImportPath(), row.FilePath),
             IsFromMerge(ManagedFolderRoots(), row.FilePath));
     }
@@ -382,6 +383,23 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             FromImportFolder = fromImportFolder,
             FromMerge = fromMerge,
         };
+
+    // A provider's web link never reaches the browser. Items in review often have no saved copy yet, so the work's
+    // cover route is preferred: it serves the Engine's copy when there is one and otherwise fetches the image itself.
+    private static string? ResolveCoverUrl(ReviewDisplayRow row)
+    {
+        if (!DisplayArtworkUrlResolver.IsExternalProviderUrl(row.CoverUrl))
+        {
+            return row.CoverUrl;
+        }
+
+        if (row.WorkId is Guid workId)
+        {
+            return $"/stream/entity/work/{workId:D}/cover";
+        }
+
+        return row.AssetId is Guid assetId ? DisplayArtworkUrlResolver.Resolve(row.CoverUrl, assetId, "cover", state: null) : null;
+    }
 
     private static bool IsFromImportFolder(string? importPath, string? filePath) =>
         !string.IsNullOrWhiteSpace(importPath)

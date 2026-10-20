@@ -1095,9 +1095,10 @@ public static class CollectionEndpoints
                 var rootWorkId = row.RootWorkId;
                 var title = row.Title;
                 var episodeTitle = row.EpisodeTitle;
-                var cover = string.IsNullOrWhiteSpace(row.Cover) && assetId.HasValue
-                    ? $"/stream/{assetId.Value:D}/cover"
-                    : row.Cover;
+                // A provider's web link never reaches the browser: the file's cover route serves the Engine's copy.
+                var cover = assetId.HasValue
+                    ? DisplayArtworkUrlResolver.Resolve(row.Cover, assetId.Value, "cover", state: "present")
+                    : DisplayArtworkUrlResolver.IsExternalProviderUrl(row.Cover) ? null : row.Cover;
                 var background = row.Background;
                 string? banner = null;
                 var hero = row.Hero;

@@ -556,6 +556,52 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SeriesSearch_ThroughTheSearchIndex_ReturnsTheMatchingWork()
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var otherWorkId = Guid.NewGuid();
+        var otherEditionId = Guid.NewGuid();
+        var otherAssetId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, work_kind)
+                VALUES (@workId, 'Books', 'standalone'), (@otherWorkId, 'Books', 'standalone');
+                INSERT INTO editions (id, work_id)
+                VALUES (@editionId, @workId), (@otherEditionId, @otherWorkId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                VALUES (@assetId, @editionId, 'dune-index-hash', 'C:/library/books/Dune.epub'),
+                       (@otherAssetId, @otherEditionId, 'emma-index-hash', 'C:/library/books/Emma.epub');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@assetId, 'title', 'Dune', @now),
+                       (@otherAssetId, 'title', 'Emma', @now);
+                """,
+                new
+                {
+                    workId,
+                    editionId,
+                    assetId,
+                    otherWorkId,
+                    otherEditionId,
+                    otherAssetId,
+                    now = DateTimeOffset.UtcNow.ToString("O"),
+                });
+        }
+
+        var searchIndex = new SearchIndexRepository(_db);
+        await searchIndex.RebuildAsync(CancellationToken.None);
+
+        var results = await new CollectionSearchReadService(_db, searchIndex).SearchAsync("Dune", CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Equal(workId, result.WorkId);
+        Assert.Equal("Dune", result.Title);
+    }
+
+    [Fact]
     public async Task SearchAsync_ForAPairedApp_ShowsAnAllowedMembersCover_NeverTheCollectionsOwnCover()
     {
         var shelf = await SeedMixedCollectionAsync();
