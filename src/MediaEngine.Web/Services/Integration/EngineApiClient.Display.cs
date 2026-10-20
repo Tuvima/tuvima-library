@@ -213,7 +213,7 @@ public sealed partial class EngineApiClient
 
     // -- GET /api/v1/display/grids/{lane}/{shelfKey} ---------------------------
 
-    public async Task<DisplayGridPageDto?> GetDisplayGridAsync(
+    public async Task<DisplayGridLoadResult> GetDisplayGridAsync(
         string lane,
         string shelfKey,
         string? sort,
@@ -238,20 +238,36 @@ public sealed partial class EngineApiClient
             AddQuery(query, "limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture));
             var url = $"/api/v1/display/grids/{Uri.EscapeDataString(lane)}/{Uri.EscapeDataString(shelfKey)}?{string.Join("&", query)}";
             var page = await _http.GetFromJsonAsync<DisplayGridPageDto>(url, ct);
+            if (page is null)
+            {
+                return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
+            }
+
             ClearFailure(endpoint);
-            return page is null ? null : page with { Items = page.Items.Select(NormalizeDisplayCard).ToList() };
+            return DisplayGridLoadResult.Loaded(page with { Items = page.Items.Select(NormalizeDisplayCard).ToList() });
         }
         catch (HttpRequestException ex) when (ex.StatusCode is { } code)
         {
-            // The shared GET helper records no status code; the page needs it to tell a missing grid (404) from a failed read.
+            // GetFromJsonAsync throws on a non-success status. Keep the status on the shared failure state like the other
+            // reads do, and hand the page its own answer so it never reads a status another call left behind.
+            _logger.LogWarning(ex, "{Endpoint} returned {Status}", endpoint, (int)code);
             _failureState.RecordRawFailure(endpoint, (int)code, ex.Message);
-            return null;
+            return DisplayGridLoadResult.Failed(code switch
+            {
+                HttpStatusCode.NotFound => DisplayGridLoadFailure.NotFound,
+                HttpStatusCode.BadRequest => DisplayGridLoadFailure.BadRequest,
+                _ => DisplayGridLoadFailure.Failed,
+            });
         }
-        catch (OperationCanceledException) { return null; }
+        catch (OperationCanceledException)
+        {
+            return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
+        }
         catch (Exception ex)
         {
+            _logger.LogWarning(ex, "{Endpoint} failed", endpoint);
             RecordExceptionFailure(endpoint, ex);
-            return null;
+            return DisplayGridLoadResult.Failed(DisplayGridLoadFailure.Failed);
         }
     }
 

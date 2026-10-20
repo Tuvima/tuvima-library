@@ -28,42 +28,53 @@ public sealed class EngineApiClientDisplayGridTests
             return Ok(GridJson);
         });
 
-        var page = await client.GetDisplayGridAsync("watch", "recently-added", null, "movie", " ", null, "in-progress", 48, 48);
+        var result = await client.GetDisplayGridAsync("watch", "recently-added", null, "movie", " ", null, "in-progress", 48, 48);
 
-        Assert.Equal("Recently added", page!.Title);
+        Assert.Equal(DisplayGridLoadFailure.None, result.Failure);
+        Assert.Equal("Recently added", result.Page!.Title);
         Assert.Equal("/api/v1/display/grids/watch/recently-added", captured!.RequestUri!.AbsolutePath);
         Assert.Equal("?type=movie&status=in-progress&offset=48&limit=48", captured.RequestUri.Query);
     }
 
-    [Fact]
-    public async Task GetDisplayGridAsync_RecordsA404SoThePageCanTellAMissingGridFromAFailedRead()
-    {
-        var client = ClientReplying(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-
-        Assert.Null(await client.GetDisplayGridAsync("watch", "nope", null, null, null, null, null, 0, 48));
-
-        Assert.Equal(404, client.LastStatusCode);
-    }
-
     [Theory]
-    [InlineData(HttpStatusCode.BadRequest, 400)]
-    [InlineData(HttpStatusCode.InternalServerError, 500)]
-    public async Task GetDisplayGridAsync_RecordsOtherStatusesAsFailuresThatAreNotA404(HttpStatusCode status, int expected)
+    [InlineData(HttpStatusCode.NotFound, DisplayGridLoadFailure.NotFound, 404)]
+    [InlineData(HttpStatusCode.BadRequest, DisplayGridLoadFailure.BadRequest, 400)]
+    [InlineData(HttpStatusCode.InternalServerError, DisplayGridLoadFailure.Failed, 500)]
+    public async Task GetDisplayGridAsync_TellsTheCallerWhyThereIsNoPageFromThisCallsOwnAnswer(
+        HttpStatusCode status, DisplayGridLoadFailure expected, int recorded)
     {
         var client = ClientReplying(_ => new HttpResponseMessage(status));
 
-        Assert.Null(await client.GetDisplayGridAsync("watch", "recently-added", null, null, null, null, null, 0, 48));
+        var result = await client.GetDisplayGridAsync("watch", "recently-added", null, null, null, null, null, 0, 48);
 
-        Assert.Equal(expected, client.LastStatusCode);
+        Assert.Null(result.Page);
+        Assert.Equal(expected, result.Failure);
+        Assert.Equal(recorded, client.LastStatusCode);
     }
 
     [Fact]
-    public async Task GetDisplayGridAsync_LeavesNoStatusWhenTheEngineCannotBeReached()
+    public async Task GetDisplayGridAsync_AStale404IsNotMistakenForALaterTimeout()
+    {
+        var calls = 0;
+        var client = ClientReplying(_ => ++calls == 1
+            ? new HttpResponseMessage(HttpStatusCode.NotFound)
+            : throw new TaskCanceledException("timed out"));
+
+        var missing = await client.GetDisplayGridAsync("watch", "nope", null, null, null, null, null, 0, 48);
+        var timedOut = await client.GetDisplayGridAsync("watch", "recently-added", null, null, null, null, null, 0, 48);
+
+        Assert.Equal(DisplayGridLoadFailure.NotFound, missing.Failure);
+        Assert.Equal(DisplayGridLoadFailure.Failed, timedOut.Failure);
+    }
+
+    [Fact]
+    public async Task GetDisplayGridAsync_ReportsAFailureWhenTheEngineCannotBeReached()
     {
         var client = ClientReplying(_ => throw new HttpRequestException("connection refused"));
 
-        Assert.Null(await client.GetDisplayGridAsync("watch", "recently-added", null, null, null, null, null, 0, 48));
+        var result = await client.GetDisplayGridAsync("watch", "recently-added", null, null, null, null, null, 0, 48);
 
+        Assert.Equal(DisplayGridLoadFailure.Failed, result.Failure);
         Assert.Null(client.LastStatusCode);
     }
 

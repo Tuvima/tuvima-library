@@ -41,20 +41,59 @@ test('asks .NET for more when the sentinel comes near the screen and stays quiet
     assert.deepEqual(calls, ['LoadMoreFromObserverAsync']);
 });
 
-test('watches the nearest scrolling ancestor, or the viewport when nothing scrolls', () => {
-    const page = { parentElement: null };
-    const pane = { parentElement: page };
-    const wrapper = { parentElement: pane };
-    const sentinel = { parentElement: wrapper };
-    const { dotnet, live } = setup(new Map([[pane, 'auto'], [page, 'scroll']]));
+// An element as the page sees it: a tag, a parent, and how much content it holds compared with its box.
+function el(tag, parent, { scrollHeight = 100, clientHeight = 100 } = {}) {
+    return { tagName: tag, parentElement: parent, scrollHeight, clientHeight };
+}
+
+test('watches the nearest container that really scrolls', () => {
+    const body = el('BODY', null, { scrollHeight: 5000, clientHeight: 800 });
+    const outer = el('DIV', body, { scrollHeight: 4000, clientHeight: 700 });
+    const pane = el('DIV', outer, { scrollHeight: 3000, clientHeight: 600 });
+    const sentinel = el('DIV', el('DIV', pane));
+    const { dotnet, live } = setup(new Map([[pane, 'auto'], [outer, 'scroll']]));
 
     observe(sentinel, dotnet, {});
+
     assert.equal(live()[0].options.root, pane);
     assert.equal(live()[0].options.rootMargin, '800px 0px');
+});
 
-    const { dotnet: second, live: secondLive } = setup();
-    observe({ parentElement: { parentElement: null } }, second, {});
-    assert.equal(secondLive()[0].options.root, null);
+test('an overflow-x hidden wrapper that does not really scroll is not the root', () => {
+    // overflow-x: hidden makes overflow-y compute to auto on a wrapper with no fixed height: its content is as tall as itself.
+    const wrapper = el('DIV', el('BODY', el('HTML', null)), { scrollHeight: 2400, clientHeight: 2400 });
+    const sentinel = el('DIV', wrapper);
+    const { dotnet, live } = setup(new Map([[wrapper, 'auto']]));
+
+    observe(sentinel, dotnet, {});
+
+    assert.equal(live()[0].options.root, null);
+});
+
+test('body and html never become the root, even when they report scrolling', () => {
+    const html = el('HTML', null, { scrollHeight: 9000, clientHeight: 800 });
+    const body = el('BODY', html, { scrollHeight: 9000, clientHeight: 800 });
+    const sentinel = el('DIV', body);
+    const { dotnet, live } = setup(new Map([[body, 'auto'], [html, 'scroll']]));
+
+    observe(sentinel, dotnet, {});
+
+    assert.equal(live()[0].options.root, null);
+});
+
+test('with no scrolling ancestor at all the viewport is watched', () => {
+    const { dotnet, live } = setup();
+    observe(el('DIV', el('DIV', null)), dotnet, {});
+    assert.equal(live()[0].options.root, null);
+});
+
+test('a failed call into .NET is swallowed', async () => {
+    const { live } = setup();
+    const failing = { invokeMethodAsync: () => Promise.reject(new Error('disposed')) };
+    observe(el('DIV', null), failing, {});
+
+    live()[0].deliver(true);
+    await new Promise(resolve => setImmediate(resolve));
 });
 
 test('observing the same sentinel again replaces the observer and asks again while the sentinel is still near', () => {
