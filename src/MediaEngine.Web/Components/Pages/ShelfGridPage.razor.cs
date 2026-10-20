@@ -37,6 +37,11 @@ public partial class ShelfGridPage
     private string? _loadedGrid;
     private int _version;
     private int _nextOffset;
+    // Same tile size the lane browse pages open with (MediaBrowseShell.DefaultTileSizePx): Listen grids hold
+    // square album and audiobook art, everything else portrait covers.
+    private const int DefaultTileSizePx = 128;
+    private const int ListenTileSizePx = 136;
+
     private bool _loading = true;
     private bool _loadingMore;
     private bool _failed;
@@ -374,4 +379,6 @@ public partial class ShelfGridPage
             Logger.LogDebug(ex, "Grid scroll trigger clean-up was cancelled during disposal.");
         }
     }
+
+    private int TileSizePx => string.Equals(Lane, "listen", StringComparison.OrdinalIgnoreCase) ? ListenTileSizePx : DefaultTileSizePx;
 }
