@@ -3703,7 +3703,6 @@ button.app-menu-item {
     :root:root .listen-song-table-cards__more-button,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
-    :root:root .sme-shell .playback-tooltip-owner[data-tooltip-wrapper-target="true"],
     :root:root .sme-match-search-modes .sme-match-search-mode,
     :root:root .sme-details-linked-chip,
     :root:root .sme-close,
@@ -3731,6 +3730,22 @@ button.app-menu-item {
     :root:root .chronicle-node-list .tl-list-item-button {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
+    }
+
+    /* A tooltip on something that cannot take focus itself (an info icon, a status symbol, a disabled button) makes its holder
+       focusable so keyboard users can read it (playback-tooltip.js). That holder is then a target too, so it gets the full
+       44 x 44 box with the icon centred. */
+    :root:root .playback-tooltip-owner[data-tooltip-wrapper-target="true"] {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* The Settings banner's X (32px on desktop). */
+    :root:root .settings-notice__dismiss {
+        width: var(--tl-tap-target-min);
+        height: var(--tl-tap-target-min);
     }
 
     /* The Libraries switcher rows are larger than the minimum: 56 px. */
@@ -5421,6 +5436,12 @@ input[type="reset"],
 .library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
 .library-folders__add.is-highlighted { box-shadow: 0 0 0 2px var(--tl-accent-primary); }
+
+/* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
+   in the shared tap-target block. */
+.settings-notice__dismiss { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--tl-text-secondary); cursor: pointer; }
+.settings-notice__dismiss:hover,
+.settings-notice__dismiss:focus-visible { background: var(--tl-bg-surface-hover); color: var(--tl-text-primary); }
 
 /* Merge into sheet (MergeFolderDialog): the target and Copy or Move choices are AppNativeButton radios, so their root styles live here. */
 .merge-folder__option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; width: 100%; min-height: 44px; padding: 12px; color: var(--tl-text-primary); text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; font: inherit; cursor: pointer; }

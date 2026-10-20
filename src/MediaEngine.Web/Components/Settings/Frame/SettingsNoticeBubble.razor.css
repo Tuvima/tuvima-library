@@ -56,24 +56,3 @@
     align-items: center;
     gap: var(--tl-space-2, 8px);
 }
-
-.settings-notice__dismiss {
-    display: inline-flex;
-    flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--tl-text-secondary);
-    cursor: pointer;
-}
-
-.settings-notice__dismiss:hover,
-.settings-notice__dismiss:focus-visible {
-    background: var(--tl-bg-surface-hover);
-    color: var(--tl-text-primary);
-}
