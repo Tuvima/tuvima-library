@@ -187,8 +187,7 @@ public sealed class CoverArtWorker
             .ToList();
         foreach (var stale in variantsToRemove)
         {
-            await _entityAssetRepo.DeleteAsync(stale.Id, ct);
-            DeleteManagedArtworkFiles(stale);
+            await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_entityAssetRepo, stale, _assetPaths, _logger, ct);
         }
 
         var affectedTypes = variantsToRemove
@@ -702,10 +701,14 @@ public sealed class CoverArtWorker
         };
     }
 
+    /// <summary>
+    /// Provider artwork a retail rematch replaces. That includes a provider variant the user picked, since
+    /// it belongs to the earlier identity; uploads and artwork-library choices (local addresses) stay.
+    /// </summary>
     private static bool IsReplaceableProviderArtwork(EntityAsset asset) =>
         string.Equals(asset.AssetClassValue, "Artwork", StringComparison.OrdinalIgnoreCase)
-        && !asset.IsUserOverride
-        && !string.Equals(asset.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase);
+        && !string.Equals(asset.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
+        && (!asset.IsUserOverride || NormalizeRemoteArtworkUrl(asset.ImageUrl) is not null);
 
     private async Task<int> ClearStaleLowerScopeCoverStateAsync(
         Guid entityId,
@@ -740,8 +743,7 @@ public sealed class CoverArtWorker
                 .ToList();
             foreach (var staleAsset in staleAssets)
             {
-                await _entityAssetRepo.DeleteAsync(staleAsset.Id, ct);
-                DeleteManagedArtworkFiles(staleAsset);
+                await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_entityAssetRepo, staleAsset, _assetPaths, _logger, ct);
                 removed++;
             }
 
@@ -764,107 +766,12 @@ public sealed class CoverArtWorker
         return uri.AbsoluteUri;
     }
 
-    private void DeleteManagedArtworkFiles(EntityAsset asset)
-    {
-        var managedRoot = Path.GetFullPath(_assetPaths.AssetsRoot)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        foreach (var path in new[]
-                 {
-                     asset.LocalImagePath,
-                     asset.LocalImagePathSmall,
-                     asset.LocalImagePathMedium,
-                     asset.LocalImagePathLarge,
-                 }
-                     .Where(path => !string.IsNullOrWhiteSpace(path))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var fullPath = Path.GetFullPath(path!);
-            if (!fullPath.StartsWith(managedRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning(
-                    "Skipped deletion of artwork file outside the managed asset root: {Path}",
-                    fullPath);
-                continue;
-            }
-
-            try
-            {
-                if (File.Exists(fullPath))
-                {
-                    File.Delete(fullPath);
-                }
-            }
-            catch (IOException ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete stale managed artwork file {Path}", fullPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "Access was denied deleting stale managed artwork file {Path}", fullPath);
-            }
-        }
-    }
-
     private async Task ClearArtworkDisplayCanonicalsAsync(Guid entityId, string assetType, CancellationToken ct)
     {
-        foreach (var key in GetArtworkDisplayCanonicalKeys(assetType))
+        foreach (var key in ArtworkCanonicalHelper.DisplayCanonicalKeys(assetType))
         {
             await _canonicalRepo.DeleteByKeyAsync(entityId, key, ct);
         }
-    }
-
-    private static IReadOnlyList<string> GetArtworkDisplayCanonicalKeys(string assetType)
-    {
-        var prefix = assetType switch
-        {
-            "CoverArt" => "cover",
-            "Background" => "background",
-            "Logo" => "logo",
-            "SeasonPoster" => "season_poster",
-            "SeasonThumb" => "season_thumb",
-            "EpisodeStill" => "episode_still",
-            _ => null,
-        };
-        if (prefix is null)
-        {
-            return [];
-        }
-
-        var keys = new List<string>
-        {
-            $"{prefix}_url_s",
-            $"{prefix}_url_m",
-            $"{prefix}_url_l",
-            $"{prefix}_aspect_class",
-            $"{prefix}_width_px",
-            $"{prefix}_height_px",
-            $"{prefix}_primary_hex",
-            $"{prefix}_secondary_hex",
-            $"{prefix}_accent_hex",
-        };
-        keys.AddRange(assetType switch
-        {
-            "CoverArt" => [MetadataFieldConstants.CoverUrl],
-            "Background" => ["background", "background_url"],
-            "Logo" => ["logo", "logo_url"],
-            "SeasonPoster" => ["season_poster", "season_poster_url"],
-            "SeasonThumb" => ["season_thumb", "season_thumb_url"],
-            "EpisodeStill" => ["episode_still", "episode_still_url"],
-            _ => [],
-        });
-        if (assetType == "CoverArt")
-        {
-            keys.AddRange(
-            [
-                MetadataFieldConstants.ArtworkPrimaryHex,
-                MetadataFieldConstants.ArtworkSecondaryHex,
-                MetadataFieldConstants.ArtworkAccentHex,
-                "dominant_color",
-            ]);
-        }
-
-        return keys.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>
@@ -921,7 +828,8 @@ public sealed class CoverArtWorker
         variant.LocalImagePath = coverPath;
         variant.SourceProvider = sourceProvider;
         variant.IsPreferred = rankedPreferred is null;
-        variant.IsUserOverride = false;
+        // An ordinary pass keeps the user's pick of this same image; an explicit rematch replaces it.
+        variant.IsUserOverride = keepRankedPreferred && existing?.IsUserOverride == true;
         variant.IsLocallyExported = false;
         variant.IsPreferredExported = false;
         ArtworkVariantHelper.StampMetadataAndRenditions(variant, _assetPaths);
