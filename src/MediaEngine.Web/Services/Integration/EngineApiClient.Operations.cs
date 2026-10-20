@@ -686,8 +686,9 @@ public sealed partial class EngineApiClient
             {
                 var result = await response.Content.ReadFromJsonAsync<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>(cancellationToken: ct);
                 ClearFailure(endpoint);
+                // The Engine said yes but the answer cannot be read: the delete happened, so this is not "nothing was deleted".
                 return result is null
-                    ? LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable)
+                    ? LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unconfirmed)
                     : LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Ok(result);
             }
 
@@ -711,18 +712,29 @@ public sealed partial class EngineApiClient
                         LibraryItemDeletionOutcomeStatus.Invalid, (await ReadProblemAsync(response, ct)).Detail);
                 default:
                     await RecordHttpFailureAsync(endpoint, response, ct);
-                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+                    // A server error can arrive after files were already removed, so it is not "nothing was deleted".
+                    return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(
+                        (int)response.StatusCode >= 500
+                            ? LibraryItemDeletionOutcomeStatus.Unconfirmed
+                            : LibraryItemDeletionOutcomeStatus.Unavailable);
             }
         }
         catch (OperationCanceledException)
         {
-            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+            // A timeout or cancellation after the request went out: the Engine may still be deleting, or may have finished.
+            _logger.LogWarning("{Endpoint} was not answered in time; the result is unknown", endpoint);
+            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unconfirmed);
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
         {
             _logger.LogWarning(ex, "{Endpoint} failed", endpoint);
             RecordExceptionFailure(endpoint, ex);
-            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(LibraryItemDeletionOutcomeStatus.Unavailable);
+            // Only a failure to connect proves the request never reached the Engine; anything later (a dropped connection, an answer that
+            // cannot be read) leaves it unknown whether the delete ran.
+            return LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>.Failed(
+                ex is HttpRequestException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.NameResolutionError or HttpRequestError.SecureConnectionError or HttpRequestError.ProxyTunnelError }
+                    ? LibraryItemDeletionOutcomeStatus.Unavailable
+                    : LibraryItemDeletionOutcomeStatus.Unconfirmed);
         }
     }
 

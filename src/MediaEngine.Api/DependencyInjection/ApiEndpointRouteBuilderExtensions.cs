@@ -79,19 +79,37 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapCanonEndpoints();
         app.MapDeferredEnrichmentEndpoints();
         app.MapLibraryItemEndpoints();
+        app.MapExcludedFileEndpoints();
         app.MapItemCanonicalEndpoints();
         app.MapTimelineEndpoints();
         app.MapSearchEndpoints();
         app.MapAiEndpoints();
         app.MapPluginEndpoints();
+        app.MapApprovalEndpoints();
         app.MapPluginApplicationServiceEndpoints();
 
         return app;
     }
 
+    /// <summary>
+    /// Whether this Engine maps the development-only actions (<c>/debug/*</c> and <c>/dev/*</c>): only a DEBUG build
+    /// running in the Development environment does. <see cref="MapDevelopmentEngineEndpoints"/> and the
+    /// <c>GET /system/development-tools</c> answer both read this, so what the Dashboard is told can never drift from
+    /// what is actually mapped.
+    /// </summary>
+    public static bool OffersDevelopmentEndpoints(this IHostEnvironment environment)
+    {
+#if DEBUG
+        return environment.IsDevelopment();
+#else
+        ArgumentNullException.ThrowIfNull(environment);
+        return false;
+#endif
+    }
+
     public static WebApplication MapDevelopmentEngineEndpoints(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
+        if (app.Environment.OffersDevelopmentEndpoints())
         {
 #if DEBUG
             app.MapDebugEndpoints();

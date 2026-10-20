@@ -127,7 +127,7 @@ public sealed partial class LogExportServiceTests : IDisposable
 
         var text = Text(await BuildAsync(Request(level: LogExportLevels.Errors, areas: ["Ingestion", "AI"])));
 
-        Assert.StartsWith("Tuvima Library log export\n", text, StringComparison.Ordinal);
+        Assert.StartsWith("Library log export\n", text, StringComparison.Ordinal);
         Assert.Contains("Created: 2026-10-19 12:00:00Z", text, StringComparison.Ordinal);
         Assert.Contains("Level: errors only", text, StringComparison.Ordinal);
         Assert.Contains("Areas: Ingestion, AI", text, StringComparison.Ordinal);

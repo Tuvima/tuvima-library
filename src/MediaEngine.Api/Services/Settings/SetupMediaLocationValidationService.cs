@@ -88,13 +88,13 @@ public sealed class SetupMediaLocationValidationService(
         {
             return string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId)
                 ? null
-                : "A library with only as-is folders cannot have a destination, because Tuvima never adds files to an as-is folder.";
+                : "A library with only as-is folders cannot have a destination, because Library never adds files to an as-is folder.";
         }
 
         var destination = library.PrimaryDestination;
         if (destination is null)
         {
-            return "A library with folders Tuvima manages needs one of them as its destination for new media.";
+            return "A library with folders Library manages needs one of them as its destination for new media.";
         }
 
         return destination.AccessMode == LibrarySourceAccessModes.Writable

@@ -60,7 +60,7 @@ public sealed partial class RetailMatchWorker
     private readonly IAssetExportService? _assetExportService;
     private readonly AppleRetailClient _appleClient;
     private readonly TmdbRetailClient _tmdbClient;
-    private readonly TvdbRetailClient? _tvdbClient;
+    private readonly ProviderApiClient? _tvdbClient;
     private readonly TmdbTvSuggestionService? _tvSuggestions;
     private readonly RetailCandidateScorer _candidateScorer;
     private readonly CoverArtWorker? _coverArtWorker;
@@ -113,7 +113,7 @@ public sealed partial class RetailMatchWorker
         ImageDownloadCoordinator? imageDownloadCoordinator = null,
         ITvEpisodeCreditRepository? episodeCredits = null,
         IMediaOperationRepository? operations = null,
-        TvdbRetailClient? tvdbClient = null,
+        ProviderApiClient? tvdbClient = null,
         TmdbTvSuggestionService? tvSuggestions = null,
         IMediaAssetCoverageRepository? coverageRepo = null,
         ITvEpisodeRangeCatalogue? rangeCatalogue = null)

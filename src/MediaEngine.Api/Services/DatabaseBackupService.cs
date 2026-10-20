@@ -147,7 +147,7 @@ public sealed class DatabaseBackupService
     {
         if (!originalFileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException("Tuvima backups must be ZIP archives.");
+            throw new InvalidDataException("Library backups must be ZIP archives.");
         }
 
         Directory.CreateDirectory(_backupDirectory);

@@ -6,7 +6,7 @@
 @inject IAppToastService Snackbar
 
 <SettingsSectionPanel Title="Paired devices" Icon="@AppMaterialIcons.Outlined.Devices"
-                      Description="Phones and TVs paired with Tuvima. Sign one out to end its access at once.">
+                      Description="Phones and TVs paired with Library. Sign one out to end its access at once.">
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
@@ -18,7 +18,7 @@
     else if (_devices.Count == 0)
     {
         <AppEmptyState Class="app-page-state--compact" Title="No phones or TVs paired"
-                       Message="Open a Tuvima app and choose this server to pair it." />
+                       Message="Open a Library app and choose this server to pair it." />
     }
     else if (VisibleDevices.Count == 0)
     {

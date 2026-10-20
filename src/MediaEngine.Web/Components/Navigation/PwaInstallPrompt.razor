@@ -7,14 +7,14 @@
     <aside class="pwa-install-prompt" role="status" aria-live="polite">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InstallMobile" class="pwa-install-prompt__icon" />
         <div class="pwa-install-prompt__copy">
-            <strong>Install Tuvima Library</strong>
+            <strong>Install Library</strong>
             <span>@InstallMessage</span>
         </div>
         @if (_state == "available")
         {
             <AppNativeButton Type="button"
                              Class="pwa-install-prompt__install"
-                             AriaLabel="Install Tuvima Library"
+                             AriaLabel="Install Library"
                              OnClick="InstallAsync">
                 Install
             </AppNativeButton>

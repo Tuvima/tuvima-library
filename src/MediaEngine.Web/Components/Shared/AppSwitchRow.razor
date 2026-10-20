@@ -3,7 +3,7 @@
     @if (!string.IsNullOrWhiteSpace(Icon)) { <AppMaterialIcon Icon="@Icon" Size="AppSize.Small" Class="app-switch-row__icon" /> }
     @if (HasCopy) { <span class="app-switch-row__copy">@if (!string.IsNullOrWhiteSpace(Label)) { <span class="app-switch-row__label">@Label</span> }@if (!string.IsNullOrWhiteSpace(Description)) { <span class="app-switch-row__description">@Description</span> }</span> }
     <span class="app-switch-row__control tl-switch tl-switch--@Size.ToString().ToLowerInvariant()">
-        <input type="checkbox" role="switch" checked="@Value" disabled="@Disabled" aria-label="@EffectiveAriaLabel" @onchange="ChangedAsync" />
+        <input type="checkbox" role="switch" @bind:get="Value" @bind:set="ChangedAsync" disabled="@Disabled" aria-label="@EffectiveAriaLabel" />
         <span class="tl-switch-track" aria-hidden="true"><span class="tl-switch-thumb"></span></span>
         @if (!string.IsNullOrWhiteSpace(SwitchLabel)) { <span>@SwitchLabel</span> }
     </span>
@@ -26,5 +26,7 @@
     private string? EffectiveAriaLabel => AriaLabel ?? SwitchLabel ?? Label;
     private bool HasCopy => !string.IsNullOrWhiteSpace(Label) || !string.IsNullOrWhiteSpace(Description);
     private string RootClass => string.Join(" ", new[] { "app-switch-row", AppUiMaps.ToneClass(Tone), HasCopy ? null : "app-switch-row--control-only", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private Task ChangedAsync(ChangeEventArgs args) => !Disabled ? ValueChanged.InvokeAsync(args.Value is true) : Task.CompletedTask;
+    // Bound (not a bare onchange) so the renderer tracks what the box shows: when the owner keeps the old value, for
+    // example after a confirmation is cancelled, the next render puts the switch back instead of leaving it flipped.
+    private Task ChangedAsync(bool value) => !Disabled ? ValueChanged.InvokeAsync(value) : Task.CompletedTask;
 }

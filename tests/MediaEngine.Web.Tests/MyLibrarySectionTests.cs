@@ -221,7 +221,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
 
         Assert.Equal(["My List"], Headings(cut));
         var helper = cut.Find(".my-library-slot--empty");
-        Assert.Contains("Add titles with the + My List button", helper.TextContent);
+        Assert.Contains("Add titles with the My List heart", helper.TextContent);
         // No dead buttons: the helper block has no link, button or See All.
         Assert.Empty(helper.QuerySelectorAll("a, button"));
         Assert.Empty(cut.FindAll(".media-tile"));
@@ -234,7 +234,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         // The Engine's lane reads leave out anything this profile may not see, so the saved id has no tile.
         var data = new Data { Saved = [new(ProfileEntityKind.Movie, Guid.NewGuid(), Now, null)] };
         var cut = await RenderAsync(data);
-        Assert.Contains("Add titles with the + My List button", cut.Find(".my-library-slot--empty").TextContent);
+        Assert.Contains("Add titles with the My List heart", cut.Find(".my-library-slot--empty").TextContent);
     }
 
     [Theory]

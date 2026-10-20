@@ -20,6 +20,9 @@ public interface IExcludedSourceFileRepository
     /// <summary>The excluded file at one place, or null.</summary>
     Task<ExcludedSourceFile?> GetAsync(string sourceId, string relativePath, CancellationToken ct = default);
 
+    /// <summary>The excluded file with this id, or null.</summary>
+    Task<ExcludedSourceFile?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
     /// <summary>Removes one exclusion. Returns true when a row was removed.</summary>
     Task<bool> RemoveAsync(Guid id, CancellationToken ct = default);
 }

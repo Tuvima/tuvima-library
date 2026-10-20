@@ -866,7 +866,7 @@ public static partial class MetadataEndpoints
             ICanonicalValueRepository canonicalRepo,
             ILibraryItemRepository libraryItemRepo,
             IImageEnrichmentService imageEnrichment,
-            TvdbRetailClient tvdb,
+            ProviderApiClient tvdb,
             ImageEnrichmentService images,
             CoverArtWorker coverArtWorker,
             IMetadataEditorRepository metadataData,
@@ -905,7 +905,7 @@ public static partial class MetadataEndpoints
 
             if (await ResolveTvdbArtworkIdAsync(scope, canonicalRepo, ct) is { } tvdbId)
             {
-                if (!tvdb.IsConfigured())
+                if (!tvdb.IsConfigured("tvdb"))
                 {
                     return ApiErrors.BadRequest("TheTVDB is the confirmed source for this scope. Connect it in Settings to refresh artwork.");
                 }

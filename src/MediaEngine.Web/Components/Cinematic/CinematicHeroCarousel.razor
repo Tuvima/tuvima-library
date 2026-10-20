@@ -733,7 +733,7 @@ else if (Slides.Count > 0)
     private readonly Dictionary<(Guid? Profile, Guid Id), (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu)> _personal = [];
     private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
-        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check" : "add", IsSelected=Personal.Saved },
+        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon="favorite", IsSelected=Personal.Saved },
         new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label="Not for me",Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label="I like this",Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
     // On a phone Rate and the thumbs live in More instead of taking room under the primary button.
     private IReadOnlyList<DetailAction> PhoneMoreActions => LandingSecondaryActions

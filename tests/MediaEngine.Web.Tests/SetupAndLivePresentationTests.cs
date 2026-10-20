@@ -105,12 +105,12 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
         var ready = Render<SetupReadinessStage>(parameters => parameters
             .Add(component => component.Readiness, new SetupReadinessDto(true, [new SetupCapabilityDto("administrator", "Administrator", "passed", true, "Ready.", null)])));
         Assert.Contains("You're all set", ready.Markup, StringComparison.Ordinal);
-        Assert.Contains("Tuvima is ready to start finding your media.", ready.Markup, StringComparison.Ordinal);
+        Assert.Contains("Library is ready to start finding your media.", ready.Markup, StringComparison.Ordinal);
 
         var blocked = Render<SetupReadinessStage>(parameters => parameters
             .Add(component => component.Readiness, new SetupReadinessDto(false, [new SetupCapabilityDto("administrator", "Administrator", "blocked", false, "Create the first administrator.", "/setup?step=administrator")])));
         Assert.Contains("Almost there", blocked.Markup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Tuvima is ready to start finding your media.", blocked.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Library is ready to start finding your media.", blocked.Markup, StringComparison.Ordinal);
         Assert.Contains("A few things need attention before you open your library.", blocked.Markup, StringComparison.Ordinal);
     }
 
@@ -119,7 +119,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     {
         var cut = Render<SetupReadinessStage>();
 
-        Assert.Contains("One moment while Tuvima checks your setup.", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("One moment while Library checks your setup.", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("need attention", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("ready to start finding", cut.Markup, StringComparison.Ordinal);
     }

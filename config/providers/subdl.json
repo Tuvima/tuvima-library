@@ -35,6 +35,280 @@
     "Movies": ["tmdb_id", "imdb_id"],
     "TV": ["tmdb_id"]
   },
+  "text_track": {
+    "kind": "Subtitles",
+    "noun": "subtitles",
+    "api": {
+      "allowed_hosts": [
+        "api.subdl.com"
+      ],
+      "accept": "application/json"
+    },
+    "http": {
+      "allow_auto_redirect": false,
+      "max_response_buffer_bytes": 1048576
+    },
+    "language": {
+      "aliases": {
+        "english": "en",
+        "french": "fr",
+        "spanish": "es",
+        "german": "de",
+        "portuguese": "pt",
+        "italian": "it",
+        "arabic": "ar",
+        "persian": "fa",
+        "farsi": "fa",
+        "japanese": "ja",
+        "korean": "ko",
+        "chinese": "zh"
+      },
+      "unknown": "und"
+    },
+    "search": {
+      "requests": [
+        {
+          "when_media_type": "TV",
+          "needs": [
+            "tmdb_id",
+            "season_number",
+            "episode_number"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "tmdb_id",
+              "{tmdb_id}"
+            ],
+            [
+              "type",
+              "tv"
+            ],
+            [
+              "season",
+              "{season_number}"
+            ],
+            [
+              "episode",
+              "{episode_number}"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ],
+          "title_check": {
+            "type": "tv",
+            "id_path": "tmdb_id",
+            "id": "{tmdb_id}"
+          }
+        },
+        {
+          "when_media_type": "Movies",
+          "needs": [
+            "tmdb_id"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "tmdb_id",
+              "{tmdb_id}"
+            ],
+            [
+              "type",
+              "movie"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ],
+          "title_check": {
+            "type": "movie",
+            "id_path": "tmdb_id",
+            "id": "{tmdb_id}"
+          }
+        },
+        {
+          "when_media_type": "Movies",
+          "needs": [
+            "imdb_id"
+          ],
+          "path": "/api/v2/subtitles/search",
+          "query": [
+            [
+              "imdb_id",
+              "{imdb_id}"
+            ],
+            [
+              "type",
+              "movie"
+            ],
+            [
+              "languages",
+              "{language}"
+            ],
+            [
+              "unpack",
+              "1"
+            ]
+          ],
+          "title_check": {
+            "type": "movie",
+            "id_path": "imdb_id",
+            "id": "{imdb_id}",
+            "ignore_case": true
+          }
+        }
+      ],
+      "empty_search_minutes": 15,
+      "success_path": "status",
+      "titles_path": "results",
+      "items_path": "subtitles",
+      "max_items": 30,
+      "item": {
+        "id_paths": [
+          "n_id",
+          "nId"
+        ],
+        "release_paths": [
+          "release_name",
+          "name"
+        ],
+        "name_path": "name",
+        "language_paths": [
+          "language",
+          "lang"
+        ],
+        "hearing_impaired_paths": [
+          "hi"
+        ],
+        "episode_match": {
+          "season_path": "season",
+          "episode_path": "episode",
+          "reject_true_paths": [
+            "full_season"
+          ],
+          "range_paths": [
+            "episode_from",
+            "episode_end"
+          ]
+        },
+        "files": {
+          "path": "unpack_files",
+          "max": 32,
+          "id_paths": [
+            "file_n_id",
+            "file_id"
+          ],
+          "name_path": "name",
+          "url_path": "url",
+          "language_paths": [
+            "language"
+          ]
+        }
+      },
+      "score": {
+        "base": 0.82,
+        "release_overlap_weight": 0.1,
+        "format_bonus": {
+          "vtt": 0.015,
+          "srt": 0.01
+        },
+        "hearing_impaired": -0.03
+      },
+      "ambiguity_margin": 0.025,
+      "max_candidates": 3,
+      "source_url": "https://subdl.com/subtitle/{id}"
+    },
+    "download": {
+      "mode": "fetch",
+      "resolve": {
+        "path": "/api/v2/subtitles/{id}/download?format=file",
+        "url_paths": [
+          "url",
+          "link",
+          "data.url"
+        ]
+      },
+      "allowed_hosts": [
+        "dl.subdl.com"
+      ],
+      "relative_base": "https://dl.subdl.com",
+      "path_prefix": "/subtitle/",
+      "max_bytes": 8388608,
+      "formats": [
+        "srt",
+        "vtt",
+        "ass",
+        "ssa"
+      ],
+      "archive": {
+        "max_entries": 32,
+        "max_expansion_ratio": 100
+      },
+      "output_format": "vtt",
+      "null_means_incompatible": true
+    },
+    "errors": {
+      "statuses": [
+        {
+          "codes": [
+            401,
+            403
+          ],
+          "status": "AuthenticationRequired"
+        },
+        {
+          "codes": [
+            429
+          ],
+          "error_code": "quota_exceeded",
+          "status": "QuotaExceeded"
+        },
+        {
+          "codes": [
+            429
+          ],
+          "status": "RateLimited"
+        },
+        {
+          "min_code": 500,
+          "status": "ProviderUnavailable"
+        }
+      ],
+      "default_status": "ProviderError",
+      "error_code_path": "error.code",
+      "reset_header": "X-RateLimit-Reset",
+      "not_outage_codes": [
+        401,
+        403,
+        429
+      ]
+    },
+    "messages": {
+      "AuthenticationRequired": "The {display_name} API key was rejected.",
+      "QuotaExceeded": "The {display_name} daily quota has been exhausted.",
+      "RateLimited": "{display_name} is rate limiting subtitle requests.",
+      "ProviderUnavailable": "{display_name} is temporarily unavailable.",
+      "ProviderError": "{display_name} could not complete the subtitle request.",
+      "search_incomplete": "{display_name} returned an incomplete search response.",
+      "search_invalid": "{display_name} returned an invalid search response.",
+      "identity_mismatch": "{display_name} returned subtitles for a different movie or show.",
+      "ambiguous": "Several {display_name} subtitles match equally well; no automatic choice was made.",
+      "unreachable": "{display_name} could not be reached.",
+      "download_failed": "{display_name} could not complete the subtitle download.",
+      "provider_down": "{name} is temporarily unavailable."
+    }
+  },
   "ui_metadata": {
     "accent_color": "#7454DB",
     "material_icon": "Subtitles",
@@ -80,7 +354,7 @@
       {
         "id": "connect",
         "title": "Verify connection",
-        "description": "Tuvima checks the key and account usage, then saves it for future subtitle requests.",
+        "description": "Library checks the key and account usage, then saves it for future subtitle requests.",
         "action": { "kind": "credential_probe", "label": "Verify & connect" },
         "credential_keys": ["api_key"]
       }
@@ -90,7 +364,7 @@
       { "status": "quota_exhausted", "title": "SubDL quota reached", "message": "The account's daily allowance is used up. Try again after it resets.", "instructions": [], "help_url": "https://subdl.com/developers#errors" },
       { "status": "rate_limited", "title": "SubDL is slowing requests", "message": "Wait for the retry time before trying again.", "instructions": [] },
       { "status": "provider_outage", "title": "SubDL is temporarily unavailable", "message": "Your key may still be valid. Try again later.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach SubDL", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach SubDL", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       { "lane": "watch", "summary": "Embedded and local subtitle files still work; new online subtitles will not be downloaded from SubDL.", "unavailable_capabilities": ["subtitles"] }

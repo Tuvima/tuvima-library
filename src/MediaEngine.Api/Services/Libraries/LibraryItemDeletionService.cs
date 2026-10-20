@@ -95,6 +95,7 @@ public sealed partial class LibraryItemDeletionService(
     ISourceMutationPolicyGate gate,
     IMediaTypeExtensionCatalog extensions,
     IExcludedSourceFileRepository excludedFiles,
+    IExcludedSourceFileFilter excludedFileFilter,
     WorkHierarchyMaintenanceService hierarchy,
     ISystemActivityRepository activity,
     IEventPublisher events,
@@ -103,7 +104,7 @@ public sealed partial class LibraryItemDeletionService(
 {
     public const int MaxWorks = 200;
 
-    public const string OutsideLibraryReason = "This file is not inside any library folder Tuvima manages.";
+    public const string OutsideLibraryReason = "This file is not inside any library folder Library manages.";
     public const string MissingReason = "This file is no longer on disk.";
     public const string UsedElsewhereReason = "Another item in your library uses this same file.";
     private const string GroupRefusal = "Only individual titles can be deleted.";

@@ -257,11 +257,12 @@ public sealed class PluginCompatibilityTests
     }
 
     [Fact]
-    public void EnableEndpoint_ReportsConflictWithThePlainReason_ForAnIncompatiblePlugin()
+    public async Task EnableEndpoint_ReportsConflictWithThePlainReason_ForAnIncompatiblePlugin()
     {
         using var fixture = new Fixture("1.0.0", "win-x64", Manifest(minimum: "2.0.0"));
+        using var approvals = new ApprovalTestKit();
 
-        var result = PluginEndpoints.EnablePlugin(BuiltInId, fixture.Catalog);
+        var result = await PluginEndpoints.EnablePlugin(BuiltInId, null, approvals.Http(), fixture.Catalog, approvals.Service, approvals.Resolver, default);
 
         var problem = Assert.IsType<ProblemHttpResult>(result);
         Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
@@ -269,11 +270,14 @@ public sealed class PluginCompatibilityTests
     }
 
     [Fact]
-    public void EnableEndpoint_SwitchesACompatiblePluginOn()
+    public async Task EnableEndpoint_SwitchesACompatiblePluginOn_OnceItsStatementIsConfirmed()
     {
         using var fixture = new Fixture("1.0.0", "win-x64", Manifest());
+        using var approvals = new ApprovalTestKit();
+        var hash = approvals.Service.PreviewPlugin(fixture.Catalog.Get(BuiltInId)!).StatementHash;
 
-        var result = PluginEndpoints.EnablePlugin(BuiltInId, fixture.Catalog);
+        var result = await PluginEndpoints.EnablePlugin(
+            BuiltInId, new MediaEngine.Contracts.Approvals.PluginEnableRequest { ApprovalHash = hash }, approvals.Http(), fixture.Catalog, approvals.Service, approvals.Resolver, default);
 
         Assert.IsType<Ok<MediaEngine.Contracts.Plugins.PluginEnabledResponse>>(result);
         Assert.True(fixture.Catalog.Get(BuiltInId)!.Enabled);
@@ -329,7 +333,7 @@ public sealed class PluginCompatibilityTests
     public void CurrentMachineAndLibraryVersion_AreUsableByTheShippedPlugins()
     {
         using var fixture = new Fixture(LibraryVersionForTests(), PluginCompatibility.CurrentRid);
-        var catalog = new PluginCatalog(ShippedPlugins(), fixture.Settings, fixture.Loader, NullLogger<PluginCatalog>.Instance);
+        var catalog = new PluginCatalog(ShippedPlugins(), fixture.Settings, fixture.Loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
 
         Assert.All(catalog.List(), registration =>
             Assert.True(registration.Compatibility.IsCompatible, $"{registration.Manifest.Id}: {registration.Compatibility.Problem}"));
@@ -427,7 +431,7 @@ public sealed class PluginCompatibilityTests
         public PluginCatalog CreateCatalog(string libraryVersion, string platform, PluginManifest? builtIn = null, IEnumerable<ITuvimaPlugin>? builtIns = null)
         {
             var plugins = builtIns ?? (builtIn is null ? [] : [new SegmentTestPlugin(builtIn)]);
-            return new PluginCatalog(plugins, Settings, Loader, NullLogger<PluginCatalog>.Instance, libraryVersion, platform);
+            return new PluginCatalog(plugins, Settings, Loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance, libraryVersion, platform);
         }
 
         public bool SavedEnabledFlag(string pluginId) =>

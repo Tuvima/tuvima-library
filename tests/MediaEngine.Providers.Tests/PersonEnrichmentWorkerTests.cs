@@ -10,6 +10,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
+using MediaEngine.Providers.Tests.ProviderRecording;
 using MediaEngine.Providers.Workers;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -182,14 +183,8 @@ public sealed class PersonEnrichmentWorkerTests : IDisposable
         }]);
         var configDir = _dbPath + ".config";
         var loader = new ConfigurationDirectoryLoader(configDir);
-        loader.SaveProvider(new MediaEngine.Domain.Configuration.ProviderConfiguration
-        {
-            Name = "tvdb",
-            Enabled = true,
-            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
-            HttpClient = new HttpClientConfig { ApiKey = "installation-key" },
-        });
-        var client = new TvdbRetailClient(loader, new TvdbPersonFactory(), new ProviderRateLimiterCoordinator());
+        ShippedProviderHarness.SaveShipped(loader, "tvdb", "installation-key");
+        var client = new ProviderApiClient(loader, new TvdbPersonFactory(), new ProviderRateLimiterCoordinator());
         var bridges = new BridgeIdRepository(_db);
         var worker = new PersonEnrichmentWorker(claims, canonicals,
             new StubRecursiveIdentityService(), new StubHarvestingService(), personRepo,

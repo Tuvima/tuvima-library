@@ -6,7 +6,7 @@
         <Label id="brand" translation="[80,48]" text="TUVIMA LIBRARY" color="#F6F2FF" height="56" width="800" />
 
         <Group id="serverGroup" visible="false">
-            <Label translation="[160,230]" text="Connect to your Tuvima Dashboard" color="#F6F2FF" width="1300" height="60" />
+            <Label translation="[160,230]" text="Connect to your Library Dashboard" color="#F6F2FF" width="1300" height="60" />
             <Keyboard id="serverKeyboard" translation="[160,320]" width="1100" height="420" text="https://" />
             <Button id="connectButton" translation="[160,790]" text="Connect" minWidth="260" />
         </Group>

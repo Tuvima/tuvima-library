@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@implements IDisposable
 @inject UIOrchestratorService Orchestrator
 @inject MediaEditorLauncherService MediaEditorLauncher
 @inject NavigationManager Nav
@@ -117,6 +118,25 @@
         .Where(item => string.IsNullOrWhiteSpace(_search) || $"{DisplayTitle(item)} {item.Detail} {item.Trigger} {MediaLabel(item)}".Contains(_search, StringComparison.OrdinalIgnoreCase))
         .OrderBy(item => item.CreatedAt)
         .ToList();
+
+    private bool _disposed;
+
+    protected override void OnInitialized() => Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+
+    // Titles deleted from the library close their Needs Review items: reload the queue so they leave the list.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) =>
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed || !_initialized) return;
+            await LoadReviewsAsync();
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+    }
 
     protected override async Task OnParametersSetAsync()
     {

@@ -147,6 +147,7 @@ public static class BaselinePrepare
 
         RealMediaHarness.Save(librariesPath, libraries);
         File.WriteAllText(corePath, core.ToJsonString(RealMediaHarness.Json));
+        HoldClockSchedules(configDirectory);
 
         // -- Empty data store, first-run setup already accepted, View folders linked to the owner profile.
         var databasePath = Path.GetFullPath(TuvimaDataPathResolver.ResolveDatabasePath(configDirectory, null, null));
@@ -205,5 +206,41 @@ public static class BaselinePrepare
                 administrator_profile_id = @administrator, completed_at = @now, updated_at = @now,
                 revision = revision + 1 WHERE workflow_version = 1;
             """, new { now, administrator = GuidSql.ToBlob(administratorProfileId) });
+    }
+
+    /// <summary>A valid cron time that cannot fall inside a run (29 February, next in a leap year).</summary>
+    public const string HeldSchedule = "0 0 29 2 *";
+
+    /// <summary>
+    /// Holds the clock-scheduled maintenance tasks for the run (in the copied <c>maintenance.json</c> only): every
+    /// schedule moves to <see cref="HeldSchedule"/> and the off-hours retag and storage sweeps are switched off, so a
+    /// run that crosses the night (02:00 to 06:00) gives the same result as one that does not.
+    /// </summary>
+    public static void HoldClockSchedules(string configDirectory)
+    {
+        var path = Path.Combine(configDirectory, "maintenance.json");
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var maintenance = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        if (maintenance["schedules"] is JsonObject schedules)
+        {
+            foreach (var key in schedules.Select(pair => pair.Key).ToList())
+            {
+                schedules[key] = HeldSchedule;
+            }
+        }
+
+        foreach (var sweep in new[] { "retag_sweep", "storage_maintenance" })
+        {
+            if (maintenance[sweep] is JsonObject section)
+            {
+                section["enabled"] = false;
+            }
+        }
+
+        File.WriteAllText(path, maintenance.ToJsonString(RealMediaHarness.Json));
     }
 }

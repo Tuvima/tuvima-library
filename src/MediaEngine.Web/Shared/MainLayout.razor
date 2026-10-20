@@ -68,7 +68,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
-            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
+            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Library">
                 @if (IsPhoneShell)
                 {
                     @* Phone: the icon only, no wordmark. *@
@@ -137,7 +137,7 @@
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
@@ -481,6 +481,7 @@
 
             Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
             Orchestrator.OnProfileChanged += OnProfileChanged;
+            Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
 
             StateHasChanged();
         }
@@ -837,6 +838,17 @@
         }
     }
 
+    // A title deleted from the library stops here if it is playing (any device's player on this circuit shares this controller);
+    // other entries just leave the queue.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        if (await Playback.HandleLibraryItemsRemovedAsync(removed.WorkIds, removed.AssetIds))
+        {
+            Toasts.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+        }
+    });
+
     private void OnReviewCountChanged()
     {
         if (_disposed) return;
@@ -882,6 +894,7 @@
         Nav.LocationChanged -= OnLocationChanged;
         Orchestrator.OnReviewCountChanged -= OnReviewCountChanged;
         Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
         _session.OnSecureAccountRequired -= OnSecureAccountRequired;

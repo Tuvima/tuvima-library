@@ -136,6 +136,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly WriteBackStageDependencies _writeBackStageDependencies;
     private readonly IdentityJobStageDependencies _identityStageDependencies;
     private readonly ILibraryFolderResolver? _libraryFolderResolver;
+    private readonly IExcludedSourceFileFilter? _excludedFileFilter;
     private readonly ISourceMutationPolicyGate? _sourceMutationPolicyGate;
     private readonly IImportFolderService? _importFolders;
     private readonly IImportFolderFiler? _importFiler;
@@ -207,8 +208,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IImportFolderService? importFolders = null,
         IImportFolderFiler? importFiler = null,
         IOptionsMonitor<IngestionOptions>? optionsMonitor = null,
-        MediaInspectionReviewRecorder? inspectionReviews = null)
+        MediaInspectionReviewRecorder? inspectionReviews = null,
+        IExcludedSourceFileFilter? excludedFileFilter = null)
     {
+        _excludedFileFilter = excludedFileFilter;
         _optionsMonitor = optionsMonitor;
         _importFolders = importFolders;
         _importFiler = importFiler;

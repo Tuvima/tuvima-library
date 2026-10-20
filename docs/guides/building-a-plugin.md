@@ -244,10 +244,20 @@ Common permissions:
 - `tool.download`: allows tool auto-install when a checksum-pinned download is declared.
 - `ai.infer`: calls local AI through `IPluginAiClient`.
 - `storage.plugin`: reads or writes inside the invocation's plugin working directory.
+- `secrets.plugin`: reads the keys and logins the plugin declared in `secrets` (see below).
 
 The Engine checks the live enabled state and the exact manifest permission again immediately before each host operation. Disabling a plugin therefore revokes an already-created context. Tool resolution accepts a declared tool id, and execution accepts only a resolution returned to that same context. Working and storage paths must remain inside the plugin directory.
 
 If a plugin uses tools, declare each `tool_requirements` entry with the executable name, license, source URL, supported platforms, download URL, SHA-256, and relative executable path when auto-install is supported.
+
+If a plugin needs a key or login, declare each one in `secrets` (`name`, `label`, `description`) and request the `secrets.plugin` permission. An administrator enters the values through the `PUT /plugins/{pluginId}/secrets/{name}` action; the plugin reads one with `await context.Secrets.GetAsync("name")`, which returns null when the name was not declared or has no value. Plugins cannot write or list secrets, never see another plugin's secrets, and must not log what they read. Secrets are kept in the config folder (`config/secrets/plugins/{plugin-id}.json`), so they survive a data store reset and are left out of backups.
+
+```json
+"permissions": ["secrets.plugin"],
+"secrets": [
+  { "name": "api_token", "label": "API token", "description": "Create one in the service's account settings." }
+]
+```
 
 If a plugin uses local AI, declare `ai_permissions` with role, token limit, schedule, and resource class. The AI client checks these declarations before running inference.
 

@@ -65,7 +65,7 @@ public sealed class NatPmpRouterPortMapper : IRouterPortMapper
                 return new RouterMappingResult(
                     lifetimeSeconds == 0 ? RouterMappingState.NotAttempted : RouterMappingState.Active,
                     Method,
-                    lifetimeSeconds == 0 ? "The Tuvima NAT-PMP mapping was removed." : "Your router was configured automatically.",
+                    lifetimeSeconds == 0 ? "The Library NAT-PMP mapping was removed." : "Your router was configured automatically.",
                     externalPort,
                     lifetimeSeconds == 0 ? null : DateTimeOffset.UtcNow.AddSeconds(lease),
                     publicAddress);

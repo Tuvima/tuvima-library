@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -1307,25 +1308,49 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
+    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default) =>
+        (await SaveAiConfigWithApprovalAsync(config, ct)).Saved;
+
+    public async Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default)
     {
         try
         {
-            var response = await _http.PutAsJsonAsync("/ai/config", config, ct);
+            using var response = await _http.PutAsJsonAsync("/ai/config", config, ct);
             if (response.IsSuccessStatusCode)
             {
-                return true;
+                return new AiConfigSaveResult(true);
+            }
+
+            // 409 approval_required: a feature was switched on that the person has not seen yet; nothing was saved.
+            if (await ApprovalResponses.TryReadAsync(response, _logger, ct) is { } approval)
+            {
+                return new AiConfigSaveResult(false, approval);
             }
 
             LastError = await response.Content.ReadAsStringAsync(ct);
-            return false;
+            return new AiConfigSaveResult(false);
         }
-        catch (OperationCanceledException) { return false; }
+        catch (OperationCanceledException) { return new AiConfigSaveResult(false); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "PUT /ai/config failed");
             LastError = ex.Message;
-            return false;
+            return new AiConfigSaveResult(false);
+        }
+    }
+
+    public async Task<IReadOnlyList<ApprovalRecordResponse>> GetApprovalsAsync(string kind, string itemId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"/approvals?kind={Uri.EscapeDataString(kind)}&item_id={Uri.EscapeDataString(itemId)}";
+            return await _http.GetFromJsonAsync<List<ApprovalRecordResponse>>(url, ct) ?? [];
+        }
+        catch (OperationCanceledException) { return []; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /approvals failed");
+            return [];
         }
     }
 

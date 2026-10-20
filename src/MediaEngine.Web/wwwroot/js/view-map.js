@@ -23,7 +23,7 @@ async function preferredStyle() {
   } catch {
     return {
       style: baseStyle(),
-      attribution: 'Natural Earth · Tuvima Atlas',
+      attribution: 'Natural Earth',
       detailed: false
     };
   } finally {
@@ -348,7 +348,7 @@ export async function initialize(container, dotnet, options) {
       }
     });
   } catch (error) {
-    console.error('Tuvima map initialization failed', error);
+    console.error('Places map initialization failed', error);
     state.dotnet.invokeMethodAsync('MapFailed', error?.message ?? 'The map could not be initialized.');
   }
 }

@@ -67,9 +67,9 @@
     // they cannot open the library yet). Names match the step list.
     // Neutral until the check has an answer, so the spinner never claims something needs attention.
     private string Subtitle => Readiness is null
-        ? "One moment while Tuvima checks your setup."
+        ? "One moment while Library checks your setup."
         : Readiness.CanComplete
-            ? "Tuvima is ready to start finding your media."
+            ? "Library is ready to start finding your media."
             : "A few things need attention before you open your library.";
 
     private const string TesseractNote = "Scanned documents won't be readable until Tesseract is installed.";

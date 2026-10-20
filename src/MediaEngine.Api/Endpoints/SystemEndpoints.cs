@@ -1,3 +1,4 @@
+using MediaEngine.Api.DependencyInjection;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
@@ -40,6 +41,19 @@ public static class SystemEndpoints
         .WithSummary("Returns service health and version. Used by external apps to test connectivity.")
         .Produces<SystemStatusResponse>(StatusCodes.Status200OK)
         .AllowAnonymous();
+
+        // Unlike /system/status this is administrator-only: it tells the Dashboard whether to offer the development-only
+        // Settings pages. The action exists in every build; a release Engine answers false for both.
+        app.MapGet("/system/development-tools", (IHostEnvironment environment) =>
+        {
+            var offered = environment.OffersDevelopmentEndpoints();
+            return Results.Ok(new DevelopmentToolsResponse(EnrichmentTester: offered, DevelopmentData: offered));
+        })
+        .WithTags("System")
+        .WithName("GetDevelopmentTools")
+        .WithSummary("Reports whether this Engine offers the development-only actions behind the Enrichment Tester and Development data pages.")
+        .Produces<DevelopmentToolsResponse>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator(surfaceUnlock: false);
 
         app.MapGet("/system/readiness", async (
             StartupReadinessService readiness,

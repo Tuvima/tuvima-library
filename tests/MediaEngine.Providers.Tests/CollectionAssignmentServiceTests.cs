@@ -121,14 +121,13 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void TmdbAdapter_AddsMovieCollectionClaimsForWatchShelves()
     {
-        var adapter = ReadAdapterSource("ConfigDrivenAdapter");
+        // The collection claims are declared in the provider file, not coded in the adapter.
         var config = File.ReadAllText(GetRepoFilePath(@"config/providers/tmdb.json"));
 
-        Assert.Contains("AddTmdbMovieCollectionClaims", adapter, StringComparison.Ordinal);
-        Assert.Contains("belongs_to_collection", adapter, StringComparison.Ordinal);
-        Assert.Contains("\"tmdb_collection_id\"", config, StringComparison.Ordinal);
-        Assert.Contains("\"tmdb_collection_name\"", config, StringComparison.Ordinal);
-        Assert.Contains("MetadataFieldConstants.Series", adapter, StringComparison.Ordinal);
+        Assert.Contains("\"belongs_to_collection.id\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"tmdb_collection_id\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"tmdb_collection_name\"", config, StringComparison.Ordinal);
+        Assert.Contains("\"claim_key\": \"series\"", config, StringComparison.Ordinal);
     }
 
     [Fact]

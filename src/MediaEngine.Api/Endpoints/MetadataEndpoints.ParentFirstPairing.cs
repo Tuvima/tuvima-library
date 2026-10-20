@@ -26,7 +26,7 @@ public static partial class MetadataEndpoints
             IMediaEditorOwnedChildReadService ownedChildren,
             PairingAssetReadService pairingAssets,
             TvPairingLocalTargetReadService localTargetReader,
-            TvdbRetailClient tvdb,
+            ProviderApiClient tvdb,
             MusicBrainzReleaseClient musicBrainz,
             IRequestAuthorityResolver authorityResolver,
             IMemoryCache cache,
@@ -127,18 +127,18 @@ public static partial class MetadataEndpoints
                 {
                     return ApiErrors.BadRequest("Choose a numeric TheTVDB show ID.");
                 }
-                if (!tvdb.IsConfigured())
+                if (!tvdb.IsConfigured("tvdb"))
                 {
                     return ApiErrors.BadRequest("Connect TheTVDB before previewing TV episode matches.");
                 }
                 try
                 {
-                    var show = await tvdb.GetSeriesAsync(targetId, ct);
+                    var show = await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", targetId)), ct);
                     if (show is null || !string.Equals(show["id"]?.ToString(), targetId, StringComparison.Ordinal))
                     {
                         return ApiErrors.BadRequest("The selected TheTVDB show is unavailable.");
                     }
-                    var episodes = await tvdb.GetAllEpisodesAsync(targetId, "default", "eng", ct);
+                    var episodes = await tvdb.GetAllPagesAsync("tvdb", "series_episodes", ProviderApiClient.Args(("id", targetId), ("season_type", "default"), ("lang", "eng")), ct);
                     catalogue = ParentFirstCatalogueAdapters.FromTvdbDefaultEpisodes(targetId, episodes);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

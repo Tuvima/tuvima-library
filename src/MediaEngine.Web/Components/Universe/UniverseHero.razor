@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+
+@* The top of the Universe page: its name, a stack of covers from its first Series, and one line of totals. *@
+<header class="universe-hero">
+    <div class="universe-hero__art">
+        <TuvimaArtworkStack Items="@StackItems"
+                            Seed="@Detail.Qid"
+                            Variant="ArtworkStackVariant.Card"
+                            MaxVisible="4"
+                            PreserveOrder="true"
+                            IsDecorative="true" />
+    </div>
+    <div class="universe-hero__copy">
+        <h1 class="universe-hero__title">@Detail.Name</h1>
+        <p class="universe-hero__totals">@UniversePageText.TotalsLine(Detail)</p>
+        @if (EnrichmentRunning)
+        {
+            <p class="universe-hero__working" role="status">
+                <i class="universe-hero__dot" aria-hidden="true"></i>Enrichment running
+            </p>
+        }
+        @if (CanEdit)
+        {
+            <div class="universe-hero__actions">
+                <AppButton Label="Edit"
+                           StartIcon="@AppMaterialIcons.Outlined.Edit"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@EditBusy"
+                           OnClick="OnEdit"
+                           Class="universe-hero__edit" />
+            </div>
+        }
+    </div>
+</header>
+
+@code {
+    [Parameter, EditorRequired] public UniverseClientDetailDto Detail { get; set; } = default!;
+
+    /// <summary>True only for a desktop administrator who may edit this Universe; the page decides.</summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    [Parameter] public bool EditBusy { get; set; }
+
+    [Parameter] public EventCallback OnEdit { get; set; }
+
+    /// <summary>True while the Engine is still learning about the Universe's works.</summary>
+    [Parameter] public bool EnrichmentRunning { get; set; }
+
+    /// <summary>The Universe's standalone works; their covers follow the Series' covers (and stand alone when it has no Series).</summary>
+    [Parameter] public IReadOnlyList<DisplayCardDto> StandaloneCards { get; set; } = [];
+
+    // The first covers of the first Series, in the order the Series are given, then the standalone works'.
+    private IReadOnlyList<ArtworkStackItem> StackItems => Detail.Shelves
+        .SelectMany(shelf => shelf.Shelf.Items)
+        .Concat(StandaloneCards)
+        .Select(card => new ArtworkStackItem
+        {
+            Id = card.Id.ToString("D"),
+            WorkId = card.WorkId,
+            Title = card.Title,
+            ImageUrl = card.Artwork.CoverMediumUrl ?? card.Artwork.CoverUrl ?? card.Artwork.SquareMediumUrl ?? card.Artwork.SquareUrl ?? string.Empty,
+            MediaType = card.MediaType,
+            Shape = ShapeOf(card.PreferredShape),
+        })
+        .Where(item => !string.IsNullOrWhiteSpace(item.ImageUrl))
+        .Take(4)
+        .ToList();
+
+    private static ArtworkShape ShapeOf(string? preferredShape) => preferredShape?.Trim().ToLowerInvariant() switch
+    {
+        "square" => ArtworkShape.Square,
+        "landscape" or "wide" => ArtworkShape.Wide,
+        _ => ArtworkShape.Portrait,
+    };
+}

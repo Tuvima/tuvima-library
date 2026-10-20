@@ -120,8 +120,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var collections = await browseReadService.GetAllAsync(ct);
-            var visibleProjection = await display.LoadWorksAsync(ct);
-            var visibleWorkIds = visibleProjection.Select(work => work.WorkId).ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             return Results.Ok(collections
                 .Select(collection => FilterCollection(collection, visibleWorkIds))
                 .Where(collection => collection.Works.Count > 0)
@@ -139,8 +138,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var results = await searchReadService.SearchAsync(q, ct);
-            var visibleProjection = await display.LoadWorksAsync(ct);
-            var visibleWorkIds = visibleProjection.Select(work => work.WorkId).ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             return Results.Ok(results.Where(result => visibleWorkIds.Contains(result.WorkId)).ToList());
         })
         .WithName("SearchCollections")
@@ -157,9 +155,7 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var allCollections = (await collectionRepo.GetAllAsync(ct))
                 .Where(collection => collection.Works.Any(work => visibleWorkIds.Contains(work.Id)))
                 .ToList();
@@ -269,9 +265,7 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var dtos = (await collectionRepo.GetAllAsync(ct))
                 .Select(collection => FilterCollection(collection.ToContract(), visibleWorkIds))
                 .Where(collection => collection.Works.Count > 0)
@@ -716,9 +710,7 @@ public static class CollectionEndpoints
             var allYears = new List<string>();
 
             int albumIndex = 0;
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var collectionsById = (await collectionRepo.GetCollectionsWithWorksAsync(collectionIds, ct))
                 .ToDictionary(collection => collection.Id);
             foreach (var collectionId in collectionIds)
@@ -890,9 +882,7 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest("artistName parameter is required");
             }
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var rows = (await browseReadService.GetArtistWorksAsync(artistName, ct))
                 .Where(row => visibleWorkIds.Contains(row.WorkId))
                 .ToList();
@@ -1067,9 +1057,7 @@ public static class CollectionEndpoints
                 _ => null,
             };
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var rows = (await browseReadService.GetSystemViewDetailWorksAsync(
                 groupField,
                 groupValue,
@@ -1350,9 +1338,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var collections = await collectionRepo.GetContentGroupsAsync(ct);
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var primaryAssetIds = await browseReadService.GetPrimaryAssetIdsAsync(
                 collections.SelectMany(collection => collection.Works)
                     .Where(work => visibleWorkIds.Contains(work.Id))
@@ -1534,9 +1520,7 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var result = await browseReadService.GetSystemViewGroupsAsync(
                 mediaType, groupField, ct, visibleWorkIds);
             var normalizedGroups = NormalizeSystemViewGroups(result, mediaType, groupField);
@@ -1561,7 +1545,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             return Results.Ok(await catalogReadService.GetManagedAsync(activeProfile, ct, allowedWorkIds));
         })
         .WithName("GetManagedCollections")
@@ -1579,7 +1563,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var catalog = await catalogReadService.GetCatalogAsync(activeProfile, ct, allowedWorkIds);
             return Results.Ok(catalog);
         })
@@ -1622,7 +1606,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var counts = (await catalogReadService.GetManagedAsync(activeProfile, ct, allowedWorkIds))
                 .GroupBy(collection => collection.CollectionType)
                 .ToDictionary(grouping => grouping.Key, grouping => grouping.Count());
@@ -1671,9 +1655,7 @@ public static class CollectionEndpoints
             }
 
             var page = PagedRequest.From(offset, limit, defaultLimit: 24);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var results = await mediaLookupReadService.LookupAsync(
                 q, mediaTypes, existingWorkIds, allowedWorkIds, page.Offset, page.Limit, ct);
             return Results.Ok(results);
@@ -1693,7 +1675,7 @@ public static class CollectionEndpoints
             CancellationToken ct) =>
         {
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var summary = await catalogReadService.GetSummaryAsync(id, activeProfile, ct, allowedWorkIds);
             return summary is null
                 ? ApiErrors.NotFound($"Collection '{id}' not found or not visible to the active profile.")
@@ -1719,7 +1701,7 @@ public static class CollectionEndpoints
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
             var page = PagedRequest.From(null, limit, defaultLimit: 20);
             var take = page.Limit;
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var result = await catalogReadService.GetItemsAsync(id, activeProfile, take, ct, allowedWorkIds);
             if (!result.Found)
             {
@@ -1773,7 +1755,7 @@ public static class CollectionEndpoints
             }
 
             var collectionWorkId = await catalogReadService.ResolveMembershipWorkIdAsync(body.WorkId, ct);
-            var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+            var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             if (!allowedWorkIds.Contains(collectionWorkId))
             {
                 return ApiErrors.Forbidden("The requested work is outside the caller's available libraries.");
@@ -2164,9 +2146,7 @@ public static class CollectionEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
 
             // For materialized collections, return works directly
             if (collection.Resolution == CollectionResolution.Materialized)
@@ -2261,9 +2241,7 @@ public static class CollectionEndpoints
                 return Results.Ok(new List<CollectionResolvedItemDto>());
             }
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var entityIds = browseReadService.EvaluateRules(
                 ruleDefinition,
                 collection.SortField,
@@ -2349,9 +2327,7 @@ public static class CollectionEndpoints
                 return Results.Ok(new CollectionPreviewResponse(0, []));
             }
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var matchedWorkIds = browseReadService.EvaluateRules(
                 definition,
                 body.SortField,
@@ -2472,7 +2448,7 @@ public static class CollectionEndpoints
                     resolvedWorkIds.Add(await catalogReadService.ResolveMembershipWorkIdAsync(workId, ct));
                 }
                 resolvedWorkIds = resolvedWorkIds.Distinct().ToList();
-                var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+                var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
                 if (resolvedWorkIds.Any(workId => !allowedWorkIds.Contains(workId)))
                 {
                     return ApiErrors.Forbidden("One or more requested works are outside the caller's available libraries.");
@@ -2744,7 +2720,7 @@ public static class CollectionEndpoints
                     resolvedWorkIds.Add(await catalogReadService.ResolveMembershipWorkIdAsync(workId, ct));
                 }
                 resolvedWorkIds = resolvedWorkIds.Distinct().ToList();
-                var allowedWorkIds = (await display.LoadWorksAsync(ct)).Select(work => work.WorkId).ToHashSet();
+                var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
                 if (resolvedWorkIds.Any(workId => !allowedWorkIds.Contains(workId)))
                 {
                     return ApiErrors.Forbidden("One or more requested works are outside the caller's available libraries.");

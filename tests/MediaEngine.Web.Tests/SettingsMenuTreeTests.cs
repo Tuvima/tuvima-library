@@ -140,7 +140,8 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
 
         Assert.All(Flatten(groups), row => Assert.Equal(MediaSectionAttentionLevel.None, row.EffectiveAttention));
         Assert.DoesNotContain("Developer Tools", labels);
-        Assert.DoesNotContain("Provider Tester", labels);
+        Assert.DoesNotContain("Enrichment Tester", labels);
+        Assert.DoesNotContain("Development data", labels);
         Assert.DoesNotContain("Local Network", labels);
         Assert.DoesNotContain("Recently Added", labels);
         Assert.Contains("Library and Ingestion", labels);
@@ -152,13 +153,14 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
     {
         var groups = SettingsMenuBuilder.Build(Context(administrator: true) with
         {
-            IsSectionEnabled = section => section != SettingsSection.DevHarness,
+            IsSectionEnabled = section => section != SettingsSection.LocalAi,
         });
 
         var labels = Flatten(groups).Select(row => row.Label).ToArray();
-        Assert.DoesNotContain("Developer Tools", labels);
-        Assert.DoesNotContain("Provider Tester", labels);
+        Assert.DoesNotContain("Local AI", labels);
+        Assert.DoesNotContain("Runtime", labels);
         Assert.Contains("Plugins", labels);
+        Assert.Contains("Developer Tools", labels);
     }
 
     [Fact]

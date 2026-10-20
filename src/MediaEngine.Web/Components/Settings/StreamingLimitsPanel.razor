@@ -7,7 +7,7 @@
 @inject DeviceContextService DeviceContext
 
 <div class="streaming-limits">
-    <header class="streaming-limits__heading"><div><h3>Limits and Quality</h3><p>Protect your upload connection while Tuvima Library chooses an appropriate playback quality.</p></div></header>
+    <header class="streaming-limits__heading"><div><h3>Limits and Quality</h3><p>Protect your upload connection while Library chooses an appropriate playback quality.</p></div></header>
 
     @if (!DeviceContext.IsMobile)
     {
@@ -28,7 +28,7 @@
         <dl class="streaming-limits__bandwidth-grid">
             @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
             @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")
-            @Fact("Available to Tuvima Library", FormatBandwidth(Status?.Bandwidth.AvailableMbps))
+            @Fact("Available to Library", FormatBandwidth(Status?.Bandwidth.AvailableMbps))
         </dl>
         @if (_bandwidth is { Status: "unavailable" })
         {
@@ -40,7 +40,7 @@
     <SettingsSectionPanel Title="Concurrent Remote Streaming" Icon="@AppMaterialIcons.Outlined.Groups">
         <AppSelect T="string" Value="automatic" Label="Remote stream allocation"
                    Options="@ConcurrencyOptions" Disabled="true" />
-        <p class="streaming-limits__supporting-copy">Tuvima Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
+        <p class="streaming-limits__supporting-copy">Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</p>
     </SettingsSectionPanel>
 </div>
 

@@ -20,7 +20,7 @@ internal static class ImportFolderValidation
 
         if (!location.AllowWrite)
         {
-            return "The import folder must be writable so Tuvima can move imported files out of it.";
+            return "The import folder must be writable so Library can move imported files out of it.";
         }
 
         var import = Normalize(location.Path);

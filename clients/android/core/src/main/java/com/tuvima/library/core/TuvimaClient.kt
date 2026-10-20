@@ -70,7 +70,7 @@ class TuvimaClient(
         // it with a new valid address, never clear it.
         rememberOutside(json.optionalString("outside_address"), clearWhenNone = !isPaired())
         val value = Discovery(
-            serverName = json.optString("server_name", "Tuvima Library"),
+            serverName = json.optString("server_name", "Library"),
             apiBaseUrl = json.getString("api_base_url"),
             deviceAuthorizationEndpoint = json.getString("device_authorization_endpoint"),
             tokenEndpoint = json.getString("token_endpoint"),
@@ -797,7 +797,7 @@ class TuvimaClient(
 
     private fun parseDisplayPage(json: JSONObject): DisplayPage = DisplayPage(
         key = json.optString("key"),
-        title = json.optString("title", "Tuvima Library"),
+        title = json.optString("title", "Library"),
         subtitle = json.optionalString("subtitle"),
         shelves = json.optJSONArray("shelves")?.objects(::parseShelf).orEmpty(),
     )

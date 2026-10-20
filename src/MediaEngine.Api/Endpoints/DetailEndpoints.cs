@@ -3,6 +3,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain;
@@ -72,7 +73,8 @@ public static class DetailEndpoints
             var detail = await composer.BuildAuthorizedAsync(
                 parsedType, id, presentationContext, ct, containerId,
                 authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks,
-                SequenceWindowRequest.FromQuery(sequenceGroup, sequenceOffset, sequenceLimit, sequenceCurrent, sequenceOnly));
+                SequenceWindowRequest.FromQuery(sequenceGroup, sequenceOffset, sequenceLimit, sequenceCurrent, sequenceOnly),
+                IsWorkDetail(parsedType) ? CreateUniverseLinkResolver(httpContext, authority.ActiveProfileId) : null);
             var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
             if (detail is not null)
             {
@@ -86,7 +88,7 @@ public static class DetailEndpoints
                 : Results.Ok(detail);
         })
         .WithName("GetDetailPage")
-        .WithSummary("Returns the unified Tuvima detail-page model for media and related entities.")
+        .WithSummary("Returns the unified detail-page model for media and related entities.")
         .Produces<DetailPageViewModel>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -181,6 +183,26 @@ public static class DetailEndpoints
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "id");
 
         return app;
+    }
+
+    // The "Part of the ... Universe" link is read through the profile-aware Universe read of this request.
+    // Without that read registered (a trimmed host) there is simply no link.
+    private static UniverseLinkResolver? CreateUniverseLinkResolver(HttpContext httpContext, Guid? profileId)
+    {
+        var universes = httpContext.RequestServices.GetService<UniverseClientReadService>();
+        var profiles = httpContext.RequestServices.GetService<IProfileRepository>();
+        if (universes is null)
+        {
+            return null;
+        }
+
+        return async (universeQid, token) =>
+        {
+            var profile = profileId is { } id && profiles is not null
+                ? await profiles.GetByIdAsync(id, token)
+                : null;
+            return await universes.GetUniverseLinkAsync(universeQid, profile, token);
+        };
     }
 
     private static bool IsWorkDetail(DetailEntityType type) => type is

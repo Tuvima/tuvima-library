@@ -1,0 +1,25 @@
+== requests ==
+POST https://api4.thetvdb.com/v4/login | {"apikey":"installation-key"}
+GET https://api4.thetvdb.com/v4/search?query=Solo%20Leveling&type=series [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/446883/translations/eng [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/389597/translations/eng [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/446883/episodes/default/eng?page=0 [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/446883/episodes/default/eng?page=1 [auth:Bearer]
+GET https://api4.thetvdb.com/v4/episodes/111/translations/eng [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/389597/episodes/default/eng?page=0 [auth:Bearer]
+GET https://api4.thetvdb.com/v4/series/389597/episodes/default/eng?page=1 [auth:Bearer]
+GET https://api4.thetvdb.com/v4/episodes/110/translations/eng [auth:Bearer]
+== items ==
+-- show=Solo Leveling season= episode=
+The Leveling of Solo Leveling|-|Doc overview|2023|https://artworks.thetvdb.com/doc.jpg|446883|0.6|tvdb|show|tvdb_id=446883
+Solo Leveling|-|English show overview|2024|https://artworks.thetvdb.com/anime.jpg|389597|0.6|tvdb|show|tvdb_id=389597
+-- show=Solo Leveling season=1 episode=1
+I'm Used to It|The Leveling of Solo Leveling|English episode overview|2024|-|111|0.8|tvdb|episode|episode_number=1,episode_title=I'm Used to It,season_number=1,show_name=The Leveling of Solo Leveling,tvdb_episode_id=111,tvdb_id=446883
+I'm Used to It|Solo Leveling|English episode overview|2024|-|111|0.8|tvdb|episode|episode_number=1,episode_title=I'm Used to It,season_number=1,show_name=Solo Leveling,tvdb_episode_id=111,tvdb_id=389597
+-- show=Solo Leveling season=1 episode=
+Episode 2|The Leveling of Solo Leveling|-|2024|-|110|0.8|tvdb|episode|episode_number=2,episode_title=,season_number=1,show_name=The Leveling of Solo Leveling,tvdb_episode_id=110,tvdb_id=446883
+I'm Used to It|The Leveling of Solo Leveling|English episode overview|2024|-|111|0.8|tvdb|episode|episode_number=1,episode_title=I'm Used to It,season_number=1,show_name=The Leveling of Solo Leveling,tvdb_episode_id=111,tvdb_id=446883
+Episode 2|Solo Leveling|-|2024|-|110|0.8|tvdb|episode|episode_number=2,episode_title=,season_number=1,show_name=Solo Leveling,tvdb_episode_id=110,tvdb_id=389597
+I'm Used to It|Solo Leveling|English episode overview|2024|-|111|0.8|tvdb|episode|episode_number=1,episode_title=I'm Used to It,season_number=1,show_name=Solo Leveling,tvdb_episode_id=111,tvdb_id=389597
+-- show=Solo Leveling season=1 episode=99
+-- show= season= episode=

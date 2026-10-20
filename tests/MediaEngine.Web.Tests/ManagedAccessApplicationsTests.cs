@@ -4,6 +4,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -88,6 +89,200 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
             Assert.Empty(cut.FindAll("button[aria-label='Close application drawer']"));
         });
+    }
+
+    [Fact]
+    public void IssuingAKey_ShowsTheApprovalDialog_AndIssuesOnlyAfterIssueKeyCarryingTheHash()
+    {
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        ButtonNamed(cut, "Generate credential").Click();
+
+        dialogs.WaitForAssertion(() =>
+        {
+            Assert.Contains("Issue this key?", dialogs.Markup);
+            Assert.Contains("Reads your library", dialogs.Markup);
+            Assert.Contains("Yes, to receiver.example", dialogs.Markup);
+        });
+        Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Issue key").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
+        var posts = _handler.Requests.Where(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/credentials", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, posts.Count);
+        Assert.Null(JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(posts[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-credential", JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(posts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void IssuingAKey_Cancel_IssuesNoKeyAndSendsNoSecondRequest()
+    {
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        ButtonNamed(cut, "Generate credential").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Issue this key?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Issue this key?", dialogs.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path.EndsWith("/credentials", StringComparison.Ordinal));
+        Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
+    }
+
+    [Fact]
+    public void SavingAWebhook_ShowsTheApprovalDialog_AndSavesWithSaveCarryingTheHash()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.Automation;
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
+        ButtonNamed(cut, "Add webhook").Click();
+        var editor = cut.WaitForElement(".application-webhook-editor");
+        editor.QuerySelector("input[type='text']")!.Input("https://receiver.example/events");
+        editor.QuerySelector(".application-webhook-events input[type='checkbox']")!.Change(true);
+        ButtonNamed(cut, "Save webhook").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Save this webhook?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup));
+        var posts = _handler.Requests.Where(request => request.Method == HttpMethod.Post
+            && request.Path == $"/access/applications/{_handler.ApplicationId:D}/webhooks").ToList();
+        Assert.Equal(2, posts.Count);
+        Assert.Equal("hash-webhook", JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(posts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void SavingAWebhook_Cancel_SavesNothingAndKeepsTheFormOpen()
+    {
+        _handler.ApplicationType = ApplicationTypeDto.Automation;
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
+        ButtonNamed(cut, "Add webhook").Click();
+        var editor = cut.WaitForElement(".application-webhook-editor");
+        editor.QuerySelector("input[type='text']")!.Input("https://receiver.example/events");
+        editor.QuerySelector(".application-webhook-events input[type='checkbox']")!.Change(true);
+        ButtonNamed(cut, "Save webhook").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Save this webhook?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        dialogs.WaitForAssertion(() => Assert.DoesNotContain("Save this webhook?", dialogs.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post
+            && request.Path == $"/access/applications/{_handler.ApplicationId:D}/webhooks");
+        Assert.NotEmpty(cut.FindAll(".application-webhook-editor"));
+        Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup);
+    }
+
+    [Fact]
+    public void AddingAPermission_ShowsTheApprovalDialog_AndSavesWithAllowCarryingTheHash()
+    {
+        _handler.GrantedPermissions = ["library.read"];
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        PermissionCheckbox(cut, "Write playback progress").Change(true);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        dialogs.WaitForAssertion(() =>
+        {
+            Assert.Contains("Change what these keys can do?", dialogs.Markup);
+            Assert.Contains("Reads your library", dialogs.Markup);
+            Assert.Contains("Yes, to receiver.example", dialogs.Markup);
+        });
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Allow").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        var puts = _handler.Requests.Where(request => request.Method == HttpMethod.Put && request.Path.EndsWith("/permissions", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, puts.Count);
+        Assert.Null(JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(puts[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-application", JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(puts[1].Body, JsonOptions)!.ApprovalHash);
+    }
+
+    [Fact]
+    public void AddingAPermission_Cancel_AppliesNothingAndSendsNoSecondRequest()
+    {
+        _handler.GrantedPermissions = ["library.read"];
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        PermissionCheckbox(cut, "Write playback progress").Change(true);
+        ButtonNamed(cut, "Save application").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("keys can do?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was not confirmed", cut.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/permissions", StringComparison.Ordinal));
+        Assert.Equal(["library.read"], _handler.Granted);
+    }
+
+    [Fact]
+    public void SwitchingAnApplicationBackOn_WhileItHoldsKeys_ShowsTheApprovalDialog_AndSavesWithTheHash()
+    {
+        _handler.SeedKey();
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForElement("input[role=switch][aria-label='Application enabled']").Change(true);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Change what these keys can do?", dialogs.Markup));
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Allow").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        var updates = _handler.Requests.Where(request => request.Method == HttpMethod.Put && request.Path == $"/access/applications/{_handler.ApplicationId:D}").ToList();
+        Assert.Equal(2, updates.Count);
+        Assert.Null(JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[0].Body, JsonOptions)!.ApprovalHash);
+        Assert.Equal("hash-application", JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[1].Body, JsonOptions)!.ApprovalHash);
+        Assert.True(JsonSerializer.Deserialize<UpdateApplicationRequest>(updates[1].Body, JsonOptions)!.IsEnabled);
+    }
+
+    [Fact]
+    public void SwitchingAnApplicationBackOn_Cancel_LeavesItOff()
+    {
+        _handler.SeedKey();
+        _handler.RequireApprovalHash = true;
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+        cut.WaitForElement("input[role=switch][aria-label='Application enabled']").Change(true);
+        ButtonNamed(cut, "Save application").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("keys can do?", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("was not confirmed", cut.Markup));
+        Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/applications/{_handler.ApplicationId:D}");
+        Assert.False(_handler.IsEnabled);
+    }
+
+    [Fact]
+    public void SavingAnApplicationThatNeedsNoApproval_ShowsNoDialog()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = RenderApplications();
+        OpenEdit(cut);
+
+        ButtonNamed(cut, "Save application").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
+        Assert.DoesNotContain("approval-dialog", dialogs.Markup);
     }
 
     [Fact]
@@ -475,6 +670,20 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         public TaskCompletionSource? SecondWebhookLoadStarted { get; set; }
         public bool FirstWebhookLoadFails { get; set; }
         public bool IgnoreWebhookRotateCancellation { get; set; }
+
+        /// <summary>When set, issuing a key and saving a webhook answer 409 approval_required until the request carries the hash.</summary>
+        public bool RequireApprovalHash { get; set; }
+
+        /// <summary>The permissions the application holds, for tests that add one.</summary>
+        public IReadOnlyList<string> GrantedPermissions { set => _permissions = value; }
+
+        public IReadOnlyList<string> Granted => _permissions;
+
+        public bool IsEnabled => _enabled;
+
+        /// <summary>Gives the application a live key, so switching it back on affects an existing key.</summary>
+        public void SeedKey() => _credentials.Add(new ApplicationCredentialResponse(
+            Guid.NewGuid(), ApplicationId, "Existing key", DateTimeOffset.UtcNow.AddDays(-2), null, null, null));
         public IReadOnlyList<RequestRecord> Requests
         {
             get
@@ -557,6 +766,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
                 EnsureWebhook();
                 return Json(_webhooks);
             }
+            if (RequireApprovalHash
+                && (request.Method == HttpMethod.Post && path.EndsWith("/webhooks", StringComparison.Ordinal)
+                    || request.Method == HttpMethod.Put && path.EndsWith($"/webhooks/{WebhookId:D}", StringComparison.Ordinal))
+                && JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(body, JsonOptions)!.ApprovalHash is null)
+            {
+                return ApprovalRequired("webhook", "Webhook to receiver.example", "hash-webhook");
+            }
             if (request.Method == HttpMethod.Post && path.EndsWith("/webhooks", StringComparison.Ordinal))
             {
                 var value = JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(body, JsonOptions)!;
@@ -617,7 +833,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Put && path.EndsWith("/permissions", StringComparison.Ordinal))
             {
-                _permissions = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(body, JsonOptions)!.PermissionIds;
+                var permissions = JsonSerializer.Deserialize<SetApplicationPermissionsRequest>(body, JsonOptions)!;
+                if (RequireApprovalHash && permissions.ApprovalHash is null && permissions.PermissionIds.Except(_permissions).Any())
+                {
+                    return ApprovalRequired("application", "Keys for Living room", "hash-application");
+                }
+
+                _permissions = permissions.PermissionIds;
                 return Json(Application());
             }
             if (request.Method == HttpMethod.Put && path.EndsWith("/client-bindings", StringComparison.Ordinal))
@@ -638,6 +860,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
                 }
 
                 var value = JsonSerializer.Deserialize<UpdateApplicationRequest>(body, JsonOptions)!;
+                if (RequireApprovalHash && value.ApprovalHash is null && !_enabled && value.IsEnabled && _credentials.Count > 0)
+                {
+                    return ApprovalRequired("application", "Keys for Living room", "hash-application");
+                }
+
                 _name = value.Name;
                 _type = value.ApplicationType;
                 _enabled = value.IsEnabled;
@@ -645,6 +872,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             if (request.Method == HttpMethod.Post && path.EndsWith("/credentials", StringComparison.Ordinal))
             {
+                if (RequireApprovalHash && JsonSerializer.Deserialize<CreateApplicationCredentialRequest>(body, JsonOptions)!.ApprovalHash is null)
+                {
+                    return ApprovalRequired("application_credential", "Key for Living room", "hash-credential");
+                }
+
                 CredentialStarted?.TrySetResult();
                 if (CredentialGate is not null)
                 {
@@ -657,6 +889,24 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             }
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
+
+        private static HttpResponseMessage ApprovalRequired(string kind, string title, string hash) => Json(
+            new MediaEngine.Contracts.Approvals.ApprovalRequiredResponse
+            {
+                Approvals =
+                [
+                    new MediaEngine.Contracts.Approvals.ApprovalPreviewResponse
+                    {
+                        Kind = kind,
+                        Title = title,
+                        CanDo = ["Reads your library"],
+                        SendsDataOut = true,
+                        SendsDataTo = "receiver.example",
+                        StatementHash = hash,
+                    },
+                ],
+            },
+            HttpStatusCode.Conflict);
 
         private void EnsureWebhook()
         {

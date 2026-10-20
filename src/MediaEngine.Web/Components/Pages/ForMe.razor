@@ -15,7 +15,7 @@
 @inject NavigationManager Nav
 @inject ILogger<ForMe> Logger
 
-<PageTitle>For Me - Tuvima Library</PageTitle>
+<PageTitle>For Me - Library</PageTitle>
 
 <section class="for-me-page">
     <header class="for-me-page__header">
@@ -163,7 +163,7 @@
     private IReadOnlyList<SurfaceTabItem> NavigationItems =>
     [
         new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
-        new("my-list", "My List", AppMaterialIcons.Filled.Bookmark, _saved.Count),
+        new("my-list", "My List", AppMaterialIcons.Filled.Favorite, _saved.Count),
         new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
         new("liked", "Liked", AppMaterialIcons.Outlined.ThumbUp, LikedStates.Count),
         new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
@@ -314,6 +314,7 @@
     protected override async Task OnInitializedAsync()
     {
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         if (Redirects)
         {
             return;
@@ -484,5 +485,13 @@
 
     private void OnProfileChanged() => _ = InvokeAsync(LoadAsync);
 
-    public void Dispose() => Orchestrator.OnProfileChanged -= OnProfileChanged;
+    // Continue, saved items and the shelves drop titles an administrator deleted from the library.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) =>
+        _ = InvokeAsync(() => OpensMyLibrary ? Task.CompletedTask : LoadAsync());
+
+    public void Dispose()
+    {
+        Orchestrator.OnProfileChanged -= OnProfileChanged;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+    }
 }

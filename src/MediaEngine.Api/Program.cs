@@ -24,6 +24,7 @@ using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Schema.Upgrades;
+using MediaEngine.Storage.Secrets;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -86,7 +87,7 @@ if (args.Length >= 4 && args[0] == "--compare-baseline")
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.EngineLeaseName);
 if (!processInstanceLease.IsAcquired)
 {
-    Console.WriteLine("Tuvima Library Engine is already running; the duplicate launch will exit without replacing it.");
+    Console.WriteLine("Library Engine is already running; the duplicate launch will exit without replacing it.");
     Environment.ExitCode = 73;
     return;
 }
@@ -220,7 +221,7 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new() { Title = "Tuvima Library API", Version = "v1" });
+    options.SwaggerDoc("v1", new() { Title = "Library API", Version = "v1" });
     options.CustomSchemaIds(type => (type.FullName ?? type.Name).Replace('+', '.'));
 });
 
@@ -253,10 +254,14 @@ builder.Services.AddSingleton<IDatabaseConnection>(_ =>
     return database;
 });
 
+// One secrets store for provider and plugin keys, kept in the config folder so it survives a data store wipe.
+var configSecrets = new ConfigFolderSecretsStore(configDirectory);
+builder.Services.AddSingleton<IConfigSecretsStore>(configSecrets);
+
 ConfigurationDirectoryLoader configLoader;
 try
 {
-    configLoader = new ConfigurationDirectoryLoader(configDirectory);
+    configLoader = new ConfigurationDirectoryLoader(configDirectory, configSecrets);
 #if DEBUG
     if (realMediaRun is null)
     {
@@ -284,7 +289,7 @@ catch (ConfigValidationException ex)
 {
     Log.Fatal(
         ex,
-        "Invalid Tuvima Library configuration: {ConfigFile} failed {SchemaName}",
+        "Invalid Library configuration: {ConfigFile} failed {SchemaName}",
         ex.FilePath,
         ex.SchemaName);
     throw;
@@ -469,6 +474,14 @@ builder.Services.AddMediaEngineIngestion(config, configLoader);
 builder.Services.AddSingleton<DevHarnessResetService>();
 builder.Services.AddSingleton<DevelopmentTestService>();
 builder.Services.AddSingleton<ViewPhotoHarnessService>();
+// Ingestion baseline only (--run-baseline sets the variables): record every outside answer, or replay a recording.
+if (builder.Environment.IsDevelopment() && ProviderAnswerStore.FromEnvironment(configDirectory) is { } providerAnswers)
+{
+    builder.Services.AddSingleton(providerAnswers);
+    builder.Services.ConfigureHttpClientDefaults(client =>
+        client.AddHttpMessageHandler(() => new ProviderAnswerHandler(providerAnswers)));
+    Console.WriteLine($"Provider answers: {providerAnswers.Mode} ({providerAnswers.Folder})");
+}
 #endif
 builder.Services.AddSingleton<AssetStoreCleanupService>();
 builder.Services.AddSingleton(sp => new DatabaseBackupService(
@@ -488,6 +501,7 @@ builder.Services.AddTuvimaScheduledTasks();
 builder.Services.AddPluginApplicationServices();
 builder.Services.AddApplicationEvents();
 builder.Services.AddApplicationWebhooks();
+builder.Services.AddTuvimaApprovals();
 builder.Services.AddTuvimaHostedServices();
 builder.Services.AddTuvimaToolRequirements();
 
@@ -599,7 +613,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Tuvima Library API v1"));
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Library API v1"));
 }
 
 // -- Endpoint registration -----------------------------------------------------
@@ -612,12 +626,12 @@ try
 }
 catch (IOException ex) when (StartupFailureClassifier.IsAddressAlreadyInUse(ex))
 {
-    Log.Error(ex, "Tuvima Library Engine could not start because one of its configured addresses is already in use");
-    Console.Error.WriteLine("Tuvima Library Engine could not start because ports 61494/61495 are already in use. Stop the process using those ports, then start Tuvima again.");
+    Log.Error(ex, "Library Engine could not start because one of its configured addresses is already in use");
+    Console.Error.WriteLine("Library Engine could not start because ports 61494/61495 are already in use. Stop the process using those ports, then start Library again.");
     Environment.ExitCode = 98;
 }
 catch (Exception exception) when (StartupFailureClassifier.FindPathAccessDenied(exception) is { } denied)
 {
-    Log.Error("Tuvima Library Engine could not start because a configured path is not accessible: {AccessFailure}", denied.Message);
+    Log.Error("Library Engine could not start because a configured path is not accessible: {AccessFailure}", denied.Message);
     Environment.ExitCode = 77;
 }

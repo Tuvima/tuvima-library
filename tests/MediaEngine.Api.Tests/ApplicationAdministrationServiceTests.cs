@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ApplicationEntity = MediaEngine.Domain.Entities.Application;
 using DomainAuthorizationEvaluator = MediaEngine.Domain.Contracts.IAuthorizationEvaluator;
 
@@ -317,6 +319,444 @@ public sealed class ApplicationAdministrationServiceTests
         }
     }
 
+    [Fact]
+    public async Task IssuingAKey_WithoutTheApprovalHash_IsRefusedWithThePreview_AndNoKeyIsIssued()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await CreateIntegrationAsync(fixture);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(result);
+        Assert.Equal(409, status);
+        var required = JsonSerializer.Deserialize<MediaEngine.Contracts.Approvals.ApprovalRequiredResponse>(body)!;
+        var preview = Assert.Single(required.Approvals);
+        Assert.Equal("application_credential", preview.Kind);
+        Assert.Equal("Key for Integration", preview.Title);
+        Assert.Contains("Never expires", preview.CanDo);
+        Assert.Equal("the software that holds this key", preview.SendsDataTo);
+        Assert.Empty((await fixture.Repository.GetApplicationCredentialsAsync(application.Id)));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WithTheHash_IssuesItAndRecordsTheApprovalUnderTheNewKeyId_WithoutTheKeyItself()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await CreateIntegrationAsync(fixture);
+        var expiry = Now.AddDays(30);
+        var preview = approvals.Service.PreviewCredential(application, expiry);
+        var libraryRead = new PermissionRegistry().GetAll().Single(d => d.Id == ApplicationPermissionIds.LibraryRead).DisplayName;
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", expiry, preview.StatementHash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(result);
+        Assert.Equal(200, status);
+        using var json = JsonDocument.Parse(body);
+        var plaintext = json.RootElement.GetProperty("plaintext_credential").GetString()!;
+        var credentialId = json.RootElement.GetProperty("credential").GetProperty("id").GetGuid();
+        var record = Assert.Single(await approvals.Records.ListAsync("application_credential", credentialId.ToString("D")));
+        Assert.Equal(ApprovalTestKit.ApproverName, record.ApprovedByName);
+        Assert.Equal(approvals.Clock.GetUtcNow(), record.ApprovedAt);
+        Assert.Contains(libraryRead, record.StatementJson, StringComparison.Ordinal);
+        Assert.Contains("Expires on", record.StatementJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(plaintext, record.StatementJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EveryKeyIsAskedAbout_EvenForAnApplicationThatAlreadyHasAnApprovedKey()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await CreateIntegrationAsync(fixture);
+        var hash = approvals.Service.PreviewCredential(application, null).StatementHash;
+        await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("First", null, hash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var second = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Second", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(second)).Status);
+        Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WithAHashFromBeforeThePermissionsGrew_IsRefused()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await CreateIntegrationAsync(fixture);
+        var staleHash = approvals.Service.PreviewCredential(application, null).StatementHash;
+        await fixture.Service.ReplacePermissionsAsync(
+            Fixture.HumanAdministrator,
+            application.Id,
+            new SetApplicationPermissionsRequest([ApplicationPermissionIds.LibraryRead.Value, ApplicationPermissionIds.MetadataWrite.Value]));
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null, staleHash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(result)).Status);
+        Assert.Empty(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WhenTheIntegrationIsSwitchedOnJustAfterItWasRead_WithoutTheHash_RevokesTheKey_AndAsksForApproval()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+        fixture.Repository.AfterNextApplicationRead = () => fixture.Repository.SetEnabled(application.Id, true);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(result);
+        Assert.Equal(409, status);
+        var required = JsonSerializer.Deserialize<MediaEngine.Contracts.Approvals.ApprovalRequiredResponse>(body)!;
+        Assert.Equal("approval_required", required.Error);
+        Assert.Equal("application_credential", Assert.Single(required.Approvals).Kind);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        Assert.NotNull(key.RevokedAt);
+        Assert.Empty(await approvals.Records.ListAsync("application_credential", key.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WhenTheIntegrationIsSwitchedOnJustAfterItWasRead_WithTheHash_IssuesItAndRecordsTheApproval()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+        var hash = approvals.Service.PreviewCredential(application, null).StatementHash;
+        fixture.Repository.AfterNextApplicationRead = () => fixture.Repository.SetEnabled(application.Id, true);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null, hash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(result)).Status);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        Assert.Null(key.RevokedAt);
+        Assert.Single(await approvals.Records.ListAsync("application_credential", key.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task IssuingAKey_ForASwitchedOffIntegration_IsStillRefusedByTheIssueCallItself()
+    {
+        using var approvals = new ApprovalTestKit();
+        var fixture = new Fixture();
+        var application = await SwitchedOffIntegrationAsync(fixture);
+
+        var result = await ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(result)).Status);
+        Assert.Empty(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+    }
+
+    // ── Widening an integration's keys (Shy's decision, 2026-10-19) ──────────
+
+    [Fact]
+    public async Task AddingAPermission_ToAnIntegrationThatHoldsKeys_IsRefusedWithThePreview_AndNothingChanges()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+
+        var result = await ApplicationEndpoints.SetPermissionsAsync(
+            application.Id, Widen(), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(result);
+        Assert.Equal(409, status);
+        var required = JsonSerializer.Deserialize<MediaEngine.Contracts.Approvals.ApprovalRequiredResponse>(body)!;
+        var preview = Assert.Single(required.Approvals);
+        Assert.Equal("application", preview.Kind);
+        Assert.Equal(application.Id.ToString("D"), preview.ItemId);
+        var line = Assert.Single(preview.CanDo);
+        Assert.StartsWith("Its keys can: ", line, StringComparison.Ordinal);
+        Assert.Contains(ApplicationPermissionIds.LibraryRead.Value, line, StringComparison.Ordinal);
+        Assert.Contains(ApplicationPermissionIds.MetadataWrite.Value, line, StringComparison.Ordinal);
+        Assert.Contains("Applies to 1 existing key", preview.Notes);
+        Assert.True(preview.SendsDataOut);
+        Assert.Equal("the software that holds its keys", preview.SendsDataTo);
+        Assert.Equal([ApplicationPermissionIds.LibraryRead.Value], (await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).PermissionIds);
+        Assert.Empty(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task AddingAPermission_WithTheHash_SavesItAndRecordsTheApprovalUnderTheApplicationId()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+        var hash = await HashOfAsync(approvals, fixture, application);
+
+        var result = await ApplicationEndpoints.SetPermissionsAsync(
+            application.Id, Widen(hash), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, _) = await ExecuteAsync(result);
+        Assert.Equal(200, status);
+        Assert.Equal(2, (await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).PermissionIds.Count);
+        var record = Assert.Single(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+        Assert.Equal(ApprovalTestKit.ApproverName, record.ApprovedByName);
+        Assert.Equal(hash, record.StatementHash);
+    }
+
+    [Fact]
+    public async Task AddingAPermission_WithAWrongHash_IsRefused()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+
+        var result = await ApplicationEndpoints.SetPermissionsAsync(
+            application.Id, Widen(new string('a', 64)), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(result)).Status);
+        Assert.Single((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).PermissionIds);
+    }
+
+    [Fact]
+    public async Task NarrowingAnIntegrationsPermissions_NeedsNoApproval()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+        await fixture.Service.ReplacePermissionsAsync(
+            Fixture.HumanAdministrator, application.Id,
+            new SetApplicationPermissionsRequest([ApplicationPermissionIds.LibraryRead.Value, ApplicationPermissionIds.MetadataWrite.Value]));
+
+        var narrowed = await ApplicationEndpoints.SetPermissionsAsync(
+            application.Id, new SetApplicationPermissionsRequest([ApplicationPermissionIds.LibraryRead.Value]),
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+        var unchanged = await ApplicationEndpoints.SetPermissionsAsync(
+            application.Id, new SetApplicationPermissionsRequest([ApplicationPermissionIds.LibraryRead.Value]),
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(narrowed)).Status);
+        Assert.Equal(200, (await ExecuteAsync(unchanged)).Status);
+        Assert.Single((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).PermissionIds);
+        Assert.Empty(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task SwitchingADisabledIntegrationBackOn_WhileItHoldsKeys_IsRefused_ThenAllowedWithTheHash()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+        await fixture.Service.UpdateApplicationAsync(Fixture.HumanAdministrator, application.Id, Update(application, enabled: false));
+
+        var refused = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: true), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        var (status, body) = await ExecuteAsync(refused);
+        Assert.Equal(409, status);
+        var preview = Assert.Single(JsonSerializer.Deserialize<MediaEngine.Contracts.Approvals.ApprovalRequiredResponse>(body)!.Approvals);
+        Assert.Equal("application", preview.Kind);
+        Assert.Contains("Applies to 1 existing key", preview.Notes);
+        Assert.False((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).IsEnabled);
+
+        var allowed = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: true, hash: preview.StatementHash),
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(allowed)).Status);
+        Assert.True((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).IsEnabled);
+        Assert.Single(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task SwitchingAnIntegrationBackOn_WithNoKeys_NeedsNoApproval()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationAsync(fixture);
+        await fixture.Service.UpdateApplicationAsync(Fixture.HumanAdministrator, application.Id, Update(application, enabled: false));
+
+        var result = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: true), approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(result)).Status);
+        Assert.True((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).IsEnabled);
+        Assert.Empty(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task SwitchingAnIntegrationOff_OrRenamingIt_NeedsNoApproval()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+
+        var renamed = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: true) with { Name = "Renamed" },
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+        var disabled = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: false) with { Name = "Renamed" },
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(200, (await ExecuteAsync(renamed)).Status);
+        Assert.Equal(200, (await ExecuteAsync(disabled)).Status);
+        Assert.Empty(await approvals.Records.ListAsync("application", application.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task MakingAnIntegrationAnAdministrator_GivesItsKeysEveryPermission_SoItNeedsApproval()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+
+        var result = await ApplicationEndpoints.UpdateApplicationAsync(
+            application.Id, Update(application, enabled: true) with { IsAdministrator = true },
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default);
+
+        Assert.Equal(409, (await ExecuteAsync(result)).Status);
+        Assert.False((await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id)).IsAdministrator);
+    }
+
+    [Fact]
+    public async Task TheApplicationStatement_ListsPermissionsInAStableOrder_SoTheSameSetGivesTheSameHash()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry);
+        var application = await CreateIntegrationWithKeyAsync(fixture);
+
+        var first = approvals.Service.PreviewApplicationPermissions(application, [ApplicationPermissionIds.MetadataWrite.Value, ApplicationPermissionIds.LibraryRead.Value]);
+        var second = approvals.Service.PreviewApplicationPermissions(application, [ApplicationPermissionIds.LibraryRead.Value, ApplicationPermissionIds.MetadataWrite.Value]);
+
+        Assert.Equal(first!.StatementHash, second!.StatementHash);
+    }
+
+    // ── Issuing a key when the record cannot be written ──────────────────────
+
+    [Fact]
+    public async Task IssuingAKey_WhenTheRecordCannotBeWritten_RevokesTheKey_AndTheOriginalFailureReachesTheCaller()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry, new FailingRecords());
+        var application = await CreateIntegrationAsync(fixture);
+        var hash = approvals.Service.PreviewCredential(application, null).StatementHash;
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null, hash),
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, NullLoggerFactory.Instance, default));
+
+        Assert.Equal(FailingRecords.Message, failure.Message);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        Assert.NotNull(key.RevokedAt);
+    }
+
+    [Fact]
+    public async Task IssuingAKey_WhenTheRecordAndTheRevokeBothFail_LogsTheRevokeFailure_AndRethrowsTheOriginalFailure()
+    {
+        var fixture = new Fixture();
+        using var approvals = new ApprovalTestKit(fixture.Repository, fixture.Registry, new FailingRecords());
+        var application = await CreateIntegrationAsync(fixture);
+        var hash = approvals.Service.PreviewCredential(application, null).StatementHash;
+        fixture.Repository.FailRevoke = true;
+        var logs = new CapturingLoggerFactory();
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => ApplicationEndpoints.IssueCredentialAsync(
+            application.Id, new CreateApplicationCredentialRequest("Key", null, hash),
+            approvals.Http(), approvals.Resolver, fixture.Service, approvals.Service, logs, default));
+
+        Assert.Equal(FailingRecords.Message, failure.Message);
+        var key = Assert.Single(await fixture.Repository.GetApplicationCredentialsAsync(application.Id));
+        var entry = Assert.Single(logs.Entries);
+        Assert.Contains(key.Id.ToString("D"), entry, StringComparison.Ordinal);
+        Assert.Contains(FailingRecords.RevokeMessage, entry, StringComparison.Ordinal);
+    }
+
+    private static SetApplicationPermissionsRequest Widen(string? hash = null) => new(
+        [ApplicationPermissionIds.LibraryRead.Value, ApplicationPermissionIds.MetadataWrite.Value], hash);
+
+    private static UpdateApplicationRequest Update(ApplicationResponse application, bool enabled, string? hash = null) => new(
+        application.Name, application.Description, application.ApplicationType, enabled, application.IsAdministrator, hash);
+
+    private static async Task<string> HashOfAsync(ApprovalTestKit approvals, Fixture fixture, ApplicationResponse application)
+    {
+        var current = await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id);
+        return approvals.Service.PreviewApplicationPermissions(
+            current, [ApplicationPermissionIds.LibraryRead.Value, ApplicationPermissionIds.MetadataWrite.Value])!.StatementHash;
+    }
+
+    private static async Task<ApplicationResponse> CreateIntegrationWithKeyAsync(Fixture fixture)
+    {
+        var application = await CreateIntegrationAsync(fixture);
+        await fixture.Service.IssueCredentialAsync(
+            Fixture.HumanAdministrator, application.Id, new CreateApplicationCredentialRequest("Existing key", null));
+        return await fixture.Service.GetApplicationAsync(Fixture.HumanAdministrator, application.Id);
+    }
+
+    /// <summary>A record store that cannot be written.</summary>
+    private sealed class FailingRecords : MediaEngine.Storage.Contracts.IApprovalRecordRepository
+    {
+        public const string Message = "The approval records are unavailable.";
+        public const string RevokeMessage = "The credential store refused the revoke.";
+
+        public Task AddAsync(MediaEngine.Storage.Contracts.ApprovalRecord record, CancellationToken ct = default) =>
+            throw new InvalidOperationException(Message);
+
+        public Task<IReadOnlyList<MediaEngine.Storage.Contracts.ApprovalRecord>> ListAsync(string itemKind, string itemId, int limit = 50, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaEngine.Storage.Contracts.ApprovalRecord>>([]);
+
+        public Task<bool> ExistsAsync(string itemKind, string itemId, string statementHash, CancellationToken ct = default) =>
+            Task.FromResult(false);
+    }
+
+    private sealed class CapturingLoggerFactory : ILoggerFactory
+    {
+        public List<string> Entries { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => new CapturingLogger(Entries);
+
+        public void AddProvider(ILoggerProvider provider)
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class CapturingLogger(List<string> entries) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                entries.Add($"{logLevel}: {formatter(state, exception)} {exception?.Message}");
+        }
+    }
+
+    private static async Task<ApplicationResponse> SwitchedOffIntegrationAsync(Fixture fixture)
+    {
+        var application = await CreateIntegrationAsync(fixture);
+        return await fixture.Service.UpdateApplicationAsync(Fixture.HumanAdministrator, application.Id, Update(application, enabled: false));
+    }
+
+    private static Task<ApplicationResponse> CreateIntegrationAsync(Fixture fixture) => fixture.Service.CreateApplicationAsync(
+        Fixture.HumanAdministrator,
+        new CreateApplicationRequest(
+            "Integration",
+            null,
+            ApplicationTypeDto.ServerIntegration,
+            false,
+            [ApplicationPermissionIds.LibraryRead.Value]));
+
+    private static async Task<(int Status, string Body)> ExecuteAsync(IResult result)
+    {
+        var services = new ServiceCollection().AddLogging().AddProblemDetails().BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        using var body = new MemoryStream();
+        context.Response.Body = body;
+        await result.ExecuteAsync(context);
+        return (context.Response.StatusCode, System.Text.Encoding.UTF8.GetString(body.ToArray()));
+    }
+
     private sealed class Fixture
     {
         public static RequestAuthority HumanAdministrator { get; } = new(
@@ -522,8 +962,17 @@ public sealed class ApplicationAdministrationServiceTests
         private readonly Dictionary<Guid, List<ApplicationCredential>> _credentials = [];
         private readonly Dictionary<Guid, HashSet<string>> _clientIds = [];
 
-        public Task<ApplicationEntity?> GetApplicationAsync(Guid id, CancellationToken ct = default) =>
-            Task.FromResult(_applications.TryGetValue(id, out var value) ? Clone(value) : null);
+        /// <summary>Runs once, right after the next application read has been answered (to change the store between two reads).</summary>
+        public Action? AfterNextApplicationRead { get; set; }
+
+        public Task<ApplicationEntity?> GetApplicationAsync(Guid id, CancellationToken ct = default)
+        {
+            var answer = _applications.TryGetValue(id, out var value) ? Clone(value) : null;
+            var hook = AfterNextApplicationRead;
+            AfterNextApplicationRead = null;
+            hook?.Invoke();
+            return Task.FromResult(answer);
+        }
 
         public Task<ApplicationEntity?> GetApplicationByClientIdAsync(
             string clientId,
@@ -632,12 +1081,22 @@ public sealed class ApplicationAdministrationServiceTests
             return Task.CompletedTask;
         }
 
+        public void SetEnabled(Guid applicationId, bool enabled) => _applications[applicationId].IsEnabled = enabled;
+
+        /// <summary>When set, revoking a credential fails (the store cannot be reached).</summary>
+        public bool FailRevoke { get; set; }
+
         public Task<bool> RevokeCredentialAsync(
             Guid applicationId,
             Guid credentialId,
             DateTimeOffset revokedAt,
             CancellationToken ct = default)
         {
+            if (FailRevoke)
+            {
+                throw new InvalidOperationException("The credential store refused the revoke.");
+            }
+
             var credential = _credentials[applicationId].SingleOrDefault(value => value.Id == credentialId);
             if (credential is null || credential.RevokedAt is not null)
             {
