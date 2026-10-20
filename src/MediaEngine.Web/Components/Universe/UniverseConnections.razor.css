@@ -1,0 +1,102 @@
+.universe-connections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4, 1rem);
+    min-width: 0;
+}
+
+.universe-connections__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-4, 1rem);
+}
+
+.universe-connections__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-family: var(--font-ui);
+    font-size: clamp(1.25rem, 1.8vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.universe-connections__explorer,
+.universe-connections__fandom a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tl-tap-target-min, 44px);
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    text-decoration: none;
+}
+
+.universe-connections__explorer {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.universe-connections__explorer:hover,
+.universe-connections__fandom a:hover {
+    color: var(--tl-text-primary);
+    text-decoration: underline;
+}
+
+.universe-connections__explorer:focus-visible,
+.universe-connections__fandom a:focus-visible {
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset, 2px);
+}
+
+/* Phone: simple stacked lists. Tablet and desktop: two columns when both lists exist. */
+.universe-connections__columns {
+    display: grid;
+    gap: var(--tl-space-5, 1.25rem);
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.universe-connections__column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-2, 0.5rem);
+}
+
+.universe-connections__subtitle {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.universe-connections__state {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.universe-connections__state-title {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+}
+
+.universe-connections__state-note {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+}
+
+.universe-connections__fandom {
+    margin: 0;
+}
+
+@media (min-width: 600px) {
+    .universe-connections__columns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

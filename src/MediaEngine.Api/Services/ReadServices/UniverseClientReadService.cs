@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Collections;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Domain.Aggregates;
@@ -50,27 +51,13 @@ public sealed partial class UniverseClientReadService(
     public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default)
     {
         var normalized = qid.Trim();
-        if (!QidPattern().IsMatch(normalized))
+        var scope = await ResolveVisibleUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        if (scope is null)
         {
             return null;
         }
 
-        var universe = await collections.FindUniverseByQidAsync(normalized, ct).ConfigureAwait(false);
-        if (universe is null
-            || universe.CollectionType != CollectionType.Universe
-            || universe.ParentCollectionId is not null
-            || !universe.IsEnabled
-            || !CollectionAccessPolicy.CanAccess(universe, profile))
-        {
-            return null;
-        }
-
-        var members = await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false);
-        if (members.Count == 0)
-        {
-            return null;
-        }
-
+        var (universe, members) = scope.Value;
         var memberIds = members.Select(member => member.Id).ToHashSet();
         var allRows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
         var rowsByCollection = allRows
@@ -157,6 +144,92 @@ public sealed partial class UniverseClientReadService(
             Cast = helperLists.Cast,
             Adaptations = helperLists.Adaptations,
         };
+    }
+
+    /// <summary>
+    /// How many Series and formats of one Universe the profile can see, and its name, without building any card.
+    /// Uses the same Universe, member and visibility rules as <see cref="LoadAsync"/>. Null when <see cref="LoadAsync"/>
+    /// would answer null for the same reasons (malformed QID, unknown, hidden, or nothing visible in it).
+    /// </summary>
+    public async Task<(int SeriesCount, int FormatCount, string Name)?> GetMembershipSummaryAsync(
+        string qid,
+        Profile? profile,
+        CancellationToken ct = default)
+    {
+        var normalized = qid.Trim();
+        var scope = await ResolveVisibleUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        if (scope is null)
+        {
+            return null;
+        }
+
+        var (universe, members) = scope.Value;
+        var memberIds = members.Select(member => member.Id).ToHashSet();
+        var allRows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
+        var rowsByCollection = allRows
+            .Where(row => row.CollectionId is { } id && memberIds.Contains(id))
+            .GroupBy(row => row.CollectionId!.Value)
+            .ToList();
+        if (rowsByCollection.Count == 0)
+        {
+            return null;
+        }
+
+        var formats = rowsByCollection
+            .SelectMany(group => group)
+            .Select(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType))
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!;
+        return (rowsByCollection.Count, formats, name);
+    }
+
+    /// <summary>
+    /// The "Part of the {name} Universe" link for an item page: present only when the profile can see this Universe
+    /// and the Library holds two or more Series, or two or more formats, in it. Otherwise null.
+    /// </summary>
+    public async Task<UniverseLinkViewModel?> GetUniverseLinkAsync(
+        string qid,
+        Profile? profile,
+        CancellationToken ct = default)
+    {
+        var normalized = NormalizeQid(qid);
+        if (normalized is null
+            || await GetMembershipSummaryAsync(normalized, profile, ct).ConfigureAwait(false) is not { } summary
+            || !ShowsPartOfLine(summary.SeriesCount, summary.FormatCount))
+        {
+            return null;
+        }
+
+        return new UniverseLinkViewModel { Qid = normalized, Name = summary.Name };
+    }
+
+    /// <summary>The one rule for the "Part of" line: two or more Series, or two or more formats, in the Universe.</summary>
+    public static bool ShowsPartOfLine(int seriesCount, int formatCount) => seriesCount >= 2 || formatCount >= 2;
+
+    /// <summary>The Universe the profile may open and the member Series below it, or null when there is none.</summary>
+    private async Task<(Collection Universe, IReadOnlyList<Collection> Members)?> ResolveVisibleUniverseAsync(
+        string normalizedQid,
+        Profile? profile,
+        CancellationToken ct)
+    {
+        if (!QidPattern().IsMatch(normalizedQid))
+        {
+            return null;
+        }
+
+        var universe = await collections.FindUniverseByQidAsync(normalizedQid, ct).ConfigureAwait(false);
+        if (universe is null
+            || universe.CollectionType != CollectionType.Universe
+            || universe.ParentCollectionId is not null
+            || !universe.IsEnabled
+            || !CollectionAccessPolicy.CanAccess(universe, profile))
+        {
+            return null;
+        }
+
+        var members = await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false);
+        return members.Count == 0 ? null : (universe, members);
     }
 
     private static string ItemsLabel(int count) => count == 1 ? "1 item" : $"{count} items";

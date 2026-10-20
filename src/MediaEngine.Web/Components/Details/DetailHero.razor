@@ -138,6 +138,13 @@
                 }
             </SecondaryTitleTrailingContent>
             <IdentityAfterTitle>
+                @if (Model.UniverseLink is { } universeLink && !string.IsNullOrWhiteSpace(universeLink.Qid))
+                {
+                    @* One quiet line under the secondary line; the Universe page is its own destination, never a tab. *@
+                    <p class="tl-detail-hero__universe-link">
+                        <a href="@($"/universe/{Uri.EscapeDataString(universeLink.Qid)}")">@MediaEngine.Web.Components.Universe.UniversePageText.PartOfLine(universeLink.Name)</a>
+                    </p>
+                }
                 @if (HeroCreditLines.Count > 0)
                 {
                     <div class="@HeroCreditStackClass" aria-label="Primary credits">

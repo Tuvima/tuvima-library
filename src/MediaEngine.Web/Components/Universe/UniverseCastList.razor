@@ -1,0 +1,60 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+
+@* The people across every format of the Universe, with the characters they play. A row opens the person's page; a host
+   that wants something else (the "Also appears in" panel) listens to OnCastMemberSelected and the row becomes a button. *@
+<ul class="universe-cast" aria-label="Cast">
+    @foreach (var member in Cast)
+    {
+        <li class="universe-cast__item" @key="member.PersonId">
+            @if (OnCastMemberSelected.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="universe-cast__row" OnClick="@(() => OnCastMemberSelected.InvokeAsync(member))">
+                    @RowContent(member)
+                </AppNativeButton>
+            }
+            else
+            {
+                <a class="universe-cast__row" href="@PersonRoute(member)">
+                    @RowContent(member)
+                </a>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<UniverseClientCastMemberDto> Cast { get; set; } = [];
+
+    /// <summary>Raised when a row is chosen. When nothing listens, a row links to the person's page instead.</summary>
+    [Parameter] public EventCallback<UniverseClientCastMemberDto> OnCastMemberSelected { get; set; }
+
+    private static string PersonRoute(UniverseClientCastMemberDto member) => $"/details/person/{member.PersonId:D}";
+
+    private RenderFragment RowContent(UniverseClientCastMemberDto member) => __builder =>
+    {
+        <AppAvatar ImageUrl="@member.HeadshotUrl"
+                   AltText="@member.Name"
+                   Initials="@Initials(member.Name)"
+                   Size="AppControlSize.Large"
+                   Class="universe-cast__avatar" />
+        <span class="universe-cast__copy">
+            <span class="universe-cast__name">@member.Name</span>
+            @if (UniversePageText.CharactersLine(member) is { } characters)
+            {
+                <span class="universe-cast__characters">@characters</span>
+            }
+        </span>
+    };
+
+    private static string Initials(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return words.Length switch
+        {
+            0 => "?",
+            1 => words[0][..1].ToUpperInvariant(),
+            _ => string.Concat(words[0][..1], words[^1][..1]).ToUpperInvariant(),
+        };
+    }
+}

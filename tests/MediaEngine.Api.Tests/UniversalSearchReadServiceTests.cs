@@ -366,6 +366,49 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UniverseSearchHit_OpensTheUniversePage()
+    {
+        var universeId = Guid.NewGuid();
+        var seriesId = Guid.NewGuid();
+        var oddUniverseId = Guid.NewGuid();
+        var oddSeriesId = Guid.NewGuid();
+        var work = Guid.NewGuid();
+        var oddWork = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO collections (id, display_name, collection_type, wikidata_qid, created_at)
+                VALUES (@universeId, 'Arrakis Saga', 'Universe', 'Q4242', CURRENT_TIMESTAMP),
+                       (@oddUniverseId, 'Arrakis Imprint', 'Universe', 'not-a-qid', CURRENT_TIMESTAMP);
+                INSERT INTO collections (id, display_name, collection_type, parent_collection_id, created_at)
+                VALUES (@seriesId, 'Arrakis Novels', 'Series', @universeId, CURRENT_TIMESTAMP),
+                       (@oddSeriesId, 'Arrakis Extras', 'Series', @oddUniverseId, CURRENT_TIMESTAMP);
+                INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES (@work, @seriesId, 'Books', 'standalone'),
+                       (@oddWork, @oddSeriesId, 'Books', 'standalone');
+                """,
+                new { universeId, seriesId, oddUniverseId, oddSeriesId, work, oddWork });
+        }
+
+        var service = CreateService(new StubDisplayProjection(
+        [
+            new DisplayWorkRow { WorkId = work, AssetId = Guid.NewGuid(), CollectionId = seriesId, MediaType = "Books", Title = "Arrakis One" },
+            new DisplayWorkRow { WorkId = oddWork, AssetId = Guid.NewGuid(), CollectionId = oddSeriesId, MediaType = "Books", Title = "Arrakis Two" },
+        ]));
+
+        var response = await service.SearchAsync("Arrakis", 20, CancellationToken.None);
+
+        var results = response.Sections.SelectMany(section => section.Results).ToList();
+        var universe = Assert.Single(results, result => result.Id == universeId);
+        Assert.Equal("/universe/Q4242", universe.DetailRoute);
+        Assert.Equal("Open Universe", universe.PrimaryActionLabel);
+        // A Universe without a well-formed QID, and a Series below a Universe, keep the ordinary collection page.
+        Assert.Equal($"/details/collection/{oddUniverseId:D}?context=default", Assert.Single(results, result => result.Id == oddUniverseId).DetailRoute);
+        Assert.Equal($"/details/collection/{seriesId:D}?context=default", Assert.Single(results, result => result.Id == seriesId).DetailRoute);
+    }
+
+    [Fact]
     public async Task SearchAsync_CharacterNameReturnsTheOwnedWorksCanonicalPerformer()
     {
         var personId = Guid.NewGuid();

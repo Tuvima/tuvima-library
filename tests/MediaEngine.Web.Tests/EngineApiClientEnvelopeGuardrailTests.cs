@@ -22,7 +22,10 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // without an error, while other failures set LastError; the picker tests cover both outcomes.
         // The detail-page load is one more manual GET: it tells not found (404/400), not allowed (401/403) and
         // Engine unreachable apart so the page can show the right message; EngineApiClientDetailLoadTests cover each.
-        AssertAtOrBelow(source, "_http.GetAsync", 27);
+        // The Universe page read is one more manual GET: a 404 means "this Universe is not available to this profile" and
+        // anything else means the Engine could not be reached, which the page words differently; EngineApiClientUniversePageTests
+        // cover each outcome.
+        AssertAtOrBelow(source, "_http.GetAsync", 28);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.

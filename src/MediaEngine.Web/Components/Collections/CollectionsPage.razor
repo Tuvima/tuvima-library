@@ -177,7 +177,7 @@
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
                                         <AppSelectItem T="string" Value="@("all")">All relationships</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("Universe")">Shared universes</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Universe")">Universes</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("Series")">Series rollups</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("ContentGroup")">Related works</AppSelectItem>
                                     </AppSelect>
@@ -625,7 +625,7 @@
             ? shelfKindLabel
             : _kind switch
             {
-                "Universe" => "Shared universes",
+                "Universe" => "Universes",
                 "Series" => "Series rollups",
                 "ContentGroup" => "Related works",
                 _ => _kind,

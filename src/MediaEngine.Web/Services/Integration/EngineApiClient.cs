@@ -1654,6 +1654,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             }).ToList(),
             MultiFormatState = detail.MultiFormatState,
             SequencePlacement = NormalizeSequencePlacement(detail.SequencePlacement),
+            UniverseLink = detail.UniverseLink,
             Metadata = detail.Metadata,
             PrimaryActions = detail.PrimaryActions,
             SecondaryActions = detail.SecondaryActions,

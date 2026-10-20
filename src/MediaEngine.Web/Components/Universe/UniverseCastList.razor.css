@@ -1,0 +1,56 @@
+.universe-cast {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--tl-space-2, 0.5rem);
+    list-style: none;
+}
+
+.universe-cast__item {
+    min-width: 0;
+}
+
+.universe-cast__row {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    align-items: center;
+    gap: var(--tl-space-3, 0.75rem);
+    padding: var(--tl-space-2, 0.5rem) var(--tl-space-3, 0.75rem);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.universe-cast__row:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.universe-cast__row:focus-visible {
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset, 2px);
+}
+
+.universe-cast__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.universe-cast__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.universe-cast__characters {
+    color: var(--tl-text-secondary);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}

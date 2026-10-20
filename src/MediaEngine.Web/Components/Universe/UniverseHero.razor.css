@@ -1,0 +1,85 @@
+.universe-hero {
+    display: grid;
+    align-items: center;
+    gap: var(--tl-space-5, 1.25rem);
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.universe-hero__art {
+    min-width: 0;
+    max-width: 22rem;
+}
+
+.universe-hero__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-2, 0.5rem);
+}
+
+.universe-hero__title {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: clamp(1.9rem, 4.4vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+}
+
+.universe-hero__totals {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-family: var(--font-ui);
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+}
+
+/* The same two colours as the menu indicator: blue while the Library is working. The state is also written out. */
+.universe-hero__working {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    color: var(--tl-accent-secondary);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.universe-hero__dot {
+    position: relative;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--tl-accent-secondary);
+}
+
+.universe-hero__dot::after {
+    position: absolute;
+    inset: -0.28rem;
+    border: 1px solid color-mix(in srgb, var(--tl-accent-secondary) 70%, transparent);
+    border-radius: inherit;
+    content: "";
+    animation: universe-hero-pulse 1.8s ease-out infinite;
+}
+
+@keyframes universe-hero-pulse {
+    0% { opacity: 0.8; transform: scale(0.55); }
+    75%, 100% { opacity: 0; transform: scale(1.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .universe-hero__dot::after {
+        animation: none;
+    }
+}
+
+.universe-hero__actions {
+    margin-top: var(--tl-space-2, 0.5rem);
+}
+
+@media (min-width: 600px) {
+    .universe-hero {
+        grid-template-columns: minmax(12rem, 22rem) minmax(0, 1fr);
+    }
+}

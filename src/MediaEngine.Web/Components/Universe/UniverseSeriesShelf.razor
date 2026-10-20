@@ -1,0 +1,157 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Navigation
+
+@* One Series (or TV show) of a Universe: its numbered run as a shelf, in the order the Engine gave it, with the entries the
+   Library does not hold marked in their place when the person chose to see them, and "Also in this world" underneath. *@
+<section class="universe-series" aria-labelledby="@HeadingId">
+    <header class="universe-series__header">
+        <div class="universe-series__copy">
+            <h2 id="@HeadingId" class="universe-series__title">@Shelf.Shelf.Title</h2>
+            <p class="universe-series__summary">@_summary</p>
+        </div>
+        @if (_seeAllRoute is not null)
+        {
+            <a class="universe-series__link" href="@_seeAllRoute">See all @Shelf.ItemCount</a>
+        }
+    </header>
+
+    <MediaShelfScroller ItemCount="@_entries.Count" AriaLabel="@Shelf.Shelf.Title">
+        @foreach (var entry in _entries)
+        {
+            @if (entry.Tile is not null)
+            {
+                <MediaTile Item="@entry.Tile" @key="entry.Key" />
+            }
+            else if (entry.Missing is not null)
+            {
+                <div class="@_placeholderClass" role="group" aria-label="@MissingAriaLabel(entry.Missing)" @key="entry.Key">
+                    <div class="universe-missing__art" aria-hidden="true">
+                        <AppMaterialIcon Icon="@_missingIcon" Size="AppSize.Large" />
+                        <span>Not in library</span>
+                    </div>
+                    <div class="universe-missing__caption">
+                        <span class="universe-missing__title">@entry.Missing.Label</span>
+                        @if (!string.IsNullOrWhiteSpace(entry.Missing.RawOrdinal))
+                        {
+                            <span class="universe-missing__ordinal">@entry.Missing.RawOrdinal</span>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </MediaShelfScroller>
+
+    @if (_alsoShelf is not null)
+    {
+        <MediaTileShelf Shelf="@_alsoShelf" />
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public UniverseMemberShelfDto Shelf { get; set; } = default!;
+
+    /// <summary>This Series' missing entries, already resolved against the person's preference; null when it has none.</summary>
+    [Parameter] public UniverseShelfMissingDto? Missing { get; set; }
+
+    private sealed record RowEntry(string Key, MediaTileViewModel? Tile, UniverseMissingItemDto? Missing);
+
+    private IReadOnlyList<RowEntry> _entries = [];
+    private MediaTileShelfViewModel? _alsoShelf;
+    private string _summary = string.Empty;
+    private string? _seeAllRoute;
+    private string _placeholderClass = "universe-missing is-portrait";
+    private string _missingIcon = AppMaterialIcons.Outlined.MenuBook;
+
+    private string HeadingId => $"universe-series-{Shelf.CollectionId:N}";
+
+    protected override void OnParametersSet()
+    {
+        var cards = Shelf.Shelf.Items;
+        var first = cards.FirstOrDefault();
+        var firstShape = first is null ? MediaTileShape.Portrait : MediaTileComposerService.FromDisplayCard(first).Shape;
+        _placeholderClass = $"universe-missing {firstShape switch { MediaTileShape.Landscape => "is-landscape", MediaTileShape.Square => "is-square", _ => "is-portrait" }}";
+        _missingIcon = MissingIconFor(first?.MediaType);
+        _entries = BuildEntries(cards);
+        _summary = BuildSummary();
+
+        // The row lists the first cards only; when the run is longer the whole run is one click away.
+        _seeAllRoute = Shelf.ItemCount > cards.Count
+            ? MediaNavigation.ForCollectionMedia(first?.MediaType, Shelf.CollectionId)
+            : null;
+
+        _alsoShelf = Shelf.AlsoInThisWorld is { Items.Count: > 0 } also
+            ? new MediaTileShelfViewModel
+            {
+                Key = also.Key,
+                Title = also.Title,
+                Subtitle = Shelf.AlsoInThisWorldCount == 1 ? "1 item" : $"{Shelf.AlsoInThisWorldCount} items",
+                Items = also.Items.Select(MediaTileComposerService.FromDisplayCard).ToList(),
+            }
+            : null;
+    }
+
+    private string BuildSummary()
+    {
+        var parts = new List<string> { Shelf.ItemCount == 1 ? "1 item" : $"{Shelf.ItemCount} items" };
+        // Entries the person chose not to see are not drawn, but the count stays, quietly.
+        if (Missing is { ShowMissing: false, MissingCount: > 0 } hidden)
+        {
+            parts.Add($"{hidden.MissingCount} missing");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private static string MissingIconFor(string? mediaType)
+    {
+        var value = mediaType?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (value.Contains("movie", StringComparison.Ordinal)
+            || value.Contains("tv", StringComparison.Ordinal)
+            || value.Contains("show", StringComparison.Ordinal))
+        {
+            return AppMaterialIcons.Outlined.Movie;
+        }
+
+        return value.Contains("music", StringComparison.Ordinal) || value.Contains("album", StringComparison.Ordinal)
+            ? AppMaterialIcons.Outlined.Album
+            : AppMaterialIcons.Outlined.MenuBook;
+    }
+
+    private static string MissingAriaLabel(UniverseMissingItemDto item) =>
+        string.IsNullOrWhiteSpace(item.RawOrdinal)
+            ? $"{item.Label}, not in library"
+            : $"{item.Label}, number {item.RawOrdinal}, not in library";
+
+    // The run in the order given, with each missing entry right after the owned work it follows (or first, when it
+    // comes before them all). A missing entry that follows a work the row does not list is left out of the row.
+    private IReadOnlyList<RowEntry> BuildEntries(IReadOnlyList<DisplayCardDto> cards)
+    {
+        var entries = new List<RowEntry>();
+        IReadOnlyList<UniverseMissingItemDto> shown = Missing is { ShowMissing: true } visible ? visible.Items : [];
+        var leading = shown.Where(item => item.AfterWorkId is null);
+        var byAnchor = shown
+            .Where(item => item.AfterWorkId is not null)
+            .GroupBy(item => item.AfterWorkId!.Value)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        static RowEntry Placeholder(UniverseMissingItemDto item) => new($"missing:{item.ItemQid}", null, item);
+
+        entries.AddRange(leading.Select(Placeholder));
+        foreach (var card in cards)
+        {
+            var tile = MediaTileComposerService.FromDisplayCard(card);
+            entries.Add(new RowEntry($"tile:{card.Id:N}", tile, null));
+            if (card.WorkId is { } workId && byAnchor.TryGetValue(workId, out var following))
+            {
+                entries.AddRange(following.Select(Placeholder));
+            }
+        }
+
+        return entries;
+    }
+}

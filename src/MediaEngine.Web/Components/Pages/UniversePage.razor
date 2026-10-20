@@ -1,0 +1,320 @@
+@page "/universe/{Qid}"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Universe
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject UniverseStateContainer State
+@inject DeviceContextService DeviceContext
+@inject DashboardSessionAccessor Session
+@inject IAdministratorSurfaceAccessService AdministratorAccess
+@inject IAppToastService Snackbar
+@inject ILogger<UniversePage> Logger
+
+<PageTitle>@PageTitleText · Tuvima Library</PageTitle>
+
+@* A Universe: what the Library holds of one fictional world across every format, as a page to read, not a screen to manage.
+   Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe happens
+   in the same side drawer Editing Mode uses, beside this page, for desktop administrators only. *@
+<div class="@PageClass">
+    @switch (_state.Status)
+    {
+        case UniversePageStatus.Loading:
+            <div class="universe-page__loading" aria-busy="true" aria-label="Loading this Universe">
+                <AppSkeleton Height="14rem" Width="100%" />
+                <AppSkeleton Height="2rem" Width="40%" />
+                <AppSkeleton Height="18rem" Width="100%" />
+            </div>
+            break;
+
+        case UniversePageStatus.Unavailable:
+            <AppErrorState Title="Can't reach the Engine"
+                           Message="The Universe could not be loaded. Check that the Engine is running, then try again."
+                           Retry="RetryAsync" />
+            break;
+
+        case UniversePageStatus.NotFound:
+            <AppEmptyState Title="This Universe isn't available."
+                           Message="It may have been removed, or it may not be part of what this profile can see.">
+                <Action>
+                    <AppButton Label="Back to Collections" Href="/collections" ButtonStyle="AppButtonStyle.Outlined" />
+                </Action>
+            </AppEmptyState>
+            break;
+
+        default:
+            if (_state.Page is { } overview)
+            {
+                <UniverseHero Detail="@overview.Detail"
+                              CanEdit="@CanShowEdit"
+                              EditBusy="@_openingEditor"
+                              OnEdit="EditUniverseAsync"
+                              EnrichmentRunning="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)" />
+
+                <div class="universe-page__series">
+                    @foreach (var shelf in overview.Detail.Shelves)
+                    {
+                        <UniverseSeriesShelf Shelf="@shelf"
+                                             Missing="@overview.Missing.FirstOrDefault(entry => entry.CollectionId == shelf.CollectionId)"
+                                             @key="shelf.CollectionId" />
+                    }
+                </div>
+
+                if (StandaloneShelf is { } standalone)
+                {
+                    <MediaTileShelf Shelf="@standalone" />
+                }
+
+                <UniverseConnections Page="@overview"
+                                     FandomLine="@_showFandomLine" />
+            }
+            break;
+    }
+
+    <EditingDrawer Mode="_editing"
+                   BuildRequest="BuildDrawerRequest"
+                   ItemTitle="@(_state.Page?.Detail.Name ?? string.Empty)"
+                   OnCommitted="ReloadAfterEditAsync" />
+</div>
+
+@code {
+    [Parameter] public string Qid { get; set; } = string.Empty;
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private UniversePageState _state = default!;
+    private EditingModeContext _editing = default!;
+    private string? _loadedQid;
+    private bool _canEditUniverse;
+    private bool _showFandomLine;
+    private bool _openingEditor;
+    private bool _disposed;
+
+    private string PageTitleText => _state.Page?.Detail.Name is { Length: > 0 } name ? name : "Universe";
+
+    private string PageClass => _editing.DrawerOpen ? "universe-page universe-page--editing-drawer" : "universe-page";
+
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    // Desktop administrators who may edit this Universe: the same checks the explorer makes, and the Engine decides again.
+    private bool CanShowEdit => IsAdministrator && DeviceContext.CanEdit && _canEditUniverse;
+
+    private SharedEntityEditorTargetDto UniverseTarget =>
+        new(SharedEntityEditorTargetKinds.Universe, CurrentQid, null, CurrentQid);
+
+    private string CurrentQid => _state.Page?.Detail.Qid ?? Qid;
+
+    private MediaTileShelfViewModel? StandaloneShelf => _state.Page?.Standalone is { Items.Count: > 0 } shelf
+        ? new MediaTileShelfViewModel
+        {
+            Key = shelf.Key,
+            Title = shelf.Title,
+            Subtitle = shelf.Subtitle,
+            Items = shelf.Items.Select(MediaTileComposerService.FromDisplayCard).ToList(),
+        }
+        : null;
+
+    protected override void OnInitialized()
+    {
+        _state = new UniversePageState(ApiClient);
+        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger));
+        _editing.Changed += OnEditingChanged;
+        State.OnStateChanged += OnEngineStateChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.Equals(_loadedQid, Qid, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // A different Universe in the same circuit starts over: close any editor and show the loading state.
+        _loadedQid = Qid;
+        _canEditUniverse = false;
+        _showFandomLine = false;
+        _editing.Leave();
+        await LoadAsync(quiet: false);
+    }
+
+    private async Task LoadAsync(bool quiet)
+    {
+        await _state.LoadAsync(Qid, quiet, _lifetime.Token);
+        if (_disposed || _state.Page is null)
+        {
+            return;
+        }
+
+        await LoadAdministratorExtrasAsync();
+    }
+
+    // Administrators get two extras: whether this Universe is editable, and the quiet "Add Fandom details" line when the
+    // lore plugin is off. Both ask the Engine, which decides again for any action taken.
+    private async Task LoadAdministratorExtrasAsync()
+    {
+        if (!IsAdministrator)
+        {
+            _canEditUniverse = false;
+            _showFandomLine = false;
+            return;
+        }
+
+        if (DeviceContext.CanEdit)
+        {
+            var context = await ApiClient.GetSharedEntityEditorContextAsync(UniverseTarget, _lifetime.Token);
+            _canEditUniverse = context?.capabilities.Any(capability => capability.editable) == true;
+            _editing.HasPermission = _canEditUniverse;
+        }
+
+        // An unreadable plugin list hides the line (the client logs it); an empty list means there is nothing to say.
+        var plugins = await ApiClient.GetPluginsAsync(_lifetime.Token);
+        _showFandomLine = plugins.Count > 0
+            && !plugins.Any(plugin => string.Equals(plugin.Id, FandomPluginId, StringComparison.Ordinal) && plugin.Enabled);
+    }
+
+    private const string FandomPluginId = "tuvima.fandom-lore";
+
+    private async Task RetryAsync()
+    {
+        await LoadAsync(quiet: false);
+    }
+
+    private async Task EditUniverseAsync()
+    {
+        if (_openingEditor || !CanShowEdit)
+        {
+            return;
+        }
+
+        // Every edit handler asks the device rule again; a hidden button is never the only protection.
+        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        {
+            return;
+        }
+
+        _openingEditor = true;
+        try
+        {
+            if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token))
+            {
+                return;
+            }
+
+            _editing.HasPermission = true;
+            if (await _editing.EnterAsync())
+            {
+                _editing.OpenDrawer(EditingDrawerTab.Details);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left while the unlock prompt was open; nothing else to do.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not open the Universe editor for {UniverseQid}", Qid);
+            Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error);
+        }
+        finally
+        {
+            _openingEditor = false;
+        }
+    }
+
+    private MediaEditorLaunchRequest? BuildDrawerRequest(string tab, string? artworkSlot)
+    {
+        if (!_canEditUniverse)
+        {
+            return null;
+        }
+
+        return new MediaEditorLaunchRequest
+        {
+            SharedEntityTarget = UniverseTarget,
+            HeaderTitle = _state.Page?.Detail.Name,
+            Mode = SharedMediaEditorMode.Normal,
+            OnArtworkChanged = ReloadAfterEditAsync,
+        };
+    }
+
+    // The drawer saved something: read the page again without blanking it.
+    private async Task ReloadAfterEditAsync()
+    {
+        try
+        {
+            await _state.LoadAsync(Qid, quiet: true, _lifetime.Token);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left while the read was running.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Universe page could not refresh after an edit for {UniverseQid}", Qid);
+            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
+    }
+
+    private void OnEditingChanged()
+    {
+        // The drawer closed: Editing Mode ends with it, since this page has no other editing surface. (While the drawer is
+        // still being opened the mode is already on and the drawer not yet open, so that moment is left alone.)
+        if (!_openingEditor && _editing.IsOn && !_editing.DrawerOpen && !_editing.HasUnsavedInput)
+        {
+            _editing.Leave();
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // Enrichment events carry no Universe, so the page reads its own overview again: at most once per ten seconds.
+    private void OnEngineStateChanged()
+    {
+        if (_disposed || _state.RequestEnrichmentRefresh(State.UniverseEnrichmentProgressReceivedAt) is not { } wait)
+        {
+            return;
+        }
+
+        _ = RefreshAfterAsync(wait);
+    }
+
+    private async Task RefreshAfterAsync(TimeSpan wait)
+    {
+        try
+        {
+            if (wait > TimeSpan.Zero)
+            {
+                await Task.Delay(wait, _lifetime.Token);
+            }
+
+            _state.RefreshStarted();
+            await _state.LoadAsync(Qid, quiet: true, _lifetime.Token);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left before the refresh ran.
+        }
+        catch (Exception ex)
+        {
+            _state.RefreshStarted();
+            Logger.LogWarning(ex, "The Universe page could not refresh its enrichment state for {UniverseQid}", Qid);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        State.OnStateChanged -= OnEngineStateChanged;
+        _editing.Changed -= OnEditingChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        _editing.Dispose();
+    }
+}
