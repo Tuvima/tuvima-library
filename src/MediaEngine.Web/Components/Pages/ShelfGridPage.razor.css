@@ -1,0 +1,129 @@
+/* View all: one heading, the sort and filter controls, then the grid. Phones first; the same page widens on tablets and desktops.
+   Page gutters and grid spacing follow the browse pages. */
+.shelf-grid-page {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: calc(100dvh - 84px);
+    padding: var(--tl-space-3) var(--tl-space-4) 56px;
+    color: var(--tl-text-primary);
+}
+
+@media (min-width: 600px) {
+    .shelf-grid-page {
+        padding-inline: clamp(24px, 2.2vw, 42px);
+    }
+}
+
+.shelf-grid-page__header {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin-bottom: var(--tl-space-4);
+}
+
+.shelf-grid-page__title {
+    margin: 0;
+    font-family: var(--font-display, var(--font-ui));
+    font-size: clamp(1.35rem, 2vw, 1.8rem);
+    font-weight: var(--tl-font-weight-bold);
+    line-height: var(--tl-line-height-tight);
+}
+
+.shelf-grid-page__title-skeleton {
+    width: min(18rem, 60%);
+    min-height: 2rem;
+}
+
+.shelf-grid-page__subtitle {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-body);
+}
+
+/* Always present so the count is announced when it changes; it holds its height while it is empty. */
+.shelf-grid-page__count {
+    margin: 0;
+    min-height: 1.25rem;
+    color: var(--tl-text-muted);
+    font-size: 0.875rem;
+}
+
+.shelf-grid-page__filters {
+    display: grid;
+    gap: var(--tl-space-3);
+    margin-bottom: var(--tl-space-4);
+}
+
+.shelf-grid-page__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-3);
+}
+
+.shelf-grid-page__control {
+    flex: 0 1 14rem;
+    min-width: 10rem;
+}
+
+/* In the phone bottom sheet every control is a full-width row. */
+.shelf-grid-page__controls.is-sheet {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.shelf-grid-page__controls.is-sheet .shelf-grid-page__control {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+}
+
+.shelf-grid-page__grid {
+    --media-tile-hover-clearance: 0px;
+    --media-tile-hover-lift: 0px;
+    gap: clamp(20px, 1.7vw, 30px);
+    padding: var(--tl-space-3) 0 var(--tl-space-6);
+}
+
+/* The first load holds a fixed height, so the page below does not move when the tiles arrive. */
+.shelf-grid-page__skeleton {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: clamp(20px, 1.7vw, 30px);
+    height: 36rem;
+    overflow: hidden;
+}
+
+.shelf-grid-page__skeleton-tile {
+    display: grid;
+    gap: var(--tl-space-2);
+    width: clamp(132px, 12vw, 200px);
+}
+
+.shelf-grid-page__skeleton-art {
+    aspect-ratio: 2 / 3;
+    width: 100%;
+}
+
+.shelf-grid-page__skeleton-caption {
+    width: 70%;
+    min-height: 1rem;
+}
+
+.shelf-grid-page__more {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.shelf-grid-page__more-error {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.875rem;
+}
+
+/* The scroll trigger: no height of its own, it only marks where the grid ends. */
+.shelf-grid-page__sentinel {
+    height: 1px;
+}
