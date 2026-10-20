@@ -124,6 +124,7 @@ These tests are intentionally about preventing regressions, not only checking on
 - `UiCompositionGuardrailTests` prevents removed all-in-one management workflows, outdated navigation labels, current Dashboard docs for removed workflows, and non-shared media editing paths from returning.
 - `ArchitectureBoundaryTests` keeps Domain independent, blocks Web-to-Storage implementation coupling in active UI, flags direct SQL in Razor, and tracks endpoint files that still use direct database access.
 - `DatabaseConnectionGuardrailTests` reserves `IDatabaseConnection.Open()` for startup/schema work and keeps silent catches limited to documented legacy locations.
+- `DapperGuidListParameterGuardrailTests` reads the compiled Engine assemblies and fails when a Guid list goes into a Dapper parameter object unconverted. Dapper expands `IN @ids` without the Guid handler, so such a list matches no rows; convert it with `.Select(GuidSql.ToBlob).ToArray()`.
 - `DatabaseStartupSafetyTests` initializes temporary SQLite databases from scratch, verifies idempotent startup, checks WAL/foreign-key/integrity settings, and rejects retired schema state. Pre-beta databases are reset and reingested rather than migrated in place.
 - `DockerfileGuardrailTests` verifies Docker restore inputs and readiness-based container startup.
 
