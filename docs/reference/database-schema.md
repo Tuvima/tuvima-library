@@ -1009,6 +1009,7 @@ One row for every request that reached the Local AI engine room: text written or
 | `message` | TEXT | Plain-English result or reason |
 
 **Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0015_ai_usage_records`.
+
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

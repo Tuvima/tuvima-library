@@ -37,8 +37,9 @@ public sealed class HardwareBenchmarkService
     /// <summary>
     /// Runs the benchmark when it has not run on this machine (or when forced). <paramref name="requestedBy"/> is
     /// <see cref="AiCallerKind.Person"/> when someone asked for it and <see cref="AiCallerKind.LibraryBackground"/> for the
-    /// automatic run after start-up. Throws <see cref="AiRequestDeferredException"/> without recording anything when a
-    /// background run finds the machine busy, so the caller can try again later.
+    /// automatic run after start-up. Throws <see cref="AiRequestDeferredException"/> (the machine is busy) or
+    /// <see cref="AiRequestPreemptedException"/> (a person's request made it step aside) without recording anything,
+    /// so the caller can try again later.
     /// </summary>
     public async Task<HardwareProfile> BenchmarkAsync(
         bool force = false,
@@ -75,6 +76,11 @@ public sealed class HardwareBenchmarkService
             }
             catch (AiRequestDeferredException)
             {
+                throw;
+            }
+            catch (AiRequestPreemptedException)
+            {
+                // A person's request made the benchmark step aside: nothing is recorded, so it can be run again later.
                 throw;
             }
             catch (Exception ex)

@@ -30,7 +30,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
     internal const string RuntimeNotInstalled = "AI runtime not installed";
     internal const string ModelNotDownloaded = "Model not downloaded";
     internal const string TextReadingOff = "Text reading is off";
-    internal const string TesseractNotInstalled = "Tesseract not installed";
+    internal const string TextRecognitionNotInstalled = "Text recognition is not installed.";
     internal const string MachineBusy = "Waiting: the machine is busy";
 
     private const string PreemptedMessage = "Paused to make way for something you were doing";
@@ -38,6 +38,8 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
     private const string WaitedTooLongMessage = "Waited too long for its turn";
     private const string RequestFailedMessage = "The request failed";
     private const string InvalidJsonMessage = "The model did not return valid JSON";
+    private const string AllowanceCheckFailedMessage = "The Local AI allowance could not be checked";
+    private const string AvailabilityCheckFailedMessage = "Text reading could not be checked";
 
     private readonly AiSettings _settings;
     private readonly ModelInventory _inventory;
@@ -190,14 +192,46 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
             return (null, await FinishAsync(caller, info, startedAt, AiRequestStatus.Unavailable, unavailable).ConfigureAwait(false));
         }
 
-        var budget = caller.Kind == AiCallerKind.Plugin
-            ? await _budget.GetStatusAsync(caller.Id, ct).ConfigureAwait(false)
-            : null;
-        if (budget is { IsOverBudget: true })
+        // A plugin's allowance is checked and the request admitted as one step, so requests arriving together cannot all
+        // pass on the same count. The admission is held until the usage record is written.
+        PluginAiBudget.PluginAdmission? admission = null;
+        if (caller.Kind == AiCallerKind.Plugin)
         {
-            return (null, await FinishAsync(caller, info, startedAt, AiRequestStatus.RefusedOverBudget, PluginAiBudget.OverBudgetMessage).ConfigureAwait(false));
+            try
+            {
+                admission = await _budget.TryAdmitAsync(caller.Id, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not check the Local AI allowance of {Caller}.", caller.Id);
+                return (null, await FinishAsync(caller, info, startedAt, AiRequestStatus.Failed, AllowanceCheckFailedMessage, recordMessage: AllowanceCheckFailedMessage).ConfigureAwait(false));
+            }
+
+            if (admission is null)
+            {
+                return (null, await FinishAsync(caller, info, startedAt, AiRequestStatus.RefusedOverBudget, PluginAiBudget.OverBudgetMessage).ConfigureAwait(false));
+            }
         }
 
+        try
+        {
+            return await RunAdmittedTextAsync(caller, info, role, startedAt, options, infer, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            admission?.Dispose();
+        }
+    }
+
+    private async Task<(TValue? Value, AiRequestOutcome Outcome)> RunAdmittedTextAsync<TValue>(
+        AiCaller caller,
+        AiAbilityInfo info,
+        AiModelRole role,
+        DateTimeOffset startedAt,
+        AiRequestOptions? options,
+        Func<AiModelRole, InferenceRequestOptions?, CancellationToken, Task<InferenceOutcome<TValue>>> infer,
+        CancellationToken ct) where TValue : class
+    {
         var requestOptions = ResolveOptions(role, options);
         var queueLimit = caller.Kind == AiCallerKind.Plugin
             ? TimeSpan.FromSeconds(_settings.GetPluginBudget(caller.Id).MaxWaitSeconds)
@@ -231,7 +265,6 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
             }
         }
 
-        _textQueue.Arrive(caller.Kind);
         AiEngineSlot? slot;
         try
         {
@@ -349,18 +382,58 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
         var startedAt = _time.GetUtcNow();
 
         // Text reading is a tool, not AI for the person: it never depends on Local AI being on.
-        var unavailable = await CheckTextReadingAvailabilityAsync(ct).ConfigureAwait(false);
+        string? unavailable;
+        try
+        {
+            unavailable = await CheckTextReadingAvailabilityAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Could not check whether text reading is available for {Caller}.", caller.Id);
+            return new AiImageTextResult(null, await FinishAsync(caller, info, startedAt, AiRequestStatus.Failed, AvailabilityCheckFailedMessage, recordMessage: AvailabilityCheckFailedMessage).ConfigureAwait(false));
+        }
+
         if (unavailable is not null)
         {
             return new AiImageTextResult(null, await FinishAsync(caller, info, startedAt, AiRequestStatus.Unavailable, unavailable).ConfigureAwait(false));
         }
 
-        if (caller.Kind == AiCallerKind.Plugin
-            && (await _budget.GetStatusAsync(caller.Id, ct).ConfigureAwait(false)).IsOverBudget)
+        PluginAiBudget.PluginAdmission? admission = null;
+        if (caller.Kind == AiCallerKind.Plugin)
         {
-            return new AiImageTextResult(null, await FinishAsync(caller, info, startedAt, AiRequestStatus.RefusedOverBudget, PluginAiBudget.OverBudgetMessage).ConfigureAwait(false));
+            try
+            {
+                admission = await _budget.TryAdmitAsync(caller.Id, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Could not check the Local AI allowance of {Caller}.", caller.Id);
+                return new AiImageTextResult(null, await FinishAsync(caller, info, startedAt, AiRequestStatus.Failed, AllowanceCheckFailedMessage, recordMessage: AllowanceCheckFailedMessage).ConfigureAwait(false));
+            }
+
+            if (admission is null)
+            {
+                return new AiImageTextResult(null, await FinishAsync(caller, info, startedAt, AiRequestStatus.RefusedOverBudget, PluginAiBudget.OverBudgetMessage).ConfigureAwait(false));
+            }
         }
 
+        try
+        {
+            return await ReadAdmittedAsync(caller, info, startedAt, request, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            admission?.Dispose();
+        }
+    }
+
+    private async Task<AiImageTextResult> ReadAdmittedAsync(
+        AiCaller caller,
+        AiAbilityInfo info,
+        DateTimeOffset startedAt,
+        AiImageTextRequest request,
+        CancellationToken ct)
+    {
         var queueLimit = caller.Kind == AiCallerKind.Plugin
             ? TimeSpan.FromSeconds(_settings.GetPluginBudget(caller.Id).MaxWaitSeconds)
             : request.Timeout;
@@ -368,7 +441,6 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
         using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         waitCts.CancelAfter(queueLimit);
 
-        _tesseractQueue.Arrive(caller.Kind);
         AiEngineSlot? slot;
         try
         {
@@ -488,7 +560,7 @@ public sealed class LocalAiEngineRoom : IAiEngineRoom, IDisposable
         }
 
         var capability = await _ocr.GetCapabilityAsync(ct).ConfigureAwait(false);
-        return capability.IsAvailable ? null : TesseractNotInstalled;
+        return capability.IsAvailable ? null : TextRecognitionNotInstalled;
     }
 
     // ── Shared steps ─────────────────────────────────────────────────────────

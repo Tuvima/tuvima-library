@@ -54,18 +54,6 @@ internal sealed class AiEngineQueue
         }
     }
 
-    /// <summary>
-    /// Announces that a request of <paramref name="kind"/> has arrived. A person's arrival cancels running Library
-    /// background and plugin work on this engine (never ingestion). Call before waiting for a slot.
-    /// </summary>
-    public void Arrive(AiCallerKind kind)
-    {
-        if (kind == AiCallerKind.Person)
-        {
-            Preempt(AiCallerKind.LibraryBackground, AiCallerKind.Plugin);
-        }
-    }
-
     /// <summary>Asks running requests of the given kinds to step aside; returns how many were asked.</summary>
     public int Preempt(params AiCallerKind[] kinds)
     {
@@ -86,6 +74,9 @@ internal sealed class AiEngineQueue
     /// <summary>
     /// Takes a slot, waiting if none is free. With <paramref name="refuseIfKindActive"/>, returns null at once when another
     /// request of the same kind is already running (the Library background rule "one background inference at a time").
+    /// A person's request also asks running Library background and plugin work to step aside (never ingestion). That
+    /// is decided under the same lock that takes the free slot or joins the line, so no lower-priority request can take a
+    /// slot, or be handed one when a request finishes, between the person arriving and the person being in line.
     /// </summary>
     public async Task<AiEngineSlot?> AcquireAsync(
         AiCallerKind kind,
@@ -94,8 +85,17 @@ internal sealed class AiEngineQueue
     {
         Waiter waiter;
         LinkedListNode<Waiter> node;
+        List<AiEngineSlot> toPreempt = [];
+        AiEngineSlot? immediate = null;
         lock (_sync)
         {
+            if (kind == AiCallerKind.Person)
+            {
+                toPreempt = _active
+                    .Where(slot => (slot.Kind is AiCallerKind.LibraryBackground or AiCallerKind.Plugin) && !slot.WasPreempted)
+                    .ToList();
+            }
+
             if (refuseIfKindActive && _active.Any(slot => slot.Kind == kind))
             {
                 return null;
@@ -103,11 +103,25 @@ internal sealed class AiEngineQueue
 
             if (_active.Count < _capacity)
             {
-                return StartSlotLocked(kind);
+                immediate = StartSlotLocked(kind);
+                waiter = null!;
+                node = null!;
             }
+            else
+            {
+                waiter = new Waiter(kind);
+                node = _waiting[(int)kind].AddLast(waiter);
+            }
+        }
 
-            waiter = new Waiter(kind);
-            node = _waiting[(int)kind].AddLast(waiter);
+        foreach (var slot in toPreempt)
+        {
+            slot.Preempt();
+        }
+
+        if (immediate is not null)
+        {
+            return immediate;
         }
 
         using var registration = waitToken.Register(() =>

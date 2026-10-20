@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Contracts;
@@ -22,6 +23,7 @@ public sealed class PluginAiBudget
     private readonly AiSettings _settings;
     private readonly IAiUsageRecordRepository _usage;
     private readonly TimeProvider _time;
+    private readonly ConcurrentDictionary<string, PluginGate> _gates = new(StringComparer.Ordinal);
 
     public PluginAiBudget(AiSettings settings, IAiUsageRecordRepository usage, TimeProvider? time = null)
     {
@@ -32,14 +34,72 @@ public sealed class PluginAiBudget
         _time = time ?? TimeProvider.System;
     }
 
+    /// <summary>The plugin's standing from the stored records alone. Used for health.</summary>
     public async Task<PluginAiBudgetStatus> GetStatusAsync(string pluginId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        return await ReadStatusAsync(pluginId, pending: 0, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Checks the allowance and admits the request as one step for that plugin, so two requests arriving together cannot
+    /// both pass on the same count. Requests admitted but not yet recorded count too. Returns null when the plugin is over
+    /// its allowance; otherwise a lease that must be disposed after the request's usage record has been written.
+    /// </summary>
+    public async Task<PluginAdmission?> TryAdmitAsync(string pluginId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        var gate = _gates.GetOrAdd(pluginId, _ => new PluginGate());
+        await gate.Lock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var status = await ReadStatusAsync(pluginId, gate.Pending, ct).ConfigureAwait(false);
+            if (status.IsOverBudget)
+            {
+                return null;
+            }
+
+            gate.Pending++;
+            return new PluginAdmission(gate);
+        }
+        finally
+        {
+            gate.Lock.Release();
+        }
+    }
+
+    private async Task<PluginAiBudgetStatus> ReadStatusAsync(string pluginId, int pending, CancellationToken ct)
+    {
         var budget = _settings.GetPluginBudget(pluginId);
         var since = _time.GetUtcNow() - Window;
         var totals = await _usage.GetTotalsSinceAsync(AiCallerKind.Plugin, pluginId, since, ct).ConfigureAwait(false);
-        var over = totals.Requests >= budget.RequestsPerHour
+        var requests = totals.Requests + pending;
+        var over = requests >= budget.RequestsPerHour
             || totals.BusyMs >= (long)budget.BusySecondsPerHour * 1000;
-        return new PluginAiBudgetStatus(over, totals.Requests, totals.BusyMs, budget);
+        return new PluginAiBudgetStatus(over, requests, totals.BusyMs, budget);
+    }
+
+    internal sealed class PluginGate
+    {
+        public SemaphoreSlim Lock { get; } = new(1, 1);
+
+        public int Pending;
+    }
+
+    /// <summary>A request admitted against a plugin's allowance. Dispose it once the request's usage record is written.</summary>
+    public sealed class PluginAdmission : IDisposable
+    {
+        private PluginGate? _gate;
+
+        internal PluginAdmission(PluginGate gate) => _gate = gate;
+
+        public void Dispose()
+        {
+            var gate = Interlocked.Exchange(ref _gate, null);
+            if (gate is not null)
+            {
+                Interlocked.Decrement(ref gate.Pending);
+            }
+        }
     }
 }

@@ -22,7 +22,13 @@ internal sealed class StubRuntimeStatus(bool textLoads = true) : IAiRuntimeStatu
 
     public bool AudioRuntimeLoads { get; set; }
 
-    public bool RefreshTextRuntime() => TextRuntimeLoads;
+    public int RefreshCalls { get; private set; }
+
+    public bool RefreshTextRuntime()
+    {
+        RefreshCalls++;
+        return TextRuntimeLoads;
+    }
 }
 
 /// <summary>Hand-written admission rules: <see cref="Reason"/> is why background work may not start now, or null.</summary>

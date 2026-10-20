@@ -600,7 +600,7 @@ public sealed class LocalAiEngineRoomTests
     }
 
     [Fact]
-    public async Task TextReading_WithTesseractMissing_AnswersTesseractNotInstalled()
+    public async Task TextReading_WithTesseractMissing_KeepsTheWordingPeopleAlreadySee()
     {
         using var harness = new EngineRoomHarness();
         harness.Ocr.Capability = OcrCapability.Unavailable("not found");
@@ -608,7 +608,7 @@ public sealed class LocalAiEngineRoomTests
         var availability = await harness.Room.GetAvailabilityAsync(AiAbility.ReadTextFromImage);
 
         Assert.False(availability.IsAvailable);
-        Assert.Equal("Tesseract not installed", availability.Reason);
+        Assert.Equal("Text recognition is not installed.", availability.Reason);
     }
 
     private static async Task<OcrRecognition> ReadThatEndsBadlyAsync(string how, CancellationToken ct)

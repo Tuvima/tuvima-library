@@ -96,7 +96,7 @@ public sealed partial class LocalAiEngineRoomGuardrailTests
         throw new DirectoryNotFoundException("Could not find the repository root from " + AppContext.BaseDirectory);
     }
 
-    [GeneratedRegex(@"\b(ITextInferenceService|ILlamaInferenceService)\b")]
+    [GeneratedRegex(@"\b(ITextInferenceService|ILlamaInferenceService|LlamaInferenceService)\b")]
     private static partial Regex TextInferenceName();
 
     [GeneratedRegex(@"\.RecognizeAsync\(")]
