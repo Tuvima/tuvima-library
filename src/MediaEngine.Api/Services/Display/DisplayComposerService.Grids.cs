@@ -32,7 +32,7 @@ public sealed partial class DisplayComposerService
     ];
 
     /// <summary>
-    /// One page of a shelf's full item list. Returns null when there is no such grid; throws <see cref="ArgumentException"/>
+    /// One page of a shelf's full item list. Returns null when there is no such grid; throws <see cref="DisplayGridQueryException"/>
     /// when the sort or a filter value is not one the grids offer. The items come from the same authorized projection
     /// the lane pages read, so the profile's content limit, library and lane grants apply exactly as they do there.
     /// </summary>
@@ -63,7 +63,8 @@ public sealed partial class DisplayComposerService
         Guid? profileId,
         CancellationToken ct)
     {
-        var source = await BuildGridSourceAsync(definition, profileId, ct);
+        var sort = selection.Sort ?? definition.DefaultSort;
+        var source = await BuildGridSourceAsync(definition, sort, profileId, ct);
         if (source is null)
         {
             return null;
@@ -74,7 +75,9 @@ public sealed partial class DisplayComposerService
             DisplayGridValues.TypeMovie or DisplayGridValues.TypeTv or DisplayGridValues.TypeBook or DisplayGridValues.TypeComic);
         if (_formats is not null && (formatsApply || selection.Format is not null))
         {
-            var formats = await _formats.LoadAsync(ct);
+            var scope = await _readService.LoadLibraryScopeAsync(ct);
+            var workIds = entries.SelectMany(entry => entry.WorkIds).ToHashSet();
+            var formats = DisplayFormatReader.ForViewer(await _formats.LoadAsync(ct), workIds, scope);
             entries = entries.Select(entry => entry with { Formats = FormatsOf(entry, formats) }).ToList();
         }
         else
@@ -82,7 +85,6 @@ public sealed partial class DisplayComposerService
             formatsApply = false;
         }
 
-        var sort = selection.Sort ?? definition.DefaultSort;
         var matching = entries.Where(entry => Matches(entry, selection, skip: null)).ToList();
         var ordered = SortGridEntries(matching, sort);
         var start = Math.Max(0, offset);
@@ -143,7 +145,7 @@ public sealed partial class DisplayComposerService
 
     // -- sources ----------------------------------------------------------------------------------------------
 
-    private async Task<GridSource?> BuildGridSourceAsync(DisplayGridDefinition definition, Guid? profileId, CancellationToken ct)
+    private async Task<GridSource?> BuildGridSourceAsync(DisplayGridDefinition definition, string sort, Guid? profileId, CancellationToken ct)
     {
         var works = await _readService.LoadWorksAsync(ct);
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
@@ -281,7 +283,10 @@ public sealed partial class DisplayComposerService
                 return null;
         }
 
-        var stats = await LoadGridMusicStatsAsync(cards, context, profileId, ct);
+        // Play counts only decide the order of "Last played"; every other order skips the read.
+        var stats = sort == DisplayGridValues.SortPlayed
+            ? await LoadGridMusicStatsAsync(cards, context, profileId, ct)
+            : new Dictionary<Guid, MusicPlayStat>();
         var entries = cards.Select(card => context.Entry(card, stats)).ToList();
         return new GridSource(entries, title, subtitle);
     }
@@ -325,6 +330,7 @@ public sealed partial class DisplayComposerService
             : new Dictionary<Guid, ManagedCollectionDto>();
 
         var cards = new List<GridCard>();
+        var seen = new HashSet<Guid>();
         foreach (var entry in entries)
         {
             DisplayCardDto? card = entry.Kind switch
@@ -333,7 +339,7 @@ public sealed partial class DisplayComposerService
                 ProfileEntityKind.Playlist => playlists.TryGetValue(entry.EntityId, out var playlist) ? FromPlaylist(playlist) : null,
                 _ => media.GetValueOrDefault(entry.EntityId),
             };
-            if (card is null || cards.Any(existing => existing.Card.Id == card.Id))
+            if (card is null || !seen.Add(card.Id))
             {
                 continue;
             }
@@ -517,6 +523,8 @@ public sealed partial class DisplayComposerService
         }
     }
 
+    // `formats` already holds only files in libraries the viewer may see: a 4K copy in a library they have no grant for
+    // must not be offered, counted or matched, while one in any granted library counts.
     private static IReadOnlySet<string> FormatsOf(GridEntry entry, IReadOnlyDictionary<Guid, IReadOnlySet<string>> formats)
     {
         if (entry.WorkIds.Count == 0
@@ -528,7 +536,10 @@ public sealed partial class DisplayComposerService
         var found = new HashSet<string>(StringComparer.Ordinal);
         foreach (var workId in entry.WorkIds)
         {
-            found.UnionWith(DisplayFormatReader.ForWork(formats, workId));
+            if (formats.TryGetValue(workId, out var owned))
+            {
+                found.UnionWith(owned);
+            }
         }
 
         return found;
