@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0013 companion_live_states).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0014 drop_duplicate_canonical_values_index).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2674,9 +2674,6 @@ CREATE INDEX idx_canonical_value_arrays_key_value_entity
 
 CREATE INDEX idx_canonical_values_artwork_scored ON canonical_values (last_scored_at)
     WHERE key IN ('cover_state', 'cover_url', 'artwork_settled_at');
-
-CREATE INDEX idx_canonical_values_entity_key
-    ON canonical_values(entity_id, key);
 
 CREATE INDEX idx_canonical_values_key_value_entity
     ON canonical_values(key, value, entity_id);
