@@ -154,32 +154,8 @@ public static partial class MetadataEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
 
-        group.MapGet("/{entityId:guid}/membership-suggestions", async (
-            Guid entityId,
-            string field,
-            string? query,
-            string? source,
-            Guid? parentEntityId,
-            string? parentValue,
-            IMediaEditorMembershipReadService membershipReadService,
-            IHttpClientFactory httpFactory,
-            IMemoryCache cache,
-            CancellationToken ct) =>
-        {
-            var suggestions = await membershipReadService.GetSuggestionsAsync(entityId, field, query, source, parentEntityId, parentValue, ct);
-            var results = suggestions.Select(ToContract).ToList();
-            await Task.WhenAll(suggestions.Select(async (suggestion, index) =>
-                results[index].PreviewUrl = suggestion.LocalExisting
-                    ? suggestion.ImageUrl
-                    : await RetailCandidateArtworkPreview.LoadAsync(
-                        suggestion.ProviderName, suggestion.ImageUrl, httpFactory, cache, ct)));
-            return Results.Ok(results);
-        })
-        .WithName("GetMediaEditorMembershipSuggestions")
-        .WithSummary("Return same-media-type autocomplete targets for membership correction.")
-        .Produces<IReadOnlyList<MediaEditorMembershipSuggestionDto>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
-
+        // The retail rematch asks for the hierarchy impact of a candidate before it is applied. Moving a title into another album,
+        // season or series is the library move actions (/library/items/move-preview and /library/items/move), not this.
         group.MapPost("/{entityId:guid}/membership-preview", async (
             Guid entityId,
             MediaEditorMembershipPreviewRequestDto request,
@@ -196,23 +172,6 @@ public static partial class MetadataEndpoints
         .Produces<MediaEditorMembershipPreviewDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
-
-        group.MapPost("/{entityId:guid}/membership-apply", async (
-            Guid entityId,
-            MediaEditorMembershipPreviewRequestDto request,
-            IHierarchyAlignmentService hierarchyAlignment,
-            CancellationToken ct) =>
-        {
-            var result = await hierarchyAlignment.ApplyAsync(entityId, ToInternal(request), ct);
-            return result is null
-                ? ApiErrors.NotFound($"Membership apply for {entityId} not found.")
-                : Results.Ok(ToContract(result));
-        })
-        .WithName("ApplyMediaEditorMembershipChange")
-        .WithSummary("Apply a confirmed hierarchy move or parent identity rename.")
-        .Produces<MediaEditorMembershipPreviewDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataWrite);
     }
 
     private static MediaEditorNavigatorDto ToContract(
@@ -288,21 +247,6 @@ public static partial class MetadataEndpoints
                 DiscNumber = item.DiscNumber,
                 VolumeNumber = item.VolumeNumber,
             }).ToList(),
-        };
-
-    private static MediaEditorMembershipSuggestionDto ToContract(
-        MembershipSuggestionEnvelope source) => new()
-        {
-            EntityId = source.EntityId,
-            Source = source.Source,
-            LocalExisting = source.LocalExisting,
-            Kind = source.Kind,
-            Label = source.Label,
-            Subtitle = source.Subtitle,
-            ProviderName = source.ProviderName,
-            ProviderItemId = source.ProviderItemId,
-            ExternalIdKey = source.ExternalIdKey,
-            ExternalIdValue = source.ExternalIdValue,
         };
 
     private static MediaEditorMembershipPreviewDto ToContract(

@@ -410,103 +410,114 @@ public sealed class LibraryItemDeletionRepository(
             return new LibraryItemDeletionDataResult([], [], [], [], []);
         }
 
-        return await db.ExecuteWriteAsync((connection, transaction, _) =>
+        return await db.ExecuteWriteAsync(
+            (connection, transaction, _) => DeleteWorksCore(connection, transaction, distinct),
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The removal itself, on the caller's connection and transaction, so another write (a move that merges a title into another)
+    /// can remove titles inside its own transaction. <paramref name="distinct"/> must be non-empty.
+    /// </summary>
+    internal static LibraryItemDeletionDataResult DeleteWorksCore(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        IReadOnlyList<Guid> distinct)
+    {
+        // The ids of everything that goes live in connection-private scratch tables for the length of this transaction, so no
+        // statement carries a long parameter list. They are emptied before the commit (and a rollback takes the rows away too).
+        connection.Execute("""
+            CREATE TEMP TABLE IF NOT EXISTS deletion_works (id BLOB NOT NULL PRIMARY KEY);
+            CREATE TEMP TABLE IF NOT EXISTS deletion_editions (id BLOB NOT NULL PRIMARY KEY);
+            CREATE TEMP TABLE IF NOT EXISTS deletion_assets (id BLOB NOT NULL PRIMARY KEY);
+            CREATE TEMP TABLE IF NOT EXISTS deletion_ids (id BLOB NOT NULL PRIMARY KEY);
+            CREATE TEMP TABLE IF NOT EXISTS deletion_artwork (id BLOB NOT NULL PRIMARY KEY);
+            """, transaction: transaction);
+        ClearScratchTables(connection, transaction);
+        connection.Execute(
+            "INSERT OR IGNORE INTO deletion_works (id) VALUES (@id);",
+            distinct.Select(id => new { id }),
+            transaction);
+        connection.Execute("""
+            INSERT OR IGNORE INTO deletion_editions (id) SELECT e.id FROM editions e WHERE e.work_id IN (SELECT id FROM deletion_works);
+            INSERT OR IGNORE INTO deletion_assets (id) SELECT ma.id FROM media_assets ma WHERE ma.edition_id IN (SELECT id FROM deletion_editions);
+            INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_works;
+            INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_editions;
+            INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_assets;
+            """, transaction: transaction);
+
+        var editionIds = connection.Query<Guid>("SELECT id FROM deletion_editions;", transaction: transaction).ToList();
+        var assetIds = connection.Query<Guid>("SELECT id FROM deletion_assets;", transaction: transaction).ToList();
+
+        // Artwork only these titles used: every link to the picture comes from something being deleted. Its row cannot go until
+        // its links do (RESTRICT), so the list is made first.
+        connection.Execute("""
+            INSERT OR IGNORE INTO deletion_artwork (id)
+            SELECT DISTINCT link.artwork_asset_id
+            FROM entity_artwork_links link
+            WHERE link.entity_id IN (SELECT id FROM deletion_ids)
+              AND NOT EXISTS (
+                  SELECT 1 FROM entity_artwork_links other
+                  WHERE other.artwork_asset_id = link.artwork_asset_id
+                    AND other.entity_id NOT IN (SELECT id FROM deletion_ids));
+            """, transaction: transaction);
+
+        // Files Tuvima wrote that nothing will point at once the rows are gone. The caller removes them after the commit.
+        var ownedFiles = new List<string>();
+        ownedFiles.AddRange(connection.Query<string>("""
+            SELECT p FROM (
+                SELECT original_path AS p FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
+                UNION SELECT small_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
+                UNION SELECT medium_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
+                UNION SELECT large_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
+                UNION SELECT local_image_path FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
+                UNION SELECT local_image_path_s FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
+                UNION SELECT local_image_path_m FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
+                UNION SELECT local_image_path_l FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
+                UNION SELECT local_path FROM text_tracks WHERE asset_id IN (SELECT id FROM deletion_assets)
+                UNION SELECT sidecar_path FROM text_tracks WHERE asset_id IN (SELECT id FROM deletion_assets)
+            ) WHERE p IS NOT NULL AND p <> '';
+            """, transaction: transaction));
+
+        // Records that point at a title, edition or file by id with no foreign key to cascade from.
+        foreach (var sql in IdKeyedDeletes)
         {
-            // The ids of everything that goes live in connection-private scratch tables for the length of this transaction, so no
-            // statement carries a long parameter list. They are emptied before the commit (and a rollback takes the rows away too).
-            connection.Execute("""
-                CREATE TEMP TABLE IF NOT EXISTS deletion_works (id BLOB NOT NULL PRIMARY KEY);
-                CREATE TEMP TABLE IF NOT EXISTS deletion_editions (id BLOB NOT NULL PRIMARY KEY);
-                CREATE TEMP TABLE IF NOT EXISTS deletion_assets (id BLOB NOT NULL PRIMARY KEY);
-                CREATE TEMP TABLE IF NOT EXISTS deletion_ids (id BLOB NOT NULL PRIMARY KEY);
-                CREATE TEMP TABLE IF NOT EXISTS deletion_artwork (id BLOB NOT NULL PRIMARY KEY);
-                """, transaction: transaction);
-            ClearScratchTables(connection, transaction);
-            connection.Execute(
-                "INSERT OR IGNORE INTO deletion_works (id) VALUES (@id);",
-                distinct.Select(id => new { id }),
-                transaction);
-            connection.Execute("""
-                INSERT OR IGNORE INTO deletion_editions (id) SELECT e.id FROM editions e WHERE e.work_id IN (SELECT id FROM deletion_works);
-                INSERT OR IGNORE INTO deletion_assets (id) SELECT ma.id FROM media_assets ma WHERE ma.edition_id IN (SELECT id FROM deletion_editions);
-                INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_works;
-                INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_editions;
-                INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_assets;
-                """, transaction: transaction);
+            connection.Execute(sql, transaction: transaction);
+        }
 
-            var editionIds = connection.Query<Guid>("SELECT id FROM deletion_editions;", transaction: transaction).ToList();
-            var assetIds = connection.Query<Guid>("SELECT id FROM deletion_assets;", transaction: transaction).ToList();
+        // Pictures only these titles used, and their search entries.
+        connection.Execute("""
+            DELETE FROM artwork_asset_search WHERE artwork_asset_id IN (SELECT id FROM deletion_artwork);
+            DELETE FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork);
+            """, transaction: transaction);
 
-            // Artwork only these titles used: every link to the picture comes from something being deleted. Its row cannot go until
-            // its links do (RESTRICT), so the list is made first.
-            connection.Execute("""
-                INSERT OR IGNORE INTO deletion_artwork (id)
-                SELECT DISTINCT link.artwork_asset_id
-                FROM entity_artwork_links link
-                WHERE link.entity_id IN (SELECT id FROM deletion_ids)
-                  AND NOT EXISTS (
-                      SELECT 1 FROM entity_artwork_links other
-                      WHERE other.artwork_asset_id = link.artwork_asset_id
-                        AND other.entity_id NOT IN (SELECT id FROM deletion_ids));
-                """, transaction: transaction);
+        // A chosen series entry that pointed at a deleted title keeps its place, unlinked.
+        connection.Execute(
+            "UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id IN (SELECT id FROM deletion_works);",
+            transaction: transaction);
 
-            // Files Tuvima wrote that nothing will point at once the rows are gone. The caller removes them after the commit.
-            var ownedFiles = new List<string>();
-            ownedFiles.AddRange(connection.Query<string>("""
-                SELECT p FROM (
-                    SELECT original_path AS p FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
-                    UNION SELECT small_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
-                    UNION SELECT medium_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
-                    UNION SELECT large_path FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork)
-                    UNION SELECT local_image_path FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
-                    UNION SELECT local_image_path_s FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
-                    UNION SELECT local_image_path_m FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
-                    UNION SELECT local_image_path_l FROM entity_assets WHERE entity_id IN (SELECT id FROM deletion_ids)
-                    UNION SELECT local_path FROM text_tracks WHERE asset_id IN (SELECT id FROM deletion_assets)
-                    UNION SELECT sidecar_path FROM text_tracks WHERE asset_id IN (SELECT id FROM deletion_assets)
-                ) WHERE p IS NOT NULL AND p <> '';
-                """, transaction: transaction));
+        // Everything else that belongs to the titles (progress, bookmarks, highlights, queue entries, play counts, telemetry
+        // links, text tracks, derived files, coverage) hangs off the asset or the Work with ON DELETE CASCADE or SET NULL.
+        connection.Execute("""
+            -- readiness: removes the requested works by id; a title that is not ready can still be deleted
+            DELETE FROM media_assets WHERE id IN (SELECT id FROM deletion_assets);
+            DELETE FROM editions WHERE id IN (SELECT id FROM deletion_editions);
+            DELETE FROM works WHERE id IN (SELECT id FROM deletion_works);
+            """, transaction: transaction);
 
-            // Records that point at a title, edition or file by id with no foreign key to cascade from.
-            foreach (var sql in IdKeyedDeletes)
-            {
-                connection.Execute(sql, transaction: transaction);
-            }
+        // A hand-picked collection whose last title just left is deleted too (it writes its own activity entry).
+        var collections = CuratedCollectionCleanup.DeleteEmpty(connection, transaction);
 
-            // Pictures only these titles used, and their search entries.
-            connection.Execute("""
-                DELETE FROM artwork_asset_search WHERE artwork_asset_id IN (SELECT id FROM deletion_artwork);
-                DELETE FROM artwork_assets WHERE id IN (SELECT id FROM deletion_artwork);
-                """, transaction: transaction);
+        // A file is Tuvima's to remove only when no remaining row still points at it: artwork rows are content-addressed, so another
+        // title's picture can be served by the very file a deleted title's entity asset names.
+        var stillReferenced = AssetFileReferences.LoadReferencedPaths(connection, transaction);
+        var deletable = ownedFiles
+            .Where(path => !stillReferenced.Contains(NormalizeForComparison(path)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-            // A chosen series entry that pointed at a deleted title keeps its place, unlinked.
-            connection.Execute(
-                "UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id IN (SELECT id FROM deletion_works);",
-                transaction: transaction);
-
-            // Everything else that belongs to the titles (progress, bookmarks, highlights, queue entries, play counts, telemetry
-            // links, text tracks, derived files, coverage) hangs off the asset or the Work with ON DELETE CASCADE or SET NULL.
-            connection.Execute("""
-                -- readiness: removes the requested works by id; a title that is not ready can still be deleted
-                DELETE FROM media_assets WHERE id IN (SELECT id FROM deletion_assets);
-                DELETE FROM editions WHERE id IN (SELECT id FROM deletion_editions);
-                DELETE FROM works WHERE id IN (SELECT id FROM deletion_works);
-                """, transaction: transaction);
-
-            // A hand-picked collection whose last title just left is deleted too (it writes its own activity entry).
-            var collections = CuratedCollectionCleanup.DeleteEmpty(connection, transaction);
-
-            // A file is Tuvima's to remove only when no remaining row still points at it: artwork rows are content-addressed, so another
-            // title's picture can be served by the very file a deleted title's entity asset names.
-            var stillReferenced = AssetFileReferences.LoadReferencedPaths(connection, transaction);
-            var deletable = ownedFiles
-                .Where(path => !stillReferenced.Contains(NormalizeForComparison(path)))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            ClearScratchTables(connection, transaction);
-            return new LibraryItemDeletionDataResult(editionIds, assetIds, collections, deletable, stillReferenced);
-        }, ct).ConfigureAwait(false);
+        ClearScratchTables(connection, transaction);
+        return new LibraryItemDeletionDataResult(editionIds, assetIds, collections, deletable, stillReferenced);
     }
 
     private static string NormalizeForComparison(string path)

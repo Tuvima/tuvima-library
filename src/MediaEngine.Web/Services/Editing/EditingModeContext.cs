@@ -5,7 +5,9 @@ namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
 /// The sections the Editing Mode banner can open below the hero, one at a time. Details is only used by the Universe
-/// editor (one workspace with its own categories); an item's own fields are edited in place with pencils.
+/// editor (one workspace with its own categories); an item's own fields are edited in place with pencils. Batch is the
+/// "Edit together" section of the ticked rows: it opens above the rows in the list column, not in the hero's section slot,
+/// but it shares the one-open-section rule and the "Save or discard?" guard.
 /// </summary>
 public enum EditingSection
 {
@@ -13,6 +15,7 @@ public enum EditingSection
     Artwork,
     Match,
     History,
+    Batch,
 }
 
 /// <summary>The person's answer to "Save or discard?". Closing the dialog (Esc or the close button) is <see cref="Cancel"/>.</summary>

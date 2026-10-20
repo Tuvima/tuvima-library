@@ -57,8 +57,8 @@ public sealed class MediaEditorLauncherService
             return EditorLaunchResult.NotAvailable;
         }
 
-        // Legacy batch launches must not silently choose a representative
-        // item or fan an editor change out across several owned works.
+        // This editor takes exactly one item. A batch is edited together on the details page (the "Edit together" section),
+        // so a launch with several items must never silently choose a representative or fan a change out across several works.
         if (request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1)
         {
             return EditorLaunchResult.NotAvailable;

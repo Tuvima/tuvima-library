@@ -44,6 +44,7 @@
 else if (Model is not null)
 {
     <CascadingValue Value="_editing" IsFixed="true">
+    <CascadingValue Value="_batch" IsFixed="true">
     <article class="tl-detail-page">
         @* Editing Mode: the banner is the first thing in the page's scroll container and sticks to its top; it is outside the
            hero because the full-bleed hero clips what overflows it. *@
@@ -118,6 +119,7 @@ else if (Model is not null)
         </section>
     </article>
     </CascadingValue>
+    </CascadingValue>
 }
 
 @code {
@@ -154,6 +156,9 @@ else if (Model is not null)
     // Editing Mode (the banner, pencils and one section below the hero) is for single items. Collections, series shelves and
     // people keep their own editors.
     private EditingModeContext? _editing;
+
+    // The rows ticked for "Edit together", Move and Delete (spec D8). It ends with Editing Mode; the rows ask the page to refresh through it.
+    private readonly DetailBatchSelection _batch = new();
     private Guid? _editingProfileId;
     private IDisposable? _overlayGuard;
     private IDisposable? _overlayEscape;
@@ -167,11 +172,16 @@ else if (Model is not null)
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
+        _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         UpdateEditingEligibility();
     }
 
-    protected override void OnParametersSet() => UpdateEditingEligibility();
+    protected override void OnParametersSet()
+    {
+        UpdateEditingEligibility();
+        _batch.MediaType = Model is null ? null : ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
+    }
 
     /// <summary>The details overlay this page is shown in; null when the page is rendered on its own.</summary>
     [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
@@ -195,6 +205,12 @@ else if (Model is not null)
 
     private void OnEditingChanged()
     {
+        if (_editing is { IsOn: false })
+        {
+            // Leaving Editing Mode (Done, a device change, a removed title) ends the ticks and the last batch result with it.
+            _batch.Clear();
+        }
+
         SyncOverlayGuards();
         _ = InvokeAsync(StateHasChanged);
     }
@@ -780,6 +796,8 @@ else if (Model is not null)
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
             OnArtworkChanged = RefreshCurrentDetailAsync,
+            OnEditedItemReplaced = FollowMovedItemAsync,
+            IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
             PreviewItems =
             [
                 new MediaEditorPreviewItem
@@ -891,6 +909,20 @@ else if (Model is not null)
             CanEdit = collection.CanEdit,
             CanShare = collection.CanShare,
         };
+
+    // A move merged the title this page shows into another (or an audiobook part joined another audiobook), so the Work in the address
+    // may be gone: the address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so
+    // Back still returns to the page beneath. A page showing something else (an album with a song moved out of it) keeps its address.
+    private Task FollowMovedItemAsync(Guid previousId, Guid survivingId)
+    {
+        if (Model is null || _disposed || !Guid.TryParse(Model.Id, out var pageId) || pageId != previousId)
+        {
+            return Task.CompletedTask;
+        }
+
+        DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId);
+        return Task.CompletedTask;
+    }
 
     private async Task RefreshCurrentDetailAsync()
     {

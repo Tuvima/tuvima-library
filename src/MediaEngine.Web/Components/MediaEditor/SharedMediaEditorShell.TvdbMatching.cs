@@ -11,10 +11,6 @@ public partial class SharedMediaEditorShell
     private string? _tvdbSearchError;
     private bool _tvdbApplyPending;
     private CancellationTokenSource? _tvdbSearchCancellation;
-    private TvdbScopedMatchCandidatesDto? _tvdbPlacementSeasons;
-    private bool _tvdbPlacementSeasonsPending;
-    private bool _resumeEpisodeMatchAfterPlacement;
-    private bool _scrollToEpisodePlacement;
     private bool _tvdbCrossShowSearch;
 
     protected bool IsTvdbScopedMatching => EditorMediaType == "TV"
@@ -124,71 +120,7 @@ public partial class SharedMediaEditorShell
         _tvdbSearchError = null;
         _selectedTvdbCandidate = null;
         _tvdbSearchPending = false;
-        _tvdbPlacementSeasons = null;
-        _tvdbPlacementSeasonsPending = false;
         _tvdbCrossShowSearch = false;
-    }
-
-    protected async Task OpenEpisodePlacementCorrectionAsync()
-    {
-        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode")
-        {
-            return;
-        }
-        _resumeEpisodeMatchAfterPlacement = true;
-        _scrollToEpisodePlacement = true;
-        await OpenDetailsTabAsync();
-    }
-
-    protected async Task LoadTvdbPlacementSeasonsAsync()
-    {
-        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode" || _tvdbPlacementSeasonsPending)
-        {
-            return;
-        }
-
-        var showKey = BuildScopedFieldKey("show_name");
-        _selectedMembershipSuggestions.TryGetValue(showKey, out var selectedShow);
-        if (selectedShow is not null
-            && !string.Equals(selectedShow.ExternalIdKey, "tvdb_id", StringComparison.OrdinalIgnoreCase))
-        {
-            Snackbar.Add("Match the selected show to TheTVDB before browsing its seasons.", AppSeverity.Info);
-            return;
-        }
-        var selectedShowId = selectedShow?.ExternalIdValue;
-        _tvdbPlacementSeasonsPending = true;
-        try
-        {
-            _tvdbPlacementSeasons = await ApiClient.GetTvdbScopedMatchCandidatesAsync(
-                CanonicalEndpointEntityId, "season", seasonNumber: null, seriesId: selectedShowId);
-            if (_tvdbPlacementSeasons is null)
-            {
-                Snackbar.Add(ApiClient.LastError ?? "TheTVDB seasons could not be loaded.", AppSeverity.Error);
-            }
-        }
-        finally
-        {
-            _tvdbPlacementSeasonsPending = false;
-        }
-    }
-
-    protected async Task SelectTvdbPlacementSeasonAsync(TvdbMatchCandidateDto season)
-    {
-        await OnMembershipFieldInputAsync("season_number", season.SeasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        _tvdbPlacementSeasons = null;
-    }
-
-    private async Task<bool> ResumeEpisodeMatchAfterPlacementAsync(bool appliedMembershipMove)
-    {
-        if (!_resumeEpisodeMatchAfterPlacement || !appliedMembershipMove)
-        {
-            return false;
-        }
-        _resumeEpisodeMatchAfterPlacement = false;
-        await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true, preferredScopeId: "episode");
-        await SelectTabInternalAsync("links");
-        await SearchTvdbScopedMatchesAsync();
-        return true;
     }
 
     protected void SelectTvdbCandidate(TvdbMatchCandidateDto candidate) =>
