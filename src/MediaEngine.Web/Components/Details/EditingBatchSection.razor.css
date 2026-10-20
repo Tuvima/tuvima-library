@@ -1,0 +1,56 @@
+.tl-batch {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--tl-accent-primary-border);
+    border-radius: var(--app-radius-md);
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-batch__bar,
+.tl-batch__bar-actions,
+.tl-batch__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tl-batch__bar {
+    justify-content: space-between;
+}
+
+.tl-batch__actions {
+    justify-content: flex-end;
+}
+
+.tl-batch__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tl-batch__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tl-batch__field > label {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.tl-batch__hint,
+.tl-batch__result {
+    margin: 0;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.tl-batch__error {
+    margin-right: auto;
+    font-size: 0.8rem;
+    color: var(--tl-status-error, #ff8a80);
+}
