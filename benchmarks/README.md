@@ -83,11 +83,15 @@ Created through the production path (`new DatabaseConnection(path)`, `Initialize
 
 Media types: 30% Books, 20% Movies, 25% TV episodes (20 per show), 15% Music tracks (12 per album), 6% Audiobooks, 4% Comics. Credits are not a table: the display projection derives them from `canonical_value_arrays` and claims, so persons are referenced by name. `search_index` is not populated; none of the five queries touches it.
 
+Every work is marked Ready (`works.ready_at`), as in a fully processed library: Home, detail and the library list show only Ready works, so without it Home and detail return no rows and look fast.
+
 Seed time on the reference desktop: about 16 s for `full`, under 1 s for `small` and `projection`. Audiobooks carry an explicit original publication year (an identified audiobook normally has one); without it Q4 evaluates a correlated sub-select over the whole credits view for each audiobook.
 
 ## Sizing: why Q4 and Q5 do not run at 100,000 works
 
-Measured with `probe` (production Dapper code only, single runs, reference desktop: AMD Ryzen 7 9800X3D, 16 logical cores, other processes running; treat as orders of magnitude):
+Measured with `probe` (production Dapper code only, single runs, reference desktop: AMD Ryzen 7 9800X3D, 16 logical cores, other processes running; treat as orders of magnitude).
+
+**Since 2026-10-19 (library list speed spec):** Q4 no longer grows faster than the library. At 4,000 works, all Ready, `probe --repeat 3` measured Q4 no filter 0.9-1.0 s, Q4 `Movies` 0.29-0.38 s and Q5 Home 6.9-7.6 s. The cause was seven credit look-ups that read every credit of a kind for each item (see `engineering/reports/slow-reads-2026-10.md`); guardrails in `tests/MediaEngine.Performance.Tests/LibraryListGuardrailTests.cs` keep it fixed. Q5 is the subject of the next speed spec. The table below is the earlier measurement, taken before the fix and before Home and detail showed only Ready works:
 
 | Leaf works | Q1 | Q2 | Q3 (first / deep page) | Q4 no filter | Q4 `Movies` | Q5 Home |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -96,7 +100,7 @@ Measured with `probe` (production Dapper code only, single runs, reference deskt
 | 16,000 | 0.07-0.2 s | 0.015-0.04 s | 0.13-0.57 s | 270-470 s | 19-22 s | 16-21 s |
 | 100,000 | 0.08 s | 0.02 s | 2.6-6.5 s | stopped unfinished after 15+ min | not run | 352 s |
 
-Q4 (library items page) and Q5 (Home projection) grow faster than the library: 8x the works (2k to 16k) cost roughly 25-45x for Q4 without a filter. I did not establish why; `explain --query q4` prints SQLite's plan (a materialised credits view and dozens of correlated sub-selects). It is the product's own SQL and both stacks run it identically, so the comparison stays valid, but the benchmark's fixed job (3 warm-up + 15 iterations per variant) would need hours at 100,000 works.
+Before the fix, Q4 (library items page) and Q5 (Home projection) grew faster than the library: 8x the works (2k to 16k) cost roughly 25-45x for Q4 without a filter. The Q4 cause was found later (above); `explain --query q4` prints SQLite's plan (a materialised credits view and dozens of correlated sub-selects). It is the product's own SQL and both stacks run it identically, so the comparison stays valid, but the benchmark's fixed job (3 warm-up + 15 iterations per variant) would need hours at 100,000 works.
 
 **Recommended run** (about 30 minutes of benchmarking plus a few minutes for `concurrency`, estimated from the table):
 
