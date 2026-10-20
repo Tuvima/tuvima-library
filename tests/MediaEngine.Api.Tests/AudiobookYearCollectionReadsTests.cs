@@ -1,14 +1,16 @@
 using Dapper;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Collections;
+using MediaEngine.Contracts.Search;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// An audiobook without an original year of its own borrows the year of the book with the same title and author. The
-/// collection editor's details and "add media" search and a person's credits all show that year; these tests pin the value
-/// each of the three reads gives, including a page past the first and the newest-first order of a person's credits.
+/// collection editor's details and "add media" search, a person's credits and the series search all show that year; these
+/// tests pin the value each of the four reads gives, including a page past the first and the newest-first order of a
+/// person's credits.
 /// </summary>
 public sealed class AudiobookYearCollectionReadsTests : IDisposable
 {
@@ -181,6 +183,36 @@ public sealed class AudiobookYearCollectionReadsTests : IDisposable
         Assert.Equal(
             ["Emma", "Chapterhouse", "Chapterhouse", "Dune", "Dune", "Emma"],
             credits.Select(credit => credit.Title).ToList());
+    }
+
+    [Fact]
+    public async Task SeriesSearch_AudiobookWithoutAYear_ShowsTheMatchingBooksYear()
+    {
+        await AddWorkAsync("Books", "Dune", "1965", Author);
+        var audiobook = await AddWorkAsync("Audiobooks", "Dune", null, Author);
+
+        var results = await SearchThroughTheIndexAsync("Dune");
+
+        Assert.Equal("1965", Assert.Single(results, result => result.WorkId == audiobook).Year);
+    }
+
+    [Fact]
+    public async Task SeriesSearch_AudiobookWithItsOwnYear_KeepsIt()
+    {
+        var book = await AddWorkAsync("Books", "Dune", "1965", Author);
+        var audiobook = await AddWorkAsync("Audiobooks", "Dune", "2007", Author);
+
+        var results = await SearchThroughTheIndexAsync("Dune");
+
+        Assert.Equal("2007", Assert.Single(results, result => result.WorkId == audiobook).Year);
+        Assert.Equal("1965", Assert.Single(results, result => result.WorkId == book).Year);
+    }
+
+    private async Task<List<SearchResultDto>> SearchThroughTheIndexAsync(string query)
+    {
+        var index = new SearchIndexRepository(_db);
+        await index.RebuildAsync(CancellationToken.None);
+        return await new CollectionSearchReadService(_db, index).SearchAsync(query, CancellationToken.None);
     }
 
     private async Task<List<CollectionMediaLookupDto>> LookupAsync(
