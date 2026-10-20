@@ -445,7 +445,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
         {
             if (string.Equals(workKind, "child", StringComparison.OrdinalIgnoreCase))
             {
-                var artist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "artist"), GetRequestValue(fields, "album_artist"));
+                var artist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album_artist"), GetRequestValue(fields, "artist"));
                 var album = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album"));
                 var trackNumber = ParseNavigatorOrdinal(GetRequestValue(fields, "track_number"), entityRow.Ordinal);
                 return new MembershipPlan(
@@ -464,7 +464,7 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                     SelectedSecondaryTargetId: null);
             }
 
-            var renamedArtist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "artist"), GetRequestValue(fields, "album_artist"));
+            var renamedArtist = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album_artist"), GetRequestValue(fields, "artist"));
             var renamedAlbum = StringHelpers.FirstNonBlankOr(string.Empty, GetRequestValue(fields, "album"));
             return new MembershipPlan(
                 Action: "rename_container",
@@ -970,9 +970,9 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
     }
 
     /// <summary>
-    /// Replaces an entity's list for one key with a single entry. A blank value, or one the list already
-    /// holds (as an entry or as the whole list joined), leaves the list unchanged, so renaming a container
-    /// without changing its credit keeps co-credits and their Wikidata links.
+    /// Replaces an entity's list for one key with the requested names. A blank value, or names the list
+    /// already holds, leave the list unchanged, so renaming a container without changing its credit keeps
+    /// co-credits and their Wikidata links; names kept across a replacement keep their links too.
     /// </summary>
     private static void ReplaceCanonicalList(SqliteConnection conn, SqliteTransaction tx, Guid entityId, string key, string? value)
     {
@@ -981,21 +981,39 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
             return;
         }
 
-        var existing = conn.Query<string>(
-            "SELECT value FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key ORDER BY ordinal;",
+        // The editor sends chip fields joined with "; "; the list table holds one name per row.
+        var requested = value
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (requested.Count == 0)
+        {
+            return;
+        }
+
+        var existing = conn.Query<(string Value, string? ValueQid)>(
+            "SELECT value AS Value, value_qid AS ValueQid FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key ORDER BY ordinal;",
             new { entityId, key },
             tx).ToList();
-        var requested = value.Trim();
-        if (existing.Any(entry => string.Equals(entry.Trim(), requested, StringComparison.OrdinalIgnoreCase))
-            || string.Equals(string.Join("; ", existing), requested, StringComparison.OrdinalIgnoreCase))
+        var existingQids = existing
+            .GroupBy(entry => entry.Value.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().ValueQid, StringComparer.OrdinalIgnoreCase);
+        if (requested.All(existingQids.ContainsKey))
         {
             return;
         }
 
         conn.Execute("DELETE FROM canonical_value_arrays WHERE entity_id = @entityId AND key = @key;", new { entityId, key }, tx);
         conn.Execute(
-            "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@entityId, @key, 0, @value, NULL);",
-            new { entityId, key, value },
+            "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid) VALUES (@EntityId, @Key, @Ordinal, @Value, @ValueQid);",
+            requested.Select((name, ordinal) => new
+            {
+                EntityId = entityId,
+                Key = key,
+                Ordinal = ordinal,
+                Value = name,
+                ValueQid = existingQids.GetValueOrDefault(name),
+            }),
             tx);
     }
 

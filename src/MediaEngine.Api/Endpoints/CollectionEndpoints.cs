@@ -982,14 +982,7 @@ public static class CollectionEndpoints
             Guid? artistPersonId = null;
             try
             {
-                var person = await personRepo.FindByNameAsync(artistName, ct);
-                if (person is null
-                    && !string.IsNullOrWhiteSpace(combinedCreator)
-                    && !string.Equals(combinedCreator, artistName, StringComparison.OrdinalIgnoreCase))
-                {
-                    person = await personRepo.FindByNameAsync(combinedCreator, ct);
-                }
-
+                var person = await FindArtistPersonAsync(personRepo, artistName, combinedCreator, ct);
                 if (person is not null)
                 {
                     artistPersonId = person.Id;
@@ -2912,6 +2905,27 @@ public static class CollectionEndpoints
     // only reference Domain. See PreviewCollection ("/collections/preview").
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The person an artist panel shows: the artist the panel is for, or, when nobody has that name,
+    /// the credit picked from its tracks.
+    /// </summary>
+    internal static async Task<Person?> FindArtistPersonAsync(
+        IPersonRepository personRepo,
+        string artistName,
+        string? pickedName,
+        CancellationToken ct)
+    {
+        var person = await personRepo.FindByNameAsync(artistName, ct);
+        if (person is null
+            && !string.IsNullOrWhiteSpace(pickedName)
+            && !string.Equals(pickedName, artistName, StringComparison.OrdinalIgnoreCase))
+        {
+            person = await personRepo.FindByNameAsync(pickedName, ct);
+        }
+
+        return person;
+    }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(
         Guid? profileId,

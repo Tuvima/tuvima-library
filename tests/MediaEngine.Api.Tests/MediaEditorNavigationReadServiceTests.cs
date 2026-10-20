@@ -240,6 +240,38 @@ public sealed class MediaEditorNavigationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task HierarchyAlignment_RenamingAnAlbumWithNewArtists_StoresOneRowPerArtistAndKeepsKnownLinks()
+    {
+        var albumId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_key)
+                VALUES (@albumId, 'Music', 'parent', 'Owned', 'artist one|old album');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                VALUES (@albumId, 'album_artist', 0, 'Artist One', 'Q1'),
+                       (@albumId, 'album_artist', 1, 'Artist Two', 'Q2');
+                """, new { albumId });
+        }
+
+        var service = new HierarchyAlignmentService(_database, new RecordingPipeline());
+        var request = new MembershipPreviewRequest(
+            null,
+            new Dictionary<string, string?> { ["album"] = "Old Album", ["album_artist"] = "Artist One; Artist Three", ["artist"] = "Track Credit" },
+            null,
+            null);
+        var result = await service.ApplyAsync(albumId, request, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.Applied);
+        using var verification = _database.CreateConnection();
+        var credits = verification.Query<(string Value, string? Qid)>(
+            "SELECT value AS Value, value_qid AS Qid FROM canonical_value_arrays WHERE entity_id = @albumId AND key = 'album_artist' ORDER BY ordinal;",
+            new { albumId }).ToList();
+        Assert.Equal([("Artist One", "Q1"), ("Artist Three", null)], credits);
+    }
+
+    [Fact]
     public async Task GetNavigatorAsync_TvHierarchy_MakesOwnedSeasonAndEpisodeSelectable()
     {
         var seriesId = Guid.NewGuid();
