@@ -501,6 +501,10 @@ public sealed partial class IngestionEngine
         {
             result = context.ProcessorResult = Services.AudiobookFolderHints.Apply(result, audiobookSource);
         }
+        if (ResolveVideosRoot(context.Library, candidate.Path) is { } videosRoot)
+        {
+            result = context.ProcessorResult = _videoReader!.Apply(result, videosRoot);
+        }
         // Step 8: convert claims.
         var assetId = context.AssetId = Guid.NewGuid();
         var claims = context.Claims = BuildClaims(assetId, result);
@@ -811,6 +815,11 @@ public sealed partial class IngestionEngine
         }
 
         await InspectPlaybackAsync(asset, ct).ConfigureAwait(false);
+
+        if (resolvedMediaType == MediaType.Videos && _videoReader is not null)
+        {
+            await _videoReader.RecordPlacementAsync(assetId, candidate.Metadata, ct).ConfigureAwait(false);
+        }
 
         var resolvedTitle = context.ResolvedTitle = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown";
         var resolvedAuthor = context.ResolvedAuthor = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author, string.Empty) ?? string.Empty;

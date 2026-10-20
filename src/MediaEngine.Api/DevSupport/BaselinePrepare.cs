@@ -26,6 +26,7 @@ public static class BaselinePrepare
         ("tv", "TV"),
         ("music", "Music"),
         ("comics", "Comics"),
+        ("videos", "Videos"),
     ];
 
     public static readonly string[] ViewFolders = ["personal_photos", "personal_videos"];

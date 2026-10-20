@@ -96,6 +96,25 @@ public sealed partial class IngestionEngine
     /// The folder an audiobook's author and title are read from: the library source it lives in, or for a file in the
     /// Import folder's Audiobooks folder, that folder.
     /// </summary>
+    /// <summary>The library folder a Videos file sits in (its series and sections are read from there), or null for any other file.</summary>
+    private string? ResolveVideosRoot(LibraryFolderEntry? library, string path)
+    {
+        if (_videoReader is null)
+        {
+            return null;
+        }
+
+        if (library?.MediaTypes.Contains(MediaType.Videos) == true
+            && _libraryFolderResolver?.ResolveSourcePath(path) is { } source)
+        {
+            return source;
+        }
+
+        return _importFolders?.ResolveTypePrior(path) == MediaType.Videos
+            ? _importFolders.ResolveTypeFolder(path)
+            : null;
+    }
+
     private string? ResolveAudiobookHintRoot(LibraryFolderEntry? library, string path)
     {
         if (library?.MediaTypes.Contains(MediaType.Audiobooks) == true

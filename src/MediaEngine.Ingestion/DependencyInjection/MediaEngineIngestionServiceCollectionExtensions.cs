@@ -88,6 +88,12 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<FolderMergeRunner>();
         services.TryAddSingleton<FolderMergePreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
+        services.TryAddSingleton(sp => new MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider(sp.GetRequiredService<IConfigurationLoader>()));
+        services.TryAddSingleton<IVideoLibraryReader>(sp => new MediaEngine.Ingestion.Videos.VideoLibraryReader(
+            sp.GetRequiredService<MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider>(),
+            sp.GetService<IWorkRepository>(),
+            sp.GetService<ICanonicalValueRepository>(),
+            sp.GetService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Ingestion.Videos.VideoLibraryReader>>()));
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
         services.TryAddSingleton<IIngestionLogScribe, IngestionLogScribe>();

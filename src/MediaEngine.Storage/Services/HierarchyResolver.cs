@@ -89,6 +89,7 @@ public sealed class HierarchyResolver
             MediaType.Music => await ResolveMusicAsync(metadata, ct),
             MediaType.TV => await ResolveTvAsync(metadata, ct),
             MediaType.Comics => await ResolveComicsAsync(metadata, ct),
+            MediaType.Videos => await ResolveVideosAsync(metadata, ct),
 
             MediaType.Books or MediaType.Audiobooks => await ResolveBookOrAudiobookAsync(mediaType, metadata, sourceFilePath, ct),
             _ => await ResolveStandaloneAsync(mediaType, ct),
@@ -237,6 +238,44 @@ public sealed class HierarchyResolver
 
         var newId = WorkRepository.GetOrCreateChild(conn, tx, mediaType, parentId, ordinal, ordinalSort);
         return new ResolverResult(newId, parentId, WorkKind.Child, ordinal, NewlyCreated: true);
+    }
+
+    /// <summary>
+    /// Videos: a series folder is a parent, a section (sub-folder) is a numbered parent inside it, and every video is its own
+    /// child. Positions are only for ordering, so a video never joins another video's Work because their numbers match.
+    /// A video with no series stands alone.
+    /// </summary>
+    private async Task<ResolverResult> ResolveVideosAsync(
+        IReadOnlyDictionary<string, string> meta, CancellationToken ct)
+    {
+        var seriesKey = Get(meta, MetadataFieldConstants.VideoSeriesKey);
+        if (string.IsNullOrWhiteSpace(seriesKey))
+        {
+            return await CreateStandaloneAsync(MediaType.Videos, ct);
+        }
+
+        var seriesId = await FindOrCreateParentAsync(MediaType.Videos, MakeKey("videos", seriesKey), null, null, ct);
+        var leafParentId = seriesId;
+        var section = Get(meta, MetadataFieldConstants.VideoSection);
+        if (!string.IsNullOrWhiteSpace(section))
+        {
+            var sectionIndex = ParseInt(Get(meta, MetadataFieldConstants.VideoSectionIndex)) ?? 1;
+            leafParentId = await _works.GetOrCreateParentAsync(
+                MediaType.Videos, MakeKey("videos", seriesKey, "section", section), seriesId, sectionIndex, sectionIndex, ct);
+        }
+
+        var episode = ParseInt(Get(meta, MetadataFieldConstants.VideoEpisodeIndex));
+        // Sort values are unique inside a parent, so a clash (two videos both numbered 3) nudges the newer one just after.
+        double? sort = episode;
+        for (var attempt = 1; sort is { } taken && attempt <= 1000
+             && await _works.FindChildByOrdinalSortAsync(leafParentId, taken, ct) is not null; attempt++)
+        {
+            sort = Math.Round((episode ?? 0) + attempt * 0.001d, 3);
+        }
+
+        var childId = await _works.InsertChildAsync(MediaType.Videos, leafParentId, episode, ct);
+        await _works.UpdateOrdinalSortAsync(childId, sort, ct);
+        return new ResolverResult(childId, leafParentId, WorkKind.Child, episode, NewlyCreated: true);
     }
 
     private async Task<ResolverResult> ResolveComicsAsync(

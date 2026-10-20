@@ -77,6 +77,22 @@ public static class MetadataFieldConstants
     public const string ArtworkSecondaryHex = "artwork_secondary_hex";
     public const string ArtworkAccentHex = "artwork_accent_hex";
     public const string ShowName = "show_name";
+
+    // Videos (local identity only): placement read from the folder layout, and how the item was identified.
+    /// <summary>Title of the series a video belongs to (its folder name).</summary>
+    public const string VideoSeries = "video_series";
+    /// <summary>Folder of the series relative to the library folder; the stable key for the series.</summary>
+    public const string VideoSeriesKey = "video_series_key";
+    /// <summary>Title of the section (sub-folder) a video belongs to inside its series.</summary>
+    public const string VideoSection = "video_section";
+    /// <summary>Position of the section inside its series.</summary>
+    public const string VideoSectionIndex = "video_section_index";
+    /// <summary>Position of the video inside its section or series.</summary>
+    public const string VideoEpisodeIndex = "video_episode_index";
+    /// <summary>How the video was identified: youtube_id, info_json, nfo or file_name.</summary>
+    public const string VideoIdentifiedBy = "video_identified_by";
+    /// <summary>The YouTube video ID found in the file name or its .info.json.</summary>
+    public const string YoutubeVideoId = "youtube_video_id";
     public const string EpisodeTitle = "episode_title";
     public const string EpisodeDescription = "episode_description";
     public const string Network = "network";
