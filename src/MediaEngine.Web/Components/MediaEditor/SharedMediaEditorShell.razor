@@ -420,6 +420,10 @@
                                                      OnKeepAsFilm="KeepReviewAsFilmAsync" />
                         </div>
                     }
+                    @if (IsSingleItem && CanMoveCurrentTarget)
+                    {
+                        <ItemMovePanel WorkId="@CurrentEntityId" MediaType="@EditorMediaType" OnMoved="OnItemMovedAsync" />
+                    }
                     <EditorMatchSection
                         ShowPageHeading="@(!IsSection)"
                         CanRefreshMetadata="@(CanRefreshMetadata)"

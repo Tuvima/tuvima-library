@@ -4,6 +4,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using static MediaEngine.Domain.Services.StringHelpers;
 
@@ -523,7 +524,7 @@ public sealed class ArtworkLibraryReadService(
             : null;
     }
 
-    private static Dictionary<Guid, ManagedAssetSummary> LoadManagedAssets(
+    internal static Dictionary<Guid, ManagedAssetSummary> LoadManagedAssets(
         System.Data.IDbConnection connection,
         IReadOnlyCollection<Guid> entityIds,
         CancellationToken ct)
@@ -548,14 +549,14 @@ public sealed class ArtworkLibraryReadService(
                  WHERE entity_type = 'Work' AND entity_id IN @EntityIds
                  GROUP BY entity_id;
                 """,
-                new { EntityIds = entityIds },
+                new { EntityIds = entityIds.Select(GuidSql.ToBlob).ToArray() },
                 cancellationToken: ct))
             .ToDictionary(
                 row => row.EntityId,
                 row => new ManagedAssetSummary(row.PreferredCoverId, row.VariantCount, Split(row.AssetTypesCsv)));
     }
 
-    private static Dictionary<Guid, CollectionArtworkSummary> LoadCollectionArtwork(
+    internal static Dictionary<Guid, CollectionArtworkSummary> LoadCollectionArtwork(
         System.Data.IDbConnection connection,
         IReadOnlyCollection<Guid> collectionIds,
         CancellationToken ct)
@@ -579,7 +580,7 @@ public sealed class ArtworkLibraryReadService(
                   FROM collections
                  WHERE id IN @EntityIds;
                 """,
-                new { EntityIds = collectionIds },
+                new { EntityIds = collectionIds.Select(GuidSql.ToBlob).ToArray() },
                 cancellationToken: ct))
             .ToDictionary(
                 row => row.EntityId,
@@ -872,8 +873,8 @@ public sealed class ArtworkLibraryReadService(
         public string? RolesCsv { get; init; }
     }
 
-    private sealed record ManagedAssetSummary(Guid? PreferredCoverId, int VariantCount, IReadOnlyList<string> AssetTypes);
-    private sealed record CollectionArtworkSummary(
+    internal sealed record ManagedAssetSummary(Guid? PreferredCoverId, int VariantCount, IReadOnlyList<string> AssetTypes);
+    internal sealed record CollectionArtworkSummary(
         Guid? PreferredCoverId,
         bool HasCover,
         bool HasBackground,

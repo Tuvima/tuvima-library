@@ -139,7 +139,7 @@ public sealed class PendingPersonSignalRepository : IPendingPersonSignalReposito
         using var conn = _db.CreateConnection();
         conn.Execute(
             "DELETE FROM pending_person_signals WHERE id IN @Ids;",
-            new { Ids = ids });
+            new { Ids = ids.Select(GuidSql.ToBlob).ToArray() });
         return Task.CompletedTask;
     }
 
