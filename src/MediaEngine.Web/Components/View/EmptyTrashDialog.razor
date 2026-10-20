@@ -85,10 +85,11 @@
         </div>
     </ChildContent>
     <FooterContent>
+        @* Cancel (Close when nothing can be deleted) is the first button and carries autofocus: the native dialog focuses it on open,
+           even though the body can hold buttons. It stays the same button in every state, so the focus survives the summary arriving. *@
+        <AppButton Label="@(CanDelete || _state == DialogState.Loading ? "Cancel" : "Close")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
         @if (CanDelete)
         {
-            @* Cancel is the first button and carries autofocus: the native dialog focuses it on open, even though the body can hold buttons. *@
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
             <AppButton Label="@(_state == DialogState.Deleting ? EmptyTrashText.Deleting : EmptyTrashText.ConfirmLabel(_preview!.DeleteCount))"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Error"
@@ -96,13 +97,9 @@
                        Disabled="@(_state == DialogState.Deleting)"
                        OnClick="ConfirmAsync" />
         }
-        else
+        else if (_state == DialogState.Failed && _canRetry)
         {
-            <AppButton Label="@(_state == DialogState.Loading ? "Cancel" : "Close")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" OnClick="CancelAsync" />
-            @if (_state == DialogState.Failed && _canRetry)
-            {
-                <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
-            }
+            <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
         }
     </FooterContent>
 </AppDialogShell>
