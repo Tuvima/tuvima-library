@@ -532,12 +532,15 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         var (host, _) = await OpenAsync();
 
         Assert.Equal("Cancel", Assert.Single(host.FindAll("[autofocus]")).TextContent.Trim());
+        var cancelWhileLoading = host.FindComponents<AppButton>().First().Instance;
 
         gate.SetResult(Ok(Preview(galleries: Enumerable.Range(1, 8).Select(index => Gallery($"Gallery {index}")))));
         Ready(host);
 
         // The body holds an "and 3 more" button before the footer; autofocus keeps the focus on Cancel regardless.
         Assert.Equal("Cancel", Assert.Single(host.FindAll("[autofocus]")).TextContent.Trim());
+        // The same Cancel button carries on once the summary arrives; a new one would drop the focus the browser gave the first.
+        Assert.Same(cancelWhileLoading, host.FindComponents<AppButton>().Single(button => button.Instance.Label == "Cancel").Instance);
         Assert.Equal(["Cancel", "Delete 128 items from disk"], host.FindAll("footer button").Select(button => button.TextContent.Trim()));
     }
 
