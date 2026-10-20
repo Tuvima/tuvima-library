@@ -1,0 +1,333 @@
+@namespace MediaEngine.Web.Components.MediaEditor.Moves
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient Api
+@inject IAppDialogService Dialogs
+@inject DeviceContextService Device
+
+@* The "Move" area of Match and Identity (details overlay spec D12 to D17). Only for one title (never a whole show, album or series), in
+   Editing Mode, on a desktop. It opens the destination picker, then the Match step, then asks to confirm with a preview of what
+   will happen. Nothing changes until the person confirms, and the Engine checks again that the preview is still true. *@
+@if (Visible)
+{
+    <section class="tl-item-move" aria-label="@Label" data-unmatched="@(IsUnmatched ? "true" : "false")">
+        @if (_stage == MoveStage.Closed)
+        {
+            <div class="tl-item-move__row">
+                <div class="tl-item-move__copy">
+                    <strong>
+                        @Label
+                        @if (IsUnmatched)
+                        {
+                            <NotMatchedTag />
+                        }
+                    </strong>
+                    <span>@Summary</span>
+                </div>
+                <AppButton Label="@Label"
+                           StartIcon="@AppMaterialIcons.Outlined.AccountTree"
+                           ButtonStyle="AppButtonStyle.Outlined"
+                           Disabled="@_busy"
+                           OnClick="OpenPickerAsync" />
+            </div>
+        }
+        else if (_stage == MoveStage.Picking)
+        {
+            <MoveDestinationPicker Heading="@Label"
+                                   Destinations="_destinations"
+                                   Query="@_query"
+                                   Loading="_loadingDestinations"
+                                   Busy="_busy"
+                                   Error="@_error"
+                                   QueryChanged="QueryChangedAsync"
+                                   OnPick="PickDestinationAsync"
+                                   OnCancel="CloseFlow" />
+        }
+        else if (_selection is not null)
+        {
+            <MatchStep Selection="_selection"
+                       Notice="@_notice"
+                       Error="@_error"
+                       Busy="_busy"
+                       OnApply="ApplyAsync"
+                       OnCancel="CloseFlow" />
+        }
+
+        @if (_stage == MoveStage.Closed && !string.IsNullOrWhiteSpace(Result))
+        {
+            <p class="tl-item-move__result" role="status">@Result</p>
+        }
+
+        @if (_stage == MoveStage.Closed && !string.IsNullOrWhiteSpace(_error))
+        {
+            <p class="tl-item-move__error" role="alert">@_error</p>
+        }
+    </section>
+}
+
+@code {
+    private enum MoveStage
+    {
+        Closed,
+        Picking,
+        Matching,
+    }
+
+    private MoveStage _stage;
+    private bool _busy;
+    private bool _loadingDestinations;
+    private string? _query;
+    private int _queryVersion;
+    private string? _error;
+    private string? _notice;
+    private IReadOnlyList<LibraryMoveDestination> _destinations = [];
+    private LibraryMoveSelection? _selection;
+    private Guid _destinationId;
+
+    /// <summary>The title being moved: a Work, or for an audiobook one of its parts (an Edition).</summary>
+    [Parameter, EditorRequired] public Guid ItemId { get; set; }
+
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>The editor target (track, episode, issue, movie, book...). A whole container is never moved, so no scope that names one shows this area.</summary>
+    [Parameter] public string? ScopeId { get; set; }
+
+    /// <summary>True when the title was added anyway earlier: the area then says "Match" and tags it "Not matched".</summary>
+    [Parameter] public bool IsUnmatched { get; set; }
+
+    /// <summary>The line after the last move, kept by the host because the editor reloads after a move.</summary>
+    [Parameter] public string? Result { get; set; }
+
+    /// <summary>Raised after a successful move with the result line, so the host can refresh the page behind the section.</summary>
+    [Parameter] public EventCallback<string> OnMoved { get; set; }
+
+    private bool Visible => LibraryMoveRules.CanShowMove(Device, ScopeId, ItemId);
+
+    private string Label => IsUnmatched ? LibraryMoveText.MatchLabel : LibraryMoveText.MoveLabel(MediaType);
+
+    private string Summary => IsUnmatched
+        ? "This was added without a number. Match it to its place, or move it somewhere else."
+        : "Choose where it goes and match it to that place. You check every step before anything changes.";
+
+    private async Task OpenPickerAsync()
+    {
+        if (EditorDeviceRule.TryRefuse(Device, null) || _busy)
+        {
+            return;
+        }
+
+        _error = null;
+        _notice = null;
+        _query = null;
+        _stage = MoveStage.Picking;
+        await LoadDestinationsAsync();
+    }
+
+    private async Task QueryChangedAsync(string? value)
+    {
+        _query = value;
+        await LoadDestinationsAsync();
+    }
+
+    private async Task LoadDestinationsAsync()
+    {
+        var version = ++_queryVersion;
+        _loadingDestinations = true;
+        _error = null;
+        StateHasChanged();
+        var outcome = await Api.GetLibraryMoveDestinationsAsync(ItemId, _query);
+        if (version != _queryVersion || _stage != MoveStage.Picking)
+        {
+            // A later search or a cancel has replaced this answer.
+            return;
+        }
+
+        _loadingDestinations = false;
+        if (outcome.IsOk)
+        {
+            _destinations = outcome.Value!.Destinations;
+        }
+        else
+        {
+            _destinations = [];
+            _error = Describe(outcome.Status, outcome.Message);
+        }
+    }
+
+    private async Task PickDestinationAsync(LibraryMoveDestination destination)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _destinationId = destination.Id;
+        _busy = true;
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var outcome = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest
+            {
+                ItemIds = [ItemId],
+                DestinationId = destination.Id,
+            });
+            if (!outcome.IsOk)
+            {
+                _error = Describe(outcome.Status, outcome.Message);
+                return;
+            }
+
+            _selection = LibraryMoveSelection.From(outcome.Value!);
+            _notice = null;
+            _stage = MoveStage.Matching;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Apply was chosen with every item decided. One confirmation with the preview (D17); a stale preview shows the fresh one and asks again.
+    private async Task ApplyAsync(LibraryMoveSelection selection)
+    {
+        if (_busy || EditorDeviceRule.TryRefuse(Device, null))
+        {
+            return;
+        }
+
+        _error = null;
+        _notice = null;
+        string? changedLine = null;
+        while (true)
+        {
+            var confirmation = LibraryMoveText.Confirm(selection);
+            var answer = await AppConfirmDialog.ShowAsync(
+                Dialogs,
+                confirmation.Title,
+                changedLine is null ? confirmation.Message : $"{changedLine} {confirmation.Message}",
+                confirmation.PrimaryLabel,
+                confirmation.SecondaryLabel,
+                preview: ConfirmationPreview(confirmation));
+            if (answer == AppConfirmResult.Secondary && selection.HasAddAnyway)
+            {
+                // "Match instead": the items added anyway go back to the Match step to be matched.
+                foreach (var row in selection.Rows.Where(row => row.Choice == LibraryMoveRowChoice.AddAnyway).ToList())
+                {
+                    selection.Clear(row.ItemId);
+                }
+
+                StateHasChanged();
+                return;
+            }
+
+            if (answer != AppConfirmResult.Primary)
+            {
+                return;
+            }
+
+            _busy = true;
+            StateHasChanged();
+            LibraryMoveOutcome<LibraryMoveCommitResult> outcome;
+            try
+            {
+                outcome = await Api.MoveLibraryItemsAsync(selection.ToCommitRequest());
+            }
+            finally
+            {
+                _busy = false;
+            }
+
+            switch (outcome.Status)
+            {
+                case LibraryMoveOutcomeStatus.Ok when outcome.Value is { } committed:
+                    var line = LibraryMoveText.ResultLine(selection, committed);
+                    _stage = MoveStage.Closed;
+                    _selection = null;
+                    _destinations = [];
+                    await OnMoved.InvokeAsync(line);
+                    return;
+                case LibraryMoveOutcomeStatus.Conflict when outcome.FreshPreview is { } fresh:
+                    // Nothing moved. The fresh preview replaces the old one, keeping every choice that still holds.
+                    selection = LibraryMoveSelection.From(fresh, selection);
+                    _selection = selection;
+                    changedLine = LibraryMoveText.ChangedLine;
+                    if (!selection.CanApply)
+                    {
+                        _notice = LibraryMoveText.ChangedLine;
+                        return;
+                    }
+
+                    continue;
+                case LibraryMoveOutcomeStatus.Expired:
+                    _error = outcome.Message ?? LibraryMoveText.ExpiredMessage;
+                    await RefreshPreviewAsync();
+                    return;
+                default:
+                    _error = Describe(outcome.Status, outcome.Message);
+                    return;
+            }
+        }
+    }
+
+    // The review expired: ask again for the same place so Apply has a fresh token, keeping the person's choices.
+    private async Task RefreshPreviewAsync()
+    {
+        var previous = _selection;
+        var outcome = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest
+        {
+            ItemIds = [ItemId],
+            DestinationId = _destinationId,
+        });
+        if (outcome.IsOk)
+        {
+            _selection = LibraryMoveSelection.From(outcome.Value!, previous);
+        }
+        else
+        {
+            _error = Describe(outcome.Status, outcome.Message);
+        }
+    }
+
+    private void CloseFlow()
+    {
+        _stage = MoveStage.Closed;
+        _selection = null;
+        _destinations = [];
+        _error = null;
+        _notice = null;
+        _queryVersion++;
+    }
+
+    private static string Describe(LibraryMoveOutcomeStatus status, string? message) => status switch
+    {
+        LibraryMoveOutcomeStatus.Forbidden => LibraryMoveText.ForbiddenMessage,
+        LibraryMoveOutcomeStatus.Expired => message ?? LibraryMoveText.ExpiredMessage,
+        LibraryMoveOutcomeStatus.NotFound => message ?? "This item is no longer in your library.",
+        LibraryMoveOutcomeStatus.Invalid => message ?? LibraryMoveText.GenericRefusal,
+        _ => LibraryMoveText.UnavailableMessage,
+    };
+
+    private RenderFragment ConfirmationPreview(LibraryMoveText.Confirmation confirmation) => @<div class="tl-move-confirm">
+        <ul class="tl-move-confirm__lines" aria-label="What happens to the files">
+            @foreach (var line in confirmation.FileLines)
+            {
+                <li>@line</li>
+            }
+        </ul>
+        @if (confirmation.Notes.Count > 0)
+        {
+            <ul class="tl-move-confirm__notes" aria-label="What else changes">
+                @foreach (var note in confirmation.Notes)
+                {
+                    <li>@note</li>
+                }
+            </ul>
+        }
+    </div>;
+}

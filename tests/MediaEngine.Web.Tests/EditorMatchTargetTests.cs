@@ -149,17 +149,6 @@ public sealed class EditorMatchTargetTests
     }
 
     [Fact]
-    public void TrackPlacementMakesTheOneTrackMoveDistinctFromAlbumMatching()
-    {
-        var shell = new TargetShell();
-        shell.Configure("Music", "track", "Track one");
-
-        Assert.Contains("Move this track to album", shell.PlacementLabels);
-        Assert.Contains("only this track", shell.PlacementDescription, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("every track", shell.AlbumPlacementHelp, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void AlbumRecordingListCannotMutateAFileWithoutProvenReleaseTrackMove()
     {
         var shell = new TargetShell();
@@ -237,12 +226,11 @@ public sealed class EditorMatchTargetTests
     }
 
     [Fact]
-    public void ComicIssuePlacementUsesSeriesRunWithoutChangingTheIssueMatch()
+    public void ComicIssueMatchSearchesForTheIssue()
     {
         var shell = new TargetShell();
         shell.Configure("Comics", "issue", "Issue one");
 
-        Assert.Equal(new[] { "series", "series_position" }, shell.PlacementKeys);
         Assert.Equal("Issue", shell.SearchTargetLabel);
     }
 
@@ -309,10 +297,6 @@ public sealed class EditorMatchTargetTests
         public string SearchTarget => QuickSearchTargets.Single().Key;
         public string SearchTargetLabel => QuickSearchTargets.Single().Label;
         public string DefaultTarget => GetDefaultCanonicalTargetGroupForActiveScope("fallback");
-        public IReadOnlyList<string> PlacementLabels => GetParentPositionFields().Select(placementField => placementField.Label).ToList();
-        public IReadOnlyList<string> PlacementKeys => GetParentPositionFields().Select(placementField => placementField.Key).ToList();
-        public string PlacementDescription => GetLibraryPlacementDescription();
-        public string AlbumPlacementHelp => GetParentPositionHelp("album");
         public bool RequiresWikidataOnly => RequiresWikidataOnlySearch;
         public string WikidataSubtitle(ItemCanonicalLinkedCandidateDto candidate) => BuildWikidataCandidateSubtitle(candidate);
         public bool RetailSearchAllowed => SupportsRetailSearch;

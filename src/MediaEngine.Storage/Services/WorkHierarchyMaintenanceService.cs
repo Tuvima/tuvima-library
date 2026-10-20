@@ -25,30 +25,9 @@ public sealed class WorkHierarchyMaintenanceService
     {
         ct.ThrowIfCancellationRequested();
 
-        var deleted = await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
-        {
-            var count = 0;
-            while (true)
-            {
-                var parentIds = conn.Query<Guid>(
-                    EmptyParentSql,
-                    transaction: tx).ToList();
-                if (parentIds.Count == 0)
-                {
-                    break;
-                }
-
-                // Only parents with no collection_items rows are selected (EmptyParentSql), so deleting them
-                // can never empty a curated collection and no curated-collection cleanup is needed here.
-                foreach (var parentId in parentIds)
-                {
-                    DeleteParentDerivedState(conn, tx, parentId);
-                    count += conn.Execute("DELETE FROM works WHERE id = @parentId;", new { parentId }, tx);
-                }
-            }
-
-            return count;
-        }, ct).ConfigureAwait(false);
+        var deleted = await _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => CleanupEmptyParentsCore(conn, tx),
+            ct).ConfigureAwait(false);
 
         if (deleted > 0)
         {
@@ -56,6 +35,35 @@ public sealed class WorkHierarchyMaintenanceService
         }
 
         return deleted;
+    }
+
+    /// <summary>
+    /// The clean-up itself, on the caller's connection and transaction, so a write that empties a place (a move) can remove it in
+    /// the same transaction. Returns how many parent rows were removed.
+    /// </summary>
+    internal static int CleanupEmptyParentsCore(System.Data.IDbConnection conn, System.Data.IDbTransaction tx)
+    {
+        var count = 0;
+        while (true)
+        {
+            var parentIds = conn.Query<Guid>(
+                EmptyParentSql,
+                transaction: tx).ToList();
+            if (parentIds.Count == 0)
+            {
+                break;
+            }
+
+            // Only parents with no collection_items rows are selected (EmptyParentSql), so deleting them
+            // can never empty a curated collection and no curated-collection cleanup is needed here.
+            foreach (var parentId in parentIds)
+            {
+                DeleteParentDerivedState(conn, tx, parentId);
+                count += conn.Execute("DELETE FROM works WHERE id = @parentId;", new { parentId }, tx);
+            }
+        }
+
+        return count;
     }
 
     private const string EmptyParentSql = """
