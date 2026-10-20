@@ -849,40 +849,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         return null;
     }
 
-    private static List<(string Key, string Value)> NumbersFor(LibraryMoveDestinationInfo destination, int? ordinal, double? ordinalSort, int? disc)
-    {
-        var numbers = new List<(string, string)>();
-        if (string.Equals(destination.MediaType, "Music", StringComparison.OrdinalIgnoreCase))
-        {
-            if (ordinal is { } track)
-            {
-                numbers.Add((MetadataFieldConstants.TrackNumber, track.ToString(CultureInfo.InvariantCulture)));
-            }
-
-            if (disc is { } discNumber)
-            {
-                numbers.Add((MetadataFieldConstants.DiscNumber, discNumber.ToString(CultureInfo.InvariantCulture)));
-            }
-        }
-        else if (string.Equals(destination.MediaType, "TV", StringComparison.OrdinalIgnoreCase))
-        {
-            if (ordinal is { } episode)
-            {
-                numbers.Add((MetadataFieldConstants.EpisodeNumber, episode.ToString(CultureInfo.InvariantCulture)));
-            }
-
-            if (destination.SeasonNumber is { } season)
-            {
-                numbers.Add((MetadataFieldConstants.SeasonNumber, season.ToString(CultureInfo.InvariantCulture)));
-            }
-        }
-        else if (ordinalSort is { } position)
-        {
-            numbers.Add((MetadataFieldConstants.SeriesPosition, position.ToString("0.####", CultureInfo.InvariantCulture)));
-        }
-
-        return numbers;
-    }
+    // One definition, shared with the preview that works out the file name these numbers give.
+    private static List<(string Key, string Value)> NumbersFor(LibraryMoveDestinationInfo destination, int? ordinal, double? ordinalSort, int? disc) =>
+        MovePlacementNumbers.For(destination.MediaType, destination.SeasonNumber, ordinal, ordinalSort, disc);
 
     /// <summary>
     /// Writes where the item sits in its list, on the title and on each of its files (readers look at the file first). Each value is
@@ -960,7 +929,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             new { entityId, key = IdentityRevisionKey, value = Guid.NewGuid().ToString("N"), now },
             transaction);
 
-    // The same write-back request the music move makes, so the file's own tags catch up with where the item now sits.
+    // The durable file request a move makes, in the same transaction as the library change: the queue renames and moves each file
+    // that may be touched to fit where the item now sits, then brings its tags up to date. The trigger is kept by later editor saves
+    // until the queue has done its work (see MediaEditorCommitRepository), so a save made in between never drops the file move.
     private static void MarkWritebackPending(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -981,12 +952,12 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                     writeback_last_error = NULL, writeback_next_retry_at = NULL
                 WHERE id = @assetId;
                 INSERT INTO media_file_write_intents (asset_id, generation, operation_token, trigger, status, attempts, created_at, updated_at)
-                VALUES (@assetId, 1, @token, 'editor_commit', 'pending', 0, @now, @now)
+                VALUES (@assetId, 1, @token, @trigger, 'pending', 0, @now, @now)
                 ON CONFLICT(asset_id) DO UPDATE SET generation = generation + 1, operation_token = excluded.operation_token,
-                    trigger = 'editor_commit', status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL,
+                    trigger = excluded.trigger, status = 'pending', attempts = 0, lease_expires_at = NULL, last_error = NULL,
                     updated_at = excluded.updated_at;
                 """,
-                new { assetId, token, now },
+                new { assetId, token, now, trigger = MediaFileWriteTriggers.LibraryMove },
                 transaction);
         }
     }

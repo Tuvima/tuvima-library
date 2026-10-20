@@ -20,6 +20,7 @@ public static class TuvimaLibraryMoveServiceCollectionExtensions
         services.AddSingleton<IMoveListProvider, AudiobookPartMoveListProvider>();
         services.AddSingleton<MoveListRegistry>();
         services.AddSingleton<MoveOwnedFileCleaner>();
+        services.AddSingleton<MoveFilePlanner>();
         services.AddSingleton<ILibraryMoveService, LibraryMoveService>();
         return services;
     }

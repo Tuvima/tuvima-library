@@ -1,3 +1,5 @@
+using MediaEngine.Domain.Models;
+
 namespace MediaEngine.Domain.Contracts;
 
 /// <summary>
@@ -18,4 +20,20 @@ public interface IAutoOrganizeService
     /// already in the library or if configuration is incomplete.
     /// </summary>
     Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Works out, without touching anything, what re-filing an asset that is already in a library folder would do: the name and place
+    /// the naming policy gives it, and whether the file may be renamed and moved (As-is and read-only folders, protected originals
+    /// and taken names say no). With <paramref name="placement"/> the answer is for where the item would sit after a library move;
+    /// without it, for where the library places it now.
+    /// </summary>
+    Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renames and moves the asset's file to fit where the library now places it (after a library move), through the same path as
+    /// tidying a filed asset: the plan is made again from the library as it is now, the shared mutation policy is asked again, and
+    /// the file, its companion files and the stored path follow. A file the policy refuses, or whose new name is taken, stays where
+    /// it is and the reason is recorded in the activity history. Nothing is ever overwritten.
+    /// </summary>
+    Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default);
 }

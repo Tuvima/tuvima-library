@@ -146,7 +146,7 @@ public sealed class LibraryMoveEntry
     [JsonPropertyName("joins_existing_title")] public bool JoinsExistingTitle { get; init; }
 }
 
-/// <summary>A file's name and place before and after a move. Filled in when the move also renames and moves files.</summary>
+/// <summary>A file's full path before and after a move: in a Managed folder the move always renames and moves the file to fit its new place.</summary>
 public sealed class LibraryMoveFileChange
 {
     [JsonPropertyName("from")] public string From { get; init; } = string.Empty;
@@ -168,10 +168,16 @@ public sealed class LibraryMovePreviewRow
     /// <summary>Why: "Same title" or "Closest length". Empty when there is no suggestion.</summary>
     [JsonPropertyName("suggestion_reason")] public string SuggestionReason { get; init; } = string.Empty;
 
-    /// <summary>What happens to the file on disk. Null: the move changes the Library only. (Filled in when moves rename files.)</summary>
+    /// <summary>
+    /// What happens to the file on disk when exactly one file is renamed and moved (named for the entry in <see cref="SuggestedEntryKey"/>).
+    /// Null when no file is renamed (see <see cref="FileNote"/>), or the file already fits.
+    /// </summary>
     [JsonPropertyName("file_change")] public LibraryMoveFileChange? FileChange { get; init; }
 
-    /// <summary>One plain line about the file ("As-is folder: the file stays where it is"). Null when there is nothing to say.</summary>
+    /// <summary>
+    /// One plain line about the files: why they are not touched ("As-is folder: the file stays where it is.", "Protected original: the file
+    /// is not touched."), or a summary when several move ("2 files will be renamed and moved to OK Computer."). Null when there is nothing to say.
+    /// </summary>
     [JsonPropertyName("file_note")] public string? FileNote { get; init; }
 
     /// <summary>Why this item cannot be moved right now ("Still being processed"). Null when it can. Apply stays off while any row is blocked.</summary>

@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Api.Services.Libraries.Moves;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
@@ -19,7 +20,11 @@ internal sealed class LibraryMoveTestWorld : IDisposable
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_moves_{Guid.NewGuid():N}.db");
 
-    public LibraryMoveTestWorld()
+    /// <param name="withFiles">
+    /// True to wire the real organiser over real temp folders (a Managed, an As-is and a read-only folder) so a move also renames and
+    /// moves files. Without it, files are only recorded and the move changes the library, not the disk.
+    /// </param>
+    public LibraryMoveTestWorld(bool withFiles = false)
     {
         DapperConfiguration.Configure();
         Database = new DatabaseConnection(_databasePath);
@@ -31,6 +36,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
         Root = Path.Combine(Path.GetTempPath(), $"tuvima_moves_{Guid.NewGuid():N}");
         DataRoot = Path.Combine(Root, "data");
         AssetPaths = new AssetPathService(Path.Combine(Root, "library"), dataRoot: DataRoot);
+        Files = withFiles ? new MoveFileWorld(Database, Path.Combine(Root, "files")) : null;
         Service = new LibraryMoveService(
             Repository,
             new MoveListRegistry(
@@ -41,8 +47,12 @@ internal sealed class LibraryMoveTestWorld : IDisposable
                 new AudiobookPartMoveListProvider(Repository),
             ]),
             new MoveOwnedFileCleaner(AssetPaths, NullLogger<MoveOwnedFileCleaner>.Instance),
+            new MoveFilePlanner((IAutoOrganizeService?)Files?.Organizer ?? new MoveFileWorld.NoFilesOrganizer()),
             Cache);
     }
+
+    /// <summary>The real organiser, folders and file queue. Null in a world that only records files.</summary>
+    public MoveFileWorld? Files { get; }
 
     public string Root { get; }
     public string DataRoot { get; }
@@ -95,7 +105,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
 
     public (Guid WorkId, Guid EditionId, Guid? AssetId) AddChild(
         Guid parent, string mediaType, string title, int? ordinal, bool hasFile = true,
-        double? ordinalSort = -1, string? duration = null, bool catalogOnly = false, Guid? collection = null)
+        double? ordinalSort = -1, string? duration = null, bool catalogOnly = false, Guid? collection = null, string? filePath = null)
     {
         var work = Guid.NewGuid();
         var edition = Guid.NewGuid();
@@ -134,7 +144,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
                 VALUES (@assetId, @edition, @hash, @path, CURRENT_TIMESTAMP);
                 """,
-                new { assetId, edition, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/{assetId:N}.mp3" });
+                new { assetId, edition, hash = Guid.NewGuid().ToString("N"), path = filePath ?? $"C:/library/{assetId:N}.mp3" });
         }
 
         return (work, edition, asset);
@@ -159,7 +169,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
         return (work, made);
     }
 
-    public (Guid EditionId, Guid AssetId) AddPart(Guid work, int? number, string partTitle, int? partCount = null)
+    public (Guid EditionId, Guid AssetId) AddPart(Guid work, int? number, string partTitle, int? partCount = null, string? filePath = null)
     {
         var edition = Guid.NewGuid();
         var asset = Guid.NewGuid();
@@ -171,7 +181,7 @@ internal sealed class LibraryMoveTestWorld : IDisposable
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
                 VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP);
                 """,
-                new { edition, work, asset, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/{asset:N}.mp3" });
+                new { edition, work, asset, hash = Guid.NewGuid().ToString("N"), path = filePath ?? $"C:/library/{asset:N}.mp3" });
         }
 
         Put(asset, "track_title", partTitle);

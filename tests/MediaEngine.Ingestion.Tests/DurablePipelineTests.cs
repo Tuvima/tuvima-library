@@ -2396,6 +2396,12 @@ public sealed class DurablePipelineTests : IDisposable
     {
         public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     private sealed class RecordingAutoOrganizeService : IAutoOrganizeService
@@ -2407,6 +2413,12 @@ public sealed class DurablePipelineTests : IDisposable
             Calls.Add(assetId);
             return Task.CompletedTask;
         }
+
+        public Task<AssetRefilePlan> PlanRefileAsync(Guid assetId, AssetRefilePlacement? placement, CancellationToken ct = default)
+            => Task.FromResult(AssetRefilePlan.Of(AssetRefileDisposition.AlreadyFits, string.Empty));
+
+        public Task<AssetRefileOutcome> RefileAsync(Guid assetId, CancellationToken ct = default)
+            => Task.FromResult(new AssetRefileOutcome(AssetRefileOutcomeKind.AlreadyFits, AssetRefileDisposition.AlreadyFits, string.Empty, null));
     }
 
     private sealed class NoOpSystemActivityRepository : ISystemActivityRepository

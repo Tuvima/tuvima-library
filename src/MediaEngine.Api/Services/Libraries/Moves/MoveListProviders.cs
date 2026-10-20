@@ -36,7 +36,7 @@ public sealed class AlbumTrackMoveListProvider(ILibraryMoveRepository moves) : I
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
                 child.HasFile,
-                new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
+                new LibraryMoveTarget(ExistingWorkId: child.WorkId, Ordinal: child.Ordinal, OrdinalSort: child.OrdinalSort, DiscNumber: child.DiscNumber))));
         }
 
         foreach (var missing in ReadManifest(destination.ManifestJson, children))
@@ -144,7 +144,7 @@ public sealed class SeasonEpisodeMoveListProvider(ILibraryMoveRepository moves, 
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
                 child.HasFile,
-                new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
+                new LibraryMoveTarget(ExistingWorkId: child.WorkId, Ordinal: child.Ordinal, OrdinalSort: child.OrdinalSort, DiscNumber: child.DiscNumber))));
         }
 
         if (destination.CollectionId is { } collectionId
@@ -228,7 +228,7 @@ public sealed class SeriesPositionMoveListProvider(ILibraryMoveRepository moves,
                 child.HasFile ? child.WorkId : null,
                 child.HasFile ? child.Title : null,
                 child.HasFile,
-                new LibraryMoveTarget(ExistingWorkId: child.WorkId))));
+                new LibraryMoveTarget(ExistingWorkId: child.WorkId, Ordinal: child.Ordinal, OrdinalSort: child.OrdinalSort, DiscNumber: child.DiscNumber))));
         }
 
         if (destination.CollectionId is { } collectionId

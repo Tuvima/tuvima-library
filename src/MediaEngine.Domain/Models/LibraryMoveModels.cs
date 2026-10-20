@@ -106,7 +106,11 @@ public sealed record LibraryMovePart(
     bool IsUnmatched,
     double? DurationSeconds);
 
-/// <summary>Where one item is to be placed. At most one of the target fields is set.</summary>
+/// <summary>
+/// Where one item is to be placed. Of the place the item takes, at most one of <paramref name="ExistingWorkId"/>, <paramref name="ManifestItemId"/>
+/// and the new-slot numbers is set; an entry that already has a Work also carries that Work's numbers, which the commit ignores and the
+/// preview of the file name uses.
+/// </summary>
 /// <param name="ExistingWorkId">An entry that already has a Work row under the destination (a track, episode or position).</param>
 /// <param name="ManifestItemId">The known series entry (a row of the series list) the item takes, so the list shows it as owned.</param>
 /// <param name="Ordinal">The whole number of a new slot.</param>
@@ -161,6 +165,65 @@ public sealed record LibraryMoveCommitOutcome(
     public static LibraryMoveCommitOutcome Done(
         IReadOnlyList<LibraryMoveRowOutcome> rows, IReadOnlyList<string> removed, IReadOnlyList<string> ownedFiles) =>
         new(true, null, rows, removed, ownedFiles);
+}
+
+/// <summary>
+/// The values that say where an item sits in its list, and which of them a move writes. One definition for the transaction that writes
+/// them and the preview that works out the file name they give.
+/// </summary>
+public static class MovePlacementNumbers
+{
+    public const string AudiobookPartNumberKey = "audiobook_part_number";
+
+    /// <summary>The numbers a title (Work) holds in its album, season or series.</summary>
+    public static readonly string[] WorkKeys =
+    [
+        MetadataFieldConstants.TrackNumber,
+        MetadataFieldConstants.DiscNumber,
+        MetadataFieldConstants.EpisodeNumber,
+        MetadataFieldConstants.SeasonNumber,
+        MetadataFieldConstants.SeriesPosition,
+        "series_index",
+    ];
+
+    /// <summary>The numbers an audiobook part (an Edition) holds in its audiobook.</summary>
+    public static readonly string[] PartKeys = [AudiobookPartNumberKey];
+
+    /// <summary>What a title placed in <paramref name="mediaType"/>'s album, season or series is numbered.</summary>
+    public static List<(string Key, string Value)> For(string? mediaType, int? seasonNumber, int? ordinal, double? ordinalSort, int? disc)
+    {
+        var numbers = new List<(string, string)>();
+        if (string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase))
+        {
+            if (ordinal is { } track)
+            {
+                numbers.Add((MetadataFieldConstants.TrackNumber, track.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            if (disc is { } discNumber)
+            {
+                numbers.Add((MetadataFieldConstants.DiscNumber, discNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+        }
+        else if (string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase))
+        {
+            if (ordinal is { } episode)
+            {
+                numbers.Add((MetadataFieldConstants.EpisodeNumber, episode.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
+            if (seasonNumber is { } season)
+            {
+                numbers.Add((MetadataFieldConstants.SeasonNumber, season.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+        }
+        else if (ordinalSort is { } position)
+        {
+            numbers.Add((MetadataFieldConstants.SeriesPosition, position.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        return numbers;
+    }
 }
 
 /// <summary>What leaving would empty: a source place that has nothing else in it, found for the preview's warnings.</summary>
