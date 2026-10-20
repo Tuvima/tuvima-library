@@ -976,23 +976,32 @@ public sealed class WorkRepository : IWorkRepository
     }
 
     /// <summary>
-    /// Extra <c>WHERE</c> terms for <see cref="FindConfirmedSiblingQidAsync"/> when a settled identity is required:
-    /// the Work or one of its files has no identity job waiting in Needs Review, and no open identity review item.
+    /// Extra <c>WHERE</c> terms for <see cref="FindConfirmedSiblingQidAsync"/> when a settled identity is required.
+    /// <list type="bullet">
+    /// <item>The latest identity job of the Work or one of its files must be past identification (its Wikidata ID
+    /// is resolved or hydrated), or there is no identity job at all. A job still in progress, waiting in Needs
+    /// Review, failed or without a Wikidata match may still be carrying an old ID.</item>
+    /// <item>The Work or its files must have no Pending review item at all, except the two below that say nothing
+    /// about who the item is: <c>WritebackFailed</c> (a tag could not be written back to the file) and
+    /// <c>MediaInspectionFailed</c> (a tool could not read the file's streams). Every other trigger, including
+    /// naming, language, metadata-conflict and name-collision items, may change which item this is.</item>
+    /// </list>
     /// </summary>
     private static readonly string SettledIdentitySql = $"""
 
               AND  NOT EXISTS (
                        SELECT 1 FROM identity_jobs ij
                        WHERE  ij.entity_id IN (w.id, ma.id)
-                         AND  ij.state IN ('{nameof(IdentityJobState.RetailMatchedNeedsReview)}', '{nameof(IdentityJobState.QidNeedsReview)}'))
+                         AND  ij.state NOT IN ('{nameof(IdentityJobState.QidResolved)}', '{nameof(IdentityJobState.Hydrating)}',
+                                               '{nameof(IdentityJobState.UniverseEnriching)}', '{nameof(IdentityJobState.Ready)}',
+                                               '{nameof(IdentityJobState.ReadyWithoutUniverse)}')
+                         AND  ij.updated_at = (SELECT MAX(latest.updated_at) FROM identity_jobs latest
+                                               WHERE  latest.entity_id IN (w.id, ma.id)))
               AND  NOT EXISTS (
                        SELECT 1 FROM review_queue rq
                        WHERE  rq.entity_id IN (w.id, ma.id)
                          AND  rq.status = 'Pending'
-                         AND  rq.trigger IN ('{ReviewTrigger.RetailMatchFailed}', '{ReviewTrigger.RetailMatchAmbiguous}',
-                                             '{ReviewTrigger.LowConfidence}', '{ReviewTrigger.StagedUnidentifiable}',
-                                             '{ReviewTrigger.MissingQid}', '{ReviewTrigger.MultipleQidMatches}',
-                                             '{ReviewTrigger.WikidataBridgeFailed}', '{ReviewTrigger.UserFixMatch}'))
+                         AND  rq.trigger NOT IN ('{ReviewTrigger.WritebackFailed}', '{ReviewTrigger.MediaInspectionFailed}'))
             """;
 
     private sealed class SiblingQidRow

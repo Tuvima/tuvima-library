@@ -107,18 +107,83 @@ public sealed class WorkRepositorySettledSiblingTests : IDisposable
         Assert.NotNull(await FindAsync(requireSettledIdentity: true));
     }
 
-    [Fact]
-    public async Task BookWithOnlyANonIdentityReviewItem_MatchesWhenSettledIdentityIsRequired()
+    [Theory]
+    [InlineData(ReviewTrigger.WritebackFailed)]
+    [InlineData(ReviewTrigger.MediaInspectionFailed)]
+    public async Task BookWithOnlyAFileHandlingReviewItem_MatchesWhenSettledIdentityIsRequired(string trigger)
     {
         var book = await SeedOwnedBookAsync();
-        await _reviews.InsertAsync(new ReviewQueueEntry
-        {
-            EntityId = book.AssetId,
-            EntityType = "MediaAsset",
-            Trigger = ReviewTrigger.WritebackFailed,
-        });
+        await _reviews.InsertAsync(new ReviewQueueEntry { EntityId = book.AssetId, EntityType = "MediaAsset", Trigger = trigger });
 
         Assert.NotNull(await FindAsync(requireSettledIdentity: true));
+    }
+
+    [Theory]
+    [InlineData(ReviewTrigger.AmbiguousMediaType)]
+    [InlineData(ReviewTrigger.PlaceholderTitle)]
+    [InlineData(ReviewTrigger.LanguageMismatch)]
+    [InlineData(ReviewTrigger.MetadataConflict)]
+    [InlineData(ReviewTrigger.NameCollision)]
+    [InlineData(ReviewTrigger.StagedUnidentifiable)]
+    [InlineData(ReviewTrigger.MissingQid)]
+    public async Task BookWithAnyOtherOpenReviewItem_DoesNotMatchWhenSettledIdentityIsRequired(string trigger)
+    {
+        var book = await SeedOwnedBookAsync();
+        await _reviews.InsertAsync(new ReviewQueueEntry { EntityId = book.AssetId, EntityType = "MediaAsset", Trigger = trigger });
+
+        Assert.Null(await FindAsync(requireSettledIdentity: true));
+        Assert.NotNull(await FindAsync(requireSettledIdentity: false));
+    }
+
+    [Theory]
+    [InlineData(IdentityJobState.Queued)]
+    [InlineData(IdentityJobState.RetailSearching)]
+    [InlineData(IdentityJobState.RetailMatched)]
+    [InlineData(IdentityJobState.BridgeSearching)]
+    [InlineData(IdentityJobState.QidNoMatch)]
+    [InlineData(IdentityJobState.Failed)]
+    public async Task BookWhoseLatestIdentityJobIsNotSettled_DoesNotMatchWhenSettledIdentityIsRequired_ButStillMatchesByDefault(
+        IdentityJobState state)
+    {
+        var book = await SeedOwnedBookAsync();
+        await CreateJobAsync(book.AssetId, state);
+
+        Assert.Null(await FindAsync(requireSettledIdentity: true));
+        Assert.NotNull(await FindAsync(requireSettledIdentity: false));
+    }
+
+    [Theory]
+    [InlineData(IdentityJobState.QidResolved)]
+    [InlineData(IdentityJobState.Hydrating)]
+    [InlineData(IdentityJobState.UniverseEnriching)]
+    [InlineData(IdentityJobState.Ready)]
+    [InlineData(IdentityJobState.ReadyWithoutUniverse)]
+    public async Task BookWhoseLatestIdentityJobIsSettled_MatchesWhenSettledIdentityIsRequired(IdentityJobState state)
+    {
+        var book = await SeedOwnedBookAsync();
+        await CreateJobAsync(book.AssetId, state);
+
+        Assert.NotNull(await FindAsync(requireSettledIdentity: true));
+    }
+
+    [Fact]
+    public async Task BookWhoseEarlierJobWaitedInNeedsReviewButWhoseLatestJobIsReady_MatchesWhenSettledIdentityIsRequired()
+    {
+        var book = await SeedOwnedBookAsync();
+        await CreateJobAsync(book.AssetId, IdentityJobState.QidNeedsReview, DateTimeOffset.UtcNow.AddHours(-2));
+        await CreateJobAsync(book.AssetId, IdentityJobState.Ready, DateTimeOffset.UtcNow.AddHours(-1));
+
+        Assert.NotNull(await FindAsync(requireSettledIdentity: true));
+    }
+
+    [Fact]
+    public async Task BookWhoseLatestJobIsInProgressAfterAnEarlierReadyJob_DoesNotMatchWhenSettledIdentityIsRequired()
+    {
+        var book = await SeedOwnedBookAsync();
+        await CreateJobAsync(book.AssetId, IdentityJobState.Ready, DateTimeOffset.UtcNow.AddHours(-2));
+        await CreateJobAsync(book.AssetId, IdentityJobState.BridgeSearching, DateTimeOffset.UtcNow.AddHours(-1));
+
+        Assert.Null(await FindAsync(requireSettledIdentity: true));
     }
 
     private Task<ConfirmedSiblingWorkQid?> FindAsync(bool requireSettledIdentity) =>
@@ -129,7 +194,7 @@ public sealed class WorkRepositorySettledSiblingTests : IDisposable
             "Frank Herbert",
             requireSettledIdentity: requireSettledIdentity);
 
-    private Task CreateJobAsync(Guid assetId, IdentityJobState state) =>
+    private Task CreateJobAsync(Guid assetId, IdentityJobState state, DateTimeOffset? updatedAt = null) =>
         _jobs.CreateAsync(new IdentityJob
         {
             Id = Guid.NewGuid(),
@@ -137,6 +202,7 @@ public sealed class WorkRepositorySettledSiblingTests : IDisposable
             EntityType = "MediaAsset",
             MediaType = "Books",
             State = state.ToString(),
+            UpdatedAt = updatedAt ?? DateTimeOffset.UtcNow,
         });
 
     private async Task<(Guid WorkId, Guid AssetId)> SeedOwnedBookAsync()

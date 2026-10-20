@@ -116,8 +116,15 @@ public sealed partial class WikidataBridgeWorker
             }
 
             // Record timeline event.
-            var timelineMethod = ctx.PrimaryBridgeIdType ?? ctx.MatchedBy ?? "bridge_id";
-            await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, ct);
+            if (ctx.MatchedBy == QidResolutionMethods.OwnedBookNoRetail)
+            {
+                await _timeline.RecordOwnedBookQidKeptAsync(job.EntityId, ctx.ResolvedQid, ct);
+            }
+            else
+            {
+                var timelineMethod = ctx.PrimaryBridgeIdType ?? ctx.MatchedBy ?? "bridge_id";
+                await _timeline.RecordBridgeResolvedAsync(job.EntityId, ctx.ResolvedQid, timelineMethod, ct);
+            }
 
             _logger.LogInformation(
                 "Wikidata: '{Title}' identified as {Qid} via {Method} [entity {EntityId}]",
