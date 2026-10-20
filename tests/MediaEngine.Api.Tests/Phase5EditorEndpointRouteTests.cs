@@ -13,7 +13,8 @@ public sealed class Phase5EditorEndpointRouteTests
         Assert.Contains("group.MapGet(\"/{entityId:guid}/editor-context\"", metadata, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/{entityId:guid}/navigator\"", navigator, StringComparison.Ordinal);
         Assert.Contains("/membership-preview", navigator, StringComparison.Ordinal);
-        Assert.Contains("/membership-apply", navigator, StringComparison.Ordinal);
+        Assert.DoesNotContain("/membership-apply", navigator, StringComparison.Ordinal);
+        Assert.DoesNotContain("/membership-suggestions", navigator, StringComparison.Ordinal);
         Assert.Contains("/{entityId:guid}/preferences", canonical, StringComparison.Ordinal);
         Assert.Contains("/{entityId:guid}/display-overrides", canonical, StringComparison.Ordinal);
         Assert.Contains("/{entityId:guid}/editor-preferences/{profileId:guid}", canonical, StringComparison.Ordinal);
@@ -40,7 +41,7 @@ public sealed class Phase5EditorEndpointRouteTests
             ReadSource("src/MediaEngine.Api/Services/ReadServices/MediaEditorNavigationReadService.cs")
             + ReadSource("src/MediaEngine.Application/ReadModels/MediaEditorReadModels.cs");
         Assert.Contains("IMediaEditorNavigationReadService navigationReadService", navigator, StringComparison.Ordinal);
-        Assert.Contains("IMediaEditorMembershipReadService membershipReadService", navigator, StringComparison.Ordinal);
+        Assert.DoesNotContain("IMediaEditorMembershipReadService membershipReadService", navigator, StringComparison.Ordinal);
         Assert.Contains("IHierarchyAlignmentService hierarchyAlignment", navigator, StringComparison.Ordinal);
         Assert.Contains("compact_ordinal_label", navigatorService, StringComparison.Ordinal);
         Assert.Contains("technical_badges", navigatorService, StringComparison.Ordinal);

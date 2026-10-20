@@ -3361,6 +3361,7 @@ MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveEntry
   LengthSeconds: System.Double? | nullability=nullable | accessors=get,init
   TakenByItemId: System.Guid? | nullability=nullable | accessors=get,init
   TakenByTitle: System.String | nullability=nullable | accessors=get,init
+  CanAddVersion: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.LibraryMoveFileChange
   From: System.String | nullability=not-null | accessors=get,init
@@ -5084,31 +5085,6 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MetadataSearchResu
   ThumbnailUrl: System.String | nullability=nullable | accessors=get,set
   ProviderItemId: System.String | nullability=nullable | accessors=get,set
   Confidence: System.Double | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMoveChoice
-  ReleaseTrackId: System.String | nullability=not-null | accessors=get,init
-  RecordingId: System.String | nullability=nullable | accessors=get,init
-  Title: System.String | nullability=not-null | accessors=get,init
-  DiscNumber: System.Int32 | nullability=not-null | accessors=get,init
-  TrackNumber: System.Int32 | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMovePreview
-  ReviewToken: System.String | nullability=not-null | accessors=get,init
-  ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  ReleaseId: System.String | nullability=not-null | accessors=get,init
-  Album: System.String | nullability=not-null | accessors=get,init
-  Artist: System.String | nullability=nullable | accessors=get,init
-  Tracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Metadata.MusicTrackMoveChoice> | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMovePreviewRequest
-  AssetId: System.Guid | nullability=not-null | accessors=get,init
-  ReleaseId: System.String | nullability=not-null | accessors=get,init
-
-MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MusicTrackMoveSaveRequest
-  ReviewToken: System.String | nullability=not-null | accessors=get,init
-  ReleaseTrackId: System.String | nullability=not-null | accessors=get,init
-  OperationId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.ProviderArtworkRefreshDto
   Provider: System.String | nullability=not-null | accessors=get,set

@@ -1019,3 +1019,19 @@
 .tl-audio-item-cards__leading {
     min-width: 0;
 }
+
+/* The Unnumbered group at the end of a list: titles added anyway have no number (details overlay D13). */
+.tl-audio-item-table__group-row th,
+.tl-audio-item-table__group-heading {
+    padding: 0.55rem 0.65rem 0.3rem;
+    color: var(--tl-text-secondary, rgba(245, 247, 252, 0.68));
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.tl-audio-item-table__group-heading {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}

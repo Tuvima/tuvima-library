@@ -780,6 +780,7 @@ else if (Model is not null)
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
             OnArtworkChanged = RefreshCurrentDetailAsync,
+            IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
             PreviewItems =
             [
                 new MediaEditorPreviewItem

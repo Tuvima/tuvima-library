@@ -117,6 +117,12 @@ public sealed class LibraryMoveEntry
     [JsonPropertyName("taken_by_item_id")] public Guid? TakenByItemId { get; init; }
 
     [JsonPropertyName("taken_by_title")] public string? TakenByTitle { get; init; }
+
+    /// <summary>
+    /// True when a taken entry can take "Add as another version" (the Engine can honour it). False or absent: the person can only
+    /// pick another entry. Meaningful only when <see cref="TakenByItemId"/> is set.
+    /// </summary>
+    [JsonPropertyName("can_add_version")] public bool CanAddVersion { get; init; }
 }
 
 /// <summary>A file's name and place before and after a move. Filled in when the move also renames and moves files.</summary>
