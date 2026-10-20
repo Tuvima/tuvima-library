@@ -11,6 +11,8 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<EpubReader> Logger
+@inject UIOrchestratorService Orchestrator
+@inject IAppToastService Toast
 
 @implements IAsyncDisposable
 
@@ -324,8 +326,43 @@ else
     // Decided once when the page opens, so a later address change cannot swap readers under a running page.
     private bool _useNewReader;
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         _useNewReader = string.Equals(ReaderChoice, "new", StringComparison.OrdinalIgnoreCase);
+
+        // The foliate reader (?reader=new) listens for itself; this page only does so for the default reader.
+        if (!_useNewReader)
+        {
+            Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+        }
+    }
+
+    private bool _removed; // the title was deleted from the library: nothing more is saved for it
+
+    // The title being read was deleted from the library (here or in another window): stop reading, say why, and leave. Nothing is
+    // saved for it, because its progress went with it.
+    private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent removed)
+    {
+        if (!removed.AssetIds.Contains(AssetId))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_removed)
+            {
+                return;
+            }
+
+            _removed = true;
+            _progressAlreadySaved = true;
+            _sessionTimer?.Dispose();
+            _autoSaveTimer?.Dispose();
+            Toast.Add(MediaEngine.Web.Components.Shared.LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            Nav.NavigateTo("/", replace: true);
+        });
+    }
 
     private bool _loading = true;
     private string? _loadError;
@@ -783,7 +820,7 @@ else
     {
         try
         {
-            if (_loading || _currentChapter is null || _paginationPending) return;
+            if (_removed || _loading || _currentChapter is null || _paginationPending) return;
             var overallPercent = ComputeOverallPercentDouble();
             var textOffset = await JS.InvokeAsync<int>("epubReader.getTextOffset");
 
@@ -862,6 +899,8 @@ else
         {
             return;
         }
+
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
 
         _sessionTimer?.Dispose();
         _autoSaveTimer?.Dispose();
