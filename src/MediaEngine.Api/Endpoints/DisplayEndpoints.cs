@@ -452,6 +452,48 @@ public static class DisplayEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
+        group.MapGet("/grids/{lane}/{shelfKey}", async (
+            string lane,
+            string shelfKey,
+            string? sort,
+            string? type,
+            string? genre,
+            string? format,
+            string? status,
+            string? cursor,
+            int? offset,
+            int? limit,
+            ClaimsPrincipal user,
+            DisplayComposerService display,
+            CancellationToken ct) =>
+        {
+            var paged = PagedRequest.From(
+                int.TryParse(cursor, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var cursorOffset) ? cursorOffset : offset,
+                limit,
+                defaultLimit: DisplayGridValues.DefaultPageSize,
+                maxLimit: DisplayGridValues.MaxPageSize);
+            try
+            {
+                var page = await display.BuildGridAsync(
+                    lane,
+                    shelfKey,
+                    new DisplayGridQuery(sort, type, genre, format, status, paged.Offset, paged.Limit),
+                    ProfileId(user),
+                    ct);
+                return page is null ? ApiErrors.NotFound($"No grid found for '{lane}/{shelfKey}'.") : Results.Ok(page);
+            }
+            catch (ArgumentException exception)
+            {
+                return ApiErrors.BadRequest(exception.Message);
+            }
+        })
+            .WithName("GetDisplayGrid")
+            .WithSummary("Returns one page of a shelf's full item list for the View all grid, with sort, filters and paging.")
+            .Produces<DisplayGridPageDto>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .RequireClientScope(ClientApiScopes.LibraryRead);
+
         group.MapGet("/groups/{groupId:guid}", async (
             Guid groupId,
             bool? includeCatalog,
