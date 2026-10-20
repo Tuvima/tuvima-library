@@ -760,7 +760,13 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlySet<Guid> favoriteWorkIds,
         int? expectedTotal)
     {
-        var isSeriesRun = entityType is DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries;
+        var isSeriesRun = SeriesOrdering.SplitsAlsoInThisWorld(entityType switch
+        {
+            DetailEntityType.BookSeries => "Book",
+            DetailEntityType.ComicSeries => "Comic",
+            DetailEntityType.MovieSeries => "Movie",
+            _ => null,
+        });
         var alsoWorks = new List<CollectionWorkSummary>();
         if (isSeriesRun)
         {

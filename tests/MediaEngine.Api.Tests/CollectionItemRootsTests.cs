@@ -844,6 +844,10 @@ public sealed class CollectionItemRootsTests : IDisposable
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
         builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>
             provider.GetRequiredService<AuthorizedDisplayProjectionReadService>());
+        builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
+        builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
+        builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
+        builder.Services.AddScoped<UniverseConnectionsReadService>();
         builder.Services.AddScoped<UniverseClientReadService>();
         var app = builder.Build();
         app.UseAuthentication();

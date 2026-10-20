@@ -118,10 +118,12 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void UniverseCastEndpoint_UsesTypedBatchedPersonRepositoryRead()
     {
-        var graphSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
+        // The Cast action is a thin call; the read itself lives in the shared connections read service.
+        var graphSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"))
+            + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/UniverseConnectionsReadService.cs"));
 
-        Assert.Contains("IPersonRepository personRepo", graphSource, StringComparison.Ordinal);
-        Assert.Contains("personRepo.GetCharacterPerformersAsync(", graphSource, StringComparison.Ordinal);
+        Assert.Contains("IPersonRepository people", graphSource, StringComparison.Ordinal);
+        Assert.Contains("people.GetCharacterPerformersAsync(", graphSource, StringComparison.Ordinal);
         Assert.DoesNotContain("character.Id.ToString()", graphSource, StringComparison.Ordinal);
         Assert.DoesNotContain("character_performer_links", graphSource, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("IDatabaseConnection", graphSource, StringComparison.Ordinal);

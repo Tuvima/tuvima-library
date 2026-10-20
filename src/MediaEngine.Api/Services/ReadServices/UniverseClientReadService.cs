@@ -18,12 +18,14 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// member shelves are the Collections below it. Cards come from the same authorised display projection as
 /// <c>/api/v1/display</c>, so the profile's content limit, libraries and features are already applied: an item the
 /// profile may not see never becomes a card and is never counted. Only structure is read here; no graph edges,
-/// entities or lore.
+/// entities or lore. The detail also carries hero totals, "Also in this world" rows per Series, and the read-only Cast and
+/// Adaptations lists, every one limited to what the profile may see.
 /// </summary>
 public sealed partial class UniverseClientReadService(
     ICollectionRepository collections,
     IDisplayProjectionReadService display,
     DisplayCardBuilder cards,
+    UniverseConnectionsReadService connections,
     ISeriesManifestRepository? manifests = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
@@ -70,7 +72,8 @@ public sealed partial class UniverseClientReadService(
         }
 
         var memberIds = members.Select(member => member.Id).ToHashSet();
-        var rowsByCollection = (await display.LoadWorksAsync(ct).ConfigureAwait(false))
+        var allRows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
+        var rowsByCollection = allRows
             .Where(row => row.CollectionId is { } id && memberIds.Contains(id))
             .GroupBy(row => row.CollectionId!.Value)
             .ToDictionary(group => group.Key, group => group.ToList());
@@ -79,6 +82,7 @@ public sealed partial class UniverseClientReadService(
         var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
+        var mediaTypes = new List<string>();
         foreach (var member in members)
         {
             if (!rowsByCollection.TryGetValue(member.Id, out var rows))
@@ -91,9 +95,17 @@ public sealed partial class UniverseClientReadService(
                 placementsByShelf.TryGetValue(member.Id, out var placements)
                     ? placements
                     : new Dictionary<Guid, ManifestItem>());
-            if (memberCards.Count == 0)
+            if (memberCards.Run.Count == 0 && memberCards.Also.Count == 0)
             {
                 continue;
+            }
+
+            foreach (var kind in memberCards.Kinds)
+            {
+                if (!mediaTypes.Contains(kind, StringComparer.Ordinal))
+                {
+                    mediaTypes.Add(kind);
+                }
             }
 
             var isShow = rows.All(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV");
@@ -102,13 +114,22 @@ public sealed partial class UniverseClientReadService(
             {
                 CollectionId = member.Id,
                 GroupType = isShow ? CollectionGroupTypes.Show : CollectionGroupTypes.Series,
-                ItemCount = memberCards.Count,
+                ItemCount = memberCards.Run.Count,
                 Shelf = new DisplayShelfDto(
                     member.Id.ToString("D"),
                     title,
-                    memberCards.Count == 1 ? "1 item" : $"{memberCards.Count} items",
-                    memberCards.Take(MaxShelfItems).ToList(),
+                    ItemsLabel(memberCards.Run.Count),
+                    memberCards.Run.Take(MaxShelfItems).ToList(),
                     $"/api/v1/display/groups/{member.Id:D}"),
+                AlsoInThisWorldCount = memberCards.Also.Count,
+                AlsoInThisWorld = memberCards.Also.Count == 0
+                    ? null
+                    : new DisplayShelfDto(
+                        $"{member.Id:D}:also-in-this-world",
+                        "Also in this world",
+                        ItemsLabel(memberCards.Also.Count),
+                        memberCards.Also.Take(MaxShelfItems).ToList(),
+                        null),
             });
         }
 
@@ -117,15 +138,28 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
+        var visibleWorkQids = allRows
+            .Select(row => row.IdentityQid)
+            .Where(workQid => !string.IsNullOrWhiteSpace(workQid))
+            .Select(workQid => workQid!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var helperLists = await connections.GetHelperListsAsync(normalized, visibleWorkQids, ct).ConfigureAwait(false);
+
         return new UniverseClientDetailDto
         {
             Qid = normalized,
             Name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!,
             Description = universe.Description,
-            ItemCount = shelves.Sum(shelf => shelf.ItemCount),
+            ItemCount = shelves.Sum(shelf => shelf.ItemCount + shelf.AlsoInThisWorldCount),
+            SeriesCount = shelves.Count,
+            MediaTypes = mediaTypes,
             Shelves = shelves,
+            Cast = helperLists.Cast,
+            Adaptations = helperLists.Adaptations,
         };
     }
+
+    private static string ItemsLabel(int count) => count == 1 ? "1 item" : $"{count} items";
 
     private async Task<IReadOnlyList<Collection>> LoadMemberCollectionsAsync(
         Collection universe,
@@ -183,13 +217,20 @@ public sealed partial class UniverseClientReadService(
                             .First()));
     }
 
-    private IReadOnlyList<DisplayCardDto> BuildCards(
+    private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
         IReadOnlyDictionary<Guid, ManifestItem> manifestByWork)
     {
-        var result = new List<DisplayCardDto>();
+        var run = new List<DisplayCardDto>();
+        var also = new List<DisplayCardDto>();
+        var kinds = new List<string>();
         var tvRows = rows.Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV").ToList();
-        result.AddRange(cards.BuildTvShowCards(tvRows));
+        run.AddRange(cards.BuildTvShowCards(tvRows));
+        if (tvRows.Count > 0)
+        {
+            kinds.Add("TV");
+        }
+
         // The same Series ordering as the shelf and the item page: the manifest's ordinal, then the work's own decimal
         // position, then publication date, then title, with "Also in this world" members after the Series run.
         var seriesRows = rows
@@ -197,20 +238,44 @@ public sealed partial class UniverseClientReadService(
             .GroupBy(row => row.WorkId)
             .Select(group => group.First())
             .ToList();
-        result.AddRange(SeriesOrdering
-            .Order(seriesRows, row =>
+        var ordered = SeriesOrdering.Order(seriesRows, row =>
+        {
+            manifestByWork.TryGetValue(row.WorkId, out var placement);
+            return SeriesOrdering.BuildInput(
+                placement?.MembershipScope,
+                placement?.ParsedOrdinal,
+                placement?.OrdinalScopeQid,
+                placement?.SeriesQid,
+                DisplayMediaRules.ParseDouble(row.SeriesPosition),
+                row.Year,
+                row.SortTitle ?? row.Title);
+        });
+        foreach (var row in ordered)
+        {
+            var kind = DisplayMediaRules.NormalizeDisplayKind(row.MediaType);
+            if (!kinds.Contains(kind, StringComparer.Ordinal))
             {
-                manifestByWork.TryGetValue(row.WorkId, out var placement);
-                return SeriesOrdering.BuildInput(
-                    placement?.MembershipScope,
-                    placement?.ParsedOrdinal,
-                    placement?.OrdinalScopeQid,
-                    placement?.SeriesQid,
-                    DisplayMediaRules.ParseDouble(row.SeriesPosition),
-                    row.Year,
-                    row.SortTitle ?? row.Title);
-            })
-            .Select(row => cards.FromWork(row, "collection", null)));
-        return result;
+                kinds.Add(kind);
+            }
+
+            // The same split the item page uses: supplementary, collected and broader members are "Also in this world".
+            manifestByWork.TryGetValue(row.WorkId, out var placement);
+            var card = cards.FromWork(row, "collection", null);
+            if (SeriesOrdering.SplitsAlsoInThisWorld(kind) && SeriesOrdering.IsAlsoInThisWorld(placement?.MembershipScope))
+            {
+                also.Add(card);
+            }
+            else
+            {
+                run.Add(card);
+            }
+        }
+
+        return new ShelfCards(run, also, kinds);
     }
+
+    private sealed record ShelfCards(
+        IReadOnlyList<DisplayCardDto> Run,
+        IReadOnlyList<DisplayCardDto> Also,
+        IReadOnlyList<string> Kinds);
 }

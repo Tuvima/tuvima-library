@@ -214,7 +214,7 @@ Stage 3 universe enrichment runs plugin lore after the core Wikidata enhancer pa
 |---|---|---|
 | GET | `/universes` | List all narrative roots with entity counts |
 | GET | `/universe/{qid}` | Universe summary: label, level, and counts of the entities (all, characters, locations, organizations) and relationships visible to the caller |
-| GET | `/api/v1/universe/{qid}` | Paired-app Universe page: the Universe's name, item count and member shelves from the Collections catalogue (not the narrative-root graph), limited to what the paired profile may see |
+| GET | `/api/v1/universe/{qid}` | Paired-app Universe page: the Universe's name, hero totals, member shelves (each with its "Also in this world" row) from the Collections catalogue, plus a read-only cast and adaptations list read through the same visibility rule as the graph (the shared `UniverseConnectionsReadService`), limited to what the paired profile may see; adaptations are empty when no adaptation relationship exists |
 | GET | `/universe/{qid}/graph` | Cytoscape.js-ready JSON; supports `?types=`, `?work=`, `?center=` with `?depth=` (ego network), `?timeline_year=`, and `?include_supplemental_lore=true` filters |
 | GET | `/universe/{qid}/paths` | Paths between two entities (`?from=`, `?to=`, optional `?maxHops=`, default 4) |
 | GET | `/universe/{qid}/family-tree` | Family tree for one character (`?character=`, optional `?generations=`, default 3) |
