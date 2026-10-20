@@ -272,38 +272,40 @@ public sealed class MusicBrainzEnrichmentHostedService : BackgroundService
 
         // The album's tracks report its release; the per-album lock and the claims as written keep the
         // album's bridge ids on the release the album agreed on (SharedParentIdentity).
-        using var albumLock = lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
+        using (lineage is not null && lineage.TargetForParentScope != lineage.TargetForSelfScope
             ? await SharedParentIdentity.AcquireAsync(lineage.TargetForParentScope, ct).ConfigureAwait(false)
-            : null;
-        var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
-            candidate.AssetId,
-            claims,
-            provider.ProviderId,
-            lineage,
-            _claimRepo,
-            _canonicalRepo,
-            _scoringEngine,
-            _configLoader,
-            _providers,
-            ct,
-            arrayRepo: _arrayRepo,
-            logger: _logger).ConfigureAwait(false);
-        claims = written.Claims;
-
-        var bridgeEntries = claims
-            .Where(claim => BridgeIdHelper.IsBridgeId(claim.Key) && !string.IsNullOrWhiteSpace(claim.Value))
-            .Select(claim => new BridgeIdEntry
-            {
-                EntityId = ResolveBridgeIdEntityId(lineage, candidate.AssetId, claim.Key),
-                IdType = claim.Key,
-                IdValue = claim.Value,
-                ProviderId = provider.ProviderId.ToString(),
-            })
-            .ToList();
-
-        if (bridgeEntries.Count > 0)
+            : null)
         {
-            await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct).ConfigureAwait(false);
+            var written = await ScoringHelper.PersistAndScoreWithLineageDetailedAsync(
+                candidate.AssetId,
+                claims,
+                provider.ProviderId,
+                lineage,
+                _claimRepo,
+                _canonicalRepo,
+                _scoringEngine,
+                _configLoader,
+                _providers,
+                ct,
+                arrayRepo: _arrayRepo,
+                logger: _logger).ConfigureAwait(false);
+            claims = written.Claims;
+
+            var bridgeEntries = claims
+                .Where(claim => BridgeIdHelper.IsBridgeId(claim.Key) && !string.IsNullOrWhiteSpace(claim.Value))
+                .Select(claim => new BridgeIdEntry
+                {
+                    EntityId = ResolveBridgeIdEntityId(lineage, candidate.AssetId, claim.Key),
+                    IdType = claim.Key,
+                    IdValue = claim.Value,
+                    ProviderId = provider.ProviderId.ToString(),
+                })
+                .ToList();
+
+            if (bridgeEntries.Count > 0)
+            {
+                await _bridgeIdRepo.UpsertBatchAsync(bridgeEntries, ct).ConfigureAwait(false);
+            }
         }
 
         if (claims.Any(claim =>

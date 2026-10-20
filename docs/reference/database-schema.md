@@ -1142,7 +1142,7 @@ External provider identifiers (ISBN, ASIN, TMDB ID, MBID) used for cross-provide
 | `entity_type` | TEXT | |
 | `id_type` | TEXT | `"ISBN"`, `"ASIN"`, `"TMDB"`, `"MBID"`, etc. |
 | `value` | TEXT | The identifier value |
-| `source_id` | TEXT | Which provider supplied this ID |
+| `source_id` | TEXT | Which provider supplied this ID. A Wikidata confirmation of the same value keeps the earlier non-Wikidata source, because Stage 2 resolves only from ids Wikidata did not supply. |
 
 **Index:** `entity_id + id_type`, `value + id_type` (for reverse lookup)
 
