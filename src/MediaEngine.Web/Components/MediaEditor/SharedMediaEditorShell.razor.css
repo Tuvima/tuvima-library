@@ -1974,3 +1974,9 @@
 .sme-shell--section .sme-footer {
     padding: var(--tl-space-3) var(--tl-space-4);
 }
+
+/* The slot caps the height; without this the body is sized to it but clips what is below instead of scrolling. */
+.sme-shell--section .sme-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
