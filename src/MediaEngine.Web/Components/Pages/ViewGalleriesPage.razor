@@ -1,7 +1,9 @@
 @page "/view/galleries"
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Navigation
 @inject GalleryEditorLauncherService GalleryEditorLauncher
+@inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
 @inject ViewWorkspaceService Workspace
 @namespace MediaEngine.Web.Components.Pages
@@ -41,8 +43,12 @@
 </ViewSectionShell>
 
 @code {
-    [SupplyParameterFromQuery(Name = "create")] public bool CreateRequested { get; set; }
-    [SupplyParameterFromQuery(Name = "kind")] public string? RequestedKind { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public bool CreateRequested => Query.Bool("create");
+    public string? RequestedKind => Query.String("kind");
     private bool _loading = true;
     private bool _handledCreateRequest;
 

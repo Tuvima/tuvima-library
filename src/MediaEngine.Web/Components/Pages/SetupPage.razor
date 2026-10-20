@@ -5,6 +5,7 @@
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Setup
+@using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject IEngineApiClient ApiClient
@@ -162,8 +163,11 @@
         return outcome == SignInAttemptResult.Allowed;
     }
 
-    [SupplyParameterFromQuery(Name = "step")]
-    public string? RequestedStep { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)]
+    public string? RoutedUri { get; set; }
+
+    public string? RequestedStep => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("step");
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
     // The sidebar lists the language screen and the Enhance your library screen as separate steps.

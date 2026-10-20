@@ -53,10 +53,15 @@ public partial class ListenPage
     [Parameter] public string? ArtistKey { get; set; }
     [Parameter] public string? PlaylistKey { get; set; }
     [Parameter] public Guid? WorkId { get; set; }
-    [SupplyParameterFromQuery(Name = "track")] public Guid? Track { get; set; }
-    [SupplyParameterFromQuery(Name = "edit")] public bool Edit { get; set; }
-    [SupplyParameterFromQuery(Name = "artist")] public string? AlbumArtist { get; set; }
-    [SupplyParameterFromQuery(Name = "browse")] public string? BrowseQuery { get; set; }
+
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public Guid? Track => Query.Guid("track");
+    public bool Edit => Query.Bool("edit");
+    public string? AlbumArtist => Query.String("artist");
+    public string? BrowseQuery => Query.String("browse");
 
     private readonly List<WorkViewModel> _allWorks = [];
     private readonly List<WorkViewModel> _musicWorks = [];

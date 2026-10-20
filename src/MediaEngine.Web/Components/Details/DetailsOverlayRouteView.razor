@@ -1,0 +1,124 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Reflection
+@using MediaEngine.Web.Services.Navigation
+@using RouteData = Microsoft.AspNetCore.Components.RouteData
+@inject DetailsOverlayState Overlay
+@inject NavigationManager Nav
+
+@* The route view for the whole Dashboard (spec D1). It renders a routed page in its own layout exactly as RouteView does,
+   and when the address is a detail address it renders the page the person came from under it, in the same place in the
+   render tree so Blazor keeps that page's instance (its state and scroll), with the detail page over it in the overlay. *@
+<FocusOnNavigate RouteData="_pageData" Selector="h1" />
+<CascadingValue Value="Overlay" IsFixed="true">
+    <LayoutView Layout="_layout">
+        <CascadingValue Name="@RoutedPageQuery.CascadingName" Value="_pageUri">
+            @RenderPage(_pageData)
+        </CascadingValue>
+        @if (_overlayData is not null)
+        {
+            <DetailsOverlayHost>
+                <CascadingValue Name="@RoutedPageQuery.CascadingName" Value="_overlayUri">
+                    @RenderPage(_overlayData)
+                </CascadingValue>
+            </DetailsOverlayHost>
+        }
+    </LayoutView>
+</CascadingValue>
+
+@code {
+    [Parameter, EditorRequired] public RouteData RouteData { get; set; } = default!;
+
+    [Parameter] public Type? DefaultLayout { get; set; }
+
+    /// <summary>The assembly whose pages are routed; used to find Home when the page under a reloaded overlay was never visited.</summary>
+    [Parameter] public Assembly? AppAssembly { get; set; }
+
+    /// <summary>Home, shown under an overlay whose page was never visited (a reload). Defaults to the page declaring the "/" route in <see cref="AppAssembly"/>.</summary>
+    [Parameter] public RouteData? HomeRouteData { get; set; }
+
+    private RouteData _pageData = default!;
+    private string _pageUri = "/";
+    private RouteData? _overlayData;
+    private string _overlayUri = "/";
+    private Type? _layout;
+    private RouteData? _homeData;
+
+    protected override void OnParametersSet()
+    {
+        var currentUri = Overlay.ToAppPath(Nav.Uri);
+        var route = Overlay.Current;
+        var previousPage = _pageData;
+        var overlayWasOpen = _overlayData is not null;
+        _overlayData = null;
+
+        if (DetailsOverlayRoute.IsDetailUri(currentUri)
+            && route.IsOpen
+            && route.UnderlayUri is { } underlayUri
+            && FindUnderlay(underlayUri) is { } underlay)
+        {
+            // The same RouteData the page was shown with, so it is not re-created and is not told its address changed.
+            _pageData = underlay;
+            _pageUri = underlayUri;
+            _overlayData = RouteData;
+            _overlayUri = currentUri;
+        }
+        else
+        {
+            // Closing an overlay over the page it covered: keep that page's instance of RouteData, so the page is not
+            // re-initialised and focus is not pulled away from the title that opened the overlay.
+            _pageData = overlayWasOpen && previousPage is not null && SameRoute(previousPage, RouteData)
+                ? previousPage
+                : RouteData;
+            _pageUri = currentUri;
+            if (!DetailsOverlayRoute.IsDetailUri(currentUri) && LayoutOf(_pageData) == DefaultLayout)
+                Overlay.RememberPage(currentUri, _pageData);
+        }
+
+        _layout = LayoutOf(_pageData);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+            Overlay.Attach();
+    }
+
+    private Type? LayoutOf(RouteData data) =>
+        data.PageType.GetCustomAttribute<LayoutAttribute>()?.LayoutType ?? DefaultLayout;
+
+    private RouteData? FindUnderlay(string underlayUri)
+    {
+        if (Overlay.TryGetPage(underlayUri, out var remembered))
+            return remembered;
+
+        if (!string.Equals(DetailsOverlayRoute.PathOf(underlayUri), DetailsOverlayRoute.Home, StringComparison.Ordinal))
+            return null;
+
+        return HomeRouteData ?? (_homeData ??= FindHome());
+    }
+
+    // Home is whichever page declares the "/" route.
+    private RouteData? FindHome()
+    {
+        var homePage = AppAssembly?.GetTypes().FirstOrDefault(type =>
+            typeof(IComponent).IsAssignableFrom(type)
+            && type.GetCustomAttributes<RouteAttribute>().Any(route => route.Template == "/"));
+
+        return homePage is null ? null : new RouteData(homePage, new Dictionary<string, object?>());
+    }
+
+    private static bool SameRoute(RouteData left, RouteData right) =>
+        left.PageType == right.PageType
+        && left.RouteValues.Count == right.RouteValues.Count
+        && left.RouteValues.All(pair => right.RouteValues.TryGetValue(pair.Key, out var value) && Equals(pair.Value, value));
+
+    // The same page-with-parameters rendering RouteView does.
+    private static RenderFragment RenderPage(RouteData data) => builder =>
+    {
+        builder.OpenComponent(0, data.PageType);
+        foreach (var pair in data.RouteValues)
+            builder.AddComponentParameter(1, pair.Key, pair.Value);
+
+        builder.CloseComponent();
+    };
+}

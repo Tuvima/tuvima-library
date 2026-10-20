@@ -150,6 +150,9 @@
 
     protected override void OnParametersSet() => UpdateEditingEligibility();
 
+    /// <summary>The details overlay this page is shown in; null when the page is rendered on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private bool _disposed;
 
     public void Dispose()
@@ -347,6 +350,14 @@
 
         var fallback = DetailOriginInterop.FallbackRoute(Model.EntityType, Model.Facts?.MediaKind);
         _editing?.Leave();
+        if (Overlay is { IsOpen: true } overlay)
+        {
+            // In the overlay, "leave" is the close button's path: dismiss it entirely, back to the page under it.
+            // Nothing typed on a deleted title matters, so no guard is asked.
+            await overlay.DismissAsync(force: true);
+            return;
+        }
+
         if (!await JS.TryBackAsync(fallback, Logger) && !_disposed)
         {
             Nav.NavigateTo(fallback);

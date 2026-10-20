@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
 
@@ -167,12 +168,16 @@
     private const int MinimumQueryLength = 2;
     private static readonly IReadOnlyList<string> MediaOptions = ["Book", "Comic", "Movie", "TV", "Music", "Audiobook"];
 
-    [SupplyParameterFromQuery(Name = "q")] public string? Query { get; set; }
-    [SupplyParameterFromQuery(Name = "media")] public string[]? Media { get; set; }
-    [SupplyParameterFromQuery(Name = "type")] public string? ResultType { get; set; }
-    [SupplyParameterFromQuery(Name = "yearFrom")] public int? YearFrom { get; set; }
-    [SupplyParameterFromQuery(Name = "yearTo")] public int? YearTo { get; set; }
-    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Routed => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? Query => Routed.String("q");
+    public string[]? Media => Routed.Strings("media");
+    public string? ResultType => Routed.String("type");
+    public int? YearFrom => Routed.Int("yearFrom");
+    public int? YearTo => Routed.Int("yearTo");
+    public string? Sort => Routed.String("sort");
 
     private CancellationTokenSource? _searchCts;
     private UniversalSearchResponseDto? _response;

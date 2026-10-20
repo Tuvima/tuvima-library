@@ -1,5 +1,7 @@
 @page "/details/{EntityType}/{Id:guid}"
 @using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Navigation
+@inject NavigationManager Nav
 
 @namespace MediaEngine.Web.Components.Pages
 
@@ -11,21 +13,24 @@
     [Parameter] public string EntityType { get; set; } = string.Empty;
     [Parameter] public Guid Id { get; set; }
 
-    [SupplyParameterFromQuery(Name = "context")]
-    public string? Context { get; set; }
+    // The address this page was routed with, from the overlay-aware route view. The address bar is not read directly:
+    // while the overlay is open it names this item, and the page under the overlay must keep its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)]
+    public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+
+    public string? Context => Query.String("context");
 
     // Read as text and parsed here: a value that is not an id (?season=abc) shows "not found" instead of failing the page.
-    [SupplyParameterFromQuery(Name = "episode")]
-    public string? Episode { get; set; }
+    public string? Episode => Query.String("episode");
 
-    [SupplyParameterFromQuery(Name = "season")]
-    public string? Season { get; set; }
+    public string? Season => Query.String("season");
 
     private Guid? EpisodeId => Guid.TryParse(Episode, out var id) ? id : null;
     private Guid? SeasonId => Guid.TryParse(Season, out var id) ? id : null;
     private bool EpisodeIsUnreadable => !string.IsNullOrWhiteSpace(Episode) && EpisodeId is null;
     private bool SelectionIsUnreadable => EpisodeIsUnreadable || (!string.IsNullOrWhiteSpace(Season) && SeasonId is null);
 
-    [SupplyParameterFromQuery(Name = "tab")]
-    public string? Tab { get; set; }
+    public string? Tab => Query.String("tab");
 }
