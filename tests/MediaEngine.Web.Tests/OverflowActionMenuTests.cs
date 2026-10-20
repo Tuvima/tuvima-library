@@ -207,7 +207,8 @@ public sealed class OverflowActionMenuTests : AsyncBunitContext
         var note = menu.Find(".tl-detail-menu-note");
         Assert.Equal("hr", note.PreviousElementSibling?.TagName.ToLowerInvariant());
         Assert.Equal("hr", menu.FindAll("[role='menuitem']").Last().PreviousElementSibling?.TagName.ToLowerInvariant());
-        Assert.False(note.HasAttribute("role"));
+        // Not a menu item: inside role="menu" the note is presentational.
+        Assert.Equal("none", note.GetAttribute("role"));
     }
 
     [Fact]

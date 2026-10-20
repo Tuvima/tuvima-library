@@ -27,7 +27,8 @@ internal static class DetailEditAction
         DetailEntityType.Person => "Edit this person",
         DetailEntityType.Universe => "Edit this universe",
         DetailEntityType.Collection => "Edit this collection",
-        _ => throw new ArgumentOutOfRangeException(nameof(entityType), entityType, "Every detail entity type names its edit entry."),
+        // A type added later still gets a working entry; the label test lists every current type.
+        _ => "Edit",
     };
 
     /// <summary>Disabled while the item is still processing; the reason travels with it so the menu can say why.</summary>

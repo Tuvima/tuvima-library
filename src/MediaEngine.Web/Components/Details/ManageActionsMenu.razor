@@ -36,7 +36,8 @@
         {
             <hr class="app-menu-divider" />
         }
-        <p class="tl-detail-menu-note">@entry.Note</p>
+        @* Inside role="menu" only menu items are allowed; the note is presentational. *@
+        <p class="tl-detail-menu-note" role="none">@entry.Note</p>
     }
 }
 
