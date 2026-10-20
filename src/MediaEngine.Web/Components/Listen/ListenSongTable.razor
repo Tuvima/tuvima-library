@@ -3,10 +3,15 @@
 @using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Web
+@using MediaEngine.Contracts.Realtime
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @using MediaEngine.Web.Components.Shared
+@implements IDisposable
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 @if (DeviceContext.IsPhone)
 {
@@ -59,6 +64,16 @@
 }
 else
 {
+    // Worked out once per render: the column list and every row read it.
+    _showDelete = ComputeShowDelete();
+    if (ShowDelete && _selected.Count > 0)
+    {
+        <div class="listen-song-table__selection">
+            <span class="listen-song-table__selection-count" role="status">@_selected.Count selected</span>
+            <AppButton Label="Delete…" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact" OnClick="DeleteSelectedAsync" />
+            <AppButton Label="Clear" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="ClearSelection" />
+        </div>
+    }
     <div class="listen-song-table"
          role="table"
          aria-label="@AriaLabel"
@@ -68,7 +83,11 @@ else
         <AppCssElement Tag="div" Class="listen-song-table__head" Css="@($"grid-template-columns: {GridTemplate}")" role="row">
             @foreach (var column in VisibleColumns)
             {
-                if (Sortable && IsSortableColumn(column.Key))
+                if (column.Key == "select")
+                {
+                    <span class="listen-song-table__static-header listen-song-table__select-head" role="columnheader"><span class="sr-only">Select</span></span>
+                }
+                else if (Sortable && IsSortableColumn(column.Key))
                 {
                     <AppNativeButton Type="button" Class="@GetSortHeaderClass(column.Key)" role="columnheader" aria-sort="@AriaSort(column.Key)" OnClick="@(() => ToggleSort(column.Key))">
                         <span>@column.Label</span>
@@ -129,6 +148,15 @@ else
                  @ondragend="EndDragAsync"
                  @onclick="@(() => PlayAsync(track.Id, false))"
                  @onkeydown="@((args) => HandleRowKeyDownAsync(args, track.Id))">
+                @if (ShowDelete)
+                {
+                    <div class="listen-song-table__select" role="cell" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                        <AppCheckbox Value="@_selected.Contains(track.Id)"
+                                     ValueChanged="@(selected => SetSelected(track.Id, selected))"
+                                     Dense="true"
+                                     aria-label="@($"Select {trackTitle}")" />
+                    </div>
+                }
                 <div class="listen-song-table__song @(ShowArtwork ? null : "listen-song-table__song--play-only")" role="cell">
                     @if (ShowArtwork)
                     {
@@ -198,20 +226,27 @@ else
                             <span class="listen-song-table__meta" role="cell">@FormatDateAdded(track.CreatedAt)</span>
                             break;
                         case "queue":
-                            <div class="listen-song-table__queue" role="cell">
+                            <div class="listen-song-table__queue" role="cell" @onkeydown:stopPropagation="true">
                                 <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                 </AppNativeButton>
                             </div>
                             break;
                         case "edit":
-                            <div class="listen-song-table__edit" role="cell">
+                            <div class="listen-song-table__edit" role="cell" @onkeydown:stopPropagation="true">
                                 @if (!DeviceContext.IsPhone)
                                 {
                                     <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
                                     </AppNativeButton>
                                 }
+                            </div>
+                            break;
+                        case "delete":
+                            <div class="listen-song-table__delete" role="cell" @onkeydown:stopPropagation="true">
+                                <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__delete-button" Title="Delete from library…" AriaLabel="@($"Delete {trackTitle} from library…")" StopPropagation="true" OnClick="@(() => DeleteRowAsync(track))">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
+                                </AppNativeButton>
                             </div>
                             break;
                         case "options":
@@ -262,6 +297,7 @@ else
 
     private readonly List<ListenSongTableColumn> _columns =
     [
+        new("select", string.Empty, 40, 40),
         new("song", "Song", 260, 180),
         new("favorite", "Favorite", 64, 56),
         new("time", "Time", 56, 52),
@@ -272,6 +308,7 @@ else
         new("dateAdded", "Date Added", 112, 104),
         new("queue", "Queue", 64, 56),
         new("edit", "Edit", 64, 56),
+        new("delete", "Delete", 64, 56),
         new("options", string.Empty, 42, 40),
     ];
 
@@ -287,12 +324,123 @@ else
     private string? _sortColumn;
     private bool _sortDescending;
 
+    // Delete from library (spec delete-from-library D13, D25): desktop administrators get a checkbox and a Delete icon on each row.
+    // The rule, the dialog and the toasts are LibraryItemDeletionFlow's; this table only collects the songs and hides them once gone.
+    private readonly HashSet<Guid> _selected = [];
+    private readonly HashSet<Guid> _removed = [];
+    private UIOrchestratorService? _orchestrator;
+    private bool _deleting;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        _orchestrator = Services.GetService<UIOrchestratorService>();
+        if (_orchestrator is not null)
+        {
+            _orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+        }
+    }
+
     protected override void OnParametersSet()
     {
         if (string.IsNullOrWhiteSpace(_sortColumn))
         {
             _sortColumn = DefaultSortColumn;
             _sortDescending = DefaultSortDescending;
+        }
+
+        if (_selected.Count > 0)
+        {
+            var present = Tracks.Select(track => track.Id).ToHashSet();
+            _selected.RemoveWhere(id => !present.Contains(id));
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        if (_orchestrator is not null)
+        {
+            _orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+        }
+    }
+
+    // Songs deleted here or in another window leave the list and the selection at once; the host page reloads behind this.
+    private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => _ = InvokeAsync(() =>
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        MarkRemoved(removed.WorkIds);
+        StateHasChanged();
+    });
+
+    private void MarkRemoved(IEnumerable<Guid> workIds)
+    {
+        foreach (var id in workIds)
+        {
+            _removed.Add(id);
+            _selected.Remove(id);
+        }
+    }
+
+    // Desktop administrators only. A phone renders cards and never reaches this; touch-only and tablet devices fail CanEdit.
+    private bool _showDelete;
+    private bool ShowDelete => _showDelete;
+
+    private bool ComputeShowDelete() => !DeviceContext.IsPhone
+        && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
+
+    private void SetSelected(Guid id, bool selected)
+    {
+        if (selected)
+        {
+            _selected.Add(id);
+        }
+        else
+        {
+            _selected.Remove(id);
+        }
+    }
+
+    private void ClearSelection() => _selected.Clear();
+
+    internal Task DeleteRowAsync(WorkViewModel track) => DeleteAsync([track.Id], DisplayTrackTitle(track));
+
+    internal Task DeleteSelectedAsync()
+    {
+        var chosen = VisibleTracks.Where(track => _selected.Contains(track.Id)).ToList();
+        return DeleteAsync(chosen.Select(track => track.Id).ToList(), chosen.Count == 1 ? DisplayTrackTitle(chosen[0]) : null);
+    }
+
+    private async Task DeleteAsync(IReadOnlyList<Guid> workIds, string? title)
+    {
+        if (workIds.Count == 0 || _deleting)
+        {
+            return;
+        }
+
+        // The icon and checkbox only show to an administrator on a desktop; a handler never trusts that.
+        var toasts = Services.GetRequiredService<IAppToastService>();
+        if (LibraryItemDeletionFlow.TryRefuse(DeviceContext, Services.GetService<DashboardSessionAccessor>(), toasts))
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            var outcome = await LibraryItemDeletionFlow.RunAsync(Services.GetRequiredService<IAppDialogService>(), toasts, workIds, title);
+            if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
+            {
+                MarkRemoved(workIds);
+            }
+        }
+        finally
+        {
+            _deleting = false;
         }
     }
 
@@ -341,13 +489,17 @@ else
     }
 
     private IReadOnlyList<ListenSongTableColumn> VisibleColumns => _columns.Where(IsColumnVisible).ToList();
-    private IReadOnlyList<ListenSongTableColumn> VisibleDataColumns => VisibleColumns.Skip(1).ToList();
+    private IReadOnlyList<ListenSongTableColumn> VisibleDataColumns => VisibleColumns.Where(column => column.Key is not ("select" or "song")).ToList();
 
     private string GridTemplate => string.Join(" ", VisibleColumns.Select(column => $"{column.Width}px"));
 
+    private IEnumerable<WorkViewModel> VisibleTracks => _removed.Count == 0
+        ? Tracks
+        : Tracks.Where(track => !_removed.Contains(track.Id));
+
     private List<WorkViewModel> DisplayTracks => Sortable
-        ? SortTracks(Tracks).ToList()
-        : Tracks.ToList();
+        ? SortTracks(VisibleTracks).ToList()
+        : VisibleTracks.ToList();
 
     private bool IsColumnVisible(ListenSongTableColumn column) => column.Key switch
     {
@@ -359,13 +511,14 @@ else
         "favorite" => ShowFavorite,
         "queue" => ShowQueue,
         "edit" => ShowEdit,
+        "select" or "delete" => ShowDelete,
         _ => true,
     };
 
     private string RowClass(WorkViewModel track) =>
         $"listen-song-table__row {(CurrentWorkId == track.Id ? "is-playing" : string.Empty)}".Trim();
 
-    private static bool IsSortableColumn(string key) => key is not "queue" and not "edit";
+    private static bool IsSortableColumn(string key) => key is not ("queue" or "edit" or "delete" or "select");
 
     private void BeginColumnResize(string key, double clientX)
     {
