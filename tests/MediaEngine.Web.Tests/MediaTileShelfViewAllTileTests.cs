@@ -76,6 +76,20 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
     }
 
     [Theory]
+    [InlineData("/all/watch/recent")]
+    [InlineData("/watch/series")]
+    [InlineData("/listen/music/playlists")]
+    public async Task ShelfWhoseRouteIsItsOwnPageGetsTheSameEndTile(string route)
+    {
+        await UseAsync("desktop");
+
+        var cut = RenderShelf(route);
+
+        Assert.Equal(route, cut.Find("a.media-tile-shelf-view-all").GetAttribute("href"));
+        Assert.Equal(route, cut.Find("a.media-tile-shelf-link").GetAttribute("href"));
+    }
+
+    [Theory]
     [InlineData("phone", "See All")]
     [InlineData("desktop", "View all")]
     public async Task HeaderLinkKeepsItsWordingNextToTheEndTile(string formFactor, string wording)
@@ -91,7 +105,7 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EndTileStylesGiveItATileWidthAFocusRingAndAtLeast48pxEachWay()
+    public void EndTileStylesStretchItToTheRowGiveItANarrowWidthAFocusRingAndAtLeast48pxEachWay()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         var css = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "MediaTiles", "MediaTileShelf.razor.css"));
@@ -99,7 +113,8 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
         var rule = css[css.IndexOf(".media-tile-shelf-view-all{", StringComparison.Ordinal)..];
         rule = rule[..rule.IndexOf('}')];
 
-        Assert.Contains("width:max(48px,var(--media-tile-media-height))", rule);
+        Assert.Contains("align-self:stretch", rule);
+        Assert.Contains("width:max(48px,var(--media-tile-shelf-view-all-width))", rule);
         Assert.Contains("min-height:48px", rule);
         Assert.Contains("min-width:48px", rule);
         Assert.Contains(".media-tile-shelf-view-all:focus-visible{outline:3pxsolid", css);

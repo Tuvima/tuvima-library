@@ -287,8 +287,9 @@
     /// <summary>The route of the Liked grid, the same View all grid.</summary>
     internal const string LikedGridRoute = "/all/personal/liked";
 
-    // Old /for-me?view=my-list links (the desktop top bar, saved bookmarks) land on the My Library page. Links that carry an
-    // area or sort, such as the lane sub-navigation's My List, still open the filtered grid.
+    // Old bare /for-me?view=my-list links (the desktop top bar, saved bookmarks) land on the My Library page. Links that carry
+    // an area or sort are handled below: all-areas (or sort-only) My List links go to the View all grid, and the lane
+    // sub-navigation's My List (one area) still opens the filtered grid here.
     private bool OpensMyLibrary => ActiveView == "my-list" && RequestedArea is null && RequestedSort is null;
 
     // Old all-areas My List and Liked links land on the View all grids and keep nothing else. A link for one area (Read, Watch,

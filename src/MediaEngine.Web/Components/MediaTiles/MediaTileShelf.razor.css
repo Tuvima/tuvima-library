@@ -1,5 +1,6 @@
 .media-tile-shelf {
         --media-tile-media-height: clamp(192px, 18.4vw, 232px);
+        --media-tile-shelf-view-all-width: clamp(96px, 8vw, 140px);
         display: flex;
         flex-direction: column;
         gap: 18px;
@@ -129,17 +130,21 @@
    so a shelf with no See All is exactly as tall as one that has it. */
 :root[data-form-factor="phone"] .media-tile-shelf-header { flex-direction:row; align-items:center; min-height:48px; }
 
-/* The View all tile ends every shelf that has a grid page: as wide as a tile and as tall as its artwork, never under 48px. */
+/* The View all tile ends every shelf that has a See all link. Each tile sets its own size (portrait, square and landscape, and they
+   differ by density), so the end tile follows the row: a narrow tile that stretches to the full height of the row's tiles (artwork
+   and caption), content centred, never under 48px in either direction. */
 .media-tile-shelf-view-all {
     flex: 0 0 auto;
+    align-self: stretch;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    width: max(48px, var(--media-tile-media-height));
-    height: max(48px, var(--media-tile-media-height));
+    padding: 8px;
+    text-align: center;
+    width: max(48px, var(--media-tile-shelf-view-all-width));
     min-width: 48px;
     min-height: 48px;
     scroll-snap-align: start;
@@ -165,3 +170,6 @@
     outline: 3px solid var(--tl-focus-ring, #a78bfa);
     outline-offset: 3px;
 }
+
+/* Phones: the poster rows are narrower, so the end tile is narrower too. */
+:root[data-form-factor="phone"] .media-tile-shelf { --media-tile-shelf-view-all-width: clamp(96px, 28vw, 120px); }

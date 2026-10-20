@@ -693,6 +693,37 @@ public sealed class ActivityPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ScrollTrigger_KeepsWatching_WhenAFilterChangesWhileALoadMoreIsStillOnItsWay()
+    {
+        SignIn(Role.ServerAdministrator);
+        var module = JSInterop.SetupModule(ObserverModulePath);
+        module.Mode = JSRuntimeMode.Loose;
+        var gate = new TaskCompletionSource();
+        _engine.HoldList = request => request.Cursor == "c1" ? gate.Task : null;
+        _engine.OnList = request => request.Cursor is null
+            ? Page([Entry(request.Scope == "me" ? "a" : "z")], next: request.Scope == "me" ? "c1" : "d1")
+            : Page([Entry("c")]);
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.Single(module.Invocations["observe"]));
+        var stale = cut.InvokeAsync(() => cut.Instance.LoadMoreFromObserverAsync());
+        cut.WaitForAssertion(() => Assert.Single(_engine.Lists, list => list.Cursor == "c1"));
+
+        // The person changes the scope, so the list is read again from the top while the old Load more is still waiting.
+        cut.Find("[data-activity-scope]").Change("everyone");
+        cut.WaitForAssertion(() => Assert.Equal(["z"], RowIds(cut)));
+
+        // The new list has more to load, so the page watches its end even though the old load has not finished.
+        cut.WaitForAssertion(() => Assert.Equal(2, module.Invocations["observe"].Count));
+
+        gate.SetResult();
+        await stale;
+
+        // The old answer is dropped, and the list still has its watcher.
+        Assert.Equal(["z"], RowIds(cut));
+        cut.WaitForAssertion(() => Assert.True(module.Invocations["observe"].Count >= 2));
+    }
+
+    [Fact]
     public async Task ScrollTrigger_DoesNothing_WhenThereIsNoNextCursor()
     {
         SignIn(Role.Member);
