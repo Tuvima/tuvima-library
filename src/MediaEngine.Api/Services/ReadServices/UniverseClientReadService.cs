@@ -218,18 +218,54 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
-        var universe = await collections.FindUniverseByQidAsync(normalizedQid, ct).ConfigureAwait(false);
-        if (universe is null
-            || universe.CollectionType != CollectionType.Universe
-            || universe.ParentCollectionId is not null
-            || !universe.IsEnabled
-            || !CollectionAccessPolicy.CanAccess(universe, profile))
+        var universe = await FindOpenUniverseAsync(normalizedQid, profile, ct).ConfigureAwait(false);
+        if (universe is null)
         {
             return null;
         }
 
         var members = await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false);
         return members.Count == 0 ? null : (universe, members);
+    }
+
+    /// <summary>
+    /// The visible works that sit on the member Series or shows of one Universe: the rows the Universe page's shelves are
+    /// built from. Empty when the QID names no Universe the profile may open. Rows of the same work or show may repeat
+    /// (a TV show has a row per episode); the caller groups them.
+    /// </summary>
+    internal async Task<IReadOnlyList<DisplayWorkRow>> LoadMemberWorkRowsAsync(
+        string qid,
+        Profile? profile,
+        IReadOnlyList<DisplayWorkRow> visibleRows,
+        CancellationToken ct = default)
+    {
+        var normalized = NormalizeQid(qid);
+        var universe = normalized is null
+            ? null
+            : await FindOpenUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        if (universe is null)
+        {
+            return [];
+        }
+
+        var memberIds = (await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false))
+            .Select(member => member.Id)
+            .ToHashSet();
+        return visibleRows
+            .Where(row => row.CollectionId is { } id && memberIds.Contains(id))
+            .ToList();
+    }
+
+    private async Task<Collection?> FindOpenUniverseAsync(string normalizedQid, Profile? profile, CancellationToken ct)
+    {
+        var universe = await collections.FindUniverseByQidAsync(normalizedQid, ct).ConfigureAwait(false);
+        return universe is null
+            || universe.CollectionType != CollectionType.Universe
+            || universe.ParentCollectionId is not null
+            || !universe.IsEnabled
+            || !CollectionAccessPolicy.CanAccess(universe, profile)
+                ? null
+                : universe;
     }
 
     private static string ItemsLabel(int count) => count == 1 ? "1 item" : $"{count} items";

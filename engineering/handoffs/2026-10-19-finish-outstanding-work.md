@@ -35,6 +35,7 @@
 | 2a | Small fixes: Library wording and heart | 2b | Touches many files, so run it when ingestion is merged. |
 | 2b | Universe page and Engine actions | 2a | Needs the Expanse fix merged (step 0). |
 | 3 | Developer tools waves 3 to 8 | one other thread | Continue wave by wave, one thread per wave. |
+| 3 | Lane View all grid (3d) |  any gap | Approved 2026-10-16, unbuilt. |
 | 3 | Deletion specs, then slow-read investigation | any gap | Locked specs, unscheduled. The investigation is read-only. |
 | 4 | Details overlay and Editing Mode planning | needs Shy | Planning first (Claude Code cannot start without a spec). |
 
@@ -81,6 +82,7 @@ Run the checkpoint after each wave: build, tests, ingestion comparison, independ
 ```
 Fix bug list group 6 items 8 and 12 (2026-10-18 bug list). Read CLAUDE.md first. The app is called Library; Tuvima is the company and brand.
 - Bug 8: review every user-visible string (page titles, Settings descriptions, Setup, error messages, snackbars, the PWA manifest and meta description) and replace "Tuvima" or "Tuvima Library" with "Library" where it names the app (for example the profile editor and "Tuvima could not get ready" in SetupPage.razor). Keep Tuvima where it is the company or brand (about text, licences, brand assets, "Tuvima Atlas" only if Shy confirms its name). List every place you kept it. Add a guardrail test that fails when new user-facing strings say "Tuvima" outside an allowlist.
+- Also check (H4c leftover): the profile menu and glossary say "My Library" consistently; fix any stragglers.
 - Bug 12: "My List" uses a heart icon everywhere (For Me, Watch, Read, Listen browse menus, the hero and phone hero menu, My Library). Filled when saved, outlined when not. Do not change the Listen song Favorites heart semantics.
 Dashboard visual checks per src/MediaEngine.Web/CLAUDE.md. Update docs/product/presentation-rules.md if it names the icon. Finish with a Plain English summary.
 ```
@@ -89,6 +91,12 @@ Dashboard visual checks per src/MediaEngine.Web/CLAUDE.md. Update docs/product/p
 ```
 Continue engineering/specs/universe.md (v4). Read CLAUDE.md and the spec first and run its section 6B collision check. U-WP0 to U-WP3 are built once Thread 0 has merged; verify on main.
 Do, two at a time: U-WP5 (Universe page, entry points, empty and partly-ready states, "Part of" line), U-WP7 (Engine actions for helper apps), U-WP12 (companion session service), then U-WP10 (Also appears in). Leave U-WP4 until Developer tools WP9 is merged, and U-WP6, U-WP8, U-WP9, U-WP11, U-WP13 to U-WP15 for later threads. Stop and ask Shy if any packet goes beyond the spec. Visual checks at phone, tablet, desktop and TV widths. Finish with a Plain English summary and the Shy-owned device checks (companion on iPhone and Android, Universe page on TV).
+```
+
+### Thread 3d: Lane "View all" grid (H4e)
+```
+Build the Home lane "View all" grid (Shy approved 2026-10-16). Read CLAUDE.md and docs/product/presentation-rules.md first. There is no spec file: plan briefly, show Shy the plan, and build on "go ahead".
+Shelves show about 20 items plus a View all tile; View all opens a tiled grid that loads more on scroll. Default sort Recently added; other sorts Title A-Z, Year, Recently played, remembered per lane. Filters: media type, genre, format, Not started / In progress / Finished (only the meaningful ones per lane); phones reuse the Filters bottom sheet. My Library sections (My List, Liked, Recent activity) get their own View all. Shelf links currently use each shelf's old SeeAllRoute (MediaTileShelf.razor, MediaTileComposerService.cs). History needs paging; the id lookup (POST /api/v1/display/items) loads the whole catalogue per call, so consider paging it. Guardrails: 48px targets, no ::deep or inline styles, wire types in Contracts with fixtures regenerated, independent review for data and permissions, update presentation-rules.md. Finish with a Plain English summary.
 ```
 
 ### Thread 3a: Developer tools waves 3 to 8 (one thread per wave)
@@ -107,6 +115,7 @@ Investigate why the library list takes about 14 seconds unfiltered and uncached 
 ```
 
 ## 5. Planning that must happen before Claude Code can build
+- **Videos** (approved 2026-10-13, Documents plan packets V0 to V6): not built, no Videos library type on main. Shy asked on 2026-10-20 for a planning thread; a spec is written and locked first, then a prompt is added here.
 - **Group 4: details overlay, Edit in the "..." menu, menu alignment, squished Editing drawer.** No spec exists. Shy shares the Editing drawer screenshots in the planning project; a spec is written and locked; then a Claude Code prompt is added here. It also settles the older "per-type edit pages" step (U2) versus the Item Detail rule that per-type pages stay gone.
 - **Lane "View all" grid (H4e) and My Library on desktop/tablet (H4c).** Not confirmed from the repo; decide whether to keep them in scope.
 

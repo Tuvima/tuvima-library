@@ -10,10 +10,10 @@
         <span class="ingestion-media-list-row__copy">
             <AppNativeButton Type="button"
                              Class="ingestion-media-list-row__open"
-                             Title="@Item.Title"
+                             Title="@DisplayTitle"
                              AriaLabel="@OpenAriaLabel"
                              OnClick="@(_ => OnOpen.InvokeAsync(Item))">
-                <strong>@Item.Title</strong>
+                <strong>@DisplayTitle</strong>
             </AppNativeButton>
             <small title="@DisplaySubtitle">@DisplaySubtitle</small>
         </span>
@@ -34,15 +34,22 @@
     [Parameter, EditorRequired] public IngestionMediaGroupDto Item { get; set; } = new();
     [Parameter] public EventCallback<IngestionMediaGroupDto> OnOpen { get; set; }
 
+    // A row whose title is not known yet says what the Engine says for it, never a blank name.
+    private string DisplayTitle => DisplayTitleFor(Item.Title);
+
     // Reserve the contributor row while metadata loads. TV may supply season
     // context here; a fallback media type is not a contributor.
     private string? DisplaySubtitle => string.IsNullOrWhiteSpace(Item.Subtitle)
         || Item.Subtitle == Item.MediaType || Item.Subtitle == FriendlyType(Item.MediaType)
             ? null : Item.Subtitle;
-    private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel;
+    // A row that is still being added says what it is waiting for (matching, its show or album, artwork) when the
+    // Engine reports it; the same words are used in the Status column, its tooltip, the open button's name and the drawer.
+    private string ActivityLabel => Item.Availability == "ready" ? "Ready to browse" : ReadinessWaitingText.StatusFor(Item);
 
     // The Step column names the gate the item is working through; an item with none left says its status.
-    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel) ? ActivityLabel : Item.CurrentGateLabel;
+    private string StepLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
+        ? (Item.Availability == "ready" ? "Ready to browse" : Item.StatusLabel)
+        : Item.CurrentGateLabel;
     private string ActivityIcon => Item.Availability switch
     {
         "ready" => AppMaterialIcons.Outlined.CheckCircle,
@@ -65,13 +72,19 @@
             + (Item.FileCount > 0 && Item.ChildUnit != "files" ? $" · {FileLabel}" : string.Empty)
         : Item.FileCount > 0 ? FileLabel : null;
     private string FileLabel => $"{Item.FileCount:N0} {(Item.FileCount == 1 ? "file" : "files")}";
-    private string OpenAriaLabel => $"Open ingestion details for {Item.Title}. {Item.CurrentGateLabel ?? ActivityLabel}.";
+    private string OpenAriaLabel => string.IsNullOrWhiteSpace(Item.CurrentGateLabel)
+        ? $"Open ingestion details for {DisplayTitle}. {ActivityLabel}."
+        : $"Open ingestion details for {DisplayTitle}. {Item.CurrentGateLabel}. {ActivityLabel}.";
 
     private string DisplayChildUnit(int count) => count == 1 && Item.ChildUnit!.EndsWith('s')
         ? Item.ChildUnit[..^1]
         : Item.ChildUnit!;
 
-    internal static string FriendlyType(string mediaType) => mediaType switch
+    /// <summary>The title to show: the Engine's own wording for a row it has not named yet when the title is blank.</summary>
+    internal static string DisplayTitleFor(string? title) => string.IsNullOrWhiteSpace(title) ? "Identifying media" : title;
+
+    // A row with no type yet is "Unknown", the same word the Engine uses for it.
+    internal static string FriendlyType(string? mediaType) => string.IsNullOrWhiteSpace(mediaType) ? "Unknown" : mediaType switch
     {
         "TV" => "TV Show",
         "Music" => "Album",
@@ -82,7 +95,7 @@
         _ => mediaType,
     };
 
-    internal static string MediaIcon(string mediaType) => mediaType switch
+    internal static string MediaIcon(string? mediaType) => mediaType switch
     {
         "TV" => AppMaterialIcons.Outlined.Tv,
         "Music" => AppMaterialIcons.Outlined.Album,

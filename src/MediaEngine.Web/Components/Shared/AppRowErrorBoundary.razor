@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Shared
+@inherits ErrorBoundaryBase
+@inject ILogger<AppRowErrorBoundary> Logger
+
+@* Wraps one row of a list or table so a row that cannot be drawn shows a small "couldn't be shown" row instead of replacing the
+   whole screen (the route-level boundary in Routes.razor stays the last resort). The exception is logged, never swallowed.
+   The row recovers by itself when ResetKey changes, so a row that later gets good data shows normally. A caller whose rows
+   sit in a grid, table or list passes its own ErrorContent so the fallback keeps the same columns or element type. *@
+@if (CurrentException is null)
+{
+    @ChildContent
+}
+else if (ErrorContent is not null)
+{
+    @ErrorContent(CurrentException)
+}
+else
+{
+    <div class="app-row-error" data-testid="row-error">
+        <span class="app-row-error__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ReportProblem" aria-hidden="true" /></span>
+        <span class="app-row-error__copy">
+            <strong>@Headline</strong>
+            @if (!string.IsNullOrWhiteSpace(ItemTitle))
+            {
+                <small title="@ItemTitle">@ItemTitle</small>
+            }
+        </span>
+    </div>
+}
+
+@code {
+    /// <summary>The words every fallback row uses.</summary>
+    public const string Headline = "This item couldn't be shown";
+
+    /// <summary>The row's title when it is known, named in the log line and shown under the headline.</summary>
+    [Parameter] public string? ItemTitle { get; set; }
+
+    /// <summary>
+    /// What the row is drawn from (for example a value that changes whenever the row's data does). When it changes, a row
+    /// that failed is tried again.
+    /// </summary>
+    [Parameter] public object? ResetKey { get; set; }
+
+    private object? _lastResetKey;
+
+    protected override void OnParametersSet()
+    {
+        if (Equals(_lastResetKey, ResetKey))
+        {
+            return;
+        }
+
+        _lastResetKey = ResetKey;
+        if (CurrentException is not null)
+        {
+            Recover();
+        }
+    }
+
+    protected override Task OnErrorAsync(Exception exception)
+    {
+        Logger.LogError(exception, "A row could not be shown ({ItemTitle}); the rest of the page is unaffected.", ItemTitle ?? "untitled");
+        return Task.CompletedTask;
+    }
+}

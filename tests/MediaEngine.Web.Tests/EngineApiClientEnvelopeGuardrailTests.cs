@@ -25,7 +25,10 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // The Universe page read is one more manual GET: a 404 means "this Universe is not available to this profile" and
         // anything else means the Engine could not be reached, which the page words differently; EngineApiClientUniversePageTests
         // cover each outcome.
-        AssertAtOrBelow(source, "_http.GetAsync", 28);
+        // The "Also appears in" read is one more manual GET: a 404 means nothing is visible for that subject and comes back
+        // as an empty result (so the panel says "Nothing else in your Library"), while any other failure stays null with
+        // LastError; EngineApiClientUniverseAppearancesTests cover each outcome.
+        AssertAtOrBelow(source, "_http.GetAsync", 29);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.

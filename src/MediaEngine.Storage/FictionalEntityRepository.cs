@@ -524,6 +524,79 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
     }
 
     /// <inheritdoc/>
+    public Task<IReadOnlySet<string>> GetLinkedWorkQidsAsync(
+        IEnumerable<string> workQids,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(workQids);
+        ct.ThrowIfCancellationRequested();
+
+        var qids = workQids
+            .Where(qid => !string.IsNullOrWhiteSpace(qid))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var linked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (qids.Length == 0)
+        {
+            return Task.FromResult<IReadOnlySet<string>>(linked);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var batch in qids.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var qid in conn.Query<string>("""
+                SELECT DISTINCT work_qid
+                FROM   fictional_entity_work_links
+                WHERE  work_qid COLLATE NOCASE IN @qids;
+                """, new { qids = batch }))
+            {
+                linked.Add(qid);
+            }
+        }
+
+        return Task.FromResult<IReadOnlySet<string>>(linked);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlySet<Guid>> GetUniverseEnrichedEntityIdsAsync(
+        IEnumerable<Guid> entityIds,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entityIds);
+        ct.ThrowIfCancellationRequested();
+
+        var ids = entityIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        var enriched = new HashSet<Guid>();
+        if (ids.Length == 0)
+        {
+            return Task.FromResult<IReadOnlySet<Guid>>(enriched);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var batch in ids.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            var parameters = new DynamicParameters();
+            var idClause = AddGuidBlobList(parameters, "entityId", batch);
+            foreach (var id in conn.Query<byte[]>($"""
+                SELECT DISTINCT entity_id
+                FROM   canonical_values
+                WHERE  key IN ('stage3_enriched_at', 'stage3_enhanced_at')
+                  AND  entity_id IN ({idClause});
+                """, parameters))
+            {
+                enriched.Add(GuidSql.FromDb(id));
+            }
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(enriched);
+    }
+
+    /// <inheritdoc/>
     public Task<int> CountAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
