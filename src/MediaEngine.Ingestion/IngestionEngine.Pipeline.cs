@@ -504,6 +504,17 @@ public sealed partial class IngestionEngine
         if (ResolveVideosRoot(context.Library, candidate.Path) is { } videosRoot)
         {
             result = context.ProcessorResult = _videoReader!.Apply(result, videosRoot);
+            // Stage 1 lookup (D7): only the YouTube ID leaves the machine, only when this library's switch is on.
+            if (_videoLookup is not null
+                && context.Library?.YoutubeLookup == true
+                && result.Claims.FirstOrDefault(claim => claim.Key == MetadataFieldConstants.YoutubeVideoId)?.Value is { } youtubeId
+                && await _videoLookup.LookupAsync(youtubeId, ct).ConfigureAwait(false) is { } online)
+            {
+                result = context.ProcessorResult = _videoReader.Merge(result, online);
+                context.LookupThumbnail = online.Thumbnail is { Length: > 0 } && online.ThumbnailMimeType is { } thumbnailMime
+                    ? new FolderCoverImage(online.Thumbnail, thumbnailMime, "youtube")
+                    : null;
+            }
         }
         // Step 8: convert claims.
         var assetId = context.AssetId = Guid.NewGuid();
@@ -674,7 +685,13 @@ public sealed partial class IngestionEngine
                     ? FolderCoverImageReader.TryReadForVideo(candidate.Path, coverRoot)
                     : null;
 
-        // A video with no picture of its own gets a good still frame (never a black tile); the pick is cached.
+        // Order of covers for a video (D11): the person's own picture, a picture in its folder, the lookup thumbnail, then a
+        // good still frame (never a black tile; the pick is cached).
+        if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos)
+        {
+            context.FolderCover = context.LookupThumbnail;
+        }
+
         if (context.FolderCover is null && !hasEmbeddedCover && resolvedMediaType == MediaType.Videos && _videoFrames is not null)
         {
             context.FolderCover = await _videoFrames.GetOrCreateAsync(candidate.Path, ct).ConfigureAwait(false);

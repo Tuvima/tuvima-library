@@ -1,5 +1,6 @@
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Ingestion.Videos;
 using MediaEngine.Processors.Models;
@@ -16,6 +17,22 @@ public sealed class VideoLibraryReaderTests : IDisposable
     {
         Directory.CreateDirectory(_root);
         _reader = new VideoLibraryReader(new VideoNamingConfigurationProvider(() => null));
+    }
+
+    [Fact]
+    public void Merge_WithOnlineInfo_FillsTitleChannelAndDateAboveTheFileName()
+    {
+        var path = Touch("clips/My Trip [dQw4w9WgXcQ].mp4");
+        var read = _reader.Apply(new ProcessorResult { FilePath = path, DetectedType = MediaType.Unknown, Claims = [] }, _root);
+
+        var merged = _reader.Merge(read, new VideoOnlineInfo("The Real Title", "A Channel", null, new DateOnly(2020, 5, 17), null, null));
+
+        double Confidence(string key) => merged.Claims.Single(c => c.Key == key).Confidence;
+        Assert.Equal("The Real Title", merged.Claims.Single(c => c.Key == MetadataFieldConstants.Title).Value);
+        Assert.Equal("A Channel", merged.Claims.Single(c => c.Key == MetadataFieldConstants.Network).Value);
+        Assert.Equal("2020", merged.Claims.Single(c => c.Key == MetadataFieldConstants.Year).Value);
+        Assert.True(Confidence(MetadataFieldConstants.Title) > 0.95);
+        Assert.DoesNotContain(merged.Claims, c => c.Key == MetadataFieldConstants.Description);
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);

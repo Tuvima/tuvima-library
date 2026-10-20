@@ -1,0 +1,55 @@
+{
+  "name": "youtube",
+  "version": "1.0",
+  "enabled": true,
+  "weight": 0.6,
+  "domain": "Video",
+  "icon": "images/providers/youtube.svg",
+  "provider_id": "c0000011-0000-4000-8000-000000000019",
+  "display_name": "YouTube",
+  "requires_api_key": false,
+  "capability_tags": ["title", "channel", "thumbnail", "description", "upload_date"],
+  "provider_capabilities": ["metadata", "artwork"],
+  "available_fields": ["title", "network", "cover", "description", "original_release_date"],
+  "field_weights": { "title": 0.9, "network": 0.85, "cover": 0.8, "description": 0.85, "original_release_date": 0.85 },
+  "endpoints": {
+    "oembed": "https://www.youtube.com/oembed",
+    "api": "https://www.googleapis.com/youtube/v3"
+  },
+  "rate_limit": { "requests_per_second": 4, "burst": 4, "max_concurrency": 1 },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+  "adapter_type": "coded",
+  "can_handle": { "media_types": ["Videos"], "entity_types": ["MediaAsset"] },
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": "https://console.cloud.google.com/apis/library/youtube.googleapis.com",
+    "help_url": "https://developers.google.com/youtube/v3/getting-started",
+    "terms_url": "https://www.youtube.com/t/terms",
+    "privacy_url": "https://policies.google.com/privacy",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Look up a video by its ID"],
+    "intro": {
+      "title": "YouTube lookup",
+      "summary": "This contacts YouTube and sends only the video ID found in a file name or .info.json, never the file. It fills in the title, channel and thumbnail. A free personal key from Google adds the description and upload date."
+    },
+    "skip_consequences": [
+      { "lane": "watch", "summary": "Videos named with a YouTube ID keep the title from their file name and a still frame as the cover.", "unavailable_capabilities": ["title", "channel", "thumbnail"] }
+    ],
+    "credentials": [
+      {
+        "key": "api_key",
+        "label": "YouTube Data API key (optional)",
+        "input_type": "password",
+        "required": false,
+        "ownership": "user_supplied",
+        "purpose": "api_key",
+        "format_hint": "A free personal key from the Google Cloud console. Adds description and upload date.",
+        "minimum_length": 8,
+        "maximum_length": 256,
+        "validation_pattern": "^[^\\s]+$"
+      }
+    ],
+    "authentication_probe": null
+  }
+}

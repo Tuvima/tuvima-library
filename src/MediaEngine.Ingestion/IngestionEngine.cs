@@ -98,6 +98,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly IMediaEntityChainFactory _chainFactory;
     private readonly IVideoLibraryReader? _videoReader;
     private readonly VideoStillFrameService? _videoFrames;
+    private readonly IVideoOnlineLookup? _videoLookup;
 
     // Review queue — created when confidence is too low or category is "Other".
     private readonly IReviewQueueRepository _reviewRepo;
@@ -214,8 +215,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         MediaInspectionReviewRecorder? inspectionReviews = null,
         IExcludedSourceFileFilter? excludedFileFilter = null,
         IVideoLibraryReader? videoReader = null,
-        VideoStillFrameService? videoFrames = null)
+        VideoStillFrameService? videoFrames = null,
+        IVideoOnlineLookup? videoLookup = null)
     {
+        _videoLookup = videoLookup;
         _videoFrames = videoFrames;
         _videoReader = videoReader;
         _excludedFileFilter = excludedFileFilter;

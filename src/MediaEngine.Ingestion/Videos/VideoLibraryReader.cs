@@ -108,6 +108,40 @@ public sealed class VideoLibraryReader : IVideoLibraryReader
         };
     }
 
+    public ProcessorResult Merge(ProcessorResult result, VideoOnlineInfo info)
+    {
+        var claims = result.Claims.ToList();
+        void Put(string key, string? value, double confidence)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            claims.RemoveAll(claim => string.Equals(claim.Key, key, StringComparison.OrdinalIgnoreCase));
+            claims.Add(new ExtractedClaim { Key = key, Value = value, Confidence = confidence });
+        }
+
+        Put(MetadataFieldConstants.Title, info.Title, 0.96);
+        Put(MetadataFieldConstants.Network, info.Channel, 0.9);
+        Put(MetadataFieldConstants.Description, info.Description, 0.92);
+        if (info.Published is { } published)
+        {
+            Put(MetadataFieldConstants.OriginalReleaseDate, published.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), 0.92);
+            Put(MetadataFieldConstants.Year, published.Year.ToString(CultureInfo.InvariantCulture), 0.92);
+        }
+
+        return new ProcessorResult
+        {
+            FilePath = result.FilePath,
+            DetectedType = result.DetectedType,
+            Claims = claims,
+            CoverImage = result.CoverImage,
+            CoverImageMimeType = result.CoverImageMimeType,
+            MediaTypeCandidates = result.MediaTypeCandidates,
+        };
+    }
+
     public async Task RecordPlacementAsync(Guid assetId, IReadOnlyDictionary<string, string>? metadata, CancellationToken ct = default)
     {
         if (_works is null || _canonicals is null || metadata is null

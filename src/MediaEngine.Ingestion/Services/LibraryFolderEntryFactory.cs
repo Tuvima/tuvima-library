@@ -23,6 +23,7 @@ public static class LibraryFolderEntryFactory
             Area = library.Area,
             Presentation = library.Presentation,
             MetadataPolicy = library.MetadataPolicy,
+            YoutubeLookup = library.YoutubeLookup,
             Sources = library.Sources.Select(source => new LibrarySourceEntry
             {
                 Id = source.Id,
