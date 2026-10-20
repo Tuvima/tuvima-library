@@ -70,8 +70,13 @@ import com.tuvima.library.core.PairingSession
 import com.tuvima.library.core.PhotoAccessDeniedException
 import com.tuvima.library.core.PhotoScopes
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.UniverseDetail
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.adaptationLine
+import com.tuvima.library.core.castCharactersLine
 import com.tuvima.library.core.playableAssetId
+import com.tuvima.library.core.universeShelfRows
+import com.tuvima.library.core.universeTotalsLine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -112,6 +117,7 @@ private sealed interface TvState {
         val nextCursor: String?,
         val playable: Map<String, String>,
     ) : TvState
+    data class Universe(val detail: UniverseDetail) : TvState
     data class Photo(val items: List<ViewItem>, val index: Int) : TvState
     data class Error(val message: String) : TvState
 }
@@ -176,6 +182,11 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
     }
 
     fun openCollection(entry: CollectionEntry) {
+        // A Universe entry carries a Wikidata QID and opens the Universe screen; everything else opens its items.
+        entry.universeQid()?.let { qid ->
+            navigate("Loading ${entry.name}…") { TvState.Universe(activeClient!!.universe(qid)) }
+            return
+        }
         navigate("Loading ${entry.name}…") {
             val api = activeClient!!
             val page = api.collectionItems(entry.id, null, 48)
@@ -284,6 +295,15 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
                     openDetail(target.first, target.second, item.workId?.let { current.playable[it] })
                 },
                 onMore = { moreCollectionItems(current) },
+            )
+            is TvState.Universe -> UniverseScreen(
+                activeClient!!,
+                current.detail,
+                onBack = { back() },
+                openCard = { card ->
+                    val target = cardDetailTarget(card)
+                    openDetail(target.first, target.second, card.playableAssetId())
+                },
             )
             is TvState.Photo -> PhotoScreen(activeClient!!, current.items, current.index) { back() }
             is TvState.Error -> ErrorScreen(
@@ -602,6 +622,78 @@ private fun CollectionItemsScreen(
             }
             if (state.nextCursor != null) {
                 item { Button(onClick = onMore) { Text("MORE") } }
+            }
+        }
+    }
+}
+
+/** A Universe: hero, each Series as a row of cards (with its "Also in this world" row), then read-only Cast and Adaptations. */
+@Composable
+private fun UniverseScreen(
+    client: TuvimaClient,
+    universe: UniverseDetail,
+    onBack: () -> Unit,
+    openCard: (DisplayCard) -> Unit,
+) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 64.dp)) {
+        item {
+            Column(Modifier.padding(horizontal = 64.dp, vertical = 32.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onBack) { Text("BACK") }
+                    Column {
+                        Text(universe.name.uppercase(), style = MaterialTheme.typography.displaySmall)
+                        universeTotalsLine(universe).takeIf(String::isNotEmpty)?.let { Text(it) }
+                    }
+                }
+                universe.description?.let {
+                    Spacer(Modifier.height(12.dp))
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        universe.shelves.mapNotNull(::universeShelfRows).forEach { rows ->
+            val run = rows.run
+            val also = rows.also
+            if (run != null) {
+                item {
+                    TvRow(rows.title, rows.kindLine) {
+                        items(run.items) { card -> MediaCard(card, client) { openCard(card) } }
+                    }
+                }
+            }
+            if (also != null) {
+                item {
+                    // With no numbered run, the Series heading already says "Also in this world" and carries the count.
+                    val title = if (run != null) rows.alsoHeading() else rows.title
+                    TvRow(title, if (run != null) null else rows.kindLine) {
+                        items(also.items) { card -> MediaCard(card, client) { openCard(card) } }
+                    }
+                }
+            }
+        }
+        if (universe.cast.isNotEmpty()) {
+            item {
+                Column(Modifier.padding(horizontal = 64.dp, vertical = 8.dp)) {
+                    Text("Cast", style = MaterialTheme.typography.headlineMedium)
+                    Spacer(Modifier.height(8.dp))
+                    universe.cast.forEach { member ->
+                        Text(member.name, style = MaterialTheme.typography.titleMedium)
+                        castCharactersLine(member)?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+        if (universe.adaptations.isNotEmpty()) {
+            item {
+                Column(Modifier.padding(horizontal = 64.dp, vertical = 8.dp)) {
+                    Text("Adaptations", style = MaterialTheme.typography.headlineMedium)
+                    Spacer(Modifier.height(8.dp))
+                    universe.adaptations.forEach { link ->
+                        Text(adaptationLine(link), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
             }
         }
     }

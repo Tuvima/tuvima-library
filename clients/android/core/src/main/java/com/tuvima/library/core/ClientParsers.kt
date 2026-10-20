@@ -259,3 +259,94 @@ internal fun parsePlaybackPreferences(json: JSONObject): PlaybackPreferences {
             ?: defaults.defaultPlaybackSpeed,
     )
 }
+
+internal fun parseDisplayShelf(json: JSONObject, absolute: (String?) -> String?): DisplayShelf = DisplayShelf(
+    key = json.optString("key"),
+    title = json.optString("title"),
+    subtitle = json.optionalString("subtitle"),
+    items = json.optJSONArray("items")?.objects { parseDisplayCard(it, absolute) }.orEmpty(),
+    seeAllRoute = json.optionalString("seeAllRoute"),
+)
+
+internal fun parseDisplayCard(json: JSONObject, absolute: (String?) -> String?): DisplayCard {
+    val artwork = json.optJSONObject("artwork") ?: JSONObject()
+    val progress = json.optJSONObject("progress")
+    return DisplayCard(
+        id = json.optString("id"),
+        workId = json.optionalString("workId"),
+        assetId = json.optionalString("assetId"),
+        collectionId = json.optionalString("collectionId"),
+        mediaType = json.optString("mediaType"),
+        title = json.optString("title"),
+        subtitle = json.optionalString("subtitle"),
+        facts = json.optJSONArray("facts")?.strings().orEmpty(),
+        description = json.optionalString("description"),
+        artworkUrl = absolute(
+            artwork.optionalString("backgroundLargeUrl")
+                ?: artwork.optionalString("coverLargeUrl")
+                ?: artwork.optionalString("squareLargeUrl")
+                ?: artwork.optionalString("backgroundUrl")
+                ?: artwork.optionalString("coverUrl")
+                ?: artwork.optionalString("squareUrl"),
+        ),
+        actions = json.optJSONArray("actions")?.objects { action ->
+            DisplayAction(
+                type = action.optString("type"),
+                label = action.optString("label"),
+                workId = action.optionalString("workId"),
+                assetId = action.optionalString("assetId"),
+                collectionId = action.optionalString("collectionId"),
+                webUrl = action.optionalString("webUrl"),
+            )
+        }.orEmpty(),
+        progressPercent = progress?.optDouble("percent")?.takeUnless(Double::isNaN),
+        posterUrl = absolute(
+            artwork.optionalString("coverLargeUrl")
+                ?: artwork.optionalString("coverUrl")
+                ?: artwork.optionalString("squareLargeUrl")
+                ?: artwork.optionalString("squareUrl"),
+        ),
+    )
+}
+
+/** A Universe answer. Every field added after the first version is optional: missing reads as 0, empty or null. */
+internal fun parseUniverseDetail(json: JSONObject, absolute: (String?) -> String?, fallbackQid: String = ""): UniverseDetail =
+    UniverseDetail(
+        qid = json.optString("qid", fallbackQid),
+        name = json.optString("name", fallbackQid),
+        description = json.optionalString("description"),
+        itemCount = json.optInt("item_count"),
+        shelves = json.optJSONArray("shelves")?.objects { member ->
+            UniverseShelf(
+                collectionId = member.optString("collection_id"),
+                groupType = member.optString("group_type", "series"),
+                itemCount = member.optInt("item_count"),
+                shelf = parseDisplayShelf(member.optJSONObject("shelf") ?: JSONObject(), absolute),
+                alsoInThisWorld = member.optJSONObject("also_in_this_world")?.let { parseDisplayShelf(it, absolute) },
+                alsoInThisWorldCount = member.optInt("also_in_this_world_count"),
+            )
+        }.orEmpty(),
+        seriesCount = json.optInt("series_count"),
+        mediaTypes = json.optJSONArray("media_types")?.strings().orEmpty(),
+        cast = json.optJSONArray("cast")?.objects { person ->
+            UniverseCastMember(
+                personId = person.optString("person_id"),
+                name = person.optString("name"),
+                headshotUrl = absolute(person.optionalString("headshot_url")),
+                characters = person.optJSONArray("characters")?.objects { character ->
+                    UniverseCharacter(qid = character.optString("qid"), label = character.optString("label"))
+                }.orEmpty(),
+                workCount = person.optInt("work_count"),
+            )
+        }.orEmpty().filter { it.name.isNotBlank() },
+        adaptations = json.optJSONArray("adaptations")?.objects { link ->
+            UniverseAdaptation(
+                qid = link.optString("qid"),
+                label = link.optString("label"),
+                mediaType = link.optionalString("media_type"),
+                relationship = link.optString("relationship"),
+                sourceQid = link.optString("source_qid"),
+                sourceLabel = link.optString("source_label"),
+            )
+        }.orEmpty().filter { it.label.isNotBlank() },
+    )

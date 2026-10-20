@@ -123,11 +123,38 @@ data class CollectionItemsPage(
     val hasMore: Boolean,
 )
 
+/**
+ * One Series (or show) of a Universe: its numbered run ([shelf], [itemCount] items) and, when the Engine found
+ * Universe items that belong to no numbered position, an "Also in this world" row ([alsoInThisWorld]).
+ */
 data class UniverseShelf(
     val collectionId: String,
     val groupType: String,
     val itemCount: Int,
     val shelf: DisplayShelf,
+    val alsoInThisWorld: DisplayShelf? = null,
+    val alsoInThisWorldCount: Int = 0,
+)
+
+data class UniverseCharacter(val qid: String, val label: String)
+
+/** A person credited across a Universe, with the characters they play there. Read-only. */
+data class UniverseCastMember(
+    val personId: String,
+    val name: String,
+    val headshotUrl: String?,
+    val characters: List<UniverseCharacter>,
+    val workCount: Int,
+)
+
+/** One adaptation link: [label] is [relationship] (lowercase, e.g. "based on") [sourceLabel]. Read-only. */
+data class UniverseAdaptation(
+    val qid: String,
+    val label: String,
+    val mediaType: String?,
+    val relationship: String,
+    val sourceQid: String,
+    val sourceLabel: String,
 )
 
 data class UniverseDetail(
@@ -136,6 +163,10 @@ data class UniverseDetail(
     val description: String?,
     val itemCount: Int,
     val shelves: List<UniverseShelf>,
+    val seriesCount: Int = 0,
+    val mediaTypes: List<String> = emptyList(),
+    val cast: List<UniverseCastMember> = emptyList(),
+    val adaptations: List<UniverseAdaptation> = emptyList(),
 )
 
 /** One person this paired app may switch to. */
@@ -200,6 +231,67 @@ internal fun classifySwitchFailure(statusCode: Int, code: String?, description: 
         429 -> SwitchProfileResult.Locked(description)
         else -> SwitchProfileResult.Failed(statusCode, code ?: "request_failed", description)
     }
+
+/**
+ * "1 Series", "3 Series", "1 Work", "14 Works", "1 format", "2 formats"; a part whose number is 0 is left out. As on the
+ * Dashboard's Universe page, a Universe whose lines are all TV shows says "1 show" / "3 shows" instead of "Series".
+ */
+fun universeTotalsLine(detail: UniverseDetail): String = listOfNotNull(
+    detail.seriesCount.takeIf { it > 0 }?.let { count ->
+        val allShows = detail.shelves.isNotEmpty() && detail.shelves.all { it.groupType.equals("show", ignoreCase = true) }
+        if (allShows) "$count ${if (count == 1) "show" else "shows"}" else "$count Series"
+    },
+    detail.itemCount.takeIf { it > 0 }?.let { "$it ${if (it == 1) "Work" else "Works"}" },
+    detail.mediaTypes.size.takeIf { it > 0 }?.let { "$it ${if (it == 1) "format" else "formats"}" },
+).joinToString(" · ")
+
+/** "as Hero, Sidekick" for a cast member, or null when the Engine named no characters. */
+fun castCharactersLine(member: UniverseCastMember): String? =
+    member.characters.map { it.label.trim() }.filter { it.isNotEmpty() }
+        .takeIf { it.isNotEmpty() }?.joinToString(", ", prefix = "as ")
+
+/** "The Film — Based on The Novel": the relationship's first letter is capitalised. */
+fun adaptationLine(adaptation: UniverseAdaptation): String {
+    val relationship = adaptation.relationship.trim().replaceFirstChar { it.uppercase() }
+    val source = adaptation.sourceLabel.trim()
+    return if (relationship.isEmpty() || source.isEmpty()) adaptation.label else "${adaptation.label} — $relationship $source"
+}
+
+/** What the screens draw for one Universe shelf: see [universeShelfRows]. */
+data class UniverseShelfRows(
+    /** The Series name. */
+    val title: String,
+    /** Kind label and count, e.g. "Series · 4 items" or "Series · Also in this world · 2 items"; never "0 items". */
+    val kindLine: String,
+    /** The numbered run, or null when it is empty and no row is drawn for it. */
+    val run: DisplayShelf?,
+    /** The "Also in this world" row, or null when there is none to draw. */
+    val also: DisplayShelf?,
+    /** The "Also in this world" row's title when [also] is shown. */
+    val alsoTitle: String,
+    /** How many items "Also in this world" holds (the Engine's count, else the cards given). */
+    val alsoCount: Int,
+) {
+    /** True only when the numbered run has items to draw. */
+    val showRun: Boolean get() = run != null
+
+    /** "Also in this world · 2 items". */
+    fun alsoHeading(): String = "$alsoTitle · ${itemsText(alsoCount)}"
+}
+
+internal fun itemsText(count: Int): String = "$count ${if (count == 1) "item" else "items"}"
+
+/** The rows to draw for a shelf, or null when it has neither a run nor "Also in this world" items (skipped). */
+fun universeShelfRows(member: UniverseShelf): UniverseShelfRows? {
+    val showRun = member.itemCount > 0 && member.shelf.items.isNotEmpty()
+    val also = member.alsoInThisWorld?.takeIf { it.items.isNotEmpty() }
+    if (!showRun && also == null) return null
+    val alsoTitle = member.alsoInThisWorld?.title?.takeIf { it.isNotBlank() } ?: "Also in this world"
+    val kind = groupTypeLabel(member.groupType)
+    val alsoCount = member.alsoInThisWorldCount.takeIf { it > 0 } ?: also?.items?.size ?: 0
+    val kindLine = if (showRun) "$kind · ${itemsText(member.itemCount)}" else "$kind · $alsoTitle · ${itemsText(alsoCount)}"
+    return UniverseShelfRows(member.shelf.title, kindLine, member.shelf.takeIf { showRun }, also, alsoTitle, alsoCount)
+}
 
 /** The label for a group type; unknown types read as a collection. */
 fun groupTypeLabel(groupType: String): String = when (groupType.lowercase()) {

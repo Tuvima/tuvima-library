@@ -21,8 +21,19 @@ as a Tizen or webOS app.
   See all (`/api/v1/display/shelves/{key}`). **Read is browse-only**: books and
   comics open a details page but there is nothing to play.
 - **Collections**: `/api/v1/collections`, one collection's items, and a Universe
-  (`/api/v1/universe/{qid}`) with its shelves. Each entry is named by its
-  `group_type` (show, series, collection, list, universe).
+  (`/api/v1/universe/{qid}`). Each entry is named by its `group_type` (show,
+  series, collection, list, universe).
+- **Universe**: the name, a totals line ("3 Series · 14 Works · 2 formats"; a
+  zero part is left out) and the description. Then each Series in the order the
+  server sends, as a heading (name, kind and "N items") over its numbered run;
+  a Series with no run shows no empty row and no "0 items", and an "Also in this
+  world" row beneath carries the related items. A Series with neither is
+  skipped. Cards open like cards anywhere else. After the rows come two
+  read-only text lists, **Cast** (name, "as Character, Character") and
+  **Adaptations** ("The Film — Based on The Novel"), each hidden when empty and
+  never focusable. A Universe the profile cannot see answers 404 and shows the
+  usual "no longer available" message. The wording and row decisions live in
+  `universe.js`, which has no page code so Node can test it.
 - **Search**: `/api/v1/display/search`.
 - **Details**: `/api/v1/details/{type}/{id}`. A TV show lists its seasons and
   episodes; Play or Resume picks the episode in progress.
@@ -113,6 +124,7 @@ ring.
 | --- | --- |
 | `index.html` | Page shell; loads the classic scripts in order |
 | `api.js` | Server address, pairing, token rotation, display, details, playback calls, artwork |
+| `universe.js` | Universe page logic (totals, cast and adaptation lines, which rows each Series shows); no DOM |
 | `nav.js` | Key map and spatial navigation |
 | `player.js` | hls.js player, captions, resume, heartbeat, Up next |
 | `app.js` | Screens and routing |
@@ -129,7 +141,7 @@ pwsh -NoProfile -File tests/native/Test-TvWebClient.ps1
 The gate runs `node --check` on every script, refuses hard-coded server
 addresses and credentials, checks the required screens and routes, checks the
 wire names against `tests/fixtures/native-client-v1`, and runs the Node
-behaviour checks for the API layer and remote input.
+behaviour checks for the API layer, the Universe page logic and remote input.
 
 ## Not yet done
 
