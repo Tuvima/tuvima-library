@@ -59,7 +59,8 @@ public sealed class UniverseRecordTests : IDisposable
             _collections,
             labels,
             new SystemActivityRepository(_db),
-            NullLogger<NarrativeRootResolver>.Instance);
+            NullLogger<NarrativeRootResolver>.Instance,
+            _parents);
     }
 
     public void Dispose()
@@ -136,6 +137,41 @@ public sealed class UniverseRecordTests : IDisposable
         {
             Assert.Equal(ExpanseUniverse, (await _narrativeRoots.ResolveAsync(workId))!.Qid);
         }
+    }
+
+    [Fact]
+    public async Task AShelfDecidedBeforeItsFranchiseHadAParent_MovesUpWhenTheParentIsRecorded()
+    {
+        const string Franchise = "Q700";
+        const string Universe = "Q800";
+        // Two book lines of one franchise. Only the second line's works also name the fictional universe above it.
+        AddWork("Prequel", "Books", new Dictionary<string, string>
+        {
+            ["series"] = "Prequels", ["series_qid"] = "Q701", ["franchise"] = "The Franchise", ["franchise_qid"] = Franchise,
+        });
+        AddWork("Main", "Books", new Dictionary<string, string>
+        {
+            ["series"] = "Main line", ["series_qid"] = "Q702", ["franchise"] = "The Franchise", ["franchise_qid"] = Franchise,
+        });
+        AddArray("Main", "fictional_universe", ("The Universe", Universe));
+
+        // The prequel line is decided first, while the Library knows nothing above the franchise.
+        await AssignAsync("Prequel");
+        Assert.Equal(Franchise, (await _collections.FindSeriesShelfAsync("Q701", "Books"))!.UniverseQid);
+
+        await AssignAsync("Main");
+        // The main line's universe pass records the franchise as part of the fictional universe ...
+        await _narrativeRoots.ResolveAsync(_works["Main"].WorkId);
+
+        // ... so the prequel line follows it up: both lines end in one Universe, whatever finished first.
+        var prequels = (await _collections.FindSeriesShelfAsync("Q701", "Books"))!;
+        var main = (await _collections.FindSeriesShelfAsync("Q702", "Books"))!;
+        Assert.Equal(Universe, prequels.UniverseQid);
+        Assert.Equal(Universe, main.UniverseQid);
+        var universe = Assert.Single(await _collections.GetByTypeAsync("Universe"));
+        Assert.Equal(Universe, universe.UniverseQid);
+        Assert.Equal(universe.Id, prequels.ParentCollectionId);
+        Assert.Equal(universe.Id, main.ParentCollectionId);
     }
 
     private void AddArray(string title, string key, params (string Value, string Qid)[] entries)

@@ -1327,6 +1327,9 @@ public sealed class CollectionRepository : ICollectionRepository
                   AND  collection_type = 'Universe'
                   AND  NOT EXISTS (SELECT 1 FROM collections child WHERE child.parent_collection_id = @id)
                   AND  NOT EXISTS (SELECT 1 FROM works w WHERE w.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_items ci WHERE ci.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_placements cp WHERE cp.collection_id = @id)
+                  AND  NOT EXISTS (SELECT 1 FROM collection_profile_audience ca WHERE ca.collection_id = @id)
                   AND  COALESCE(TRIM(display_overrides_json), '') IN ('', '{}')
                   AND  COALESCE(cover_artwork_path, '') = ''
                   AND  COALESCE(background_artwork_path, '') = ''

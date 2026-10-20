@@ -5,6 +5,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Intelligence.Contracts;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Providers.Services;
@@ -49,6 +50,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
     private readonly IQidLabelRepository _qidLabelRepo;
     private readonly ISystemActivityRepository _activity;
     private readonly ILogger<NarrativeRootResolver> _logger;
+    private readonly IParentCollectionResolver? _parentResolver;
 
     public NarrativeRootResolver(
         ICanonicalValueRepository canonicalValues,
@@ -57,7 +59,8 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         ICollectionRepository collections,
         IQidLabelRepository qidLabelRepo,
         ISystemActivityRepository activity,
-        ILogger<NarrativeRootResolver> logger)
+        ILogger<NarrativeRootResolver> logger,
+        IParentCollectionResolver? parentResolver = null)
     {
         _canonicalValues = canonicalValues;
         _canonicalArrays = canonicalArrays;
@@ -66,6 +69,7 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         _qidLabelRepo = qidLabelRepo;
         _activity = activity;
         _logger = logger;
+        _parentResolver = parentResolver;
     }
 
     /// <inheritdoc />
@@ -394,6 +398,9 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         string qid, string label, string level, string? parentQid, CancellationToken ct)
     {
         label = await SanitizeLabelAsync(qid, label, ct).ConfigureAwait(false);
+        var previousParentQid = parentQid is null
+            ? null
+            : (await _narrativeRoots.FindByQidAsync(qid, ct).ConfigureAwait(false))?.ParentQid;
 
         var root = new NarrativeRoot
         {
@@ -410,6 +417,36 @@ public sealed class NarrativeRootResolver : INarrativeRootResolver
         _logger.LogInformation(
             "Narrative root resolved: {Label} ({Qid}) at level {Level}",
             label, qid, level);
+
+        if (parentQid is not null
+            && !string.Equals(previousParentQid, parentQid, StringComparison.OrdinalIgnoreCase))
+        {
+            await ResolveShelvesNamingAsync(qid, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// A Series or franchise just gained (or changed) its parent Universe, so a shelf that reached its Universe through
+    /// this QID (its own Series, or a franchise, broader Series or "based on" relationship) is decided again. Without
+    /// this, a shelf decided before the parent was known would keep the narrower Universe, and the result would depend
+    /// on which work finished its universe pass first.
+    /// </summary>
+    private async Task ResolveShelvesNamingAsync(string qid, CancellationToken ct)
+    {
+        if (_parentResolver is null)
+        {
+            return;
+        }
+
+        var shelves = (await _collections.FindSeriesShelvesByQidAsync(qid, ct).ConfigureAwait(false))
+            .Concat(await _collections.ListShelvesWithRollupRelationshipQidAsync(qid, ct).ConfigureAwait(false))
+            .Select(shelf => shelf.Id)
+            .Distinct()
+            .ToList();
+        foreach (var shelfId in shelves)
+        {
+            await _parentResolver.ResolveParentCollectionAsync(shelfId, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Cache narrative root QID → label for offline resolution.</summary>

@@ -1015,7 +1015,15 @@ public sealed class CollectionAssignmentService
 
         if (arrays.TryGetValue("based_on", out var basedOnEntries))
         {
-            AddFirstQidArrayHint(lookup, "based_on", basedOnEntries);
+            // The lowest QID, as the Universe rule picks among several "based on" values.
+            var basedOn = basedOnEntries
+                .Where(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid) is not null)
+                .OrderBy(entry => UniverseIdentityRule.NormaliseQid(entry.ValueQid)!, Comparer<string>.Create(UniverseIdentityRule.CompareQids))
+                .FirstOrDefault();
+            if (basedOn is not null)
+            {
+                AddArrayHint(lookup, "based_on", basedOn);
+            }
         }
 
         if (arrays.TryGetValue(MetadataFieldConstants.Characters, out var characterEntries))
@@ -1036,18 +1044,6 @@ public sealed class CollectionAssignmentService
                     AddArrayHint(lookup, "based_on", matchingShelfCharacter);
                 }
             }
-        }
-    }
-
-    private static void AddFirstQidArrayHint(
-        Dictionary<string, string> lookup,
-        string claimKey,
-        IReadOnlyList<CanonicalArrayEntry> entries)
-    {
-        var entry = entries.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value.ValueQid));
-        if (entry is not null)
-        {
-            AddArrayHint(lookup, claimKey, entry);
         }
     }
 
