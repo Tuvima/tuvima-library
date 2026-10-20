@@ -4,8 +4,10 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Universe;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -178,6 +180,23 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ACastRow_OpensAlsoAppearsIn_ForThatPersonAndTheirCharacters()
+    {
+        var person = Guid.NewGuid();
+        _overview = () => UniversePageLoadResult.Loaded(Overview(
+            cast: [Cast(person, "Timothee C", ("Q1", "Paul"))]));
+        await UseDeviceAsync("web", "desktop");
+        var dialogs = Services.GetRequiredService<IAppDialogService>();
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.universe-cast__row")));
+        cut.Find("button.universe-cast__row").Click();
+
+        var dialog = Assert.Single(((AppDialogService)dialogs).Dialogs);
+        Assert.Equal(typeof(AlsoAppearsInPanel), dialog.ComponentType);
+    }
+
+    [Fact]
     public async Task Connections_ListsTheCastAsCharacters_AndAdaptationsWithACapitalisedRelationship()
     {
         var person = Guid.NewGuid();
@@ -192,7 +211,6 @@ public sealed class UniversePageTests : AsyncBunitContext
         {
             Assert.Equal("Timothee C", cut.Find(".universe-cast__name").TextContent);
             Assert.Equal("as Paul, Muad'Dib", cut.Find(".universe-cast__characters").TextContent);
-            Assert.Equal($"/details/person/{person:D}", cut.Find("a.universe-cast__row").GetAttribute("href"));
             Assert.Equal("Dune: Part One — Based on Dune", cut.Find(".universe-adaptations__line").TextContent);
             Assert.DoesNotContain("Still learning", cut.Markup);
         });

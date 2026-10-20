@@ -15,6 +15,7 @@
 @inject DashboardSessionAccessor Session
 @inject IAdministratorSurfaceAccessService AdministratorAccess
 @inject IAppToastService Snackbar
+@inject IAppDialogService Dialogs
 @inject ILogger<UniversePage> Logger
 
 <PageTitle>@PageTitleText · Tuvima Library</PageTitle>
@@ -72,7 +73,8 @@
                 }
 
                 <UniverseConnections Page="@overview"
-                                     FandomLine="@_showFandomLine" />
+                                     FandomLine="@_showFandomLine"
+                                     OnCastMemberSelected="OpenAlsoAppearsInAsync" />
             }
             break;
     }
@@ -118,6 +120,16 @@
             Items = shelf.Items.Select(MediaTileComposerService.FromDisplayCard).ToList(),
         }
         : null;
+
+    // A cast row opens "Also appears in": every owned Work that shares one of this person's characters, then more of
+    // their own work in the Library. Matching is by Wikidata item, so nothing here is guessed from a name.
+    private Task OpenAlsoAppearsInAsync(UniverseClientCastMemberDto member) =>
+        AlsoAppearsInPanel.OpenAsync(
+            Dialogs,
+            CurrentQid,
+            member.Characters.Select(character => (character.Qid, character.Label)).ToList(),
+            member.PersonId,
+            member.Name);
 
     protected override void OnInitialized()
     {
