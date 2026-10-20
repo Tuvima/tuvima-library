@@ -112,7 +112,8 @@ public sealed class LibraryMoveRepositoryTests : IDisposable
             null);
 
         Assert.False(outcome.Committed);
-        Assert.Contains("changed details", outcome.ConflictReason, StringComparison.Ordinal);
+        Assert.True(outcome.IsRefusal);
+        Assert.Equal(LibraryMoveReasons.UserManagedMerge, outcome.ConflictReason);
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM works WHERE id = @song;", new { song }));
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM editions WHERE work_id = @song;", new { song }));
         Assert.Equal(1, Scalar("SELECT COUNT(*) FROM editions WHERE work_id = @entry;", new { entry }));

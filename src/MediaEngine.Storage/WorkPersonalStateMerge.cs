@@ -39,6 +39,16 @@ internal static class WorkPersonalStateMerge
     };
 
     /// <summary>
+    /// The per-person tables that name a title by <c>entity_id</c> with no foreign key, so <see cref="HandledTables"/> cannot see them.
+    /// <see cref="Carry"/> re-points each. A test compares this list with every table that holds both a profile and an entity id.
+    /// </summary>
+    internal static readonly IReadOnlySet<string> HandledEntityIdTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "profile_reactions",
+        "profile_saved_items",
+    };
+
+    /// <summary>
     /// Re-points the person's state from <paramref name="source"/> to <paramref name="target"/>. Where both have a row: a heart or save is
     /// kept if either had it and the most recent reaction wins, play counts are added and the later last-played kept, listening history and
     /// bookmarks are both kept, queue items are re-pointed, and the target's own preferences win.

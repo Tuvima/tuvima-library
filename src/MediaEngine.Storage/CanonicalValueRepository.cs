@@ -85,15 +85,19 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         List<CanonicalValue> scalarValues)
     {
         // An item added anyway stays unnumbered (Details overlay D13): no scan, re-read of its file or provider writes it a track,
-        // disc, episode, season, series position or part number. Only a later Match, which clears the mark, numbers it.
-        var numbered = scalarValues.Where(cv => PlacementNumbers.IsNumberKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
-        if (numbered.Count > 0)
+        // disc, episode, season or series position (a title's mark) or a part number (an audiobook part's mark). Only a later Match,
+        // which clears the mark, numbers it. Each mark covers only its own list's numbers.
+        var workNumbered = scalarValues.Where(cv => PlacementNumbers.IsWorkKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        var partNumbered = scalarValues.Where(cv => PlacementNumbers.IsPartKey(cv.Key)).Select(cv => cv.EntityId).Distinct().ToList();
+        if (workNumbered.Count > 0 || partNumbered.Count > 0)
         {
-            var unnumbered = PlacementNumbers.UnnumberedAmong(conn, tx, numbered);
-            if (unnumbered.Count > 0)
+            var workUnnumbered = PlacementNumbers.WorkUnnumberedAmong(conn, tx, workNumbered);
+            var partUnnumbered = PlacementNumbers.PartUnnumberedAmong(conn, tx, partNumbered);
+            if (workUnnumbered.Count > 0 || partUnnumbered.Count > 0)
             {
                 scalarValues = scalarValues
-                    .Where(cv => !(PlacementNumbers.IsNumberKey(cv.Key) && unnumbered.Contains(cv.EntityId)))
+                    .Where(cv => !(PlacementNumbers.IsWorkKey(cv.Key) && workUnnumbered.Contains(cv.EntityId))
+                        && !(PlacementNumbers.IsPartKey(cv.Key) && partUnnumbered.Contains(cv.EntityId)))
                     .ToList();
                 if (scalarValues.Count == 0)
                 {

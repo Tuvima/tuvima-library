@@ -4084,7 +4084,8 @@
 [contracts] MediaEngine.Contracts.Library.LibraryMoveDestinationsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Library.LibraryMoveDestination> | json=destinations | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"destinations":[]}
+  CurrentDestination: MediaEngine.Contracts.Library.LibraryMoveDestination | json=current_destination | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"destinations":[],"current_destination":null}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMoveEntry
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4095,7 +4096,8 @@
   TakenByItemId: System.Guid? | json=taken_by_item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TakenByTitle: System.String | json=taken_by_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanAddVersion: System.Boolean | json=can_add_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"entry_key":"sample","number":"sample","title":"sample","length_seconds":7,"taken_by_item_id":"11111111-2222-3333-4444-555555555555","taken_by_title":"sample","can_add_version":true}
+  JoinsExistingTitle: System.Boolean | json=joins_existing_title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entry_key":"sample","number":"sample","title":"sample","length_seconds":7,"taken_by_item_id":"11111111-2222-3333-4444-555555555555","taken_by_title":"sample","can_add_version":true,"joins_existing_title":true}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMoveFileChange
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4130,13 +4132,16 @@
   FileChange: MediaEngine.Contracts.Library.LibraryMoveFileChange | json=file_change | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileNote: System.String | json=file_note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BlockedReason: System.String | json=blocked_reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"item_id":"11111111-2222-3333-4444-555555555555","title":"sample","current_placement_label":"sample","suggested_entry_key":"sample","suggestion_reason":"sample","file_change":null,"file_note":"sample","blocked_reason":"sample"}
+  CanMatch: System.Boolean | json=can_match | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MergeBlockedReason: System.String | json=merge_blocked_reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"item_id":"11111111-2222-3333-4444-555555555555","title":"sample","current_placement_label":"sample","suggested_entry_key":"sample","suggestion_reason":"sample","file_change":null,"file_note":"sample","blocked_reason":"sample","can_match":true,"merge_blocked_reason":"sample"}
 
 [contracts] MediaEngine.Contracts.Library.LibraryMoveRowResult
   kind=class | converter=default | number-handling=default | unmapped=default
   ItemId: System.Guid | json=item_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Outcome: System.String | json=outcome | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"item_id":"11111111-2222-3333-4444-555555555555","outcome":"sample"}
+  ResultEntityId: System.Guid | json=result_entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"item_id":"11111111-2222-3333-4444-555555555555","outcome":"sample","result_entity_id":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Library.LibraryOverviewDto
   kind=class | converter=default | number-handling=default | unmapped=default

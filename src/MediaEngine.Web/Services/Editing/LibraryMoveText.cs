@@ -25,6 +25,16 @@ public static class LibraryMoveText
     /// <summary>The label for a Not matched item: it is placed through the same Match step.</summary>
     public const string MatchLabel = "Match";
 
+    /// <summary>The action for a numbered item: the same Match step, opened on the place it already sits in, to give it a different number.</summary>
+    public const string ChangeNumberLabel = "Change number";
+
+    /// <summary>Shown under an item the person may write but not match (the Engine's <c>can_match</c> is false): only add anyway is left.</summary>
+    public const string MatchNotAllowedNote = "You can't match items to entries here. You can add it without a number.";
+
+    /// <summary>The line for an entry that is the item's own: where it sits now.</summary>
+    public static string OwnEntryMessage(LibraryMovePreview preview, LibraryMoveEntry entry) =>
+        $"This already is {EntryLabel(preview, entry)}. Pick a different {NumberWord(preview.ListKind)}.";
+
     /// <summary>"track", "episode", "position" or "part": what an unnumbered item does not get (D13).</summary>
     public static string NumberWord(string listKind) => listKind switch
     {
@@ -105,6 +115,14 @@ public static class LibraryMoveText
             primary = "Add anyway";
             secondary = "Match instead";
         }
+        else if (selection.IsWithinCurrentPlace && rows.Count == 1)
+        {
+            // Matching within the place the item already sits in: nothing moves or leaves, it is only numbered.
+            title = $"Match {rows[0].Title}?";
+            message = SingleMoveSentence(selection, rows[0], destination);
+            primary = "Match";
+            secondary = "Cancel";
+        }
         else
         {
             title = rows.Count == 1 ? $"Move {rows[0].Title}?" : $"Move {rows.Count} items?";
@@ -167,6 +185,13 @@ public static class LibraryMoveText
 
         var entry = selection.Entry(row.EntryKey);
         var label = entry is null ? string.Empty : EntryLabel(selection.Preview, entry);
+        if (selection.IsWithinCurrentPlace)
+        {
+            return row.Choice == LibraryMoveRowChoice.AddAsVersion
+                ? $"Add {row.Title} as another version of {label} in {destination}?"
+                : $"Match {row.Title} to {label} in {destination}?";
+        }
+
         return row.Choice == LibraryMoveRowChoice.AddAsVersion
             ? $"Add {row.Title} to {destination} as another version of {label}?"
             : $"Move {row.Title} to {destination} as {label}?";
@@ -188,6 +213,7 @@ public static class LibraryMoveText
             {
                 LibraryMoveRowChoice.AddAnyway => $"Added {row.Title} to {destination} without a number. It shows as Not matched.",
                 LibraryMoveRowChoice.AddAsVersion => $"Added {row.Title} to {destination} as another version of {label}.",
+                _ when selection.IsWithinCurrentPlace => $"Matched {row.Title} to {label} in {destination}.",
                 _ when selection.HasList => $"Moved {row.Title} to {destination} as {label}.",
                 _ => $"Moved {row.Title} to {destination}.",
             };

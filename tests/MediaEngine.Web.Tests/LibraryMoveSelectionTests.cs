@@ -112,4 +112,70 @@ public sealed class LibraryMoveSelectionTests
         selection.AddAnyway(LibraryMoveTestData.SongId);
         Assert.True(selection.CanApply);
     }
+
+    [Fact]
+    public void AnItemsOwnEntryIsNeverSelectable_NotAsAMatchAndNotAsAnotherVersion()
+    {
+        var selection = LibraryMoveSelection.From(LibraryMoveTestData.AlbumHoldingTheSongPreview());
+
+        Assert.Equal(LibraryMovePickResult.OwnEntry, selection.Pick(LibraryMoveTestData.SongId, "t2"));
+        Assert.False(selection.AddAsVersion(LibraryMoveTestData.SongId, "t2"));
+        Assert.Equal(LibraryMoveRowChoice.Undecided, selection.Find(LibraryMoveTestData.SongId)!.Choice);
+        Assert.True(selection.IsOwn("t2", LibraryMoveTestData.SongId));
+        Assert.False(selection.IsTaken("t2", LibraryMoveTestData.SongId));
+        Assert.True(selection.IsTaken("t1", LibraryMoveTestData.SongId));
+    }
+
+    [Fact]
+    public void AnOwnEntryTheEngineSuggestsIsNotChosen()
+    {
+        var preview = LibraryMoveTestData.AlbumHoldingTheSongPreview([LibraryMoveTestData.Row(suggested: "t2")]);
+
+        var selection = LibraryMoveSelection.From(preview);
+
+        Assert.Equal(LibraryMoveRowChoice.Undecided, selection.Find(LibraryMoveTestData.SongId)!.Choice);
+    }
+
+    [Fact]
+    public void ACallerWhoMayNotMatch_CanOnlyAddAnyway_AndNoEntryIsPickedForThem()
+    {
+        var preview = LibraryMoveTestData.AlbumPreview(rows: [LibraryMoveTestData.Row(canMatch: false)]);
+
+        var selection = LibraryMoveSelection.From(preview);
+
+        Assert.Equal(LibraryMoveRowChoice.Undecided, selection.Rows[0].Choice);
+        Assert.Equal(LibraryMovePickResult.MatchNotAllowed, selection.Pick(LibraryMoveTestData.SongId, "t2"));
+        Assert.False(selection.AddAsVersion(LibraryMoveTestData.SongId, "t1"));
+        Assert.Equal(LibraryMoveText.MatchNotAllowedNote, selection.Rows[0].PickNote);
+        selection.AddAnyway(LibraryMoveTestData.SongId);
+        Assert.True(selection.CanApply);
+    }
+
+    [Fact]
+    public void AnItemWhoseDetailsThePersonSet_CannotPickAnExistingTitle_ButCanTakeAnEmptySlot()
+    {
+        var preview = LibraryMoveTestData.AlbumHoldingTheSongPreview(
+            [LibraryMoveTestData.Row(LibraryMoveTestData.OtherSongId, "Unknown Song", suggested: "t3", mergeBlocked: "You changed this item's details.")]);
+
+        var selection = LibraryMoveSelection.From(preview);
+        var row = selection.Rows[0];
+
+        Assert.Equal(LibraryMoveRowChoice.Undecided, row.Choice);
+        Assert.Equal(LibraryMovePickResult.CannotMerge, selection.Pick(row.ItemId, "t3"));
+        Assert.Equal(LibraryMovePickResult.Matched, selection.Pick(row.ItemId, "t4"));
+        Assert.Equal("t4", row.EntryKey);
+    }
+
+    [Fact]
+    public void WithinTheItemsCurrentPlace_AddAnywayIsNotAChoice()
+    {
+        var selection = LibraryMoveSelection.From(LibraryMoveTestData.AlbumHoldingTheSongPreview(), withinCurrentPlace: true);
+
+        selection.AddAnyway(LibraryMoveTestData.SongId);
+        selection.AddUnmatchedWithoutNumbers();
+        var kept = LibraryMoveSelection.From(LibraryMoveTestData.AlbumHoldingTheSongPreview(token: "token-2"), selection);
+
+        Assert.Equal(LibraryMoveRowChoice.Undecided, selection.Rows[0].Choice);
+        Assert.True(kept.IsWithinCurrentPlace);
+    }
 }

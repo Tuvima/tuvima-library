@@ -1,3 +1,6 @@
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
+
 namespace MediaEngine.Web.Components.MediaEditor;
 
 /// <summary>
@@ -35,12 +38,39 @@ public partial class SharedMediaEditorShell
         }
     }
 
-    /// <summary>A move was committed: keep its result line, tell the page behind the section, and show the item as it is now.</summary>
-    private async Task OnItemMovedAsync(string resultLine)
+    // Whether the item is Not matched, as the last move left it. The launch request only knows what the page showed when it opened, so
+    // after a move the area reads this instead (the Engine's outcome for the item: added anyway, or placed).
+    private bool? _unmatchedAfterMove;
+
+    /// <summary>True when the item is shown as Not matched: the launch request's mark until a move has changed it.</summary>
+    protected bool IsUnmatchedNow => _unmatchedAfterMove ?? Request.IsUnmatched;
+
+    /// <summary>
+    /// A move was committed: keep its result line, show the item as it is now, and tell the page behind the section. A move that merges
+    /// the edited title into an entry's own title (or an emptied audiobook) deletes the Work the editor was showing, so the editor
+    /// re-targets to the Work the item now lives in or as, and a host showing the old Work is told to follow it.
+    /// </summary>
+    private async Task OnItemMovedAsync(ItemMovedArgs moved)
     {
-        _moveResult = resultLine;
+        _moveResult = moved.ResultLine;
+        _unmatchedAfterMove = moved.IsUnmatched;
         _hasCommittedChanges = true;
-        await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true);
+        var previousId = CurrentEntityId;
+        var targetId = moved.ResultEntityId is { } survivor && survivor != Guid.Empty ? survivor : previousId;
+        await LoadSingleItemAsync(targetId, resetEditorState: true, preferredScopeId: ActiveScope?.ScopeId);
         _tabState.Activate("links");
+
+        if (targetId != previousId && Request.OnEditedItemReplaced is { } replaced)
+        {
+            try
+            {
+                await replaced(previousId, targetId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "The page could not follow the moved item from {PreviousId} to {TargetId}.", previousId, targetId);
+                Snackbar.Add("The move was saved, but the page could not follow the item. Reload to see it.", AppSeverity.Warning);
+            }
+        }
     }
 }

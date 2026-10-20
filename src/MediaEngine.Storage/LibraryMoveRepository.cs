@@ -358,7 +358,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         catch (MoveRefusedException ex)
         {
             // A check failed after the move had started: the transaction rolled back, so nothing changed. The reason goes to the person.
-            return LibraryMoveCommitOutcome.Conflict(ex.Message);
+            return ex.IsRefusal ? LibraryMoveCommitOutcome.Refusal(ex.Message) : LibraryMoveCommitOutcome.Conflict(ex.Message);
         }
     }
 
@@ -453,7 +453,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         if (refusal is not null)
         {
             // The caller rolls the transaction back when the body throws, so nothing above is kept.
-            throw new MoveRefusedException(refusal.ConflictReason ?? "The move could not be completed.");
+            throw new MoveRefusedException(refusal.ConflictReason ?? "The move could not be completed.", refusal.IsRefusal);
         }
 
         // Emptied places go in the same transaction. A place the person's own settings keep is left alone, so only the ones
@@ -514,7 +514,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 """,
                 new { id = Guid.NewGuid(), collectionId = destination.Id, workId = item.WorkId },
                 transaction);
-            outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "moved"));
+            outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "moved", item.WorkId));
         }
 
         return null;
@@ -549,7 +549,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 transaction);
             if (left == 0)
             {
-                return LibraryMoveCommitOutcome.Conflict("You changed details on this audiobook yourself, so its last file can't be moved out of it.");
+                return LibraryMoveCommitOutcome.Refusal("You changed details on this audiobook yourself, so its last file can't be moved out of it.");
             }
         }
 
@@ -600,7 +600,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
             if (row.Mode == LibraryMoveMode.AddAnyway)
             {
-                ClearNumbers(connection, transaction, assets, now);
+                ClearNumbers(connection, transaction, assets, PlacementNumbers.PartKeys, now);
             }
             else
             {
@@ -622,7 +622,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                     LibraryMoveMode.AddAnyway => "added_unmatched",
                     LibraryMoveMode.AddAsVersion => "added_as_version",
                     _ => "matched",
-                }));
+                },
+                destination.Id));
         }
 
         // An audiobook left with no file is removed, as an emptied album or season is.
@@ -665,9 +666,9 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 }
 
                 Relocate(connection, transaction, destination, item, ordinal: null, ordinalSort: null, unmatched: true);
-                ClearNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], now);
+                ClearNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], PlacementNumbers.WorkKeys, now);
                 UnlinkManifest(connection, transaction, item.WorkId);
-                outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "added_unmatched"));
+                outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "added_unmatched", item.WorkId));
             }
             else if (row.Target.ExistingWorkId is { } entryWork)
             {
@@ -684,7 +685,8 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
                 outcomes.Add(new LibraryMoveRowOutcome(
                     item.ItemId,
-                    row.Mode == LibraryMoveMode.AddAsVersion ? "added_as_version" : "matched"));
+                    row.Mode == LibraryMoveMode.AddAsVersion ? "added_as_version" : "matched",
+                    entryWork));
             }
             else
             {
@@ -722,7 +724,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                         transaction);
                 }
 
-                outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "matched"));
+                outcomes.Add(new LibraryMoveRowOutcome(item.ItemId, "matched", item.WorkId));
             }
 
             BumpRevision(connection, transaction, row.Target.ExistingWorkId ?? item.WorkId, now);
@@ -810,8 +812,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
         if (item.HasUserManagedDetails)
         {
-            return LibraryMoveCommitOutcome.Conflict(
-                "You changed details on this item yourself, so it can't be merged into an existing entry. Add it anyway instead.");
+            return LibraryMoveCommitOutcome.Refusal(LibraryMoveReasons.UserManagedMerge);
         }
 
         connection.Execute("UPDATE editions SET work_id = @entry WHERE work_id = @source;", new { entry = entryWork, source = item.WorkId }, transaction);
@@ -919,11 +920,15 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         }
     }
 
-    /// <summary>An item added anyway has no number: its numbers and the claims that would bring them back are retired.</summary>
+    /// <summary>
+    /// An item added anyway has no number in the list it joins: those numbers and the claims that would bring them back are retired.
+    /// Only the keys of that list are cleared (a title's own numbers, or an audiobook part's number), never the other list's.
+    /// </summary>
     private static void ClearNumbers(
         SqliteConnection connection,
         SqliteTransaction transaction,
         IReadOnlyList<Guid> entityIds,
+        string[] keys,
         string now) =>
         connection.Execute(
             """
@@ -931,7 +936,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             WHERE entity_id IN @entities AND claim_key IN @keys AND is_current = 1;
             DELETE FROM canonical_values WHERE entity_id IN @entities AND key IN @keys;
             """,
-            new { entities = ToBlobs(entityIds), keys = NumberKeys, now },
+            new { entities = ToBlobs(entityIds), keys, now },
             transaction);
 
     private static void UnlinkManifest(SqliteConnection connection, SqliteTransaction transaction, Guid workId) =>
@@ -1446,7 +1451,11 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
     }
 
     /// <summary>Thrown from the transaction body so the whole move rolls back; turned into a conflict result by the caller of the commit.</summary>
-    private sealed class MoveRefusedException(string reason) : InvalidOperationException(reason);
+    private sealed class MoveRefusedException(string reason, bool isRefusal) : InvalidOperationException(reason)
+    {
+        /// <summary>True when the request is never allowed (a refusal, answered 400); false when the state changed (answered 409).</summary>
+        public bool IsRefusal { get; } = isRefusal;
+    }
 
     private sealed class ItemRow
     {

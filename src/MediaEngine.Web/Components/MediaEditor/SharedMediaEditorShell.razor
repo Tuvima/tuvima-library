@@ -402,7 +402,7 @@
                         <ItemMoveArea ItemId="@MoveItemId"
                                       MediaType="@EditorMediaType"
                                       ScopeId="@(ActiveScope?.ScopeId)"
-                                      IsUnmatched="@Request.IsUnmatched"
+                                      IsUnmatched="@IsUnmatchedNow"
                                       Result="@_moveResult"
                                       OnMoved="OnItemMovedAsync" />
                     }

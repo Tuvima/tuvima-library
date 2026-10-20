@@ -397,6 +397,24 @@ public static class DetailsOverlayNavigation
     }
 
     /// <summary>
+    /// The item shown at the current address is now another one (a move merged it into an entry's own title, which removed it): the
+    /// address names the surviving item instead, replacing the entry through <see cref="ReplaceAddress"/> so the underlay is kept and
+    /// Back does not gain a step. Returns false, changing nothing, when the current address does not name the previous item.
+    /// </summary>
+    public static bool FollowItem(NavigationManager navigation, DetailsOverlayState? overlay, Guid previousId, Guid survivingId)
+    {
+        var current = navigation.Uri;
+        var target = current.Replace(previousId.ToString("D"), survivingId.ToString("D"), StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(target, current, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ReplaceAddress(navigation, overlay, target);
+        return true;
+    }
+
+    /// <summary>
     /// A reader returning to its title: back over the page the title was opened from when the reader was opened straight from
     /// it, otherwise (a deep link or reload) the title over Home.
     /// </summary>

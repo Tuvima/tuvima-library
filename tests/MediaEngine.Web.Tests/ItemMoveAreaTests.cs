@@ -25,6 +25,8 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
     private readonly Queue<LibraryMoveOutcome<LibraryMoveCommitResult>> _commitAnswers = new();
     private LibraryMovePreview _preview = LibraryMoveTestData.AlbumPreview();
     private string? _movedLine;
+    private ItemMovedArgs? _moved;
+    private LibraryMoveDestination? _currentDestination;
 
     public ItemMoveAreaTests()
     {
@@ -36,6 +38,7 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
                 Task.FromResult(LibraryMoveOutcome<LibraryMoveDestinationsResponse>.Ok(new LibraryMoveDestinationsResponse
                 {
                     Destinations = [LibraryMoveTestData.Album()],
+                    CurrentDestination = _currentDestination,
                 })));
             stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryMoveAsync), args =>
             {
@@ -68,7 +71,11 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
             .Add(component => component.MediaType, mediaType)
             .Add(component => component.ScopeId, scopeId)
             .Add(component => component.IsUnmatched, unmatched)
-            .Add(component => component.OnMoved, EventCallback.Factory.Create<string>(this, line => _movedLine = line)));
+            .Add(component => component.OnMoved, EventCallback.Factory.Create<ItemMovedArgs>(this, moved =>
+            {
+                _moved = moved;
+                _movedLine = moved.ResultLine;
+            })));
         return (host, area);
     }
 
@@ -327,6 +334,133 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
 
         Assert.True(Button(area, "Apply").HasAttribute("disabled"));
         Assert.Contains("Still being processed", area.Markup, StringComparison.Ordinal);
+    }
+
+    // -- matching and renumbering within the item's own place (D13, section 5) ----------------------------
+
+    [Fact]
+    public async Task MatchOnANotMatchedItem_OpensTheMatchStepOnItsOwnPlaceDirectly_AndMovingElsewhereStaysOneClickAway()
+    {
+        await UseDevice("desktop");
+        _currentDestination = LibraryMoveTestData.Album();
+        _preview = LibraryMoveTestData.AlbumHoldingTheSongPreview();
+        var (host, area) = RenderArea(unmatched: true);
+
+        Assert.Contains(area.FindAll("button"), button => button.TextContent.Trim() == "Move to another album");
+        Button(area, "Match").Click();
+        area.WaitForElement(".tl-match-step");
+
+        Assert.Empty(area.FindAll("[data-destination-id]"));
+        Assert.Equal(LibraryMoveTestData.AlbumId, _previews.Single().DestinationId);
+        Assert.DoesNotContain(area.FindAll("button"), button => button.TextContent.Trim() == "Add anyway");
+
+        area.Find("[data-entry-key='t4']").Click();
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        Assert.Contains("Match Paranoid Android to Track 4 in OK Computer?", DialogText(host), StringComparison.Ordinal);
+        DialogButton(host, "Match").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_movedLine));
+        Assert.Equal("Matched Paranoid Android to Track 4 in OK Computer.", _movedLine);
+    }
+
+    [Fact]
+    public async Task MatchOnANotMatchedItemWithNoPlaceOfItsOwn_FallsBackToThePicker()
+    {
+        await UseDevice("desktop");
+        _currentDestination = null;
+        var (_, area) = RenderArea(unmatched: true);
+
+        Button(area, "Match").Click();
+
+        area.WaitForElement($"[data-destination-id='{LibraryMoveTestData.AlbumId}']");
+        Assert.Empty(_previews);
+    }
+
+    [Fact]
+    public async Task ChangeNumberShowsOnlyForAnItemTheEngineSaysSitsInAPlaceWithAList_AndOpensThatPlace()
+    {
+        await UseDevice("desktop");
+        var (_, withoutPlace) = RenderArea();
+        Assert.DoesNotContain(withoutPlace.FindAll("button"), button => button.TextContent.Trim() == "Change number");
+
+        _currentDestination = LibraryMoveTestData.Album();
+        _preview = LibraryMoveTestData.AlbumHoldingTheSongPreview();
+        var (_, area) = RenderArea();
+        area.WaitForAssertion(() => Assert.Contains(area.FindAll("button"), button => button.TextContent.Trim() == "Change number"));
+        Button(area, "Change number").Click();
+
+        area.WaitForElement(".tl-match-step");
+        Assert.Equal(LibraryMoveTestData.AlbumId, _previews.Single().DestinationId);
+        Assert.Contains("is-own", area.Find("[data-entry-key='t2']").ClassList);
+    }
+
+    // -- a refusal is shown where it happened, and never loops -----------------------------------------
+
+    [Fact]
+    public async Task ARefusalWithAReason_IsShownInTheMatchStep_AndNothingAsksAgain()
+    {
+        await UseDevice("desktop");
+        const string reason = "You changed this item's details, so it can't be merged into an existing entry. Add it anyway without a number instead.";
+        _commitAnswers.Enqueue(LibraryMoveOutcome<LibraryMoveCommitResult>.Failed(LibraryMoveOutcomeStatus.Invalid, reason));
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        DialogButton(host, "Move").Click();
+
+        area.WaitForAssertion(() => Assert.Contains(reason, area.Markup, StringComparison.Ordinal));
+        Assert.Single(_commits);
+        Assert.Empty(host.FindAll(".app-confirm"));
+        Assert.DoesNotContain("Something changed", area.Markup, StringComparison.Ordinal);
+        Assert.Null(_movedLine);
+    }
+
+    // -- what the host is told after a move -----------------------------------------------------------
+
+    [Fact]
+    public async Task AfterAMove_TheHostIsToldTheWorkTheItemNowLivesInAndWhetherItIsNotMatched()
+    {
+        await UseDevice("desktop");
+        var survivor = Guid.Parse("dddddddd-0000-0000-0000-000000000001");
+        _commitAnswers.Enqueue(LibraryMoveOutcome<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
+        {
+            MovedCount = 1,
+            Rows = [new LibraryMoveRowResult { ItemId = LibraryMoveTestData.SongId, Outcome = LibraryMoveOutcomes.Matched, ResultEntityId = survivor }],
+        }));
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        DialogButton(host, "Move").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_moved));
+
+        Assert.Equal(survivor, _moved!.ResultEntityId);
+        Assert.False(_moved.IsUnmatched);
+    }
+
+    [Fact]
+    public async Task AfterAddAnyway_TheHostIsToldTheItemIsNowNotMatched()
+    {
+        await UseDevice("desktop");
+        _commitAnswers.Enqueue(LibraryMoveOutcome<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
+        {
+            MovedCount = 1,
+            Rows = [new LibraryMoveRowResult { ItemId = LibraryMoveTestData.SongId, Outcome = LibraryMoveOutcomes.AddedUnmatched, ResultEntityId = LibraryMoveTestData.SongId }],
+        }));
+        _preview = LibraryMoveTestData.AlbumPreview(rows: [LibraryMoveTestData.Row(suggested: null)]);
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        Button(area, "Add anyway").Click();
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        DialogButton(host, "Add anyway").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_moved));
+
+        Assert.True(_moved!.IsUnmatched);
+        Assert.Equal(LibraryMoveTestData.SongId, _moved.ResultEntityId);
     }
 
     [Fact]

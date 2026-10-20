@@ -202,4 +202,67 @@ public sealed class MatchStepTests : AsyncBunitContext
         Assert.True(IsOff(Button(step, "Apply")));
         Assert.Contains("Paranoid Android: Still being processed. Try again when it has finished.", Text(step), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AReasonThatDoesNotPassByItself_NeverSaysToTryAgainLater()
+    {
+        var preview = LibraryMoveTestData.AlbumPreview(rows:
+            [LibraryMoveTestData.Row(blocked: "You changed details on this audiobook, so its last file can't be moved out of it.")]);
+        var step = RenderStep(LibraryMoveSelection.From(preview));
+
+        Assert.True(IsOff(Button(step, "Apply")));
+        var note = step.Find(".tl-match-step__blocked-note").TextContent;
+        Assert.Contains("so its last file can't be moved out of it.", note, StringComparison.Ordinal);
+        Assert.DoesNotContain("Try again", note, StringComparison.Ordinal);
+    }
+
+    // -- the item's own entry, permission and details the person set ----------------------------------
+
+    [Fact]
+    public void TheItemsOwnEntryIsMarkedAndCannotBeChosen()
+    {
+        var step = RenderStep(LibraryMoveSelection.From(LibraryMoveTestData.AlbumHoldingTheSongPreview(), withinCurrentPlace: true));
+
+        var own = step.Find("[data-entry-key='t2']");
+        Assert.Contains("is-own", own.ClassList);
+        Assert.Contains("This is it now", own.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Has a file", own.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Has a file", step.Find("[data-entry-key='t1']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithinTheItemsCurrentPlace_AddAnywayIsNotOffered_AndTheWordsSayMatch()
+    {
+        var step = RenderStep(LibraryMoveSelection.From(LibraryMoveTestData.AlbumHoldingTheSongPreview(), withinCurrentPlace: true));
+
+        Assert.DoesNotContain(step.FindAll("button"), button => button.TextContent.Trim() == "Add anyway");
+        Assert.Contains("Match Paranoid Android in OK Computer", Text(step), StringComparison.Ordinal);
+        Assert.DoesNotContain("or add it anyway", Text(step), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACallerWhoMayNotMatch_IsToldWhy_AndOnlyAddAnywayIsLeft()
+    {
+        var preview = LibraryMoveTestData.AlbumPreview(rows: [LibraryMoveTestData.Row(suggested: null, canMatch: false)]);
+        var step = RenderStep(LibraryMoveSelection.From(preview));
+
+        Assert.Contains(LibraryMoveText.MatchNotAllowedNote, step.Find("[data-pick-note]").TextContent, StringComparison.Ordinal);
+        Assert.True(IsOff(Button(step, "Apply")));
+        Button(step, "Add anyway").Click();
+        Assert.False(IsOff(Button(step, "Apply")));
+    }
+
+    [Fact]
+    public void AnItemWhoseDetailsThePersonSet_IsToldItCannotMergeIntoAnExistingTitle_AndStillMayTakeAnEmptySlot()
+    {
+        const string reason = "You changed this item's details, so it can't be merged into an existing entry.";
+        var preview = LibraryMoveTestData.AlbumHoldingTheSongPreview(rows: [LibraryMoveTestData.Row(LibraryMoveTestData.OtherSongId, "Unknown Song", suggested: null, mergeBlocked: reason)]);
+        var step = RenderStep(LibraryMoveSelection.From(preview));
+
+        Assert.Contains(reason, step.Find("[data-pick-note]").TextContent, StringComparison.Ordinal);
+        step.Find("[data-entry-key='t3']").Click();
+        Assert.True(IsOff(Button(step, "Apply")));
+        step.Find("[data-entry-key='t4']").Click();
+        Assert.False(IsOff(Button(step, "Apply")));
+    }
 }

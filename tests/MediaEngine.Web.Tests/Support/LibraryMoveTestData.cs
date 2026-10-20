@@ -18,16 +18,19 @@ internal static class LibraryMoveTestData
         HasList = hasList,
     };
 
-    public static LibraryMoveEntry Entry(string key, string number, string title, Guid? takenBy = null, string? takenTitle = null, bool canAddVersion = false) => new()
-    {
-        EntryKey = key,
-        Number = number,
-        Title = title,
-        LengthSeconds = 240,
-        TakenByItemId = takenBy,
-        TakenByTitle = takenTitle,
-        CanAddVersion = canAddVersion,
-    };
+    public static LibraryMoveEntry Entry(
+        string key, string number, string title, Guid? takenBy = null, string? takenTitle = null, bool canAddVersion = false,
+        bool joinsExistingTitle = false) => new()
+        {
+            EntryKey = key,
+            Number = number,
+            Title = title,
+            LengthSeconds = 240,
+            TakenByItemId = takenBy,
+            TakenByTitle = takenTitle,
+            CanAddVersion = canAddVersion,
+            JoinsExistingTitle = joinsExistingTitle,
+        };
 
     public static LibraryMovePreviewRow Row(
         Guid? id = null,
@@ -36,7 +39,9 @@ internal static class LibraryMoveTestData
         string reason = "Same title",
         LibraryMoveFileChange? fileChange = null,
         string? fileNote = null,
-        string? blocked = null) => new()
+        string? blocked = null,
+        bool canMatch = true,
+        string? mergeBlocked = null) => new()
         {
             ItemId = id ?? SongId,
             Title = title,
@@ -46,6 +51,8 @@ internal static class LibraryMoveTestData
             FileChange = fileChange,
             FileNote = fileNote,
             BlockedReason = blocked,
+            CanMatch = canMatch,
+            MergeBlockedReason = mergeBlocked,
         };
 
     /// <summary>An album with three tracks. Track 1 has a file already unless <paramref name="takenTrackOne"/> is false.</summary>
@@ -68,6 +75,26 @@ internal static class LibraryMoveTestData
             Warnings = [.. warnings ?? ["Leaves The Best Of"]],
             PreviewToken = token,
         };
+
+    /// <summary>
+    /// The album the song already sits in, as the Match step opens on it to change a number: the song holds track 2 (its own entry), track 1
+    /// is another song's and track 3 is a catalogue row (an existing title) nobody has a file for.
+    /// </summary>
+    public static LibraryMovePreview AlbumHoldingTheSongPreview(IEnumerable<LibraryMovePreviewRow>? rows = null, string token = "token-here") => new()
+    {
+        Destination = Album(),
+        ListKind = LibraryMoveListKinds.Tracks,
+        Entries =
+        [
+            Entry("t1", "1", "Airbag", OtherSongId, "Airbag (live)", canAddVersion: true, joinsExistingTitle: true),
+            Entry("t2", "2", "Paranoid Android", SongId, "Paranoid Android", canAddVersion: true, joinsExistingTitle: true),
+            Entry("t3", "3", "Subterranean Homesick Alien", joinsExistingTitle: true),
+            Entry("t4", "4", "Exit Music"),
+        ],
+        Rows = [.. rows ?? [Row(suggested: null)]],
+        Warnings = [],
+        PreviewToken = token,
+    };
 
     /// <summary>An album that has no list of tracks at all: nothing to match a song against.</summary>
     public static LibraryMovePreview AlbumWithoutTracksPreview(string token = "token-empty") => new()

@@ -53,11 +53,15 @@ public sealed class UnnumberedItemTests : IDisposable
         ]);
 
         Assert.Equal("Hidden Bonus Jam", Canonical(asset, "title"));
-        foreach (var key in new[] { "track_number", "disc_number", "episode_number", "series_position", "audiobook_part_number" })
+        foreach (var key in new[] { "track_number", "disc_number", "episode_number", "series_position" })
         {
             Assert.Null(Canonical(asset, key));
             Assert.Null(Canonical(work, key));
         }
+
+        // A title's mark covers only the title-level numbers: the part number of its file is another list's number (an audiobook part's
+        // mark covers that one), so it still lands.
+        Assert.Equal("4", Canonical(asset, "audiobook_part_number"));
     }
 
     [Fact]

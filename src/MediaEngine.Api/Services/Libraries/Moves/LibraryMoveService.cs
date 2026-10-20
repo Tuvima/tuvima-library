@@ -24,7 +24,7 @@ public sealed class LibraryMoveService(
     public const int MaxItems = 200;
     public const string ChangedMessage = "Something changed since you opened this. Here's the updated list.";
     private const string TokenPrefix = "library-move:";
-    private const string ProcessingReason = "Still being processed";
+    private const string ProcessingReason = LibraryMoveBlockedReasons.StillProcessing;
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(10);
 
     // Two moves never overlap: the second one plans against what the first left, so it gets a fresh preview.
@@ -82,7 +82,36 @@ public sealed class LibraryMoveService(
             destinations.Add(ToDestination(row.Id, row.Kind, row.Label, row.ParentLabel, listKind));
         }
 
-        return LibraryMoveResult<LibraryMoveDestinationsResponse>.Ok(new LibraryMoveDestinationsResponse { Destinations = destinations });
+        var current = await CurrentDestinationAsync(item, canEdit, ct).ConfigureAwait(false);
+        return LibraryMoveResult<LibraryMoveDestinationsResponse>.Ok(
+            new LibraryMoveDestinationsResponse { Destinations = destinations, CurrentDestination = current });
+    }
+
+    /// <summary>
+    /// The place the item already sits in, when it has its own list and the caller may edit it. The picker never offers it (an item is
+    /// moved elsewhere), but matching an item added anyway, or changing a number, happens in this very place.
+    /// </summary>
+    private async Task<LibraryMoveDestination?> CurrentDestinationAsync(LibraryMoveItem item, LibraryMoveAccess canEdit, CancellationToken ct)
+    {
+        var containerId = item.IsEdition ? item.WorkId : item.ParentWorkId;
+        if (containerId is not { } id || id == Guid.Empty)
+        {
+            return null;
+        }
+
+        var info = await moves.GetDestinationAsync(id, ct).ConfigureAwait(false);
+        if (info is null || info.Kind == LibraryMoveKinds.Collection || WrongKindReason(item, info) is not null)
+        {
+            return null;
+        }
+
+        var listKind = registry.Resolve(info).ListKind;
+        if (listKind == LibraryMoveListKinds.None || !await canEdit(info.Id, LibraryMoveRight.Write, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return ToDestination(info.Id, info.Kind, info.Label, info.ParentLabel, listKind);
     }
 
     public async Task<LibraryMoveResult<LibraryMovePreview>> PreviewAsync(
@@ -114,7 +143,7 @@ public sealed class LibraryMoveService(
             }
         }
 
-        var built = await BuildAsync(ids, request.DestinationId, request.SourceCollectionId, lenient: false, ct).ConfigureAwait(false);
+        var built = await BuildAsync(ids, request.DestinationId, request.SourceCollectionId, canEdit, lenient: false, ct).ConfigureAwait(false);
         if (built.Refusal is not null)
         {
             return LibraryMoveResult<LibraryMovePreview>.Refused(built.Refusal);
@@ -160,7 +189,7 @@ public sealed class LibraryMoveService(
         await _commitLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var built = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, lenient: true, ct).ConfigureAwait(false);
+            var built = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, canEdit, lenient: true, ct).ConfigureAwait(false);
             if (built.Refusal is not null)
             {
                 return LibraryMoveResult<LibraryMoveCommitResult>.Refused(built.Refusal);
@@ -190,10 +219,18 @@ public sealed class LibraryMoveService(
             }
 
             var outcome = await moves.CommitAsync(plan, state.SourceCollectionId, ct).ConfigureAwait(false);
+            if (!outcome.Committed && outcome.IsRefusal)
+            {
+                // The request is one the Engine never allows (not a change since the preview), so there is nothing fresh to show: the
+                // reason goes back as it is, and the person picks something that works.
+                return LibraryMoveResult<LibraryMoveCommitResult>.Refused(
+                    LibraryMoveRefusalKind.Invalid, outcome.ConflictReason ?? "That can't be done.");
+            }
+
             if (!outcome.Committed)
             {
                 // The transaction found something different from the preview; it changed nothing.
-                var fresh = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, lenient: true, ct).ConfigureAwait(false);
+                var fresh = await BuildAsync(review.ItemIds, review.DestinationId, review.SourceCollectionId, canEdit, lenient: true, ct).ConfigureAwait(false);
                 return fresh.Refusal is not null
                     ? LibraryMoveResult<LibraryMoveCommitResult>.Refused(fresh.Refusal)
                     : Changed(fresh.State!, actor, outcome.ConflictReason ?? ChangedMessage);
@@ -206,7 +243,7 @@ public sealed class LibraryMoveService(
             return LibraryMoveResult<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
             {
                 MovedCount = outcome.Rows.Count,
-                Rows = [.. outcome.Rows.Select(row => new LibraryMoveRowResult { ItemId = row.ItemId, Outcome = row.Outcome })],
+                Rows = [.. outcome.Rows.Select(row => new LibraryMoveRowResult { ItemId = row.ItemId, Outcome = row.Outcome, ResultEntityId = row.ResultEntityId })],
                 RemovedContainers = [.. outcome.RemovedContainers],
             });
         }
@@ -228,7 +265,7 @@ public sealed class LibraryMoveService(
     private sealed record Built(State? State, LibraryMoveRefusal? Refusal);
 
     private async Task<Built> BuildAsync(
-        IReadOnlyList<Guid> ids, Guid destinationId, Guid? sourceCollectionId, bool lenient, CancellationToken ct)
+        IReadOnlyList<Guid> ids, Guid destinationId, Guid? sourceCollectionId, LibraryMoveAccess canEdit, bool lenient, CancellationToken ct)
     {
         var found = await moves.GetItemsAsync(ids, ct).ConfigureAwait(false);
         var byId = found.ToDictionary(item => item.ItemId);
@@ -297,10 +334,15 @@ public sealed class LibraryMoveService(
             }
         }
 
-        var rows = items.Select(item =>
+        // What the caller may do to each item. Matching an entry needs the match right as well as the write right (Details overlay
+        // spec decision); the preview says so up front so the Match step offers only what will work. A place with no list needs no match.
+        var hasList = provider.ListKind != LibraryMoveListKinds.None;
+        var rows = new List<LibraryMovePreviewRow>(items.Count);
+        foreach (var item in items)
         {
             suggestions.TryGetValue(item.ItemId, out var suggestion);
-            return new LibraryMovePreviewRow
+            var canMatch = !hasList || await canEdit(item.ItemId, LibraryMoveRight.Match, ct).ConfigureAwait(false);
+            rows.Add(new LibraryMovePreviewRow
             {
                 ItemId = item.ItemId,
                 Title = item.Title,
@@ -308,8 +350,10 @@ public sealed class LibraryMoveService(
                 SuggestedEntryKey = suggestion.Entry?.Key,
                 SuggestionReason = suggestion.Reason ?? string.Empty,
                 BlockedReason = blocked.GetValueOrDefault(item.ItemId),
-            };
-        }).ToList();
+                CanMatch = canMatch,
+                MergeBlockedReason = hasList && CannotMergeIntoExistingTitle(item) ? LibraryMoveReasons.UserManagedMerge : null,
+            });
+        }
 
         var warnings = new List<string>();
         var leaving = places.Where(place => place.ContainerId != destination.Id).ToList();
@@ -338,6 +382,7 @@ public sealed class LibraryMoveService(
                 TakenByItemId = entry.TakenByItemId,
                 TakenByTitle = entry.TakenByTitle,
                 CanAddVersion = entry.CanAddVersion,
+                JoinsExistingTitle = entry.Target.ExistingWorkId is not null,
             })],
             Rows = rows,
             Warnings = [.. warnings.Distinct(StringComparer.Ordinal)],
@@ -417,7 +462,9 @@ public sealed class LibraryMoveService(
         var candidates = new List<(LibraryMoveItem Item, MoveListEntry Entry, int Tier, double Score, string Reason)>();
         foreach (var item in items)
         {
-            foreach (var entry in entries.Where(entry => !IsOwnEntry(item, entry)))
+            // Never guess an entry the item cannot be merged into (it would be refused), nor the entry it already is.
+            foreach (var entry in entries.Where(entry => !IsOwnEntry(item, entry)
+                         && !(CannotMergeIntoExistingTitle(item) && entry.Target.ExistingWorkId is not null)))
             {
                 var similarity = MoveTitleMatcher.Similarity(item.Title, entry.Title);
                 if (similarity >= 0.6)
@@ -519,6 +566,13 @@ public sealed class LibraryMoveService(
                     return null;
                 }
 
+                // Merging into an entry's own title removes this item's title, and with it the details the person set on it.
+                if (CannotMergeIntoExistingTitle(item) && entry.Target.ExistingWorkId is not null)
+                {
+                    invalid = LibraryMoveReasons.UserManagedMerge;
+                    return null;
+                }
+
                 if (mode == LibraryMoveMode.Match && entry.IsTaken)
                 {
                     invalid = $"{DescribeEntry(state, entry)} already has a file. Add \"{item.Title}\" as another version, or pick another entry.";
@@ -556,6 +610,9 @@ public sealed class LibraryMoveService(
 
         return new LibraryMovePlan(state.Destination.Id, state.Destination.Kind, planned, actor.DisplayName);
     }
+
+    /// <summary>A title whose details the person set cannot be merged into an entry's own title (the transaction refuses it too).</summary>
+    private static bool CannotMergeIntoExistingTitle(LibraryMoveItem item) => !item.IsEdition && item.HasUserManagedDetails;
 
     private static string DescribeEntry(State state, MoveListEntry entry) =>
         state.Provider.ListKind switch

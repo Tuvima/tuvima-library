@@ -29,11 +29,36 @@
                     </strong>
                     <span>@Summary</span>
                 </div>
-                <AppButton Label="@Label"
-                           StartIcon="@AppMaterialIcons.Outlined.AccountTree"
-                           ButtonStyle="AppButtonStyle.Outlined"
-                           Disabled="@_busy"
-                           OnClick="OpenPickerAsync" />
+                <div class="tl-item-move__actions">
+                    @if (IsUnmatched)
+                    {
+                        @* A Not matched item is matched where it already sits; moving it elsewhere stays one click away. *@
+                        <AppButton Label="@Label"
+                                   StartIcon="@AppMaterialIcons.Outlined.AccountTree"
+                                   ButtonStyle="AppButtonStyle.Outlined"
+                                   Disabled="@_busy"
+                                   OnClick="OpenMatchAsync" />
+                        <AppButton Label="@LibraryMoveText.MoveLabel(MediaType)"
+                                   ButtonStyle="AppButtonStyle.Text"
+                                   Disabled="@_busy"
+                                   OnClick="OpenPickerAsync" />
+                    }
+                    else
+                    {
+                        <AppButton Label="@Label"
+                                   StartIcon="@AppMaterialIcons.Outlined.AccountTree"
+                                   ButtonStyle="AppButtonStyle.Outlined"
+                                   Disabled="@_busy"
+                                   OnClick="OpenPickerAsync" />
+                        @if (_current is not null)
+                        {
+                            <AppButton Label="@LibraryMoveText.ChangeNumberLabel"
+                                       ButtonStyle="AppButtonStyle.Text"
+                                       Disabled="@_busy"
+                                       OnClick="OpenMatchAsync" />
+                        }
+                    }
+                </div>
             </div>
         }
         else if (_stage == MoveStage.Picking)
@@ -89,6 +114,11 @@
     private LibraryMoveSelection? _selection;
     private Guid _destinationId;
 
+    // The place the item already sits in, when it has its own list: where a Not matched item is matched and a number is changed.
+    private LibraryMoveDestination? _current;
+    private Guid _currentFor;
+    private bool _withinCurrentPlace;
+
     /// <summary>The title being moved: a Work, or for an audiobook one of its parts (an Edition).</summary>
     [Parameter, EditorRequired] public Guid ItemId { get; set; }
 
@@ -103,8 +133,11 @@
     /// <summary>The line after the last move, kept by the host because the editor reloads after a move.</summary>
     [Parameter] public string? Result { get; set; }
 
-    /// <summary>Raised after a successful move with the result line, so the host can refresh the page behind the section.</summary>
-    [Parameter] public EventCallback<string> OnMoved { get; set; }
+    /// <summary>
+    /// Raised after a successful move with the result line and the Work the item now lives in or as, so the host can re-target the
+    /// editor and refresh the page behind the section.
+    /// </summary>
+    [Parameter] public EventCallback<ItemMovedArgs> OnMoved { get; set; }
 
     private bool Visible => LibraryMoveRules.CanShowMove(Device, ScopeId, ItemId);
 
@@ -113,6 +146,31 @@
     private string Summary => IsUnmatched
         ? "This was added without a number. Match it to its place, or move it somewhere else."
         : "Choose where it goes and match it to that place. You check every step before anything changes.";
+
+    // Asks the Engine where the item sits now once per item, so "Change number" only shows for an item that has a list to be numbered in.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!Visible || ItemId == Guid.Empty || _currentFor == ItemId)
+        {
+            return;
+        }
+
+        await LoadCurrentAsync();
+    }
+
+    private async Task LoadCurrentAsync()
+    {
+        var itemId = ItemId;
+        _currentFor = itemId;
+        var outcome = await Api.GetLibraryMoveDestinationsAsync(itemId, null);
+        if (itemId != ItemId)
+        {
+            // The editor moved to another item while this was asked: that item asks for itself.
+            return;
+        }
+
+        _current = outcome.IsOk ? outcome.Value!.CurrentDestination : null;
+    }
 
     private async Task OpenPickerAsync()
     {
@@ -126,6 +184,31 @@
         _query = null;
         _stage = MoveStage.Picking;
         await LoadDestinationsAsync();
+    }
+
+    // Match (a Not matched item) and Change number: the Match step opens on the place the item already sits in. If the Engine names
+    // no such place, a Not matched item falls back to the picker.
+    private async Task OpenMatchAsync()
+    {
+        if (EditorDeviceRule.TryRefuse(Device, null) || _busy)
+        {
+            return;
+        }
+
+        _error = null;
+        _notice = null;
+        if (_current is null)
+        {
+            await LoadCurrentAsync();
+        }
+
+        if (_current is { } here)
+        {
+            await PreviewDestinationAsync(here, withinCurrentPlace: true);
+            return;
+        }
+
+        await OpenPickerAsync();
     }
 
     private async Task QueryChangedAsync(string? value)
@@ -159,7 +242,9 @@
         }
     }
 
-    private async Task PickDestinationAsync(LibraryMoveDestination destination)
+    private Task PickDestinationAsync(LibraryMoveDestination destination) => PreviewDestinationAsync(destination, withinCurrentPlace: false);
+
+    private async Task PreviewDestinationAsync(LibraryMoveDestination destination, bool withinCurrentPlace)
     {
         if (_busy)
         {
@@ -183,7 +268,8 @@
                 return;
             }
 
-            _selection = LibraryMoveSelection.From(outcome.Value!);
+            _withinCurrentPlace = withinCurrentPlace;
+            _selection = LibraryMoveSelection.From(outcome.Value!, withinCurrentPlace: withinCurrentPlace);
             _notice = null;
             _stage = MoveStage.Matching;
         }
@@ -247,10 +333,18 @@
             {
                 case LibraryMoveOutcomeStatus.Ok when outcome.Value is { } committed:
                     var line = LibraryMoveText.ResultLine(selection, committed);
+                    var moved = committed.Rows.FirstOrDefault(row => row.ItemId == ItemId);
                     _stage = MoveStage.Closed;
                     _selection = null;
                     _destinations = [];
-                    await OnMoved.InvokeAsync(line);
+
+                    // Where the item sits has changed: ask again for the place it is in now.
+                    _current = null;
+                    _currentFor = Guid.Empty;
+                    await OnMoved.InvokeAsync(new ItemMovedArgs(
+                        line,
+                        moved is { ResultEntityId: var resultId } && resultId != Guid.Empty ? resultId : null,
+                        moved is not null && string.Equals(moved.Outcome, LibraryMoveOutcomes.AddedUnmatched, StringComparison.Ordinal)));
                     return;
                 case LibraryMoveOutcomeStatus.Conflict when outcome.FreshPreview is { } fresh:
                     // Nothing moved. The fresh preview replaces the old one, keeping every choice that still holds.
@@ -286,7 +380,7 @@
         });
         if (outcome.IsOk)
         {
-            _selection = LibraryMoveSelection.From(outcome.Value!, previous);
+            _selection = LibraryMoveSelection.From(outcome.Value!, previous, _withinCurrentPlace);
         }
         else
         {
