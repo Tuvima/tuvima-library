@@ -156,7 +156,7 @@ public sealed class DeleteFromLibraryDialogTests : AsyncBunitContext
         var rows = host.FindAll(".delete-library__file").Select(row => Regex.Replace(row.TextContent, "\\s+", " ").Trim()).ToList();
         Assert.Equal(4, rows.Count);
         Assert.StartsWith("Movies › Dune Part One (2021) — 2 files, 61.3 GB — will be deleted from disk", rows[0], StringComparison.Ordinal);
-        Assert.Equal("Old Rips › Dune.2021.mkv — stays on disk: Tuvima only reads this folder", rows[1]);
+        Assert.Equal("Old Rips › Dune.2021.mkv — stays on disk: Library only reads this folder", rows[1]);
         Assert.Equal("Imports › Dune.mkv — stays on disk: kept as the original of a merge", rows[2]);
         Assert.Equal("Backups › Dune.bak.mkv — already gone from disk", rows[3]);
     }
