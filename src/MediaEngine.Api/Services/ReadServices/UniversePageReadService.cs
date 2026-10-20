@@ -13,11 +13,12 @@ using static MediaEngine.Api.Services.ReadServices.UniverseConnectionsReadServic
 namespace MediaEngine.Api.Services.ReadServices;
 
 /// <summary>
-/// Builds the one read behind the Dashboard's Universe page. The shelves, counts, Cast and Adaptations come from
-/// <see cref="UniverseClientReadService"/> (the same read the helper apps get, so order and totals match); this adds
-/// what only the Dashboard shows: the Universe's own standalone works, the missing entries per Series the profile
-/// chose to see, how far enrichment has got, and the size of the connection graph. Everything is limited to what the
-/// profile may see.
+/// Builds the one read behind the Dashboard's Universe page. The shelves and counts come from
+/// <see cref="UniverseClientReadService"/> (the same read the helper apps get, so order and totals match); the
+/// Connections (Characters, Cast and Adaptations, each row with its source) come from the same build, and the detail's
+/// own Cast and Adaptations are left empty so the rows are not sent twice. This adds what only the Dashboard shows: the
+/// Universe's own standalone works, the missing entries per Series the profile chose to see, how far enrichment has
+/// got, and the size of the connection graph. Everything is limited to what the profile may see.
 /// </summary>
 public sealed class UniversePageReadService(
     UniverseClientReadService universes,
@@ -38,8 +39,10 @@ public sealed class UniversePageReadService(
     public async Task<UniversePageDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default)
     {
         // The helper-app read plus the Universe's own standalone works: a Universe whose only visible works are standalone is
-        // still a Universe. The detail's shelves, cast and lists are exactly the helper-app answer.
-        var build = await universes.BuildAsync(qid, profile, includeStandalone: true, ct).ConfigureAwait(false);
+        // still a Universe. The detail's shelves are exactly the helper-app answer; its Cast and Adaptations move to the
+        // Connections, where each row names its source.
+        var build = await universes.BuildAsync(
+            qid, profile, includeStandalone: true, includeCharacters: true, ct).ConfigureAwait(false);
         if (build is null)
         {
             return null;
@@ -47,7 +50,7 @@ public sealed class UniversePageReadService(
 
         var allRows = build.AllRows;
         var standalone = BuildStandalone(build.StandaloneRows);
-        var detail = WithStandaloneTotals(build.Detail, standalone);
+        var detail = WithPageTotals(build.Detail, standalone);
         var memberIds = detail.Shelves.Select(shelf => shelf.CollectionId).ToHashSet();
         var visibleWorkIds = allRows
             .Where(row => row.CollectionId is { } id && (memberIds.Contains(id) || id == build.UniverseId))
@@ -72,6 +75,7 @@ public sealed class UniversePageReadService(
         return new UniversePageDto
         {
             Detail = detail,
+            Connections = build.Connections,
             Standalone = standalone?.Shelf,
             Missing = missing,
             Enrichment = await BuildEnrichmentAsync(visibleWorkIds, ct).ConfigureAwait(false),
@@ -118,15 +122,11 @@ public sealed class UniversePageReadService(
     }
 
     // The page's totals count the standalone works too ("Series or formats in it"); the helper-app read is left as it was.
-    private static UniverseClientDetailDto WithStandaloneTotals(UniverseClientDetailDto detail, StandaloneWorks? standalone)
+    // The page's Cast and Adaptations live in Connections, so the detail never repeats them.
+    private static UniverseClientDetailDto WithPageTotals(UniverseClientDetailDto detail, StandaloneWorks? standalone)
     {
-        if (standalone is null)
-        {
-            return detail;
-        }
-
         var mediaTypes = detail.MediaTypes.ToList();
-        foreach (var kind in standalone.Kinds.Where(kind => !mediaTypes.Contains(kind, StringComparer.Ordinal)))
+        foreach (var kind in standalone?.Kinds.Where(kind => !mediaTypes.Contains(kind, StringComparer.Ordinal)) ?? [])
         {
             mediaTypes.Add(kind);
         }
@@ -137,12 +137,12 @@ public sealed class UniversePageReadService(
             Name = detail.Name,
             Description = detail.Description,
             GroupType = detail.GroupType,
-            ItemCount = detail.ItemCount + standalone.Total,
+            ItemCount = detail.ItemCount + (standalone?.Total ?? 0),
             SeriesCount = detail.SeriesCount,
             MediaTypes = mediaTypes,
             Shelves = detail.Shelves,
-            Cast = detail.Cast,
-            Adaptations = detail.Adaptations,
+            Cast = [],
+            Adaptations = [],
         };
     }
 
