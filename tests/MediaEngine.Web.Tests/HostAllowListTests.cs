@@ -50,7 +50,7 @@ public sealed class HostAllowListTests
         var (status, body) = await SendAsync(host);
 
         Assert.Equal(StatusCodes.Status400BadRequest, status);
-        Assert.Equal("This address isn't allowed for Tuvima Library. Add it under Settings > Network.", body);
+        Assert.Equal("This address isn't allowed for Library. Add it under Settings > Network.", body);
     }
 
     [Fact]

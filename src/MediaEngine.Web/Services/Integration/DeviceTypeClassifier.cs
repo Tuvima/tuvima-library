@@ -14,7 +14,7 @@ public enum DeviceTypeKind
 
 /// <summary>
 /// Works out the kind of a paired device from what it reported when it paired: its platform (<c>web</c>, <c>mobile</c>,
-/// <c>television</c>, <c>automotive</c>) and its app name (for example "Tuvima for Roku"). Anything it cannot place is
+/// <c>television</c>, <c>automotive</c>) and its app name (for example "Library for Roku"). Anything it cannot place is
 /// <see cref="DeviceTypeKind.Generic"/>.
 /// </summary>
 public static partial class DeviceTypeClassifier

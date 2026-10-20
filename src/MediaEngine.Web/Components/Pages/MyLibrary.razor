@@ -16,7 +16,7 @@
 @inject ViewWorkspaceService Workspace
 @inject ILogger<MyLibrary> Logger
 
-<PageTitle>My Library - Tuvima Library</PageTitle>
+<PageTitle>My Library - Library</PageTitle>
 
 @* My Library: the personal page. One column, phones first. Profile header, Downloads (the Tuvima app only), Continue, My List,
    Recent activity (a short preview of the Activity page) and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
@@ -118,7 +118,7 @@
         else if (!_failed.Contains(MyLibrarySection.MyList))
         {
             <div class="my-library-slot my-library-slot--empty">
-                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the + My List button" />
+                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the My List heart" />
             </div>
         }
 

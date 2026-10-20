@@ -69,7 +69,7 @@
     {
         <p class="sign-in-sheet__intro">
             @(string.IsNullOrWhiteSpace(PersonName) ? "This person" : PersonName) signs in from Who's watching today. Give them their own sign-in
-            and they can open Tuvima straight to their profile. It follows the household's library access and is never an administrator.
+            and they can open Library straight to their profile. It follows the household's library access and is never an administrator.
         </p>
         <AppTextField T="string" @bind-Value="_email" Label="Email" InputType="AppInputType.Email" autocomplete="off" MaxLength="254" FullWidth="true" Disabled="@Saving" />
         <div class="sign-in-sheet__password">

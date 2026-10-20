@@ -61,7 +61,7 @@ sub execute()
         m.top.result = { operation: m.top.operation, value: parsed }
     else
         code = "request_failed"
-        description = "Tuvima returned HTTP " + response.status.ToStr()
+        description = "Library returned HTTP " + response.status.ToStr()
         interval = invalid
         if parsed <> invalid
             if parsed.error <> invalid then code = parsed.error

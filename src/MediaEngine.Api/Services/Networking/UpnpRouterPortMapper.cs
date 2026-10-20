@@ -69,7 +69,7 @@ public sealed class UpnpRouterPortMapper : IRouterPortMapper
             return new RouterMappingResult(
                 delete ? RouterMappingState.NotAttempted : RouterMappingState.Active,
                 Method,
-                delete ? "The Tuvima UPnP mapping was removed." : "Your router was configured automatically.",
+                delete ? "The Library UPnP mapping was removed." : "Your router was configured automatically.",
                 request.ExternalPort,
                 delete ? null : DateTimeOffset.UtcNow.AddHours(1),
                 publicAddress);
@@ -82,7 +82,7 @@ public sealed class UpnpRouterPortMapper : IRouterPortMapper
             }
 
             _logger.LogDebug(ex, "UPnP mapping request failed");
-            return new RouterMappingResult(RouterMappingState.Failed, Method, "Tuvima could not configure your router automatically.", ReasonCode: "transport-error");
+            return new RouterMappingResult(RouterMappingState.Failed, Method, "Library could not configure your router automatically.", ReasonCode: "transport-error");
         }
     }
 

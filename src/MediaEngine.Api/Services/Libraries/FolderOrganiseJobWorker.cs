@@ -177,7 +177,7 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
             case FolderOrganiseStop.TargetUnavailable:
                 await _operations.MarkCancelledAsync(
                     operation.Id,
-                    "The folder being merged into is no longer there or no longer managed, so Tuvima stopped. What was already copied stays where it is; the log lists what remains in the source folder.",
+                    "The folder being merged into is no longer there or no longer managed, so Library stopped. What was already copied stays where it is; the log lists what remains in the source folder.",
                     ct).ConfigureAwait(false);
                 await FinishAsync(operation, sourceId, completed: false, ct).ConfigureAwait(false);
                 break;
@@ -186,8 +186,8 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
                 await _operations.MarkCancelledAsync(
                     operation.Id,
                     merging
-                        ? "The folder was switched to As-is, so Tuvima stopped moving its files. What was already moved stays in the target; the log lists what remains."
-                        : "The folder was switched to As-is, so Tuvima stopped organising it. Nothing was undone.",
+                        ? "The folder was switched to As-is, so Library stopped moving its files. What was already moved stays in the target; the log lists what remains."
+                        : "The folder was switched to As-is, so Library stopped organising it. Nothing was undone.",
                     ct).ConfigureAwait(false);
                 if (merging)
                 {

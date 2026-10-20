@@ -51,7 +51,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         var cut = Render<SecuritySettingsPage>();
 
         cut.WaitForAssertion(() => Assert.Equal(["add-password", "password", "email", "sign-out-others", "photo-views"], RowKeys(cut)));
-        Assert.Contains("Anyone who can reach Tuvima can use this account until you do", cut.Find("[data-nav-row='add-password']").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Anyone who can reach Library can use this account until you do", cut.Find("[data-nav-row='add-password']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

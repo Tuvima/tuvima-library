@@ -69,7 +69,7 @@ public sealed class NetworkTopologyService : INetworkTopologyService
         return new NetworkTopologySnapshot(
             "container-unknown",
             false,
-            "Tuvima is running in a container whose network topology is not declared. Router discovery was not attempted because the visible gateway may be a container bridge rather than the LAN router.",
+            "Library is running in a container whose network topology is not declared. Router discovery was not attempted because the visible gateway may be a container bridge rather than the LAN router.",
             gateway?.GatewayAddress.ToString(),
             gateway?.InterfaceName);
     }

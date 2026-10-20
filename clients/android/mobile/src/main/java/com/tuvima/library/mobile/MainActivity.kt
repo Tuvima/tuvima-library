@@ -164,7 +164,7 @@ private fun ServerEntry(savedAddress: String, savedPhotos: Boolean, connect: (St
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Tuvima Library", style = MaterialTheme.typography.displaySmall)
+        Text("Library", style = MaterialTheme.typography.displaySmall)
         Spacer(Modifier.height(20.dp))
         OutlinedTextField(address, { address = it }, label = { Text("Dashboard address") }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(16.dp))

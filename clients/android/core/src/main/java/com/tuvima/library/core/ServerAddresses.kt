@@ -17,9 +17,9 @@ object ServerOrigins {
             }
         }.getOrDefault(false)
         require(uri.scheme == "https" || localHttp) {
-            "Remote Tuvima connections require HTTPS; HTTP is accepted only on the local network."
+            "Remote Library connections require HTTPS; HTTP is accepted only on the local network."
         }
-        require(!uri.host.isNullOrBlank()) { "Enter a valid Tuvima Dashboard address." }
+        require(!uri.host.isNullOrBlank()) { "Enter a valid Library Dashboard address." }
         return URI(uri.scheme, null, uri.host, uri.port, null, null, null).toString().trimEnd('/')
     }
 

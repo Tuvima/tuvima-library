@@ -319,9 +319,9 @@ public static class JsonConfigValidator
         if (!string.Equals(config.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
         {
             errors.Add(
-                $"This libraries.json is in the older {config.SchemaVersion} format, and this version of Tuvima needs "
+                $"This libraries.json is in the older {config.SchemaVersion} format, and this version of Library needs "
                 + $"{LibrariesConfiguration.CurrentSchemaVersion}. Library folder settings changed and are not converted. "
-                + "Move the file aside and Tuvima will start from a fresh default; then add your folders again.");
+                + "Move the file aside and Library will start from a fresh default; then add your folders again.");
         }
 
         AddNoUnmappedProperties(config.UnmappedProperties, "$", errors);
@@ -662,7 +662,7 @@ public static class JsonConfigValidator
         else if (source.ConversionState != LibrarySourceConversionStates.None
             && source.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima)
         {
-            errors.Add($"{prefix}.conversion_state {source.ConversionState} requires a folder Tuvima manages (managed_by_tuvima).");
+            errors.Add($"{prefix}.conversion_state {source.ConversionState} requires a folder Library manages (managed_by_tuvima).");
         }
         else if (source.ConversionState == LibrarySourceConversionStates.Converting)
         {
@@ -754,7 +754,7 @@ public static class JsonConfigValidator
         }
         else if (selected.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima)
         {
-            errors.Add($"{prefix}.primary_destination_source_id must reference a folder Tuvima manages; an as-is folder is never a destination.");
+            errors.Add($"{prefix}.primary_destination_source_id must reference a folder Library manages; an as-is folder is never a destination.");
         }
     }
 

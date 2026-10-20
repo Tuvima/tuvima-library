@@ -75,7 +75,7 @@ end sub
 sub beginPairing()
     payload = {
         client_id: "tuvima-roku",
-        client_name: "Tuvima for Roku",
+        client_name: "Library for Roku",
         client_version: "0.1.0",
         device_name: "Roku",
         device_class: "television",

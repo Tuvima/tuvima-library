@@ -242,7 +242,7 @@ public sealed class LogExportService : ILogExportService
         static string Utc(DateTimeOffset value) => value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "Z";
 
         var text = new StringBuilder();
-        text.Append("Tuvima Library log export\n");
+        text.Append("Library log export\n");
         text.Append("Created: ").Append(Utc(_clock.GetUtcNow())).Append('\n');
         text.Append("Range: ").Append(Utc(from)).Append(" to ").Append(Utc(to)).Append('\n');
         text.Append("Level: ").Append(request.Level switch

@@ -25,7 +25,7 @@ class PlaybackActivity : ComponentActivity() {
     private lateinit var playerView: PlayerView
     private var assetId: String = ""
     private val client get() = (application as TuvimaTvApplication).client
-        ?: error("The television is not connected to a Tuvima server.")
+        ?: error("The television is not connected to a Library server.")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

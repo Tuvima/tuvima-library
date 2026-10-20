@@ -15,7 +15,7 @@
 @inject NavigationManager Nav
 @inject ILogger<ForMe> Logger
 
-<PageTitle>For Me - Tuvima Library</PageTitle>
+<PageTitle>For Me - Library</PageTitle>
 
 <section class="for-me-page">
     <header class="for-me-page__header">
@@ -167,7 +167,7 @@
     private IReadOnlyList<SurfaceTabItem> NavigationItems =>
     [
         new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
-        new("my-list", "My List", AppMaterialIcons.Filled.Bookmark, _saved.Count),
+        new("my-list", "My List", AppMaterialIcons.Filled.Favorite, _saved.Count),
         new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
         new("liked", "Liked", AppMaterialIcons.Outlined.ThumbUp, LikedStates.Count),
         new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
