@@ -1,0 +1,111 @@
+.also-appears-in {
+    display: grid;
+    gap: var(--tl-space-6);
+    min-width: 0;
+}
+
+.also-appears-in__section {
+    display: grid;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.also-appears-in__heading {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--tl-text-primary);
+}
+
+.also-appears-in__group {
+    margin: var(--tl-space-2) 0 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tl-text-muted);
+}
+
+.also-appears-in__loading {
+    display: grid;
+    gap: var(--tl-space-2);
+}
+
+.also-appears-in__list {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.also-appears-in__row {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+    text-decoration: none;
+}
+
+.also-appears-in__row:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+/* Visible focus for keyboard and TV D-pad; never relies on hover. */
+.also-appears-in__row:focus-visible {
+    outline: var(--tl-focus-ring-width, 3px) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset, 2px);
+    background: var(--tl-bg-surface-hover);
+}
+
+.also-appears-in__thumb {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 52px;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-muted);
+}
+
+.also-appears-in__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.also-appears-in__copy {
+    display: grid;
+    min-width: 0;
+}
+
+.also-appears-in__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.also-appears-in__detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    color: var(--tl-text-secondary);
+}
+
+.also-appears-in__empty,
+.also-appears-in__note {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--tl-text-secondary);
+}
+
+.also-appears-in__note {
+    color: var(--tl-text-muted);
+}

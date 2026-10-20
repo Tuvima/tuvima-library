@@ -70,6 +70,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();
         app.MapUniverseGraphEndpoints();
+        app.MapUniverseAppearanceEndpoints();
         app.MapSharedEntityEditorEndpoints();
         app.MapUniverseLoreEndpoints();
         app.MapCharacterEndpoints();
