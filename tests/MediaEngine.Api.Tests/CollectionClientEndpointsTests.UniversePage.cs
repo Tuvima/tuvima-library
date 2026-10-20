@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Dapper;
+using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -21,6 +22,7 @@ public sealed partial class CollectionClientEndpointsTests
     private const string BetaSeriesQid = "Q9000";
 
     private LibraryPreferencesSettings? _libraryPreferences;
+    private int _projectionLoads;
 
     [Fact]
     public async Task Overview_UsesTheSameShelfOrderAndCountsAsTheHelperAppRead()
@@ -124,6 +126,59 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.Single(overridden["items"]!.AsArray());
     }
 
+    [Theory]
+    // policy enabled, media default, override by collection id, override by QID, expected
+    [InlineData(true, "shown", null, null, true)]
+    [InlineData(true, "hidden", null, null, false)]
+    [InlineData(false, "shown", null, null, false)]
+    [InlineData(true, "hidden", true, null, true)]
+    [InlineData(true, "shown", false, null, false)]
+    [InlineData(true, "hidden", null, true, true)]
+    [InlineData(true, "shown", null, false, false)]
+    [InlineData(false, "hidden", true, null, false)]
+    // The Series panel keys a local Series' choice by its collection id first: it wins over a choice stored under the QID.
+    [InlineData(true, "hidden", true, false, true)]
+    [InlineData(true, "shown", false, true, false)]
+    public async Task MissingEntries_FollowTheOneSharedRule_ForEveryCombinationOfPolicyDefaultAndOwnChoice(
+        bool policyEnabled, string mediaDefault, bool? byCollectionId, bool? byQid, bool expected)
+    {
+        SeedBetaManifest();
+        var preferences = new ProfileSequencePreferencesRepository(_database);
+        if (byCollectionId is { } collectionChoice)
+        {
+            await preferences.SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", _beta.ToString("D"), collectionChoice);
+        }
+
+        if (byQid is { } qidChoice)
+        {
+            await preferences.SaveAsync(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, "books", BetaSeriesQid, qidChoice);
+        }
+
+        _libraryPreferences = BooksShowMissing(mediaDefault, policyEnabled);
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var missing = BetaMissing(await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview"));
+
+        Assert.Equal(expected, missing["show_missing"]!.GetValue<bool>());
+        Assert.Equal(expected ? 1 : 0, missing["items"]!.AsArray().Count);
+        Assert.Equal(1, missing["missing_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void TheSharedRule_NamesTheSamePolicyEntryForEveryWayAMediaTypeIsWritten()
+    {
+        Assert.Equal("books", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Books"));
+        Assert.Equal("books", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Book"));
+        Assert.Equal("movies", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Movie"));
+        Assert.Equal("tv", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("TV"));
+        Assert.Equal("audiobooks", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Audiobooks"));
+        Assert.Equal("comics", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Comic"));
+        Assert.Equal("music", MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Music"));
+        Assert.Null(MediaEngine.Domain.Services.SeriesMissingItemVisibility.PolicyKey("Unknown"));
+        var id = Guid.NewGuid();
+        Assert.Equal([id.ToString("D"), "Q9"], MediaEngine.Domain.Services.SeriesMissingItemVisibility.OverrideKeys(id, " Q9 "));
+    }
+
     [Fact]
     public async Task Overview_ListsWorksThatBelongDirectlyToTheUniverse_AsStandalone()
     {
@@ -139,6 +194,46 @@ public sealed partial class CollectionClientEndpointsTests
             standalone["items"]!.AsArray().Select(card => card!["title"]!.GetValue<string>()).ToArray());
         // It is not counted as a Series, and the Series shelves are unchanged.
         Assert.Equal(3, overview["detail"]!["series_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Overview_CountsStandaloneWorksInTheHeroTotals_ButTheHelperAppReadStaysAsItWas()
+    {
+        AddWork("Music", "Standalone Song", "G", _universe, ".mp3");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var overview = await GetJsonAsync(app, $"{GraphActions}/universe/{UniverseQid}/overview");
+        var helperRead = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+
+        // 7 works across two formats in the Series, as the helper apps see them; the page adds the standalone song and its format.
+        Assert.Equal(7, helperRead["item_count"]!.GetValue<int>());
+        Assert.Equal(2, helperRead["media_types"]!.AsArray().Count);
+        Assert.Equal(8, overview["detail"]!["item_count"]!.GetValue<int>());
+        Assert.Equal(3, overview["detail"]!["media_types"]!.AsArray().Count);
+        Assert.Equal(3, overview["detail"]!["series_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task Overview_OpensAUniverseWhoseOnlyVisibleWorksAreStandalone_WhileTheHelperAppReadStillHasNothingToShow()
+    {
+        SeedUniverse("Q7100", "Lone World", [], standalone: [("Movies", "Only Film")]);
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var overview = await GetJsonAsync(app, $"{GraphActions}/universe/Q7100/overview");
+
+        Assert.Empty(overview["detail"]!["shelves"]!.AsArray());
+        Assert.Equal(0, overview["detail"]!["series_count"]!.GetValue<int>());
+        Assert.Equal(1, overview["detail"]!["item_count"]!.GetValue<int>());
+        Assert.Equal(
+            ["Only Film"],
+            overview["standalone"]!["items"]!.AsArray().Select(card => card!["title"]!.GetValue<string>()).ToArray());
+        // Helper apps list Series; a Universe with none is still not theirs to open.
+        using var helper = await app.Client.GetAsync("/api/v1/universe/Q7100");
+        Assert.Equal(HttpStatusCode.NotFound, helper.StatusCode);
+        // And a Universe with nothing visible at all is still not found.
+        SeedUniverse("Q7101", "Empty World", [], standalone: []);
+        using var empty = await app.Client.GetAsync($"{GraphActions}/universe/Q7101/overview");
+        Assert.Equal(HttpStatusCode.NotFound, empty.StatusCode);
     }
 
     [Fact]
@@ -174,9 +269,12 @@ public sealed partial class CollectionClientEndpointsTests
         SeedUniverse("Q7002", "Paired World", [("Movies", "Paired One"), ("Movies", "Paired Two")]);
         // One Series holding two formats.
         SeedUniverse("Q7003", "Mixed World", [("Movies", "Mixed Film"), ("Books", "Mixed Novel")], oneSeries: true);
+        // One Series in one format, plus a standalone work of another format: the Universe holds two formats.
+        SeedUniverse("Q7004", "Spread World", [("Movies", "Spread One")], standalone: [("Books", "Spread Novel")]);
         await using var app = await StartAsync(mapGraphActions: true);
 
         Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q7001"))["link"]);
+        Assert.Equal("Spread World", (await GetJsonAsync(app, "/test/universe-link/Q7004"))["link"]!["name"]!.GetValue<string>());
         var paired = (await GetJsonAsync(app, "/test/universe-link/Q7002"))["link"]!;
         Assert.Equal("Q7002", paired["qid"]!.GetValue<string>());
         Assert.Equal("Paired World", paired["name"]!.GetValue<string>());
@@ -187,6 +285,28 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.Null((await GetJsonAsync(app, "/test/universe-link/not-a-qid"))["link"]);
         SetContentLimit("PG");
         Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q5000"))["link"]);
+    }
+
+    [Fact]
+    public async Task ThePartOfCheck_IsRemembered_SoASecondPageOfTheSameUniverseDoesNotReloadTheLibrary()
+    {
+        SeedUniverse("Q7002", "Paired World", [("Movies", "Paired One"), ("Movies", "Paired Two")]);
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var first = await GetJsonAsync(app, "/test/universe-link/Q7002?onlyLink=true");
+        var loadsAfterTheFirstPage = Volatile.Read(ref _projectionLoads);
+        var second = await GetJsonAsync(app, "/test/universe-link/Q7002?onlyLink=true");
+
+        Assert.True(loadsAfterTheFirstPage > 0, "The first page has to read the library to decide.");
+        Assert.Equal(loadsAfterTheFirstPage, Volatile.Read(ref _projectionLoads));
+        Assert.Equal(first.ToJsonString(), second.ToJsonString());
+        // Another Universe is a different question, and "no link" is remembered too.
+        SeedUniverse("Q7001", "Lonely World", [("Movies", "Lonely One")]);
+        await GetJsonAsync(app, "/test/universe-link/Q7001?onlyLink=true");
+        var loadsAfterTheOtherUniverse = Volatile.Read(ref _projectionLoads);
+        Assert.True(loadsAfterTheOtherUniverse > loadsAfterTheFirstPage);
+        Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q7001?onlyLink=true"))["link"]);
+        Assert.Equal(loadsAfterTheOtherUniverse, Volatile.Read(ref _projectionLoads));
     }
 
     [Fact]
@@ -220,6 +340,7 @@ public sealed partial class CollectionClientEndpointsTests
     private static void MapUniverseMembershipProbe(WebApplication app) =>
         app.MapGet("/test/universe-link/{qid}", async (
             string qid,
+            bool? onlyLink,
             HttpContext http,
             IProfileRepository profiles,
             UniverseClientReadService universes,
@@ -227,7 +348,7 @@ public sealed partial class CollectionClientEndpointsTests
         {
             var profile = await MediaEngine.Api.Endpoints.CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
             var link = await universes.GetUniverseLinkAsync(qid, profile, ct);
-            var summary = await universes.GetMembershipSummaryAsync(qid, profile, ct);
+            var summary = onlyLink == true ? null : await universes.GetMembershipSummaryAsync(qid, profile, ct);
             return Results.Ok(new
             {
                 link = link is null ? null : new { qid = link.Qid, name = link.Name },
@@ -300,7 +421,12 @@ public sealed partial class CollectionClientEndpointsTests
     }
 
     /// <summary>A new root Universe whose Series each hold the listed works: one Series per work, or all in one.</summary>
-    private string SeedUniverse(string qid, string name, (string MediaType, string Title)[] works, bool oneSeries = false)
+    private string SeedUniverse(
+        string qid,
+        string name,
+        (string MediaType, string Title)[] works,
+        bool oneSeries = false,
+        (string MediaType, string Title)[]? standalone = null)
     {
         var universe = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
@@ -311,6 +437,11 @@ public sealed partial class CollectionClientEndpointsTests
                 VALUES (@universe, @name, 'Universe', 'library', 'materialized', 1, @qid, NULL);
                 """,
                 new { universe, name, qid });
+        }
+
+        foreach (var (mediaType, title) in standalone ?? [])
+        {
+            AddWork(mediaType, title, "G", universe, mediaType == "Books" ? ".epub" : ".mkv");
         }
 
         Guid? shared = null;
@@ -336,6 +467,32 @@ public sealed partial class CollectionClientEndpointsTests
         }
 
         return qid;
+    }
+
+    /// <summary>Counts how often the authorised projection is read, to prove a repeated question is answered from memory.</summary>
+    private sealed class CountingProjection(IDisplayProjectionReadService inner, Action loaded) : IDisplayProjectionReadService
+    {
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct)
+        {
+            loaded();
+            return inner.LoadWorksAsync(ct);
+        }
+
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadDetailWorksAsync(Guid id, CancellationToken ct) => inner.LoadDetailWorksAsync(id, ct);
+
+        public Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) => inner.LoadHomeWorksAsync(ct);
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadJourneyAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+            inner.LoadJourneyAsync(profileId, lane, ct);
+
+        public Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct) =>
+            inner.LoadStatesAsync(profileId, lane, ct);
+
+        public Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct) =>
+            inner.LoadFavoriteWorkIdsAsync(profileId, ct);
+
+        public Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadHomeCollectionsAsync(Guid? profileId, CancellationToken ct) =>
+            inner.LoadHomeCollectionsAsync(profileId, ct);
     }
 
     private static LibraryPreferencesSettings BooksShowMissing(string defaultVisibility, bool enabled = true) => new()

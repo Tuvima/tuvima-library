@@ -7,6 +7,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using static MediaEngine.Api.Services.ReadServices.UniverseConnectionsReadService;
 
 namespace MediaEngine.Api.Services.ReadServices;
@@ -21,7 +22,6 @@ namespace MediaEngine.Api.Services.ReadServices;
 public sealed class UniversePageReadService(
     UniverseClientReadService universes,
     ICollectionRepository collections,
-    IDisplayProjectionReadService display,
     DisplayCardBuilder cards,
     ISeriesManifestRepository manifests,
     IProfileSequencePreferencesRepository preferences,
@@ -37,21 +37,20 @@ public sealed class UniversePageReadService(
     /// <summary>Null when the QID is malformed, names no Universe, or the profile may not see any of it.</summary>
     public async Task<UniversePageDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default)
     {
-        var detail = await universes.LoadAsync(qid, profile, ct).ConfigureAwait(false);
-        if (detail is null)
+        // The helper-app read plus the Universe's own standalone works: a Universe whose only visible works are standalone is
+        // still a Universe. The detail's shelves, cast and lists are exactly the helper-app answer.
+        var build = await universes.BuildAsync(qid, profile, includeStandalone: true, ct).ConfigureAwait(false);
+        if (build is null)
         {
             return null;
         }
 
-        var universe = await collections.FindUniverseByQidAsync(detail.Qid, ct).ConfigureAwait(false);
-        var allRows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
-
-        var standaloneRows = universe is null
-            ? []
-            : allRows.Where(row => row.CollectionId == universe.Id).ToList();
+        var allRows = build.AllRows;
+        var standalone = BuildStandalone(build.StandaloneRows);
+        var detail = WithStandaloneTotals(build.Detail, standalone);
         var memberIds = detail.Shelves.Select(shelf => shelf.CollectionId).ToHashSet();
         var visibleWorkIds = allRows
-            .Where(row => row.CollectionId is { } id && (memberIds.Contains(id) || id == universe?.Id))
+            .Where(row => row.CollectionId is { } id && (memberIds.Contains(id) || id == build.UniverseId))
             .Select(row => row.WorkId)
             .Distinct()
             .ToList();
@@ -73,7 +72,7 @@ public sealed class UniversePageReadService(
         return new UniversePageDto
         {
             Detail = detail,
-            Standalone = BuildStandalone(standaloneRows),
+            Standalone = standalone?.Shelf,
             Missing = missing,
             Enrichment = await BuildEnrichmentAsync(visibleWorkIds, ct).ConfigureAwait(false),
             GraphEntityCount = scope.Entities.Count,
@@ -81,7 +80,9 @@ public sealed class UniversePageReadService(
         };
     }
 
-    private DisplayShelfDto? BuildStandalone(IReadOnlyList<DisplayWorkRow> rows)
+    private sealed record StandaloneWorks(DisplayShelfDto Shelf, int Total, IReadOnlyList<string> Kinds);
+
+    private StandaloneWorks? BuildStandalone(IReadOnlyList<DisplayWorkRow> rows)
     {
         if (rows.Count == 0)
         {
@@ -103,12 +104,46 @@ public sealed class UniversePageReadService(
             return null;
         }
 
-        return new DisplayShelfDto(
+        var shelf = new DisplayShelfDto(
             "standalone",
             StandaloneTitle,
             cardList.Count == 1 ? "1 item" : $"{cardList.Count} items",
             cardList.Take(UniverseClientReadService.MaxShelfItems).ToList(),
             null);
+        var kinds = rows
+            .Select(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        return new StandaloneWorks(shelf, cardList.Count, kinds);
+    }
+
+    // The page's totals count the standalone works too ("Series or formats in it"); the helper-app read is left as it was.
+    private static UniverseClientDetailDto WithStandaloneTotals(UniverseClientDetailDto detail, StandaloneWorks? standalone)
+    {
+        if (standalone is null)
+        {
+            return detail;
+        }
+
+        var mediaTypes = detail.MediaTypes.ToList();
+        foreach (var kind in standalone.Kinds.Where(kind => !mediaTypes.Contains(kind, StringComparer.Ordinal)))
+        {
+            mediaTypes.Add(kind);
+        }
+
+        return new UniverseClientDetailDto
+        {
+            Qid = detail.Qid,
+            Name = detail.Name,
+            Description = detail.Description,
+            GroupType = detail.GroupType,
+            ItemCount = detail.ItemCount + standalone.Total,
+            SeriesCount = detail.SeriesCount,
+            MediaTypes = mediaTypes,
+            Shelves = detail.Shelves,
+            Cast = detail.Cast,
+            Adaptations = detail.Adaptations,
+        };
     }
 
     private async Task<UniverseEnrichmentStateDto> BuildEnrichmentAsync(
@@ -135,6 +170,8 @@ public sealed class UniversePageReadService(
         CancellationToken ct)
     {
         var libraryPreferences = LoadLibraryPreferences();
+        var seriesById = (await collections.GetByIdsAsync(detail.Shelves.Select(shelf => shelf.CollectionId), ct).ConfigureAwait(false))
+            .ToDictionary(series => series.Id);
         var result = new List<UniverseShelfMissingDto>();
         foreach (var shelf in detail.Shelves)
         {
@@ -159,7 +196,7 @@ public sealed class UniversePageReadService(
             }
 
             var showMissing = await ResolveShowMissingAsync(
-                shelf, manifest, missingCount, libraryPreferences, profile, ct).ConfigureAwait(false);
+                shelf, seriesById.GetValueOrDefault(shelf.CollectionId), manifest, missingCount, libraryPreferences, profile, ct).ConfigureAwait(false);
             result.Add(new UniverseShelfMissingDto
             {
                 CollectionId = shelf.CollectionId,
@@ -210,67 +247,44 @@ public sealed class UniversePageReadService(
     }
 
     /// <summary>
-    /// The profile's choice for this Series: its own override when it set one, otherwise the media default from the
-    /// library preferences. A media type whose policy does not show missing entries at all never shows them. This is
-    /// the rule the Series panel on item pages applies, read here once per Series.
+    /// The profile's choice for this Series, by the one shared rule (<see cref="SeriesMissingItemVisibility"/>, which the
+    /// Series panel on item pages calls too): the policy of the Series' own media kind must be enabled, and then the
+    /// profile's own choice wins (stored under the Series' collection id, else its QID), else the media default decides.
     /// </summary>
     private async Task<bool> ResolveShowMissingAsync(
         UniverseMemberShelfDto shelf,
+        Collection? series,
         SeriesManifestViewDto manifest,
         int missingCount,
         LibraryPreferencesSettings? libraryPreferences,
         Profile? profile,
         CancellationToken ct)
     {
-        var mediaKey = PolicyKeyFor(shelf);
+        // The Series' own media kind; a Series with none recorded falls back to the kind of its first card.
+        var mediaKey = SeriesMissingItemVisibility.PolicyKey(series?.MediaType)
+            ?? SeriesMissingItemVisibility.PolicyKey(shelf.Shelf.Items.FirstOrDefault()?.MediaType);
         if (mediaKey is null
             || libraryPreferences is null
-            || !libraryPreferences.MissingItemDisplay.TryGetValue(mediaKey, out var policy)
-            || !policy.Enabled
-            || missingCount <= 0)
+            || !libraryPreferences.MissingItemDisplay.TryGetValue(mediaKey, out var policy))
         {
             return false;
         }
 
-        if (profile is not null)
+        bool? profileOverride = null;
+        if (profile is not null && policy.Enabled)
         {
-            // The Series panel keys the override by the Series' own identity: its QID, or its collection id.
-            foreach (var containerKey in new[] { manifest.SeriesQid, shelf.CollectionId.ToString("D") })
+            foreach (var containerKey in SeriesMissingItemVisibility.OverrideKeys(shelf.CollectionId, manifest.SeriesQid))
             {
-                if (string.IsNullOrWhiteSpace(containerKey))
+                var stored = await preferences.GetAsync(profile.Id, mediaKey, containerKey, ct).ConfigureAwait(false);
+                if (stored is not null)
                 {
-                    continue;
-                }
-
-                var overridden = await preferences.GetAsync(profile.Id, mediaKey, containerKey, ct).ConfigureAwait(false);
-                if (overridden is not null)
-                {
-                    return overridden.ShowMissing;
+                    profileOverride = stored.ShowMissing;
+                    break;
                 }
             }
         }
 
-        return string.Equals(policy.DefaultVisibility, "shown", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string? PolicyKeyFor(UniverseMemberShelfDto shelf)
-    {
-        var mediaType = shelf.Shelf.Items.FirstOrDefault()?.MediaType;
-        if (string.IsNullOrWhiteSpace(mediaType))
-        {
-            return null;
-        }
-
-        return DisplayMediaRules.NormalizeDisplayKind(mediaType) switch
-        {
-            "TV" => "tv",
-            "Comic" => "comics",
-            "Book" => "books",
-            "Movie" => "movies",
-            "Music" => "music",
-            "Audiobook" => "audiobooks",
-            _ => null,
-        };
+        return SeriesMissingItemVisibility.Resolve(policy.Enabled, policy.DefaultVisibility, profileOverride, missingCount);
     }
 
     private LibraryPreferencesSettings? LoadLibraryPreferences()

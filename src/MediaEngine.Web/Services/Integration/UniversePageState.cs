@@ -29,6 +29,7 @@ public sealed class UniversePageState(IEngineApiClient api, TimeProvider? clock 
     private DateTimeOffset? _lastReadAt;
     private DateTimeOffset? _lastEventHandledAt;
     private bool _refreshScheduled;
+    private long _latestRequest;
 
     public UniversePageStatus Status { get; private set; } = UniversePageStatus.Loading;
 
@@ -39,8 +40,14 @@ public sealed class UniversePageState(IEngineApiClient api, TimeProvider? clock 
     /// read (after an edit or an enrichment event) keeps what is on screen and only replaces it with a newer page; if the
     /// Engine cannot be reached the page that is already shown stays.
     /// </summary>
+    /// <remarks>
+    /// Reads can overlap (Retry, another Universe opened in the same page, an enrichment refresh). Each read takes a
+    /// sequence number and only the latest one may change the state: a reply that arrives after a newer read began is
+    /// dropped, so a slow answer about the previous Universe never replaces the current one.
+    /// </remarks>
     public async Task LoadAsync(string qid, bool quiet, CancellationToken ct = default)
     {
+        var request = Interlocked.Increment(ref _latestRequest);
         if (!quiet || Page is null)
         {
             Status = UniversePageStatus.Loading;
@@ -48,6 +55,11 @@ public sealed class UniversePageState(IEngineApiClient api, TimeProvider? clock 
         }
 
         var result = await api.GetUniversePageAsync(qid, ct).ConfigureAwait(false);
+        if (request != Interlocked.Read(ref _latestRequest))
+        {
+            return;
+        }
+
         _lastReadAt = _clock.GetUtcNow();
         switch (result.Status)
         {

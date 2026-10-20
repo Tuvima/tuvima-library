@@ -27,7 +27,8 @@ public sealed partial class UniverseClientReadService(
     IDisplayProjectionReadService display,
     DisplayCardBuilder cards,
     UniverseConnectionsReadService connections,
-    ISeriesManifestRepository? manifests = null)
+    ISeriesManifestRepository? manifests = null,
+    UniverseLinkCache? linkCache = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -48,10 +49,26 @@ public sealed partial class UniverseClientReadService(
     /// Returns null when the QID is malformed, names no Universe, the profile may not open it, or none of its shelves
     /// holds an item the profile may see. The caller answers all of those the same way.
     /// </summary>
-    public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default)
+    public async Task<UniverseClientDetailDto?> LoadAsync(string qid, Profile? profile, CancellationToken ct = default) =>
+        (await BuildAsync(qid, profile, includeStandalone: false, ct).ConfigureAwait(false))?.Detail;
+
+    /// <summary>A Universe's detail, plus the visible works that belong directly to the Universe and to no Series.</summary>
+    internal sealed record UniverseBuild(
+        UniverseClientDetailDto Detail,
+        Guid UniverseId,
+        IReadOnlyList<DisplayWorkRow> AllRows,
+        IReadOnlyList<DisplayWorkRow> StandaloneRows);
+
+    /// <summary>
+    /// The Universe detail <see cref="LoadAsync"/> returns (its shelves, totals and lists count Series members only), and,
+    /// when <paramref name="includeStandalone"/> is set, the standalone works too. Without them the answer is the helper-app
+    /// answer exactly: null when no Series shelf has a visible item. With them, a Universe whose only visible works are
+    /// standalone is still a Universe (empty shelves, the standalone rows returned beside the detail).
+    /// </summary>
+    internal async Task<UniverseBuild?> BuildAsync(string qid, Profile? profile, bool includeStandalone, CancellationToken ct)
     {
         var normalized = qid.Trim();
-        var scope = await ResolveVisibleUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        var scope = await ResolveVisibleUniverseAsync(normalized, profile, includeStandalone, ct).ConfigureAwait(false);
         if (scope is null)
         {
             return null;
@@ -60,6 +77,7 @@ public sealed partial class UniverseClientReadService(
         var (universe, members) = scope.Value;
         var memberIds = members.Select(member => member.Id).ToHashSet();
         var allRows = await display.LoadWorksAsync(ct).ConfigureAwait(false);
+        var standaloneRows = includeStandalone ? StandaloneRowsOf(universe, allRows) : [];
         var rowsByCollection = allRows
             .Where(row => row.CollectionId is { } id && memberIds.Contains(id))
             .GroupBy(row => row.CollectionId!.Value)
@@ -120,7 +138,7 @@ public sealed partial class UniverseClientReadService(
             });
         }
 
-        if (shelves.Count == 0)
+        if (shelves.Count == 0 && standaloneRows.Count == 0)
         {
             return null;
         }
@@ -132,24 +150,33 @@ public sealed partial class UniverseClientReadService(
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var helperLists = await connections.GetHelperListsAsync(normalized, visibleWorkQids, ct).ConfigureAwait(false);
 
-        return new UniverseClientDetailDto
-        {
-            Qid = normalized,
-            Name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!,
-            Description = universe.Description,
-            ItemCount = shelves.Sum(shelf => shelf.ItemCount + shelf.AlsoInThisWorldCount),
-            SeriesCount = shelves.Count,
-            MediaTypes = mediaTypes,
-            Shelves = shelves,
-            Cast = helperLists.Cast,
-            Adaptations = helperLists.Adaptations,
-        };
+        return new UniverseBuild(
+            new UniverseClientDetailDto
+            {
+                Qid = normalized,
+                Name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!,
+                Description = universe.Description,
+                ItemCount = shelves.Sum(shelf => shelf.ItemCount + shelf.AlsoInThisWorldCount),
+                SeriesCount = shelves.Count,
+                MediaTypes = mediaTypes,
+                Shelves = shelves,
+                Cast = helperLists.Cast,
+                Adaptations = helperLists.Adaptations,
+            },
+            universe.Id,
+            allRows,
+            standaloneRows);
     }
+
+    // Works that belong directly to the Universe collection itself, not to any Series below it.
+    private static List<DisplayWorkRow> StandaloneRowsOf(Collection universe, IReadOnlyList<DisplayWorkRow> allRows) =>
+        allRows.Where(row => row.CollectionId == universe.Id).ToList();
 
     /// <summary>
     /// How many Series and formats of one Universe the profile can see, and its name, without building any card.
-    /// Uses the same Universe, member and visibility rules as <see cref="LoadAsync"/>. Null when <see cref="LoadAsync"/>
-    /// would answer null for the same reasons (malformed QID, unknown, hidden, or nothing visible in it).
+    /// Uses the same Universe, member and visibility rules as <see cref="LoadAsync"/>, and the Universe's standalone works
+    /// count toward the formats (they are in the Universe even though they are in no Series). Null when nothing in the
+    /// Universe is visible to the profile.
     /// </summary>
     public async Task<(int SeriesCount, int FormatCount, string Name)?> GetMembershipSummaryAsync(
         string qid,
@@ -157,7 +184,7 @@ public sealed partial class UniverseClientReadService(
         CancellationToken ct = default)
     {
         var normalized = qid.Trim();
-        var scope = await ResolveVisibleUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        var scope = await ResolveVisibleUniverseAsync(normalized, profile, allowNoMembers: true, ct).ConfigureAwait(false);
         if (scope is null)
         {
             return null;
@@ -170,13 +197,15 @@ public sealed partial class UniverseClientReadService(
             .Where(row => row.CollectionId is { } id && memberIds.Contains(id))
             .GroupBy(row => row.CollectionId!.Value)
             .ToList();
-        if (rowsByCollection.Count == 0)
+        var standaloneRows = StandaloneRowsOf(universe, allRows);
+        if (rowsByCollection.Count == 0 && standaloneRows.Count == 0)
         {
             return null;
         }
 
         var formats = rowsByCollection
             .SelectMany(group => group)
+            .Concat(standaloneRows)
             .Select(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType))
             .Distinct(StringComparer.Ordinal)
             .Count();
@@ -194,14 +223,27 @@ public sealed partial class UniverseClientReadService(
         CancellationToken ct = default)
     {
         var normalized = NormalizeQid(qid);
-        if (normalized is null
-            || await GetMembershipSummaryAsync(normalized, profile, ct).ConfigureAwait(false) is not { } summary
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        // The visibility rule needs the profile's whole authorised projection, which every item page would otherwise
+        // read again; the answer is remembered per profile and Universe for a minute (see UniverseLinkCache).
+        return linkCache is null
+            ? await LoadLinkAsync(normalized, profile, ct).ConfigureAwait(false)
+            : await linkCache.GetOrLoadAsync(profile?.Id, normalized, () => LoadLinkAsync(normalized, profile, ct)).ConfigureAwait(false);
+    }
+
+    private async Task<UniverseLinkViewModel?> LoadLinkAsync(string normalizedQid, Profile? profile, CancellationToken ct)
+    {
+        if (await GetMembershipSummaryAsync(normalizedQid, profile, ct).ConfigureAwait(false) is not { } summary
             || !ShowsPartOfLine(summary.SeriesCount, summary.FormatCount))
         {
             return null;
         }
 
-        return new UniverseLinkViewModel { Qid = normalized, Name = summary.Name };
+        return new UniverseLinkViewModel { Qid = normalizedQid, Name = summary.Name };
     }
 
     /// <summary>The one rule for the "Part of" line: two or more Series, or two or more formats, in the Universe.</summary>
@@ -211,6 +253,7 @@ public sealed partial class UniverseClientReadService(
     private async Task<(Collection Universe, IReadOnlyList<Collection> Members)?> ResolveVisibleUniverseAsync(
         string normalizedQid,
         Profile? profile,
+        bool allowNoMembers,
         CancellationToken ct)
     {
         if (!QidPattern().IsMatch(normalizedQid))
@@ -225,7 +268,7 @@ public sealed partial class UniverseClientReadService(
         }
 
         var members = await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false);
-        return members.Count == 0 ? null : (universe, members);
+        return members.Count == 0 && !allowNoMembers ? null : (universe, members);
     }
 
     /// <summary>

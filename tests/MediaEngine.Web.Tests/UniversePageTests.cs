@@ -409,6 +409,47 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AUniverseWithOnlyStandaloneWorks_ShowsThePage_NotNotFound()
+    {
+        var page = Overview(
+            seriesCount: 0,
+            itemCount: 1,
+            mediaTypes: ["Movie"],
+            shelves: [],
+            standalone: new DisplayShelfDto("standalone", "Standalone", "1 item", [Card("Only Film", "Movie")], null));
+        _overview = () => UniversePageLoadResult.Loaded(page);
+        await UseDeviceAsync("web", "desktop");
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("1 Work \u00B7 1 format", cut.Find(".universe-hero__totals").TextContent);
+            Assert.Contains("Only Film", cut.Markup);
+            Assert.Empty(cut.FindAll(".universe-series"));
+            Assert.DoesNotContain("This Universe isn't available.", cut.Markup);
+            // The standalone work's cover is what the hero stack is made of.
+            Assert.NotEmpty(cut.FindAll(".universe-hero .artwork-stack__item"));
+        });
+    }
+
+    [Fact]
+    public async Task AnEnrichmentEventFromTheEngineThread_IsHandledOnTheComponentsOwnContext()
+    {
+        await UseDeviceAsync("web", "desktop");
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
+        var container = Services.GetRequiredService<UniverseStateContainer>();
+
+        // SignalR raises these on a pool thread; handling one off the renderer must neither throw nor read twice.
+        await Task.Run(() => container.PushUniverseEnrichmentProgress(new UniverseEnrichmentProgressEvent("Q1", "A work", 1, 5, "Reading")));
+        await Task.Delay(700);
+
+        Assert.Equal(1, _calls.Count(call => call == "overview"));
+        Assert.NotEmpty(cut.FindAll(".universe-hero"));
+    }
+
+    [Fact]
     public async Task AnEnrichmentEvent_DoesNotReadTheOverviewAgainStraightAfterAnotherRead()
     {
         await UseDeviceAsync("web", "desktop");

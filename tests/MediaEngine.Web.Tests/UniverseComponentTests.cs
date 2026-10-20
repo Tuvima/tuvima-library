@@ -103,6 +103,30 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AManifestThatRepeatsAnEntry_StillDrawsEachPlaceholder_WithoutClashingKeys()
+    {
+        var (shelf, works) = Shelf("One", "Two");
+        var missing = new UniverseShelfMissingDto
+        {
+            CollectionId = shelf.CollectionId,
+            ShowMissing = true,
+            MissingCount = 3,
+            Items =
+            [
+                new UniverseMissingItemDto { Label = "Same", RawOrdinal = "2", ItemQid = "Q7", AfterWorkId = works[0] },
+                new UniverseMissingItemDto { Label = "Same", RawOrdinal = "2", ItemQid = "Q7", AfterWorkId = works[0] },
+                new UniverseMissingItemDto { Label = "Same", RawOrdinal = "2", ItemQid = "Q7", AfterWorkId = works[1] },
+            ],
+        };
+
+        var cut = Render<UniverseSeriesShelf>(parameters => parameters
+            .Add(p => p.Shelf, shelf)
+            .Add(p => p.Missing, missing));
+
+        Assert.Equal(3, cut.FindAll(".universe-missing").Count);
+    }
+
+    [Fact]
     public void ASeriesWithNothingMissing_SaysNothingAboutIt()
     {
         var (shelf, _) = Shelf("One", "Two");
@@ -133,6 +157,22 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Contains("Side Story", cut.Markup);
     }
 
+    [Fact]
+    public void TheSeriesPanelAndTheUniversePageReadTheMissingItemsRuleFromTheSamePlace()
+    {
+        var repo = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var panel = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Web", "Components", "Details", "SequencePlacementPanel.razor"));
+        var page = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Api", "Services", "ReadServices", "UniversePageReadService.cs"));
+
+        Assert.Contains("SeriesMissingItemVisibility.PolicyKey(", panel, StringComparison.Ordinal);
+        Assert.Contains("SeriesMissingItemVisibility.IsDefaultShown(", panel, StringComparison.Ordinal);
+        Assert.Contains("SeriesMissingItemVisibility.Resolve(", page, StringComparison.Ordinal);
+        Assert.Contains("SeriesMissingItemVisibility.OverrideKeys(", page, StringComparison.Ordinal);
+        // Neither keeps its own copy of the "shown" default.
+        Assert.DoesNotContain("\"shown\"", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"shown\"", page, StringComparison.Ordinal);
+    }
+
     // The cast list -------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -157,7 +197,12 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         var cut = Render<UniverseCastList>(parameters => parameters
             .Add(p => p.Cast, [CastMember(person, "Ann", "Hero")])
             .Add(p => p.OnCastMemberSelected, member => chosen = member));
-        cut.Find("button.universe-cast__row").Click();
+        var button = cut.Find("button.universe-cast__row");
+        // The scoped styles of this component cannot reach the button inside AppNativeButton, so the button takes its
+        // padding, hover and focus ring from the shared list-row class, and the frame is the list item's.
+        Assert.Contains("tl-list-item-button", button.ClassName);
+        Assert.Contains("universe-cast__item", button.ParentElement!.ClassName);
+        button.Click();
 
         Assert.Empty(cut.FindAll("a.universe-cast__row"));
         Assert.Equal(person, chosen!.PersonId);

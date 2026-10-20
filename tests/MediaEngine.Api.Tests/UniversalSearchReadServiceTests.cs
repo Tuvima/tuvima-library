@@ -374,8 +374,31 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         var oddSeriesId = Guid.NewGuid();
         var work = Guid.NewGuid();
         var oddWork = Guid.NewGuid();
+        var disabledUniverse = Guid.NewGuid();
+        var disabledSeries = Guid.NewGuid();
+        var privateUniverse = Guid.NewGuid();
+        var privateSeries = Guid.NewGuid();
+        var otherProfile = Guid.NewGuid();
+        var disabledWork = Guid.NewGuid();
+        var privateWork = Guid.NewGuid();
         using (var connection = _db.CreateConnection())
         {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO profiles (id, display_name, avatar_color, role, created_at)
+                VALUES (@otherProfile, 'Someone else', '#7C4DFF', 'StandardUser', CURRENT_TIMESTAMP);
+                INSERT INTO collections (id, display_name, collection_type, wikidata_qid, created_at)
+                VALUES (@disabledUniverse, 'Cobalt Disabled', 'Universe', 'Q6000', CURRENT_TIMESTAMP),
+                       (@privateUniverse, 'Cobalt Private', 'Universe', 'Q6001', CURRENT_TIMESTAMP);
+                INSERT INTO collections (id, display_name, collection_type, parent_collection_id, is_enabled, created_at)
+                VALUES (@disabledSeries, 'Cobalt Retired', 'Series', @disabledUniverse, 0, CURRENT_TIMESTAMP);
+                INSERT INTO collections (id, display_name, collection_type, parent_collection_id, scope, owner_kind, audience, profile_id, created_at)
+                VALUES (@privateSeries, 'Cobalt Secret', 'Series', @privateUniverse, 'user', 'Profile', 'Private', @otherProfile, CURRENT_TIMESTAMP);
+                INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES (@disabledWork, @disabledSeries, 'Books', 'standalone'),
+                       (@privateWork, @privateSeries, 'Books', 'standalone');
+                """,
+                new { otherProfile, disabledUniverse, disabledSeries, privateUniverse, privateSeries, disabledWork, privateWork });
             await connection.ExecuteAsync(
                 """
                 INSERT INTO collections (id, display_name, collection_type, wikidata_qid, created_at)
@@ -395,9 +418,14 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         [
             new DisplayWorkRow { WorkId = work, AssetId = Guid.NewGuid(), CollectionId = seriesId, MediaType = "Books", Title = "Arrakis One" },
             new DisplayWorkRow { WorkId = oddWork, AssetId = Guid.NewGuid(), CollectionId = oddSeriesId, MediaType = "Books", Title = "Arrakis Two" },
+            new DisplayWorkRow { WorkId = disabledWork, AssetId = Guid.NewGuid(), CollectionId = disabledSeries, MediaType = "Books", Title = "Cobalt One" },
+            new DisplayWorkRow { WorkId = privateWork, AssetId = Guid.NewGuid(), CollectionId = privateSeries, MediaType = "Books", Title = "Cobalt Two" },
         ]));
 
         var response = await service.SearchAsync("Arrakis", 20, CancellationToken.None);
+        // A Universe whose only Series is switched off, or private to someone else, would open as "not available": it is not offered.
+        var cobalt = (await service.SearchAsync("Cobalt", 20, CancellationToken.None)).Sections.SelectMany(section => section.Results).ToList();
+        Assert.DoesNotContain(cobalt, result => result.Id == disabledUniverse || result.Id == privateUniverse);
 
         var results = response.Sections.SelectMany(section => section.Results).ToList();
         var universe = Assert.Single(results, result => result.Id == universeId);

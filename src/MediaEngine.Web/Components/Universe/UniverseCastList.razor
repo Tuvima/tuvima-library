@@ -1,21 +1,23 @@
 @namespace MediaEngine.Web.Components.Universe
 @using MediaEngine.Contracts.Universe
 
-@* The people across every format of the Universe, with the characters they play. A row opens the person's page; a host
-   that wants something else (the "Also appears in" panel) listens to OnCastMemberSelected and the row becomes a button. *@
+@* The people across every format of the Universe, with the characters they play. A row is a plain link to the person's
+   page; a host that wants something else (the "Also appears in" panel) listens to OnCastMemberSelected and the row becomes a
+   button. The frame (border, background) is the list item's, and both kinds of row use the shared list-row button class
+   for padding, hover and focus ring, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
 <ul class="universe-cast" aria-label="Cast">
     @foreach (var member in Cast)
     {
         <li class="universe-cast__item" @key="member.PersonId">
             @if (OnCastMemberSelected.HasDelegate)
             {
-                <AppNativeButton Type="button" Class="universe-cast__row" OnClick="@(() => OnCastMemberSelected.InvokeAsync(member))">
+                <AppNativeButton Type="button" Class="tl-list-item-button universe-cast__row" OnClick="@(() => OnCastMemberSelected.InvokeAsync(member))">
                     @RowContent(member)
                 </AppNativeButton>
             }
             else
             {
-                <a class="universe-cast__row" href="@PersonRoute(member)">
+                <a class="tl-list-item-button universe-cast__row" href="@PersonRoute(member)">
                     @RowContent(member)
                 </a>
             }
@@ -33,6 +35,7 @@
 
     private RenderFragment RowContent(UniverseClientCastMemberDto member) => __builder =>
     {
+        <span class="universe-cast__body">
         <AppAvatar ImageUrl="@member.HeadshotUrl"
                    AltText="@member.Name"
                    Initials="@Initials(member.Name)"
@@ -44,6 +47,7 @@
             {
                 <span class="universe-cast__characters">@characters</span>
             }
+        </span>
         </span>
     };
 

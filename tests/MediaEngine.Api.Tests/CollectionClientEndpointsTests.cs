@@ -1163,8 +1163,9 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<DisplayCardBuilder>();
         builder.Services.AddSingleton<IRawDisplayProjectionReadService, LiveProjection>();
         builder.Services.AddScoped<AuthorizedDisplayProjectionReadService>();
-        builder.Services.AddScoped<IDisplayProjectionReadService>(provider =>
-            provider.GetRequiredService<AuthorizedDisplayProjectionReadService>());
+        builder.Services.AddScoped<IDisplayProjectionReadService>(provider => new CountingProjection(
+            provider.GetRequiredService<AuthorizedDisplayProjectionReadService>(),
+            () => Interlocked.Increment(ref _projectionLoads)));
         builder.Services.AddSingleton<IFictionalEntityRepository, FictionalEntityRepository>();
         builder.Services.AddSingleton<IEntityRelationshipRepository, EntityRelationshipRepository>();
         builder.Services.AddSingleton<INarrativeRootRepository, NarrativeRootRepository>();
@@ -1180,6 +1181,7 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
         builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => _libraryPreferences));
         builder.Services.AddScoped<UniversePageReadService>();
+        builder.Services.AddSingleton<UniverseLinkCache>();
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();

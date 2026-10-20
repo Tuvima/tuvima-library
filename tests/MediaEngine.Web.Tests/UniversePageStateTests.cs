@@ -136,6 +136,51 @@ public sealed class UniversePageStateTests
         Assert.Equal(TimeSpan.Zero, state.RequestEnrichmentRefresh(_clock.GetUtcNow()));
     }
 
+    [Fact]
+    public async Task AReplyThatArrivesAfterANewerReadBegan_IsDropped()
+    {
+        var first = new TaskCompletionSource<UniversePageLoadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<UniversePageLoadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replies = new Queue<TaskCompletionSource<UniversePageLoadResult>>([first, second]);
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetUniversePageAsync), _ => replies.Dequeue().Task));
+        var state = new UniversePageState(api, _clock);
+
+        // The first Universe is slow; the person moves on (or presses Retry) before it answers.
+        var slow = state.LoadAsync("Q1", quiet: false);
+        var current = state.LoadAsync("Q2", quiet: false);
+        var newer = new UniversePageDto { GraphEntityCount = 2 };
+        var older = new UniversePageDto { GraphEntityCount = 1 };
+        second.SetResult(UniversePageLoadResult.Loaded(newer));
+        await current;
+        first.SetResult(UniversePageLoadResult.Loaded(older));
+        await slow;
+
+        Assert.Same(newer, state.Page);
+        Assert.Equal(UniversePageStatus.Loaded, state.Status);
+    }
+
+    [Fact]
+    public async Task AnOlderFailure_NeverTurnsALoadedPageIntoAnError()
+    {
+        var first = new TaskCompletionSource<UniversePageLoadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var second = new TaskCompletionSource<UniversePageLoadResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replies = new Queue<TaskCompletionSource<UniversePageLoadResult>>([first, second]);
+        var api = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetUniversePageAsync), _ => replies.Dequeue().Task));
+        var state = new UniversePageState(api, _clock);
+
+        var failing = state.LoadAsync("Q1", quiet: false);
+        var retry = state.LoadAsync("Q1", quiet: false);
+        second.SetResult(UniversePageLoadResult.Loaded(new UniversePageDto()));
+        await retry;
+        first.SetResult(UniversePageLoadResult.Unavailable);
+        await failing;
+
+        Assert.Equal(UniversePageStatus.Loaded, state.Status);
+        Assert.NotNull(state.Page);
+    }
+
     private UniversePageState NewState()
     {
         var api = EngineApiClientStub.Create(stub =>

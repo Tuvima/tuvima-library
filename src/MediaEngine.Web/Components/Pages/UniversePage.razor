@@ -18,7 +18,7 @@
 @inject IAppDialogService Dialogs
 @inject ILogger<UniversePage> Logger
 
-<PageTitle>@PageTitleText · Tuvima Library</PageTitle>
+<PageTitle>@PageTitleText - Tuvima Library</PageTitle>
 
 @* A Universe: what the Library holds of one fictional world across every format, as a page to read, not a screen to manage.
    Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe happens
@@ -53,6 +53,7 @@
             if (_state.Page is { } overview)
             {
                 <UniverseHero Detail="@overview.Detail"
+                              StandaloneCards="@(overview.Standalone?.Items ?? [])"
                               CanEdit="@CanShowEdit"
                               EditBusy="@_openingEditor"
                               OnEdit="EditUniverseAsync"
@@ -286,7 +287,8 @@
     }
 
     // Enrichment events carry no Universe, so the page reads its own overview again: at most once per ten seconds.
-    private void OnEngineStateChanged()
+    // The container raises this on the SignalR thread, so the work moves onto the component's own context first.
+    private void OnEngineStateChanged() => _ = InvokeAsync(() =>
     {
         if (_disposed || _state.RequestEnrichmentRefresh(State.UniverseEnrichmentProgressReceivedAt) is not { } wait)
         {
@@ -294,7 +296,7 @@
         }
 
         _ = RefreshAfterAsync(wait);
-    }
+    });
 
     private async Task RefreshAfterAsync(TimeSpan wait)
     {

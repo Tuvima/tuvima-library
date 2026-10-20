@@ -189,15 +189,32 @@ public sealed class UniversalSearchReadService(
                    c.description AS Description,
                    c.cover_artwork_path AS CoverArtworkPath,
                    c.wikidata_qid AS WikidataQid,
-                   CASE WHEN c.parent_collection_id IS NULL THEN 1 ELSE 0 END AS IsRoot,
+                   CASE WHEN c.parent_collection_id IS NULL
+                         AND (SELECT (x.owner_kind = 'Library' OR x.audience = 'Everyone'
+                            OR (lower(x.scope) = 'user' AND @ProfileId IS NOT NULL
+                                AND (x.profile_id = @ProfileId
+                                     OR (x.audience = 'SelectedProfiles'
+                                         AND EXISTS (SELECT 1 FROM collection_profile_audience pa
+                                                     WHERE pa.collection_id = x.id AND pa.profile_id = @ProfileId))))) FROM collections x WHERE x.id = c.id) THEN 1 ELSE 0 END AS IsRoot,
                    COUNT(DISTINCT CASE WHEN member.id IN @AllowedWorkIds THEN member.id END) AS ItemCount
             FROM collections c
             LEFT JOIN canonical_values title ON title.entity_id = c.id AND title.key = 'title'
             LEFT JOIN collection_items ci ON ci.collection_id = c.id
-            -- A Universe holds its works through the Series below it, so those Series' works count as its members.
+            -- A Universe holds its works through the Series below it, so the works of its enabled, accessible Series count as its
+            -- members (the same Series the Universe page lists).
             LEFT JOIN works member ON member.id=ci.work_id OR member.collection_id=c.id
                 OR (c.collection_type = 'Universe'
-                    AND member.collection_id IN (SELECT child.id FROM collections child WHERE child.parent_collection_id = c.id))
+                    AND member.collection_id IN (
+                        SELECT child.id
+                        FROM collections child
+                        WHERE child.parent_collection_id = c.id
+                          AND child.is_enabled = 1
+                          AND (child.owner_kind = 'Library' OR child.audience = 'Everyone'
+                            OR (lower(child.scope) = 'user' AND @ProfileId IS NOT NULL
+                                AND (child.profile_id = @ProfileId
+                                     OR (child.audience = 'SelectedProfiles'
+                                         AND EXISTS (SELECT 1 FROM collection_profile_audience pa
+                                                     WHERE pa.collection_id = child.id AND pa.profile_id = @ProfileId)))))))
             WHERE c.is_enabled = 1
               AND (COALESCE(c.display_name, title.value, '') LIKE @Like COLLATE NOCASE
                    OR COALESCE(c.description, '') LIKE @Like COLLATE NOCASE)
@@ -579,6 +596,7 @@ public sealed class UniversalSearchReadService(
         public string? Description { get; init; }
         public string? CoverArtworkPath { get; init; }
         public string? WikidataQid { get; init; }
+        // A root Universe this profile may open (the same access rule as the Universe page).
         public int IsRoot { get; init; }
         public int ItemCount { get; init; }
     }

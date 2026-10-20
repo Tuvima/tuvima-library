@@ -139,16 +139,24 @@
             .GroupBy(item => item.AfterWorkId!.Value)
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        static RowEntry Placeholder(UniverseMissingItemDto item) => new($"missing:{item.ItemQid}", null, item);
+        // A manifest can repeat a QID, so the key carries the position as well.
+        RowEntry Placeholder(UniverseMissingItemDto item) => new($"missing:{entries.Count}:{item.ItemQid}", null, item);
 
-        entries.AddRange(leading.Select(Placeholder));
+        foreach (var item in leading)
+        {
+            entries.Add(Placeholder(item));
+        }
+
         foreach (var card in cards)
         {
             var tile = MediaTileComposerService.FromDisplayCard(card);
             entries.Add(new RowEntry($"tile:{card.Id:N}", tile, null));
             if (card.WorkId is { } workId && byAnchor.TryGetValue(workId, out var following))
             {
-                entries.AddRange(following.Select(Placeholder));
+                foreach (var item in following)
+                {
+                    entries.Add(Placeholder(item));
+                }
             }
         }
 
