@@ -23,6 +23,13 @@ public sealed class IngestionBatchRemovalSourceGuardrailTests
         "batch_gate",
     ];
 
+    // Uses of the same letters that are not ingestion batches (Shy, 2026-10-19: only ingestion batches go).
+    private static readonly (string File, string Token, string Reason)[] UnrelatedUses =
+    [
+        ("src/MediaEngine.Api/DevSupport/ProviderAnswerStore.cs", "BatchId",
+            "a recorded provider lookup that asks for several ids at once (ids=Q1|Q2), not an ingestion batch"),
+    ];
+
     private static readonly string[] TextExtensions = [".cs", ".razor", ".js", ".mjs", ".json", ".css", ".sql"];
 
     private const string UpgradeSteps = "src/MediaEngine.Storage/Schema/Upgrades/";
@@ -50,7 +57,8 @@ public sealed class IngestionBatchRemovalSourceGuardrailTests
 
             var source = File.ReadAllText(file);
             offences.AddRange(Forbidden
-                .Where(token => source.Contains(token, StringComparison.Ordinal))
+                .Where(token => source.Contains(token, StringComparison.Ordinal)
+                    && !UnrelatedUses.Any(use => use.File == relative && use.Token == token))
                 .Select(token => $"{relative} contains '{token}'"));
         }
 

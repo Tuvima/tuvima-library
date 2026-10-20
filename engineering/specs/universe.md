@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -302,7 +302,7 @@ The Developer tools spec (cited as DT, its packets as DT-WP#) is large, Locked, 
 ## 6B. Before starting any packet: re-check for collisions (Shy, 2026-10-19)
 
 Before Claude Code starts the first packet, and again before each wave:
-1. Re-read `engineering/specs/developer-tools.md` (version and status), `engineering/specs/ingestion-and-readiness.md`, `engineering/specs/settings-revamp.md` and `engineering/README.md` on main for changes since this spec was locked.
+1. Re-read `engineering/specs/developer-tools.md` (version and status), `engineering/specs/archive/ingestion-and-readiness.md`, `engineering/specs/settings-revamp.md` and `engineering/README.md` on main for changes since this spec was locked.
 2. List which DT packets and waves are merged, in progress or not started, and check the sequencing rules in 6A against that. If a conflicting packet is in flight, wait or ask Shy; do not run in parallel.
 3. Search main for changes to the files this packet lists (`git log` on those paths since the spec's date). Anything touching them from another spec is a collision to report before starting.
 4. If the Developer tools spec has a newer version that changes plugin, AI or ingestion behaviour, stop and ask Shy before building U-WP9, U-WP14, U-WP15 or anything touching ingestion.
