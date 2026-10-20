@@ -6,7 +6,8 @@
 @implements IDisposable
 @inject DeviceContextService DeviceContext
 
-@if (DeviceContext.IsPhone ? PhoneActions.Count > 0 : MenuActions.Count > 0)
+@* A menu left with only the quiet "Edit on a computer" line has nothing to offer and is not drawn. *@
+@if (MenuActions.Count > 0)
 {
     @* Phones list the same actions in a bottom sheet instead of a popover; everything else keeps the popover. *@
     @if (DeviceContext.IsPhone)
@@ -27,7 +28,7 @@
         {
             <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
                 <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
-                    <ManageActionsMenu Actions="PhoneActions" OnActionSelected="SelectFromSheetAsync" />
+                    <ManageActionsMenu Actions="MenuActions" Note="@EditNote" OnActionSelected="SelectFromSheetAsync" />
                 </div>
             </AppDialogFrame>
         }
@@ -40,14 +41,14 @@
                          Class="tl-detail-overflow tl-detail-more-action"
                          TriggerClass="@ButtonClass"
                          PopoverClass="@PopoverRootClass"
-                         AnchorOrigin="AppOrigin.BottomRight"
-                         TransformOrigin="AppOrigin.TopRight">
+                         AnchorOrigin="AppOrigin.BottomLeft"
+                         TransformOrigin="AppOrigin.TopLeft">
             <TriggerContent>
                 @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
                 else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
             </TriggerContent>
             <ChildContent>
-            <ManageActionsMenu Actions="MenuActions" OnActionSelected="OnActionSelected" />
+            <ManageActionsMenu Actions="MenuActions" Note="@EditNote" OnActionSelected="OnActionSelected" />
             </ChildContent>
         </AppOverflowMenu>
     }
@@ -55,7 +56,6 @@
 
 @code {
     private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
-    private const string EditUnavailableKey = "edit-unavailable";
     private bool _sheetOpen;
 
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
@@ -65,30 +65,21 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
 
     /// <summary>
-    /// Editing is desktop-only. Where the device cannot edit (tablet, TV, unknown) the edit actions simply
-    /// disappear, and a menu that held only edit actions disappears with them.
+    /// Editing is desktop-only (details overlay spec D10). Where the device cannot edit (tablet, phone, TV, unknown)
+    /// the edit actions simply disappear, and a menu that held only edit actions disappears with them.
     /// </summary>
     private IReadOnlyList<DetailAction> MenuActions =>
-        DeviceContext.CanEdit ? Actions : Actions.Where(action => action.Key is not ("edit" or "edit-media")).ToList();
+        DeviceContext.CanEdit ? Actions : Actions.Where(action => !DetailMenuGrouping.IsEditAction(action)).ToList();
 
     /// <summary>
-    /// Phones are consumption devices: edit actions are replaced by one disabled note row.
-    /// A menu that held only edit actions disappears instead of showing just the note.
+    /// Tablets and phones show one quiet, non-interactive "Edit on a computer" line where Edit would be, but only when
+    /// the Engine offered an edit action, so a person who may not edit never sees it. TV, unknown devices and a desktop
+    /// without a fine pointer show no line.
     /// </summary>
-    private IReadOnlyList<DetailAction> PhoneActions
-    {
-        get
-        {
-            var kept = Actions.Where(action => action.Key is not ("edit" or "edit-media")).ToList();
-            if (kept.Count == Actions.Count || kept.Count == 0)
-            {
-                return kept;
-            }
-
-            kept.Add(new DetailAction { Key = EditUnavailableKey, Label = EditorDeviceRule.Message, Icon = "edit", IsDisabled = true });
-            return kept;
-        }
-    }
+    private string? EditNote =>
+        !DeviceContext.CanEdit && (DeviceContext.IsPhone || DeviceContext.IsTablet) && Actions.Any(DetailMenuGrouping.IsEditAction)
+            ? EditorDeviceRule.Message
+            : null;
 
     private string PopoverRootClass =>
         $"tl-detail-overflow-popover {(MenuActions.Count == 1 ? "tl-detail-overflow-popover--compact" : null)}";
