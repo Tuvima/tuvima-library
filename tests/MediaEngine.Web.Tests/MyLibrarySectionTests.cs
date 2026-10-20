@@ -340,8 +340,8 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.Contains("Tax Return", cut.Markup);
     }
 
-    // The all-areas Liked grid moved to /all/personal/liked, which applies the Documents rule itself. What is left on For Me is the
-    // per-area grid, and no area (Watch, Read, Listen, Collections) holds a Document, so a Document never shows there.
+    // The all-areas Liked grid moved to /all/personal/liked, and the Engine's grid read never includes Documents. What is left on
+    // For Me is the per-area grid, and no area (Watch, Read, Listen, Collections) holds a Document, so one never shows there.
     [Theory]
     [InlineData(false)]
     [InlineData(null)]

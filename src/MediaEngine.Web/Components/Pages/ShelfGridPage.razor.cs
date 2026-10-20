@@ -344,17 +344,34 @@ public partial class ShelfGridPage
         _cts?.Dispose();
         if (_module is not null)
         {
-            try
-            {
-                await _module.InvokeVoidAsync("disconnect", _sentinel);
-                await _module.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-                // The circuit closed first; the browser has already released the observer.
-            }
+            // Two separate steps, so a failed disconnect still lets the module be released.
+            await ReleaseAsync(() => _module.InvokeVoidAsync("disconnect", _sentinel).AsTask());
+            await ReleaseAsync(() => _module.DisposeAsync().AsTask());
         }
 
         _self?.Dispose();
+    }
+
+    private async Task ReleaseAsync(Func<Task> step)
+    {
+        try
+        {
+            await step();
+        }
+        catch (JSDisconnectedException ex)
+        {
+            // The circuit closed first; the browser has already released the observer.
+            Logger.LogDebug(ex, "Grid scroll trigger disconnected during disposal.");
+        }
+        catch (JSException ex)
+        {
+            // The sentinel may already be gone from the page; there is nothing left to release.
+            Logger.LogDebug(ex, "Grid scroll trigger clean-up failed during disposal.");
+        }
+        catch (OperationCanceledException ex)
+        {
+            // The circuit is shutting down; the browser releases the observer with the page.
+            Logger.LogDebug(ex, "Grid scroll trigger clean-up was cancelled during disposal.");
+        }
     }
 }

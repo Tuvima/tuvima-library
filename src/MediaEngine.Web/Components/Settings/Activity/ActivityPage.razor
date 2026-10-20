@@ -418,6 +418,7 @@
     private IJSObjectReference? _observerModule;
     private DotNetObjectReference<ActivityPage>? _self;
     private bool _observeRequested;
+    private ElementReference? _observed;
     private bool _moreFailed;
     private bool _includesOthers;
     private bool _loading = true;
@@ -993,6 +994,8 @@
         finally
         {
             _loadingMore = false;
+            // However the load ended (a page, a failure, or a newer list replacing it), the scroll trigger is re-checked afterwards.
+            _observeRequested = true;
         }
     }
 
@@ -1024,15 +1027,24 @@
     {
         try
         {
-            if (_nextCursor is not null && !_loading && !_loadingMore && !_moreFailed)
+            // A load in flight does not switch the trigger off: LoadMoreFromObserverAsync already ignores calls while one runs.
+            if (_nextCursor is not null && !_loading && !_moreFailed)
             {
                 _observerModule ??= await JS.InvokeAsync<IJSObjectReference>("import", ObserverModule);
                 _self ??= DotNetObjectReference.Create(this);
+                if (_observed is { } previous && previous.Id != _sentinel.Id)
+                {
+                    // The list was drawn again with a new sentinel; release the old one.
+                    await _observerModule.InvokeVoidAsync("disconnect", previous);
+                }
+
                 await _observerModule.InvokeVoidAsync("observe", _sentinel, _self, new { rootMargin = "800px 0px" });
+                _observed = _sentinel;
             }
             else if (_observerModule is not null)
             {
-                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
+                await _observerModule.InvokeVoidAsync("disconnect", _observed ?? _sentinel);
+                _observed = null;
             }
         }
         catch (JSDisconnectedException)
@@ -1319,17 +1331,34 @@
         _lifetime.Dispose();
         if (_observerModule is not null)
         {
-            try
-            {
-                await _observerModule.InvokeVoidAsync("disconnect", _sentinel);
-                await _observerModule.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-                // The circuit closed first; the browser has already released the observer.
-            }
+            // Two separate steps, so a failed disconnect still lets the module be released.
+            await ReleaseAsync(() => _observerModule.InvokeVoidAsync("disconnect", _observed ?? _sentinel).AsTask());
+            await ReleaseAsync(() => _observerModule.DisposeAsync().AsTask());
         }
 
         _self?.Dispose();
+    }
+
+    private async Task ReleaseAsync(Func<Task> step)
+    {
+        try
+        {
+            await step();
+        }
+        catch (JSDisconnectedException ex)
+        {
+            // The circuit closed first; the browser has already released the observer.
+            Logger.LogDebug(ex, "Activity scroll trigger disconnected during disposal.");
+        }
+        catch (JSException ex)
+        {
+            // The sentinel may already be gone from the page; there is nothing left to release.
+            Logger.LogDebug(ex, "Activity scroll trigger clean-up failed during disposal.");
+        }
+        catch (OperationCanceledException ex)
+        {
+            // The circuit is shutting down; the browser releases the observer with the page.
+            Logger.LogDebug(ex, "Activity scroll trigger clean-up was cancelled during disposal.");
+        }
     }
 }
