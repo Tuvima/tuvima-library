@@ -106,12 +106,15 @@ public sealed class RetagSweepWorker : BackgroundService
 
             // Wait until the next cron tick OR an Apply signal, whichever comes first.
             var schedule = LoadSchedule();
-            var cronDelay = CronScheduler.UntilNext(schedule, TimeSpan.FromHours(24));
-            _logger.LogInformation("Next retag sweep at {NextRun}", DateTimeOffset.Now.Add(cronDelay));
+            var nextRun = CronScheduler.NextRunAt(schedule, TimeSpan.FromHours(24));
+            _logger.LogInformation("Next retag sweep at {NextRun}", nextRun.ToLocalTime());
 
-            var waitTask = _wakeSignal.WaitAsync(stoppingToken);
-            var cronTask = Task.Delay(cronDelay, stoppingToken);
+            // The losing wait is cancelled so it neither keeps a timer alive nor swallows a later Apply signal.
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var waitTask = _wakeSignal.WaitAsync(waitCts.Token);
+            var cronTask = CronScheduler.WaitUntilAsync(nextRun, waitCts.Token);
             var finished = await Task.WhenAny(waitTask, cronTask);
+            await waitCts.CancelAsync();
             if (finished == waitTask)
             {
                 _logger.LogInformation("RetagSweepWorker: woken by Apply signal");

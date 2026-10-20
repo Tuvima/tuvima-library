@@ -83,7 +83,7 @@ public sealed class AiConfigurationService : IDisposable
         return [];
     }
 
-    public async Task WaitForDelayOrChangeAsync(TimeSpan delay, CancellationToken stoppingToken)
+    public async Task WaitUntilOrChangeAsync(DateTimeOffset dueAt, CancellationToken stoppingToken)
     {
         CancellationToken changedToken;
         lock (_sync)
@@ -94,7 +94,7 @@ public sealed class AiConfigurationService : IDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, changedToken);
         try
         {
-            await Task.Delay(delay, linked.Token).ConfigureAwait(false);
+            await CronScheduler.WaitUntilAsync(dueAt, linked.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (changedToken.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
         {

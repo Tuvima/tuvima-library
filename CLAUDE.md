@@ -46,7 +46,7 @@ dotnet test MediaEngine.slnx --no-build
 | Clean outputs | `pwsh -File tools/Clean-RepoOutputs.ps1` (after stopping Engine/Dashboard) |
 | Release your own build locks | `dotnet build-server shutdown`; stop this checkout's Engine/Dashboard/test processes with `pwsh -File tools/Stop-WorktreeDotnet.ps1` (never kill every `dotnet` process: other sessions may be running) |
 
-Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, all tests passing**. Dashboard changes also need the visual checks in `src/MediaEngine.Web/CLAUDE.md`; a passing build is not visual proof.
+Only one Engine may run on the machine at a time, across all sessions: claim the slot first, hold it at most 60 minutes per turn, keep UI checks (small test library, no full ingestion) separate from ingestion runs, and release it as soon as you are done (`.claude/rules/one-engine-at-a-time.md`). Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, all tests passing**. Dashboard changes also need the visual checks in `src/MediaEngine.Web/CLAUDE.md`; a passing build is not visual proof.
 
 ## Conventions actually used
 
@@ -87,7 +87,7 @@ Stop running Engine/Dashboard before building. Aim for **0 errors, 0 warnings, a
 | Subsystem deep dives | `docs/architecture/architecture-summary.md` → `docs/architecture/*.md` |
 | Dashboard code map and UI rules | `src/MediaEngine.Web/CLAUDE.md` |
 | Developer code tour | `AGENTS.md` (large — search it) |
-| Detailed rules | `.claude/rules/` — `product-owner`, `model-routing`, `data-store`, `architecture-boundaries`, `security`, `build-and-ai-runtime`, `docs`, `dependencies`, `dashboard-surfaces`, `end-to-end-runs` |
+| Detailed rules | `.claude/rules/` — `product-owner`, `model-routing`, `data-store`, `architecture-boundaries`, `security`, `build-and-ai-runtime`, `docs`, `dependencies`, `dashboard-surfaces`, `end-to-end-runs`, `one-engine-at-a-time` |
 | Public docs site | https://tuvima.github.io/tuvima-library/ (source `docs/`, built by `website/`) |
 
 ## Agent workflow
