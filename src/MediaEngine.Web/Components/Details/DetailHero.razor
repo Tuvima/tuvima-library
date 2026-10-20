@@ -184,6 +184,7 @@
                                UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
                                IsMusicAlbum="@(Model.EntityType == DetailEntityType.MusicAlbum)"
                                HideStatusActions="@(Editing is { IsOn: true })"
+                               CanDelete="CanDelete"
                                ActionAttributes="ActionAttributes"
                                OnActionSelected="OnActionSelected" />
             </ActionContent>
@@ -206,6 +207,9 @@
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public EventCallback<string> OnTabRequested { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
+
+    /// <summary>Whether the page "..." lists Delete from library (the page decides who may delete a single title).</summary>
+    [Parameter] public bool CanDelete { get; set; }
 
     [CascadingParameter] private EditingModeContext? Editing { get; set; }
 

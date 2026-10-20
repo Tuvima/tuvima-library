@@ -53,9 +53,8 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task NativeCollectionCloseHonorsExistingDiscardDecision(bool discard)
+    public async Task NativeCollectionCloseAsksInTheSharedDialogAndHonorsTheAnswer(bool discard)
     {
-        JSInterop.Setup<bool>("confirm", _ => true).SetResult(discard);
         var host = Render<AppDialogHost>();
         var service = Services.GetRequiredService<AppDialogService>();
         var reference = await host.InvokeAsync(() => service.ShowAsync<CollectionEditorShell>("Collection", new AppDialogParameters<CollectionEditorShell> { { editor => editor.Request, new CollectionEditorLaunchRequest() } }));
@@ -64,11 +63,17 @@ public sealed class NativeEditorCloseProtectionTests : AsyncBunitContext
         var instance = editor.Instance;
         SetField(instance, "_hasUnsavedChanges", true);
         var frame = host.FindComponent<AppDialogFrame>();
-        await frame.InvokeAsync(frame.Instance.RequestCancel);
+        var closing = frame.InvokeAsync(frame.Instance.RequestCancel);
+
+        host.WaitForElement(".app-confirm");
+        Assert.Equal("Discard your changes?", host.Find(".app-dialog-shell__title").TextContent.Trim());
+        Assert.Contains("app-tone--error", host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Discard").ClassList);
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == (discard ? "Discard" : "Keep editing")).Click();
+        await closing;
 
         Assert.Equal(discard, reference.Result.IsCompleted);
         Assert.Equal(!discard, GetField<bool>(instance, "_hasUnsavedChanges"));
-        Assert.Single(JSInterop.Invocations, invocation => invocation.Identifier == "confirm");
+        Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "confirm");
         if (discard)
         {
             Assert.True((await reference.Result)!.Canceled);

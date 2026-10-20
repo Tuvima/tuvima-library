@@ -77,16 +77,7 @@
 @code {
     private sealed record BannerSection(EditingSection Kind, string Label, string Icon);
 
-    private static readonly DetailAction[] DeleteActions =
-    [
-        new DetailAction
-        {
-            Key = DetailActionKeys.DeleteFromLibrary,
-            Label = "Delete from library…",
-            Icon = "delete",
-            IsDestructive = true,
-        },
-    ];
+    private static readonly DetailAction[] DeleteActions = [DetailMenuGrouping.DeleteFromLibraryAction];
 
     private EditingModeContext? _subscribed;
 
