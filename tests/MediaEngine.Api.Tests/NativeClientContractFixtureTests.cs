@@ -61,13 +61,20 @@ public sealed class NativeClientContractFixtureTests
         Assert.All(items.Items, item => Assert.NotEqual(Guid.Empty, item.WorkId));
         Assert.Equal("Q4242", universe.Qid);
         Assert.Equal(CollectionGroupTypes.Universe, universe.GroupType);
-        Assert.Equal(universe.ItemCount, universe.Shelves.Sum(shelf => shelf.ItemCount));
+        Assert.Equal(universe.ItemCount, universe.Shelves.Sum(shelf => shelf.ItemCount + shelf.AlsoInThisWorldCount));
+        Assert.Equal(universe.SeriesCount, universe.Shelves.Count);
         Assert.All(universe.Shelves, shelf =>
         {
             Assert.Equal(CollectionGroupTypes.Series, shelf.GroupType);
-            Assert.NotEmpty(shelf.Shelf.Items);
+            Assert.Equal(shelf.ItemCount, shelf.Shelf.Items.Count);
+            Assert.Equal(shelf.AlsoInThisWorldCount, shelf.AlsoInThisWorld?.Items.Count ?? 0);
             Assert.StartsWith("/api/v1/display/groups/", shelf.Shelf.SeeAllRoute, StringComparison.Ordinal);
         });
+        // The apps must handle a Series whose only visible items are "Also in this world" members: an empty run.
+        var alsoOnly = Assert.Single(universe.Shelves, shelf => shelf.ItemCount == 0);
+        Assert.Empty(alsoOnly.Shelf.Items);
+        Assert.NotNull(alsoOnly.AlsoInThisWorld);
+        Assert.Contains(universe.Cast, member => member.Characters.Count == 0);
     }
 
     [Fact]

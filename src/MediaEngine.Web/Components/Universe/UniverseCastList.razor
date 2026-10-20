@@ -1,24 +1,25 @@
 @namespace MediaEngine.Web.Components.Universe
 @using MediaEngine.Contracts.Universe
 
-@* The people across every format of the Universe, with the characters they play. A row is a plain link to the person's
-   page; a host that wants something else (the "Also appears in" panel) listens to OnCastMemberSelected and the row becomes a
+@* The people across every format of the Universe, with the characters they play and the source of each credit. A row is a
+   plain link to the person's page; a host that wants something else (the "Also appears in" panel) listens to OnCastMemberSelected and the row becomes a
    button. The frame (border, background) is the list item's, and both kinds of row use the shared list-row button class
    for padding, hover and focus ring, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
 <ul class="universe-cast" aria-label="Cast">
-    @foreach (var member in Cast)
+    @foreach (var row in Cast)
     {
+        var member = row.Member;
         <li class="universe-cast__item" @key="member.PersonId">
             @if (OnCastMemberSelected.HasDelegate)
             {
                 <AppNativeButton Type="button" Class="tl-list-item-button universe-cast__row" OnClick="@(() => OnCastMemberSelected.InvokeAsync(member))">
-                    @RowContent(member)
+                    @RowContent(row)
                 </AppNativeButton>
             }
             else
             {
                 <a class="tl-list-item-button universe-cast__row" href="@PersonRoute(member)">
-                    @RowContent(member)
+                    @RowContent(row)
                 </a>
             }
         </li>
@@ -26,15 +27,16 @@
 </ul>
 
 @code {
-    [Parameter, EditorRequired] public IReadOnlyList<UniverseClientCastMemberDto> Cast { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<UniverseSourcedCastMemberDto> Cast { get; set; } = [];
 
     /// <summary>Raised when a row is chosen. When nothing listens, a row links to the person's page instead.</summary>
     [Parameter] public EventCallback<UniverseClientCastMemberDto> OnCastMemberSelected { get; set; }
 
     private static string PersonRoute(UniverseClientCastMemberDto member) => $"/details/person/{member.PersonId:D}";
 
-    private RenderFragment RowContent(UniverseClientCastMemberDto member) => __builder =>
+    private RenderFragment RowContent(UniverseSourcedCastMemberDto row) => __builder =>
     {
+        var member = row.Member;
         <span class="universe-cast__body">
         <AppAvatar ImageUrl="@member.HeadshotUrl"
                    AltText="@member.Name"
@@ -46,6 +48,10 @@
             @if (UniversePageText.CharactersLine(member) is { } characters)
             {
                 <span class="universe-cast__characters">@characters</span>
+            }
+            @if (UniversePageText.SourcesLine(row.Sources) is { } sources)
+            {
+                <span class="universe-cast__source">@sources</span>
             }
         </span>
         </span>

@@ -321,12 +321,12 @@ internal sealed class BoundPluginAiClient(string pluginId, IPluginPermissionGate
     public Task<string?> InferTextAsync(string role, string prompt, PluginAiOptions? options = null, CancellationToken cancellationToken = default)
     {
         permissions.DemandAi(pluginId, role, options);
-        return client.InferTextAsync(role, prompt, cancellationToken);
+        return client.InferTextAsync(pluginId, role, prompt, options?.MaxTokens, cancellationToken);
     }
 
     public Task<T?> InferJsonAsync<T>(string role, string prompt, string grammar, PluginAiOptions? options = null, CancellationToken cancellationToken = default) where T : class
     {
         permissions.DemandAi(pluginId, role, options);
-        return client.InferJsonAsync<T>(role, prompt, grammar, cancellationToken);
+        return client.InferJsonAsync<T>(pluginId, role, prompt, grammar, options?.MaxTokens, cancellationToken);
     }
 }

@@ -1,6 +1,6 @@
 # Spec: Universes (explore, series grouping, helper apps, clean-up)
 
-> **Status:** In progress (U-WP0 to U-WP3, U-WP5, U-WP7, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
+> **Status:** In progress (U-WP0 to U-WP3, U-WP5 to U-WP8, U-WP10 and U-WP12 built) · **Version:** 4 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Item Detail spec (archived, D11/D16/D27)](archive/item-detail.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md) · [How universes work](../../docs/explanation/how-universes-work.md) · [Collections architecture](../../docs/architecture/collections.md) · [Developer tools (v3, In progress)](developer-tools.md) · [Ingestion and readiness](archive/ingestion-and-readiness.md) · [Settings revamp](archive/settings-revamp.md) · Bug list item 23 (The Expanse)
 
 ## 0. Where we are today (verified by reading the code, nothing was run)
 
@@ -218,6 +218,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 ### U-WP6 — Evidence-backed Connections (Cast, Adaptations, Characters per Q2)
 - **Depends on:** U-WP5, Q2. **Size:** Complex.
 - **Done when:** every character or link shown carries a visible source, and an unenriched Universe shows the "still learning" state with no sample data.
+- **Status:** Built (2026-10-20, PR 318). The Universe page's Connections list Cast, Adaptations and a read-only Characters list (first 12 with a Show all toggle, at most 60), each row naming its stored source (Wikidata, or an approved lore source holding the same item); a character row opens "Also appears in". Spoilers: until U-WP11 adds per-viewer progress, a character whose every visible appearance is marked "spoiler for" is **labelled "No plot details"** (name and source only, listed last, no work count, no panel) rather than hidden, and "Also appears in" leaves spoiler-marked appearances out. The explorer's adaptation tree is empty without real adaptation links. Left for U-WP11: Cast rows still name every character an actor plays (credits carry no spoiler marker), so its "one spoiler rule used by every surface" should cover them.
 
 ### U-WP7 — Engine actions for helper apps
 - **What it does:** extend `/api/v1/universe/{id}` with "Also in this world", Cast and Adaptations; keep profile visibility rules.
@@ -229,6 +230,7 @@ Guardrail and fixture tests that pin dead code will be edited with a stated reas
 ### U-WP8 — Helper app screens (Android, Apple, TV web, Roku)
 - **Depends on:** U-WP7. **Size:** Standard (one packet per client, at most two at a time).
 - **Done when:** each app shows the 4.4 layout against a test Engine; Roku lists Series.
+- **Status:** Built (2026-10-20, PR 317). Android phone and TV, Apple and TV web show the hero totals (saying "shows" when every line is a TV show, as on the Dashboard), each Series with "Also in this world" beneath, and read-only Cast and Adaptations; a Series with only Also members shows just that row. Roku lists a Universe's Series. The shelf's see-all (`/api/v1/display/groups/{id}`) now uses the same split as the Universe read, with Also members in their own shelf. Checked against the wire fixture (TV web also rendered in a browser), not a live Engine; Apple was not compiled (no Swift on Windows) and every app still needs a device check.
 
 ### U-WP9 — Lore plugin alignment with the Developer tools family
 - **What it does:** Official manifest touch-up (DT D-K), declare what it contacts, route Fandom requests through the shared rate-limited client, send only QIDs already in the Library (D5), link from the Universe page to its Plugins state card. No private switch or health display.

@@ -252,7 +252,7 @@ public sealed class LibraryMoveService(
         }
 
         // Never into itself or anything inside it: that would make a loop.
-        if (await moves.IsSameOrBeneathAsync(destination.Id, [.. items.Select(item => item.WorkId)], ct).ConfigureAwait(false))
+        if (await moves.IsSameOrBeneathAsync(destination.Id, [.. items.Where(item => !item.IsEdition).Select(item => item.WorkId)], ct).ConfigureAwait(false))
         {
             return Refuse(LibraryMoveRefusalKind.Invalid, "Items can't be moved into themselves or into something inside them.", [destination.Id]);
         }
@@ -278,7 +278,7 @@ public sealed class LibraryMoveService(
 
         var provider = registry.Resolve(destination);
         var entries = await provider.GetEntriesAsync(destination, ct).ConfigureAwait(false);
-        var places = await moves.GetSourcePlacesAsync(items, sourceCollectionId, ct).ConfigureAwait(false);
+        var places = await moves.GetSourcePlacesAsync(items, destination.Id, sourceCollectionId, ct).ConfigureAwait(false);
         var suggestions = Suggest(items, entries);
 
         // Why an item cannot move right now. Apply stays off while any row is blocked.
@@ -384,7 +384,7 @@ public sealed class LibraryMoveService(
             LibraryMoveKinds.Album => !item.IsEdition && Is(item, "Music"),
             LibraryMoveKinds.Season => !item.IsEdition && Is(item, "TV"),
             LibraryMoveKinds.Series => !item.IsEdition && string.Equals(item.MediaType, destination.MediaType, StringComparison.OrdinalIgnoreCase),
-            LibraryMoveKinds.Audiobook => item.IsEdition && Is(item, "Audiobooks") && item.WorkId != destination.Id,
+            LibraryMoveKinds.Audiobook => item.IsEdition && Is(item, "Audiobooks"),
             LibraryMoveKinds.Collection => !item.IsEdition,
             _ => false,
         };
@@ -393,7 +393,9 @@ public sealed class LibraryMoveService(
             return $"\"{item.Title}\" can't go into {destination.Label}.";
         }
 
-        return item.ParentWorkId == destination.Id ? $"\"{item.Title}\" is already in {destination.Label}." : null;
+        // An item may be matched within the place it already sits in: that is how an item added anyway is matched later, and how a
+        // numbered one is renumbered. Only matching or adding a version makes sense there (checked when the choices are made).
+        return null;
 
         static bool Is(LibraryMoveItem item, string mediaType) =>
             string.Equals(item.MediaType, mediaType, StringComparison.OrdinalIgnoreCase);
@@ -415,7 +417,7 @@ public sealed class LibraryMoveService(
         var candidates = new List<(LibraryMoveItem Item, MoveListEntry Entry, int Tier, double Score, string Reason)>();
         foreach (var item in items)
         {
-            foreach (var entry in entries)
+            foreach (var entry in entries.Where(entry => !IsOwnEntry(item, entry)))
             {
                 var similarity = MoveTitleMatcher.Similarity(item.Title, entry.Title);
                 if (similarity >= 0.6)
@@ -442,6 +444,11 @@ public sealed class LibraryMoveService(
 
         return picks;
     }
+
+    /// <summary>The entry the item itself already is (its own track, episode, position or part).</summary>
+    private static bool IsOwnEntry(LibraryMoveItem item, MoveListEntry entry) =>
+        (!item.IsEdition && entry.Target.ExistingWorkId == item.WorkId)
+        || (item.IsEdition && entry.Target.TakenPartEditionId == item.EditionId);
 
     /// <summary>Checks the person's choices against the fresh preview and turns them into the instruction for the transaction.</summary>
     private static LibraryMovePlan? BuildPlan(LibraryMoveCommitRequest request, State state, LibraryMoveActor actor, out string? invalid)
@@ -481,6 +488,13 @@ public sealed class LibraryMoveService(
                 return null;
             }
 
+            var alreadyHere = item.IsEdition ? item.WorkId == state.Destination.Id : item.ParentWorkId == state.Destination.Id;
+            if (alreadyHere && mode == LibraryMoveMode.AddAnyway)
+            {
+                invalid = $"\"{item.Title}\" is already in {state.Destination.Label}, so adding it anyway would change nothing. Match it to an entry instead.";
+                return null;
+            }
+
             var target = new LibraryMoveTarget();
             if (!hasList)
             {
@@ -496,6 +510,12 @@ public sealed class LibraryMoveService(
                 if (string.IsNullOrEmpty(row.EntryKey) || !entries.TryGetValue(row.EntryKey, out var entry))
                 {
                     invalid = $"Choose which entry \"{item.Title}\" is in {state.Destination.Label}, or add it anyway.";
+                    return null;
+                }
+
+                if (IsOwnEntry(item, entry))
+                {
+                    invalid = $"\"{item.Title}\" already is {DescribeEntry(state, entry)}. Pick a different entry.";
                     return null;
                 }
 

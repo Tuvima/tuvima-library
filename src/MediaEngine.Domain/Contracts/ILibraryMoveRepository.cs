@@ -39,10 +39,12 @@ public interface ILibraryMoveRepository
 
     /// <summary>
     /// The places leaving would empty. For each item's source place (and the place above it), whether nothing else would be
-    /// left in it once the given items are gone, with the name to show. Items sitting in no place contribute nothing.
+    /// left in it once the given items are gone, with the name to show. Items sitting in no place contribute nothing, and neither
+    /// does an item that stays in the destination it is being matched within (it leaves nothing).
     /// </summary>
     Task<IReadOnlyList<LibraryMoveSourceFacts>> GetSourcePlacesAsync(
         IReadOnlyList<LibraryMoveItem> items,
+        Guid destinationId,
         Guid? sourceCollectionId,
         CancellationToken ct = default);
 

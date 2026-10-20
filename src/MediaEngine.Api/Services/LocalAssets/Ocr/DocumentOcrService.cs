@@ -1,4 +1,5 @@
 using System.Text;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -38,9 +39,13 @@ public sealed class DocumentOcrService(
     ILocalAssetRepository repository,
     IConfigurationLoader configuration,
     IOcrService ocr,
+    IAiEngineRoom engineRoom,
     ILogger<DocumentOcrService> logger,
     DocumentRulesQueue? rulesQueue = null)
 {
+    // Every file is read by the hosted text-reading worker from the durable queue, so it is Library background work.
+    private static readonly AiCaller Caller = AiCaller.LibraryBackground(AiCallerIds.DocumentTextReading);
+
     public async Task<DocumentOcrOutcome> ReadItemAsync(
         Guid itemId,
         Func<int, CancellationToken, Task>? reportProgress,
@@ -355,7 +360,14 @@ public sealed class DocumentOcrService(
         OcrImagePreparer.SavePng(prepared, imagePath);
         try
         {
-            return await ocr.RecognizeAsync(imagePath, options, token).ConfigureAwait(false);
+            // The engine room queues the read, leaves a usage record and keeps the exceptions callers already handle.
+            var read = await engineRoom
+                .ReadTextFromImageOrThrowAsync(
+                    Caller,
+                    new AiImageTextRequest(imagePath, options.Languages, options.LowPriority, options.Timeout),
+                    token)
+                .ConfigureAwait(false);
+            return new OcrRecognition(read.Text, read.AverageConfidence, read.WordCount);
         }
         finally
         {

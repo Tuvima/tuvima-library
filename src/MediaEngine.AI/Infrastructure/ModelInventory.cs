@@ -125,6 +125,19 @@ public sealed class ModelInventory
         }
     }
 
+    /// <summary>
+    /// True when the text model file is present and verified. The optional audio pack is deliberately not part of this:
+    /// text features work whether or not it is downloaded.
+    /// </summary>
+    public bool IsTextModelReady()
+    {
+        lock (_lock)
+        {
+            return _states.GetValueOrDefault(AiModelRole.TextQuality)
+                is AiModelState.Ready or AiModelState.Loaded;
+        }
+    }
+
     public IReadOnlyList<AiModelStatus> GetAllStatuses()
     {
         lock (_lock)

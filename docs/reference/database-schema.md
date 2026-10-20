@@ -95,7 +95,7 @@ A single title, independent of version or format.
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
 
-| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, a series' positions) with **Add anyway** and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry clears it, and only a Match does: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it, and the old membership correction refuses it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0019_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, a series' positions) with **Add anyway** and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry clears it, and only a Match does: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it, and the old membership correction refuses it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0020_placement_unmatched`. |
 
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
@@ -113,7 +113,7 @@ A specific version of a Work (e.g., "4K HDR Blu-ray Remux", "First Edition Hardc
 | `work_id` | BLOB | FK -> `works.id` |
 | `title` | TEXT | Edition label |
 | `created_at` | TEXT | Timestamp |
-| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0019_placement_unmatched`. |
+| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0020_placement_unmatched`. |
 
 ### media_assets
 
@@ -1014,6 +1014,26 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_at` | TEXT | ISO 8601 UTC |
 
 **Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0017_approval_records`.
+
+### ai_usage_records
+
+One row for every request that reached the Local AI engine room: text written or structured by the local model, and text read from an image by Tesseract. A request is recorded whatever happened to it (succeeded, failed, unavailable, refused over a plugin's hourly allowance, cancelled or timed out); a request that was only deferred (a background poll that found the machine busy) writes nothing. A plugin's hourly allowance (`plugin_budget` in `config/ai.json`) is counted from these rows over the last rolling hour, so it survives an Engine restart; refused and unavailable requests do not count against it. The engine room writes the row; a failed write is logged as a warning and never fails the AI request. Rows older than 90 days are deleted by the daily activity cleanup. The prompt and the text read are never stored.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `started_at` | TEXT | ISO 8601 UTC; when the request reached the engine room |
+| `caller_kind` | TEXT | `person`, `ingestion`, `library_background` or `plugin` |
+| `caller_id` | TEXT | Stable key: a feature key such as `smart_labeling` or `vibe_tags`, a text-reading key, or the plugin manifest id |
+| `ability` | TEXT | `write_text_quick`, `write_text_careful`, `write_text_long`, `extract_structured`, `classify`, `read_text_from_image` (and `transcribe_speech`, `find_similar`, `describe_image`, which are recorded for later and always answer unavailable) |
+| `engine` | TEXT | `text_model`, `tesseract` or `none` |
+| `wait_ms` | INTEGER | Milliseconds spent waiting in the queue |
+| `duration_ms` | INTEGER | Milliseconds spent running once it had a turn |
+| `outcome` | TEXT | `succeeded`, `failed`, `unavailable`, `refused_over_budget`, `cancelled` or `timed_out` |
+| `message` | TEXT | Plain-English result or reason |
+
+**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0019_ai_usage_records`.
+
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

@@ -291,13 +291,14 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
     public Task<IReadOnlyList<LibraryMoveSourceFacts>> GetSourcePlacesAsync(
         IReadOnlyList<LibraryMoveItem> items,
+        Guid destinationId,
         Guid? sourceCollectionId,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(items);
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
-        return Task.FromResult<IReadOnlyList<LibraryMoveSourceFacts>>(FindSourcePlaces(connection, null, items));
+        return Task.FromResult<IReadOnlyList<LibraryMoveSourceFacts>>(FindSourcePlaces(connection, null, items, destinationId));
     }
 
     public Task<LibraryMoveSourceFacts?> GetSourceCollectionAsync(
@@ -403,15 +404,15 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 return LibraryMoveCommitOutcome.Conflict("A whole show, album, series or audiobook can't be moved, only what is in it.");
             }
 
-            // Never into itself or anything beneath it: that would make a loop.
-            if (IsSameOrBeneath(connection, transaction, plan.DestinationId, [item.WorkId]))
+            // Never into itself or anything beneath it: that would make a loop. (An audiobook part moves a file, not its audiobook,
+            // so only whole titles are looked at. Matching within the place an item already sits in is allowed.)
+            if (!item.IsEdition && IsSameOrBeneath(connection, transaction, plan.DestinationId, [item.WorkId]))
             {
                 return LibraryMoveCommitOutcome.Conflict("An item can't be moved into itself or into something inside it.");
             }
 
             if (item.ParentWorkId != row.ExpectedParentWorkId
-                || !string.Equals(item.IdentityRevision, row.ExpectedIdentityRevision, StringComparison.Ordinal)
-                || item.ParentWorkId == plan.DestinationId)
+                || !string.Equals(item.IdentityRevision, row.ExpectedIdentityRevision, StringComparison.Ordinal))
             {
                 return LibraryMoveCommitOutcome.Conflict("An item changed since you reviewed this.");
             }
@@ -427,7 +428,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         var token = "move:" + Guid.NewGuid().ToString("N");
 
         // What the move may empty is looked at before anything changes, so the names can be reported afterwards.
-        var emptyCandidates = FindSourcePlaces(connection, transaction, [.. ordered.Select(pair => pair.Item)])
+        var emptyCandidates = FindSourcePlaces(connection, transaction, [.. ordered.Select(pair => pair.Item)], plan.DestinationId)
             .Where(place => place.BecomesEmpty)
             .ToList();
 
@@ -537,7 +538,10 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         // An audiobook is emptied when the whole batch takes its last files, so the check counts what is left after the batch, not
         // before it. Details the person set on an audiobook that would be emptied would be lost with it.
         var movingEditions = ordered.Select(pair => pair.Item.EditionId!.Value).ToHashSet();
-        foreach (var source in ordered.Where(pair => pair.Item.HasUserManagedDetails).Select(pair => pair.Item).DistinctBy(item => item.WorkId))
+        foreach (var source in ordered
+                     .Where(pair => pair.Item.HasUserManagedDetails && pair.Item.WorkId != destination.Id)
+                     .Select(pair => pair.Item)
+                     .DistinctBy(item => item.WorkId))
         {
             var left = connection.ExecuteScalar<long>(
                 "SELECT COUNT(*) FROM editions WHERE work_id = @id AND id NOT IN @moving;",
@@ -553,9 +557,15 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         foreach (var (row, item) in ordered)
         {
             var assets = item.AssetIds;
+            var staysInPlace = item.WorkId == destination.Id;
             switch (row.Mode)
             {
                 case LibraryMoveMode.AddAnyway:
+                    if (staysInPlace)
+                    {
+                        return LibraryMoveCommitOutcome.Conflict("That part is already in this audiobook, so adding it anyway would change nothing.");
+                    }
+
                     break;
 
                 case LibraryMoveMode.Match:
@@ -569,9 +579,10 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
 
                 default:
                     if (row.Target.PartNumber is not { } sharedNumber
-                        || !PartNumberIsTaken(connection, transaction, destination.Id, sharedNumber))
+                        || !PartNumberIsTaken(connection, transaction, destination.Id, sharedNumber)
+                        || row.Target.TakenPartEditionId == item.EditionId)
                     {
-                        return LibraryMoveCommitOutcome.Conflict("That part no longer has a file.");
+                        return LibraryMoveCommitOutcome.Conflict("That part no longer has another file.");
                     }
 
                     break;
@@ -648,6 +659,11 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
         {
             if (row.Mode == LibraryMoveMode.AddAnyway)
             {
+                if (item.ParentWorkId == destination.Id)
+                {
+                    return LibraryMoveCommitOutcome.Conflict("That item is already in this place, so adding it anyway would change nothing.");
+                }
+
                 Relocate(connection, transaction, destination, item, ordinal: null, ordinalSort: null, unmatched: true);
                 ClearNumbers(connection, transaction, [item.WorkId, .. item.AssetIds], now);
                 UnlinkManifest(connection, transaction, item.WorkId);
@@ -655,6 +671,11 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
             }
             else if (row.Target.ExistingWorkId is { } entryWork)
             {
+                if (entryWork == item.WorkId)
+                {
+                    return LibraryMoveCommitOutcome.Conflict("That item already is this entry.");
+                }
+
                 var refusal = Attach(connection, transaction, destination, row, item, entryWork, removedContainers, ownedFiles, now);
                 if (refusal is not null)
                 {
@@ -727,7 +748,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 ordinal = @ordinal,
                 ordinal_sort = @ordinalSort,
                 placement_unmatched = @unmatched,
-                collection_id = @collection
+                collection_id = CASE WHEN @samePlace = 1 THEN collection_id ELSE @collection END
             WHERE id = @workId;
             """,
             new
@@ -737,6 +758,7 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
                 ordinalSort,
                 unmatched = unmatched ? 1 : 0,
                 collection = destination.CollectionId,
+                samePlace = item.ParentWorkId == destination.Id ? 1 : 0,
                 workId = item.WorkId,
             },
             transaction);
@@ -1226,8 +1248,11 @@ public sealed class LibraryMoveRepository(IDatabaseConnection db) : ILibraryMove
     private static List<LibraryMoveSourceFacts> FindSourcePlaces(
         IDbConnection connection,
         IDbTransaction? transaction,
-        IReadOnlyList<LibraryMoveItem> items)
+        IReadOnlyList<LibraryMoveItem> allItems,
+        Guid destinationId)
     {
+        // An item matched within the place it already sits in leaves nothing, so it empties nothing.
+        var items = allItems.Where(item => (item.IsEdition ? item.WorkId : item.ParentWorkId) != destinationId).ToList();
         var movingWorks = items.Where(item => !item.IsEdition).Select(item => item.WorkId).ToHashSet();
         var movingEditions = items.Where(item => item.IsEdition).Select(item => item.EditionId!.Value).ToHashSet();
         var emptied = new HashSet<Guid>();
