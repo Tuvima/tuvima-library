@@ -96,7 +96,8 @@ public sealed class ActivityPageTests : AsyncBunitContext
     // ---- items ---------------------------------------------------------------------------------------------------------------
 
     private static string Utc(int daysAgo, int hour = 20) =>
-        DateTimeOffset.UtcNow.Date.AddDays(-daysAgo).AddHours(hour).ToString("O");
+        // The page groups by the viewer's local day, so build times from the local date, not the UTC one.
+        new DateTimeOffset(DateTime.Today.AddDays(-daysAgo).AddHours(hour)).ToString("O");
 
     internal static PersonalActivityItemDto Entry(
         string id,
