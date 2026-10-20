@@ -1,0 +1,7 @@
+== requests ==
+GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
+GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
+== results ==
+-- 404
+-- 500
+availability: Available|Unsupported

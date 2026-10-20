@@ -67,6 +67,16 @@ You can pause, resume or stop a merge. Stopping keeps what was already copied, a
 
 A stopped merge reads "Merge stopped. Nothing was deleted. You can start it again." (a Move says the files already moved stay in the target) and the folder is a normal folder again. Two limits are known: starting it again into a different target, or restarting a Move of files that went to **From merge**, can add a numbered copy; and after a stopped merge of a Managed folder, ordinary scans cannot rename or move the originals that merge listed, to keep them safe.
 
+## Excluded files
+
+When you delete a title from the library, the files that stayed on disk are listed under the folders of that library: files in an as-is folder, the original of a merged file, and any file Tuvima could not remove. Scans skip them, so the deleted title does not come back. The list appears only when there are excluded files, and shows each file, its folder, when it was excluded and who deleted the title.
+
+1. Open **Settings > Libraries** and choose the media type.
+2. Find **Excluded files** and check the row for the file.
+3. Choose **Add back**. Tuvima scans that one file again, so the title comes back after the scan.
+
+If the file is no longer on disk, **Add back** removes the row and nothing is scanned. Only administrators can add a file back.
+
 ## Import folder
 
 The **Import folder** is the seventh entry in the Libraries list. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
@@ -92,17 +102,17 @@ How the reading and filing work is in [Documents in View](../explanation/documen
 
 ## Follow work in Operations
 
-Open **Settings > Operations > Ingestion**, or select the header activity icon. The page updates on its own. It shows the current run, active and queued work, results, provider waits, and recent batches.
+Open **Settings > Library and Ingestion**, or select the header activity icon. The page updates on its own. It shows what is being added now, what was added recently, and anything waiting on a provider or a missing tool.
 
 A checked or visible file does not mean the whole run is done. Matching, richer details, and file moves may still be in progress. Counts come from saved Engine state. Unknown values stay unknown.
 
-1. Check the current phase and any work that needs help.
+1. Check what is being added now and any work that needs help.
 2. Use **Check folders for changes** (in the Ingestion page "⋯" menu) for an extra scan of watched folders.
-3. Search batch history or choose a result filter.
-4. Select a batch to browse its media.
+3. Search the list of recently added items or choose a result filter.
+4. Select an item to browse its tracks, episodes or parts.
 5. Choose **Show older** to load another page of history.
 
-History starts with the three newest batches. A batch keeps its ID when the Engine restarts and resumes work. There is no separate Activity & Audit page.
+Items are listed under the day they first became Ready. There are no batches to browse, and there is no separate Activity & Audit page.
 
 ## Fix review and provider problems
 
@@ -121,7 +131,7 @@ Developer Tools is for admin use on a development library, when enabled. Reset &
 <details>
 <summary>Technical details</summary>
 
-Operations reads `GET /ingestion/operations`. The service `IIngestionOperationsStatusService` builds one snapshot from saved items, batches, jobs, logs, details, art, people, links, reviews, and provider health. SignalR events refresh that same snapshot. Polling also checks it while work is active or idle.
+The live page reads `GET /ingestion/queue-progress` and `GET /ingestion/presentation`, which are built from the saved per-file work rows, identity jobs, logs, details, art, people, links and reviews. SignalR events refresh the same numbers. Polling also checks them while work is active or idle.
 
 Catalog sources are in `config/libraries.json`. File layout options also use `config/core.json`. Each source has a stable ID. A destination uses that ID, not its place in the source list. View saves source and device records on their own. Its managed paths use `profiles/<profile-id>/sources/<source-id>` beneath the View root.
 
@@ -131,9 +141,9 @@ Intake reads the file. Retail Match finds a provider record. Wikidata may add a 
 
 An outside manifest or expected count does not create owned files. Comic counts and partial totals must not imply a known completion target. More art can arrive after an item is ready to browse.
 
-Batch facts are saved in `ingestion_batch_artifacts`. Batch media details and logs expose audit facts. A selected batch opens `/settings/ingestion?runId=<guid>&view=all`. A grouped lookup may show a batch label until it has per-file results.
+A group is its structural identity alone: a show, album or series is one group however many times its files were found. A grouped lookup may show a group label until it has per-file results.
 
-A move preview has a short-lived plan fingerprint. The Engine checks the plan, access, rules, and each item before moving it. Some values may be unknown: counts for a folder with no batch, the last move time, provider limits, or direct phase filters.
+A move preview has a short-lived plan fingerprint. The Engine checks the plan, access, rules, and each item before moving it. Some values may be unknown: the last move time, provider limits, or direct phase filters.
 
 The development tools include Reset & Seed Test Library, Rescan All Libraries, View Ingestion, and Advanced resets. Fixture cleanup uses a list of generated files. Routine resets do not delete source media.
 

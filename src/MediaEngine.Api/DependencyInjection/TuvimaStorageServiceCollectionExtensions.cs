@@ -78,6 +78,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<LibraryItemDeletionService>();
+        services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
         services.AddSingleton<ImportFolderApplier>();
@@ -131,6 +132,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<SetupPreflightService>();
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
         services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
+        services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
         services.AddSingleton<ITasteProfileRepository, TasteProfileRepository>();
         services.AddSingleton<IProfileService, ProfileService>();
         services.AddSingleton<IAccountExternalLoginRepository, AccountExternalLoginRepository>();
@@ -166,11 +168,10 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IBridgeIdRepository, BridgeIdRepository>();
         services.AddSingleton<IEntityTimelineRepository, EntityTimelineRepository>();
         services.AddSingleton<IReviewQueueRepository, ReviewQueueRepository>();
-        services.AddSingleton<IIngestionBatchRepository, IngestionBatchRepository>();
-        services.AddSingleton<IIngestionBatchArtifactRepository, IngestionBatchArtifactRepository>();
         services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         services.TryAddSingleton<IMediaInspectionHoldRepository, MediaInspectionHoldRepository>();
         services.AddSingleton<IScheduledTaskRunRepository, ScheduledTaskRunRepository>();
+        services.AddSingleton<IApprovalRecordRepository, ApprovalRecordRepository>();
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IPersonalActivityRepository, PersonalActivityRepository>();

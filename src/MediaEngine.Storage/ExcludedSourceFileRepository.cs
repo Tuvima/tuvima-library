@@ -112,6 +112,18 @@ public sealed class ExcludedSourceFileRepository(IDatabaseConnection db) : IExcl
         return Task.FromResult(row is null ? null : ToModel(row));
     }
 
+    public Task<ExcludedSourceFile?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var connection = db.CreateConnection();
+        var row = connection.QuerySingleOrDefault<Row>(new CommandDefinition(
+            SelectSql + " WHERE id = @id;",
+            new { id },
+            cancellationToken: ct));
+        return Task.FromResult(row is null ? null : ToModel(row));
+    }
+
     public Task<bool> RemoveAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

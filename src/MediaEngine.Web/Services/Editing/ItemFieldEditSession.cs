@@ -51,6 +51,9 @@ public sealed class ItemFieldEditSession
 
     public bool CanEditArtwork => _scope?.CanEditArtwork == true;
 
+    /// <summary>Whether Match and Identity applies to the active scope (the editor's own rule), so the banner only offers it where it works.</summary>
+    public bool CanMatch => MediaEditorMatchRule.CanMatch(_context?.MediaType ?? _mediaType, _scope?.ScopeId);
+
     public Guid EntityId => _scope?.FieldEntityId ?? Guid.Empty;
 
     public MediaEditorDetailsPresentation Presentation => _presentation;

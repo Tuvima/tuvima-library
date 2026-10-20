@@ -50,6 +50,9 @@
                OnNavigationItemReorder="ReorderPlaylistAsync" />
 
 @code {
+    /// <summary>The details overlay state, cascaded by the route view; null where this is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     [Parameter] public string? Tab { get; set; }
 
     private DiscoveryPageViewModel? _landingPage;
@@ -106,7 +109,7 @@
                     ListenBrowseConfiguration.LibraryRailTabIds),
                 new("Listen next",
                 [
-                    new("My List", "/for-me?view=my-list&area=listen", AppMaterialIcons.Outlined.BookmarkBorder, Exact: true),
+                    new("My List", "/for-me?view=my-list&area=listen", AppMaterialIcons.Outlined.FavoriteBorder, Exact: true),
                     new("Continue Listening", "/listen/audiobooks?status=in-progress", AppMaterialIcons.Outlined.PlayCircle, Exact: true),
                     new("Recently Played", "/listen/music?sort=recently-played", AppMaterialIcons.Outlined.History, Exact: true),
                     new("Recently Added", "/listen/music?sort=newest", AppMaterialIcons.Outlined.Schedule, Exact: true),
@@ -361,7 +364,7 @@
             return false;
         }
         await ReloadPlaylistsAsync();
-        if (Nav.ToAbsoluteUri(Nav.Uri).AbsolutePath.Contains(manageEvent.Management.ContainerId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+        if (new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).AbsolutePath.Contains(manageEvent.Management.ContainerId.ToString("D"), StringComparison.OrdinalIgnoreCase))
             Nav.NavigateTo("/listen/playlists");
         Snackbar.Add($"Deleted {manageEvent.Item.Label}.", AppSeverity.Success);
         return true;

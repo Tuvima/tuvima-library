@@ -55,7 +55,6 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             EntityId = request.EntityId,
             EntityType = request.EntityType.ToString(),
             MediaType = request.MediaType.ToString(),
-            IngestionRunId = request.IngestionRunId,
             Pass = request.Pass.ToString(),
         };
 
@@ -107,7 +106,6 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             EntityId = request.EntityId,
             EntityType = request.EntityType.ToString(),
             MediaType = request.MediaType.ToString(),
-            IngestionRunId = request.IngestionRunId,
             Pass = request.Pass.ToString(),
         };
 

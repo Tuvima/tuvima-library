@@ -1,0 +1,19 @@
+@namespace MediaEngine.Web.Components.Artwork
+@using MediaEngine.Web.Services.MediaTiles
+
+@* What the Remove artwork confirmation shows (details overlay spec D17): the image that will go, so the person is sure it is the
+   right one before saying yes. *@
+<figure class="artwork-remove-preview">
+    <img class="artwork-remove-preview__image"
+         src="@(MediaTileArtworkUrl.Sized(ImageUrl, "m") ?? ImageUrl)"
+         alt="@($"The {Label} that will be removed")"
+         decoding="async" />
+</figure>
+
+@code {
+    /// <summary>The image that will be removed.</summary>
+    [Parameter, EditorRequired] public string ImageUrl { get; set; } = string.Empty;
+
+    /// <summary>What kind of artwork it is, in lower case ("cover", "background").</summary>
+    [Parameter] public string Label { get; set; } = "artwork";
+}

@@ -1,6 +1,6 @@
 # Spec: Deleting personal files in View
 
-> **Status:** In progress · **Version:** 3 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Delete from library](delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../docs/architecture/security.md)
+> **Status:** In progress · **Version:** 3 · **Last updated:** 2026-10-20 · **Related docs:** [Product overview](../product/overview.md) · [Delete from library](archive/delete-from-library.md) (D22–D24, proposed change #244) · [View personal media (public)](../../docs/architecture/view-personal-media.md) · [Library model and intake (public)](../../docs/architecture/library-model-and-intake.md) ("Personal items") · [Security model (public)](../../docs/architecture/security.md)
 
 > Written 2026-10-17 from Shy's decisions in the Delete from library spec: library media is deleted straight away after a confirmation (D22), but personal files in View can't be downloaded again, so they always go to a recycle bin first (D23), in a spec of their own (D24). View already has a **Trash** that only hides items; nothing in it ever leaves the disk. This spec adds the one step that does: **Empty Trash**. Version 2 (same day) records Shy's answers to Q1–Q9 as D13–D21, and version 3 the answer to Q10 as D22. No questions are left. Shy Locked it on 2026-10-18. Nothing here is built yet.
 
@@ -23,7 +23,7 @@ Someone using View can finally free disk space by getting rid of photos, home vi
 - Engine actions for the summary and for Empty Trash, their permission checks, and the tests.
 
 **Out of scope**
-- Library media (films, TV, books, audiobooks, music, comics): see [Delete from library](delete-from-library.md).
+- Library media (films, TV, books, audiobooks, music, comics): see [Delete from library](archive/delete-from-library.md).
 - **"Delete immediately"**, deleting chosen items from inside Trash, or any other way to remove a personal file from disk except emptying the whole Trash (D1, D16).
 - A Trash that empties itself after a period (D15).
 - **Shared Library** items: the household's shared photos and documents (the Shared Timeline and named Shared folders, which people contribute to and a household administrator accepts). Nobody can trash or delete them; that is a later spec (D14).

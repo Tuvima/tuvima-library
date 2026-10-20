@@ -270,6 +270,8 @@ public sealed class ExcludedSourceFileFilterTests : IDisposable
 
         public Task<ExcludedSourceFile?> GetAsync(string sourceId, string relativePath, CancellationToken ct = default) => inner.GetAsync(sourceId, relativePath, ct);
 
+        public Task<ExcludedSourceFile?> GetByIdAsync(Guid id, CancellationToken ct = default) => inner.GetByIdAsync(id, ct);
+
         public Task<bool> RemoveAsync(Guid id, CancellationToken ct = default) => inner.RemoveAsync(id, ct);
     }
 

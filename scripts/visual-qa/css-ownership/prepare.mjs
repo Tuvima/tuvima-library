@@ -47,7 +47,7 @@ export async function prepareOwnershipState({ browser, tab, state, route, width,
       await tab.playwright.getByRole('link', { name: 'View details for The Northern Signal Untouched', exact: true }).first().press('Tab');
   } else if (state.prepare.startsWith('editor-')) {
     await tab.playwright.getByRole('button', { name: 'More actions', exact: true }).click();
-    await tab.playwright.getByRole('menuitem', { name: 'Edit details', exact: true }).click();
+    await tab.playwright.getByRole('menuitem', { name: /^Edit this /i }).click();
     await tab.playwright.locator('.sme-shell').waitFor({ state: 'visible' });
     await tab.playwright.locator('.sme-loading').waitFor({ state: 'detached' });
     if (state.id === 'editor-tv') {
@@ -85,7 +85,7 @@ export async function prepareOwnershipState({ browser, tab, state, route, width,
     await tab.playwright.getByRole('checkbox', { name: 'Include subfolders', exact: true }).check();
   } else if (state.prepare === 'collection-editor') {
     await tab.playwright.getByRole('button', { name: 'More actions', exact: true }).click();
-    await tab.playwright.getByRole('menuitem', { name: 'Edit details', exact: true }).click();
+    await tab.playwright.getByRole('menuitem', { name: /^Edit this /i }).click();
     await tab.playwright.locator('.collection-editor-workspace').waitFor({ state: 'visible' });
   } else if (state.prepare === 'gallery-editor') {
     await tab.playwright.getByRole('button', { name: 'Edit Gallery', exact: true }).click();

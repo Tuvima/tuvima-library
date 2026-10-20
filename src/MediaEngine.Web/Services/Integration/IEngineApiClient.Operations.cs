@@ -113,15 +113,6 @@ public partial interface IEngineApiClient
     Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
         IReadOnlyList<Guid> workIds, string fingerprint, CancellationToken ct = default);
 
-    /// <summary>GET /ingestion/batches — recent ingestion batches.</summary>
-    Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(
-        int limit = 20, CancellationToken ct = default);
-
-    /// <summary>GET /ingestion/operations — Ingestion dashboard snapshot.</summary>
-    Task<List<IngestionOperationsBatchDto>?> GetIngestionNotificationStatusAsync(CancellationToken ct = default);
-
-    Task<IngestionOperationsSnapshotDto?> GetIngestionOperationsSnapshotAsync(CancellationToken ct = default);
-
     Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default);
 
     /// <summary>GET /ingestion/queue-progress — the Engine's live ingestion numbers (files found, tally, bar, state).</summary>
@@ -134,25 +125,15 @@ public partial interface IEngineApiClient
         string? search = null, string? lane = null, DateTimeOffset? start = null, DateTimeOffset? end = null,
         int offset = 0, int limit = 50, string? sort = null, string? status = null, CancellationToken ct = default);
 
+    /// <summary>GET /ingestion/media-groups/{groupId} — one group, as the drawer shows it.</summary>
     Task<IngestionMediaGroupDto?> GetIngestionMediaGroupAsync(
-        Guid batchId, Guid groupId, CancellationToken ct = default);
+        Guid groupId, CancellationToken ct = default);
 
+    /// <summary>GET /ingestion/media-groups/{groupId}/children — the group's tracks, episodes, issues or parts.</summary>
     Task<PagedResponse<IngestionMediaChildDto>?> GetIngestionMediaChildrenAsync(
-        Guid batchId, Guid groupId, int offset = 0, int limit = 50, CancellationToken ct = default);
+        Guid groupId, int offset = 0, int limit = 50, CancellationToken ct = default);
 
     Task<ActivityHistorySummaryDto?> GetActivityHistorySummaryAsync(CancellationToken ct = default);
-
-    Task<ActivityBatchPresentationDto?> GetActivityBatchPresentationAsync(
-        Guid batchId, CancellationToken ct = default);
-
-    Task<PagedResponse<IngestionMediaGroupDto>?> GetActivityBatchMediaGroupsAsync(
-        Guid batchId,
-        int offset = 0,
-        int limit = 50,
-        string? search = null,
-        string? lane = null,
-        string? sort = null,
-        CancellationToken ct = default);
 
     /// <summary>GET /operations — durable media operations by queue order.</summary>
     Task<IReadOnlyList<OperationDto>> GetMediaOperationsAsync(
@@ -169,17 +150,6 @@ public partial interface IEngineApiClient
 
     /// <summary>POST /operations/{id}/cancel — cancel a durable operation.</summary>
     Task<bool> CancelMediaOperationAsync(Guid id, CancellationToken ct = default);
-
-    /// <summary>GET /ingestion/batches/{id} — single batch detail.</summary>
-    Task<IngestionBatchResponse?> GetIngestionBatchByIdAsync(
-        Guid id, CancellationToken ct = default);
-
-    /// <summary>GET /ingestion/batches/{id}/items — item-level batch progress.</summary>
-    Task<PagedResponse<IngestionBatchItemResponse>?> GetIngestionBatchItemsAsync(
-        Guid id, int offset = 0, int limit = 100, CancellationToken ct = default);
-
-    /// <summary>GET /ingestion/batches/attention-count — items needing attention.</summary>
-    Task<int> GetBatchAttentionCountAsync(CancellationToken ct = default);
 
     /// <summary>GET /assets/{id}/capabilities — explicit capability readiness for an asset.</summary>
     Task<IReadOnlyList<CapabilityStateDto>> GetAssetCapabilitiesAsync(

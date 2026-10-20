@@ -141,7 +141,7 @@ public sealed class NetworkSettingsUiTests
     {
         var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
 
-        Assert.Contains("How the internet reaches Tuvima", remote, StringComparison.Ordinal);
+        Assert.Contains("How the internet reaches Library", remote, StringComparison.Ordinal);
         Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Who can connect", remote, StringComparison.Ordinal);
         Assert.DoesNotContain("Anywhere", remote, StringComparison.Ordinal);

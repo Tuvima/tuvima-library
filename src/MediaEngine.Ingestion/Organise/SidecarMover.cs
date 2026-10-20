@@ -95,7 +95,7 @@ public sealed class SidecarMover
             {
                 // Nothing proves it is one file, so it is left as it is, exactly like the media file.
                 _logger.LogWarning(
-                    "Left {Sidecar} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file",
+                    "Left {Sidecar} alone: it differs from {Target} only in letter case and Library could not prove they are the same file",
                     sidecar.Path, target);
                 results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.Skipped, CaseSafeRename.UnprovenReason));
                 continue;
@@ -419,7 +419,7 @@ public sealed class SidecarMover
             }
             catch (DecoderFallbackException)
             {
-                return "Playlist moved; its entries use a text format Tuvima does not rewrite.";
+                return "Playlist moved; its entries use a text format Library does not rewrite.";
             }
 
             var rewritten = SidecarFiles.RewritePlaylist(text, oldMediaFileName, newMediaFileName);

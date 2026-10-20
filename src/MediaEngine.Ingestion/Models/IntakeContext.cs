@@ -45,6 +45,4 @@ public sealed record IntakeFileRequest
     public string? DestinationLibraryId { get; init; }
 
     public Guid? ActorProfileId { get; init; }
-
-    public Guid? BatchId { get; init; }
 }

@@ -17,16 +17,15 @@ How durable operations, leases and outcomes drive recovery and truthful ingestio
 
 - `src/MediaEngine.Storage/MediaOperationRepository.cs`
 - `src/MediaEngine.Storage/MediaOperationTracker.cs`
-- `src/MediaEngine.Storage/IngestionBatchActivitySql.cs`
 
 Tuvima Library tracks operational truth in durable rows instead of inferring it
 from missing artifacts.
 
-## Batch recovery and presentation
+## Recovery and presentation
 
-`IngestionBatchActivitySql` supplies the shared activity predicate for the batch repository, presentation queries, history, and completion reconciliation. Outstanding identity jobs or media operations keep their original batch active even if its stored status predates a restart. A long wait or expired lease is not a terminal outcome. Startup requeues intermediate identity states, including unleased enrichment work from the previous process, before identity workers begin; it emits progress for all active batches without a recent-history limit.
+Outstanding identity jobs or media operations keep a group in flight on the live ingestion page even if its intake row finished before a restart. A long wait or expired lease is not a terminal outcome. Startup requeues intermediate identity states, including unleased enrichment work from the previous process, before identity workers begin.
 
-Progress counts distinct skipped input paths even when the duplicate points to an asset already identified in that batch. A repeated log for an already-handled input path does not add another settled file. Ingestion cards and drawers show added counts only; provider container totals do not drive per-item progress.
+A file that is scanned again is still one file: the page reads the newest log row and the newest `ingestion.file` row of each file, from any intake. Ingestion cards and drawers show added counts only; provider container totals do not drive per-item progress.
 
 ## Core Tables
 
@@ -66,7 +65,7 @@ operation stage then moves through `discovered`, `settling`, `waiting_for_lock`,
 `queued`, `hashing`, `parsing`, `scoring`, `registered`, `queued_identity`, and
 `completed`.
 
-The dashboard and batch item endpoints read this table for item-level status.
+The live ingestion page reads this table for item-level status.
 This means a process crash no longer erases the visible queue just because the
 in-memory debounce or worker queue was lost.
 

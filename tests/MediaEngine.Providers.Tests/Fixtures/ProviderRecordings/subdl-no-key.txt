@@ -1,0 +1,5 @@
+== requests ==
+
+== results ==
+EXCEPTION AuthenticationRequired: subdl needs an API key before subtitles can be fetched.
+availability: AuthenticationRequired|Unsupported

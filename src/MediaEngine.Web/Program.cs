@@ -35,7 +35,7 @@ using Microsoft.Extensions.Hosting.WindowsServices;
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
 if (!processInstanceLease.IsAcquired)
 {
-    Console.WriteLine("Tuvima Library Dashboard is already running; the duplicate launch will exit without replacing it.");
+    Console.WriteLine("Library Dashboard is already running; the duplicate launch will exit without replacing it.");
     return;
 }
 
@@ -282,6 +282,8 @@ builder.Services.AddScoped<DashboardIdentityClient>(services =>
         services, services.GetRequiredService<DashboardCircuitHttpClientFactory>()));
 builder.Services.AddScoped<AccountNoticeState>();
 builder.Services.AddScoped<SettingsAttentionState>();
+builder.Services.AddScoped<DevelopmentToolsState>();
+builder.Services.AddScoped<MediaEngine.Web.Services.Settings.ApprovalFlow>();
 builder.Services.AddScoped<IItsYouConfirmer, DialogItsYouConfirmer>();
 builder.Services.AddScoped<ConfirmedActionRunner>();
 builder.Services.AddScoped<AdministratorSurfaceAccessService>();
@@ -401,6 +403,8 @@ builder.Services.AddScoped<ContextSidebarPreferences>();
 builder.Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
 builder.Services.AddScoped<ListenContextSidebarState>();
 builder.Services.AddScoped<ContextSidebarCoordinator>();
+builder.Services.AddScoped<IDetailsOverlayHistory, DetailsOverlayJsHistory>();
+builder.Services.AddScoped<DetailsOverlayState>();
 
 // Provider Catalogue (scoped = one API client per SignalR circuit).
 // Caches provider UI metadata from GET /providers/catalogue in IMemoryCache while
@@ -611,8 +615,8 @@ try
 }
 catch (IOException ex) when (StartupFailureClassifier.IsAddressAlreadyInUse(ex))
 {
-    app.Logger.LogError(ex, "Tuvima Library Dashboard could not start because one of its configured addresses is already in use");
-    Console.Error.WriteLine("Tuvima Library Dashboard could not start because port 5016 is already in use. Stop the process using that port, then start Tuvima Library again.");
+    app.Logger.LogError(ex, "Library Dashboard could not start because one of its configured addresses is already in use");
+    Console.Error.WriteLine("Library Dashboard could not start because port 5016 is already in use. Stop the process using that port, then start Library again.");
     Environment.ExitCode = 98;
 }
 

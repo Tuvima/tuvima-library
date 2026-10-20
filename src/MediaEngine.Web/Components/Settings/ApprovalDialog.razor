@@ -1,0 +1,61 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Approvals
+@using MediaEngine.Web.Services.Ui
+
+@* The one confirmation every "switch this on" action shows (Developer tools spec D-C): what it can do, whether anything
+   leaves this machine, then the choice. The words come from the Engine; this only lays them out. *@
+<div class="approval-dialog" data-testid="approval-dialog" data-approval-kind="@Preview.Kind">
+    <strong class="approval-dialog__title" data-testid="approval-title">@Preview.Title</strong>
+    <p class="approval-dialog__heading">It can:</p>
+    @if (Preview.CanDo.Count == 0)
+    {
+        <p class="approval-dialog__nothing">Nothing special</p>
+    }
+    else
+    {
+        <ul class="approval-dialog__list" data-testid="approval-can-do">
+            @foreach (var line in Preview.CanDo)
+            {
+                <li>@line</li>
+            }
+        </ul>
+    }
+    <p class="approval-dialog__sends" data-testid="approval-sends-data"><strong>Sends data out:</strong> @SendsDataText</p>
+    @if (Preview.Notes.Count > 0)
+    {
+        <ul class="approval-dialog__notes" data-testid="approval-notes">
+            @foreach (var note in Preview.Notes)
+            {
+                <li>@note</li>
+            }
+        </ul>
+    }
+    <footer class="approval-dialog__actions">
+        <AppButton Label="Cancel" OnClick="CancelAsync" />
+        <AppButton Label="@ConfirmLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ConfirmAsync" />
+    </footer>
+</div>
+
+@code {
+    [CascadingParameter] public IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>What to show: the Engine's own words for one item.</summary>
+    [Parameter, EditorRequired] public ApprovalPreviewResponse Preview { get; set; } = new();
+
+    private string SendsDataText => Preview.SendsDataOut
+        ? string.IsNullOrWhiteSpace(Preview.SendsDataTo) ? "Yes" : $"Yes, to {Preview.SendsDataTo}"
+        : "No";
+
+    private string ConfirmLabel => Preview.Kind switch
+    {
+        ApprovalKinds.ApplicationCredential => "Issue key",
+        ApprovalKinds.Webhook => "Save",
+        ApprovalKinds.Application => "Allow",
+        ApprovalKinds.Plugin or ApprovalKinds.AiFeature => "Turn on",
+        _ => "Confirm",
+    };
+
+    private Task ConfirmAsync() => Dialog.CloseAsync(AppDialogResult.Ok(true));
+
+    private Task CancelAsync() => Dialog.CancelAsync();
+}

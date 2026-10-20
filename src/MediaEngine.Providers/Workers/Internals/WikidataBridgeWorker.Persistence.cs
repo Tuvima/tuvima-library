@@ -58,7 +58,7 @@ public sealed partial class WikidataBridgeWorker
             }
 
             var organized = await _postPipeline.EvaluateAndOrganizeAsync(
-                job.EntityId, job.Id, wikidataQid: null, job.IngestionRunId, ct,
+                job.EntityId, job.Id, wikidataQid: null, ct,
                 retainedRetailIdentity: true);
             if (organized)
             {
@@ -67,7 +67,6 @@ public sealed partial class WikidataBridgeWorker
                     await _collectionFinalization.FinalizeAsync(
                         job.EntityId,
                         CollectionFinalizationReason.RetainedRetailIdentity,
-                        job.IngestionRunId,
                         ct).ConfigureAwait(false);
                 }
 
@@ -175,7 +174,6 @@ public sealed partial class WikidataBridgeWorker
                 OperationKind = MediaOperationKind.Identity,
                 EntityId = job.EntityId,
                 EntityKind = "asset",
-                BatchId = job.IngestionRunId,
                 CapabilityId = CapabilityId.IdentityWikidataBridge,
                 CapabilityVersion = WikidataLibraryInfo.PackageVersion,
                 ProviderId = "wikidata",
@@ -340,87 +338,6 @@ public sealed partial class WikidataBridgeWorker
             await _capabilityStates.MarkRunningAsync(job.EntityId, CapabilityId.IdentityWikidataBridge, null, operation.Id, ct).ConfigureAwait(false);
         }
     }
-    // -------------------------------------------------------------------------
-    // Batch gate (D4) — computed before every poll cycle
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns the set of ingestion run IDs that the batch gate is currently
-    /// holding back from Stage 2. A run is gated when:
-    ///   • <c>batch_gate.enabled</c> is true, AND
-    ///   • the run's total file count is above <c>small_batch_threshold</c>, AND
-    ///   • the run started less than <c>timeout_seconds</c> ago, AND
-    ///   • at least one Stage 1 job (Queued or RetailSearching) still exists
-    ///     for that run.
-    ///
-    /// Ad-hoc jobs (NULL ingestion_run_id) are always excluded from gating by
-    /// <see cref="IIdentityJobRepository.LeaseNextAsync"/>, so they never appear
-    /// in the pending-count query results.
-    /// </summary>
-    private async Task<IReadOnlyList<string>> GetGatedRunIdsAsync(CancellationToken ct)
-    {
-        var gate = GetExecutionSnapshot().Core.Pipeline.BatchGate;
-
-        if (!gate.Enabled)
-        {
-            return [];
-        }
-
-        // Collect distinct run IDs from the current Stage 2 ready pool by
-        // temporarily leasing a small probe batch and immediately releasing any
-        // that are gated. To avoid that complexity, we instead look at the
-        // Stage 1 pending counts directly: any run ID that GetPendingStage1CountsByRunAsync
-        // reports as having pending jobs is a candidate for gating.
-        //
-        // We can't easily enumerate all run IDs without a dedicated query.
-        // The practical approach: get the recent running batches from the batch
-        // repository and filter them. This is cheap (indexed PK lookup).
-        var recentBatches = await _batchRepo.GetRecentAsync(limit: 50, ct);
-
-        // Only "running" batches are candidates — completed/failed batches have no
-        // remaining Stage 1 jobs to wait for.
-        var runningBatches = recentBatches
-            .Where(b => string.Equals(b.Status, "running", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (runningBatches.Count == 0)
-        {
-            return [];
-        }
-
-        var timeoutCutoff = DateTimeOffset.UtcNow.AddSeconds(-gate.TimeoutSeconds);
-
-        // Pre-filter: batches that have already timed out or are too small skip the gate.
-        var candidateRunIds = runningBatches
-            .Where(b => b.FilesTotal > gate.SmallBatchThreshold)
-            .Where(b => b.StartedAt >= timeoutCutoff)
-            .Select(b => b.Id.ToString())
-            .ToList();
-
-        if (candidateRunIds.Count == 0)
-        {
-            return [];
-        }
-
-        // Ask the job repo which of these candidate runs still have Stage 1 pending jobs.
-        var pendingCounts = await _jobRepo.GetPendingStage1CountsByRunAsync(candidateRunIds, ct);
-
-        // Only runs with at least one Stage 1 job still pending get gated.
-        var gated = pendingCounts.Keys
-            .Where(runId => pendingCounts[runId] > 0)
-            .ToList();
-
-        if (gated.Count > 0)
-        {
-            _logger.LogInformation(
-                "Wikidata: gating {Count} batch(es) — Stage 1 still in progress [{RunIds}]",
-                gated.Count,
-                string.Join(", ", gated));
-        }
-
-        return gated;
-    }
-
     // -------------------------------------------------------------------------
     // Phase 3b: lineage-aware Work routing
     // -------------------------------------------------------------------------

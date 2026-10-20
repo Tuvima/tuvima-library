@@ -1,0 +1,53 @@
+.universe-cast {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    gap: var(--tl-space-2, 0.5rem);
+    list-style: none;
+}
+
+/* The frame belongs to the list item. The row inside it (a link, or a button made by AppNativeButton) takes its padding,
+   hover and focus ring from the shared list-row button class, so nothing here has to reach into the button. */
+.universe-cast__item {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-primary);
+}
+
+.universe-cast__item:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+a.universe-cast__row {
+    display: block;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+.universe-cast__body {
+    display: flex;
+    min-height: var(--tl-tap-target-min, 44px);
+    align-items: center;
+    gap: var(--tl-space-3, 0.75rem);
+}
+
+.universe-cast__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.universe-cast__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.universe-cast__characters {
+    color: var(--tl-text-secondary);
+    font-size: 0.88rem;
+    overflow-wrap: anywhere;
+}

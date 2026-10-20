@@ -1,6 +1,7 @@
 @page "/view/folders"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
 @inject UIOrchestratorService Orchestrator
@@ -9,7 +10,7 @@
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
 
-<PageTitle>Folders - Tuvima Library</PageTitle>
+<PageTitle>Folders - Library</PageTitle>
 <ViewSectionShell>
     <ViewContentPage Title="Folders" Subtitle="Browse files by their real source and folder structure." Class="view-folders-page">
         <HeaderActions>
@@ -143,8 +144,12 @@
     }
     private string ResourceUrl(LocalAssetDto item, ViewMediaResourceKind kind) => !_profileId.HasValue ? "" :
         $"/view-media/{MediaGrants.Create(_profileId.Value, item.LibraryId, item.Id, kind, scopeKind: Workspace.ScopeKind, scopeProfileId: Workspace.ScopeProfileId).Value}";
-    [SupplyParameterFromQuery(Name = "source")] public Guid? SourceId { get; set; }
-    [SupplyParameterFromQuery(Name = "path")] public string? RelativePath { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Routed => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri);
+    public Guid? SourceId => Routed.Guid("source");
+    public string? RelativePath => Routed.String("path");
     private ViewFolderPageDto? _page;
     private Guid? _profileId;
     private bool _loading = true, _loadingMore, _recursive;

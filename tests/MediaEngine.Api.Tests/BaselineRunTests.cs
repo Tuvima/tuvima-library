@@ -27,6 +27,8 @@ public sealed class BaselineRunTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         File.WriteAllText(file, "original");
         File.SetLastWriteTimeUtc(file, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        // Windows can update a folder's time a moment after a file is written into it; pin it so only the file moves.
+        Directory.SetLastWriteTimeUtc(Path.GetDirectoryName(file)!, new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
         var before = BaselineRun.Inventory(_root);
         var again = BaselineRun.Inventory(_root);
@@ -94,5 +96,31 @@ public sealed class BaselineRunTests : IDisposable
 
         Assert.Equal("{}", File.ReadAllText(Path.Combine(config, "core.json")));
         Assert.False(Directory.Exists(Path.Combine(_root, "data")));
+    }
+
+    [Fact]
+    public void Prepare_HoldsEveryClockSchedule_SoARunAcrossTheNightMatchesOneThatIsNot()
+    {
+        var repo = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(repo, "MediaEngine.slnx")))
+        {
+            repo = Path.GetDirectoryName(repo)!;
+        }
+
+        var config = Path.Combine(_root, "config");
+        Directory.CreateDirectory(config);
+        File.Copy(Path.Combine(repo, "config", "maintenance.json"), Path.Combine(config, "maintenance.json"));
+
+        BaselinePrepare.HoldClockSchedules(config);
+
+        using var held = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(config, "maintenance.json")));
+        var schedules = held.RootElement.GetProperty("schedules").EnumerateObject().ToList();
+        Assert.NotEmpty(schedules);
+        Assert.All(schedules, schedule => Assert.Equal(BaselinePrepare.HeldSchedule, schedule.Value.GetString()));
+        Assert.False(held.RootElement.GetProperty("retag_sweep").GetProperty("enabled").GetBoolean());
+        Assert.False(held.RootElement.GetProperty("storage_maintenance").GetProperty("enabled").GetBoolean());
+        var next = MediaEngine.Api.Services.CronScheduler.NextOccurrence(BaselinePrepare.HeldSchedule, new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero));
+        Assert.NotNull(next);
+        Assert.Equal((2, 29), (next.Value.Month, next.Value.Day));
     }
 }

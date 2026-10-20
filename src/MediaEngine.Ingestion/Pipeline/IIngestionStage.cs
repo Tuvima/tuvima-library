@@ -29,13 +29,10 @@ internal sealed class DelegateIngestionStage(
         execute(context, ct);
 }
 
-internal sealed class IngestionPipelineContext(
-    IngestionCandidate candidate,
-    Guid ingestionRunId)
+internal sealed class IngestionPipelineContext(IngestionCandidate candidate)
 {
     public IngestionCandidate Candidate { get; } = candidate;
     public LibraryFolderEntry? Library { get; set; }
-    public Guid IngestionRunId { get; } = ingestionRunId;
     public MediaOperation? DurableOperation { get; set; }
     public Guid LogEntryId { get; set; }
     public System.Diagnostics.Stopwatch? PipelineStopwatch { get; set; }

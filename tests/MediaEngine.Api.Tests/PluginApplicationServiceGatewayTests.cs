@@ -256,7 +256,7 @@ public sealed class PluginApplicationServiceGatewayTests
             Directory.CreateDirectory(library);
             _loader = new ConfigurationDirectoryLoader(config);
             _loader.SaveCore(new CoreConfiguration { LibraryRoot = library });
-            Catalog = new PluginCatalog([new TestFandomPlugin(Provider)], new PluginSettingsService(_loader), _loader, NullLogger<PluginCatalog>.Instance);
+            Catalog = new PluginCatalog([new TestFandomPlugin(Provider)], new PluginSettingsService(_loader), _loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         }
 
         public PluginCatalog Catalog { get; }
@@ -326,6 +326,7 @@ public sealed class PluginApplicationServiceGatewayTests
         public IPluginStorage Storage => null!;
         public IPluginToolRuntime Tools => null!;
         public IPluginAiClient Ai => null!;
+        public IPluginSecrets Secrets => null!;
         public ValueTask DisposeAsync()
         {
             IsDisposed = true;

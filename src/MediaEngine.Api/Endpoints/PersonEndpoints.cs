@@ -498,9 +498,7 @@ public static class PersonEndpoints
                 return Results.Ok(Array.Empty<MediaEngine.Contracts.Collections.CollectionDto>());
             }
 
-            var visibleWorkIds = (await display.LoadWorksAsync(ct))
-                .Select(work => work.WorkId)
-                .ToHashSet();
+            var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var allCollections = await collectionRepo.GetAllAsync(ct);
             var dtos = allCollections
                 .Where(h => collectionIds.Contains(h.Id))

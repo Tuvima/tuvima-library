@@ -5,6 +5,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.MediaTiles;
+using MediaEngine.Web.Services.Navigation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
@@ -24,11 +25,15 @@ public partial class ShelfGridPage
     [Parameter] public string Lane { get; set; } = string.Empty;
     [Parameter] public string ShelfKey { get; set; } = string.Empty;
 
-    [SupplyParameterFromQuery(Name = "sort")] public string? SortQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "type")] public string? TypeQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "genre")] public string? GenreQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "format")] public string? FormatQuery { get; set; }
-    [SupplyParameterFromQuery(Name = "status")] public string? StatusQuery { get; set; }
+    // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Routed => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? SortQuery => Routed.String("sort");
+    public string? TypeQuery => Routed.String("type");
+    public string? GenreQuery => Routed.String("genre");
+    public string? FormatQuery => Routed.String("format");
+    public string? StatusQuery => Routed.String("status");
 
     private readonly List<MediaTileViewModel> _tiles = [];
     private readonly HashSet<Guid> _tileIds = [];

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -816,23 +817,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(
-        Guid runId, CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<List<ActivityEntryResponse>>(
-                $"/activity/run/{runId}", ct);
-            return raw ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/run/{RunId} failed", runId);
-            return [];
-        }
-    }
-
     public async Task<List<ActivityEntryResponse>> GetActivityByTypesAsync(
         string[] actionTypes, int limit = 50, CancellationToken ct = default)
     {
@@ -848,248 +832,6 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "GET /activity/by-types failed");
             return [];
-        }
-    }
-
-    public async Task<PagedResponse<ActivityBatchSummaryDto>?> GetActivityBatchesAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var page = await _http.GetFromJsonAsync<PagedResponse<ActivityBatchSummaryDto>>(
-                BuildActivityQueryPath("/activity/batches", query), ct);
-            if (page is not null)
-            {
-                foreach (var batch in page.Items)
-                {
-                    NormalizePresentationUrls(batch.AddedPreview);
-                }
-            }
-
-            return page;
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/batches failed");
-            return null;
-        }
-    }
-
-    public async Task<List<ActivityMediaTypeGroupDto>> GetActivityBatchGroupsAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<List<ActivityMediaTypeGroupDto>>(
-                $"/activity/batches/{batchId:D}/groups", ct);
-            return raw ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/batches/{BatchId}/groups failed", batchId);
-            return [];
-        }
-    }
-
-    public async Task<PagedResponse<ActivityBatchItemDto>?> GetActivityBatchItemsAsync(
-        Guid batchId,
-        string? mediaType = null,
-        string? search = null,
-        string? status = null,
-        string? source = null,
-        int offset = 0,
-        int limit = 25,
-        string? sort = null,
-        string? sortDirection = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var query = new ActivityAuditQuery
-            {
-                MediaType = mediaType,
-                Search = search,
-                Status = status,
-                Source = source,
-                Offset = offset,
-                Limit = limit,
-                Sort = sort,
-                SortDirection = string.IsNullOrWhiteSpace(sortDirection) ? "asc" : sortDirection,
-            };
-            var page = await _http.GetFromJsonAsync<PagedResponse<ActivityBatchItemDto>>(
-                BuildActivityQueryPath($"/activity/batches/{batchId:D}/items", query), ct);
-            if (page is not null)
-            {
-                foreach (var item in page.Items)
-                {
-                    if (item.CoverUrl is not null)
-                    {
-                        item.CoverUrl = AbsoluteUrl(item.CoverUrl);
-                    }
-                }
-            }
-
-            return page;
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/batches/{BatchId}/items failed", batchId);
-            return null;
-        }
-    }
-
-    public async Task<ActivityBatchItemDetailDto?> GetActivityBatchItemDetailAsync(
-        Guid batchId,
-        Guid assetId,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var detail = await _http.GetFromJsonAsync<ActivityBatchItemDetailDto>(
-                $"/activity/batches/{batchId:D}/items/{assetId:D}", ct);
-            NormalizeActivityDetail(detail);
-            return detail;
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/batches/{BatchId}/items/{AssetId} failed", batchId, assetId);
-            return null;
-        }
-    }
-
-    public Task<PagedResponse<ActivityTechnicalEventDto>?> GetActivityBatchEventsAsync(
-        Guid batchId,
-        string? search = null,
-        string? eventType = null,
-        string? result = null,
-        int offset = 0,
-        int limit = 25,
-        CancellationToken ct = default)
-    {
-        var query = new ActivityAuditQuery
-        {
-            Search = search,
-            EventType = eventType,
-            Status = result,
-            Offset = offset,
-            Limit = limit,
-        };
-        return GetAsync<PagedResponse<ActivityTechnicalEventDto>>(
-            "Activity technical events",
-            BuildActivityQueryPath($"/activity/batches/{batchId:D}/events", query),
-            ct: ct);
-    }
-
-    public async Task<ActivityBatchSummaryDto?> GetActivityBatchAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-    {
-        var batch = await GetAsync<ActivityBatchSummaryDto>(
-            "Activity operation",
-            $"/activity/batches/{batchId:D}",
-            ct: ct);
-        NormalizePresentationUrls(batch?.AddedPreview);
-        return batch;
-    }
-
-    public async Task<ActivityBatchInsightsDto?> GetActivityBatchInsightsAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ActivityBatchInsightsDto>(
-                $"/activity/batches/{batchId:D}/insights", ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/batches/{BatchId}/insights failed", batchId);
-            return null;
-        }
-    }
-
-    public async Task<PagedResponse<ActivityPersonAuditDto>?> GetActivityPeopleAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var page = await _http.GetFromJsonAsync<PagedResponse<ActivityPersonAuditDto>>(
-                BuildActivityQueryPath("/activity/people", query), ct);
-            if (page is not null)
-            {
-                foreach (var person in page.Items)
-                {
-                    NormalizeActivityPerson(person);
-                }
-            }
-
-            return page;
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /activity/people failed");
-            return null;
-        }
-    }
-
-    private static string BuildActivityQueryPath(string path, ActivityAuditQuery query)
-    {
-        var values = new List<string>();
-        if (query.HistoricalOnly)
-        {
-            values.Add("historicalOnly=true");
-        }
-
-        Add(values, "search", query.Search);
-        Add(values, "mediaType", query.MediaType);
-        Add(values, "status", query.Status);
-        Add(values, "source", query.Source);
-        Add(values, "eventType", query.EventType);
-        Add(values, "start", query.Start?.ToString("O"));
-        Add(values, "end", query.End?.ToString("O"));
-        Add(values, "sort", query.Sort);
-        Add(values, "sortDirection", query.SortDirection);
-        values.Add($"offset={query.Offset}");
-        values.Add($"limit={query.Limit}");
-
-        return values.Count == 0 ? path : $"{path}?{string.Join("&", values)}";
-
-        static void Add(List<string> values, string key, string? value)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                values.Add($"{key}={Uri.EscapeDataString(value)}");
-            }
-        }
-    }
-
-    private void NormalizeActivityDetail(ActivityBatchItemDetailDto? detail)
-    {
-        if (detail is null)
-        {
-            return;
-        }
-
-        foreach (var person in detail.People)
-        {
-            NormalizeActivityPerson(person);
-        }
-    }
-
-    private void NormalizeActivityPerson(ActivityPersonAuditDto person)
-    {
-        if (!string.IsNullOrWhiteSpace(person.HeadshotUrl))
-        {
-            person.HeadshotUrl = AbsoluteUrl(person.HeadshotUrl);
         }
     }
 
@@ -1566,25 +1308,49 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default)
+    public async Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default) =>
+        (await SaveAiConfigWithApprovalAsync(config, ct)).Saved;
+
+    public async Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default)
     {
         try
         {
-            var response = await _http.PutAsJsonAsync("/ai/config", config, ct);
+            using var response = await _http.PutAsJsonAsync("/ai/config", config, ct);
             if (response.IsSuccessStatusCode)
             {
-                return true;
+                return new AiConfigSaveResult(true);
+            }
+
+            // 409 approval_required: a feature was switched on that the person has not seen yet; nothing was saved.
+            if (await ApprovalResponses.TryReadAsync(response, _logger, ct) is { } approval)
+            {
+                return new AiConfigSaveResult(false, approval);
             }
 
             LastError = await response.Content.ReadAsStringAsync(ct);
-            return false;
+            return new AiConfigSaveResult(false);
         }
-        catch (OperationCanceledException) { return false; }
+        catch (OperationCanceledException) { return new AiConfigSaveResult(false); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "PUT /ai/config failed");
             LastError = ex.Message;
-            return false;
+            return new AiConfigSaveResult(false);
+        }
+    }
+
+    public async Task<IReadOnlyList<ApprovalRecordResponse>> GetApprovalsAsync(string kind, string itemId, CancellationToken ct = default)
+    {
+        try
+        {
+            var url = $"/approvals?kind={Uri.EscapeDataString(kind)}&item_id={Uri.EscapeDataString(itemId)}";
+            return await _http.GetFromJsonAsync<List<ApprovalRecordResponse>>(url, ct) ?? [];
+        }
+        catch (OperationCanceledException) { return []; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /approvals failed");
+            return [];
         }
     }
 

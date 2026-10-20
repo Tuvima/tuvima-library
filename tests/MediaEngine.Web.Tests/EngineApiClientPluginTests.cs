@@ -61,7 +61,6 @@ public sealed class EngineApiClientPluginTests
               "operation_kind":"Plugin",
               "entity_id":null,
               "entity_kind":null,
-              "batch_id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
               "source_path":"C:/media",
               "capability_id":"plugin.commercial-skip",
               "capability_version":"2",

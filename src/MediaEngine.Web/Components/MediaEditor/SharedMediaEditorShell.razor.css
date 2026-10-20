@@ -1953,35 +1953,30 @@
 
 .sme-movie-tv-suggestion { margin-bottom: 1rem; }
 
-/* Editing Mode drawer: the same shell in a narrow column. A tab strip replaces the section rail; the drawer owns the header. */
-.sme-shell.sme-shell--drawer {
+/* Editing Mode section slot: the same shell, full content width below the hero. The slot owns the heading and the capped
+   height, so the shell fills what it is given: the body scrolls inside it and the save footer stays in view. */
+.sme-shell.sme-shell--section {
+    flex: 1 1 auto;
     max-width: none;
-    height: 100%;
+    height: auto;
     min-height: 0;
     max-height: none;
-    background: var(--tl-bg-surface);
+    background: transparent;
 }
 
-.sme-shell--drawer .sme-workspace {
+.sme-shell--section .sme-workspace {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    width: 100%;
 }
 
-.sme-shell--drawer .sme-section-nav {
-    --sme-nav-flex: 1 1 0;
-    --sme-nav-min-height: 3.5rem;
-    --sme-nav-direction: column;
-    --sme-nav-justify: center;
-    --sme-nav-gap: 0.15rem;
-    --sme-nav-text-align: center;
-    flex-direction: row;
-    gap: var(--tl-space-1);
-    padding: var(--tl-space-2) var(--tl-space-3);
-    border-right: 0;
-    border-bottom: 1px solid var(--tl-divider);
-}
-
-.sme-shell--drawer .sme-body,
-.sme-shell--drawer .sme-footer {
+.sme-shell--section .sme-body,
+.sme-shell--section .sme-footer {
     padding: var(--tl-space-3) var(--tl-space-4);
+}
+
+/* The slot caps the height; without this the body is sized to it but clips what is below instead of scrolling. */
+.sme-shell--section .sme-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }

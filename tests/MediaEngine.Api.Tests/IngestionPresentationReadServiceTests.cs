@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -25,48 +26,27 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task NotificationReadReturnsOnlyNewestThreeWithDurableOutstandingWork()
-    {
-        var now = DateTimeOffset.UtcNow;
-        var ids = Enumerable.Range(0, 4).Select(index => AddBatch("completed", 1, 1, now.AddMinutes(index))).ToArray();
-        using var conn = _db.CreateConnection();
-        conn.Execute("UPDATE ingestion_batches SET files_review=2 WHERE id=@id;", new { id = ids[3] });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,'Queued','Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset = Guid.NewGuid(), batch = ids[3], now = now.ToString("O") });
-        var rows = await new MediaEngine.Api.Services.IngestionNotificationReadService(_db).GetRecentAsync();
-        Assert.Equal(ids.Reverse().Take(3), rows.Select(row => row.BatchId));
-        Assert.Equal("completed", rows[0].Status);
-        Assert.Equal(2, rows[0].ReviewCount);
-        Assert.Equal(1, rows[0].OutstandingOperations);
-        Assert.Equal(0, rows[1].OutstandingOperations);
-    }
-
-    [Fact]
     public async Task AvailabilityReadServicesHonorCancellationBeforeOpeningDatabase()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => IngestionAvailability.IsUpdatingAsync(null!, Guid.NewGuid(), cancellation.Token));
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new MediaEngine.Api.Services.IngestionNotificationReadService(null!).GetRecentAsync(cancellation.Token));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new MediaEngine.Api.Services.Details.ContributorReadiness(null!).ApplyAsync(new MediaEngine.Contracts.Details.DetailPageViewModel(), cancellation.Token));
     }
 
     [Fact]
     public async Task ContributorReadinessUpdatesEveryCreditAndClearsAfterEnrichment()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Books", "Readiness Fixture");
+        var work = AddStandalone("Books", "Readiness Fixture");
         var person = Guid.NewGuid();
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT a.id FROM media_assets a JOIN editions e ON e.id=a.edition_id WHERE e.work_id=@work;", new { work });
         conn.Execute("INSERT INTO persons (id,name,created_at) VALUES (@person,'Fixture Author',@now);", new { person, now = DateTimeOffset.UtcNow.ToString("O") });
         conn.Execute("INSERT INTO person_media_links (media_asset_id,person_id,role) VALUES (@asset,@person,'Author');", new { asset, person });
         conn.Execute("""
-            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
-            VALUES (@id,'enrichment.people','enrichment',@asset,@batch,'queued',1,@now,@now,@key);
-            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,status,position_key,created_at,updated_at,idempotency_key)
+            VALUES (@id,'enrichment.people','enrichment',@asset,'queued',1,@now,@now,@key);
+            """, new { id = Guid.NewGuid(), asset, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
         var first = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = person.ToString("D") };
         var duplicate = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = person.ToString("D") };
         var unrelated = new MediaEngine.Contracts.Details.EntityCreditViewModel { EntityId = Guid.NewGuid().ToString("D"), IsUpdatingDetails = true };
@@ -88,32 +68,30 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CurrentMedia_GroupsFilesByStructuralIdentityAndShowsAddedCountsWithoutCatalogueTotals()
+    public async Task RecentAdditions_GroupFilesByStructuralIdentityAndShowAddedCountsWithoutCatalogueTotals()
     {
-        var batchId = AddBatch("running", 45, 28);
         var completeAlbum = AddContainer("Music", "Album One", expectedKey: "track_count", expectedValue: "17");
-        AddChildren(batchId, completeAlbum, "Music", "Song", 17, "track_number");
+        AddChildren(completeAlbum, "Music", "Song", 17, "track_number");
 
         var partialAlbum = AddContainer("Music", "Album Two", expectedKey: "track_count", expectedValue: "17");
-        AddChildren(batchId, partialAlbum, "Music", "Part", 14, "track_number");
+        AddChildren(partialAlbum, "Music", "Part", 14, "track_number");
 
         var unknownAlbum = AddContainer("Music", "Unknown Total");
-        AddChildren(batchId, unknownAlbum, "Music", "Track", 3, "track_number");
+        AddChildren(unknownAlbum, "Music", "Track", 3, "track_number");
 
         var show = AddContainer("TV", "The Example Show");
         var season = AddContainer("TV", "Season 2", show, "episode_count", "10");
-        AddChildren(batchId, season, "TV", "Episode", 10, "episode_number", seasonNumber: 2);
+        AddChildren(season, "TV", "Episode", 10, "episode_number", seasonNumber: 2);
 
         var audiobook = AddContainer("Audiobooks", "A Long Listen", expectedKey: "audiobook_part_count", expectedValue: "4");
-        AddChildren(batchId, audiobook, "Audiobooks", "Part", 4, partCount: 4);
+        AddChildren(audiobook, "Audiobooks", "Part", 4, partCount: 4);
 
         var service = new IngestionPresentationReadService(_db);
-        var page = await service.GetCurrentMediaAsync(0, 50);
+        var page = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
         var snapshot = await service.GetSnapshotAsync();
 
         Assert.Equal(5, page.TotalCount);
         Assert.Equal(0, snapshot.CurrentMediaTotal); // Settled groups leave the live tile rail.
-        Assert.Equal(5, snapshot.ReadyGroups);
         var one = Assert.Single(page.Items, item => item.GroupId == completeAlbum);
         Assert.Equal(17, one.ChildCompleted);
         Assert.Equal(17, one.FileCount);
@@ -123,9 +101,11 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal("complete", one.Relationships.State);
         Assert.Equal("No relationships found", one.Relationships.Label);
 
+        // Neither the album's catalogue total nor a partly added album is turned into a denominator.
         var partial = Assert.Single(page.Items, item => item.GroupId == partialAlbum);
         Assert.Equal(14, partial.ChildCompleted);
         Assert.Null(partial.ChildExpected);
+        Assert.Equal("tracks", partial.ChildUnit);
 
         var unknown = Assert.Single(page.Items, item => item.GroupId == unknownAlbum);
         Assert.Equal(3, unknown.ChildCompleted);
@@ -143,11 +123,32 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CurrentMedia_GroupsFilesStillBeingAddedByStructuralIdentity()
+    {
+        var album = AddContainer("Music", "Album In Flight", expectedKey: "track_count", expectedValue: "17");
+        AddChildren(album, "Music", "Song", 3, "track_number", ready: false);
+
+        var show = AddContainer("TV", "Show In Flight");
+        var season = AddContainer("TV", "Season 1", show);
+        AddChildren(season, "TV", "Episode", 4, "episode_number", seasonNumber: 1, ready: false);
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal(2, page.TotalCount);
+        var music = Assert.Single(page.Items, item => item.GroupId == album);
+        Assert.Equal(3, music.FileCount);
+        Assert.Equal(0, music.ChildCompleted);
+        Assert.Null(music.ChildExpected);
+        var tv = Assert.Single(page.Items, item => item.GroupId == show);
+        Assert.Equal(4, tv.FileCount);
+        Assert.Equal("episodes", tv.ChildUnit);
+    }
+
+    [Fact]
     public async Task CurrentMedia_DoesNotMergeDistinctWorksWithTheSameTitle()
     {
-        var batchId = AddBatch("running", 2, 2);
-        AddStandalone(batchId, "Movies", "The Same Title");
-        AddStandalone(batchId, "Movies", "The Same Title");
+        AddStandalone("Movies", "The Same Title", ready: false);
+        AddStandalone("Movies", "The Same Title", ready: false);
 
         var service = new IngestionPresentationReadService(_db);
         var page = await service.GetCurrentMediaAsync(0, 50);
@@ -158,11 +159,50 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CurrentMedia_TwoFilesOfTheSameShowIngestedInSeparateIntakesFormOneGroup()
+    {
+        var show = AddContainer("TV", "The Slow Show");
+        var season = AddContainer("TV", "Season 1", show);
+        AddChildren(season, "TV", "Episode", 1, "episode_number", seasonNumber: 1, ready: false);
+        // The second episode arrives in a later, separate intake.
+        AddChildren(season, "TV", "Later Episode", 1, "episode_number", seasonNumber: 1, ready: false, loggedAt: DateTimeOffset.UtcNow.AddDays(-2));
+
+        var current = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        var group = Assert.Single(current.Items);
+        Assert.Equal(show, group.GroupId);
+        Assert.Equal(2, group.FileCount);
+        Assert.Equal(1, current.TotalCount);
+    }
+
+    [Fact]
+    public async Task CurrentMedia_AFileWithAnOpenIntakeRowStaysInFlightEvenWhenItsWorkIsReady()
+    {
+        var work = AddStandalone("Movies", "Still Being Placed");
+        AddIntakeOperation(work, "running");
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal(work, Assert.Single(page.Items).GroupId);
+    }
+
+    [Fact]
+    public async Task CurrentMedia_AGroupWhoseFileFailedTerminallyIsNotInFlight()
+    {
+        var failed = AddStandalone("Movies", "Gave Up", ready: false);
+        var waiting = AddStandalone("Movies", "Still Waiting", ready: false);
+        AddIntakeOperation(failed, "dead_lettered");
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        Assert.Equal(waiting, Assert.Single(page.Items).GroupId);
+    }
+
+    [Fact]
     public async Task CurrentMedia_CountsDistinctTracksInsteadOfDuplicateAssetsOrTrackNumbers()
     {
-        var batchId = AddBatch("running", 6, 6);
         var albumId = AddContainer("Music", "A Night at the Opera", expectedKey: "track_count", expectedValue: "12");
-        AddChildren(batchId, albumId, "Music", "Song", 5, "track_number");
+        AddChildren(albumId, "Music", "Song", 5, "track_number");
 
         using (var conn = _db.CreateConnection())
         {
@@ -187,11 +227,11 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 path = $"C:/watch/{duplicateAssetId:N}.media",
                 now,
             });
-            InsertLog(conn, Guid.NewGuid(), batchId, duplicateAssetId, "Music", "Duplicate encoding", now);
+            InsertLog(conn, Guid.NewGuid(), duplicateAssetId, "Music", "Duplicate encoding", now);
         }
 
         var service = new IngestionPresentationReadService(_db);
-        var item = Assert.Single((await service.GetCurrentMediaAsync(0, 50)).Items);
+        var item = Assert.Single((await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50)).Items);
 
         Assert.Equal(5, item.ChildCompleted);
         Assert.Equal(6, item.FileCount);
@@ -202,9 +242,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Children_FormatDecimalMinuteTrackDurationsAndFitSixtyRowsInOneResponse()
     {
-        var batchId = AddBatch("running", 60, 60);
         var albumId = AddContainer("Music", "Long Album");
-        AddChildren(batchId, albumId, "Music", "Song", 60, "track_number");
+        AddChildren(albumId, "Music", "Song", 60, "track_number");
         using (var conn = _db.CreateConnection())
         {
             var firstTrackId = conn.QuerySingle<Guid>("SELECT id FROM works WHERE parent_work_id = @albumId ORDER BY ordinal LIMIT 1;", new { albumId });
@@ -212,7 +251,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 new { firstTrackId, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
-        var children = await new IngestionPresentationReadService(_db).GetChildrenAsync(batchId, albumId, 0, 250);
+        var children = await new IngestionPresentationReadService(_db).GetChildrenAsync(albumId, 0, 250);
 
         Assert.Equal(60, children.Items.Count);
         Assert.False(children.HasMore);
@@ -222,10 +261,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task CurrentMedia_PagesGroupsBeforeProjectingDetails()
     {
-        var batchId = AddBatch("running", 75, 75);
         for (var index = 1; index <= 75; index++)
         {
-            AddStandalone(batchId, "Movies", $"Current Movie {index:00}");
+            AddStandalone("Movies", $"Current Movie {index:00}", ready: false);
         }
 
         var service = new IngestionPresentationReadService(_db);
@@ -237,18 +275,16 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RecentAdditions_IncludesEarlierRunsAndPagesBeyondFiftyGroups()
+    public async Task RecentAdditions_IncludesEverythingEverAddedAndPagesBeyondFiftyGroups()
     {
-        var firstBatch = AddBatch("completed", 30, 30, DateTimeOffset.UtcNow.AddDays(-2));
-        var secondBatch = AddBatch("completed", 55, 55, DateTimeOffset.UtcNow.AddDays(-1));
         for (var index = 1; index <= 30; index++)
         {
-            AddStandalone(firstBatch, "Books", $"Earlier Book {index:00}", presented: true);
+            AddStandalone("Books", $"Earlier Book {index:00}", presented: true, occurredAt: DateTimeOffset.UtcNow.AddDays(-2));
         }
 
         for (var index = 1; index <= 55; index++)
         {
-            AddStandalone(secondBatch, "Movies", $"Recent Movie {index:00}", presented: true);
+            AddStandalone("Movies", $"Recent Movie {index:00}", presented: true, occurredAt: DateTimeOffset.UtcNow.AddDays(-1));
         }
 
         var service = new IngestionPresentationReadService(_db);
@@ -260,80 +296,17 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.True(firstPage.HasMore);
         Assert.Equal(35, secondPage.Items.Count);
         Assert.False(secondPage.HasMore);
-        Assert.Contains(secondPage.Items, item => item.BatchId == firstBatch);
+        Assert.Contains(secondPage.Items, item => item.Title.StartsWith("Earlier Book", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task BatchMedia_PagesPastTheFirstTwentyFiveItems()
+    public async Task RecentAdditions_HidesArtworkBearingGroupsUntilTheyHaveARealTitle()
     {
-        var batchId = AddBatch("completed", 30, 30);
-        for (var index = 1; index <= 30; index++)
-        {
-            AddStandalone(batchId, "Movies", $"Movie {index:00}", presented: true);
-        }
-
-        var service = new IngestionPresentationReadService(_db);
-        var page = await service.GetBatchMediaAsync(batchId, 25, 25);
-        var detail = await service.GetBatchPresentationAsync(batchId);
-
-        Assert.Equal(30, page.TotalCount);
-        Assert.Equal(5, page.Items.Count);
-        Assert.NotNull(detail);
-        Assert.Equal(30, detail.AddedTotal);
-        Assert.Null(detail.PeopleUpdated);
-        Assert.Null(detail.ArtworkAdded);
-        Assert.Null(detail.TextTracksAdded);
-    }
-
-    [Fact]
-    public async Task HistoricalBatch_DoesNotUseCatalogueTotalsAsRunDenominators()
-    {
-        var batchId = AddBatch("completed", 3, 3);
-        var album = AddContainer("Music", "Partial Album", expectedKey: "track_count", expectedValue: "17");
-        AddChildren(batchId, album, "Music", "Track", 3, "track_number");
-        using (var conn = _db.CreateConnection())
-        {
-            conn.Execute("UPDATE media_assets SET presented_at = @now;", new { now = DateTimeOffset.UtcNow.ToString("O") });
-        }
-
-        var service = new IngestionPresentationReadService(_db);
-        var page = await service.GetBatchMediaAsync(batchId, 0, 50);
-
-        var item = Assert.Single(page.Items);
-        Assert.Equal(3, item.ChildCompleted);
-        Assert.Null(item.ChildExpected);
-        Assert.Equal("tracks", item.ChildUnit);
-    }
-
-    [Fact]
-    public async Task BatchMedia_AppliesSearchAndLaneBeforePaging()
-    {
-        var batchId = AddBatch("completed", 61, 61);
-        for (var index = 1; index <= 60; index++)
-        {
-            AddStandalone(batchId, "Movies", $"Movie {index:00}", presented: true);
-        }
-
-        AddStandalone(batchId, "Books", "The Needle Book", presented: true);
-
-        var service = new IngestionPresentationReadService(_db);
-        var page = await service.GetBatchMediaAsync(batchId, 0, 50, "needle", "Read", "newest");
-
-        var item = Assert.Single(page.Items);
-        Assert.Equal("The Needle Book", item.Title);
-        Assert.Equal("Books", item.MediaType);
-        Assert.Equal(1, page.TotalCount);
-    }
-
-    [Fact]
-    public async Task BatchMedia_HidesArtworkBearingGroupsUntilTheyHaveARealTitle()
-    {
-        var batchId = AddBatch("completed", 1, 1);
-        var workId = AddStandalone(batchId, "Books", "Temporary detection", presented: true);
+        var workId = AddStandalone("Books", "Temporary detection", presented: true);
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("DELETE FROM canonical_values WHERE entity_id = @workId AND key = 'title';", new { workId });
-            conn.Execute("UPDATE ingestion_log SET detected_title = NULL, normalized_title = NULL WHERE ingestion_run_id = @batchId;", new { batchId });
+            conn.Execute("UPDATE ingestion_log SET detected_title = NULL, normalized_title = NULL;");
             conn.Execute("""
                 INSERT INTO entity_assets (
                     id, entity_id, entity_type, asset_type, local_image_path,
@@ -345,22 +318,17 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 """, new { id = Guid.NewGuid(), workId, now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
-        var service = new IngestionPresentationReadService(_db);
-        var page = await service.GetBatchMediaAsync(batchId, 0, 50);
-        var presentation = await service.GetBatchPresentationAsync(batchId);
+        var page = await new IngestionPresentationReadService(_db).GetRecentAdditionsAsync(null, null, null, null, 0, 50);
 
         Assert.Empty(page.Items);
         Assert.Equal(0, page.TotalCount);
-        Assert.NotNull(presentation);
-        Assert.Empty(presentation.AddedPreview);
-        Assert.Equal(0, presentation.AddedTotal);
     }
 
     [Fact]
-    public async Task RecentAdditions_DoesNotTreatLaterReprocessingAsANewAddition()
+    public async Task RecentAdditions_AScanOfTheSameFileLaterIsNotANewAddition()
     {
-        var additionBatch = AddBatch("completed", 1, 1);
-        var workId = AddStandalone(additionBatch, "Movies", "Added Once", presented: true);
+        var firstReady = DateTimeOffset.UtcNow.AddDays(-3);
+        var workId = AddStandalone("Movies", "Added Once", presented: true, occurredAt: firstReady);
         Guid assetId;
         using (var conn = _db.CreateConnection())
         {
@@ -370,79 +338,90 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 JOIN editions e ON e.id = ma.edition_id
                 WHERE e.work_id = @workId;
                 """, new { workId });
-        }
-
-        var refreshTime = DateTimeOffset.UtcNow.AddMinutes(5);
-        var refreshBatch = AddBatch("completed", 1, 1, refreshTime);
-        using (var conn = _db.CreateConnection())
-        {
-            InsertLog(
-                conn,
-                Guid.NewGuid(),
-                refreshBatch,
-                assetId,
-                "Movies",
-                "Added Once",
-                refreshTime.ToString("O"));
+            InsertLog(conn, Guid.NewGuid(), assetId, "Movies", "Added Once", DateTimeOffset.UtcNow.AddMinutes(5).ToString("O"));
         }
 
         var service = new IngestionPresentationReadService(_db);
         var page = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        var days = (await service.GetSnapshotAsync()).RecentDays;
 
         var item = Assert.Single(page.Items);
-        Assert.Equal(additionBatch, item.BatchId);
+        Assert.Equal(workId, item.GroupId);
+        Assert.Equal(firstReady.ToUniversalTime().Date, item.AddedAt.ToUniversalTime().Date);
+        var day = Assert.Single(days);
+        Assert.Equal(DateOnly.FromDateTime(firstReady.ToLocalTime().DateTime), day.Date);
     }
 
     [Fact]
-    public async Task RecentAdditions_IncludesSettledItemsOfAnActiveBatchAndExcludesItemsStillInFlight()
+    public async Task RecentAdditions_IncludesSettledItemsWhileOthersAreStillInFlight()
     {
-        // A long first-run import is one running batch; its finished items must show up while it runs.
-        var batchId = AddBatch("running", 3, 3);
-        var addedWork = AddStandalone(batchId, "Movies", "Already Added", presented: true);
-        var inFlightWork = AddStandalone(batchId, "Movies", "Still Hydrating", presented: false, ready: false);
-        using (var conn = _db.CreateConnection())
-        {
-            var inFlightAsset = conn.QuerySingle<Guid>(
-                "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;",
-                new { work = inFlightWork });
-            conn.Execute("""
-                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-                VALUES (@id,@asset,'MediaAsset','Movies',@batch,'Hydrating','Quick',@now,@now);
-                """, new { id = Guid.NewGuid(), asset = inFlightAsset, batch = batchId, now = DateTimeOffset.UtcNow.ToString("O") });
-        }
+        // A long first-run import keeps working for hours; its finished items must show up while it runs.
+        var addedWork = AddStandalone("Movies", "Already Added", presented: true);
+        var inFlightWork = AddStandalone("Movies", "Still Hydrating", presented: false, ready: false);
+        AddIdentityJob(inFlightWork, "Hydrating", "Movies");
 
         var service = new IngestionPresentationReadService(_db);
         var whileRunning = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
 
         var added = Assert.Single(whileRunning.Items);
         Assert.Equal(addedWork, added.GroupId);
-        Assert.Equal(batchId, added.BatchId);
         Assert.Equal("Already Added", added.Title);
 
-        // Once the in-flight item settles it joins the list; the completed batch behaves as before.
+        // Once the in-flight item settles it joins the list.
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("UPDATE identity_jobs SET state = 'Ready';");
-            conn.Execute("UPDATE ingestion_batches SET status = 'completed', completed_at = @now;", new { now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
         MarkReady(inFlightWork);
 
-        var afterCompletion = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
-        Assert.Contains(afterCompletion.Items, item => item.GroupId == addedWork);
-        Assert.Contains(afterCompletion.Items, item => item.GroupId == inFlightWork);
+        var afterwards = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        Assert.Contains(afterwards.Items, item => item.GroupId == addedWork);
+        Assert.Contains(afterwards.Items, item => item.GroupId == inFlightWork);
+    }
+
+    [Fact]
+    public async Task RecentAdditions_AnItemThatBecameReadyIsListedUnderItsFirstReadyDay()
+    {
+        var firstReady = new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
+        var work = AddStandalone("Movies", "Added Without A Run Record", occurredAt: firstReady);
+        var service = new IngestionPresentationReadService(_db);
+        var snapshot = await service.GetSnapshotAsync(currentLimit: 4, recentDayLimit: 7, recentItemsPerDay: 4);
+        var page = await service.GetRecentAdditionsAsync(null, null, firstReady.AddHours(-1), firstReady.AddHours(1), 0, 50);
+
+        var day = Assert.Single(snapshot.RecentDays);
+        Assert.Equal(DateOnly.FromDateTime(firstReady.ToLocalTime().DateTime), day.Date);
+        Assert.Equal(work, Assert.Single(day.Items).GroupId);
+        Assert.Equal(work, Assert.Single(page.Items).GroupId);
+    }
+
+    [Fact]
+    public async Task RecentAdditions_AShowThatGotEpisodesOnTwoDaysIsCountedOnBothDays()
+    {
+        var show = AddContainer("TV", "Weekly Show");
+        var season = AddContainer("TV", "Season 1", show);
+        var yesterday = DateTimeOffset.UtcNow.AddDays(-1);
+        AddChildren(season, "TV", "Monday Episode", 2, "episode_number", seasonNumber: 1, readyAt: yesterday);
+        AddChildren(season, "TV", "Tuesday Episode", 1, "episode_number", seasonNumber: 1, readyAt: DateTimeOffset.UtcNow);
+
+        var service = new IngestionPresentationReadService(_db);
+        var days = (await service.GetSnapshotAsync(recentDayLimit: 7)).RecentDays;
+        var page = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+
+        Assert.Equal(2, days.Count);
+        Assert.Equal([1, 2], days.OrderByDescending(day => day.Date).Select(day => Assert.Single(day.TypeCounts).Count).ToArray());
+        Assert.Equal(show, Assert.Single(page.Items).GroupId);
     }
 
     [Fact]
     public async Task RecentAdditions_AppliesSearchAndLaneBeforeBuildingThePage()
     {
-        var batchId = AddBatch("completed", 61, 61);
         for (var index = 1; index <= 60; index++)
         {
-            AddStandalone(batchId, "Movies", $"Movie {index:00}", presented: true);
+            AddStandalone("Movies", $"Movie {index:00}", presented: true);
         }
 
-        AddStandalone(batchId, "Books", "The Needle Book", presented: true);
+        AddStandalone("Books", "The Needle Book", presented: true);
 
         var service = new IngestionPresentationReadService(_db);
         var page = await service.GetRecentAdditionsAsync("needle", "Read", null, null, 0, 50);
@@ -456,12 +435,11 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task RecentAdditions_StatusAddedExcludesNeedsReviewAndFailedGroups_AndKeepsTheTotalHonest()
     {
-        var batchId = AddBatch("completed", 5, 5);
-        var added = AddStandalone(batchId, "Movies", "Calmly Added", presented: true);
-        var alsoAdded = AddStandalone(batchId, "Books", "Quietly Added", presented: true);
-        var review = AddStandalone(batchId, "Movies", "Needs A Look", presented: true);
-        var failedOperation = AddStandalone(batchId, "Movies", "Enrichment Failed", presented: true);
-        var failedFile = AddStandalone(batchId, "Music", "File Failed", presented: true);
+        var added = AddStandalone("Movies", "Calmly Added", presented: true);
+        var alsoAdded = AddStandalone("Books", "Quietly Added", presented: true);
+        var review = AddStandalone("Movies", "Needs A Look", presented: true);
+        var failedOperation = AddStandalone("Movies", "Enrichment Failed", presented: true);
+        var failedFile = AddStandalone("Music", "File Failed", presented: true);
         var now = DateTimeOffset.UtcNow.ToString("O");
         using (var conn = _db.CreateConnection())
         {
@@ -470,16 +448,16 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 VALUES (@id, @work, 'Work', 'LowConfidence', 'Pending', @now, @now);
                 """, new { id = Guid.NewGuid(), work = review, now });
             conn.Execute("""
-                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
-                VALUES (@id,'enrichment.people','enrichment',@work,@batch,'failed_terminal',1,@now,@now,@key);
-                """, new { id = Guid.NewGuid(), work = failedOperation, batch = batchId, now, key = Guid.NewGuid().ToString() });
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.people','enrichment',@work,'failed_terminal',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), work = failedOperation, now, key = Guid.NewGuid().ToString() });
             var fileAsset = conn.QuerySingle<Guid>(
                 "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;",
                 new { work = failedFile });
             conn.Execute("""
-                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,batch_id,status,position_key,created_at,updated_at,idempotency_key)
-                VALUES (@id,'ingestion.file','ingestion',@asset,@batch,'dead_lettered',1,@now,@now,@key);
-                """, new { id = Guid.NewGuid(), asset = fileAsset, batch = batchId, now, key = Guid.NewGuid().ToString() });
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'ingestion.file','ingestion',@asset,'dead_lettered',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), asset = fileAsset, now, key = Guid.NewGuid().ToString() });
         }
 
         var service = new IngestionPresentationReadService(_db);
@@ -516,10 +494,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task RecentAdditions_ShowsAFileHeldForAMissingMediaToolAsWaitingNotFailed()
     {
-        var batchId = AddBatch("completed", 3, 3);
-        var plain = AddStandalone(batchId, "Movies", "Added Normally", presented: true);
-        var waiting = AddStandalone(batchId, "Movies", "Waiting For FFmpeg", presented: true);
-        var waitingButReview = AddStandalone(batchId, "Movies", "Waiting And Unreadable", presented: true);
+        var plain = AddStandalone("Movies", "Added Normally", presented: true);
+        var waiting = AddStandalone("Movies", "Waiting For FFmpeg", presented: true);
+        var waitingButReview = AddStandalone("Movies", "Waiting And Unreadable", presented: true);
         HoldInspection(waiting);
         HoldInspection(waitingButReview);
         using (var conn = _db.CreateConnection())
@@ -543,32 +520,58 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task LiveSnapshot_AnIntakeRowThatFailedAfterRegistration_IsNeitherReadyNorFinishing()
     {
-        var batch = AddBatch("running", 2, 2);
-        var good = AddStandalone(batch, "Books", "Registered And Fine");
-        var bad = AddStandalone(batch, "Books", "Failed After Registering");
+        var good = AddStandalone("Books", "Registered And Fine");
+        var bad = AddStandalone("Books", "Failed After Registering");
         foreach (var work in new[] { good, bad })
         {
-            AddReadyIdentityJob(batch, work);
+            AddReadyIdentityJob(work);
         }
 
-        AddIntakeOperation(batch, good, "succeeded");
-        AddIntakeOperation(batch, bad, "dead_lettered");
+        AddIntakeOperation(good, "succeeded");
+        AddIntakeOperation(bad, "dead_lettered");
 
-        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
+        // The active period began before either work became Ready, so the live numbers cover both groups.
+        var inPeriod = await new IngestionPresentationReadService(_db, new FixedQueueProgress(
+            new IngestionQueueProgressDto { State = "working", StartedAt = DateTimeOffset.UtcNow.AddHours(-1) })).GetSnapshotAsync();
+        var outsidePeriod = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
 
-        Assert.Equal(2, snapshot.LibraryGroups);
-        Assert.Equal(1, snapshot.ReadyGroups);
-        Assert.Equal(0, snapshot.FinishingGroups);
+        Assert.Equal(2, inPeriod.LibraryGroups);
+        Assert.Equal(1, inPeriod.ReadyGroups);
+        Assert.Equal(0, inPeriod.FinishingGroups);
+        Assert.Equal(0, inPeriod.ReviewGroups);
+        Assert.Equal(1, outsidePeriod.LibraryGroups);
+        Assert.Equal(0, outsidePeriod.ReadyGroups);
+        Assert.Equal(0, outsidePeriod.FinishingGroups);
+        Assert.Empty(outsidePeriod.CurrentMedia);
+    }
+
+    [Fact]
+    public async Task LiveSnapshot_TakesFilesAndTimesFromTheQueueProgress()
+    {
+        var started = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var lastActivity = DateTimeOffset.UtcNow.AddSeconds(-5);
+        var snapshot = await new IngestionPresentationReadService(_db, new FixedQueueProgress(new IngestionQueueProgressDto
+        {
+            State = "working",
+            FilesFound = 40,
+            FilesDone = 12,
+            StartedAt = started,
+            LastActivityAt = lastActivity,
+        })).GetSnapshotAsync();
+
+        Assert.Equal(40, snapshot.FilesDiscovered);
+        Assert.Equal(12, snapshot.FilesProcessed);
+        Assert.Equal(started, snapshot.StartedAt);
+        Assert.Equal(lastActivity, snapshot.LastActivityAt);
     }
 
     [Fact]
     public async Task RecentAdditions_AnIntakeRowThatFailedAfterRegistration_ShowsFailedAndLeavesTheAddedFilter()
     {
-        var batch = AddBatch("completed", 2, 2);
-        var good = AddStandalone(batch, "Movies", "Registered And Fine", presented: true);
-        var bad = AddStandalone(batch, "Movies", "Failed After Registering", presented: true);
-        AddIntakeOperation(batch, good, "succeeded");
-        AddIntakeOperation(batch, bad, "failed_terminal");
+        var good = AddStandalone("Movies", "Registered And Fine", presented: true);
+        var bad = AddStandalone("Movies", "Failed After Registering", presented: true);
+        AddIntakeOperation(good, "succeeded");
+        AddIntakeOperation(bad, "failed_terminal");
         var service = new IngestionPresentationReadService(_db);
 
         var everything = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
@@ -582,10 +585,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task RecentAdditions_StaysOneRowPerFileWhenSeveralIntakeRowsPointAtTheSameAsset()
     {
-        var batch = AddBatch("completed", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Seen Twice", presented: true);
-        AddIntakeOperation(batch, work, "succeeded", updatedAt: DateTimeOffset.UtcNow.AddMinutes(-5));
-        AddIntakeOperation(batch, work, "succeeded", resultSummary: "duplicate", updatedAt: DateTimeOffset.UtcNow);
+        var work = AddStandalone("Movies", "Seen Twice", presented: true);
+        AddIntakeOperation(work, "succeeded", updatedAt: DateTimeOffset.UtcNow.AddMinutes(-5));
+        AddIntakeOperation(work, "succeeded", resultSummary: "duplicate", updatedAt: DateTimeOffset.UtcNow);
 
         var page = await new IngestionPresentationReadService(_db).GetRecentAdditionsAsync(null, null, null, null, 0, 50);
         var recent = (await new IngestionPresentationReadService(_db).GetSnapshotAsync()).RecentDays;
@@ -598,8 +600,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task OperationsArtwork_UsesSmallPreviewAndMediumGridRenditions()
     {
-        var batchId = AddBatch("completed", 1, 1);
-        var workId = AddStandalone(batchId, "Books", "Sized Artwork", presented: true);
+        var workId = AddStandalone("Books", "Sized Artwork", presented: true);
         var artworkId = Guid.NewGuid();
         using (var conn = _db.CreateConnection())
         {
@@ -615,20 +616,20 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         }
 
         var service = new IngestionPresentationReadService(_db);
-        var presentation = await service.GetBatchPresentationAsync(batchId);
-        var page = await service.GetBatchMediaAsync(batchId, 0, 50);
+        var snapshot = await service.GetSnapshotAsync();
+        var page = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        var drawer = await service.GetMediaGroupAsync(workId);
 
-        Assert.NotNull(presentation);
-        Assert.EndsWith($"/stream/artwork/{artworkId:D}?size=s", Assert.Single(presentation.AddedPreview).CoverUrl);
+        Assert.EndsWith($"/stream/artwork/{artworkId:D}?size=s", Assert.Single(Assert.Single(snapshot.RecentDays).Items).CoverUrl);
         Assert.EndsWith($"/stream/artwork/{artworkId:D}?size=m", Assert.Single(page.Items).CoverUrl);
+        Assert.EndsWith($"/stream/artwork/{artworkId:D}?size=m", drawer!.CoverUrl);
     }
 
     [Fact]
     public async Task ActivitySummary_CountsGroupedAdditionsWithoutBuildingMediaCards()
     {
-        var batchId = AddBatch("completed", 17, 17);
         var album = AddContainer("Music", "One Album", expectedKey: "track_count", expectedValue: "17");
-        AddChildren(batchId, album, "Music", "Track", 17, "track_number");
+        AddChildren(album, "Music", "Track", 17, "track_number");
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("UPDATE media_assets SET presented_at = @now;", new { now = DateTimeOffset.UtcNow.ToString("O") });
@@ -638,7 +639,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var summary = await service.GetActivitySummaryAsync();
 
         Assert.Equal(1, summary.ItemsAddedToday);
-        Assert.Equal(1, summary.LastGroupsAdded);
+        Assert.NotNull(summary.LastActivityAt);
     }
 
     [Fact]
@@ -646,16 +647,14 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     {
         var firstDay = DateTimeOffset.UtcNow.AddDays(-2);
         var secondDay = DateTimeOffset.UtcNow.AddDays(-1);
-        var firstBatch = AddBatch("completed", 4, 4, firstDay);
-        var secondBatch = AddBatch("completed", 5, 5, secondDay);
         for (var index = 1; index <= 4; index++)
         {
-            AddStandalone(firstBatch, "Books", $"Earlier Book {index}", presented: true, occurredAt: firstDay);
+            AddStandalone("Books", $"Earlier Book {index}", presented: true, occurredAt: firstDay);
         }
 
         for (var index = 1; index <= 5; index++)
         {
-            AddStandalone(secondBatch, "Movies", $"Recent Movie {index}", presented: true, occurredAt: secondDay);
+            AddStandalone("Movies", $"Recent Movie {index}", presented: true, occurredAt: secondDay);
         }
 
         var service = new IngestionPresentationReadService(_db);
@@ -669,20 +668,19 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Snapshot_CountsEachDayByTypeOverEveryItemNotTheCappedPreview()
     {
-        var batch = AddBatch("completed", 11, 11);
         for (var index = 1; index <= 5; index++)
         {
-            AddStandalone(batch, "Movies", $"Counted Movie {index}", presented: true);
+            AddStandalone("Movies", $"Counted Movie {index}", presented: true);
         }
 
         for (var index = 1; index <= 3; index++)
         {
-            AddStandalone(batch, "Books", $"Counted Book {index}", presented: true);
+            AddStandalone("Books", $"Counted Book {index}", presented: true);
         }
 
         var show = AddContainer("TV", "Counted Show");
         var season = AddContainer("TV", "Season 1", show);
-        AddChildren(batch, season, "TV", "Episode", 3, "episode_number", seasonNumber: 1);
+        AddChildren(season, "TV", "Episode", 3, "episode_number", seasonNumber: 1);
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("UPDATE media_assets SET presented_at = @now WHERE presented_at IS NULL;", new { now = DateTimeOffset.UtcNow.ToString("O") });
@@ -700,73 +698,52 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Snapshot_ShowsAtLeastTenInFlightRowsWhenThatManyAreWorkedOn()
     {
-        var batch = AddBatch("running", 15, 15);
         for (var index = 1; index <= 15; index++)
         {
-            AddStandalone(batch, "Movies", $"In Flight {index}", ready: false);
+            AddStandalone("Movies", $"In Flight {index}", ready: false);
         }
 
         using (var conn = _db.CreateConnection())
         {
             conn.Execute("""
-                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-                SELECT randomblob(16), id, 'MediaAsset', 'Movies', @batch, 'Hydrating', 'Quick', @now, @now FROM media_assets;
+                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
+                SELECT randomblob(16), id, 'MediaAsset', 'Movies', 'Hydrating', 'Quick', @now, @now FROM media_assets;
                 UPDATE ingestion_log SET status = 'queued_identity';
-                """, new { batch, now = DateTimeOffset.UtcNow.ToString("O") });
+                """, new { now = DateTimeOffset.UtcNow.ToString("O") });
         }
 
         var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
 
         Assert.Equal(15, snapshot.CurrentMediaTotal);
         Assert.True(snapshot.CurrentMedia.Count >= 10);
+        Assert.True(snapshot.IsRunning);
     }
 
     [Fact]
-    public async Task MultiFileBookUsesIdentityUnitsAndUnmatchedWorkIsNotACompletedAddition()
+    public async Task UnmatchedWorkIsInReviewAndNotACompletedAddition_UntilItBecomesReady()
     {
-        var batch = AddBatch("running", 40, 40);
-        var work = AddStandalone(batch, "Audiobooks", "A forty-file book", presented: true, ready: false);
-        using var conn = _db.CreateConnection();
-        var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Audiobooks',@batch,'RetailNoMatch','Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O") });
-        var service = new MediaEngine.Providers.Services.BatchProgressService(new IngestionBatchRepository(_db), null!, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Providers.Services.BatchProgressService>.Instance);
-        var progress = (await service.GetProgressAsync(batch))!;
-        Assert.Equal(40, progress.FilesProcessed);
-        Assert.Equal(1, progress.WorkUnitsTotal);
-        Assert.Equal(1, progress.WorkUnitsCompleted);
-        Assert.True(progress.IsComplete);
+        var work = AddStandalone("Audiobooks", "A forty-file book", presented: true, ready: false);
+        AddIdentityJob(work, "RetailNoMatch", "Audiobooks");
         var presentation = new IngestionPresentationReadService(_db);
+
         Assert.Equal("review", Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items).Availability);
         Assert.Empty((await presentation.GetSnapshotAsync()).RecentDays);
-        conn.Execute("UPDATE identity_jobs SET state='ReadyWithoutUniverse';");
+
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE identity_jobs SET state='ReadyWithoutUniverse';");
+        }
+
         MarkReady(work);
         Assert.Single((await presentation.GetSnapshotAsync()).RecentDays);
-        await new MediaOperationRepository(_db).EnsureAsync(new MediaEngine.Domain.Entities.MediaOperation
-        {
-            OperationType = "enrichment.people",
-            OperationKind = "enrichment",
-            BatchId = batch,
-            EntityId = asset,
-            Status = "queued",
-            QueueName = "people",
-            IdempotencyKey = "test:people",
-        });
-        var enriching = (await service.GetProgressAsync(batch))!;
-        Assert.False(enriching.IsComplete);
-        Assert.True(enriching.ProgressIsIndeterminate);
-        Assert.Equal("Finishing enrichment", enriching.CurrentStage);
-        Assert.NotEqual(99, enriching.ProgressPercent);
+        Assert.Empty((await presentation.GetCurrentMediaAsync(0, 50)).Items);
     }
 
     [Fact]
     public async Task NotReadyRow_QueuedForMatching_WaitsForMatchingOnly()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Queued Movie", ready: false);
-        AddIdentityJob(batch, work, "Queued", "Movies");
+        var work = AddStandalone("Movies", "Queued Movie", ready: false);
+        AddIdentityJob(work, "Queued", "Movies");
         SettleArtwork(work);
 
         var item = await CurrentItemAsync(work);
@@ -778,9 +755,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task NotReadyRow_MatchedEpisodeWithNoShow_WaitsForPlacing()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "TV", "Orphan Episode", ready: false);
-        AddIdentityJob(batch, work, "Ready", "TV");
+        var work = AddStandalone("TV", "Orphan Episode", ready: false);
+        AddIdentityJob(work, "Ready", "TV");
         SettleArtwork(work);
 
         var item = await CurrentItemAsync(work);
@@ -792,9 +768,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task NotReadyRow_MatchedAndPlacedMovieWithoutArtwork_WaitsForArtwork()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Plain Movie", ready: false);
-        AddIdentityJob(batch, work, "Ready", "Movies");
+        var work = AddStandalone("Movies", "Plain Movie", ready: false);
+        AddIdentityJob(work, "Ready", "Movies");
 
         var item = await CurrentItemAsync(work);
 
@@ -805,9 +780,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task NotReadyRow_MissingEverything_ListsReasonsInTheFixedOrder()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "TV", "Brand New Episode", ready: false);
-        AddIdentityJob(batch, work, "Queued", "TV");
+        var work = AddStandalone("TV", "Brand New Episode", ready: false);
+        AddIdentityJob(work, "Queued", "TV");
 
         var item = await CurrentItemAsync(work);
 
@@ -817,8 +791,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task NotReadyRow_InALibraryThatSkipsIdentity_DoesNotWaitForMatching()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Local Movie", ready: false);
+        var work = AddStandalone("Movies", "Local Movie", ready: false);
         string library;
         using (var conn = _db.CreateConnection())
         {
@@ -836,10 +809,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task ReadyRow_WithTheStoredMark_IsReadyAndWaitsForNothing()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Marked Movie");
+        var work = AddStandalone("Movies", "Marked Movie");
 
-        var item = await CurrentItemAsync(work);
+        var item = await AddedItemAsync(work);
 
         Assert.Equal("ready", item.Availability);
         Assert.Empty(item.WaitingFor);
@@ -848,9 +820,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Row_WhoseIdentityJobSaysReadyButHasNoStoredMark_IsNotReady()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Job Says Ready", ready: false);
-        AddIdentityJob(batch, work, "Ready", "Movies");
+        var work = AddStandalone("Movies", "Job Says Ready", ready: false);
+        AddIdentityJob(work, "Ready", "Movies");
 
         var item = await CurrentItemAsync(work);
 
@@ -861,9 +832,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task ReviewRow_SendsNoWaitingReasons()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "Needs A Look", ready: false);
-        AddIdentityJob(batch, work, "RetailNoMatch", "Movies");
+        var work = AddStandalone("Movies", "Needs A Look", ready: false);
+        AddIdentityJob(work, "RetailNoMatch", "Movies");
 
         var item = await CurrentItemAsync(work);
 
@@ -875,9 +845,8 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     public async Task AddedDay_FollowsTheWorksFirstReadyTime_NotTheIdentityJob()
     {
         var firstReady = new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
-        var batch = AddBatch("completed", 1, 1, firstReady);
-        var work = AddStandalone(batch, "Movies", "Added Long Ago", occurredAt: firstReady);
-        AddIdentityJob(batch, work, "Ready", "Movies");
+        var work = AddStandalone("Movies", "Added Long Ago", occurredAt: firstReady);
+        AddIdentityJob(work, "Ready", "Movies");
 
         var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync(currentLimit: 4, recentDayLimit: 7, recentItemsPerDay: 4);
 
@@ -889,15 +858,14 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Facets_ThatDoNotApplyToTheType_AreNotApplicable_AndThatApplyButHaveNotStarted_ArePending()
     {
-        var batch = AddBatch("running", 2, 2);
-        var book = AddStandalone(batch, "Books", "A Book");
-        var movie = AddStandalone(batch, "Movies", "A Movie");
+        var book = AddStandalone("Books", "A Book");
+        var movie = AddStandalone("Movies", "A Movie");
         MarkNotReady(movie);
 
-        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+        var bookItem = await AddedItemAsync(book);
+        var movieItem = await CurrentItemAsync(movie);
 
-        Assert.Equal("notApplicable", Assert.Single(page.Items, item => item.GroupId == book).TextTracks.State);
-        var movieItem = Assert.Single(page.Items, item => item.GroupId == movie);
+        Assert.Equal("notApplicable", bookItem.TextTracks.State);
         Assert.Equal("pending", movieItem.TextTracks.State);
         Assert.Equal("Subtitles queued", movieItem.TextTracks.Label);
     }
@@ -905,13 +873,11 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task Facets_ThatApplyButHaveNothingToDo_OnAReadyRow_AreSettledWithNothingFound_NotQueued()
     {
-        var batch = AddBatch("running", 1, 1);
-        var movie = AddStandalone(batch, "Movies", "A Ready Movie");
+        var movie = AddStandalone("Movies", "A Ready Movie");
         MarkReady(movie);
 
-        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+        var item = await AddedItemAsync(movie);
 
-        var item = Assert.Single(page.Items, row => row.GroupId == movie);
         Assert.Equal("ready", item.Availability);
         Assert.Equal("complete", item.TextTracks.State);
         Assert.Equal("No subtitles found", item.TextTracks.Label);
@@ -921,175 +887,62 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task ArtworkSearch_ThatFinishedWithoutACover_IsASettledOutcomeNotNotApplicable()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Movies", "No Cover Movie");
+        var work = AddStandalone("Movies", "No Cover Movie");
         using (var conn = _db.CreateConnection())
         {
             var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;", new { work });
             conn.Execute("DELETE FROM entity_assets;");
             conn.Execute("""
-                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,batch_id,status,stage,position_key,created_at,updated_at,idempotency_key)
-                VALUES (@id,'enrichment.artwork','enrichment',@asset,'MediaAsset',@batch,'completed','artwork',1,@now,@now,@key);
-                """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,stage,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.artwork','enrichment',@asset,'MediaAsset','completed','artwork',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), asset, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
         }
 
-        var item = await CurrentItemAsync(work);
+        var item = await AddedItemAsync(work);
 
         Assert.Equal("complete", item.Artwork.State);
         Assert.Equal("No artwork found", item.Artwork.Label);
     }
 
-    private async Task<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> CurrentItemAsync(
-        Guid groupId,
-        MediaEngine.Api.Services.IIdentityBypassLibraries? bypass = null)
-    {
-        var page = await new IngestionPresentationReadService(_db, bypassLibraries: bypass).GetCurrentMediaAsync(0, 50);
-        return Assert.Single(page.Items, item => item.GroupId == groupId);
-    }
-
-    private void AddIdentityJob(Guid batch, Guid workId, string state, string mediaType)
-    {
-        using var conn = _db.CreateConnection();
-        var asset = conn.QuerySingle<Guid>(
-            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
-            new { workId });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset',@mediaType,@batch,@state,'Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset, batch, state, mediaType, now = DateTimeOffset.UtcNow.ToString("O") });
-    }
-
-    // Artwork counts as present when the Work carries a stored cover state, the same value the Ready rule reads.
-    private void SettleArtwork(Guid workId)
-    {
-        using var conn = _db.CreateConnection();
-        conn.Execute(
-            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'cover_state', 'present', @now);",
-            new { workId, now = DateTimeOffset.UtcNow.ToString("O") });
-    }
-
-    private sealed class FixedBypassLibraries(params string[] ids) : MediaEngine.Api.Services.IIdentityBypassLibraries
-    {
-        public IReadOnlyCollection<string> GetLibraryIds() => ids;
-    }
-
-    private Guid AddBatch(string status, int total, int processed, DateTimeOffset? occurredAt = null)
-    {
-        var id = Guid.NewGuid();
-        var time = occurredAt ?? DateTimeOffset.UtcNow;
-        using var conn = _db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO ingestion_batches (
-                id, status, source_path, category, files_total, files_processed,
-                files_registered, files_review, files_no_match, files_failed,
-                started_at, completed_at, created_at, updated_at)
-            VALUES (
-                @id, @status, 'C:/watch', 'Mixed', @total, @processed,
-                @processed, 0, 0, 0, @time, @completedAt, @time, @time);
-            """, new { id, status, total, processed, time = time.ToString("O"), completedAt = status == "completed" ? time.ToString("O") : null });
-        return id;
-    }
-
     [Fact]
-    public async Task SharedBatchProgressStaysIncompleteUntilIdentityFinishes()
+    public async Task CurrentPreview_FollowsIdentityActivity_AndASettledGroupMovesToRecentAdditions()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Books", "Still identifying", ready: false);
+        var older = AddStandalone("Books", "Older intake", occurredAt: DateTimeOffset.UtcNow.AddHours(-1), ready: false);
+        var newer = AddStandalone("Books", "Newer intake");
+        AddIdentityJob(older, "Hydrating", "Books");
         using var conn = _db.CreateConnection();
-        var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,'Hydrating','Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O") });
-        var service = new MediaEngine.Providers.Services.BatchProgressService(new IngestionBatchRepository(_db), null!, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Providers.Services.BatchProgressService>.Instance);
-        var active = await service.GetProgressAsync(batch);
-        Assert.NotNull(active);
-        Assert.False(active.IsComplete);
-        Assert.Equal(0, active.ProgressPercent);
-        conn.Execute("UPDATE identity_jobs SET state='Ready';");
-        MarkReady(work);
-        var complete = await service.GetProgressAsync(batch);
-        Assert.True(complete!.IsComplete);
-        Assert.Equal(100, complete.ProgressPercent);
-        conn.Execute("UPDATE media_assets SET presented_at=NULL; UPDATE ingestion_log SET status='queued_identity'; UPDATE ingestion_batches SET status='completed';");
-        var history = await new IngestionPresentationReadService(_db).GetRecentAdditionsAsync(null, null, null, null, 0, 50);
-        Assert.Equal(work, Assert.Single(history.Items).GroupId);
-        conn.Execute("""
-            INSERT INTO ingestion_log (id,file_path,status,ingestion_run_id) VALUES (@id,'C:/watch/duplicate.epub','duplicate',@batch);
-            UPDATE ingestion_batches SET files_total=2 WHERE id=@batch;
-            """, new { id = Guid.NewGuid(), batch });
-        var withDuplicate = await service.GetProgressAsync(batch);
-        Assert.True(withDuplicate!.IsComplete);
-        Assert.Equal(2, withDuplicate.FilesProcessed);
-        Assert.Equal(1, withDuplicate.FilesIdentified);
-
-        // A different input file can resolve to an asset already handled in this
-        // batch. Its duplicate outcome still settles that input in the batch total.
-        conn.Execute("UPDATE ingestion_log SET media_asset_id=@asset WHERE status='duplicate';", new { asset });
-        Assert.True((await service.GetProgressAsync(batch))!.IsComplete);
-        var originalPath = conn.QuerySingle<string>("SELECT file_path FROM ingestion_log WHERE status='queued_identity';");
-        conn.Execute("INSERT INTO ingestion_log (id,file_path,status,media_asset_id,ingestion_run_id) VALUES (@id,@originalPath,'duplicate',@asset,@batch);", new { id = Guid.NewGuid(), originalPath, asset, batch });
-        Assert.Equal(1, (await new IngestionBatchRepository(_db).GetProgressSnapshotAsync(batch)).FilesSkipped);
-    }
-
-    [Fact]
-    public async Task HistoricalPagingExcludesActiveAndStillEnrichingBatchesBeforeLimiting()
-    {
-        AddBatch("running", 1, 1);
-        var pending = AddBatch("completed", 1, 1);
-        using var conn = _db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@pending,'Hydrating','Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset = Guid.NewGuid(), pending, now = DateTimeOffset.UtcNow.ToString("O") });
-        var historical = AddBatch("completed", 1, 1, DateTimeOffset.UtcNow.AddDays(-1));
-        var page = await new ActivityBatchReadService(_db).GetBatchesAsync(new MediaEngine.Application.ReadModels.ActivityBatchQuery(null, null, null, null, null, null, null, 0, 1, HistoricalOnly: true));
-        Assert.Equal(historical, Assert.Single(page.Items).BatchId);
-        Assert.Equal(1, page.TotalCount);
-        Assert.False(page.HasMore);
-    }
-
-    [Fact]
-    public async Task CurrentPreviewFollowsIdentityActivityAndCountsReadyFiles()
-    {
-        var batch = AddBatch("running", 2, 2);
-        var older = AddStandalone(batch, "Books", "Older intake", occurredAt: DateTimeOffset.UtcNow.AddHours(-1), ready: false);
-        var newer = AddStandalone(batch, "Books", "Newer intake");
-        using var conn = _db.CreateConnection();
-        var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @older", new { older });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,'Hydrating','Quick',@now,@now);
-            UPDATE ingestion_log SET status = 'queued_identity' WHERE media_asset_id = @asset;
-            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O") });
+        conn.Execute("UPDATE ingestion_log SET status = 'queued_identity' WHERE detected_title = 'Older intake';");
         var service = new IngestionPresentationReadService(_db);
+
         Assert.Equal(older, Assert.Single((await service.GetCurrentMediaAsync(0, 1)).Items).GroupId);
+
         conn.Execute("UPDATE identity_jobs SET state = 'Ready';");
         MarkReady(older);
-        var ready = (await service.GetCurrentMediaAsync(0, 50)).Items.Single(item => item.GroupId == older);
+        Assert.Empty((await service.GetCurrentMediaAsync(0, 50)).Items);
+        var recent = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        Assert.Equal(new[] { older, newer }.Order(), recent.Items.Select(item => item.GroupId).Order());
+        var ready = recent.Items.Single(item => item.GroupId == older);
         Assert.Equal(1, ready.ChildCompleted);
         Assert.Equal("ready", ready.Availability);
-        Assert.Equal(2, (await service.GetSnapshotAsync()).ReadyGroups);
     }
 
     [Fact]
     public async Task LiveSnapshot_WaitsForRootCoverAndNeverUsesEpisodeStill()
     {
-        var batch = AddBatch("running", 1, 1);
         var show = AddContainer("TV", "Root Show");
         var season = AddContainer("TV", "Season 1", show);
-        AddChildren(batch, season, "TV", "Episode", 1, "episode_number", seasonNumber: 1, ready: false);
+        AddChildren(season, "TV", "Episode", 1, "episode_number", seasonNumber: 1, ready: false);
         using var conn = _db.CreateConnection();
         var child = conn.QuerySingle<Guid>("SELECT id FROM works WHERE parent_work_id=@season", new { season });
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@child", new { child });
         var now = DateTimeOffset.UtcNow.ToString("O");
         conn.Execute("DELETE FROM entity_assets;");
         conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@job,@asset,'MediaAsset','TV',@batch,'Hydrating','Quick',@now,@now);
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
+            VALUES (@job,@asset,'MediaAsset','TV','Hydrating','Quick',@now,@now);
             INSERT INTO entity_assets (id,entity_id,entity_type,asset_type,local_image_path,aspect_class,asset_class,storage_location,owner_scope,is_preferred,created_at)
             VALUES (@still,@child,'Work','EpisodeStill','C:/test/still.jpg','Landscape','Artwork','Central','Work',1,@now);
-            """, new { job = Guid.NewGuid(), asset, batch, child, still = Guid.NewGuid(), now });
+            """, new { job = Guid.NewGuid(), asset, child, still = Guid.NewGuid(), now });
 
         var service = new IngestionPresentationReadService(_db);
         Assert.Empty((await service.GetSnapshotAsync()).CurrentMedia);
@@ -1110,18 +963,17 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     [Fact]
     public async Task LiveSnapshot_UsesThreeEqualGatesWhenMatchingDoesNotApply()
     {
-        var batch = AddBatch("running", 1, 1);
-        var work = AddStandalone(batch, "Books", "Locally identified book");
+        var work = AddStandalone("Books", "Locally identified book");
         var now = DateTimeOffset.UtcNow.ToString("O");
         using var conn = _db.CreateConnection();
         conn.Execute("""
             INSERT INTO media_operations (
-                id, operation_type, operation_kind, entity_id, entity_kind, batch_id,
+                id, operation_type, operation_kind, entity_id, entity_kind,
                 status, stage, position_key, created_at, updated_at, idempotency_key)
             VALUES (
-                @id, 'ingestion.enrichment', 'enrichment', @work, 'Work', @batch,
+                @id, 'ingestion.enrichment', 'enrichment', @work, 'Work',
                 'running', 'artwork', 1, @now, @now, @key);
-            """, new { id = Guid.NewGuid(), work, batch, now, key = $"three-gates-{work:N}" });
+            """, new { id = Guid.NewGuid(), work, now, key = $"three-gates-{work:N}" });
 
         var tile = Assert.Single((await new IngestionPresentationReadService(_db).GetSnapshotAsync()).CurrentMedia);
 
@@ -1131,33 +983,26 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("abandoned", "UniverseEnriching", false)]
-    [InlineData("interrupted", "Hydrating", true)]
-    [InlineData("completed", "BridgeSearching", true)]
-    [InlineData("failed", "RetailSearching", false)]
-    [InlineData("abandoned", "Queued", false)]
-    [InlineData("completed", "RetailMatched", false)]
-    [InlineData("completed", "QidResolved", false)]
-    public async Task ResumedBatchRemainsCurrentUntilDurableWorkFinishes(string status, string state, bool leased)
+    [InlineData("UniverseEnriching", false)]
+    [InlineData("Hydrating", true)]
+    [InlineData("BridgeSearching", true)]
+    [InlineData("RetailSearching", false)]
+    [InlineData("Queued", false)]
+    [InlineData("RetailMatched", false)]
+    [InlineData("QidResolved", false)]
+    public async Task AnInterruptedJobKeepsItsGroupInFlightUntilDurableWorkFinishes(string state, bool leased)
     {
-        var batch = AddBatch(status, 1, 1, DateTimeOffset.UtcNow.AddDays(-2));
-        var work = AddStandalone(batch, "Books", "Resumed book", ready: false);
-        var newer = AddBatch("completed", 1, 1);
+        var work = AddStandalone("Books", "Resumed book", ready: false);
         using var conn = _db.CreateConnection();
         var asset = conn.QuerySingle<Guid>("SELECT ma.id FROM media_assets ma JOIN editions e ON e.id=ma.edition_id WHERE e.work_id=@work", new { work });
         conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,lease_owner,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,@state,'Quick',@owner,@now,@now);
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,lease_owner,created_at,updated_at)
+            VALUES (@id,@asset,'MediaAsset','Books',@state,'Quick',@owner,@now,@now);
             UPDATE ingestion_log SET status='queued_identity' WHERE media_asset_id=@asset;
-            """, new { id = Guid.NewGuid(), asset, batch, state, owner = leased ? "previous-engine" : null, now = DateTimeOffset.UtcNow.AddHours(-2).ToString("O") });
-        var batches = new IngestionBatchRepository(_db);
-        var progress = new MediaEngine.Providers.Services.BatchProgressService(batches, new RecordingEvents(), Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Providers.Services.BatchProgressService>.Instance);
-        var presentation = new IngestionPresentationReadService(_db, progress);
-        var history = new ActivityBatchReadService(_db);
-        var historyQuery = new MediaEngine.Application.ReadModels.ActivityBatchQuery(null, null, null, null, null, null, null, 0, 50, HistoricalOnly: true);
+            """, new { id = Guid.NewGuid(), asset, state, owner = leased ? "previous-engine" : null, now = DateTimeOffset.UtcNow.AddHours(-2).ToString("O") });
+        var presentation = new IngestionPresentationReadService(_db);
 
-        // The same durable batch is visible before and after startup lease recovery,
-        // even when a newer completed run exists.
+        // The same group stays in flight before and after startup lease recovery.
         for (var restart = 0; restart < 2; restart++)
         {
             if (restart > 0)
@@ -1165,77 +1010,25 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 await new IdentityJobRepository(_db).RecoverInterruptedJobsAsync();
             }
 
-            Assert.Equal(batch, Assert.Single(await batches.GetActiveAsync()).Id);
             var snapshot = await presentation.GetSnapshotAsync();
             Assert.True(snapshot.IsRunning);
-            Assert.Equal(batch, snapshot.BatchProgress!.BatchId);
-            Assert.False(snapshot.BatchProgress.IsComplete);
             Assert.Equal(1, snapshot.CurrentMediaTotal);
             Assert.Equal(work, Assert.Single(snapshot.CurrentMedia).GroupId);
             Assert.Equal(work, Assert.Single((await presentation.GetCurrentMediaAsync(0, 50)).Items).GroupId);
-            Assert.NotNull(await presentation.GetMediaGroupAsync(batch, work));
-            Assert.Contains("still adding", (await presentation.GetBatchPresentationAsync(batch))!.Summary);
-            Assert.Equal(newer, Assert.Single((await history.GetBatchesAsync(historyQuery)).Items).BatchId);
+            Assert.NotNull(await presentation.GetMediaGroupAsync(work));
         }
 
         conn.Execute("UPDATE identity_jobs SET state='Ready',lease_owner=NULL;");
         MarkReady(work);
-        await progress.EmitProgressAsync(batch, isFinal: true, CancellationToken.None);
-        Assert.Empty(await batches.GetActiveAsync());
         Assert.Empty((await presentation.GetCurrentMediaAsync(0, 50)).Items);
-        Assert.Equal(2, (await history.GetBatchesAsync(historyQuery)).TotalCount);
-        Assert.Equal("completed", (await batches.GetByIdAsync(batch))!.Status);
-    }
-
-    [Theory]
-    [InlineData("Queued")]
-    [InlineData("RetailMatched")]
-    [InlineData("QidResolved")]
-    [InlineData("UniverseEnriching")]
-    public async Task ReconciliationDoesNotFailRecoverableJobsBecauseTheyAreOld(string state)
-    {
-        var batch = AddBatch("running", 1, 1, DateTimeOffset.UtcNow.AddDays(-2));
-        using var conn = _db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,@state,'Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset = Guid.NewGuid(), batch, state, now = DateTimeOffset.UtcNow.AddDays(-2).ToString("O") });
-        var batches = new IngestionBatchRepository(_db);
-        var service = new MediaEngine.Api.Services.IngestionOperationsStatusService(_db, null!, null!, batches, null!, null!, null!);
-        var reconcile = typeof(MediaEngine.Api.Services.IngestionOperationsStatusService).GetMethod("ReconcileCompletedBatchesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        await (Task)reconcile.Invoke(service, [await batches.GetRecentAsync(), CancellationToken.None])!;
-        var saved = await batches.GetByIdAsync(batch);
-        Assert.Equal("running", saved!.Status);
-        Assert.Equal(0, saved.FilesFailed);
-        Assert.Null(saved.CompletedAt);
-    }
-
-    [Theory]
-    [InlineData(3, 3)]
-    [InlineData(5, 3)]
-    public async Task ReconciliationPreservesProcessedFilesAndBoundsThemToTotal(int processed, int expected)
-    {
-        var batch = AddBatch("running", 3, processed);
-        var batches = new IngestionBatchRepository(_db);
-        var service = new MediaEngine.Api.Services.IngestionOperationsStatusService(_db, null!, null!, batches, null!, null!, null!);
-        var reconcile = typeof(MediaEngine.Api.Services.IngestionOperationsStatusService).GetMethod("ReconcileCompletedBatchesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        await (Task)reconcile.Invoke(service, [await batches.GetRecentAsync(), CancellationToken.None])!;
-        var saved = await batches.GetByIdAsync(batch);
-        Assert.Equal("completed", saved!.Status);
-        Assert.Equal(expected, saved.FilesProcessed);
-    }
-
-    private sealed class RecordingEvents : MediaEngine.Domain.Contracts.IEventPublisher
-    {
-        public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default) where TPayload : notnull => Task.CompletedTask;
+        Assert.Equal(work, Assert.Single((await presentation.GetRecentAdditionsAsync(null, null, null, null, 0, 50)).Items).GroupId);
     }
 
     [Fact]
     public async Task ComicPreviewPrefersOwnedIssueCoverOverNewerParentCover()
     {
-        var batch = AddBatch("running", 1, 1);
         var series = AddContainer("Comics", "Example comic");
-        AddChildren(batch, series, "Comics", "Issue", 1, "issue_number");
+        AddChildren(series, "Comics", "Issue", 1, "issue_number", ready: false);
         using var conn = _db.CreateConnection();
         var issue = conn.QuerySingle<Guid>("SELECT id FROM works WHERE parent_work_id = @series", new { series });
         var issueArt = Guid.NewGuid();
@@ -1250,6 +1043,97 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         var item = Assert.Single((await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50)).Items);
         Assert.Contains(issueArt.ToString("D"), item.CoverUrl);
         Assert.Null(item.ChildExpected);
+    }
+
+    private async Task<IngestionMediaGroupDto> CurrentItemAsync(
+        Guid groupId,
+        MediaEngine.Api.Services.IIdentityBypassLibraries? bypass = null)
+    {
+        var page = await new IngestionPresentationReadService(_db, bypassLibraries: bypass).GetCurrentMediaAsync(0, 50);
+        return Assert.Single(page.Items, item => item.GroupId == groupId);
+    }
+
+    private async Task<IngestionMediaGroupDto> AddedItemAsync(Guid groupId)
+    {
+        var page = await new IngestionPresentationReadService(_db).GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        return Assert.Single(page.Items, item => item.GroupId == groupId);
+    }
+
+    private void AddIdentityJob(Guid workId, string state, string mediaType)
+    {
+        using var conn = _db.CreateConnection();
+        var asset = conn.QuerySingle<Guid>(
+            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
+            new { workId });
+        conn.Execute("""
+            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,state,pass,created_at,updated_at)
+            VALUES (@id,@asset,'MediaAsset',@mediaType,@state,'Quick',@now,@now);
+            """, new { id = Guid.NewGuid(), asset, state, mediaType, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    // Artwork counts as present when the Work carries a stored cover state, the same value the Ready rule reads.
+    private void SettleArtwork(Guid workId)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'cover_state', 'present', @now);",
+            new { workId, now = DateTimeOffset.UtcNow.ToString("O") });
+    }
+
+    private sealed class FixedBypassLibraries(params string[] ids) : MediaEngine.Api.Services.IIdentityBypassLibraries
+    {
+        public IReadOnlyCollection<string> GetLibraryIds() => ids;
+    }
+
+    private sealed class FixedQueueProgress(IngestionQueueProgressDto current) : MediaEngine.Api.Services.IIngestionQueueProgressService
+    {
+        public IngestionQueueProgressDto Current { get; } = current;
+    }
+
+    [Fact]
+    public async Task AnOldFailureOnAnEpisodeAlreadyInTheLibrary_DoesNotMarkTheWholeShowFailed()
+    {
+        var show = AddContainer("TV", "The Expanse");
+        var season = AddContainer("TV", "Season 1", show, "episode_count", "3");
+        AddChildren(season, "TV", "Episode", 2, "episode_number", seasonNumber: 1);
+        AddChildren(season, "TV", "New Episode", 1, "episode_number", seasonNumber: 1, ready: false);
+        using (var conn = _db.CreateConnection())
+        {
+            var readyEpisode = conn.QueryFirst<Guid>(
+                "SELECT w.id FROM works w WHERE w.parent_work_id = @season AND w.ready_at IS NOT NULL ORDER BY w.ordinal LIMIT 1;", new { season });
+            var newEpisode = conn.QueryFirst<Guid>(
+                "SELECT w.id FROM works w WHERE w.parent_work_id = @season AND w.ready_at IS NULL LIMIT 1;", new { season });
+            var now = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+            // A lyrics/subtitle fetch that gave up yesterday on an episode that is already in the library.
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.text','enrichment',@readyEpisode,'Work','dead_lettered',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), readyEpisode, now, key = Guid.NewGuid().ToString() });
+            AddIntakeOperation(newEpisode, "running");
+        }
+
+        var page = await new IngestionPresentationReadService(_db).GetCurrentMediaAsync(0, 50);
+
+        var row = Assert.Single(page.Items);
+        Assert.Equal("adding", row.Availability);
+        Assert.NotEqual("Failed", row.StatusLabel);
+    }
+
+    [Fact]
+    public async Task AFailureNewerThanTheGroupsNewestFile_StillMarksTheGroupFailed()
+    {
+        var movie = AddStandalone("Movies", "Failed Today", ready: false, occurredAt: DateTimeOffset.UtcNow.AddMinutes(-10));
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,position_key,created_at,updated_at,idempotency_key)
+                VALUES (@id,'enrichment.people','enrichment',@movie,'Work','failed_terminal',1,@now,@now,@key);
+                """, new { id = Guid.NewGuid(), movie, now = DateTimeOffset.UtcNow.ToString("O"), key = Guid.NewGuid().ToString() });
+        }
+
+        var group = await new IngestionPresentationReadService(_db).GetMediaGroupAsync(movie);
+
+        Assert.Equal("failed", group!.Availability);
     }
 
     private Guid AddContainer(
@@ -1277,7 +1161,6 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     private void AddChildren(
-        Guid batchId,
         Guid parentId,
         string mediaType,
         string titlePrefix,
@@ -1285,7 +1168,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         string? ordinalKey = null,
         int? seasonNumber = null,
         int? partCount = null,
-        bool ready = true)
+        bool ready = true,
+        DateTimeOffset? loggedAt = null,
+        DateTimeOffset? readyAt = null)
     {
         for (var index = 1; index <= count; index++)
         {
@@ -1293,11 +1178,12 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             var editionId = Guid.NewGuid();
             var assetId = Guid.NewGuid();
             var logId = Guid.NewGuid();
-            var now = DateTimeOffset.UtcNow.ToString("O");
+            var now = (loggedAt ?? DateTimeOffset.UtcNow).ToString("O");
+            var readyStamp = ready ? (readyAt ?? loggedAt ?? DateTimeOffset.UtcNow).ToString("O") : null;
             using var conn = _db.CreateConnection();
             conn.Execute(
-                "INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ready_at, first_ready_at) VALUES (@workId, @mediaType, 'child', @parentId, @index, @readyAt, @readyAt);",
-                new { workId, mediaType, parentId, index, readyAt = ready ? now : null });
+                "INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ready_at, first_ready_at) VALUES (@workId, @mediaType, 'child', @parentId, @index, @readyStamp, @readyStamp);",
+                new { workId, mediaType, parentId, index, readyStamp });
             conn.Execute("INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Test');", new { editionId, workId });
             conn.Execute("INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@assetId, @editionId, @hash, @path);", new { assetId, editionId, hash = $"hash-{assetId:N}", path = $"C:/watch/{assetId:N}.media" });
             conn.Execute("INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'title', @title, @now);", new { workId, title = $"{titlePrefix} {index:00}", now });
@@ -1316,12 +1202,11 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
                 conn.Execute("INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'audiobook_part_count', @parts, @now);", new { workId, parts = partCount.Value.ToString(), now });
             }
 
-            InsertLog(conn, logId, batchId, assetId, mediaType, $"{titlePrefix} {index:00}", now);
+            InsertLog(conn, logId, assetId, mediaType, $"{titlePrefix} {index:00}", now);
         }
     }
 
     private Guid AddStandalone(
-        Guid batchId,
         string mediaType,
         string title,
         bool presented = false,
@@ -1344,7 +1229,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             INSERT INTO entity_assets (id,entity_id,entity_type,asset_type,local_image_path,aspect_class,asset_class,storage_location,owner_scope,is_preferred,created_at)
             VALUES (@artId,@workId,'Work','CoverArt','C:/test/cover.jpg','Portrait','Artwork','Central','Work',1,@now);
             """, new { artId = Guid.NewGuid(), workId, now });
-        InsertLog(conn, logId, batchId, assetId, mediaType, title, now);
+        InsertLog(conn, logId, assetId, mediaType, title, now);
         return workId;
     }
 
@@ -1362,20 +1247,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         conn.Execute("UPDATE works SET ready_at = NULL WHERE id = @workId;", new { workId });
     }
 
-    private void AddReadyIdentityJob(Guid batch, Guid workId)
-    {
-        using var conn = _db.CreateConnection();
-        var asset = conn.QuerySingle<Guid>(
-            "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @workId;",
-            new { workId });
-        conn.Execute("""
-            INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
-            VALUES (@id,@asset,'MediaAsset','Books',@batch,'Ready','Quick',@now,@now);
-            """, new { id = Guid.NewGuid(), asset, batch, now = DateTimeOffset.UtcNow.ToString("O") });
-    }
+    private void AddReadyIdentityJob(Guid workId) => AddIdentityJob(workId, "Ready", "Books");
 
     private void AddIntakeOperation(
-        Guid batch,
         Guid workId,
         string status,
         string? resultSummary = null,
@@ -1387,9 +1261,9 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             new { workId });
         var now = (updatedAt ?? DateTimeOffset.UtcNow).ToString("O");
         conn.Execute("""
-            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,batch_id,status,result_summary,position_key,created_at,updated_at,idempotency_key)
-            VALUES (@id,'ingestion.file','ingestion',@asset,'MediaAsset',@batch,@status,@resultSummary,1,@now,@now,@key);
-            """, new { id = Guid.NewGuid(), asset, batch, status, resultSummary, now, key = Guid.NewGuid().ToString() });
+            INSERT INTO media_operations (id,operation_type,operation_kind,entity_id,entity_kind,status,result_summary,position_key,created_at,updated_at,idempotency_key)
+            VALUES (@id,'ingestion.file','ingestion',@asset,'MediaAsset',@status,@resultSummary,1,@now,@now,@key);
+            """, new { id = Guid.NewGuid(), asset, status, resultSummary, now, key = Guid.NewGuid().ToString() });
     }
 
     private void HoldInspection(Guid workId)
@@ -1403,16 +1277,16 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
             new { assetId, now = DateTimeOffset.UtcNow.ToString("O") });
     }
 
-    private static void InsertLog(System.Data.IDbConnection conn, Guid logId, Guid batchId, Guid assetId, string mediaType, string title, string now)
+    private static void InsertLog(System.Data.IDbConnection conn, Guid logId, Guid assetId, string mediaType, string title, string now)
     {
         conn.Execute("""
             INSERT INTO ingestion_log (
                 id, file_path, media_asset_id, content_hash, status, media_type,
-                detected_title, normalized_title, ingestion_run_id, created_at, updated_at)
+                detected_title, normalized_title, created_at, updated_at)
             VALUES (
                 @logId, @path, @assetId, @hash, 'registered', @mediaType,
-                @title, @title, @batchId, @now, @now);
-            """, new { logId, path = $"C:/watch/{assetId:N}.media", assetId, hash = $"hash-{assetId:N}", mediaType, title, batchId, now });
+                @title, @title, @now, @now);
+            """, new { logId, path = $"C:/watch/{assetId:N}.media", assetId, hash = $"hash-{assetId:N}", mediaType, title, now });
     }
 
     private sealed class ChildIdentity

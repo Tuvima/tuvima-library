@@ -10,7 +10,39 @@
 
 
 <div class="sme-match-tab">
-    <h2 class="sme-match-page-heading">Match &amp; Identity</h2>
+    @if (ShowPageHeading)
+    {
+        <h2 class="sme-match-page-heading">Match &amp; Identity</h2>
+    }
+    @if (CanRefreshMetadata && IsSingleItem)
+    {
+        <section class="sme-match-refresh" aria-label="Refresh metadata">
+            <div class="sme-match-refresh__copy">
+                <strong>Refresh metadata</strong>
+                <span>Look this item up again with your metadata providers.</span>
+            </div>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       StartIcon="@AppMaterialIcons.Outlined.Sync"
+                       Class="sme-match-refresh__button"
+                       Disabled="@(RefreshMetadataBusy || !string.IsNullOrWhiteSpace(RefreshMetadataDisabledReason))"
+                       OnClick="RefreshMetadataAsync">
+                @(RefreshMetadataBusy ? "Refreshing…" : "Refresh metadata")
+            </AppButton>
+            @if (!string.IsNullOrWhiteSpace(RefreshMetadataDisabledReason))
+            {
+                <p class="sme-match-refresh__note">@RefreshMetadataDisabledReason</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(RefreshMetadataError))
+            {
+                <p class="sme-match-refresh__note sme-match-refresh__note--error" role="alert">@RefreshMetadataError</p>
+            }
+            else if (!string.IsNullOrWhiteSpace(RefreshMetadataStatus))
+            {
+                <p class="sme-match-refresh__note" role="status">@RefreshMetadataStatus</p>
+            }
+        </section>
+    }
     @if (!string.IsNullOrWhiteSpace(MatchActionStatus))
     {
         <div class="sme-match-progress @(MatchActionPending ? "sme-match-progress--active" : string.Empty)" role="status">
@@ -519,6 +551,17 @@
     [Parameter] public bool TvdbApplyPending { get; set; } = default!;
     [Parameter] public bool TvdbCrossShowSearch { get; set; } = default!;
     [Parameter] public string? ScopeId { get; set; } = default!;
+    /// <summary>False in an Editing Mode section, whose own header already says "Match and Identity".</summary>
+    [Parameter] public bool ShowPageHeading { get; set; } = true;
+    /// <summary>Whether the person may refresh this item's metadata (the Engine accepts that action only for administrators).</summary>
+    [Parameter] public bool CanRefreshMetadata { get; set; }
+    [Parameter] public bool RefreshMetadataBusy { get; set; }
+    /// <summary>Why Refresh metadata is off right now (for example a refresh already waiting), or null when it can be used.</summary>
+    [Parameter] public string? RefreshMetadataDisabledReason { get; set; }
+    /// <summary>The quiet result line after a refresh was started.</summary>
+    [Parameter] public string? RefreshMetadataStatus { get; set; }
+    [Parameter] public string? RefreshMetadataError { get; set; }
+    [Parameter] public EventCallback RefreshMetadataRequested { get; set; }
     [Parameter] public Func<string, string> ToAbsoluteEngineUrl { get; set; } = default!;
     [Parameter] public EventCallback CancelParentMove { get; set; }
     [Parameter] public EventCallback CancelTvdbSelection { get; set; }
@@ -541,6 +584,7 @@
 
     // EventCallbacks retain the shell as the state-changing event receiver.
     private Task SetTvdbLocalFilter(string? value) => SetTvdbLocalFilterRequested.InvokeAsync(value);
+    private Task RefreshMetadataAsync() => RefreshMetadataRequested.InvokeAsync();
     private Task EditCanonicalIdentityOwnerAsync() => EditCanonicalIdentityOwnerAsyncRequested.InvokeAsync();
     private Task OnFieldInput(string key, string? value) => OnFieldInputRequested.InvokeAsync((key, value));
     private Task SearchCanonicalAsync() => SearchCanonicalAsyncRequested.InvokeAsync();

@@ -315,11 +315,11 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static DescriptionAttributionViewModel BuildLocalDescriptionAttribution() => new()
     {
-        SourceName = "Tuvima Library",
+        SourceName = "Library",
         SourceTitle = "local customization",
         LicenseName = "Local library value",
         IsModifiedOrSummarized = true,
-        Notice = "This description was customized for this Tuvima Library.",
+        Notice = "This description was customized in this library.",
     };
 
     private static string? ReleaseYear(string? value)
@@ -687,7 +687,7 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             Key = "my-list",
             Label = isSelected ? "In My List" : "Add to My List",
-            Icon = isSelected ? "check" : "add",
+            Icon = "favorite",
             Tooltip = isSelected ? "Remove from My List" : "Add to My List",
             DisplayStyle = "icon-circle",
             IsSelected = isSelected,
@@ -809,12 +809,7 @@ internal sealed partial class DetailCompositionOrchestrator
         bool updatingDetails = false)
     {
         _ = id;
-        _ = entityType;
-        DetailAction[] candidates =
-        [
-            new() { Key = "edit", Label = "Edit details", Icon = "edit", IsDisabled = updatingDetails,
-                Tooltip = updatingDetails ? "Updating details. Editing is available when ingestion finishes." : null },
-        ];
+        DetailAction[] candidates = [DetailEditAction.Build(entityType, updatingDetails)];
         return candidates.Where(action => authorization.Allows(action.Key)).ToList();
     }
 

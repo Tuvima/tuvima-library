@@ -169,14 +169,12 @@ public sealed class WorkerPipelineTests
         var scoringEngine = new StubScoringEngine();
         var outcomeFactory = CreateStubStageOutcomeFactory();
         var timeline = CreateStubTimelineRecorder();
-        var batchProgress = CreateStubBatchProgressService();
 
         var worker = new RetailMatchWorker(
             jobRepo,
             candidateRepo,
             outcomeFactory,
             timeline,
-            batchProgress,
             new[] { provider },
             retailScoring,
             claimRepo,
@@ -253,7 +251,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             retailScoring,
             claimRepo,
@@ -343,14 +340,12 @@ public sealed class WorkerPipelineTests
         var scoringEngine = new StubScoringEngine();
         var outcomeFactory = CreateStubStageOutcomeFactory();
         var timeline = CreateStubTimelineRecorder();
-        var batchProgress = CreateStubBatchProgressService();
 
         var worker = new RetailMatchWorker(
             jobRepo,
             candidateRepo,
             outcomeFactory,
             timeline,
-            batchProgress,
             new[] { provider },
             retailScoring,
             claimRepo,
@@ -447,7 +442,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new RetailMatchScoringService(
                 new ExactMatchFuzzyMatchingService(),
@@ -536,7 +530,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new RetailMatchScoringService(
                 new ExactMatchFuzzyMatchingService(),
@@ -624,7 +617,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new RetailMatchScoringService(
                 new ExactMatchFuzzyMatchingService(),
@@ -702,7 +694,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new RetailMatchScoringService(
                 new ExactMatchFuzzyMatchingService(),
@@ -781,7 +772,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new RetailMatchScoringService(
                 new ExactMatchFuzzyMatchingService(),
@@ -924,7 +914,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1068,7 +1057,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1185,7 +1173,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1349,7 +1336,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1489,7 +1475,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1751,7 +1736,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [
                 new StubExternalMetadataProvider
                 {
@@ -1929,7 +1913,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { musicBrainz, apple },
             retailScoring,
             new StubMetadataClaimRepository(),
@@ -2096,7 +2079,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { musicBrainz, apple },
             retailScoring,
             claimRepo,
@@ -2247,7 +2229,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { musicBrainz, apple },
             retailScoring,
             new StubMetadataClaimRepository(),
@@ -2351,7 +2332,6 @@ public sealed class WorkerPipelineTests
             new StubRetailCandidateRepository(),
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [musicBrainz],
             new StubRetailMatchScoringService(),
             new StubMetadataClaimRepository(),
@@ -2477,7 +2457,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             [musicBrainz, apple],
             new StubRetailMatchScoringService
             {
@@ -2541,7 +2520,7 @@ public sealed class WorkerPipelineTests
         var requests = new List<string>();
         var assets = new StubEntityAssetRepository();
         var worker = new RetailMatchWorker(
-            jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(), CreateStubBatchProgressService(),
+            jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(),
             [provider], new RetailMatchScoringService(new ExactMatchFuzzyMatchingService(), loader, coverArtHash: null, logger: null),
             new StubMetadataClaimRepository(), canonical, new StubScoringEngine(), loader,
             new StubBridgeIdRepository(), new StubWorkRepository(), new WorkClaimRouter(),
@@ -2641,7 +2620,6 @@ public sealed class WorkerPipelineTests
             candidateRepo,
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             providers,
             retailScoring,
             new StubMetadataClaimRepository(),
@@ -2698,7 +2676,6 @@ public sealed class WorkerPipelineTests
             new StubRetailCandidateRepository(),
             CreateStubStageOutcomeFactory(),
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             new StubRetailMatchScoringService(),
             new StubMetadataClaimRepository(),
@@ -2821,7 +2798,6 @@ public sealed class WorkerPipelineTests
             new StubRetailCandidateRepository(),
             outcomeFactory,
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { provider },
             retailScoring,
             new StubMetadataClaimRepository { FailInsertWith = failure },
@@ -2953,7 +2929,6 @@ public sealed class WorkerPipelineTests
             new StubRetailCandidateRepository(),
             outcomeFactory,
             CreateStubTimelineRecorder(),
-            CreateStubBatchProgressService(),
             new[] { tmdb },
             new StubRetailMatchScoringService(),
             new StubMetadataClaimRepository(),
@@ -3127,14 +3102,12 @@ public sealed class WorkerPipelineTests
         var retailScoring = new StubRetailMatchScoringService();
         var outcomeFactory = CreateStubStageOutcomeFactory();
         var timeline = CreateStubTimelineRecorder();
-        var batchProgress = CreateStubBatchProgressService();
 
         var retailWorker = new RetailMatchWorker(
             jobRepo,
             candidateRepo,
             outcomeFactory,
             timeline,
-            batchProgress,
             new[] { provider },
             retailScoring,
             claimRepo,
@@ -3172,7 +3145,6 @@ public sealed class WorkerPipelineTests
             new StubWorkRepository(),
             new WorkClaimRouter(),
             new CatalogUpsertService(new StubWorkRepository()),
-            new StubIngestionBatchRepository(),
             null!, // PostPipelineService — not exercised because no jobs are leased
             CoverArtWorkerTestFactory.Create(canonicalRepo, new StubWorkRepository()),
             NullLogger<WikidataBridgeWorker>.Instance);
@@ -3235,7 +3207,6 @@ public sealed class WorkerPipelineTests
             new StubWorkRepository(),
             new WorkClaimRouter(),
             new CatalogUpsertService(new StubWorkRepository()),
-            new StubIngestionBatchRepository(),
             null!, // PostPipelineService — retained-retail organization not under test here
             CoverArtWorkerTestFactory.Create(canonicalRepo, new StubWorkRepository()),
             NullLogger<WikidataBridgeWorker>.Instance);
@@ -3248,90 +3219,6 @@ public sealed class WorkerPipelineTests
         Assert.NotNull(updatedJob);
         Assert.Equal(IdentityJobState.QidNoMatch.ToString(), updatedJob!.State);
         Assert.Contains("No reconciliation adapter", updatedJob.LastError);
-    }
-
-    [Fact]
-    public async Task WikidataBridgeWorker_NoReconAdapter_EmitsBatchProgressOnce()
-    {
-        var entityId = Guid.NewGuid();
-        var jobId = Guid.NewGuid();
-        var batchId = Guid.NewGuid();
-        var dbPath = Path.Combine(Path.GetTempPath(), $"bridge-progress-{Guid.NewGuid():N}.db");
-
-        try
-        {
-            var jobRepo = new StubIdentityJobRepository();
-            await jobRepo.CreateAsync(new IdentityJob
-            {
-                Id = jobId,
-                EntityId = entityId,
-                EntityType = "MediaAsset",
-                MediaType = "Books",
-                State = IdentityJobState.RetailMatched.ToString(),
-                IngestionRunId = batchId,
-            });
-
-            var wikidataCandidateRepo = new StubWikidataCandidateRepository();
-            var configLoader = new StubConfigurationLoader();
-            var canonicalRepo = new StubCanonicalValueRepository();
-            var claimRepo = new StubMetadataClaimRepository();
-            var bridgeIdRepo = new StubBridgeIdRepository();
-            var scoringEngine = new StubScoringEngine();
-            var outcomeFactory = CreateStubStageOutcomeFactory();
-            var timeline = CreateStubTimelineRecorder();
-            var bridgeIdHelper = new BridgeIdHelper(configLoader);
-            var batchRepo = new RecordingIngestionBatchRepository(new IngestionBatch
-            {
-                Id = batchId,
-                FilesTotal = 1,
-                StartedAt = DateTimeOffset.UtcNow,
-                Status = "running",
-            });
-            var eventPublisher = new RecordingEventPublisher();
-            using var db = new DatabaseConnection(dbPath);
-            db.InitializeSchema();
-            db.RunStartupChecks();
-            var batchProgress = new BatchProgressService(
-                batchRepo,
-                eventPublisher,
-                NullLogger<BatchProgressService>.Instance);
-
-            var plainProvider = new StubExternalMetadataProvider
-            {
-                Name = "stub_provider",
-                ProviderId = Guid.NewGuid(),
-                Claims = [],
-            };
-
-            var worker = new WikidataBridgeWorker(
-                jobRepo,
-                wikidataCandidateRepo,
-                outcomeFactory,
-                timeline,
-                bridgeIdHelper,
-                new IExternalMetadataProvider[] { plainProvider },
-                bridgeIdRepo,
-                claimRepo,
-                canonicalRepo,
-                scoringEngine,
-                configLoader,
-                new StubWorkRepository(),
-                new WorkClaimRouter(),
-                new CatalogUpsertService(new StubWorkRepository()),
-                batchRepo,
-                null!,
-                CoverArtWorkerTestFactory.Create(canonicalRepo, new StubWorkRepository()),
-                NullLogger<WikidataBridgeWorker>.Instance,
-                batchProgress);
-
-            await worker.PollAsync(CancellationToken.None);
-
-            Assert.Equal(1, eventPublisher.CountFor(SignalREvents.BatchProgress));
-        }
-        finally
-        {
-            try { File.Delete(dbPath); } catch { }
-        }
     }
 
     [Fact]
@@ -3593,7 +3480,6 @@ public sealed class WorkerPipelineTests
         var scoringEngine = new StubScoringEngine();
         var reviewRepo = new StubReviewQueueRepository();
         var organizer = new StubAutoOrganizeService();
-        var batchProgress = CreateStubBatchProgressService();
         var universeScheduler = new StubUniverseEnrichmentScheduler();
 
         var postPipeline = new PostPipelineService(
@@ -3604,7 +3490,6 @@ public sealed class WorkerPipelineTests
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             organizer,
-            batchProgress,
             NullLogger<PostPipelineService>.Instance);
 
         var collectionRepo = new NoOpCollectionRepository();
@@ -3659,14 +3544,12 @@ public sealed class WorkerPipelineTests
             Array.Empty<IExternalMetadataProvider>(),
             reviewRepo,
             new StubAutoOrganizeService(),
-            CreateStubBatchProgressService(),
             NullLogger<PostPipelineService>.Instance);
 
         await service.EvaluateAndOrganizeAsync(
             entityId,
             Guid.NewGuid(),
             wikidataQid: null,
-            ingestionRunId: null,
             CancellationToken.None,
             retainedRetailIdentity: true);
 
@@ -3696,14 +3579,6 @@ public sealed class WorkerPipelineTests
         return new TimelineRecorder(new StubEntityTimelineRepository());
     }
 
-    private static BatchProgressService CreateStubBatchProgressService()
-    {
-        return new BatchProgressService(
-            new StubIngestionBatchRepository(),
-            new StubEventPublisher(),
-            NullLogger<BatchProgressService>.Instance);
-    }
-
     private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(json, Encoding.UTF8, "application/json"),
@@ -3730,16 +3605,11 @@ public sealed class WorkerPipelineTests
             IReadOnlyList<IdentityJobState> states,
             int batchSize,
             TimeSpan leaseDuration,
-            IReadOnlyList<string>? excludeRunIds = null,
             CancellationToken ct = default)
         {
             var stateStrings = states.Select(s => s.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var excluded = excludeRunIds is { Count: > 0 }
-                ? new HashSet<string>(excludeRunIds, StringComparer.OrdinalIgnoreCase)
-                : null;
             var matches = _jobs
-                .Where(j => stateStrings.Contains(j.State)
-                         && (excluded is null || j.IngestionRunId is null || !excluded.Contains(j.IngestionRunId.ToString()!)))
+                .Where(j => stateStrings.Contains(j.State))
                 .Take(batchSize)
                 .ToList();
 
@@ -3812,13 +3682,6 @@ public sealed class WorkerPipelineTests
         public Task<IReadOnlyList<IdentityJob>> GetByStateAsync(IdentityJobState state, int limit, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<IdentityJob>>(
                 _jobs.Where(j => j.State == state.ToString()).Take(limit).ToList());
-
-        public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-
-        public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-            IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 
         public Task<int> ReclaimStuckJobsAsync(
             IdentityJobState processingState,
@@ -4308,9 +4171,6 @@ public sealed class WorkerPipelineTests
         public Task<long> CountAsync(CancellationToken ct = default)
             => Task.FromResult(0L);
 
-        public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
-
         public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<SystemActivityEntry>>([]);
 
@@ -4377,95 +4237,15 @@ public sealed class WorkerPipelineTests
             => Task.CompletedTask;
     }
 
-    // ── StubIngestionBatchRepository ────────────────────────────────────
-
-    private sealed class StubIngestionBatchRepository : IIngestionBatchRepository
-    {
-        public Task CreateAsync(IngestionBatch batch, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task UpdateCountsAsync(Guid id, int filesTotal, int filesProcessed, int filesIdentified, int filesReview, int filesNoMatch, int filesFailed, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task CompleteAsync(Guid id, string status, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task IncrementCounterAsync(Guid id, BatchCounterColumn column, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task<IngestionBatch?> GetByIdAsync(Guid id, CancellationToken ct = default)
-            => Task.FromResult<IngestionBatch?>(null);
-
-        public Task<IReadOnlyList<IngestionBatch>> GetRecentAsync(int limit = 20, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<IngestionBatch>>([]);
-
-        public Task<int> GetNeedsAttentionCountAsync(CancellationToken ct = default)
-            => Task.FromResult(0);
-
-        public Task<IngestionBatchProgressSnapshot> GetProgressSnapshotAsync(Guid batchId, CancellationToken ct = default)
-            => Task.FromResult(new IngestionBatchProgressSnapshot());
-    }
-
     // ── StubAutoOrganizeService ─────────────────────────────────────────
 
     private sealed class StubAutoOrganizeService : IAutoOrganizeService
     {
-        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default, Guid? ingestionRunId = null)
+        public Task TryAutoOrganizeAsync(Guid assetId, CancellationToken ct = default)
             => Task.CompletedTask;
     }
 
     // ── NoOpCollectionRepository ─────────────────────────────────────────────────
-
-    private sealed class RecordingIngestionBatchRepository : IIngestionBatchRepository
-    {
-        private readonly IngestionBatch _batch;
-
-        public RecordingIngestionBatchRepository(IngestionBatch batch)
-            => _batch = batch;
-
-        public Task CreateAsync(IngestionBatch batch, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task UpdateCountsAsync(Guid id, int filesTotal, int filesProcessed, int filesIdentified, int filesReview, int filesNoMatch, int filesFailed, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task CompleteAsync(Guid id, string status, CancellationToken ct = default)
-        {
-            _batch.Status = status;
-            _batch.CompletedAt = DateTimeOffset.UtcNow;
-            return Task.CompletedTask;
-        }
-
-        public Task IncrementCounterAsync(Guid id, BatchCounterColumn column, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task<IngestionBatch?> GetByIdAsync(Guid id, CancellationToken ct = default)
-            => Task.FromResult(id == _batch.Id ? _batch : null);
-
-        public Task<IReadOnlyList<IngestionBatch>> GetRecentAsync(int limit = 20, CancellationToken ct = default)
-            => Task.FromResult<IReadOnlyList<IngestionBatch>>([_batch]);
-
-        public Task<int> GetNeedsAttentionCountAsync(CancellationToken ct = default)
-            => Task.FromResult(0);
-
-        public Task<IngestionBatchProgressSnapshot> GetProgressSnapshotAsync(Guid batchId, CancellationToken ct = default)
-            => Task.FromResult(new IngestionBatchProgressSnapshot());
-    }
-
-    private sealed class RecordingEventPublisher : IEventPublisher
-    {
-        private readonly Dictionary<string, int> _counts = new(StringComparer.OrdinalIgnoreCase);
-
-        public Task PublishAsync<TPayload>(string eventName, TPayload payload, CancellationToken ct = default)
-            where TPayload : notnull
-        {
-            _counts[eventName] = CountFor(eventName) + 1;
-            return Task.CompletedTask;
-        }
-
-        public int CountFor(string eventName)
-            => _counts.TryGetValue(eventName, out var count) ? count : 0;
-    }
 
     private sealed class NoOpCollectionRepository : ICollectionRepository
     {
@@ -4934,7 +4714,7 @@ public sealed class WorkerPipelineTests
         };
         workRepo.Children[1] = firstEpisodeMismatch ? Guid.NewGuid() : firstEpisodeWorkId;
         var worker = new RetailMatchWorker(
-            jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(), CreateStubBatchProgressService(),
+            jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(),
             [provider],
             new StubRetailMatchScoringService { Result = new FieldMatchScores { TitleScore = compositeScore, AuthorScore = compositeScore, FormatScore = 1.0, CompositeScore = compositeScore } },
             new StubMetadataClaimRepository(), canonical, new StubScoringEngine(), loader,

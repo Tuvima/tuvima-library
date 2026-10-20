@@ -119,7 +119,7 @@
                 {
                     <AppPageState Kind="AppPageStateKind.Empty"
                                   Title="Nothing has been grouped yet"
-                                  Message="Collections and shelves appear as Tuvima Library identifies relationships in your library." />
+                                  Message="Collections and shelves appear as Library identifies relationships in your library." />
                 }
             </div>
         }
@@ -177,7 +177,7 @@
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
                                         <AppSelectItem T="string" Value="@("all")">All relationships</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("Universe")">Shared universes</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Universe")">Universes</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("Series")">Series rollups</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("ContentGroup")">Related works</AppSelectItem>
                                     </AppSelect>
@@ -425,7 +425,7 @@
     {
         Key = "automatic-collections",
         Title = "Automatic Collections",
-        Subtitle = "Broader worlds Tuvima Library found by connecting trusted relationships across your shelves",
+        Subtitle = "Broader worlds Library found by connecting trusted relationships across your shelves",
         Items = SortCollectionTiles(AutomaticTiles).Take(12).ToList(),
         SeeAllRoute = "/collections/automatic",
     };
@@ -625,7 +625,7 @@
             ? shelfKindLabel
             : _kind switch
             {
-                "Universe" => "Shared universes",
+                "Universe" => "Universes",
                 "Series" => "Series rollups",
                 "ContentGroup" => "Related works",
                 _ => _kind,

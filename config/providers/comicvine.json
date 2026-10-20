@@ -82,9 +82,550 @@
       "MediaAsset"
     ]
   },
+  "candidate_ranking": [
+    {
+      "name": "issue_in_run",
+      "media_types": [
+        "Comics"
+      ],
+      "facts": {
+        "series": {
+          "from": [
+            "request:series",
+            "hint:series"
+          ]
+        },
+        "issue": {
+          "from": [
+            "hint:issue_number",
+            "hint:series_position",
+            "hint:issue"
+          ]
+        },
+        "query_title": {
+          "from": [
+            "request:title"
+          ],
+          "as": "clean_title",
+          "fallback": "fact:series"
+        },
+        "year": {
+          "from": [
+            "request:year",
+            "title_year",
+            "hint:year"
+          ],
+          "as": "year"
+        },
+        "issue_number": {
+          "from": [
+            "fact:issue"
+          ],
+          "as": "leading_int"
+        },
+        "publisher": {
+          "from": [
+            "hint:publisher"
+          ]
+        }
+      },
+      "require_facts": [
+        "series",
+        "issue"
+      ],
+      "candidates": {
+        "match": [
+          {
+            "fact": "series",
+            "paths": [
+              "volume.name",
+              "series.name",
+              "series",
+              "volumeName",
+              "volume"
+            ],
+            "compare": "equivalent_text"
+          },
+          {
+            "fact": "issue",
+            "paths": [
+              "issue_number",
+              "issueNumber",
+              "number",
+              "issue"
+            ],
+            "compare": "equivalent_ordinal"
+          }
+        ],
+        "fields": {
+          "title": {
+            "paths": [
+              "name",
+              "title",
+              "issue"
+            ]
+          },
+          "description": {
+            "paths": [
+              "description",
+              "deck",
+              "shortDescription",
+              "longDescription"
+            ]
+          },
+          "year": {
+            "paths": [
+              "cover_date",
+              "store_date",
+              "date_added",
+              "start_year",
+              "year"
+            ],
+            "as": "year"
+          },
+          "volume_id": {
+            "paths": [
+              "volume.id",
+              "volumeId"
+            ]
+          },
+          "volume_start_year": {
+            "paths": [
+              "volume.start_year",
+              "volume.startYear"
+            ],
+            "as": "year"
+          },
+          "publisher": {
+            "paths": [
+              "volume.publisher.name",
+              "publisher.name",
+              "publisher"
+            ]
+          }
+        },
+        "score": {
+          "base": 1.0,
+          "terms": [
+            {
+              "kind": "word_overlap",
+              "fact": "query_title",
+              "field": "title",
+              "weight": 0.02
+            },
+            {
+              "kind": "year_bands",
+              "fact": "year",
+              "field": "year",
+              "bands": [
+                {
+                  "max_delta": 0,
+                  "score": 0.18
+                },
+                {
+                  "max_delta": 1,
+                  "score": 0.1
+                },
+                {
+                  "max_delta": 3,
+                  "score": 0.04
+                }
+              ],
+              "otherwise": -0.08
+            },
+            {
+              "kind": "english_text",
+              "field": "description",
+              "foreign": -0.25,
+              "english": 0.03
+            }
+          ]
+        },
+        "identity": {
+          "id_paths": [
+            "id"
+          ],
+          "scope_paths": [
+            "volume.id",
+            "volumeId"
+          ],
+          "ordinal_paths": [
+            "issue_number",
+            "issueNumber",
+            "number",
+            "issue"
+          ]
+        }
+      },
+      "preferred_run": {
+        "when_facts": [
+          "issue_number"
+        ],
+        "search": {
+          "url": "{base_url}/search/?api_key={api_key}&query={series}&resources=volume&limit=25&format=json",
+          "items_path": "results",
+          "match": [
+            {
+              "fact": "series",
+              "paths": [
+                "name",
+                "title"
+              ],
+              "compare": "equivalent_text"
+            }
+          ],
+          "fields": {
+            "id": {
+              "paths": [
+                "id"
+              ]
+            },
+            "issue_count": {
+              "paths": [
+                "count_of_issues",
+                "issue_count"
+              ],
+              "as": "leading_int"
+            },
+            "start_year": {
+              "paths": [
+                "start_year",
+                "year"
+              ],
+              "as": "year"
+            },
+            "publisher": {
+              "paths": [
+                "publisher.name",
+                "publisher"
+              ]
+            }
+          },
+          "id_field": "id",
+          "reject_if_below": {
+            "field": "issue_count",
+            "fact": "issue_number"
+          },
+          "score": {
+            "base": 1.0,
+            "terms": [
+              {
+                "kind": "year_bands",
+                "fact": "year",
+                "field": "start_year",
+                "bands": [
+                  {
+                    "max_delta": 0,
+                    "score": 0.36
+                  },
+                  {
+                    "max_delta": 1,
+                    "score": 0.22
+                  },
+                  {
+                    "max_delta": 3,
+                    "score": 0.08
+                  },
+                  {
+                    "max_delta": 8,
+                    "score": -0.18
+                  }
+                ],
+                "otherwise": -0.45,
+                "no_fact_at_or_above": 2000,
+                "no_fact_score": 0.03
+              },
+              {
+                "kind": "log_scale",
+                "field": "issue_count",
+                "below_fact": "issue_number",
+                "below_score": -0.5,
+                "at_most_count": 1,
+                "at_most_score": -0.05,
+                "factor": 0.05,
+                "cap": 0.1
+              },
+              {
+                "kind": "text_affinity",
+                "fact": "publisher",
+                "field": "publisher",
+                "min": 0.75,
+                "hit": 0.12,
+                "miss": -0.03
+              },
+              {
+                "kind": "log_scale",
+                "field": "issue_count",
+                "factor": 0.09,
+                "cap": 0.18
+              }
+            ]
+          },
+          "order": [
+            "score:desc",
+            "issue_count:desc",
+            "start_year:asc"
+          ],
+          "top": 6
+        },
+        "result": {
+          "url": "{base_url}/issues/?api_key={api_key}&filter=volume:{id},issue_number:{issue_number}&format=json",
+          "items_path": "results",
+          "match": [
+            {
+              "fact": "issue",
+              "paths": [
+                "issue_number",
+                "issueNumber",
+                "number",
+                "issue"
+              ],
+              "compare": "equivalent_ordinal"
+            },
+            {
+              "value": "{id}",
+              "paths": [
+                "volume.id",
+                "volumeId"
+              ],
+              "compare": "equals"
+            }
+          ],
+          "score_bonus": 0.35
+        }
+      },
+      "enrich_when_multiple": {
+        "url": "{base_url}/volume/4050-{volume_id}/?api_key={api_key}&format=json",
+        "cache": {
+          "store": "memory",
+          "key": "volume:{volume_id}"
+        },
+        "item_path": "results",
+        "key_field": "volume_id",
+        "adds": {
+          "volume_start_year": {
+            "paths": [
+              "start_year"
+            ],
+            "as": "year",
+            "only_if_missing": true
+          },
+          "issue_count": {
+            "paths": [
+              "count_of_issues"
+            ],
+            "as": "leading_int"
+          },
+          "publisher": {
+            "paths": [
+              "publisher.name"
+            ],
+            "only_if_missing": true
+          }
+        }
+      },
+      "final_terms": [
+        {
+          "kind": "year_bands",
+          "fact": "year",
+          "field": "volume_start_year",
+          "bands": [
+            {
+              "max_delta": 0,
+              "score": 0.36
+            },
+            {
+              "max_delta": 1,
+              "score": 0.22
+            },
+            {
+              "max_delta": 3,
+              "score": 0.08
+            },
+            {
+              "max_delta": 8,
+              "score": -0.18
+            }
+          ],
+          "otherwise": -0.45,
+          "no_fact_at_or_above": 2000,
+          "no_fact_score": 0.03
+        },
+        {
+          "kind": "log_scale",
+          "field": "issue_count",
+          "below_fact": "issue_number",
+          "below_score": -0.5,
+          "at_most_count": 1,
+          "at_most_score": -0.05,
+          "factor": 0.05,
+          "cap": 0.1
+        },
+        {
+          "kind": "text_affinity",
+          "fact": "publisher",
+          "field": "publisher",
+          "min": 0.75,
+          "hit": 0.12,
+          "miss": -0.03
+        }
+      ],
+      "order": [
+        "score:desc",
+        "issue_count:desc",
+        "volume_start_year:desc",
+        "year:asc"
+      ]
+    }
+  ],
+  "result_rules": [
+    {
+      "name": "creators",
+      "media_types": [
+        "Comics"
+      ],
+      "rules": [
+        {
+          "kind": "items",
+          "path": "person_credits",
+          "role": {
+            "paths": [
+              "role",
+              "role.name",
+              "credit_type",
+              "type",
+              "job",
+              "person_role"
+            ],
+            "normalize": true,
+            "map": [
+              {
+                "contains": [
+                  "writer",
+                  "script",
+                  "story"
+                ],
+                "claim_key": "author"
+              },
+              {
+                "contains": [
+                  "artist",
+                  "pencil",
+                  "inker",
+                  "illustrator"
+                ],
+                "claim_key": "illustrator"
+              }
+            ]
+          },
+          "each": [
+            {
+              "claim_key": "{role}",
+              "json_paths": [
+                "name",
+                "person.name",
+                "credited_name"
+              ],
+              "confidence": 0.82
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "follow_ups": [
+    {
+      "name": "volume_details",
+      "media_types": [
+        "Comics"
+      ],
+      "inputs": {
+        "volume_id": [
+          "claim:comic_vine_volume_id"
+        ],
+        "series_label?": [
+          "claim:series",
+          "request:series",
+          "request:title"
+        ]
+      },
+      "url": "{base_url}/volume/4050-{volume_id}/?api_key={api_key}&format=json",
+      "cache": {
+        "store": "memory",
+        "key": "volume:{volume_id}"
+      },
+      "required_paths": [
+        "results"
+      ],
+      "add": "if_missing_key",
+      "rules": [
+        {
+          "claim_key": "sequence_total",
+          "json_path": "results.count_of_issues",
+          "confidence": 0.9
+        },
+        {
+          "claim_key": "sequence_total_scope",
+          "value": "MainSequence",
+          "requires_claim": "sequence_total",
+          "confidence": 0.9
+        },
+        {
+          "claim_key": "series_start_year",
+          "json_path": "results.start_year",
+          "transform": "first_year",
+          "confidence": 0.85
+        },
+        {
+          "claim_key": "publisher",
+          "json_path": "results.publisher.name",
+          "confidence": 0.8
+        },
+        {
+          "kind": "paged_sequence",
+          "container": "{volume_id}",
+          "items_path": "results",
+          "total_path": "number_of_total_results",
+          "expected_total_path": "results.count_of_issues",
+          "dedupe_by_id": true,
+          "date_as": "text",
+          "cache": {
+            "store": "memory"
+          },
+          "item": {
+            "id_path": "id",
+            "ordinal_path": "issue_number",
+            "title_paths": [
+              "name"
+            ],
+            "title_fallbacks": [
+              "{series_label} #{ordinal}",
+              "Issue #{ordinal}"
+            ],
+            "date_path": "cover_date"
+          },
+          "order_by": [
+            "ordinal_number",
+            "ordinal_text"
+          ],
+          "manifest": {
+            "claim_key": "sequence_manifest_json",
+            "confidence": 1.0,
+            "confidence_when_not_authoritative": 0.7,
+            "container_id": "comicvine:volume:{volume_id}",
+            "container_label": "{series_label}",
+            "external_id_key": "comic_vine_id",
+            "authoritative_when_complete": true
+          }
+        }
+      ]
+    }
+  ],
   "search_strategies": [
     {
       "name": "issue_id_lookup",
+      "role": "item",
+      "claim_rules": { "media_types": ["Comics"], "drop": ["description"], "drop_non_english_text": ["issue_description"] },
       "priority": 0,
       "required_fields": [
         "comic_vine_id"
@@ -103,6 +644,18 @@
     },
     {
       "name": "volume_search",
+      "role": "container",
+      "claim_rules": {
+        "media_types": ["Comics"],
+        "drop": ["comic_vine_id"],
+        "derive": [
+          { "claim_key": "comic_vine_volume_id", "from": ["claim:comic_vine_volume_id", "claim:comic_vine_id"], "confidence": 0.95 },
+          { "claim_key": "series", "from": ["request:series", "hint:series", "claim:series", "claim:title"], "confidence": 0.9 },
+          { "claim_key": "issue_number", "from": ["hint:issue_number", "hint:series_position", "hint:issue"], "confidence": 0.72 },
+          { "claim_key": "series_position", "from": ["hint:issue_number", "hint:series_position", "hint:issue"], "confidence": 0.72 }
+        ]
+      },
+      "extra_field_aliases": { "comic_vine_id": "comic_vine_volume_id" },
       "priority": 2,
       "required_fields": [
         "series"
@@ -121,6 +674,8 @@
     },
     {
       "name": "issue_search",
+      "role": "item",
+      "claim_rules": { "media_types": ["Comics"], "drop": ["description"], "drop_non_english_text": ["issue_description"] },
       "priority": 1,
       "required_fields": [
         "title"
@@ -304,13 +859,13 @@
     "steps": [
       { "id": "account", "title": "Account", "description": "Sign in to Comic Vine or create an account.", "instructions": ["Open the Comic Vine API page while signed in."], "action": { "kind": "external_link", "label": "Open Comic Vine API page", "url": "https://comicvine.gamespot.com/api/", "url_role": "signup" } },
       { "id": "credential", "title": "Get credential", "description": "Copy the API key shown on your Comic Vine API page.", "instructions": ["Locate your API key.", "Copy the complete value."], "action": { "kind": "credential_entry", "label": "Enter API key" }, "credential_keys": ["api_key"] },
-      { "id": "connect", "title": "Connect", "description": "Tuvima will perform a read-only connection check.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key"] }
+      { "id": "connect", "title": "Connect", "description": "Library will perform a read-only connection check.", "action": { "kind": "credential_probe", "label": "Verify & connect" }, "credential_keys": ["api_key"] }
     ],
     "troubleshooting": [
       { "status": "invalid_credential", "title": "Comic Vine did not accept this key", "message": "Copy the API key again from your Comic Vine API page.", "instructions": ["Make sure you are signed in to the account that owns the key."], "help_url": "https://comicvine.gamespot.com/api/" },
       { "status": "rate_limited", "title": "Comic Vine rate limit reached", "message": "Comic Vine limits API traffic. Wait before trying again.", "instructions": [] },
       { "status": "provider_outage", "title": "Comic Vine is temporarily unavailable", "message": "Your key may be valid. Try again later.", "instructions": [] },
-      { "status": "connectivity_failure", "title": "Tuvima could not reach Comic Vine", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+      { "status": "connectivity_failure", "title": "Library could not reach Comic Vine", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
     ],
     "skip_consequences": [
       { "lane": "read", "summary": "Comics will not receive Comic Vine issue identity, covers, creators, publisher facts, or volume sequencing.", "unavailable_capabilities": ["identity", "metadata", "artwork", "people", "relationships"] }

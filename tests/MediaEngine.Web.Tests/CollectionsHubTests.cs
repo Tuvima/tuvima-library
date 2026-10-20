@@ -37,7 +37,7 @@ public sealed class CollectionsHubTests
         var sectionShellStyles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css"));
 
         Assert.Contains("@page \"/collections/{Section}\"", routeSource, StringComparison.Ordinal);
-        Assert.Contains("[SupplyParameterFromQuery(Name = \"lane\")]", routeSource, StringComparison.Ordinal);
+        Assert.Contains("LaneQuery => Query.String(\"lane\")", routeSource, StringComparison.Ordinal);
         Assert.Contains("LaneQuery=\"@LaneQuery\"", routeSource, StringComparison.Ordinal);
         Assert.Contains("<MediaSectionShell", source, StringComparison.Ordinal);
         Assert.Contains("<LibrarySectionHeader", source, StringComparison.Ordinal);
@@ -319,6 +319,34 @@ public sealed class CollectionsHubTests
         Assert.DoesNotContain("PrimaryCover", source, StringComparison.Ordinal);
         Assert.DoesNotContain("BestCover", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Collection", modelSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AUniverseTile_OpensTheUniversePage_ByItsWikidataIdentity()
+    {
+        var universe = new CollectionManagementCatalogViewModel
+        {
+            Id = Guid.NewGuid(),
+            Name = "Dune",
+            CollectionType = "Universe",
+            GroupType = CollectionGroupTypes.Universe,
+            UniverseQid = "Q4242",
+        };
+        var series = new CollectionManagementCatalogViewModel { Id = Guid.NewGuid(), Name = "Dune Novels", CollectionType = "Series" };
+
+        Assert.Equal("/universe/Q4242", CollectionSurfaceTileComposer.FromCollection(universe).NavigationUrl);
+        // Everything that is not a Universe with an identity keeps the generic collection page.
+        Assert.Equal($"/details/collection/{series.Id:D}", CollectionSurfaceTileComposer.FromCollection(series).NavigationUrl);
+    }
+
+    [Fact]
+    public void TheUniverseGroupInCollections_IsCalledUniverses()
+    {
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor"));
+
+        Assert.DoesNotContain("Shared universes", source, StringComparison.Ordinal);
+        Assert.Contains(">Universes</AppSelectItem>", source, StringComparison.Ordinal);
+        Assert.Contains("\"Universe\" => \"Universes\"", source, StringComparison.Ordinal);
     }
 
     private static string GetRepoFilePath(string relativePath) =>

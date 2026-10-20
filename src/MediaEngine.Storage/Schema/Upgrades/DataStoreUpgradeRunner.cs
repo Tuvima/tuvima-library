@@ -169,7 +169,7 @@ internal sealed class DataStoreUpgradeRunner
         if (applied.Count > 0 && applied[^1].Number > highestKnown)
         {
             throw new DataStoreUpgradeRefusedException(
-                $"The data store {dataStore} was upgraded by a newer version of Tuvima (step {DataStoreUpgradeCatalog.Format(applied[^1].Number)}). "
+                $"The data store {dataStore} was upgraded by a newer version of Library (step {DataStoreUpgradeCatalog.Format(applied[^1].Number)}). "
                 + $"Install that version, or restore an older backup from {options.BackupLocationHint}.");
         }
 

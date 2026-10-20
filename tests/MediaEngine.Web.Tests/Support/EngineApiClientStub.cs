@@ -399,6 +399,15 @@ internal class EngineApiClientStub : DispatchProxy
                     ["tldr"] = true,
                     ["description_intelligence"] = true,
                 },
+                FeatureInfo = new Dictionary<string, AiFeatureInfoDto>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["smart_labeling"] = new() { AllowedTo = ["Reads file and folder names", "Suggests titles, authors, years and episode numbers when files are added"] },
+                    ["type_logic"] = new() { AllowedTo = ["Reads file names and basic file facts", "Decides the media type when it is unclear"] },
+                    ["series_alignment"] = new() { AllowedTo = ["Reads series and title details", "Suggests the order within a series"] },
+                    ["vibe_tags"] = new() { AllowedTo = ["Reads descriptions and genres", "Adds mood tags"] },
+                    ["tldr"] = new() { AllowedTo = ["Shows the short summary made by Description insights"] },
+                    ["description_intelligence"] = new() { AllowedTo = ["Reads descriptions", "Adds themes, mood, setting, period, audience, pace, content warnings and people"] },
+                },
                 VibeVocabulary = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["books"] = ["atmospheric", "cozy"],
@@ -426,18 +435,6 @@ internal class EngineApiClientStub : DispatchProxy
                 CpuPressure = 10,
             });
 
-        _handlers[nameof(IEngineApiClient.GetIngestionOperationsSnapshotAsync)] =
-            _ => Task.FromResult<IngestionOperationsSnapshotDto?>(new IngestionOperationsSnapshotDto
-            {
-                Summary = new IngestionOperationsSummaryDto
-                {
-                    EngineStatus = "Online",
-                    HealthLabel = "Ready",
-                    LastSuccessfulScanTime = null,
-                },
-                GeneratedAt = DateTimeOffset.UtcNow,
-            });
-
         _handlers[nameof(IEngineApiClient.GetMediaOperationsAsync)] =
             _ => Task.FromResult<IReadOnlyList<OperationDto>>([]);
         _handlers[nameof(IEngineApiClient.GetMediaOperationAsync)] =
@@ -448,44 +445,6 @@ internal class EngineApiClientStub : DispatchProxy
             _ => Task.FromResult(true);
         _handlers[nameof(IEngineApiClient.CancelMediaOperationAsync)] =
             _ => Task.FromResult(true);
-        _handlers[nameof(IEngineApiClient.GetIngestionBatchItemsAsync)] =
-            _ => Task.FromResult<PagedResponse<IngestionBatchItemResponse>?>(new PagedResponse<IngestionBatchItemResponse>(
-                [],
-                Offset: 0,
-                Limit: 100,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchesAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityBatchSummaryDto>?>(new PagedResponse<ActivityBatchSummaryDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchAsync)] =
-            _ => Task.FromResult<ActivityBatchSummaryDto?>(null);
-        _handlers[nameof(IEngineApiClient.GetActivityBatchGroupsAsync)] =
-            _ => Task.FromResult(new List<ActivityMediaTypeGroupDto>());
-        _handlers[nameof(IEngineApiClient.GetActivityBatchInsightsAsync)] =
-            _ => Task.FromResult<ActivityBatchInsightsDto?>(new ActivityBatchInsightsDto());
-        _handlers[nameof(IEngineApiClient.GetActivityBatchItemsAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityBatchItemDto>?>(new PagedResponse<ActivityBatchItemDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchEventsAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityTechnicalEventDto>?>(new PagedResponse<ActivityTechnicalEventDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
-        _handlers[nameof(IEngineApiClient.GetActivityBatchItemDetailAsync)] =
-            _ => Task.FromResult<ActivityBatchItemDetailDto?>(null);
-        _handlers[nameof(IEngineApiClient.GetActivityPeopleAsync)] =
-            _ => Task.FromResult<PagedResponse<ActivityPersonAuditDto>?>(new PagedResponse<ActivityPersonAuditDto>(
-                [],
-                Offset: 0,
-                Limit: 25,
-                HasMore: false));
         _handlers[nameof(IEngineApiClient.GetAssetCapabilitiesAsync)] =
             _ => Task.FromResult<IReadOnlyList<CapabilityStateDto>>([]);
         _handlers[nameof(IEngineApiClient.GetCapabilitySummaryAsync)] =
@@ -557,6 +516,7 @@ internal class EngineApiClientStub : DispatchProxy
                     Name = "Dune Universe",
                     Description = "A generated Wikidata-backed universe across formats.",
                     CollectionType = "Universe",
+                    UniverseQid = "Q4242",
                     Family = "Global",
                     Visibility = "shared",
                     IsGlobal = true,

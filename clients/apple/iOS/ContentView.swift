@@ -19,7 +19,7 @@ struct ContentView: View {
                 MainTabView()
             case .error(let message):
                 ContentUnavailableView(
-                    "Tuvima needs attention",
+                    "Library needs attention",
                     systemImage: "exclamationmark.triangle",
                     description: Text(message)
                 ).overlay(alignment: .bottom) {
@@ -44,7 +44,7 @@ struct ServerSetupView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Connect to Tuvima Library") {
+                Section("Connect to Library") {
                     TextField("https://library.example", text: $server)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -58,7 +58,7 @@ struct ServerSetupView: View {
                     Text("Browse your own photos and videos, view and download originals, and your galleries, including galleries shared with you. You still approve this on the server's pairing screen, and it is off unless you turn it on here.")
                 }
             }
-            .navigationTitle("Tuvima Library")
+            .navigationTitle("Library")
         }
     }
 }

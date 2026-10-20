@@ -5,6 +5,7 @@
 @using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
@@ -21,7 +22,7 @@
    ?reader=new; it replaces that page at cutover. This component owns the chrome and the saved position;
    wwwroot/js/book-reader.js owns everything that touches the book. *@
 
-<PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Tuvima Library</PageTitle>
+<PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Library</PageTitle>
 
 <link href="css/book-reader.css" rel="stylesheet" />
 
@@ -1154,6 +1155,9 @@
 
     // ---- Leaving ---------------------------------------------------------------------------------------------------
 
+    /// <summary>The details overlay state, cascaded by the route view; null where the reader is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private async Task ExitReader()
     {
         if (_exited)
@@ -1165,10 +1169,16 @@
         await CaptureLatestLocationAsync();
         await SaveProgressAsync();
 
+        // What the title's page needs from this exit (where reading stopped) is handed over in memory, not through the address.
+        if (ReturnCollectionId.HasValue)
+        {
+            Overlay?.OfferLastAsset(ReturnCollectionId.Value, AssetId);
+        }
+
         var returnUrl = ReturnCollectionId.HasValue
-            ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
+            ? $"/details/collection/{ReturnCollectionId.Value}"
             : "/";
-        Nav.NavigateTo(returnUrl, replace: true);
+        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Overlay, returnUrl);
     }
 
     // The script reports positions after a short pause; ask it for the very latest one before saving on exit.

@@ -4,16 +4,18 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Components.Watch
 
 @namespace MediaEngine.Web.Components.Pages
 
 @inject IEngineApiClient ApiClient
+@inject NavigationManager Nav
 @inject UIOrchestratorService Orchestrator
 @inject PlaybackSessionController Playback
 
-<PageTitle>@((_detail?.Title ?? "Player")) - Tuvima Library</PageTitle>
+<PageTitle>@((_detail?.Title ?? "Player")) - Library</PageTitle>
 
 @if (_loading)
 {
@@ -25,7 +27,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 {
     <div class="watch-player-state">
         <AppErrorState Title="Playable video not found"
-                       Message="Tuvima Library could not prepare this title for playback."
+                       Message="Library could not prepare this title for playback."
                        Details="@_loadError"
                        Retry="LoadPlayerAsync"
                        Icon="@AppMaterialIcons.Outlined.Movie" />
@@ -33,9 +35,13 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 }
 
 @code {
-    [SupplyParameterFromQuery(Name = "restart")] public bool Restart { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public bool Restart => Query.Bool("restart");
     [Parameter] public Guid WorkId { get; set; }
-    [SupplyParameterFromQuery(Name = "collectionId")] public Guid? CollectionId { get; set; }
+    public Guid? CollectionId => Query.Guid("collectionId");
 
     private LibraryItemDetailViewModel? _detail;
     private string? _loadError;

@@ -221,7 +221,7 @@ The media files that stayed on disk when their title was deleted from the librar
 | `library_id` | TEXT | The configured library the file sits in |
 | `source_id` | TEXT | The configured source folder the file sits in |
 | `relative_path` | TEXT | The file's place inside the source folder, written with forward slashes. With `source_id` it is unique: one row per place |
-| `content_hash` | TEXT | SHA-256 of the deleted title's media asset (nullable). A different hash, size or modified time at the same place is a different file and is scanned again |
+| `content_hash` | TEXT | SHA-256 of the deleted title's media asset (nullable). If the file at that place changes size or modified time, its content is hashed: the same hash is the same file, touched, and stays skipped; a different hash is a different file and is scanned again |
 | `file_size` | INTEGER | Size in bytes when it was excluded (nullable) |
 | `last_write_utc` | TEXT | The file's last write time, ISO 8601 UTC (nullable) |
 | `title` | TEXT | The deleted title's name, for the Settings list (nullable) |
@@ -992,6 +992,25 @@ One row per run of a recurring background task (activity log cleanup, Local AI b
 | `message` | TEXT | Plain-English result, failure message or skip reason |
 
 **Indices:** `ix_scheduled_task_runs_task_started (task_key, started_at DESC)`. Added by upgrade step `0005_scheduled_task_runs`.
+
+### approval_records
+
+One append-only row each time a server administrator (or an application holding the matching permission) confirmed what an item can do before it was switched on: a plugin, a Local AI feature, an application credential, a webhook, or an integration whose existing keys gained permissions or that was switched back on while it held keys. Nothing updates or deletes a row; `IApprovalRecordRepository` offers add, list and exists only. `statement_json` is exactly what the person was shown, and `statement_hash` is the SHA-256 of its canonical form, so an item whose statement later changes (for example a plugin that now asks for another permission) is asked about again. No secret value is ever stored here: a webhook is recorded by its receiver's host only, and a credential's key is never part of its statement.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `item_kind` | TEXT | `plugin`, `ai_feature`, `application_credential`, `webhook` or `application` |
+| `item_id` | TEXT | Plugin id, AI feature key, credential id, webhook id or (for `application`) application id |
+| `statement_hash` | TEXT | SHA-256, lower-case hex |
+| `statement_json` | TEXT | The statement as shown: title, kind label, what it can do, whether data leaves the machine and where, notes |
+| `approved_by_account_id` | BLOB | The account that confirmed; null when an application confirmed |
+| `approved_by_profile_id` | BLOB | The profile that was active when a person confirmed |
+| `approved_by_application_id` | BLOB | The application that confirmed (a non-Dashboard caller with `plugins.manage` or `ai.manage`); null when a person confirmed |
+| `approved_by_name` | TEXT | Profile display name (or application name) at the time |
+| `approved_at` | TEXT | ISO 8601 UTC |
+
+**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0017_approval_records`.
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.
@@ -1012,7 +1031,6 @@ One row per file processed through the ingestion pipeline.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT | UUID, primary key |
-| `batch_id` | TEXT | FK -> `ingestion_batches.id` |
 | `asset_id` | TEXT | FK -> `media_assets.id` |
 | `file_path` | TEXT | Original file path |
 | `fingerprint` | TEXT | SHA-256 hash |
@@ -1020,38 +1038,6 @@ One row per file processed through the ingestion pipeline.
 | `outcome_reason` | TEXT | Natural-language explanation for non-promoted outcomes |
 | `pipeline_state` | TEXT | JSON snapshot of pipeline stage completion |
 | `created_at` | TEXT | Timestamp |
-
-### ingestion_batches
-
-Groups ingestion_log rows into named runs.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `started_at` | TEXT | Timestamp |
-| `completed_at` | TEXT | NULL until batch finishes |
-| `file_count` | INTEGER | Total files in batch |
-| `promoted_count` | INTEGER | |
-| `rejected_count` | INTEGER | |
-
-### ingestion_batch_artifacts
-
-Current-schema ledger for the concrete things an ingestion batch added, updated, linked, or routed to review. This table supports later Activity page rollups without relying on UI-only state.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | BLOB | UUID, primary key |
-| `batch_id` | BLOB | Ingestion batch/run id |
-| `artifact_type` | TEXT | Media, metadata field, cover/poster URL, stored artwork, person, relationship, series, QID, review item, or other batch artifact |
-| `artifact_id` | BLOB | Optional id of the created or updated artifact |
-| `parent_entity_id` | BLOB | Optional owning asset, work, collection, person, or review entity |
-| `parent_entity_type` | TEXT | Optional owner type |
-| `action` | TEXT | Added, updated, linked, resolved, skipped, review-created, or similar action |
-| `display_name` | TEXT | Human-readable artifact label |
-| `provider_id` | TEXT | Provider that supplied the artifact, when relevant |
-| `source` | TEXT | Source subsystem or worker |
-| `detail_json` | TEXT | Structured detail for Activity page display and diagnostics |
-| `occurred_at` | TEXT | Timestamp |
 
 ### deferred_enrichment_queue
 
@@ -1353,19 +1339,21 @@ The unique key is `(asset_id, source_hash, profile_key)`. Cleanup scans the `(st
 
 ### system_activity
 
-Rolling log of Engine actions. Pruned automatically per `config/maintenance.json`.
+The Activity log's store: one row per thing the Library did (added media, Needs Review, failures, system events such as a missing tool, and photo or personal video counts). Pruned automatically per `config/maintenance.json`.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `run_id` | TEXT | Groups related activities into a single run |
-| `activity_type` | TEXT | Type code (e.g., `"Ingestion"`, `"Enrichment"`, `"Writeback"`) |
-| `entity_id` | TEXT | Related entity. NULL for system-level activities. |
-| `outcome` | TEXT | `"Success"`, `"Failure"`, `"Skipped"` |
-| `message` | TEXT | Human-readable description |
-| `created_at` | TEXT | Timestamp |
+| `id` | INTEGER | Auto-increment primary key |
+| `occurred_at` | TEXT | UTC timestamp |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
+| `entity_id` | BLOB | Related entity, when there is one |
+| `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
+| `profile_id` | BLOB | The profile that caused it, when a person did |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `detail` | TEXT | The plain explanation under the headline |
 
-**Index:** `run_id`, `activity_type`, `created_at`
+**Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0018).
 
 ### transaction_log
 

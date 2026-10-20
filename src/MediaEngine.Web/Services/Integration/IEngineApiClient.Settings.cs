@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Ai;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -57,7 +58,14 @@ public partial interface IEngineApiClient
 
     Task<ApprovedPluginCatalogDto?> GetApprovedPluginCatalogAsync(CancellationToken ct = default);
 
-    Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, CancellationToken ct = default);
+    /// <summary>
+    /// POST /plugins/{id}/enable|disable. Switching on can answer with <see cref="PluginActionResult.Approval"/> (the Engine
+    /// wants the person to see what the plugin can do first); repeat the call with that preview's hash.
+    /// </summary>
+    Task<PluginActionResult> SetPluginEnabledAsync(string pluginId, bool enabled, string? approvalHash = null, CancellationToken ct = default);
+
+    /// <summary>GET /approvals — the recorded approvals for one item (kind and item id), newest first.</summary>
+    Task<IReadOnlyList<ApprovalRecordResponse>> GetApprovalsAsync(string kind, string itemId, CancellationToken ct = default);
 
     Task<bool> SavePluginSettingsAsync(string pluginId, Dictionary<string, JsonElement> settings, CancellationToken ct = default);
 
@@ -75,6 +83,9 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /system/status — lightweight connectivity probe.</summary>
     Task<SystemStatusViewModel?> GetSystemStatusAsync(CancellationToken ct = default);
+
+    /// <summary>GET /system/development-tools — which development-only Settings pages this Engine offers (administrator only). Null when the Engine could not be asked.</summary>
+    Task<DevelopmentToolsResponse?> GetDevelopmentToolsAsync(CancellationToken ct = default);
 
     /// <summary>GET /system/readiness — structured launch-readiness report.</summary>
     Task<StartupReadinessResponse?> GetStartupReadinessAsync(CancellationToken ct = default)
@@ -249,58 +260,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /system/scheduled-tasks — every recurring Engine task with its last and next run. Null when the Engine could not be asked.</summary>
     Task<ScheduledTaskListResponse?> GetScheduledTasksAsync(CancellationToken ct = default);
 
-    /// <summary>GET /activity/run/{runId} — all entries for a specific ingestion run.</summary>
-    Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(Guid runId, CancellationToken ct = default);
-
     /// <summary>GET /activity/by-types?types=...&amp;limit= — entries filtered by action type for activity summaries.</summary>
     Task<List<ActivityEntryResponse>> GetActivityByTypesAsync(
         string[] actionTypes, int limit = 50, CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityBatchSummaryDto>?> GetActivityBatchesAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchSummaryDto?> GetActivityBatchAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<List<ActivityMediaTypeGroupDto>> GetActivityBatchGroupsAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchInsightsDto?> GetActivityBatchInsightsAsync(
-        Guid batchId,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityBatchItemDto>?> GetActivityBatchItemsAsync(
-        Guid batchId,
-        string? mediaType = null,
-        string? search = null,
-        string? status = null,
-        string? source = null,
-        int offset = 0,
-        int limit = 25,
-        string? sort = null,
-        string? sortDirection = null,
-        CancellationToken ct = default);
-
-    Task<ActivityBatchItemDetailDto?> GetActivityBatchItemDetailAsync(
-        Guid batchId,
-        Guid assetId,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityTechnicalEventDto>?> GetActivityBatchEventsAsync(
-        Guid batchId,
-        string? search = null,
-        string? eventType = null,
-        string? result = null,
-        int offset = 0,
-        int limit = 25,
-        CancellationToken ct = default);
-
-    Task<PagedResponse<ActivityPersonAuditDto>?> GetActivityPeopleAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default);
 
     // ── UI Settings (/settings/ui) ───────────────────────────────────────────────
 
@@ -383,6 +345,12 @@ public partial interface IEngineApiClient
 
     /// <summary>PUT /ai/config — saves persisted AI configuration.</summary>
     Task<bool> SaveAiConfigAsync(AiConfigDto config, CancellationToken ct = default);
+
+    /// <summary>
+    /// PUT /ai/config, keeping the Engine's approval-required answer: when a feature was switched on that the person has not
+    /// seen yet nothing is saved and <see cref="AiConfigSaveResult.Approval"/> lists what to show.
+    /// </summary>
+    Task<AiConfigSaveResult> SaveAiConfigWithApprovalAsync(AiConfigDto config, CancellationToken ct = default);
 
     // ── AI Hardware Profile (/ai/profile, /ai/benchmark) ────────────────────
 

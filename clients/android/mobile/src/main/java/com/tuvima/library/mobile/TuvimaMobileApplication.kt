@@ -34,7 +34,7 @@ class TuvimaMobileApplication : Application() {
         return TuvimaClient(
             serverAddress = serverAddress,
             clientId = "tuvima-mobile",
-            clientName = "Tuvima for Android",
+            clientName = "Library for Android",
             clientVersion = BuildConfig.VERSION_NAME,
             deviceName = Build.MODEL,
             deviceClass = "mobile",

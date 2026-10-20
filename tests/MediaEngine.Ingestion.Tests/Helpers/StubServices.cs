@@ -155,7 +155,7 @@ internal sealed class StubIdentityJobRepository : IIdentityJobRepository
     public Task<IdentityJob?> GetByIdAsync(Guid jobId, CancellationToken ct = default)
         => Task.FromResult<IdentityJob?>(null);
 
-    public Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(string workerName, IReadOnlyList<IdentityJobState> states, int batchSize, TimeSpan leaseDuration, IReadOnlyList<string>? excludeRunIds = null, CancellationToken ct = default)
+    public Task<IReadOnlyList<IdentityJob>> LeaseNextAsync(string workerName, IReadOnlyList<IdentityJobState> states, int batchSize, TimeSpan leaseDuration, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<IdentityJob>>([]);
 
     public Task UpdateStateAsync(Guid jobId, IdentityJobState newState, string? error = null, CancellationToken ct = default)
@@ -172,13 +172,6 @@ internal sealed class StubIdentityJobRepository : IIdentityJobRepository
 
     public Task<IReadOnlyList<IdentityJob>> GetByStateAsync(IdentityJobState state, int limit, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<IdentityJob>>([]);
-
-    public Task<IReadOnlyDictionary<string, int>> GetStateCountsByRunAsync(Guid ingestionRunId, CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
-
-    public Task<IReadOnlyDictionary<string, int>> GetPendingStage1CountsByRunAsync(
-        IReadOnlyList<string> ingestionRunIds, CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
 
     public Task<int> ReclaimStuckJobsAsync(
         IdentityJobState processingState,
@@ -425,24 +418,6 @@ internal sealed class StubMediaTypeAdvisor : IMediaTypeAdvisor
             Confidence = 0.0,
             Reason = "Stub — no AI classification in tests",
         });
-}
-
-// ── IngestionBatchRepository Stub ────────────────────────────────────────────
-
-/// <summary>No-op ingestion batch repository for tests — all writes are silently discarded.</summary>
-internal sealed class StubIngestionBatchRepository : IIngestionBatchRepository
-{
-    public Task CreateAsync(MediaEngine.Domain.Entities.IngestionBatch batch, CancellationToken ct = default) => Task.CompletedTask;
-    public Task UpdateCountsAsync(Guid id, int filesTotal, int filesProcessed, int filesIdentified, int filesReview, int filesNoMatch, int filesFailed, CancellationToken ct = default) => Task.CompletedTask;
-    public Task CompleteAsync(Guid id, string status, CancellationToken ct = default) => Task.CompletedTask;
-    public Task IncrementCounterAsync(Guid id, MediaEngine.Domain.Enums.BatchCounterColumn column, CancellationToken ct = default) => Task.CompletedTask;
-    public Task<MediaEngine.Domain.Entities.IngestionBatch?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<MediaEngine.Domain.Entities.IngestionBatch?>(null);
-    public Task<IReadOnlyList<MediaEngine.Domain.Entities.IngestionBatch>> GetRecentAsync(int limit = 20, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<MediaEngine.Domain.Entities.IngestionBatch>>([]);
-    public Task<int> GetNeedsAttentionCountAsync(CancellationToken ct = default) => Task.FromResult(0);
-    public Task<MediaEngine.Domain.Models.IngestionBatchProgressSnapshot> GetProgressSnapshotAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-        => Task.FromResult(new MediaEngine.Domain.Models.IngestionBatchProgressSnapshot());
 }
 
 // ── EntityTimelineRepository Stub ────────────────────────────────────────────

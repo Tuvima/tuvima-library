@@ -117,6 +117,8 @@ reorganises the files already there. The Engine owns `conversion_state` and
 `conversion_operation_id`: a settings save keeps whatever the Engine has for a folder it
 already knew, and saving a folder as As-is clears both.
 
+Deleting a title whose file sits in an as-is folder removes the title from the library but never the file. The file stays where it is and becomes an **excluded file**: scans skip it, so the title does not come back, until someone adds it back in Settings > Libraries. If a different file later appears at the same place, it is a new file and is scanned.
+
 ### Organising job (converting a folder to Managed)
 
 `POST /settings/libraries/folders/convert` makes the folder Managed and queues one
@@ -285,6 +287,8 @@ a caller asks) within the source, and write tags when the type's `write_tags` is
 on and the format supports it. Only the library's destination, or a merge target
 the person started, may receive files.
 
+When a title is deleted from the library, its managed files and their sidecars (subtitles, `.nfo` files, posters, and other files that share its name or that Tuvima wrote) are deleted from disk straight away after the confirmation. Library media has no recycle bin, because films, TV, books, audiobooks, comics and music can be downloaded again. Folders the delete leaves empty are removed. A file that cannot be removed, for example because it is in use or Tuvima has no permission to remove it, stays on disk and becomes an excluded file, and the title still leaves the library. The original of a file that a merge left in place is never deleted: it stays and becomes an excluded file.
+
 Every mutating operation passes through the shared source-mutation policy gate.
 Code paths must not infer permission from a path, a global option, or a UI
 selection alone.
@@ -327,6 +331,8 @@ normal timeline but never rename, move, overwrite, or delete the original.
 Gallery removal and Gallery deletion likewise remove only organizational state.
 Any future permanent-file operation must separately prove ownership, source
 containment, managed/writable policy, and a fresh explicit confirmation.
+
+Deleting a personal file from disk is not built yet. The planned rule is that a personal file, such as a photo or a document in View, always goes to Trash first and leaves the disk only when Trash is emptied (Empty Trash), after its own confirmation. Trash today only hides items. Library media works differently: its files are deleted straight away after confirmation (see Managed source), and personal items cannot be deleted through Delete from library.
 
 ## Access
 

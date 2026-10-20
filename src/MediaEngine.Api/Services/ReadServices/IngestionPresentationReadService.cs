@@ -23,18 +23,18 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     public const int DefaultCurrentLimit = 12;
 
     private readonly IDatabaseConnection _db;
-    private readonly MediaEngine.Providers.Services.BatchProgressService? _progress;
+    private readonly IIngestionQueueProgressService? _queue;
     private readonly MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? _personalMedia;
     private readonly IIdentityBypassLibraries? _bypassLibraries;
 
     public IngestionPresentationReadService(
         IDatabaseConnection db,
-        MediaEngine.Providers.Services.BatchProgressService? progress = null,
+        IIngestionQueueProgressService? queue = null,
         MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? personalMedia = null,
         IIdentityBypassLibraries? bypassLibraries = null)
     {
         _db = db;
-        _progress = progress;
+        _queue = queue;
         _personalMedia = personalMedia;
         _bypassLibraries = bypassLibraries;
     }
@@ -51,13 +51,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
         var currentPage = await LoadCurrentGroupPageAsync(PagedRequest.From(0, currentLimit, currentLimit, 20), ct, eligibleOnly: true).ConfigureAwait(false);
         var current = currentPage.Items;
-        var currentFacts = await ReadCurrentGroupFactsAsync(ct).ConfigureAwait(false);
-        var batchFacts = await ReadCurrentBatchFactsAsync(ct).ConfigureAwait(false);
-        var recentDays = await LoadRecentDaysAsync(
-            recentDayLimit,
-            recentItemsPerDay,
-            batchFacts.IsRunning ? batchFacts.BatchId : null,
-            ct).ConfigureAwait(false);
+        var queue = _queue?.Current;
+        var currentFacts = await ReadCurrentGroupFactsAsync(queue?.StartedAt, ct).ConfigureAwait(false);
+        var recentDays = await LoadRecentDaysAsync(recentDayLimit, recentItemsPerDay, ct).ConfigureAwait(false);
         var operationFacts = await ReadCurrentOperationFactsAsync(ct).ConfigureAwait(false);
         var reviewCount = await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
 
@@ -81,7 +77,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "provider",
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
-                Description = "Tuvima will retry automatically",
+                Description = "Library will retry automatically",
                 // Shown on the page it would link to, so it is information, not a link.
                 Route = null,
             });
@@ -99,15 +95,14 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             });
         }
 
-        var isRunning = batchFacts.IsRunning || operationFacts.Active + operationFacts.Queued + operationFacts.RetryWaiting > 0;
+        var isRunning = (currentPage.TotalCount ?? current.Count) > 0
+            || operationFacts.Active + operationFacts.Queued + operationFacts.RetryWaiting > 0;
         return new IngestionPresentationSnapshotDto
         {
-            BatchProgress = batchFacts.BatchId is { } activeBatchId && _progress is not null
-                ? await _progress.GetProgressAsync(activeBatchId, ct).ConfigureAwait(false) : null,
             IsRunning = isRunning,
             Status = isRunning ? "active" : "idle",
-            FilesDiscovered = batchFacts.FilesTotal,
-            FilesProcessed = Math.Min(batchFacts.FilesProcessed, Math.Max(batchFacts.FilesTotal, batchFacts.FilesProcessed)),
+            FilesDiscovered = queue?.FilesFound ?? 0,
+            FilesProcessed = queue?.FilesDone ?? 0,
             LibraryGroups = currentFacts.TotalGroups,
             ReadyGroups = currentFacts.ReadyGroups,
             FinishingGroups = currentFacts.FinishingGroups,
@@ -115,8 +110,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ActiveOperations = operationFacts.Active,
             QueuedOperations = operationFacts.Queued,
             RetryWaitingOperations = operationFacts.RetryWaiting,
-            StartedAt = batchFacts.StartedAt,
-            LastActivityAt = batchFacts.LastActivityAt ?? recentDays.FirstOrDefault()?.Items.FirstOrDefault()?.AddedAt,
+            StartedAt = queue?.StartedAt,
+            LastActivityAt = queue?.LastActivityAt ?? recentDays.FirstOrDefault()?.Items.FirstOrDefault()?.AddedAt,
             CurrentMedia = current.ToList(),
             CurrentMediaTotal = currentPage.TotalCount ?? current.Count,
             Attention = attention,
@@ -157,29 +152,22 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     }
 
     public async Task<IngestionMediaGroupDto?> GetMediaGroupAsync(
-        Guid batchId,
         Guid groupId,
         CancellationToken ct = default)
     {
-        var groups = await LoadGroupsAsync(GroupScope.Batch, batchId, ct, groupIds: [groupId]).ConfigureAwait(false);
+        var groups = await LoadGroupsAsync([groupId], addedOnly: false, ct).ConfigureAwait(false);
         ApplyArtworkSize(groups, "m");
-        if (await IsHistoricalBatchAsync(batchId, ct).ConfigureAwait(false))
-        {
-            ApplyHistoricalProgress(groups);
-        }
-
         return groups.FirstOrDefault(item => item.GroupId == groupId);
     }
 
     public async Task<PagedResponse<IngestionMediaChildDto>> GetChildrenAsync(
-        Guid batchId,
         Guid groupId,
         int offset,
         int limit,
         CancellationToken ct = default)
     {
         var request = PagedRequest.From(offset, limit, 50, 250);
-        var rows = await LoadRowsAsync(GroupScope.Batch, batchId, ct, groupIds: [groupId]).ConfigureAwait(false);
+        var rows = await LoadRowsAsync([groupId], addedOnly: false, ct).ConfigureAwait(false);
         var children = rows
             .Where(row => PresentationGroupId(row) == groupId)
             .GroupBy(row => row.WorkId)
@@ -208,20 +196,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     public async Task<ActivityHistorySummaryDto> GetActivitySummaryAsync(CancellationToken ct = default)
     {
         using var conn = _db.CreateConnection();
-        var row = await conn.QuerySingleAsync<ActivitySummaryRow>(new CommandDefinition("""
-            SELECT
-                COUNT(CASE WHEN status = 'completed' AND completed_at >= @weekStart THEN 1 END) AS CompletedRunsThisWeek,
-                MAX(COALESCE(completed_at, updated_at, started_at)) AS LastActivityAt
-            FROM ingestion_batches;
-            """, new { weekStart = StartOfWeek(DateTimeOffset.UtcNow).ToString("O") }, cancellationToken: ct)).ConfigureAwait(false);
-
-        var latestBatch = await conn.QueryFirstOrDefaultAsync<LatestBatchRow>(new CommandDefinition("""
-            SELECT files_processed AS FilesProcessed
-            FROM ingestion_batches
-            WHERE status = 'completed'
-            ORDER BY COALESCE(completed_at, updated_at, started_at) DESC
-            LIMIT 1;
-            """, cancellationToken: ct)).ConfigureAwait(false);
         var pending = await ReadPendingReviewCountAsync(ct).ConfigureAwait(false);
         var localToday = DateTime.Today;
         var todayStart = new DateTimeOffset(localToday, TimeZoneInfo.Local.GetUtcOffset(localToday)).ToUniversalTime();
@@ -230,201 +204,10 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
         return new ActivityHistorySummaryDto
         {
-            CompletedRunsThisWeek = row.CompletedRunsThisWeek,
             ItemsAddedToday = history.ItemsAddedToday,
             ItemsNeedingFollowUp = pending,
-            LastActivityAt = row.LastActivityAt,
-            LastFilesProcessed = latestBatch?.FilesProcessed,
-            LastGroupsAdded = history.LastGroupsAdded,
+            LastActivityAt = history.LastActivityAt,
         };
-    }
-
-    public async Task<ActivityBatchPresentationDto?> GetBatchPresentationAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-        var batch = await conn.QueryFirstOrDefaultAsync<BatchPresentationRow>(new CommandDefinition($"""
-            SELECT
-                id AS BatchId,
-                CASE WHEN {IngestionBatchActivitySql.IsActive} THEN 'running' ELSE b.status END AS Status,
-                source_path AS Source,
-                category AS Category,
-                files_processed AS FilesProcessed,
-                files_review AS ReviewCount,
-                files_failed AS FailureCount,
-                started_at AS StartedAt,
-                CASE WHEN {IngestionBatchActivitySql.IsActive} THEN NULL ELSE completed_at END AS CompletedAt
-            FROM ingestion_batches b
-            WHERE id = @batchId;
-            """, new { batchId }, cancellationToken: ct)).ConfigureAwait(false);
-        if (batch is null)
-        {
-            return null;
-        }
-
-        var previewPage = await LoadBatchGroupPageAsync(batchId, PagedRequest.From(0, 6, 6, 6), ct).ConfigureAwait(false);
-        var groups = previewPage.Items;
-        ApplyArtworkSize(groups, "s");
-        ApplyHistoricalProgress(groups);
-        var metrics = await conn.QuerySingleAsync<BatchMetricRow>(new CommandDefinition("""
-            SELECT
-                COUNT(DISTINCT CASE WHEN iba.artifact_type = 'person' THEN iba.artifact_id END) AS PeopleUpdated,
-                COUNT(DISTINCT CASE WHEN iba.artifact_type IN ('artwork', 'image') THEN iba.artifact_id END) AS ArtworkAdded,
-                COUNT(DISTINCT CASE WHEN iba.artifact_type IN ('lyrics', 'subtitle', 'text_track') THEN iba.artifact_id END) AS TextTracksAdded
-            FROM ingestion_batch_artifacts iba
-            WHERE iba.batch_id = @batchId;
-            """, new { batchId }, cancellationToken: ct)).ConfigureAwait(false);
-
-        var followUpCount = Math.Max(0, batch.ReviewCount + batch.FailureCount);
-        var followUp = new List<IngestionAttentionItemDto>();
-        if (batch.ReviewCount > 0)
-        {
-            followUp.Add(new IngestionAttentionItemDto
-            {
-                Kind = "review",
-                Count = batch.ReviewCount,
-                Label = $"{batch.ReviewCount:N0} {Pluralize("item", batch.ReviewCount)} need review",
-                Route = "/settings/review",
-            });
-        }
-        if (batch.FailureCount > 0)
-        {
-            followUp.Add(new IngestionAttentionItemDto
-            {
-                Kind = "failure",
-                Count = batch.FailureCount,
-                Label = $"{batch.FailureCount:N0} {Pluralize("item", batch.FailureCount)} failed",
-                Route = $"/settings/ingestion?runId={batchId:D}&view=all",
-            });
-        }
-
-        return new ActivityBatchPresentationDto
-        {
-            BatchId = batchId,
-            DisplayName = DisplayBatchName(
-                batch.Category,
-                batch.Source,
-                groups,
-                previewPage.TotalCount == groups.Count),
-            Summary = BatchSummary(
-                batch.Status,
-                groups,
-                followUpCount,
-                previewPage.TotalCount == groups.Count),
-            FilesProcessed = batch.FilesProcessed,
-            GroupsAdded = previewPage.TotalCount ?? groups.Count,
-            PeopleUpdated = metrics.PeopleUpdated > 0 ? metrics.PeopleUpdated : null,
-            ArtworkAdded = metrics.ArtworkAdded > 0 ? metrics.ArtworkAdded : null,
-            TextTracksAdded = metrics.TextTracksAdded > 0 ? metrics.TextTracksAdded : null,
-            ItemsNeedingFollowUp = followUpCount > 0 ? followUpCount : null,
-            AddedPreview = groups.ToList(),
-            AddedTotal = previewPage.TotalCount ?? groups.Count,
-            FollowUp = followUp,
-            Timeline = await BuildMilestonesAsync(conn, batch, ct).ConfigureAwait(false),
-        };
-    }
-
-    public async Task<PagedResponse<IngestionMediaGroupDto>> GetBatchMediaAsync(
-        Guid batchId,
-        int offset,
-        int limit,
-        string? search = null,
-        string? lane = null,
-        string? sort = null,
-        CancellationToken ct = default)
-    {
-        var request = PagedRequest.From(offset, limit, 50, 100);
-        return await LoadBatchGroupPageAsync(batchId, request, ct, search, lane, sort).ConfigureAwait(false);
-    }
-
-    public async Task<IReadOnlyDictionary<Guid, PagedResponse<IngestionMediaGroupDto>>> GetBatchMediaPreviewsAsync(
-        IReadOnlyCollection<Guid> batchIds,
-        int limitPerBatch,
-        CancellationToken ct = default)
-    {
-        if (batchIds.Count == 0)
-        {
-            return new Dictionary<Guid, PagedResponse<IngestionMediaGroupDto>>();
-        }
-
-        var request = PagedRequest.From(0, limitPerBatch, 6, 12);
-        var keys = await LoadBatchPreviewKeysAsync(batchIds, request.Limit + 1, ct).ConfigureAwait(false);
-        var selectedKeys = keys
-            .GroupBy(key => key.BatchId)
-            .SelectMany(group => group.Take(request.Limit))
-            .ToList();
-        var selectedBatchIds = selectedKeys.Select(key => key.BatchId).Distinct().ToArray();
-        var selectedGroupIds = selectedKeys.Select(key => key.GroupId).Distinct().ToArray();
-        var groups = selectedKeys.Count == 0
-            ? []
-            : await LoadGroupsAsync(
-                GroupScope.BatchAdditionsSet,
-                null,
-                ct,
-                selectedBatchIds,
-                selectedGroupIds).ConfigureAwait(false);
-        ApplyArtworkSize(groups, "s");
-        ApplyHistoricalProgress(groups);
-
-        var groupsByKey = groups.ToDictionary(group => (group.BatchId, group.GroupId));
-        return batchIds.ToDictionary(
-            id => id,
-            id =>
-            {
-                var batchKeys = keys.Where(key => key.BatchId == id).ToList();
-                var items = batchKeys
-                    .Take(request.Limit)
-                    .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
-                    .Where(item => item is not null)
-                    .Cast<IngestionMediaGroupDto>()
-                    .ToList();
-                var total = batchKeys.FirstOrDefault()?.TotalCount ?? 0;
-                return new PagedResponse<IngestionMediaGroupDto>(
-                    items,
-                    request.Offset,
-                    request.Limit,
-                    total > request.Limit,
-                    total,
-                    total > request.Limit ? request.Limit.ToString(CultureInfo.InvariantCulture) : null);
-            });
-    }
-
-    private async Task<PagedResponse<IngestionMediaGroupDto>> LoadBatchGroupPageAsync(
-        Guid batchId,
-        PagedRequest request,
-        CancellationToken ct,
-        string? search = null,
-        string? lane = null,
-        string? sort = null)
-    {
-        var keys = await LoadBatchGroupKeysAsync(batchId, search, lane, sort, request.Offset, request.Limit + 1, ct).ConfigureAwait(false);
-        var pageKeys = keys.Take(request.Limit).ToList();
-        var groups = pageKeys.Count == 0
-            ? []
-            : await LoadGroupsAsync(
-                GroupScope.BatchAdditions,
-                batchId,
-                ct,
-                groupIds: pageKeys.Select(key => key.GroupId).ToArray()).ConfigureAwait(false);
-        ApplyArtworkSize(groups, "m");
-        ApplyHistoricalProgress(groups);
-
-        var groupsById = groups.ToDictionary(group => group.GroupId);
-        var ordered = pageKeys
-            .Select(key => groupsById.GetValueOrDefault(key.GroupId))
-            .Where(item => item is not null)
-            .Cast<IngestionMediaGroupDto>()
-            .ToList();
-        var total = keys.FirstOrDefault()?.TotalCount ?? 0;
-        var hasMore = keys.Count > request.Limit;
-        return new PagedResponse<IngestionMediaGroupDto>(
-            ordered,
-            request.Offset,
-            request.Limit,
-            hasMore,
-            total,
-            hasMore ? (request.Offset + ordered.Count).ToString(CultureInfo.InvariantCulture) : null);
     }
 
     private async Task<PagedResponse<IngestionMediaGroupDto>> LoadCurrentGroupPageAsync(
@@ -436,20 +219,10 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var pageKeys = keys.Take(request.Limit).ToList();
         var groups = pageKeys.Count == 0
             ? []
-            : await LoadGroupsAsync(
-                GroupScope.Current,
-                null,
-                ct,
-                pageKeys.Select(key => key.BatchId).Distinct().ToArray(),
-                pageKeys.Select(key => key.GroupId).Distinct().ToArray()).ConfigureAwait(false);
+            : await LoadGroupsAsync(pageKeys.Select(key => key.GroupId).Distinct().ToArray(), addedOnly: false, ct).ConfigureAwait(false);
         ApplyArtworkSize(groups, "m");
 
-        var groupsByKey = groups.ToDictionary(group => (group.BatchId, group.GroupId));
-        var ordered = pageKeys
-            .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
-            .Where(item => item is not null)
-            .Cast<IngestionMediaGroupDto>()
-            .ToList();
+        var ordered = OrderByKeys(pageKeys, groups);
         var total = keys.FirstOrDefault()?.TotalCount ?? 0;
         var hasMore = keys.Count > request.Limit;
         return new PagedResponse<IngestionMediaGroupDto>(
@@ -464,85 +237,48 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private async Task<List<IngestionRecentDayDto>> LoadRecentDaysAsync(
         int dayLimit,
         int itemLimit,
-        Guid? currentBatchId,
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
+        // One row per group per local day, from each file's own first-Ready time: a show that got episodes on two days
+        // appears on both, counted by the episodes added on each.
         var dayScopeCtes = $"""
-            latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    WHERE il.ingestion_run_id IS NOT NULL
-                      AND il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    WHERE mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
-            scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       MIN({AddedAtSql}) AS AddedAt,
+            {LatestLogsCte},
+            {LatestFileOperationsCte},
+            dated AS (
+                SELECT {PresentationGroupSql} AS GroupId,
+                       DATE({AddedAtSql}, 'localtime') AS LocalDate,
                        MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at)) AS UpdatedAt,
                        MAX({NormalizedMediaTypeSql}) AS MediaTypeRaw,
                        COUNT(DISTINCT w.id) AS LeafCount
                 FROM latest_logs ll
-                JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
                 JOIN editions e ON e.id = ma.edition_id
                 JOIN works w ON w.id = e.work_id
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE ((@currentBatchId IS NULL AND NOT {IngestionBatchActivitySql.IsActive})
-                       OR (@currentBatchId IS NOT NULL AND b.id = @currentBatchId))
-                  AND {AdditionBatchPredicate}
+                LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
+                WHERE {AddedAtSql} IS NOT NULL
                   AND {PresentationTitleSql}
-                GROUP BY ll.ingestion_run_id, {PresentationGroupSql}
-            ),
-            dated AS (
-                SELECT BatchId,
-                       GroupId,
-                       UpdatedAt,
-                       MediaTypeRaw,
-                       LeafCount,
-                       DATE(AddedAt, 'localtime') AS LocalDate
-                FROM scoped
+                GROUP BY {PresentationGroupSql}, DATE({AddedAtSql}, 'localtime')
             )
             """;
         var keys = (await conn.QueryAsync<RecentDayGroupKeyRow>(new CommandDefinition($"""
             WITH {dayScopeCtes},
             ranked AS (
-                SELECT BatchId,
-                       GroupId,
+                SELECT GroupId,
                        LocalDate,
                        COUNT(*) OVER (PARTITION BY LocalDate) AS TotalCount,
-                       ROW_NUMBER() OVER (PARTITION BY LocalDate ORDER BY UpdatedAt DESC, HEX(BatchId), HEX(GroupId)) AS GroupRank,
+                       ROW_NUMBER() OVER (PARTITION BY LocalDate ORDER BY UpdatedAt DESC, HEX(GroupId)) AS GroupRank,
                        DENSE_RANK() OVER (ORDER BY LocalDate DESC) AS DayRank
                 FROM dated
                 WHERE LocalDate IS NOT NULL
             )
-            SELECT BatchId, GroupId, LocalDate, TotalCount, GroupRank
+            SELECT GroupId, LocalDate, TotalCount, GroupRank
             FROM ranked
             WHERE DayRank <= @dayLimit AND GroupRank <= @itemLimit
             ORDER BY LocalDate DESC, GroupRank;
-            """, new { dayLimit, itemLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+            """, new { dayLimit, itemLimit }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
 
         // Per-type counts cover every group of the day, not just the capped preview above, so the Added summary is complete.
         var typeRows = (await conn.QueryAsync<RecentDayTypeCountRow>(new CommandDefinition($"""
@@ -552,7 +288,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             WHERE LocalDate IS NOT NULL
               AND LocalDate IN (SELECT DISTINCT LocalDate FROM dated WHERE LocalDate IS NOT NULL ORDER BY LocalDate DESC LIMIT @dayLimit)
             GROUP BY LocalDate, MediaTypeRaw;
-            """, new { dayLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+            """, new { dayLimit }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
         var typeCountsByDay = typeRows
             .GroupBy(row => row.LocalDate, StringComparer.Ordinal)
             .ToDictionary(
@@ -570,15 +306,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             return [];
         }
 
-        var groups = await LoadGroupsAsync(
-            GroupScope.BatchAdditionsSet,
-            null,
-            ct,
-            keys.Select(key => key.BatchId).Distinct().ToArray(),
-            keys.Select(key => key.GroupId).Distinct().ToArray()).ConfigureAwait(false);
+        var groups = await LoadGroupsAsync(keys.Select(key => key.GroupId).Distinct().ToArray(), addedOnly: true, ct).ConfigureAwait(false);
         ApplyArtworkSize(groups, "s");
-        ApplyHistoricalProgress(groups);
-        var groupsByKey = groups.ToDictionary(group => (group.BatchId, group.GroupId));
+        var groupsById = groups.ToDictionary(group => group.GroupId);
 
         return keys
             .GroupBy(key => key.LocalDate, StringComparer.Ordinal)
@@ -589,7 +319,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 TypeCounts = typeCountsByDay.GetValueOrDefault(day.Key) ?? [],
                 Items = day
                     .OrderBy(key => key.GroupRank)
-                    .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
+                    .Select(key => groupsById.GetValueOrDefault(key.GroupId))
                     .Where(item => item is not null)
                     .Cast<IngestionMediaGroupDto>()
                     .ToList(),
@@ -598,105 +328,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .ToList();
     }
 
+    // The groups in flight, ordered by how actively they are being worked on, then most recently active first. With
+    // eligibleOnly the Now panel's rule applies as well: a group is shown once it has a real cover and something is
+    // actively happening to it.
     private async Task<List<PresentationGroupKeyRow>> LoadCurrentGroupKeysAsync(
         int offset,
         int limit,
         bool eligibleOnly,
         CancellationToken ct)
     {
-        var eligibilityFilter = eligibleOnly ? "WHERE HasPrimaryCover = 1 AND ActivityRank < 3" : string.Empty;
+        var eligibilityFilter = eligibleOnly ? "AND HasPrimaryCover = 1 AND ActivityRank < 3" : string.Empty;
         using var conn = _db.CreateConnection();
         return (await conn.QueryAsync<PresentationGroupKeyRow>(new CommandDefinition($"""
-            WITH current_batches AS (
-                SELECT b.id
-                FROM ingestion_batches b
-                WHERE {IngestionBatchActivitySql.IsActive}
-            ),
-            latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    JOIN current_batches cb ON cb.id = il.ingestion_run_id
-                    WHERE il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    JOIN current_batches cb ON cb.id = mo.batch_id
-                    WHERE mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
-            scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at),
-                           COALESCE((SELECT MAX(COALESCE(activity.updated_at,activity.started_at,activity.created_at))
-                               FROM media_operations activity
-                               WHERE activity.batch_id = ll.ingestion_run_id
-                                 AND activity.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), ''),
-                           COALESCE((SELECT MAX(ij.updated_at) FROM identity_jobs ij WHERE ij.ingestion_run_id = ll.ingestion_run_id
-                               AND ij.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), '')) AS UpdatedAt,
-                       MIN(COALESCE((SELECT MIN(CASE WHEN activity.status IN ('running','processing','active') THEN 0
-                                                WHEN activity.status IN ('retry_waiting','failed_retryable','interrupted') THEN 1
-                                                WHEN activity.status = 'queued' THEN 2 ELSE 3 END)
-                           FROM media_operations activity WHERE activity.batch_id = ll.ingestion_run_id
-                             AND activity.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), 3),
-                           COALESCE((SELECT MIN(CASE WHEN ij.state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') THEN 0
-                               WHEN ij.state IN ('RetailMatched','QidResolved') THEN 1
-                               WHEN ij.state = 'Queued' THEN 2 ELSE 3 END)
-                               FROM identity_jobs ij WHERE ij.ingestion_run_id = ll.ingestion_run_id
-                                 AND ij.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), 3)) AS ActivityRank
-                       ,EXISTS (
-                           SELECT 1
-                           FROM entity_assets ea
-                           WHERE ea.asset_type = 'CoverArt'
-                             AND (
-                                 (LOWER(COALESCE(w.media_type,'')) IN ('tv','television','tv show','tv shows') AND ea.entity_id = COALESCE(gp.id,p.id,w.id))
-                                 OR (LOWER(COALESCE(w.media_type,'')) IN ('music','track','song','album') AND ea.entity_id = COALESCE(p.id,w.id))
-                                 OR (LOWER(COALESCE(w.media_type,'')) IN ('comic','comics','cbz','cbr') AND ea.entity_id IN (w.id,p.id))
-                                 OR (LOWER(COALESCE(w.media_type,'')) LIKE '%audiobook%' AND ea.entity_id = COALESCE(p.id,w.id))
-                                 OR (LOWER(COALESCE(w.media_type,'')) NOT IN ('tv','television','tv show','tv shows','music','track','song','album','comic','comics','cbz','cbr')
-                                     AND LOWER(COALESCE(w.media_type,'')) NOT LIKE '%audiobook%'
-                                     AND ea.entity_id = w.id)
-                             )
-                       ) AS HasPrimaryCover
-                FROM latest_logs ll
-                JOIN media_assets ma ON ma.id = ll.media_asset_id
-                JOIN editions e ON e.id = ma.edition_id
-                JOIN works w ON w.id = e.work_id
-                LEFT JOIN works p ON p.id = w.parent_work_id
-                LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE {PresentationTitleSql}
-            ),
-            grouped AS (
-                SELECT BatchId, GroupId, MAX(UpdatedAt) AS UpdatedAt,
-                       MIN(ActivityRank) AS ActivityRank,
-                       MAX(HasPrimaryCover) AS HasPrimaryCover
-                FROM scoped
-                GROUP BY BatchId, GroupId
-            )
-            SELECT BatchId,
-                   GroupId,
+            WITH {LiveScopeCtes(withRanking: true)}
+            SELECT GroupId,
                    COUNT(*) OVER () AS TotalCount
             FROM grouped
-            {eligibilityFilter}
-            ORDER BY ActivityRank, UpdatedAt DESC, HEX(BatchId), HEX(GroupId)
+            WHERE {InFlightPredicate}
+              {eligibilityFilter}
+            ORDER BY ActivityRank, UpdatedAt DESC, HEX(GroupId)
             LIMIT @limit OFFSET @offset;
-            """, new { offset, limit }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+            """, new { offset, limit, periodStart = (string?)null }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
     private async Task<PagedResponse<IngestionMediaGroupDto>> LoadHistoryGroupPageAsync(
@@ -720,25 +372,12 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             status,
             ct).ConfigureAwait(false);
         var pageKeys = keys.Take(request.Limit).ToList();
-        var batchIds = pageKeys.Select(key => key.BatchId).Distinct().ToArray();
-        var groupIds = pageKeys.Select(key => key.GroupId).Distinct().ToArray();
         var groups = pageKeys.Count == 0
             ? []
-            : await LoadGroupsAsync(
-                GroupScope.BatchAdditionsSet,
-                null,
-                ct,
-                batchIds,
-                groupIds).ConfigureAwait(false);
+            : await LoadGroupsAsync(pageKeys.Select(key => key.GroupId).Distinct().ToArray(), addedOnly: true, ct).ConfigureAwait(false);
         ApplyArtworkSize(groups, "m");
-        ApplyHistoricalProgress(groups);
 
-        var groupsByKey = groups.ToDictionary(group => (group.BatchId, group.GroupId));
-        var ordered = pageKeys
-            .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
-            .Where(item => item is not null)
-            .Cast<IngestionMediaGroupDto>()
-            .ToList();
+        var ordered = OrderByKeys(pageKeys, groups);
         var total = keys.FirstOrDefault()?.TotalCount ?? 0;
         var hasMore = keys.Count > request.Limit;
         return new PagedResponse<IngestionMediaGroupDto>(
@@ -750,6 +389,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             hasMore ? (request.Offset + ordered.Count).ToString(CultureInfo.InvariantCulture) : null);
     }
 
+    // The Recently Added history: every group with a file whose Work has been Ready (works.first_ready_at), one row per
+    // group however many intakes its files arrived in.
     private async Task<List<PresentationGroupKeyRow>> LoadHistoryGroupKeysAsync(
         string? search,
         string? lane,
@@ -781,49 +422,25 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ? """
               WHERE NOT EXISTS (
                   SELECT 1 FROM attention_groups ag
-                  WHERE ag.BatchId = grouped.BatchId AND ag.GroupId = grouped.GroupId)
+                  WHERE ag.GroupId = grouped.GroupId)
               """
             : "";
         var startFilter = start.HasValue ? $"AND julianday({AddedAtSql}) >= julianday(@start)" : "";
         var endFilter = end.HasValue ? $"AND julianday({AddedAtSql}) <= julianday(@end)" : "";
         var orderBy = NormalizeHistorySort(sort) switch
         {
-            "oldest" => "UpdatedAt ASC, HEX(BatchId), HEX(GroupId)",
-            "title" => "SortTitle ASC, UpdatedAt DESC, HEX(BatchId), HEX(GroupId)",
-            "media" => "SortMediaType ASC, UpdatedAt DESC, HEX(BatchId), HEX(GroupId)",
-            _ => "UpdatedAt DESC, HEX(BatchId), HEX(GroupId)",
+            "oldest" => "UpdatedAt ASC, HEX(GroupId)",
+            "title" => "SortTitle ASC, UpdatedAt DESC, HEX(GroupId)",
+            "media" => "SortMediaType ASC, UpdatedAt DESC, HEX(GroupId)",
+            _ => "UpdatedAt DESC, HEX(GroupId)",
         };
 
         using var conn = _db.CreateConnection();
         return (await conn.QueryAsync<PresentationGroupKeyRow>(new CommandDefinition($"""
-            WITH latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    WHERE il.ingestion_run_id IS NOT NULL
-                      AND il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    WHERE mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
+            WITH {LatestLogsCte},
+            {LatestFileOperationsCte},
             scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
+                SELECT {PresentationGroupSql} AS GroupId,
                        LOWER(COALESCE(
                            (SELECT cv.value
                             FROM canonical_values cv
@@ -836,18 +453,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                        {NormalizedMediaTypeSql} AS SortMediaType,
                        COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) AS UpdatedAt
                 FROM latest_logs ll
-                JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
                 JOIN editions e ON e.id = ma.edition_id
                 JOIN works w ON w.id = e.work_id
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                -- Items of a still-active batch appear as soon as their own identity jobs settle
-                -- (AdditionBatchPredicate requires an added-at time), so a long first-run import
-                -- fills Recently Added while it runs. Items still in flight have no added-at yet.
-                WHERE {AdditionBatchPredicate}
+                LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
+                -- Items appear as soon as their own Work is Ready, so a long first-run import fills Recently Added
+                -- while it runs. Items still in flight have no added-at time yet.
+                WHERE {AddedAtSql} IS NOT NULL
                   AND {PresentationTitleSql}
                   {searchFilter}
                   {laneFilter}
@@ -856,12 +470,11 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             ),
             {attentionCte}
             grouped AS (
-                SELECT BatchId, GroupId, MIN(SortTitle) AS SortTitle, MIN(SortMediaType) AS SortMediaType, MAX(UpdatedAt) AS UpdatedAt
+                SELECT GroupId, MIN(SortTitle) AS SortTitle, MIN(SortMediaType) AS SortMediaType, MAX(UpdatedAt) AS UpdatedAt
                 FROM scoped
-                GROUP BY BatchId, GroupId
+                GROUP BY GroupId
             )
-            SELECT BatchId,
-                   GroupId,
+            SELECT GroupId,
                    COUNT(*) OVER () AS TotalCount
             FROM grouped
             {addedFilter}
@@ -877,269 +490,61 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
-    private async Task<List<PresentationGroupKeyRow>> LoadBatchGroupKeysAsync(
-        Guid batchId,
-        string? search,
-        string? lane,
-        string? sort,
-        int offset,
-        int limit,
-        CancellationToken ct)
+    // Cards in the order of the key query; a group dropped by the placeholder-title rule leaves no gap.
+    private static List<IngestionMediaGroupDto> OrderByKeys(
+        IEnumerable<PresentationGroupKeyRow> keys,
+        IEnumerable<IngestionMediaGroupDto> groups)
     {
-        var searchFilter = string.IsNullOrWhiteSpace(search) ? "" : $"AND {HistorySearchSql}";
-        var laneFilter = NormalizeLaneFilter(lane) switch
-        {
-            "read" => $"AND {NormalizedMediaTypeSql} IN ('book','books','ebook','ebooks','epub','pdf','comic','comics')",
-            "watch" => $"AND {NormalizedMediaTypeSql} IN ('tv','television','tv shows','show','shows','movie','movies','film','films')",
-            "listen" => $"AND ({NormalizedMediaTypeSql} IN ('music','album','albums','track','tracks','song','songs','audiobook','audiobooks') OR ({NormalizedMediaTypeSql} LIKE '%audio%' AND {NormalizedMediaTypeSql} LIKE '%book%'))",
-            _ => "",
-        };
-        var direction = sort?.Equals("oldest", StringComparison.OrdinalIgnoreCase) == true ? "ASC" : "DESC";
-        using var conn = _db.CreateConnection();
-        return (await conn.QueryAsync<PresentationGroupKeyRow>(new CommandDefinition($"""
-            WITH latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    WHERE il.ingestion_run_id = @batchId
-                      AND il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    WHERE mo.batch_id = @batchId
-                      AND mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
-            scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) AS UpdatedAt
-                FROM latest_logs ll
-                JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
-                JOIN media_assets ma ON ma.id = ll.media_asset_id
-                JOIN editions e ON e.id = ma.edition_id
-                JOIN works w ON w.id = e.work_id
-                LEFT JOIN works p ON p.id = w.parent_work_id
-                LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE {AdditionBatchPredicate}
-                  AND {PresentationTitleSql}
-                  {searchFilter}
-                  {laneFilter}
-            ),
-            grouped AS (
-                SELECT BatchId, GroupId, MAX(UpdatedAt) AS UpdatedAt
-                FROM scoped
-                GROUP BY BatchId, GroupId
-            )
-            SELECT BatchId,
-                   GroupId,
-                   COUNT(*) OVER () AS TotalCount
-            FROM grouped
-            ORDER BY UpdatedAt {direction}, HEX(GroupId)
-            LIMIT @limit OFFSET @offset;
-            """, new
-        {
-            batchId,
-            search = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim().ToLowerInvariant()}%",
-            offset,
-            limit,
-        }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
-    }
-
-    private async Task<List<PresentationGroupKeyRow>> LoadBatchPreviewKeysAsync(
-        IReadOnlyCollection<Guid> batchIds,
-        int limit,
-        CancellationToken ct)
-    {
-        var batchIdHexes = batchIds.Select(GuidHex).ToArray();
-        using var conn = _db.CreateConnection();
-        return (await conn.QueryAsync<PresentationGroupKeyRow>(new CommandDefinition($"""
-            WITH latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    WHERE LOWER(HEX(il.ingestion_run_id)) IN @batchIdHexes
-                      AND il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    WHERE LOWER(HEX(mo.batch_id)) IN @batchIdHexes
-                      AND mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
-            scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) AS UpdatedAt
-                FROM latest_logs ll
-                JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
-                JOIN media_assets ma ON ma.id = ll.media_asset_id
-                JOIN editions e ON e.id = ma.edition_id
-                JOIN works w ON w.id = e.work_id
-                LEFT JOIN works p ON p.id = w.parent_work_id
-                LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE {AdditionBatchPredicate}
-                  AND {PresentationTitleSql}
-            ),
-            grouped AS (
-                SELECT BatchId, GroupId, MAX(UpdatedAt) AS UpdatedAt
-                FROM scoped
-                GROUP BY BatchId, GroupId
-            ),
-            ranked AS (
-                SELECT BatchId,
-                       GroupId,
-                       UpdatedAt,
-                       COUNT(*) OVER (PARTITION BY BatchId) AS TotalCount,
-                       ROW_NUMBER() OVER (PARTITION BY BatchId ORDER BY UpdatedAt DESC, HEX(GroupId)) AS GroupRank
-                FROM grouped
-            )
-            SELECT BatchId, GroupId, TotalCount
-            FROM ranked
-            WHERE GroupRank <= @limit
-            ORDER BY BatchId, GroupRank;
-            """, new { batchIdHexes, limit }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+        var groupsById = groups.ToDictionary(group => group.GroupId);
+        return keys
+            .Select(key => groupsById.GetValueOrDefault(key.GroupId))
+            .Where(item => item is not null)
+            .Cast<IngestionMediaGroupDto>()
+            .ToList();
     }
 
     private async Task<List<IngestionMediaGroupDto>> LoadGroupsAsync(
-        GroupScope scope,
-        Guid? batchId,
-        CancellationToken ct,
-        IReadOnlyCollection<Guid>? batchIds = null,
-        IReadOnlyCollection<Guid>? groupIds = null)
+        IReadOnlyCollection<Guid> groupIds,
+        bool addedOnly,
+        CancellationToken ct)
     {
-        var rows = await LoadRowsAsync(scope, batchId, ct, batchIds, groupIds).ConfigureAwait(false);
+        if (groupIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await LoadRowsAsync(groupIds, addedOnly, ct).ConfigureAwait(false);
         var operations = await LoadOperationsAsync(rows, ct).ConfigureAwait(false);
 
         return rows
-            .GroupBy(row => new { row.BatchId, GroupId = PresentationGroupId(row) })
-            .Select(group => BuildGroup(group.Key.BatchId, group.Key.GroupId, group.ToList(), operations))
+            .GroupBy(PresentationGroupId)
+            .Select(group => BuildGroup(group.Key, group.ToList(), operations))
             .Where(group => !IsPlaceholderTitle(group.Title))
             .OrderByDescending(item => item.UpdatedAt)
             .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
+    // The member files of the given groups. A group is its structural identity alone (PresentationGroupSql): files that
+    // arrived in separate intakes, or were scanned again later, still make one group. With addedOnly, only the files
+    // whose Work has been Ready (the "Added" history) are read, so a card for Recently Added describes what was added.
     private async Task<List<MediaPresentationRow>> LoadRowsAsync(
-        GroupScope scope,
-        Guid? batchId,
-        CancellationToken ct,
-        IReadOnlyCollection<Guid>? batchIds = null,
-        IReadOnlyCollection<Guid>? groupIds = null)
+        IReadOnlyCollection<Guid> groupIds,
+        bool addedOnly,
+        CancellationToken ct)
     {
-        var batchIdHexes = batchIds?.Select(GuidHex).ToArray();
-        var currentBatchSelection = batchIdHexes is { Length: > 0 }
-            ? "AND LOWER(HEX(b.id)) IN @batchIdHexes"
-            : "";
-        var currentBatchCte = scope == GroupScope.Current
-            ? $"""
-                current_batches AS (
-                    SELECT b.id
-                    FROM ingestion_batches b
-                    WHERE (
-                        {IngestionBatchActivitySql.IsActive})
-                      {currentBatchSelection}
-                ),
-                """
-            : "";
-        var where = scope switch
-        {
-            GroupScope.Current => "",
-            GroupScope.History => $"""
-                AND NOT {IngestionBatchActivitySql.IsActive}
-                AND {AdditionBatchPredicate}
-                """,
-            GroupScope.BatchAdditions => $"AND b.id = @batchId AND {AdditionBatchPredicate}",
-            GroupScope.BatchAdditionsSet => $"AND LOWER(HEX(b.id)) IN @batchIdHexes AND {AdditionBatchPredicate}",
-            _ => "AND b.id = @batchId",
-        };
-        var logJoin = scope == GroupScope.Current
-            ? "JOIN current_batches current_log_batch ON current_log_batch.id = il.ingestion_run_id"
-            : "";
-        var logFilter = scope switch
-        {
-            GroupScope.Batch or GroupScope.BatchAdditions => "AND il.ingestion_run_id = @batchId",
-            GroupScope.BatchAdditionsSet => "AND LOWER(HEX(il.ingestion_run_id)) IN @batchIdHexes",
-            _ => "",
-        };
-        var operationJoin = scope == GroupScope.Current
-            ? "JOIN current_batches current_operation_batch ON current_operation_batch.id = mo.batch_id"
-            : "";
-        var operationFilter = scope switch
-        {
-            GroupScope.Batch or GroupScope.BatchAdditions => "AND mo.batch_id = @batchId",
-            GroupScope.BatchAdditionsSet => "AND LOWER(HEX(mo.batch_id)) IN @batchIdHexes",
-            _ => "",
-        };
-        var groupIdHexes = groupIds?.Select(GuidHex).ToArray();
-        var selectedGroups = groupIdHexes is { Length: > 0 }
+        var addedFilter = addedOnly ? $"AND {AddedAtSql} IS NOT NULL" : "";
+        var groupIdHexes = groupIds.Select(GuidHex).ToArray();
+        var selectedGroups = groupIdHexes.Length > 0
             ? $"AND LOWER(HEX({PresentationGroupSql})) IN @groupIdHexes"
             : "";
 
         using var conn = _db.CreateConnection();
         var rows = (await conn.QueryAsync<MediaPresentationRow>(new CommandDefinition($"""
-            WITH {currentBatchCte}latest_logs AS (
-                SELECT
-                    il.*,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY il.ingestion_run_id, il.media_asset_id
-                        ORDER BY il.updated_at DESC, il.created_at DESC
-                    ) AS rn
-                FROM ingestion_log il
-                {logJoin}
-                WHERE il.ingestion_run_id IS NOT NULL
-                  AND il.media_asset_id IS NOT NULL
-                  {logFilter}
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT
-                        mo.*,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY mo.batch_id, mo.entity_id
-                            ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC
-                        ) AS rn
-                    FROM media_operations mo
-                    {operationJoin}
-                    WHERE mo.operation_type = 'ingestion.file'
-                      {operationFilter}
-                )
-                WHERE rn = 1
-            )
+            WITH {LatestLogsCte},
+            {LatestFileOperationsCte}
             SELECT
                 ll.id AS LogId,
-                ll.ingestion_run_id AS BatchId,
                 ll.media_asset_id AS AssetId,
                 e.id AS EditionId,
                 w.id AS WorkId,
@@ -1196,21 +601,18 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                          ORDER BY COALESCE(ea.is_user_override,0) DESC, COALESCE(ea.is_preferred,0) DESC, COALESCE(ea.updated_at,ea.created_at) DESC LIMIT 1)
                 END AS CoverAssetId
             FROM latest_logs ll
-            JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
             JOIN media_assets ma ON ma.id = ll.media_asset_id
             JOIN editions e ON e.id = ma.edition_id
             JOIN works w ON w.id = e.work_id
             LEFT JOIN works p ON p.id = w.parent_work_id
             LEFT JOIN works gp ON gp.id = p.parent_work_id
-            LEFT JOIN latest_file_operations lfo ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-            WHERE ll.rn = 1
-              {where}
+            LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
+            WHERE 1 = 1
+              {addedFilter}
               {selectedGroups}
             ORDER BY COALESCE(lfo.updated_at, ll.updated_at, ll.created_at) DESC;
             """, new
         {
-            batchId,
-            batchIdHexes,
             groupIdHexes,
             bypassIdentityLibraryIds = (_bypassLibraries?.GetLibraryIds() ?? []).ToArray(),
         }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
@@ -1221,30 +623,26 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         IReadOnlyCollection<MediaPresentationRow> rows,
         CancellationToken ct)
     {
-        var batchIds = rows.Select(row => row.BatchId).Distinct().ToArray();
         var entityIds = rows
             .SelectMany(row => new Guid?[] { row.AssetId, row.WorkId, row.ParentWorkId, row.RootWorkId })
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .Distinct()
             .ToArray();
-        if (batchIds.Length == 0 || entityIds.Length == 0)
+        if (entityIds.Length == 0)
         {
             return [];
         }
 
-        var entityIdHexes = entityIds.Select(GuidHex).ToArray();
-        var batchFilter = batchIds.Length == 1 ? "batch_id = @batchId" : "batch_id IN @batchIds";
         using var conn = _db.CreateConnection();
-        return (await conn.QueryAsync<PresentationOperationRow>(new CommandDefinition($"""
-            SELECT batch_id AS BatchId, entity_id AS EntityId, operation_type AS OperationType,
+        return (await conn.QueryAsync<PresentationOperationRow>(new CommandDefinition("""
+            SELECT entity_id AS EntityId, operation_type AS OperationType,
                    capability_id AS CapabilityId, status AS Status, stage AS Stage,
                    COALESCE(updated_at, completed_at, started_at, created_at) AS UpdatedAt
             FROM media_operations
-            WHERE {batchFilter}
-              AND LOWER(HEX(entity_id)) IN @entityIdHexes
+            WHERE entity_id IN @entityIds
             UNION ALL
-            SELECT ingestion_run_id AS BatchId, entity_id AS EntityId,
+            SELECT entity_id AS EntityId,
                    CASE WHEN pass = 'Universe' THEN 'identity.relationships' ELSE 'identity.metadata' END AS OperationType,
                    NULL AS CapabilityId,
                    CASE WHEN state IN ('Ready','ReadyWithoutUniverse','RetailNoMatch','RetailMatchedNeedsReview','QidNoMatch','QidNeedsReview') THEN 'completed'
@@ -1253,14 +651,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                         ELSE 'running' END AS Status,
                    state AS Stage, updated_at AS UpdatedAt
             FROM identity_jobs
-            WHERE ingestion_run_id IN @batchIds AND LOWER(HEX(entity_id)) IN @entityIdHexes;
+            WHERE entity_id IN @entityIds;
             """,
-            new { batchId = batchIds[0], batchIds, entityIdHexes },
+            new { entityIds = entityIds.Select(MediaEngine.Storage.GuidSql.ToBlob).ToArray() },
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
     }
 
     private static IngestionMediaGroupDto BuildGroup(
-        Guid batchId,
         Guid groupId,
         IReadOnlyList<MediaPresentationRow> rows,
         IReadOnlyList<PresentationOperationRow> operations)
@@ -1269,7 +666,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         var mediaType = NormalizeMediaType(newest.MediaType);
         var memberIds = rows.SelectMany(row => new Guid?[] { row.AssetId, row.WorkId, row.ParentWorkId, row.RootWorkId })
             .Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
-        var scopedOps = operations.Where(operation => operation.BatchId == batchId && operation.EntityId is { } id && memberIds.Contains(id)).ToList();
+        var scopedOps = operations.Where(operation => operation.EntityId is { } id && memberIds.Contains(id)).ToList();
         var completed = rows
             .Where(row => row.IsReady)
             .Select(row => row.WorkId)
@@ -1277,8 +674,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             .Count();
         var cover = rows.OrderByDescending(row => row.UpdatedAt).FirstOrDefault(row => row.CoverAssetId.HasValue)?.CoverAssetId;
         var needsReview = rows.Any(row => row.ReviewCount > 0 || row.IdentityState is "RetailNoMatch" or "QidNoMatch" or "QidNeedsReview" or "RetailMatchedNeedsReview");
-        var terminalFailure = scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered")
-                              || rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered");
+        // A file's own intake failure always counts. Any other failure counts only when it is no older than the group's
+        // newest file: a group spans every intake (there are no runs), so a newer episode supersedes an old failure on
+        // another one, while a movie whose last step failed still shows it.
+        var newestArrival = rows.Max(row => row.AddedAt);
+        var terminalFailure = rows.Any(row => row.OperationStatus is "failed_terminal" or "dead_lettered")
+                              || scopedOps.Any(operation => operation.Status is "failed_terminal" or "dead_lettered"
+                                  && operation.UpdatedAt >= newestArrival);
         var hasBackgroundWork = scopedOps.Any(operation => IsActive(operation.Status) && !IsFileIntake(operation.OperationType));
         var intakeComplete = rows.All(row => row.IsReady);
         // A missing media tool is a wait, not a failure: it outranks adding/finishing/ready but never hides review or failed.
@@ -1298,7 +700,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         return new IngestionMediaGroupDto
         {
             GroupId = groupId,
-            BatchId = batchId,
             WorkId = groupId,
             EditionId = rows.Count == 1 ? newest.EditionId : null,
             MediaType = mediaType,
@@ -1737,117 +1138,22 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             : $"{duration.Minutes}:{duration.Seconds:00}";
     }
 
-    private async Task<CurrentGroupFacts> ReadCurrentGroupFactsAsync(CancellationToken ct)
+    // Counts the groups of the live set: those still in flight, plus (while the Engine has an active period) those that
+    // became Ready since it began, so the numbers say how the current run is going without any run record.
+    private async Task<CurrentGroupFacts> ReadCurrentGroupFactsAsync(DateTimeOffset? periodStart, CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
         return await conn.QuerySingleAsync<CurrentGroupFacts>(new CommandDefinition($"""
-            WITH current_batches AS (
-                SELECT b.id
-                FROM ingestion_batches b
-                WHERE {IngestionBatchActivitySql.IsActive}
-            ),
-            latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    JOIN current_batches cb ON cb.id = il.ingestion_run_id
-                    WHERE il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
-            latest_file_operations AS (
-                SELECT *
-                FROM (
-                    SELECT mo.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY mo.batch_id, mo.entity_id
-                               ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
-                    FROM media_operations mo
-                    JOIN current_batches cb ON cb.id = mo.batch_id
-                    WHERE mo.operation_type = 'ingestion.file'
-                )
-                WHERE rn = 1
-            ),
-            scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       ll.media_asset_id AS AssetId,
-                       w.id AS WorkId,
-                       p.id AS ParentWorkId,
-                       gp.id AS RootWorkId,
-                       CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")}
-                            THEN 1 ELSE 0 END AS IntakeComplete,
-                       CASE WHEN LOWER(COALESCE(lfo.status, '')) IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS RowFailed,
-                       CASE WHEN EXISTS (
-                           SELECT 1
-                           FROM review_queue rq
-                           WHERE rq.entity_id IN (ll.media_asset_id, w.id, p.id, gp.id)
-                             AND rq.status = 'Pending'
-                             AND rq.review_ready_at IS NOT NULL)
-                           OR EXISTS (SELECT 1 FROM ({WorkIdentityJobsSql}) job
-                               WHERE job.state IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview'))
-                           THEN 1 ELSE 0 END AS NeedsReview
-                FROM latest_logs ll
-                JOIN media_assets ma ON ma.id = ll.media_asset_id
-                JOIN editions e ON e.id = ma.edition_id
-                JOIN works w ON w.id = e.work_id
-                LEFT JOIN works p ON p.id = w.parent_work_id
-                LEFT JOIN works gp ON gp.id = p.parent_work_id
-                LEFT JOIN latest_file_operations lfo
-                  ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE {PresentationTitleSql}
-            ),
-            group_base AS (
-                SELECT BatchId,
-                       GroupId,
-                       MIN(IntakeComplete) AS IntakeComplete,
-                       MAX(RowFailed) AS RowFailed,
-                       MAX(NeedsReview) AS NeedsReview
-                FROM scoped
-                GROUP BY BatchId, GroupId
-            ),
-            group_members AS (
-                SELECT BatchId, GroupId, AssetId AS EntityId FROM scoped
-                UNION
-                SELECT BatchId, GroupId, WorkId FROM scoped
-                UNION
-                SELECT BatchId, GroupId, ParentWorkId FROM scoped WHERE ParentWorkId IS NOT NULL
-                UNION
-                SELECT BatchId, GroupId, RootWorkId FROM scoped WHERE RootWorkId IS NOT NULL
-            ),
-            operation_facts AS (
-                SELECT gm.BatchId,
-                       gm.GroupId,
-                       MAX(CASE WHEN mo.status IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END) AS HasFailure,
-                       MAX(CASE WHEN mo.operation_type <> 'ingestion.file'
-                                     AND mo.status IN ('pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted')
-                                THEN 1 ELSE 0 END) AS HasBackgroundWork
-                FROM group_members gm
-                LEFT JOIN media_operations mo ON mo.batch_id = gm.BatchId AND mo.entity_id = gm.EntityId
-                GROUP BY gm.BatchId, gm.GroupId
-            ),
-            classified AS (
-                SELECT gb.*,
-                       COALESCE(ofx.HasFailure, 0) AS HasFailure,
-                       MAX(COALESCE(ofx.HasBackgroundWork, 0),
-                           CASE WHEN EXISTS (SELECT 1 FROM group_members gm JOIN identity_jobs ij
-                               ON ij.ingestion_run_id = gm.BatchId AND ij.entity_id = gm.EntityId
-                               WHERE gm.BatchId = gb.BatchId AND gm.GroupId = gb.GroupId
-                                 AND ij.state IN ('Queued','RetailSearching','RetailMatched','RetailMatchedNeedsReview','BridgeSearching','QidResolved','Hydrating','UniverseEnriching'))
-                           THEN 1 ELSE 0 END) AS HasBackgroundWork
-                FROM group_base gb
-                LEFT JOIN operation_facts ofx ON ofx.BatchId = gb.BatchId AND ofx.GroupId = gb.GroupId
-            )
+            WITH {LiveScopeCtes(withRanking: false)}
             SELECT COUNT(*) AS TotalGroups,
-                   COUNT(CASE WHEN NeedsReview = 0 AND RowFailed = 0 AND HasFailure = 0 AND IntakeComplete = 1 AND HasBackgroundWork = 0 THEN 1 END) AS ReadyGroups,
-                   COUNT(CASE WHEN NeedsReview = 0 AND RowFailed = 0 AND HasFailure = 0 AND IntakeComplete = 1 AND HasBackgroundWork = 1 THEN 1 END) AS FinishingGroups,
-                   COUNT(CASE WHEN NeedsReview = 1 THEN 1 END) AS ReviewGroups
-            FROM classified;
-            """, cancellationToken: ct)).ConfigureAwait(false);
+                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 0 THEN 1 END) AS ReadyGroups,
+                   COUNT(CASE WHEN AnyReview = 0 AND AnyFailed = 0 AND AnyHold = 0 AND AllReady = 1 AND AnyBackground = 1 THEN 1 END) AS FinishingGroups,
+                   COUNT(CASE WHEN AnyReview = 1 THEN 1 END) AS ReviewGroups
+            FROM grouped;
+            """, new
+        {
+            periodStart = periodStart?.ToUniversalTime().ToString("O"),
+        }, cancellationToken: ct)).ConfigureAwait(false);
     }
 
     private async Task<HistoryAggregateFacts> ReadHistoryAggregateFactsAsync(
@@ -1857,49 +1163,23 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         CancellationToken ct)
     {
         return await conn.QuerySingleAsync<HistoryAggregateFacts>(new CommandDefinition($"""
-            WITH latest_logs AS (
-                SELECT *
-                FROM (
-                    SELECT il.*,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY il.ingestion_run_id, il.media_asset_id
-                               ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
-                    FROM ingestion_log il
-                    WHERE il.ingestion_run_id IS NOT NULL
-                      AND il.media_asset_id IS NOT NULL
-                )
-                WHERE rn = 1
-            ),
+            WITH {LatestLogsCte},
             scoped AS (
-                SELECT ll.ingestion_run_id AS BatchId,
-                       {PresentationGroupSql} AS GroupId,
-                       MIN({AddedAtSql}) AS AddedAt
+                SELECT {PresentationGroupSql} AS GroupId
                 FROM latest_logs ll
-                JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
                 JOIN editions e ON e.id = ma.edition_id
                 JOIN works w ON w.id = e.work_id
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
-                WHERE NOT {IngestionBatchActivitySql.IsActive}
-                  AND {AdditionBatchPredicate}
+                WHERE {AddedAtSql} IS NOT NULL
+                  AND julianday({AddedAtSql}) >= julianday(@todayStart)
+                  AND julianday({AddedAtSql}) < julianday(@tomorrowStart)
                   AND {PresentationTitleSql}
-                GROUP BY ll.ingestion_run_id, {PresentationGroupSql}
-            ),
-            latest_batch AS (
-                SELECT BatchId
-                FROM scoped
-                GROUP BY BatchId
-                ORDER BY MAX(AddedAt) DESC, HEX(BatchId)
-                LIMIT 1
+                GROUP BY {PresentationGroupSql}
             )
-            SELECT COUNT(CASE
-                       WHEN julianday(AddedAt) >= julianday(@todayStart)
-                        AND julianday(AddedAt) < julianday(@tomorrowStart)
-                       THEN 1 END) AS ItemsAddedToday,
-                   (SELECT COUNT(*)
-                    FROM scoped
-                    WHERE BatchId = (SELECT BatchId FROM latest_batch)) AS LastGroupsAdded
+            SELECT COUNT(*) AS ItemsAddedToday,
+                   (SELECT MAX(COALESCE(updated_at, created_at)) FROM ingestion_log) AS LastActivityAt
             FROM scoped;
             """, new
         {
@@ -1917,24 +1197,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
         var numeric = new string(value.Where(character => char.IsDigit(character) || character == '.').ToArray());
         return double.TryParse(numeric, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : double.MaxValue;
-    }
-
-    private async Task<CurrentBatchFacts> ReadCurrentBatchFactsAsync(CancellationToken ct)
-    {
-        using var conn = _db.CreateConnection();
-        return await conn.QueryFirstOrDefaultAsync<CurrentBatchFacts>(new CommandDefinition($"""
-            SELECT
-                b.id AS BatchId,
-                CASE WHEN {IngestionBatchActivitySql.IsActive}
-                     THEN 1 ELSE 0 END AS IsRunning,
-                b.files_total AS FilesTotal,
-                b.files_processed AS FilesProcessed,
-                b.started_at AS StartedAt,
-                COALESCE(b.completed_at,b.updated_at,b.started_at) AS LastActivityAt
-            FROM ingestion_batches b
-            ORDER BY IsRunning DESC, COALESCE(b.completed_at,b.updated_at,b.started_at) DESC
-            LIMIT 1;
-            """, cancellationToken: ct)).ConfigureAwait(false) ?? new CurrentBatchFacts();
     }
 
     private async Task<CurrentOperationFacts> ReadCurrentOperationFactsAsync(CancellationToken ct)
@@ -1958,130 +1220,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             SELECT COUNT(*) FROM review_queue
             WHERE status = 'Pending' AND review_ready_at IS NOT NULL;
             """, cancellationToken: ct)).ConfigureAwait(false);
-    }
-
-    private static async Task<List<ActivityBatchMilestoneDto>> BuildMilestonesAsync(
-        Microsoft.Data.Sqlite.SqliteConnection conn,
-        BatchPresentationRow batch,
-        CancellationToken ct)
-    {
-        var operationRows = (await conn.QueryAsync<MilestoneRow>(new CommandDefinition("""
-            SELECT operation_type AS OperationType, capability_id AS CapabilityId, stage AS Stage,
-                   status AS Status, MIN(COALESCE(started_at,created_at)) AS StartedAt,
-                   MAX(COALESCE(completed_at,updated_at,started_at,created_at)) AS CompletedAt
-            FROM media_operations
-            WHERE batch_id = @batchId
-            GROUP BY operation_type, capability_id, stage, status;
-            """, new { batchId = batch.BatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
-
-        var milestones = new List<ActivityBatchMilestoneDto>();
-        if (batch.FilesProcessed > 0)
-        {
-            milestones.Add(new ActivityBatchMilestoneDto
-            {
-                Label = "Files scanned",
-                State = batch.FailureCount > 0 ? "attention" : "complete",
-                Detail = $"{batch.FilesProcessed:N0} files processed",
-                OccurredAt = batch.CompletedAt ?? batch.StartedAt,
-            });
-        }
-
-        foreach (var facet in new[] { "metadata", "artwork", "people", "text", "relationship" })
-        {
-            var matching = operationRows.Where(row => OperationFacet(new PresentationOperationRow
-            {
-                OperationType = row.OperationType,
-                CapabilityId = row.CapabilityId,
-                Stage = row.Stage,
-            }) == facet).ToList();
-            if (matching.Count == 0)
-            {
-                continue;
-            }
-
-            var state = matching.Any(row => row.Status is "failed_terminal" or "dead_lettered") ? "failed"
-                : matching.Any(row => row.Status is "retry_waiting" or "failed_retryable" or "interrupted") ? "attention"
-                : matching.Any(row => IsActive(row.Status)) ? "active" : "complete";
-            var started = matching.Min(row => row.StartedAt);
-            var completed = matching.Max(row => row.CompletedAt);
-            milestones.Add(new ActivityBatchMilestoneDto
-            {
-                Label = facet switch
-                {
-                    "metadata" => "Media identified",
-                    "artwork" => "Artwork downloaded",
-                    "people" => "People and credits added",
-                    "text" => "Lyrics and subtitles added",
-                    _ => "Relationships built",
-                },
-                State = state,
-                Detail = state == "complete" && started.HasValue && completed.HasValue
-                    ? $"Completed in {FormatDuration(completed.Value - started.Value)}"
-                    : FacetStateLabel(state),
-                OccurredAt = completed,
-            });
-        }
-        return milestones.OrderBy(item => item.OccurredAt).ToList();
-    }
-
-    private static string DisplayBatchName(
-        string? category,
-        string? source,
-        IReadOnlyList<IngestionMediaGroupDto> groups,
-        bool groupsAreComplete = true)
-    {
-        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("Mixed", StringComparison.OrdinalIgnoreCase))
-        {
-            return category.EndsWith("import", StringComparison.OrdinalIgnoreCase) ? category : $"{category} import";
-        }
-
-        var lanes = groupsAreComplete
-            ? groups.Select(group => LaneFor(group.MediaType)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-            : [];
-        if (lanes.Count == 1)
-        {
-            return $"{lanes[0]} import";
-        }
-
-        if (!string.IsNullOrWhiteSpace(source))
-        {
-            var name = Path.GetFileName(source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                return $"{name} scan";
-            }
-        }
-        return "Mixed media scan";
-    }
-
-    private static string BatchSummary(
-        string status,
-        IReadOnlyList<IngestionMediaGroupDto> groups,
-        int followUpCount,
-        bool groupsAreComplete = true)
-    {
-        var lane = groupsAreComplete
-            ? groups.Select(group => LaneFor(group.MediaType)).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-            : [];
-        var destination = lane.Count == 1 ? $" in {lane[0]}" : " in the library";
-        if (status.Equals("running", StringComparison.OrdinalIgnoreCase))
-        {
-            return "This batch is still adding media. Finished items are available while the remaining work continues.";
-        }
-
-        if (status.Equals("failed", StringComparison.OrdinalIgnoreCase))
-        {
-            return "This run failed before all media could be added.";
-        }
-
-        if (status is "abandoned" or "interrupted")
-        {
-            return "This run was interrupted. Completed items remain available.";
-        }
-
-        return followUpCount > 0
-            ? $"This run completed. Most items are now available{destination}; a small number still need follow-up."
-            : $"This run completed successfully. Its items are now available{destination}.";
     }
 
     private static PagedResponse<T> Page<T>(IReadOnlyList<T> items, PagedRequest request)
@@ -2109,24 +1247,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             query.Add($"size={size}");
             group.CoverUrl = $"{parts[0]}?{string.Join('&', query)}";
         }
-    }
-
-    private static void ApplyHistoricalProgress(IEnumerable<IngestionMediaGroupDto> groups)
-    {
-        foreach (var group in groups)
-        {
-            group.ChildExpected = null;
-        }
-    }
-
-    private Task<bool> IsHistoricalBatchAsync(Guid batchId, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = _db.CreateConnection();
-        return Task.FromResult(conn.ExecuteScalar<bool>($"""
-            SELECT EXISTS (SELECT 1 FROM ingestion_batches b
-                WHERE b.id = @batchId AND NOT {IngestionBatchActivitySql.IsActive});
-            """, new { batchId }));
     }
 
     private static bool IsActive(string? status) => !string.IsNullOrWhiteSpace(status) && ActiveStatuses.Contains(status, StringComparer.OrdinalIgnoreCase);
@@ -2171,14 +1291,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         return string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
     }
 
-    private static string LaneFor(string mediaType) => NormalizeMediaType(mediaType) switch
-    {
-        "Books" or "Comics" => "Read",
-        "Movies" or "TV" => "Watch",
-        "Music" or "Audiobooks" => "Listen",
-        _ => "Other",
-    };
-
     private static string? NormalizeLaneFilter(string? value) =>
         string.IsNullOrWhiteSpace(value) || value.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? null
@@ -2205,8 +1317,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private static int? ParsePositiveInt(string? value) => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0 ? parsed : null;
     private static string GuidHex(Guid value) => Convert.ToHexString(MediaEngine.Storage.GuidSql.ToBlob(value)).ToLowerInvariant();
     private static string Pluralize(string word, int count) => count == 1 ? word : $"{word}s";
-    private static DateTimeOffset StartOfWeek(DateTimeOffset value) => value.Date.AddDays(-((7 + (int)value.DayOfWeek - (int)DayOfWeek.Monday) % 7));
-    private static string FormatDuration(TimeSpan value) => value.TotalMinutes >= 1 ? $"{(int)value.TotalMinutes}m {value.Seconds}s" : $"{Math.Max(0, value.Seconds)}s";
 
     private const string PresentationGroupSql = """
         CASE
@@ -2302,63 +1412,217 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     // "Added" means the moment the Work first became Ready (works.first_ready_at), the one Ready rule's own timestamp.
     private const string AddedAtSql = "w.first_ready_at";
 
-    private static readonly string AdditionBatchPredicate = $"""
-        {AddedAtSql} IS NOT NULL
-        AND b.id = (
-            SELECT prior_log.ingestion_run_id
-            FROM ingestion_log prior_log
-            WHERE prior_log.media_asset_id = ma.id
-              AND prior_log.ingestion_run_id IS NOT NULL
-              AND julianday(prior_log.created_at) <= julianday({AddedAtSql})
-            ORDER BY julianday(prior_log.created_at) DESC, julianday(prior_log.updated_at) DESC
-            LIMIT 1
+    // The newest ingestion log row of each file, from any intake. A file that is scanned again is still one file.
+    private const string LatestLogsCte = """
+        latest_logs AS (
+            SELECT *
+            FROM (
+                SELECT il.*,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY il.media_asset_id
+                           ORDER BY il.updated_at DESC, il.created_at DESC) AS rn
+                FROM ingestion_log il
+                WHERE il.media_asset_id IS NOT NULL
+            )
+            WHERE rn = 1
         )
         """;
 
-    // History groups whose BuildGroup availability would be "review" or "failed" (StatusLabel
-    // "Needs review" / "Failed"). It is evaluated over every row of the group, as BuildGroup does,
-    // so the search, lane and date filters on the key query cannot change a group's status. Keep these
-    // conditions in step with BuildGroup (needsReview / terminalFailure) and LoadOperationsAsync.
+    // The newest "ingestion.file" work row of each file.
+    private const string LatestFileOperationsCte = """
+        latest_file_operations AS (
+            SELECT *
+            FROM (
+                SELECT mo.*,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY mo.entity_id
+                           ORDER BY COALESCE(mo.updated_at, mo.completed_at, mo.started_at, mo.created_at) DESC) AS rn
+                FROM media_operations mo
+                WHERE mo.operation_type = 'ingestion.file'
+            )
+            WHERE rn = 1
+        )
+        """;
+
+    private const string OpenOperationStatusSql =
+        "'pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted'";
+
+    // A group is in flight when its availability (as BuildGroup works it out) is review, waiting for tools, finishing or
+    // adding, that is anything but Ready or failed, or when one of its files still has an open "ingestion.file" row.
+    private const string InFlightPredicate =
+        "(AnyReview = 1 OR AnyFileOp = 1 OR (AnyFailed = 0 AND (AnyHold = 1 OR AllReady = 0 OR AnyBackground = 1)))";
+
+    // The live set: one row per file that could belong to a group in flight, grouped by the group's structural identity
+    // alone (no intake or run record). A file is only looked at when its Work is not Ready, it became Ready in the active
+    // period (@periodStart, null when none), or something is open on it or its parents (live_signals), so the cost follows
+    // the work in progress, not the size of the library. Needs @periodStart. Ends with the "grouped" CTE.
+    private static string LiveScopeCtes(bool withRanking)
+    {
+        var rankingColumns = withRanking
+            ? """
+                ,
+                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at),
+                           COALESCE((SELECT MAX(COALESCE(activity.updated_at,activity.started_at,activity.created_at))
+                               FROM media_operations activity
+                               WHERE activity.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), ''),
+                           COALESCE((SELECT MAX(ij.updated_at) FROM identity_jobs ij
+                               WHERE ij.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), '')) AS UpdatedAt,
+                       MIN(COALESCE((SELECT MIN(CASE WHEN activity.status IN ('running','processing','active') THEN 0
+                                                WHEN activity.status IN ('retry_waiting','failed_retryable','interrupted') THEN 1
+                                                WHEN activity.status = 'queued' THEN 2 ELSE 3 END)
+                           FROM media_operations activity
+                           WHERE activity.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), 3),
+                           COALESCE((SELECT MIN(CASE WHEN ij.state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') THEN 0
+                               WHEN ij.state IN ('RetailMatched','QidResolved') THEN 1
+                               WHEN ij.state = 'Queued' THEN 2 ELSE 3 END)
+                               FROM identity_jobs ij
+                               WHERE ij.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)), 3)) AS ActivityRank,
+                       EXISTS (
+                           SELECT 1
+                           FROM entity_assets ea
+                           WHERE ea.asset_type = 'CoverArt'
+                             AND (
+                                 (LOWER(COALESCE(w.media_type,'')) IN ('tv','television','tv show','tv shows') AND ea.entity_id = COALESCE(gp.id,p.id,w.id))
+                                 OR (LOWER(COALESCE(w.media_type,'')) IN ('music','track','song','album') AND ea.entity_id = COALESCE(p.id,w.id))
+                                 OR (LOWER(COALESCE(w.media_type,'')) IN ('comic','comics','cbz','cbr') AND ea.entity_id IN (w.id,p.id))
+                                 OR (LOWER(COALESCE(w.media_type,'')) LIKE '%audiobook%' AND ea.entity_id = COALESCE(p.id,w.id))
+                                 OR (LOWER(COALESCE(w.media_type,'')) NOT IN ('tv','television','tv show','tv shows','music','track','song','album','comic','comics','cbz','cbr')
+                                     AND LOWER(COALESCE(w.media_type,'')) NOT LIKE '%audiobook%'
+                                     AND ea.entity_id = w.id)
+                             )
+                       ) AS HasPrimaryCover
+                """
+            : string.Empty;
+        var rankingAggregates = withRanking
+            ? """
+                ,
+                       MAX(UpdatedAt) AS UpdatedAt,
+                       MIN(ActivityRank) AS ActivityRank,
+                       MAX(HasPrimaryCover) AS HasPrimaryCover
+                """
+            : string.Empty;
+
+        return $"""
+            {LatestLogsCte},
+            {LatestFileOperationsCte},
+            live_signals AS (
+                SELECT mo.entity_id AS EntityId
+                FROM media_operations mo
+                WHERE mo.entity_id IS NOT NULL
+                  AND mo.status IN ({OpenOperationStatusSql},'failed_terminal','dead_lettered')
+                UNION
+                SELECT ij.entity_id FROM identity_jobs ij WHERE ij.state NOT IN ('Ready','ReadyWithoutUniverse')
+                UNION
+                SELECT rq.entity_id FROM review_queue rq WHERE rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL
+                UNION
+                SELECT mih.asset_id FROM media_inspection_holds mih
+            ),
+            scoped AS (
+                SELECT {PresentationGroupSql} AS GroupId,
+                       CASE WHEN {WorkReadinessSql.ReadyMarkPredicate("w")} THEN 1 ELSE 0 END AS RowReady,
+                       CASE WHEN lfo.status IN ('failed_terminal','dead_lettered') THEN 1 ELSE 0 END AS OwnIntakeFailed,
+                       MAX(COALESCE((SELECT MAX(julianday(fo.updated_at)) FROM media_operations fo
+                                     WHERE fo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fo.status IN ('failed_terminal','dead_lettered')), 0),
+                           COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                     WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fj.state = 'Failed'), 0)) AS FailedAtDay,
+                       julianday(ll.created_at) AS ArrivedAtDay,
+                       CASE WHEN EXISTS (SELECT 1 FROM review_queue rq
+                                         WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                           AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
+                                 OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
+                                     ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
+                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                            THEN 1 ELSE 0 END AS NeedsReview,
+                       CASE WHEN EXISTS (SELECT 1 FROM media_inspection_holds mih WHERE mih.asset_id = ll.media_asset_id)
+                            THEN 1 ELSE 0 END AS RowHold,
+                       CASE WHEN EXISTS (SELECT 1 FROM media_operations bo
+                                         WHERE bo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                           AND bo.operation_type <> 'ingestion.file'
+                                           AND bo.status IN ({OpenOperationStatusSql}))
+                                 OR EXISTS (SELECT 1 FROM identity_jobs bj
+                                            WHERE bj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                              AND bj.state IN ('Queued','RetailSearching','RetailMatched','BridgeSearching','QidResolved','Hydrating','UniverseEnriching'))
+                            THEN 1 ELSE 0 END AS RowBackground,
+                       CASE WHEN lfo.status IN ({OpenOperationStatusSql}) THEN 1 ELSE 0 END AS FileOpOpen
+                       {rankingColumns}
+                FROM latest_logs ll
+                JOIN media_assets ma ON ma.id = ll.media_asset_id
+                JOIN editions e ON e.id = ma.edition_id
+                JOIN works w ON w.id = e.work_id
+                LEFT JOIN works p ON p.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = p.parent_work_id
+                LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
+                WHERE (NOT {WorkReadinessSql.ReadyMarkPredicate("w")}
+                       OR julianday({AddedAtSql}) >= julianday(@periodStart)
+                       OR ll.media_asset_id IN (SELECT EntityId FROM live_signals)
+                       OR w.id IN (SELECT EntityId FROM live_signals)
+                       OR p.id IN (SELECT EntityId FROM live_signals)
+                       OR gp.id IN (SELECT EntityId FROM live_signals))
+                  AND {PresentationTitleSql}
+            ),
+            grouped AS (
+                SELECT GroupId,
+                       MIN(RowReady) AS AllReady,
+                       -- Same rule as BuildGroup: an own intake failure, or a failure no older than the group's newest file.
+                       CASE WHEN MAX(OwnIntakeFailed) = 1 OR (MAX(FailedAtDay) > 0 AND MAX(FailedAtDay) >= MAX(ArrivedAtDay))
+                            THEN 1 ELSE 0 END AS AnyFailed,
+                       MAX(NeedsReview) AS AnyReview,
+                       MAX(RowHold) AS AnyHold,
+                       MAX(RowBackground) AS AnyBackground,
+                       MAX(FileOpOpen) AS AnyFileOp
+                       {rankingAggregates}
+                FROM scoped
+                GROUP BY GroupId
+            )
+            """;
+    }
+
+    // Groups whose BuildGroup availability would be "review" or "failed" (StatusLabel "Needs review" / "Failed"),
+    // among the groups with a file whose Work has been Ready. It is evaluated over every such row of the group, as
+    // BuildGroup does, so the search, lane and date filters on the key query cannot change a group's status. Keep
+    // these conditions in step with BuildGroup (needsReview / terminalFailure) and LoadOperationsAsync.
     private static readonly string AttentionGroupsCte = $"""
         attention_groups AS (
-            SELECT ll.ingestion_run_id AS BatchId,
-                   {PresentationGroupSql} AS GroupId
+            SELECT {PresentationGroupSql} AS GroupId
             FROM latest_logs ll
-            JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
             JOIN media_assets ma ON ma.id = ll.media_asset_id
             JOIN editions e ON e.id = ma.edition_id
             JOIN works w ON w.id = e.work_id
             LEFT JOIN works p ON p.id = w.parent_work_id
             LEFT JOIN works gp ON gp.id = p.parent_work_id
-            LEFT JOIN latest_file_operations lfo
-              ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-            WHERE {AdditionBatchPredicate}
-              AND (
-                  EXISTS (SELECT 1 FROM review_queue rq
-                          WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                            AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
-                  OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
-                      ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
-                     IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
-                  OR lfo.status IN ('failed_terminal','dead_lettered')
-                  OR EXISTS (SELECT 1 FROM media_operations mo
-                             WHERE mo.batch_id = ll.ingestion_run_id
-                               AND mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                               AND mo.status IN ('failed_terminal','dead_lettered'))
-                  OR EXISTS (SELECT 1 FROM identity_jobs fj
-                             WHERE fj.ingestion_run_id = ll.ingestion_run_id
-                               AND fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
-                               AND fj.state = 'Failed'))
-            GROUP BY ll.ingestion_run_id, {PresentationGroupSql}
+            LEFT JOIN latest_file_operations lfo ON lfo.entity_id = ll.media_asset_id
+            WHERE {AddedAtSql} IS NOT NULL
+            GROUP BY {PresentationGroupSql}
+            HAVING MAX(CASE WHEN EXISTS (SELECT 1 FROM review_queue rq
+                                         WHERE rq.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                           AND rq.status = 'Pending' AND rq.review_ready_at IS NOT NULL)
+                                 OR (SELECT ij.state FROM ({WorkIdentityJobsSql}) ij
+                                     ORDER BY ij.updated_at DESC, ij.created_at DESC LIMIT 1)
+                                    IN ('RetailNoMatch','QidNoMatch','QidNeedsReview','RetailMatchedNeedsReview')
+                                 OR lfo.status IN ('failed_terminal','dead_lettered')
+                            THEN 1 ELSE 0 END) = 1
+                -- A failure other than the file's own intake counts only when no older than the group's newest file.
+                OR MAX(COALESCE((SELECT MAX(julianday(mo.updated_at)) FROM media_operations mo
+                                 WHERE mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                   AND mo.status IN ('failed_terminal','dead_lettered')), 0),
+                       COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                 WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                   AND fj.state = 'Failed'), 0))
+                   >= MAX(julianday(ll.created_at))
+                   AND MAX(COALESCE((SELECT MAX(julianday(mo.updated_at)) FROM media_operations mo
+                                     WHERE mo.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND mo.status IN ('failed_terminal','dead_lettered')), 0),
+                           COALESCE((SELECT MAX(julianday(fj.updated_at)) FROM identity_jobs fj
+                                     WHERE fj.entity_id IN (ll.media_asset_id,w.id,p.id,gp.id)
+                                       AND fj.state = 'Failed'), 0)) > 0
         ),
         """;
-
-    private enum GroupScope { Current, History, Batch, BatchAdditions, BatchAdditionsSet }
 
     private sealed class MediaPresentationRow
     {
         public Guid LogId { get; set; }
-        public Guid BatchId { get; set; }
         public Guid AssetId { get; set; }
         public Guid EditionId { get; set; }
         public Guid WorkId { get; set; }
@@ -2397,7 +1661,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     private sealed class PresentationGroupKeyRow
     {
-        public Guid BatchId { get; set; }
         public Guid GroupId { get; set; }
         public int TotalCount { get; set; }
     }
@@ -2411,7 +1674,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     private sealed class RecentDayGroupKeyRow
     {
-        public Guid BatchId { get; set; }
         public Guid GroupId { get; set; }
         public string LocalDate { get; set; } = "";
         public int TotalCount { get; set; }
@@ -2421,7 +1683,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private sealed class HistoryAggregateFacts
     {
         public int ItemsAddedToday { get; set; }
-        public int LastGroupsAdded { get; set; }
+        public DateTimeOffset? LastActivityAt { get; set; }
     }
 
     private sealed class CurrentGroupFacts
@@ -2434,7 +1696,6 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
 
     private sealed class PresentationOperationRow
     {
-        public Guid BatchId { get; set; }
         public Guid? EntityId { get; set; }
         public string OperationType { get; set; } = "";
         public string? CapabilityId { get; set; }
@@ -2443,20 +1704,5 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public DateTimeOffset UpdatedAt { get; set; }
     }
 
-    private sealed class CurrentBatchFacts
-    {
-        public Guid? BatchId { get; set; }
-        public bool IsRunning { get; set; }
-        public int FilesTotal { get; set; }
-        public int FilesProcessed { get; set; }
-        public DateTimeOffset? StartedAt { get; set; }
-        public DateTimeOffset? LastActivityAt { get; set; }
-    }
-
     private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int RetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
-    private sealed class ActivitySummaryRow { public int CompletedRunsThisWeek { get; set; } public DateTimeOffset? LastActivityAt { get; set; } }
-    private sealed class LatestBatchRow { public int FilesProcessed { get; set; } }
-    private sealed class BatchPresentationRow { public Guid BatchId { get; set; } public string Status { get; set; } = ""; public string? Source { get; set; } public string? Category { get; set; } public int FilesProcessed { get; set; } public int ReviewCount { get; set; } public int FailureCount { get; set; } public DateTimeOffset StartedAt { get; set; } public DateTimeOffset? CompletedAt { get; set; } }
-    private sealed class BatchMetricRow { public int PeopleUpdated { get; set; } public int ArtworkAdded { get; set; } public int TextTracksAdded { get; set; } }
-    private sealed class MilestoneRow { public string OperationType { get; set; } = ""; public string? CapabilityId { get; set; } public string? Stage { get; set; } public string Status { get; set; } = ""; public DateTimeOffset? StartedAt { get; set; } public DateTimeOffset? CompletedAt { get; set; } }
 }

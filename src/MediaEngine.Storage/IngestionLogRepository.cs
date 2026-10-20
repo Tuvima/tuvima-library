@@ -27,7 +27,6 @@ public sealed class IngestionLogRepository : IIngestionLogRepository
         normalized_title AS NormalizedTitle,
         wikidata_qid     AS WikidataQid,
         error_detail     AS ErrorDetail,
-        ingestion_run_id AS IngestionRunId,
         created_at       AS CreatedAt,
         updated_at       AS UpdatedAt
         """;
@@ -48,11 +47,11 @@ public sealed class IngestionLogRepository : IIngestionLogRepository
             INSERT OR IGNORE INTO ingestion_log
                 (id, file_path, media_asset_id, content_hash, status, media_type, confidence_score,
                  detected_title, normalized_title, wikidata_qid, error_detail,
-                 ingestion_run_id, created_at, updated_at)
+                 created_at, updated_at)
             VALUES
                 (@id, @path, @mediaAssetId, @hash, @status, @mediaType, @confidence,
                  @title, @normalized, @qid, @error,
-                 @runId, @created, @updated);
+                 @created, @updated);
             """,
             new
             {
@@ -67,7 +66,6 @@ public sealed class IngestionLogRepository : IIngestionLogRepository
                 normalized = entry.NormalizedTitle,
                 qid = entry.WikidataQid,
                 error = entry.ErrorDetail,
-                runId = entry.IngestionRunId,
                 created = entry.CreatedAt.ToString("O"),
                 updated = entry.UpdatedAt.ToString("O"),
             });
@@ -157,22 +155,6 @@ public sealed class IngestionLogRepository : IIngestionLogRepository
             ORDER BY created_at DESC
             LIMIT  @limit;
             """, new { limit }).AsList();
-
-        return Task.FromResult<IReadOnlyList<IngestionLogEntry>>(results);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<IngestionLogEntry>> GetByRunIdAsync(
-        Guid runId,
-        CancellationToken ct = default)
-    {
-        using var conn = _db.CreateConnection();
-        var results = conn.Query<IngestionLogEntry>($"""
-            SELECT {SelectColumns}
-            FROM   ingestion_log
-            WHERE  ingestion_run_id = @runId
-            ORDER BY created_at;
-            """, new { runId }).AsList();
 
         return Task.FromResult<IReadOnlyList<IngestionLogEntry>>(results);
     }

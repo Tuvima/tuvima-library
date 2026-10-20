@@ -188,18 +188,41 @@ public sealed class UniversalSearchReadService(
                    c.collection_type AS CollectionType,
                    c.description AS Description,
                    c.cover_artwork_path AS CoverArtworkPath,
+                   c.wikidata_qid AS WikidataQid,
+                   CASE WHEN c.parent_collection_id IS NULL
+                         AND (SELECT (x.owner_kind = 'Library' OR x.audience = 'Everyone'
+                            OR (lower(x.scope) = 'user' AND @ProfileId IS NOT NULL
+                                AND (x.profile_id = @ProfileId
+                                     OR (x.audience = 'SelectedProfiles'
+                                         AND EXISTS (SELECT 1 FROM collection_profile_audience pa
+                                                     WHERE pa.collection_id = x.id AND pa.profile_id = @ProfileId))))) FROM collections x WHERE x.id = c.id) THEN 1 ELSE 0 END AS IsRoot,
                    COUNT(DISTINCT CASE WHEN member.id IN @AllowedWorkIds THEN member.id END) AS ItemCount
             FROM collections c
             LEFT JOIN canonical_values title ON title.entity_id = c.id AND title.key = 'title'
             LEFT JOIN collection_items ci ON ci.collection_id = c.id
+            -- A Universe holds its works through the Series below it, so the works of its enabled, accessible Series count as its
+            -- members (the same Series the Universe page lists).
             LEFT JOIN works member ON member.id=ci.work_id OR member.collection_id=c.id
+                OR (c.collection_type = 'Universe'
+                    AND member.collection_id IN (
+                        SELECT child.id
+                        FROM collections child
+                        WHERE child.parent_collection_id = c.id
+                          AND child.is_enabled = 1
+                          AND (child.owner_kind = 'Library' OR child.audience = 'Everyone'
+                            OR (lower(child.scope) = 'user' AND @ProfileId IS NOT NULL
+                                AND (child.profile_id = @ProfileId
+                                     OR (child.audience = 'SelectedProfiles'
+                                         AND EXISTS (SELECT 1 FROM collection_profile_audience pa
+                                                     WHERE pa.collection_id = child.id AND pa.profile_id = @ProfileId)))))))
             WHERE c.is_enabled = 1
               AND (COALESCE(c.display_name, title.value, '') LIKE @Like COLLATE NOCASE
                    OR COALESCE(c.description, '') LIKE @Like COLLATE NOCASE)
               AND (
                   member.id IN @AllowedWorkIds
                   OR (c.profile_id=@ProfileId AND lower(c.collection_type) LIKE '%playlist%'))
-            GROUP BY c.id, c.display_name, title.value, c.collection_type, c.description, c.cover_artwork_path
+            GROUP BY c.id, c.display_name, title.value, c.collection_type, c.description, c.cover_artwork_path,
+                     c.wikidata_qid, c.parent_collection_id
             ORDER BY CASE WHEN lower(COALESCE(c.display_name, title.value, '')) = lower(@Query) THEN 0
                           WHEN lower(COALESCE(c.display_name, title.value, '')) LIKE lower(@Prefix) THEN 1
                           ELSE 2 END,
@@ -226,9 +249,16 @@ public sealed class UniversalSearchReadService(
         {
             var entityType = CollectionEntityType(row.CollectionType);
             var isPlaylist = entityType == "playlist";
+            // A root Universe with a well-formed Wikidata QID opens the Universe page, not a generic collection page.
+            var universeQid = row.IsRoot == 1
+                && string.Equals(row.CollectionType, "Universe", StringComparison.OrdinalIgnoreCase)
+                    ? UniverseClientReadService.NormalizeQid(row.WikidataQid)
+                    : null;
             var route = isPlaylist
                 ? $"/listen/music/playlists/{row.Id:D}"
-                : $"/details/collection/{row.Id:D}?context=default";
+                : universeQid is not null
+                    ? $"/universe/{universeQid}"
+                    : $"/details/collection/{row.Id:D}?context=default";
             var typeLabel = isPlaylist ? "Playlist" : CollectionTypeLabel(row.CollectionType);
             return new UniversalSearchResultDto(
                 row.Id,
@@ -243,7 +273,7 @@ public sealed class UniversalSearchReadService(
                     : string.IsNullOrWhiteSpace(row.CoverArtworkPath) ? null : $"/collections/{row.Id:D}/artwork/poster",
                 row.Description,
                 route,
-                isPlaylist ? "Open Playlist" : entityType == "series" ? "View Series" : "Open Collection",
+                isPlaylist ? "Open Playlist" : universeQid is not null ? "Open Universe" : entityType == "series" ? "View Series" : "Open Collection",
                 MatchReason(row.Name, query, typeLabel.ToLowerInvariant()),
                 Score(row.Name, query, isPlaylist ? 0.94 : 0.96))
             {
@@ -565,6 +595,9 @@ public sealed class UniversalSearchReadService(
         public string? CollectionType { get; init; }
         public string? Description { get; init; }
         public string? CoverArtworkPath { get; init; }
+        public string? WikidataQid { get; init; }
+        // A root Universe this profile may open (the same access rule as the Universe page).
+        public int IsRoot { get; init; }
         public int ItemCount { get; init; }
     }
 

@@ -146,6 +146,21 @@ public sealed class ExcludedSourceFileRepositoryTests : IDisposable
         Assert.Null(ExcludedSourceFilePaths.RelativePathOf(root, string.Empty));
     }
 
+    [Fact]
+    public async Task ReadingAnExcludedFileById_FindsThatRowOnly_AndNullForAnUnknownId()
+    {
+        var first = Row("movies", "source-1", "Rips/Dune.mkv");
+        var second = Row("movies", "source-1", "Rips/Arrival.mkv");
+        await _excluded.AddOrReplaceAsync(first);
+        await _excluded.AddOrReplaceAsync(second);
+
+        var read = await _excluded.GetByIdAsync(second.Id);
+
+        Assert.NotNull(read);
+        Assert.Equal("Rips/Arrival.mkv", read.RelativePath);
+        Assert.Null(await _excluded.GetByIdAsync(Guid.NewGuid()));
+    }
+
     private static ExcludedSourceFile Row(string library, string source, string relative) => new(
         Guid.NewGuid(),
         library,

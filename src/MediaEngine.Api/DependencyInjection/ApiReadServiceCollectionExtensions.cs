@@ -11,12 +11,10 @@ public static class ApiReadServiceCollectionExtensions
 {
     public static IServiceCollection AddApiReadServices(this IServiceCollection services)
     {
-        services.AddSingleton<IActivityBatchReadService, ActivityBatchReadService>();
         services.AddSingleton<IActivityLogReadService, ActivityLogReadService>();
         services.AddSingleton<IIngestionPresentationReadService, IngestionPresentationReadService>();
         services.AddSingleton<JourneyReadService>();
         services.AddSingleton<IJourneyReadService>(sp => sp.GetRequiredService<JourneyReadService>());
-        services.AddSingleton<IIngestionBatchReadService, IngestionBatchReadService>();
         services.AddSingleton<IPersonAliasReadService, PersonAliasReadService>();
         services.AddSingleton<IPersonPresenceReadService, PersonPresenceReadService>();
         services.AddSingleton<IPersonWorksReadService, PersonWorksReadService>();
@@ -36,6 +34,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<CollectionCatalogReadService>();
         services.AddScoped<UniverseConnectionsReadService>();
         services.AddScoped<UniverseClientReadService>();
+        services.AddScoped<UniversePageReadService>();
+        services.AddSingleton<UniverseLinkCache>();
         services.AddScoped<EntityAppearanceReadService>();
         services.AddScoped<CollectionPersonalMediaService>();
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();

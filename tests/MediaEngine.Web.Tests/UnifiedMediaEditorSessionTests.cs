@@ -24,33 +24,36 @@ public sealed class UnifiedMediaEditorSessionTests
     }
 
     [Fact]
-    public void EditingDrawer_RehousesTheSameShellAndSectionsInsteadOfRewritingThem()
+    public void EditingSectionSlot_RehousesTheSameShellAndSectionsInsteadOfRewritingThem()
     {
-        var drawer = Read("src/MediaEngine.Web/Components/Details/EditingDrawer.razor");
+        var slot = Read("src/MediaEngine.Web/Components/Details/EditingSectionSlot.razor");
         var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
-        var drawerPartial = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.Drawer.cs");
+        var sectionPartial = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.Section.cs");
         var code = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
-        // The drawer hosts the one editor shell; the three sections are the existing section components.
-        Assert.Contains("<SharedMediaEditorShell", drawer, StringComparison.Ordinal);
-        Assert.Contains("Drawer=\"true\"", drawer, StringComparison.Ordinal);
+        // The slot hosts the one editor shell; the sections are the existing section components.
+        Assert.Contains("<SharedMediaEditorShell", slot, StringComparison.Ordinal);
+        Assert.Contains("Section=\"@SectionId(mode.OpenSectionKind)\"", slot, StringComparison.Ordinal);
         Assert.Contains("<EditorDetailsSection", shell, StringComparison.Ordinal);
         Assert.Contains("<EditorArtworkSection", shell, StringComparison.Ordinal);
         Assert.Contains("<EditorMatchSection", shell, StringComparison.Ordinal);
+        Assert.Contains("<EditorHistorySection", shell, StringComparison.Ordinal);
         Assert.Contains("<EditorHeaderSection", shell, StringComparison.Ordinal);
-        Assert.Contains("sme-shell--drawer", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-shell--section", shell, StringComparison.Ordinal);
 
-        // The drawer swaps the header and the section rail for a tab strip, drops History, and keeps one save path.
-        Assert.Contains("@if (!Drawer)", shell, StringComparison.Ordinal);
-        Assert.Contains("!(Drawer && tabId == \"history\")", code, StringComparison.Ordinal);
-        Assert.Contains("(!Inline || Drawer) && (_confirmDiscard", code, StringComparison.Ordinal);
-        Assert.Contains("public async Task RequestCloseAsync()", drawerPartial, StringComparison.Ordinal);
-        Assert.Contains("DirtyChanged.InvokeAsync(dirty)", drawerPartial, StringComparison.Ordinal);
-        Assert.Contains("HasPendingNavigationChanges", drawerPartial, StringComparison.Ordinal);
+        // A slot swaps the header and the section rail for the slot's own heading, shows only the requested section (History
+        // included), and keeps one save path.
+        Assert.Contains("@if (!IsSection)", shell, StringComparison.Ordinal);
+        Assert.Contains("!IsSection || string.Equals(tabId, NormalizeTabId(Section), StringComparison.Ordinal)", code, StringComparison.Ordinal);
+        Assert.Contains("(!Inline || IsSection) && (_confirmDiscard", code, StringComparison.Ordinal);
+        Assert.Contains("public async Task<bool> SaveChangesAsync()", sectionPartial, StringComparison.Ordinal);
+        Assert.Contains("public void DiscardChanges()", sectionPartial, StringComparison.Ordinal);
+        Assert.Contains("DirtyChanged.InvokeAsync(dirty)", sectionPartial, StringComparison.Ordinal);
+        Assert.Contains("HasPendingNavigationChanges", sectionPartial, StringComparison.Ordinal);
 
         // No second editor, route or all-in-one workbench appears.
-        Assert.DoesNotContain("@page", drawer, StringComparison.Ordinal);
-        Assert.DoesNotContain("Workbench", drawer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("@page", slot, StringComparison.Ordinal);
+        Assert.DoesNotContain("Workbench", slot, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -214,7 +214,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Libraries, "/settings/libraries")]
     [InlineData(SettingsSection.Ingestion, "/settings/ingestion")]
     [InlineData(SettingsSection.RecentlyAdded, "/settings/recently-added")]
-    [InlineData(SettingsSection.DevHarness, "/settings/developer")]
+    [InlineData(SettingsSection.DevHarness, "/settings/development-data")]
     [InlineData(SettingsSection.Providers, "/settings/metadata/providers")]
     [InlineData(SettingsSection.LocalAi, "/settings/ai")]
     [InlineData(SettingsSection.Plugins, "/settings/plugins")]
@@ -223,7 +223,7 @@ public sealed class SettingsNavTests
     [InlineData(SettingsSection.Tools, "/settings/tools")]
     [InlineData(SettingsSection.Server, "/settings/backup-recovery")]
     [InlineData(SettingsSection.Review, "/settings/review")]
-    [InlineData(SettingsSection.ProviderTester, "/settings/provider-tester")]
+    [InlineData(SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData(SettingsSection.EnrichmentTester, "/settings/enrichment-tester")]
     public void ResolveRoute_CanonicalSegments_AreStable(SettingsSection section, string expectedRoute)
     {
@@ -361,7 +361,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["Tools and requirements", "Logs", "Backup and recovery"], ChildLabels(groups, "System"));
         Assert.Equal(["Runtime", "Vocabulary", "Automation"], ChildLabels(groups, "Local AI"));
         Assert.Empty(ChildLabels(groups, "Plugins"));
-        Assert.Equal(["Provider Tester", "Enrichment Tester"], ChildLabels(groups, "Developer Tools"));
+        Assert.Equal(["Enrichment Tester", "Development data"], ChildLabels(groups, "Developer Tools"));
         Assert.Empty(ChildLabels(groups, "Integrations"));
 
         var allLabels = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).Select(node => node.Label).ToArray();
@@ -476,9 +476,14 @@ public sealed class SettingsNavTests
     [InlineData("backup-recovery", SettingsSection.Server, "/settings/backup-recovery")]
     [InlineData("ai", SettingsSection.LocalAi, "/settings/ai")]
     [InlineData("plugins", SettingsSection.Plugins, "/settings/plugins")]
-    [InlineData("developer", SettingsSection.DevHarness, "/settings/developer")]
-    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/provider-tester")]
+    [InlineData("developer", SettingsSection.ProviderTester, "/settings/developer")]
+    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData("enrichment-tester", SettingsSection.EnrichmentTester, "/settings/enrichment-tester")]
+    [InlineData("development-data", SettingsSection.DevHarness, "/settings/development-data")]
+    [InlineData("dev-harness", SettingsSection.DevHarness, "/settings/development-data")]
+    [InlineData("harness", SettingsSection.DevHarness, "/settings/development-data")]
+    [InlineData("ingestion-harness", SettingsSection.DevHarness, "/settings/development-data")]
+    [InlineData("test-harness", SettingsSection.DevHarness, "/settings/development-data")]
     public void EveryPreExistingSettingsAddress_StillOpensTheSamePage(string segment, SettingsSection section, string canonicalRoute)
     {
         var resolution = SettingsNav.ResolveRoute(segment, true);
@@ -578,6 +583,54 @@ public sealed class SettingsNavTests
         Assert.Equal(SettingsSection.Overview, SettingsNav.ResolveRoute(null, true).Section);
     }
 
+    [Fact]
+    public void DeveloperTools_OpensOnTheProviderTester_AndHasExactlyTheTwoDevelopmentSubPages()
+    {
+        var groups = SettingsNav.FilteredMenuGroups(true);
+        var developerTools = Assert.Single(
+            SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)),
+            node => node.Label == "Developer Tools");
+
+        Assert.Equal(SettingsSection.ProviderTester, developerTools.Section);
+        Assert.Null(developerTools.Subsection);
+        Assert.Equal("/settings/developer", developerTools.Route);
+        Assert.Equal(
+            [(SettingsSection.EnrichmentTester, "Enrichment Tester"), (SettingsSection.DevHarness, "Development data")],
+            developerTools.Children.Select(child => (child.Section, child.Label)));
+    }
+
+    [Fact]
+    public void DeveloperTools_NoChildRepeatsItsParentOrAnotherRowsName()
+    {
+        var groups = SettingsNav.FilteredMenuGroups(true);
+        var all = SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)).ToArray();
+        var developerTools = Assert.Single(all, node => node.Label == "Developer Tools");
+
+        Assert.DoesNotContain(developerTools.Children, child => child.Label is "Developer Tools" or "Provider Tester");
+        Assert.DoesNotContain(all, node => node.Label == "Provider Tester");
+        Assert.Equal(developerTools.Children.Count, developerTools.Children.Select(child => child.Label).Distinct().Count());
+        Assert.DoesNotContain(developerTools.Children, child => child.Route == developerTools.Route);
+    }
+
+    [Fact]
+    public void ProviderTesterAndDevelopmentData_KeepTheirDesktopOnlyAvailability()
+    {
+        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.ProviderTester));
+        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.EnrichmentTester));
+        Assert.Equal(SettingsMobileAvailability.DesktopOnly, SettingsNav.GetMobileAvailability(SettingsSection.DevHarness));
+    }
+
+    [Fact]
+    public void DeveloperTools_IsNotShownToAnyoneWhoIsNotAServerAdministrator()
+    {
+        var groups = SettingsNav.FilteredMenuGroups(administrationAllowed: false);
+
+        Assert.DoesNotContain(groups, group => group.Key == "developer");
+        Assert.DoesNotContain(
+            SettingsNav.Flatten(groups.SelectMany(group => group.Nodes)),
+            node => node.Section is SettingsSection.ProviderTester or SettingsSection.EnrichmentTester or SettingsSection.DevHarness);
+    }
+
     private static string[] Labels(IReadOnlyList<SettingsMenuGroup> groups, string groupKey) =>
         groups.Single(group => group.Key == groupKey).Nodes.Select(node => node.Label).ToArray();
 
@@ -588,7 +641,7 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData("review", SettingsSection.Review, "/settings/review")]
-    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/provider-tester")]
+    [InlineData("provider-tester", SettingsSection.ProviderTester, "/settings/developer")]
     [InlineData("enrichment-tester", SettingsSection.EnrichmentTester, "/settings/enrichment-tester")]
     public void ResolveRoute_SecondaryRoutes_StillResolveForAdmins(string segment, SettingsSection expectedSection, string expectedRoute)
     {
@@ -635,7 +688,7 @@ public sealed class SettingsNavTests
         Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("- Profiles - Tuvima Library", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Profiles - Library", settingsSource, StringComparison.Ordinal);
         // A non-id subsection still goes through the normal lookup, which only knows Households for Profiles and so ends at /not-found otherwise.
         Assert.Contains("<HouseholdsTab />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);

@@ -5,6 +5,7 @@
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Setup
+@using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @inject IEngineApiClient ApiClient
@@ -14,7 +15,7 @@
 @inject IAppToastService Snackbar
 @inject SignInAttemptLimiter SignInLimiter
 
-<PageTitle>Set up Tuvima Library</PageTitle>
+<PageTitle>Set up Library</PageTitle>
 
 <main class="setup-page">
     @if (_loading)
@@ -41,7 +42,7 @@
     {
         <div class="setup-shell">
         <aside class="setup-sidebar">
-            <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Tuvima Library</span></div>
+            <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Library</span></div>
             <SetupStepper Steps="@_status.Steps" CurrentStep="@StepperCurrent" WorkflowStep="@StepperWorkflow" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
@@ -162,8 +163,11 @@
         return outcome == SignInAttemptResult.Allowed;
     }
 
-    [SupplyParameterFromQuery(Name = "step")]
-    public string? RequestedStep { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)]
+    public string? RoutedUri { get; set; }
+
+    public string? RequestedStep => RoutedPageQuery.From(RoutedUri ?? Navigation.Uri).String("step");
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
     // The sidebar lists the language screen and the Enhance your library screen as separate steps.
@@ -180,7 +184,7 @@
         "server" => "Give this server a name, then add your libraries.",
         "preflight" => "Getting this server ready.",
         "administrator" => "Create the first authenticated administrator and household profile.",
-        "media-locations" => "Connect read-only sources separately from storage Tuvima Library may manage.",
+        "media-locations" => "Connect read-only sources separately from storage Library may manage.",
         "providers" => "Connect the metadata services that make each media lane useful.",
         _ => "Review what passed, what was deferred, and anything that still needs repair.",
     };
@@ -377,11 +381,11 @@
         {
             _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
             if (_preflight is null)
-                _preflightError = "Tuvima could not get ready. The server did not answer the request. Check that it is running, then try again.";
+                _preflightError = "Library could not get ready. The server did not answer the request. Check that it is running, then try again.";
         }
         catch (Exception)
         {
-            _preflightError = "Tuvima could not finish getting ready. Try again.";
+            _preflightError = "Library could not finish getting ready. Try again.";
         }
         finally { _busy = false; }
         // A missing tool never blocks setup, but the person sees the list first and moves on with Continue.
@@ -402,7 +406,7 @@
     }
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
-    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
+    private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Library is restarting.", AppSeverity.Info); }
     // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
     // proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>
@@ -429,7 +433,7 @@
         var result = outcome.Created;
         if (result is null)
         {
-            if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Tuvima. Choose another way to set a password instead.";
+            if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Library. Choose another way to set a password instead.";
             else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
         }
         else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }

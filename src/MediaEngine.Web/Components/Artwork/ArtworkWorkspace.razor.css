@@ -15,13 +15,6 @@
 .artwork-workspace-core__image-frame{display:flex;align-items:flex-start;gap:.5rem;width:fit-content;max-width:100%;max-height:100%}
 .artwork-workspace-core__image{min-width:0;max-width:100%;}
 .artwork-workspace-core__upload-status{position:absolute;bottom:1rem;left:1rem;padding:.5rem;background:#171026;border-radius:.5rem}
-.artwork-workspace-core__delete-confirm{display:flex;align-items:center;gap:.5rem;min-height:3rem}
-.artwork-workspace-core__delete-confirm>span{flex:1}
-.artwork-workspace-core__delete-confirm ::deep .app-icon-button{display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid currentColor;transition:background-color .15s ease,box-shadow .15s ease}
-.artwork-workspace-core__delete-confirm ::deep .artwork-confirm-action{color:var(--tl-palette-success)!important;background:rgba(var(--tl-palette-success-rgb),.10)!important}
-.artwork-workspace-core__delete-confirm ::deep .artwork-cancel-action{color:var(--tl-palette-error)!important;background:rgba(var(--tl-palette-error-rgb),.10)!important}
-.artwork-workspace-core__delete-confirm ::deep .app-icon-button:hover:not(:disabled){background:rgba(var(--tl-palette-action-default-rgb),.18)!important;box-shadow:0 0 0 2px currentColor}
-.artwork-workspace-core__delete-confirm ::deep .app-icon-button:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 .artwork-workspace-core__hint{margin:1rem 0;color:#b8c0d2;line-height:1.6;font-size:.9rem}
 .artwork-workspace-core__details .artwork-workspace-core__actions{display:grid;align-items:stretch;padding:1rem 0;border-top:1px solid #ffffff1a;border-bottom:1px solid #ffffff1a;margin-bottom:1rem}
 .artwork-workspace-core__details .artwork-workspace-core__actions ::deep .app-button{justify-content:flex-start;width:100%}
@@ -323,12 +316,10 @@
 .artwork-workspace-core__preview { --preview-height:clamp(20rem,46vh,34rem); box-sizing:border-box; position:relative; display:grid; place-items:center; height:var(--preview-height); min-height:0; padding:1rem; overflow:hidden; border:1px solid var(--playback-border); border-radius:var(--tl-radius-md); background:transparent; }
 .artwork-workspace-core__preview img,.artwork-workspace-core__preview .artwork-workspace-core__image img { display:block; width:auto; height:auto; max-width:100%; max-height:calc(var(--preview-height) - 2rem); object-fit:contain; object-position:center; }
 
-/* Editing Mode drawer: the workspace in one narrow column, at the compact phone sizes. */
-.sme-shell--drawer .artwork-workspace-core__toolbar { flex-wrap: wrap; gap: .5rem; padding: .75rem .75rem .15rem; }
-.sme-shell--drawer .artwork-workspace-core__role-overview { flex-basis: 100%; gap: .45rem; }
-.sme-shell--drawer .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: .75rem; }
-.sme-shell--drawer .artwork-workspace-core__details { order: initial; }
-.sme-shell--drawer .artwork-workspace-core__variants { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; max-height: none; }
-.sme-shell--drawer .artwork-workspace-core__variant-tile { height: 8rem; }
-.sme-shell--drawer .artwork-workspace-core__preview { --preview-height: 15rem; }
-.sme-shell--drawer .artwork-workspace-core__role-preview { width: 2.8rem; height: 2.8rem; }
+/* In an Editing Mode section the artwork has the full width of the page: the saved images are cards that wrap as far as the
+   width allows, and the whole list shows (the section scrolls), rather than a two-column list scrolling inside itself. */
+.sme-shell--section .artwork-workspace-core__details .artwork-workspace-core__variants {
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    max-height: none;
+    overflow-y: visible;
+}

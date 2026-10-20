@@ -65,13 +65,13 @@ public sealed class RouterPortMappingCoordinator : BackgroundService
                 ?? usableAddresses.FirstOrDefault()?.Address;
             if (string.IsNullOrWhiteSpace(internalAddress))
             {
-                var unavailable = new RouterMappingResult(RouterMappingState.UnsupportedTopology, "None", "Tuvima could not find a usable local IPv4 address.", ReasonCode: "no-local-ipv4");
+                var unavailable = new RouterMappingResult(RouterMappingState.UnsupportedTopology, "None", "Library could not find a usable local IPv4 address.", ReasonCode: "no-local-ipv4");
                 _runtime.RecordRouterMapping(unavailable);
                 return unavailable;
             }
 
             var request = new RouterMappingRequest(
-                "Tuvima Remote Access",
+                "Library Remote Access",
                 internalAddress,
                 settings.Remote.TlsTerminationPort ?? settings.Local.Port,
                 settings.Remote.ExternalPort ?? 443,
@@ -100,7 +100,7 @@ public sealed class RouterPortMappingCoordinator : BackgroundService
             var final = lastFailure ?? new RouterMappingResult(
                 RouterMappingState.ProtocolUnavailable,
                 "None",
-                "Tuvima could not configure your router automatically.");
+                "Library could not configure your router automatically.");
             _runtime.RecordRouterMapping(final);
             return final;
         }

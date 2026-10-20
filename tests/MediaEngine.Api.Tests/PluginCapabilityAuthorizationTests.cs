@@ -181,7 +181,7 @@ public sealed class PluginCapabilityAuthorizationTests
                   "entry_type": "Anything.Plugin"
                 }
                 """);
-            var catalog = new PluginCatalog([], new PluginSettingsService(loader), loader, NullLogger<PluginCatalog>.Instance);
+            var catalog = new PluginCatalog([], new PluginSettingsService(loader), loader, AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
 
             var registration = Assert.Single(catalog.List());
             Assert.Contains("outside the plugin directory", registration.LoadError, StringComparison.OrdinalIgnoreCase);
@@ -326,7 +326,7 @@ public sealed class PluginCapabilityAuthorizationTests
         var storageRoot = Path.Combine(fixture.Root, "working");
         var storage = new BoundPluginStorage(TestPlugin.Id, storageRoot, new PluginPermissionGate(fixture.Catalog));
         storage.CreateDirectory("nested");
-        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!);
+        var context = new PluginExecutionContext(TestPlugin.Id, new Dictionary<string, System.Text.Json.JsonElement>(), null!, null!, storage, null!, null!, null!);
 
         await context.DisposeAsync();
 
@@ -409,7 +409,7 @@ public sealed class PluginCapabilityAuthorizationTests
                 [new TestPlugin(manifest)],
                 new PluginSettingsService(Loader),
                 Loader,
-                NullLogger<PluginCatalog>.Instance);
+                AllowAllPluginApprovals.Instance, NullLogger<PluginCatalog>.Instance);
         }
 
         public string Root { get; }

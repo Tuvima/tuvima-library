@@ -3,7 +3,9 @@
     width: 100%;
     height: auto;
     min-height: 100%;
-    overflow-x: hidden;
+    /* clip, not hidden: hidden would make this wrapper a scroll container (overflow-y computes to auto), and the Editing Mode
+       banner inside it could then never stick to the top of the overlay's real scroller. */
+    overflow-x: clip;
     overflow-y: visible;
     overscroll-behavior-y: auto;
     touch-action: auto;
@@ -12,6 +14,7 @@
 .tl-detail-route-state {
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: var(--tl-details-page-height, 100dvh);
     background:
         radial-gradient(circle at 80% 8%, rgba(71, 53, 122, 0.26), transparent 30rem),
         radial-gradient(circle at 12% 20%, rgba(194, 135, 48, 0.18), transparent 24rem),
@@ -22,6 +25,7 @@
 .tl-detail-route-state ::deep .tl-detail-route-state__content {
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: var(--tl-details-page-height, 100dvh);
 }
 
 /* Navigating between items: the previous page stays visible but dimmed (and inert in markup) until the next arrives. */

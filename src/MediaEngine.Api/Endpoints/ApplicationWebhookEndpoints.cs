@@ -1,6 +1,8 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Approvals;
 using MediaEngine.Api.Services.Webhooks;
+using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 
@@ -20,15 +22,20 @@ internal static class ApplicationWebhookEndpoints
             Results.Ok(await service.ListAsync(applicationId, ct)))
             .WithName("ListApplicationWebhooks").Produces<IReadOnlyList<ApplicationWebhookResponse>>();
         group.MapPost("/", async (Guid applicationId, SaveApplicationWebhookRequest request, HttpContext http,
-            ApplicationWebhookService service, CancellationToken ct) =>
+            IRequestAuthorityResolver authorityResolver, ApplicationWebhookService service, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(await service.SaveAsync(applicationId, null, request, ct));
-        }).WithName("CreateApplicationWebhook").Produces<ApplicationWebhookSecretResponse>();
+            var authority = await authorityResolver.ResolveAsync(http, ct);
+            return Results.Ok(await service.SaveAsync(applicationId, null, request, authority, ct));
+        }).WithName("CreateApplicationWebhook").Produces<ApplicationWebhookSecretResponse>()
+            .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict);
         group.MapPut("/{webhookId:guid}", async (Guid applicationId, Guid webhookId, SaveApplicationWebhookRequest request,
-            ApplicationWebhookService service, CancellationToken ct) =>
-            Results.Ok(await service.SaveAsync(applicationId, webhookId, request, ct)))
-            .WithName("UpdateApplicationWebhook").Produces<ApplicationWebhookSecretResponse>();
+            HttpContext http, IRequestAuthorityResolver authorityResolver, ApplicationWebhookService service, CancellationToken ct) =>
+        {
+            var authority = await authorityResolver.ResolveAsync(http, ct);
+            return Results.Ok(await service.SaveAsync(applicationId, webhookId, request, authority, ct));
+        }).WithName("UpdateApplicationWebhook").Produces<ApplicationWebhookSecretResponse>()
+            .Produces<ApprovalRequiredResponse>(StatusCodes.Status409Conflict);
         group.MapPost("/{webhookId:guid}/rotate", async (Guid applicationId, Guid webhookId, HttpContext http,
             ApplicationWebhookService service, CancellationToken ct) =>
         {
@@ -48,6 +55,7 @@ internal static class ApplicationWebhookEndpoints
         public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
         {
             try { return await next(context); }
+            catch (ApprovalRequiredException ex) { return ApiErrors.ApprovalRequired(ex.Approvals); }
             catch (WebhookDestinationException) { return ApiErrors.BadRequest("Use an HTTPS destination without credentials, query parameters, or a fragment. Private-network receivers require explicit approval; host and metadata addresses are blocked."); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }

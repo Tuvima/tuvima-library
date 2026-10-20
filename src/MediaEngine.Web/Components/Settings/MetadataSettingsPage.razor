@@ -6,7 +6,6 @@
 @inject ILogger<MetadataSettingsPage> Logger
 @inject DeviceContextService DeviceContext
 @inject IAppDialogService DialogService
-@inject IJSRuntime JS
 
 <NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
 
@@ -459,10 +458,14 @@
 
     private async Task RemoveProviderCredentialAsync(MetadataProviderInventoryItem provider)
     {
-        var confirmed = await JS.InvokeAsync<bool>(
-            "confirm",
-            $"Remove the {provider.DisplayName} credential? The provider will stop running until it is connected again.");
-        if (!confirmed) return;
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Remove the {provider.DisplayName} credential?",
+            "The provider will stop running until it is connected again.",
+            primaryLabel: "Remove",
+            secondaryLabel: "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary) return;
 
         var result = await ApiClient.RemoveProviderCredentialsAsync(provider.Key);
         if (result?.Success != true)

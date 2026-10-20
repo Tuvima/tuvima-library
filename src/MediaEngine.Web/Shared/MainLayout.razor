@@ -68,7 +68,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
-            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
+            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Library">
                 @if (IsPhoneShell)
                 {
                     @* Phone: the icon only, no wordmark. *@
@@ -137,7 +137,7 @@
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
@@ -294,6 +294,10 @@
     private string? _avatarImageUrl;
     private string _avatarInitial = string.Empty;
     private string _currentPath = "/";
+    private bool _overlayWasOpen;
+
+    /// <summary>The details overlay state, cascaded by the route view; null where the layout is rendered outside it.</summary>
+    [CascadingParameter] private DetailsOverlayState? Overlay { get; set; }
     private string _displayName = string.Empty;
     private string? _accountLabel;
     private string _profileRole = "Profile";
@@ -624,7 +628,11 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         if (_disposed) return;
+        var previousPath = _currentPath;
         SyncLocationState();
+        // Opening, swapping or dismissing the details overlay leaves the page under it exactly as it was, scroll included.
+        var keepScroll = (Overlay?.IsOpen == true || _overlayWasOpen) && string.Equals(_currentPath, previousPath, StringComparison.Ordinal);
+        _overlayWasOpen = Overlay?.IsOpen == true;
         _librariesOpen = false;
         _menuOpen = false;
         _ = InvokeAsync(async () =>
@@ -632,7 +640,7 @@
             if (_disposed) return;
             await SyncLastLibraryAsync(load: false);
             if (_disposed) return;
-            await JS.InvokeVoidAsync("playbackTools.resetContentScroll");
+            if (!keepScroll) await JS.InvokeVoidAsync("playbackTools.resetContentScroll");
             if (!_disposed) StateHasChanged();
         });
     }
@@ -711,7 +719,8 @@
 
     private void SyncLocationState()
     {
-        var relativePath = Nav.ToBaseRelativePath(Nav.Uri);
+        // While the details overlay is open the shell stays the page under it (its navigation, width and lane), not the detail address.
+        var relativePath = Overlay?.UnderlayUri ?? Nav.ToBaseRelativePath(Nav.Uri);
         var trimmedPath = relativePath.Split('?', '#')[0].Trim('/');
         _currentPath = string.IsNullOrWhiteSpace(trimmedPath)
             ? "/"

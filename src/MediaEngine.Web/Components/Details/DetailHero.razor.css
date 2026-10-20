@@ -91,6 +91,31 @@
     min-height: 1.35rem;
 }
 
+:where(.tl-detail-page) .tl-detail-hero__universe-link {
+    margin: 0.35rem 0 0;
+    font-size: clamp(0.82rem, 0.9vw, 0.95rem);
+    line-height: 1.4;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__universe-link a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tl-tap-target-min, 44px);
+    color: color-mix(in srgb, var(--tl-text-primary, #fff) 78%, transparent);
+    text-decoration: none;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__universe-link a:hover,
+:where(.tl-detail-page) .tl-detail-hero__universe-link a:focus-visible {
+    color: var(--tl-text-primary, #fff);
+    text-decoration: underline;
+}
+
+:where(.tl-detail-page) .tl-detail-hero__universe-link a:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: 2px;
+}
+
 :where(.tl-detail-page) .tl-detail-hero-credit-stack {
     display: grid;
     gap: 0.78rem;

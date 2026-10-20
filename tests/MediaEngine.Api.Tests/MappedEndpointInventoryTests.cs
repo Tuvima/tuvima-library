@@ -77,12 +77,12 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionNotificationStatus", "GetIngestionOperationsSnapshot", "GetIngestionPresentation", "GetIngestionQueueProgress", "GetCurrentIngestionMediaGroups", "GetImportFolderWaiting", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
-            [ApplicationPermissionIds.IngestionHistoryRead] = ["GetRecentIngestionAdditions", "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetRecentBatches", "GetBatchAttentionCount", "GetBatchItems", "GetBatchById", "GetMediaOperation", "GetActivityHistorySummary", "GetActivityBatches", "GetActivityBatch", "GetActivityBatchPresentation", "GetActivityBatchMediaGroups", "GetActivityBatchGroups", "GetActivityBatchInsights", "GetActivityBatchItems", "GetActivityBatchEvents", "GetActivityBatchItemDetail", "GetActivityByRunId"],
+            [ApplicationPermissionIds.IngestionStatusRead] = ["GetIngestionPresentation", "GetIngestionQueueProgress", "GetCurrentIngestionMediaGroups", "GetImportFolderWaiting", "ListWatchFolder", "ListMediaOperations", "GetMediaOperationsSummary"],
+            [ApplicationPermissionIds.IngestionHistoryRead] = ["GetRecentIngestionAdditions", "GetIngestionMediaGroup", "GetIngestionMediaGroupChildren", "GetMediaOperation", "GetActivityHistorySummary"],
             [ApplicationPermissionIds.IngestionRun] = ["TriggerScan", "TriggerLibraryScan", "TriggerRescan", "TriggerReconciliation", "UploadMedia"],
             [ApplicationPermissionIds.IngestionRetry] = ["RereadAssetMetadata", "RetryMediaOperation"],
             [ApplicationPermissionIds.IngestionCancel] = ["CancelMediaOperation"],
-            [ApplicationPermissionIds.SystemActivityRead] = ["GetActivityPeopleAudit", "GetRecentActivity", "GetActivityStats", "GetActivityByTypes", "GetActivityLog"],
+            [ApplicationPermissionIds.SystemActivityRead] = ["GetRecentActivity", "GetActivityStats", "GetActivityByTypes", "GetActivityLog"],
         };
         string[] administratorOnly = ["PruneActivity"];
         var operations = inventory.Endpoints.Where(endpoint =>
@@ -306,7 +306,7 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddSingleton<IEventPublisher, SignalREventPublisher>();
         builder.Services.AddHttpClient();
         builder.Services.AddMemoryCache();
-        builder.Services.AddSingleton<TvdbRetailClient>(_ => throw new InvalidOperationException(
+        builder.Services.AddSingleton<ProviderApiClient>(_ => throw new InvalidOperationException(
             "Endpoint inventory must not contact TheTVDB."));
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddTuvimaStorage();
@@ -351,11 +351,9 @@ public sealed class MappedEndpointInventoryTests
         builder.Services.AddPluginApplicationServices();
         builder.Services.AddApplicationEvents();
         builder.Services.AddApplicationWebhooks();
+        builder.Services.AddTuvimaApprovals();
         builder.Services.AddSingleton<AppleRetailClient>();
         builder.Services.AddSingleton<MusicBrainzReleaseClient>();
-        builder.Services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
-        builder.Services.AddSingleton<IngestionNotificationReadService>();
-        builder.Services.AddSingleton<IIngestionBatchResponseService, IngestionBatchResponseService>();
         builder.Services.AddSingleton<EnrichmentRefreshScheduleService>();
         builder.Services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();
         builder.Services.AddSingleton<IImageEnrichmentService, ImageEnrichmentService>();
