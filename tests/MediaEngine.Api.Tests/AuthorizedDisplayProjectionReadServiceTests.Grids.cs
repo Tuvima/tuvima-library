@@ -89,8 +89,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         public void Dispose() { }
     }
 
-    // A second file of the same Work, owned in another library.
-    private void AddMovieFileInLibrary(Guid workId, Guid libraryId, int videoHeight)
+    // A second file of the same Work, owned in another library (it carries the title too, as a real second copy would).
+    private void AddMovieFileInLibrary(Guid workId, Guid libraryId, int videoHeight, string title)
     {
         var edition = Guid.NewGuid();
         var asset = Guid.NewGuid();
@@ -100,7 +100,8 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                 INSERT INTO editions (id, work_id) VALUES (@edition, @workId);
                 INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
                 VALUES (@asset, @edition, @hash, @path, CURRENT_TIMESTAMP, @library);
-                """, new { edition, workId, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = libraryId.ToString("D") });
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@asset, 'title', @title, CURRENT_TIMESTAMP);
+                """, new { edition, workId, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = libraryId.ToString("D"), title });
         }
 
         SetVideoHeight(asset, videoHeight);
@@ -387,7 +388,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         SetVideoHeight(split.AssetId, 480);
         SetVideoHeight(control.AssetId, 1080);
         // The same Work also has a 4K file, but in a library this account has no grant for.
-        AddMovieFileInLibrary(split.WorkId, Guid.NewGuid(), 2160);
+        AddMovieFileInLibrary(split.WorkId, Guid.NewGuid(), 2160, "Split film");
         var composer = CreateGridComposer(context);
 
         var movies = await composer.BuildGridAsync("watch", "movies", new DisplayGridQuery());
@@ -400,6 +401,30 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Empty(only4k!.Items);
         Assert.Equal(["Split film"], GridTitles(onlySd));
         Assert.Equal(["Control film"], GridTitles(onlyHd));
+    }
+
+    [Fact]
+    public async Task Grid_FormatFilterCountsFilesInEveryLibraryTheViewerIsGrantedFor()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library, other });
+        var context = HumanContext(account, ProfileForLookups);
+        var split = await InsertOwnedWorkWithIdAsync(library, "Split film", "Movie");
+        SetOwnedPath(split.AssetId, $"C:/library/{split.AssetId:N}.mkv");
+        SetVideoHeight(split.AssetId, 480);
+        AddMovieFileInLibrary(split.WorkId, other, 2160, "Split film");
+        var composer = CreateGridComposer(context);
+
+        var movies = await composer.BuildGridAsync("watch", "movies", new DisplayGridQuery());
+        var only4k = await composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Format: "4k"));
+        var onlySd = await composer.BuildGridAsync("watch", "movies", new DisplayGridQuery(Format: "sd"));
+
+        var formats = Assert.Single(movies!.Filters, group => group.Key == DisplayGridValues.FilterFormat);
+        Assert.Equal([("4k", 1), ("sd", 1)], formats.Options.Select(option => (option.Value, option.Count)));
+        Assert.Equal(["Split film"], GridTitles(only4k));
+        Assert.Equal(["Split film"], GridTitles(onlySd));
     }
 
     [Fact]

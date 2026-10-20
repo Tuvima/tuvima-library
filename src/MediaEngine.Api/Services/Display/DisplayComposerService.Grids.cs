@@ -75,8 +75,10 @@ public sealed partial class DisplayComposerService
             DisplayGridValues.TypeMovie or DisplayGridValues.TypeTv or DisplayGridValues.TypeBook or DisplayGridValues.TypeComic);
         if (_formats is not null && (formatsApply || selection.Format is not null))
         {
-            var formats = await _formats.LoadAsync(ct);
-            entries = entries.Select(entry => entry with { Formats = FormatsOf(entry, formats, source.WorkLibraries) }).ToList();
+            var scope = await _readService.LoadLibraryScopeAsync(ct);
+            var workIds = entries.SelectMany(entry => entry.WorkIds).ToHashSet();
+            var formats = DisplayFormatReader.ForViewer(await _formats.LoadAsync(ct), workIds, scope);
+            entries = entries.Select(entry => entry with { Formats = FormatsOf(entry, formats) }).ToList();
         }
         else
         {
@@ -286,7 +288,7 @@ public sealed partial class DisplayComposerService
             ? await LoadGridMusicStatsAsync(cards, context, profileId, ct)
             : new Dictionary<Guid, MusicPlayStat>();
         var entries = cards.Select(card => context.Entry(card, stats)).ToList();
-        return new GridSource(entries, title, subtitle, works.ToLookup(work => work.WorkId, work => work.LibraryId));
+        return new GridSource(entries, title, subtitle);
     }
 
     private async Task<List<GridCard>> BuildPersonalGridCardsAsync(
@@ -521,12 +523,9 @@ public sealed partial class DisplayComposerService
         }
     }
 
-    // Formats come only from the (Work, library) pairs the viewer was allowed to see: a 4K copy in a library they have no
-    // grant for must not be offered, counted or matched.
-    private static IReadOnlySet<string> FormatsOf(
-        GridEntry entry,
-        IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> formats,
-        ILookup<Guid, string?> workLibraries)
+    // `formats` already holds only files in libraries the viewer may see: a 4K copy in a library they have no grant for
+    // must not be offered, counted or matched, while one in any granted library counts.
+    private static IReadOnlySet<string> FormatsOf(GridEntry entry, IReadOnlyDictionary<Guid, IReadOnlySet<string>> formats)
     {
         if (entry.WorkIds.Count == 0
             || entry.Type is not (DisplayGridValues.TypeMovie or DisplayGridValues.TypeTv or DisplayGridValues.TypeBook or DisplayGridValues.TypeComic))
@@ -537,12 +536,9 @@ public sealed partial class DisplayComposerService
         var found = new HashSet<string>(StringComparer.Ordinal);
         foreach (var workId in entry.WorkIds)
         {
-            foreach (var library in workLibraries[workId])
+            if (formats.TryGetValue(workId, out var owned))
             {
-                if (Guid.TryParse(library, out var libraryId))
-                {
-                    found.UnionWith(DisplayFormatReader.ForWorkInLibrary(formats, workId, libraryId));
-                }
+                found.UnionWith(owned);
             }
         }
 
@@ -613,8 +609,7 @@ public sealed partial class DisplayComposerService
         string Type,
         IReadOnlySet<string> Formats);
 
-    /// <param name="WorkLibraries">The library of each Work row the viewer is allowed to see, which scopes the format filter.</param>
-    private sealed record GridSource(IReadOnlyList<GridEntry> Entries, string Title, string? Subtitle, ILookup<Guid, string?> WorkLibraries);
+    private sealed record GridSource(IReadOnlyList<GridEntry> Entries, string Title, string? Subtitle);
 
     /// <summary>What a grid needs to know about each card beyond the card: when it was added, last played, and which Works it stands for.</summary>
     private sealed class GridContext(IReadOnlyList<DisplayWorkRow> works, IReadOnlyDictionary<Guid, DisplayJourneyRow> progress)

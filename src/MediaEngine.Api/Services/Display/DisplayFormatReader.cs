@@ -11,8 +11,7 @@ namespace MediaEngine.Api.Services.Display;
 /// Which file formats each Work is owned in, for the "View all" format filter: EPUB, PDF and comic files for reading,
 /// 4K, HD and SD for watching. One query covers the whole library and is cached briefly. The answer is raw (not scoped to
 /// a viewer) and is keyed by Work and library, because a Work can be owned in several libraries and a viewer may only be
-/// granted some of them: callers look a format up only for the (Work, library) pairs they were allowed to see, never
-/// for a Work as a whole.
+/// granted some of them: callers keep only the (Work, library) pairs in libraries the viewer may see, never a Work as a whole.
 /// </summary>
 public sealed class DisplayFormatReader
 {
@@ -79,12 +78,33 @@ public sealed class DisplayFormatReader
         return Task.FromResult(result);
     }
 
-    /// <summary>The formats a Work is owned in within one library.</summary>
-    public static IReadOnlySet<string> ForWorkInLibrary(
+    /// <summary>
+    /// The formats each of the given Works is owned in, counting only files in libraries the viewer may see. The Works
+    /// themselves must already be ones the viewer is allowed to see.
+    /// </summary>
+    public static IReadOnlyDictionary<Guid, IReadOnlySet<string>> ForViewer(
         IReadOnlyDictionary<(Guid WorkId, Guid LibraryId), IReadOnlySet<string>> formats,
-        Guid workId,
-        Guid libraryId) =>
-        formats.TryGetValue((workId, libraryId), out var set) ? set : NoFormats;
+        IReadOnlySet<Guid> workIds,
+        DisplayLibraryScope scope)
+    {
+        var found = new Dictionary<Guid, HashSet<string>>();
+        foreach (var ((workId, libraryId), tokens) in formats)
+        {
+            if (!workIds.Contains(workId) || !scope.Allows(libraryId))
+            {
+                continue;
+            }
+
+            if (!found.TryGetValue(workId, out var set))
+            {
+                found[workId] = set = new HashSet<string>(StringComparer.Ordinal);
+            }
+
+            set.UnionWith(tokens);
+        }
+
+        return found.ToDictionary(entry => entry.Key, entry => (IReadOnlySet<string>)entry.Value);
+    }
 
     /// <summary>The format token for one owned file, or null when the file has none the filter offers (audio, unknown video size).</summary>
     internal static string? FormatFor(string? filePath, string? videoHeight)
