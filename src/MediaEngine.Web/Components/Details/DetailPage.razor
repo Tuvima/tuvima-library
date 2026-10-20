@@ -177,6 +177,45 @@ else if (Model is not null)
         UpdateEditingEligibility();
     }
 
+    // A page that replaced one which followed its item here (a move removed the title it showed) picks Editing Mode back up: the mode
+    // is on again, Match and Identity is open and the move's result line is showing, so following the surviving item does not end the edit.
+    protected override async Task OnInitializedAsync() => await ResumeEditingAsync();
+
+    private async Task ResumeEditingAsync()
+    {
+        if (_editing is null || Model is null || !Guid.TryParse(Model.Id, out var entityId)
+            || EditResumeStore is not { } store || !store.TryTakeEditResume(entityId, out var resume))
+        {
+            return;
+        }
+
+        // The device or the person may no longer qualify: then the page simply opens to read, as a deep link would.
+        if (!await _editing.EnterAsync() || _disposed)
+        {
+            return;
+        }
+
+        if (resume.Section == EditingSection.Match && !_editing.Fields.CanMatch)
+        {
+            // The new item cannot be matched, so there is no section to hold the line: say it here instead.
+            if (!string.IsNullOrWhiteSpace(resume.ResultLine))
+            {
+                Snackbar.Add(resume.ResultLine, AppSeverity.Success);
+            }
+
+            return;
+        }
+
+        _resumeMoveLine = resume.ResultLine;
+        _editing.OpenSection(resume.Section);
+    }
+
+    // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
+    private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
+
+    // The result line the Match and Identity section shows when it first opens after a move was carried over; the section takes it once.
+    private string? _resumeMoveLine;
+
     protected override void OnParametersSet()
     {
         UpdateEditingEligibility();
@@ -294,7 +333,14 @@ else if (Model is not null)
             return null;
         }
 
-        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot);
+        string? moveLine = null;
+        if (tab == "links")
+        {
+            moveLine = _resumeMoveLine;
+            _resumeMoveLine = null;
+        }
+
+        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot, moveLine);
     }
 
     // A field saved from a pencil: the item is already updated, so refresh what the page shows. A failed refresh
@@ -769,7 +815,8 @@ else if (Model is not null)
         (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,
         Guid? activeProfileId,
         string initialTab,
-        string? initialArtworkSlot)
+        string? initialArtworkSlot,
+        string? initialMoveResult = null)
     {
         if (Model is null)
         {
@@ -797,6 +844,7 @@ else if (Model is not null)
             CoverUrl = coverUrl,
             OnArtworkChanged = RefreshCurrentDetailAsync,
             OnEditedItemReplaced = FollowMovedItemAsync,
+            InitialMoveResult = initialMoveResult,
             IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
             PreviewItems =
             [
@@ -910,18 +958,27 @@ else if (Model is not null)
             CanShare = collection.CanShare,
         };
 
-    // A move merged the title this page shows into another (or an audiobook part joined another audiobook), so the Work in the address
-    // may be gone: the address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so
-    // Back still returns to the page beneath. A page showing something else (an album with a song moved out of it) keeps its address.
-    private Task FollowMovedItemAsync(Guid previousId, Guid survivingId)
+    // A move merged the title this page shows into another (or emptied the audiobook it shows), so the Work in the address is gone: the
+    // address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so Back still returns to
+    // the page beneath. The page that loads there picks Editing Mode, the Match and Identity section and the result line back up from
+    // the note left here, so following the item does not end the edit. A page showing something else (an album with a song moved out of
+    // it) keeps its address and answers false, so the editor re-targets itself.
+    private Task<bool> FollowMovedItemAsync(Guid previousId, Guid survivingId, string? resultLine)
     {
         if (Model is null || _disposed || !Guid.TryParse(Model.Id, out var pageId) || pageId != previousId)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(false);
         }
 
-        DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId);
-        return Task.CompletedTask;
+        var store = EditResumeStore;
+        store?.OfferEditResume(new DetailsEditResume(survivingId, EditingSection.Match, resultLine));
+        if (!DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId))
+        {
+            store?.WithdrawEditResume();
+            return Task.FromResult(false);
+        }
+
+        return Task.FromResult(true);
     }
 
     private async Task RefreshCurrentDetailAsync()

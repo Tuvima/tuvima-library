@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
 @implements IDisposable
 @inject DeviceContextService Device
@@ -6,9 +7,11 @@
 @inject IAppDialogService Dialogs
 @inject IServiceProvider Services
 
-@* The ticked rows' bar, the "Edit together" section and the result line, in the list column directly above the rows (details overlay
-   spec D8). It is a sibling of the rows inside their own column, not the hero's section slot. Nothing renders outside Editing Mode,
-   on a device that may not edit, or while no row is ticked and nothing is left to say. *@
+@* The ticked rows' bar, the "Edit together" section, the bar's Move section and the result line, in the list column directly above the
+   rows (details overlay spec D8). It is a sibling of the rows inside their own column, not the hero's section slot, but its two sections
+   share Editing Mode's one open section (EditingSection.Batch and BatchMove). The bar reads "{n} selected · Edit together · ... · Clear";
+   the "..." menu holds "Move…" and, last and red, "Delete from library…". Nothing renders outside Editing Mode, on a device that may not
+   edit, or while no row is ticked and nothing is left to say. *@
 @if (Mode is { IsOn: true, CanEdit: true } mode && Selection is { } selection && IsShown(mode, selection))
 {
     <section class="tl-batch" aria-label="Selected rows">
@@ -19,31 +22,18 @@
                 <span class="tl-batch__actions">
                     <AppButton Label="@DetailBatchText.EditTogether"
                                StartIcon="@AppMaterialIcons.Outlined.Edit"
+                               Class="tl-batch__edit-together"
                                ButtonStyle="@(mode.OpenSectionKind == EditingSection.Batch ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
                                Tone="@(mode.OpenSectionKind == EditingSection.Batch ? AppUiTone.Primary : AppUiTone.Neutral)"
-                               Disabled="@mode.IsSettling"
+                               Disabled="@IsBusy(mode)"
                                aria-pressed="@(mode.OpenSectionKind == EditingSection.Batch ? "true" : "false")"
                                OnClick="ToggleEditTogetherAsync" />
-                    @if (CanMove(selection))
-                    {
-                        <AppButton Label="Move"
-                                   StartIcon="@AppMaterialIcons.Outlined.AccountTree"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Disabled="@(mode.IsSettling || _moving)"
-                                   OnClick="OpenMoveAsync" />
-                    }
-                    @if (CanDelete(selection))
-                    {
-                        <AppButton Label="Delete"
-                                   StartIcon="@AppMaterialIcons.Outlined.Delete"
-                                   ButtonStyle="AppButtonStyle.Outlined"
-                                   Tone="AppUiTone.Error"
-                                   Disabled="@(mode.IsSettling || _deleting)"
-                                   OnClick="DeleteAsync" />
-                    }
+                    <OverflowActionMenu Actions="@MenuActions(mode, selection)"
+                                        ButtonClass="tl-editing-banner__more"
+                                        OnActionSelected="OnMenuActionAsync" />
                     <AppButton Label="Clear"
                                ButtonStyle="AppButtonStyle.Text"
-                               Disabled="@mode.IsSettling"
+                               Disabled="@IsBusy(mode)"
                                OnClick="ClearAsync" />
                 </span>
             </div>
@@ -54,9 +44,10 @@
             <DetailBatchSection Mode="mode" Selection="selection" />
         }
 
-        @if (_moving && selection.Count > 0)
+        @if (mode.OpenSectionKind == EditingSection.BatchMove && selection.Count > 0)
         {
-            <DetailBatchMoveFlow ItemIds="@selection.Ids"
+            <DetailBatchMoveFlow Mode="mode"
+                                 ItemIds="@selection.Ids"
                                  MediaType="@selection.MediaType"
                                  OnClosed="CloseMove"
                                  OnMoved="OnMovedAsync" />
@@ -83,7 +74,6 @@
 @code {
     private EditingModeContext? _mode;
     private DetailBatchSelection? _selection;
-    private bool _moving;
     private bool _deleting;
 
     [CascadingParameter] public EditingModeContext? Mode { get; set; }
@@ -91,7 +81,13 @@
     [CascadingParameter] public DetailBatchSelection? Selection { get; set; }
 
     private static bool IsShown(EditingModeContext mode, DetailBatchSelection selection) =>
-        selection.Count > 0 || mode.OpenSectionKind == EditingSection.Batch || selection.Result is not null;
+        selection.Count > 0 || mode.OpenSectionKind.IsBatch() || selection.Result is not null;
+
+    // A save, a question or a delete is in flight: nothing on the bar starts a second one.
+    private bool IsBusy(EditingModeContext mode) => mode.IsSettling || mode.SectionSaving || _deleting;
+
+    private IReadOnlyList<DetailAction> MenuActions(EditingModeContext mode, DetailBatchSelection selection) =>
+        DetailBatchRules.BarMenuActions(selection.Rows, CanMove(selection), CanDelete(selection), IsBusy(mode));
 
     private bool CanMove(DetailBatchSelection selection) =>
         EditorDeviceRule.CanEdit(Device) && DetailBatchRules.CanMove(selection.Rows);
@@ -134,14 +130,9 @@
     // The section follows the rows: with nothing left ticked and nothing typed, there is nothing to edit together.
     private void OnSelectionChanged()
     {
-        if (Selection is { Count: 0 } && Mode is { OpenSectionKind: EditingSection.Batch, SectionDirty: false })
+        if (Selection is { Count: 0 } && Mode is { SectionDirty: false } && Mode.OpenSectionKind.IsBatch())
         {
             Mode.CloseSection();
-        }
-
-        if (Selection is { Count: 0 })
-        {
-            _moving = false;
         }
 
         OnStateChanged();
@@ -157,10 +148,24 @@
             return;
         }
 
-        _moving = false;
         await Mode.ToggleSectionAsync(EditingSection.Batch);
     }
 
+    private async Task OnMenuActionAsync(DetailAction action)
+    {
+        switch (action.Key)
+        {
+            case DetailBatchRules.MoveActionKey:
+                await OpenMoveAsync();
+                break;
+            case DetailActionKeys.DeleteFromLibrary:
+                await DeleteAsync();
+                break;
+        }
+    }
+
+    // Move is a section like "Edit together": one open at a time, so this closes a hero section or the batch section first, asking
+    // "Save or discard?" when it holds input. The handler checks the gates again; the menu entry is never the only protection.
     private async Task OpenMoveAsync()
     {
         if (Mode is null || Selection is null || EditorDeviceRule.TryRefuse(Device, Toasts))
@@ -168,23 +173,25 @@
             return;
         }
 
-        // Moving is not "Edit together": the section closes first, asking Save or discard when it holds input.
-        if (Mode.OpenSectionKind == EditingSection.Batch && !await Mode.CloseSectionAsync())
+        if (!DetailBatchRules.CanMove(Selection.Rows))
         {
             return;
         }
 
-        if (DetailBatchRules.CanMove(Selection.Rows))
+        await Mode.ShowSectionAsync(EditingSection.BatchMove);
+    }
+
+    private void CloseMove()
+    {
+        if (Mode is { OpenSectionKind: EditingSection.BatchMove })
         {
-            _moving = true;
+            Mode.CloseSection();
         }
     }
 
-    private void CloseMove() => _moving = false;
-
     private async Task OnMovedAsync(string line)
     {
-        _moving = false;
+        CloseMove();
         Selection?.Clear();
         Toasts.Add(line, AppSeverity.Success);
         await RefreshAsync();
@@ -199,7 +206,8 @@
         }
 
         if (LibraryItemDeletionFlow.TryRefuse(Device, Services.GetService<DashboardSessionAccessor>(), Toasts)
-            || !DetailBatchRules.AreDeletable(Selection.Rows))
+            || !DetailBatchRules.AreDeletable(Selection.Rows)
+            || Selection.Count > DetailBatchRules.MaxDeleteItems)
         {
             return;
         }
@@ -210,8 +218,7 @@
             var outcome = await LibraryItemDeletionFlow.RunAsync(Dialogs, Toasts, Selection.Ids);
             if (outcome != LibraryItemDeletionFlowOutcome.Canceled)
             {
-                _moving = false;
-                if (Mode is { OpenSectionKind: EditingSection.Batch })
+                if (Mode is not null && Mode.OpenSectionKind.IsBatch())
                 {
                     Mode.CloseSection();
                 }
@@ -226,7 +233,7 @@
         }
     }
 
-    // Clear empties the ticks. An open batch section with input asks Save or discard first; Cancel keeps everything as it was.
+    // Clear empties the ticks. An open batch section (typed fields, or move picks) asks Save or discard first; Cancel keeps everything as it was.
     private async Task ClearAsync()
     {
         if (Mode is null || Selection is null)
@@ -234,12 +241,11 @@
             return;
         }
 
-        if (Mode.OpenSectionKind == EditingSection.Batch && !await Mode.CloseSectionAsync())
+        if (Mode.OpenSectionKind.IsBatch() && !await Mode.CloseSectionAsync())
         {
             return;
         }
 
-        _moving = false;
         Selection.Clear();
     }
 

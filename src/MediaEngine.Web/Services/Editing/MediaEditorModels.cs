@@ -53,11 +53,18 @@ public sealed class MediaEditorLaunchRequest
     public Func<Task>? OnArtworkChanged { get; init; }
 
     /// <summary>
-    /// Raised after a move when the Work the editor now shows is not the one it was showing (the move merged the edited title into an
-    /// entry's own title, which removed it, or an audiobook part joined another audiobook): the previous id and the surviving id. A host
-    /// that shows the previous Work (the details overlay) replaces its address with the surviving one.
+    /// Raised after a move that removed the Work the editor was showing (the move merged the edited title into an entry's own title, or
+    /// emptied the audiobook it was a part of): the previous id, the surviving id and the move's result line. A host that shows the previous
+    /// Work (the details overlay) replaces its address with the surviving one and carries Editing Mode, the Match and Identity section and
+    /// the result line over to the page that replaces it, and answers true when it took the move over (the editor then goes with its page,
+    /// so it does not re-target) or false when it shows something else (the editor re-targets itself). Not raised when the edited Work still
+    /// exists (an audiobook part joined another audiobook while this one still has other parts): the editor stays on it. With no host
+    /// to ask, the editor re-targets itself.
     /// </summary>
-    public Func<Guid, Guid, Task>? OnEditedItemReplaced { get; init; }
+    public Func<Guid, Guid, string?, Task<bool>>? OnEditedItemReplaced { get; init; }
+
+    /// <summary>The Move area's result line when the editor opens, for a page that carried a move over from the page it replaced.</summary>
+    public string? InitialMoveResult { get; init; }
     public List<MediaEditorPreviewItem> PreviewItems { get; init; } = [];
 
     /// <summary>

@@ -11,6 +11,9 @@ public partial class SharedMediaEditorShell
 {
     private string? _moveResult;
 
+    // The line under the Move area: this editor's own last move, else the one a page carried over when it replaced the page that moved.
+    private string? MoveResultLine => _moveResult ?? Request.InitialMoveResult;
+
     /// <summary>
     /// The item a move acts on: the edited title, or for an audiobook the one part (an Edition) chosen in the selector, or its only one.
     /// An audiobook with several parts and none chosen has no single item to move, so the area stays hidden (empty id).
@@ -47,8 +50,10 @@ public partial class SharedMediaEditorShell
 
     /// <summary>
     /// A move was committed: keep its result line, show the item as it is now, and tell the page behind the section. A move that merges
-    /// the edited title into an entry's own title (or an emptied audiobook) deletes the Work the editor was showing, so the editor
-    /// re-targets to the Work the item now lives in or as, and a host showing the old Work is told to follow it.
+    /// the edited title into an entry's own title (or empties its audiobook) deletes the Work the editor was showing: a host showing that
+    /// Work is asked to follow to the Work the item now lives in or as, and takes this editor's place on the new page, so the editor does not
+    /// re-target; with no host (or a host showing something else) it re-targets itself. A move that leaves the edited Work in place (an
+    /// audiobook part joined another audiobook while this one has other parts) keeps the editor on it, reloaded.
     /// </summary>
     private async Task OnItemMovedAsync(ItemMovedArgs moved)
     {
@@ -56,21 +61,32 @@ public partial class SharedMediaEditorShell
         _unmatchedAfterMove = moved.IsUnmatched;
         _hasCommittedChanges = true;
         var previousId = CurrentEntityId;
-        var targetId = moved.ResultEntityId is { } survivor && survivor != Guid.Empty ? survivor : previousId;
-        await LoadSingleItemAsync(targetId, resetEditorState: true, preferredScopeId: ActiveScope?.ScopeId);
-        _tabState.Activate("links");
+        var removed = LibraryMoveRules.RemovedEditedWork(
+            previousId,
+            moved.ItemId,
+            moved.ResultEntityId,
+            [_workVersions?.WorkTitle, HeaderTitle],
+            moved.RemovedContainers);
+        var survivingId = removed && moved.ResultEntityId is { } survivor ? survivor : previousId;
 
-        if (targetId != previousId && Request.OnEditedItemReplaced is { } replaced)
+        if (removed && Request.OnEditedItemReplaced is { } replaced)
         {
             try
             {
-                await replaced(previousId, targetId);
+                if (await replaced(previousId, survivingId, moved.ResultLine))
+                {
+                    // The page behind follows and brings Editing Mode, this section and the line with it; this editor goes with its page.
+                    return;
+                }
             }
             catch (Exception ex)
             {
-                Logger.LogWarning(ex, "The page could not follow the moved item from {PreviousId} to {TargetId}.", previousId, targetId);
+                Logger.LogWarning(ex, "The page could not follow the moved item from {PreviousId} to {TargetId}.", previousId, survivingId);
                 Snackbar.Add("The move was saved, but the page could not follow the item. Reload to see it.", AppSeverity.Warning);
             }
         }
+
+        await LoadSingleItemAsync(survivingId, resetEditorState: true, preferredScopeId: ActiveScope?.ScopeId);
+        _tabState.Activate("links");
     }
 }

@@ -441,6 +441,28 @@ public sealed class ItemMoveAreaTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AfterAMove_TheHostIsToldWhichItemMovedAndWhichPlacesTheMoveLeftEmptyAndRemoved()
+    {
+        await UseDevice("desktop");
+        _commitAnswers.Enqueue(LibraryMoveOutcome<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
+        {
+            MovedCount = 1,
+            Rows = [new LibraryMoveRowResult { ItemId = LibraryMoveTestData.SongId, Outcome = LibraryMoveOutcomes.Matched, ResultEntityId = LibraryMoveTestData.AlbumId }],
+            RemovedContainers = ["The Best Of"],
+        }));
+        var (host, area) = RenderArea();
+        ToMatchStep(area);
+
+        Button(area, "Apply").Click();
+        host.WaitForElement(".app-confirm");
+        DialogButton(host, "Move").Click();
+        area.WaitForAssertion(() => Assert.NotNull(_moved));
+
+        Assert.Equal(LibraryMoveTestData.SongId, _moved!.ItemId);
+        Assert.Equal(["The Best Of"], _moved.RemovedContainers);
+    }
+
+    [Fact]
     public async Task AfterAddAnyway_TheHostIsToldTheItemIsNowNotMatched()
     {
         await UseDevice("desktop");

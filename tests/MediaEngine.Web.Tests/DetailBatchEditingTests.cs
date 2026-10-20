@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
@@ -29,6 +30,13 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     private readonly List<LibraryBatchEditRequest> _applies = [];
     private readonly List<LibraryBatchEditPreviewRequest> _previews = [];
     private readonly List<LibraryMovePreviewRequest> _movePreviews = [];
+    private readonly List<LibraryMoveCommitRequest> _moveCommits = [];
+    private Func<LibraryMovePreview> _movePreview = () => LibraryMoveTestData.AlbumPreview(
+    [
+        LibraryMoveTestData.Row(EpisodeOne, "Pilot"),
+        LibraryMoveTestData.Row(EpisodeTwo, "Second", suggested: "t2"),
+        LibraryMoveTestData.Row(EpisodeThree, "Third", suggested: "t3"),
+    ]);
     private readonly List<IReadOnlyList<Guid>> _deletionPreviews = [];
     private readonly Queue<SaveOrDiscardChoice> _answers = new();
     private int _asked;
@@ -61,12 +69,17 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.PreviewLibraryMoveAsync), args =>
             {
                 _movePreviews.Add((LibraryMovePreviewRequest)args![0]!);
-                return Task.FromResult(LibraryMoveOutcome<LibraryMovePreview>.Ok(LibraryMoveTestData.AlbumPreview(
-                [
-                    LibraryMoveTestData.Row(EpisodeOne, "Pilot"),
-                    LibraryMoveTestData.Row(EpisodeTwo, "Second", suggested: "t2"),
-                    LibraryMoveTestData.Row(EpisodeThree, "Third", suggested: "t3"),
-                ])));
+                return Task.FromResult(LibraryMoveOutcome<LibraryMovePreview>.Ok(_movePreview()));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.MoveLibraryItemsAsync), args =>
+            {
+                var request = (LibraryMoveCommitRequest)args![0]!;
+                _moveCommits.Add(request);
+                return Task.FromResult(LibraryMoveOutcome<LibraryMoveCommitResult>.Ok(new LibraryMoveCommitResult
+                {
+                    MovedCount = request.Rows.Count,
+                    Rows = [.. request.Rows.Select(row => new LibraryMoveRowResult { ItemId = row.ItemId, Outcome = LibraryMoveOutcomes.Matched, ResultEntityId = row.ItemId })],
+                }));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDeletionPreviewAsync), args =>
             {
@@ -200,6 +213,30 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
 
     private static bool HasButton(IRenderedComponent<DetailBatchPanel> panel, string label) =>
         panel.FindAll(".tl-batch__bar button").Any(button => button.TextContent.Trim() == label);
+
+    // The bar's "..." menu: Move and Delete live in it, not on the bar.
+    private static IReadOnlyList<IElement> OpenBarMenu(IRenderedComponent<DetailBatchPanel> panel)
+    {
+        panel.Find(".tl-batch__bar button[aria-label='More actions']").Click();
+        panel.WaitForAssertion(() => Assert.NotEmpty(panel.FindAll("[role='menuitem']")));
+        return panel.FindAll("[role='menuitem']");
+    }
+
+    private static string ItemLabel(IElement item) => Regex.Replace(item.TextContent, "\\s+", " ").Trim();
+
+    private static IElement MenuItem(IRenderedComponent<DetailBatchPanel> panel, string label) =>
+        OpenBarMenu(panel).Single(item => ItemLabel(item).StartsWith(label, StringComparison.Ordinal));
+
+    private static bool HasMenuItem(IRenderedComponent<DetailBatchPanel> panel, string label)
+    {
+        var menu = panel.FindAll(".tl-batch__bar button[aria-label='More actions']");
+        if (menu.Count == 0)
+        {
+            return false;
+        }
+
+        return OpenBarMenu(panel).Any(item => ItemLabel(item).StartsWith(label, StringComparison.Ordinal));
+    }
 
     private static void OpenSection(Page page)
     {
@@ -536,7 +573,7 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Apply_WhenTheEngineCannotBeReached_KeepsTheInputAndSaysNothingWasChanged()
+    public async Task Apply_WhenTheEngineDoesNotAnswer_KeepsTheInputAndSaysItCouldNotConfirmTheResultWithoutClaimingNothingChanged()
     {
         _apply = () => Task.FromResult(LibraryBatchEditOutcome<LibraryBatchEditResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable));
         var page = await StartAsync();
@@ -545,7 +582,8 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
 
         ClickApply(page.Panel);
 
-        page.Panel.WaitForAssertion(() => Assert.Contains("Nothing was changed", page.Panel.Find(".tl-batch-section__message").TextContent, StringComparison.Ordinal));
+        page.Panel.WaitForAssertion(() => Assert.Contains("Couldn't confirm the result. Reload to check.", page.Panel.Find(".tl-batch-section__message").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("Nothing was changed", page.Panel.Find(".tl-batch-section__message").TextContent, StringComparison.Ordinal);
         Assert.True(page.Mode.SectionDirty);
         Assert.Empty(page.Panel.FindAll(".tl-batch__result"));
     }
@@ -659,10 +697,11 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     {
         var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second"), Episode(EpisodeThree, "Third"));
 
-        Button(page.Panel, "Move").Click();
+        MenuItem(page.Panel, "Move…").Click();
         page.Panel.WaitForElement($"[data-destination-id='{LibraryMoveTestData.AlbumId}']").Click();
         page.Panel.WaitForElement(".tl-match-step");
 
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
         var request = Assert.Single(_movePreviews);
         Assert.Equal([EpisodeOne, EpisodeTwo, EpisodeThree], request.ItemIds);
         Assert.Equal(LibraryMoveTestData.AlbumId, request.DestinationId);
@@ -675,7 +714,7 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     {
         var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), new DetailBatchRow(Guid.NewGuid(), "A song", DetailEntityType.Work));
 
-        Assert.False(HasButton(page.Panel, "Move"));
+        Assert.False(HasMenuItem(page.Panel, "Move"));
         Assert.True(HasButton(page.Panel, "Edit together"));
     }
 
@@ -688,7 +727,7 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
         var host = Render<AppDialogHost>();
         var page = await StartAsync();
 
-        Button(page.Panel, "Delete").Click();
+        MenuItem(page.Panel, "Delete from library…").Click();
         host.WaitForElement(".delete-library");
 
         var ids = Assert.Single(_deletionPreviews);
@@ -701,7 +740,7 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
     {
         var page = await StartAsync();
 
-        Assert.False(HasButton(page.Panel, "Delete"));
+        Assert.False(HasMenuItem(page.Panel, "Delete"));
         Assert.True(HasButton(page.Panel, "Edit together"));
     }
 
@@ -711,7 +750,443 @@ public sealed class DetailBatchEditingTests : AsyncBunitContext
         Services.AddSingleton(Administrator());
         var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), new DetailBatchRow(Guid.NewGuid(), "Season 1", DetailEntityType.TvSeason));
 
-        Assert.False(HasButton(page.Panel, "Delete"));
+        Assert.False(HasMenuItem(page.Panel, "Delete"));
+    }
+
+
+    // -- Move is a section of Editing Mode ------------------------------------------------------
+
+    private static LibraryMovePreview TwoRowPreview() => LibraryMoveTestData.AlbumPreview(
+    [
+        LibraryMoveTestData.Row(EpisodeOne, "Pilot", suggested: "t2"),
+        LibraryMoveTestData.Row(EpisodeTwo, "Second", suggested: "t3"),
+    ]);
+
+    // Opens the bar's Move, picks the album and waits for the Match step: the person now has picks.
+    private static void PickADestination(Page page)
+    {
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement($"[data-destination-id='{LibraryMoveTestData.AlbumId}']").Click();
+        page.Panel.WaitForElement(".tl-match-step");
+    }
+
+    [Fact]
+    public async Task Move_FromTheBar_IsASectionOfEditingModeAndPicksCountAsUnsavedInput()
+    {
+        var page = await StartAsync();
+
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement(".tl-move-picker");
+
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.False(page.Mode.SectionDirty);
+
+        page.Panel.WaitForElement($"[data-destination-id='{LibraryMoveTestData.AlbumId}']").Click();
+        page.Panel.WaitForElement(".tl-match-step");
+
+        Assert.True(page.Mode.SectionDirty);
+    }
+
+    [Fact]
+    public async Task Esc_WithMovePicks_AsksSaveOrDiscardAndDiscardDropsThePicksButKeepsTheTicksAndEditingMode()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+
+        var used = await page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+
+        Assert.True(used);
+        Assert.Equal(1, _asked);
+        Assert.Null(page.Mode.OpenSectionKind);
+        Assert.True(page.Mode.IsOn);
+        Assert.False(page.Mode.SectionDirty);
+        Assert.Equal(3, page.Selection.Count);
+        Assert.Empty(_moveCommits);
+        page.Panel.WaitForAssertion(() => Assert.Empty(page.Panel.FindAll(".tl-batch-move")));
+    }
+
+    [Fact]
+    public async Task Esc_WithMovePicks_AndCancel_KeepsTheMatchStepWithItsPicks()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
+
+        var used = await page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+
+        Assert.True(used);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.True(page.Mode.SectionDirty);
+        Assert.NotEmpty(page.Panel.FindAll(".tl-match-step"));
+    }
+
+    [Fact]
+    public async Task Esc_WithMovePicks_AndSave_ContinuesToTheMoveConfirmationAndMovesWhenConfirmed()
+    {
+        _movePreview = TwoRowPreview;
+        var host = Render<AppDialogHost>();
+        var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second"));
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Save);
+
+        var escape = page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+        host.WaitForElement(".app-confirm");
+
+        Assert.Empty(_moveCommits);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Move").Click();
+        await escape;
+
+        page.Panel.WaitForAssertion(() => Assert.Null(page.Mode.OpenSectionKind));
+        var commit = Assert.Single(_moveCommits);
+        Assert.Equal(2, commit.Rows.Count);
+        Assert.Equal(0, page.Selection.Count);
+        Assert.Equal(1, _refreshed);
+    }
+
+    [Fact]
+    public async Task Esc_WithMovePicks_AndSave_WhenTheConfirmationIsDeclined_StaysOpenWithThePicks()
+    {
+        _movePreview = TwoRowPreview;
+        var host = Render<AppDialogHost>();
+        var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second"));
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Save);
+
+        var escape = page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+        host.WaitForElement(".app-confirm");
+        host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+        await escape;
+
+        Assert.Empty(_moveCommits);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.True(page.Mode.SectionDirty);
+        Assert.Equal(2, page.Selection.Count);
+    }
+
+    [Fact]
+    public async Task Esc_WithMovePicks_AndSave_WithRowsStillUnmatched_StaysOpenAndSaysToMatchEveryRowFirst()
+    {
+        _movePreview = () => LibraryMoveTestData.AlbumPreview(
+        [
+            LibraryMoveTestData.Row(EpisodeOne, "Pilot", suggested: null),
+            LibraryMoveTestData.Row(EpisodeTwo, "Second", suggested: "t3"),
+        ]);
+        var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second"));
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Save);
+
+        await page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+
+        Assert.Empty(_moveCommits);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        page.Panel.WaitForAssertion(() => Assert.Contains(LibraryMoveText.MatchEveryRowFirst, page.Panel.Find(".tl-match-step").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Done_WithMovePicks_AsksSaveOrDiscardAndDiscardLeavesWithoutMoving()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+
+        var left = await page.Panel.InvokeAsync(page.Mode.DoneAsync);
+
+        Assert.True(left);
+        Assert.Equal(1, _asked);
+        Assert.False(page.Mode.IsOn);
+        Assert.Empty(_moveCommits);
+    }
+
+    [Fact]
+    public async Task Back_OnTheOverlay_WithMovePicks_GoesThroughTheSameQuestionAndCancelStays()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
+
+        var mayDismiss = await page.Panel.InvokeAsync(() => page.Mode.CanDismissAsync().AsTask());
+
+        Assert.False(mayDismiss);
+        Assert.Equal(1, _asked);
+        Assert.True(page.Mode.IsOn);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+    }
+
+    [Fact]
+    public async Task Move_WithNoPicksYet_ClosesOnEscWithoutAsking()
+    {
+        var page = await StartAsync();
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement(".tl-move-picker");
+
+        await page.Panel.InvokeAsync(() => page.Mode.HandleEscapeAsync().AsTask());
+
+        Assert.Equal(0, _asked);
+        Assert.Null(page.Mode.OpenSectionKind);
+        Assert.True(page.Mode.IsOn);
+    }
+
+    [Fact]
+    public async Task Move_Cancel_OnTheMatchStep_DropsThePicksAndClosesTheSection()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+
+        page.Panel.FindAll(".tl-match-step button").Single(button => button.TextContent.Trim() == "Cancel").Click();
+
+        page.Panel.WaitForAssertion(() => Assert.Null(page.Mode.OpenSectionKind));
+        Assert.False(page.Mode.SectionDirty);
+        Assert.Equal(0, _asked);
+    }
+
+    [Fact]
+    public async Task OpeningAHeroSection_WhileMoveHasPicks_AsksSaveOrDiscardFirstAndCancelKeepsMove()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
+
+        var opened = await page.Panel.InvokeAsync(() => page.Mode.ShowSectionAsync(EditingSection.History));
+
+        Assert.False(opened);
+        Assert.Equal(1, _asked);
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.NotEmpty(page.Panel.FindAll(".tl-match-step"));
+    }
+
+    [Fact]
+    public async Task OpeningAHeroSection_WhileMoveHasPicks_AndDiscard_ClosesMoveAndOpensTheHeroSection()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+
+        var opened = await page.Panel.InvokeAsync(() => page.Mode.ShowSectionAsync(EditingSection.History));
+
+        Assert.True(opened);
+        Assert.Equal(EditingSection.History, page.Mode.OpenSectionKind);
+        page.Panel.WaitForAssertion(() => Assert.Empty(page.Panel.FindAll(".tl-batch-move")));
+        Assert.False(page.Mode.SectionDirty);
+    }
+
+    [Fact]
+    public async Task EditTogether_WhileMoveHasPicks_AsksSaveOrDiscardFirst_AndDiscardOpensTheBatchSection()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Discard);
+
+        Button(page.Panel, "Edit together").Click();
+        page.Panel.WaitForElement(".tl-batch-field");
+
+        Assert.Equal(1, _asked);
+        Assert.Equal(EditingSection.Batch, page.Mode.OpenSectionKind);
+        Assert.Empty(page.Panel.FindAll(".tl-batch-move"));
+    }
+
+    [Fact]
+    public async Task EditTogether_WhileMoveHasPicks_AndCancel_KeepsMoveOpen()
+    {
+        var page = await StartAsync();
+        PickADestination(page);
+        _answers.Enqueue(SaveOrDiscardChoice.Cancel);
+
+        Button(page.Panel, "Edit together").Click();
+
+        page.Panel.WaitForAssertion(() => Assert.Equal(1, _asked));
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.Empty(page.Panel.FindAll("#tl-batch-section"));
+    }
+
+    [Fact]
+    public async Task OneSectionAtATime_AcrossTheHeroSlotEditTogetherAndMove()
+    {
+        var page = await StartAsync();
+
+        // A hero section is open; Move takes its place.
+        Assert.True(page.Mode.OpenSection(EditingSection.Artwork));
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement(".tl-move-picker");
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+
+        // Edit together takes Move's place (no picks yet, so nothing is asked).
+        Button(page.Panel, "Edit together").Click();
+        page.Panel.WaitForElement(".tl-batch-field");
+        Assert.Equal(EditingSection.Batch, page.Mode.OpenSectionKind);
+        Assert.Empty(page.Panel.FindAll(".tl-batch-move"));
+
+        // Move takes Edit together's place.
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement(".tl-move-picker");
+        Assert.Equal(EditingSection.BatchMove, page.Mode.OpenSectionKind);
+        Assert.Empty(page.Panel.FindAll("#tl-batch-section"));
+
+        // A hero section takes Move's place.
+        Assert.True(await page.Panel.InvokeAsync(() => page.Mode.ShowSectionAsync(EditingSection.Match)));
+        Assert.Equal(EditingSection.Match, page.Mode.OpenSectionKind);
+        page.Panel.WaitForAssertion(() => Assert.Empty(page.Panel.FindAll(".tl-batch-move")));
+        Assert.Equal(0, _asked);
+    }
+
+    [Fact]
+    public void TheBatchSections_AreNotHostedInTheHeroSlot()
+    {
+        Assert.True(((EditingSection?)EditingSection.Batch).IsBatch());
+        Assert.True(((EditingSection?)EditingSection.BatchMove).IsBatch());
+        Assert.False(((EditingSection?)EditingSection.Match).IsBatch());
+        Assert.False(((EditingSection?)null).IsBatch());
+    }
+
+    // -- The bar and its "..." menu --------------------------------------------------------------
+
+    [Fact]
+    public async Task Bar_ShowsTheCountEditTogetherTheMenuAndClear_WithMoveAndDeleteInsideTheMenuOnly()
+    {
+        Services.AddSingleton(Administrator());
+        var page = await StartAsync();
+
+        var buttons = page.Panel.FindAll(".tl-batch__bar button:not([hidden])")
+            .Select(button => button.GetAttribute("aria-label") ?? button.TextContent.Trim())
+            .ToList();
+
+        Assert.Equal(["Edit together", "More actions", "Clear"], buttons);
+        var labels = OpenBarMenu(page.Panel).Select(ItemLabel).ToList();
+        Assert.Equal(["Move…", "Delete from library…"], labels);
+    }
+
+    [Fact]
+    public async Task BarMenu_ForSomeoneWhoMayNotDelete_HoldsOnlyMove()
+    {
+        var page = await StartAsync();
+
+        var labels = OpenBarMenu(page.Panel).Select(ItemLabel).ToList();
+
+        Assert.Equal(["Move…"], labels);
+    }
+
+    [Fact]
+    public async Task BarMenu_ForRowsThatCannotMoveOrBeDeleted_HasNoMenuAtAll()
+    {
+        var page = await StartAsync(tick: true, Episode(EpisodeOne, "Pilot"), new DetailBatchRow(Guid.NewGuid(), "A song", DetailEntityType.Work));
+
+        Assert.Empty(page.Panel.FindAll(".tl-batch__bar button[aria-label='More actions']"));
+        Assert.True(HasButton(page.Panel, "Edit together"));
+    }
+
+    [Fact]
+    public void BarMenuActions_PutDeleteLastInTheDestructiveToneAndOffAboveTwoHundredWithItsReason()
+    {
+        var few = Enumerable.Range(1, 3).Select(index => Episode(Guid.NewGuid(), $"Episode {index}")).ToList();
+        var many = Enumerable.Range(1, 201).Select(index => Episode(Guid.NewGuid(), $"Episode {index}")).ToList();
+
+        var fewActions = DetailBatchRules.BarMenuActions(few, canMove: true, canDelete: true, busy: false);
+        var manyActions = DetailBatchRules.BarMenuActions(many, canMove: true, canDelete: true, busy: false);
+
+        Assert.Equal([DetailBatchRules.MoveActionKey, DetailActionKeys.DeleteFromLibrary], fewActions.Select(action => action.Key));
+        Assert.True(DetailMenuGrouping.IsDestructive(fewActions[^1]));
+        Assert.False(fewActions[^1].IsDisabled);
+        Assert.True(manyActions[^1].IsDisabled);
+        Assert.Equal("Delete up to 200 at a time", manyActions[^1].Tooltip);
+        Assert.False(manyActions[0].IsDisabled);
+        Assert.Equal(DetailMenuGrouping.DestructiveGroup, DetailMenuGrouping.GroupOf(manyActions[^1]));
+    }
+
+    [Fact]
+    public async Task BarMenu_DeleteAboveTwoHundred_IsOffWithItsReasonAndDoesNotOpenTheDialog()
+    {
+        Services.AddSingleton(Administrator());
+        var host = Render<AppDialogHost>();
+        var rows = Enumerable.Range(1, 201)
+            .Select(index => Episode(Guid.Parse($"e1000000-0000-0000-0000-{index:D12}"), $"Episode {index}"))
+            .ToArray();
+        var page = await StartAsync(tick: true, rows);
+
+        var delete = OpenBarMenu(page.Panel).Single(item => ItemLabel(item).StartsWith("Delete from library", StringComparison.Ordinal));
+
+        Assert.Contains("Delete up to 200 at a time", ItemLabel(delete), StringComparison.Ordinal);
+        Assert.True(delete.HasAttribute("disabled") || delete.GetAttribute("aria-disabled") == "true");
+        delete.Click();
+        Assert.Empty(host.FindAll(".delete-library"));
+        Assert.Empty(_deletionPreviews);
+    }
+
+    [Fact]
+    public async Task Bar_WhileASectionIsSaving_DisablesItsButtonsAndMenuEntries()
+    {
+        Services.AddSingleton(Administrator());
+        var page = await StartAsync();
+
+        page.Mode.SetSectionSaving(true);
+
+        page.Panel.WaitForAssertion(() =>
+        {
+            Assert.True(Button(page.Panel, "Edit together").HasAttribute("disabled"));
+            Assert.True(Button(page.Panel, "Clear").HasAttribute("disabled"));
+        });
+        Assert.All(OpenBarMenu(page.Panel), item => Assert.True(item.HasAttribute("disabled") || item.GetAttribute("aria-disabled") == "true"));
+    }
+
+    // -- Focus moves with the section ------------------------------------------------------------
+
+    [Fact]
+    public async Task BatchSection_OnOpening_RemembersTheOpenerAndMovesFocusIntoItsHeading()
+    {
+        var page = await StartAsync();
+
+        OpenSection(page);
+
+        page.Panel.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
+            call.Identifier == "tuvimaFocusById" && Equals(call.Arguments[0], "tl-batch-section-title")));
+        Assert.Contains(JSInterop.Invocations, call => call.Identifier == "tuvimaFocusReturn.remember");
+        Assert.Equal("-1", page.Panel.Find("#tl-batch-section-title").GetAttribute("tabindex"));
+    }
+
+    [Fact]
+    public async Task BatchSection_OnClosing_ReturnsFocusToEditTogetherOrTheBar()
+    {
+        var page = await StartAsync();
+        OpenSection(page);
+
+        await page.Panel.InvokeAsync(page.Mode.CloseSectionAsync);
+
+        page.Panel.WaitForAssertion(() =>
+        {
+            var restore = Assert.Single(JSInterop.Invocations, call => call.Identifier == "tuvimaFocusReturn.restore");
+            var fallbacks = Assert.IsType<string[]>(restore.Arguments[0]);
+            Assert.Equal(".tl-batch__edit-together", fallbacks[0]);
+        });
+        Assert.NotEmpty(page.Panel.FindAll(".tl-batch__edit-together"));
+    }
+
+    [Fact]
+    public async Task BatchSection_WhenAnotherSectionTakesItsPlace_DoesNotStealFocusBack()
+    {
+        var page = await StartAsync();
+        OpenSection(page);
+
+        Assert.True(await page.Panel.InvokeAsync(() => page.Mode.ShowSectionAsync(EditingSection.History)));
+
+        page.Panel.WaitForAssertion(() => Assert.Empty(page.Panel.FindAll("#tl-batch-section")));
+        await Task.Delay(100);
+        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "tuvimaFocusReturn.restore");
+    }
+
+    [Fact]
+    public async Task MoveSection_OnOpening_MovesFocusIntoItAndOnClosingReturnsIt()
+    {
+        var page = await StartAsync();
+
+        MenuItem(page.Panel, "Move…").Click();
+        page.Panel.WaitForElement(".tl-move-picker");
+
+        page.Panel.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
+            call.Identifier == "tuvimaFocusById" && Equals(call.Arguments[0], "tl-batch-move-section")));
+
+        await page.Panel.InvokeAsync(page.Mode.CloseSectionAsync);
+
+        page.Panel.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call => call.Identifier == "tuvimaFocusReturn.restore"));
     }
 
     // -- The old batch path is gone ------------------------------------------------------------

@@ -236,9 +236,13 @@
                 }
                 else
                 {
+                    @* While Editing Mode is on, a tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
+                       title is for after Done (a card has no row menu of its own). *@
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
-                             aria-label="@SequenceItemAccessibilityLabel(item)">
+                             aria-label="@SequenceItemAccessibilityLabel(item)"
+                             data-tickable="@(tickable ? "true" : null)"
+                             @onclick="@(tickable ? TickFromCard(item) : default)">
                         @if (tickable)
                         {
                             <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
@@ -1188,11 +1192,17 @@ else
         if (string.IsNullOrWhiteSpace(value))
             return;
 
+        var changed = !string.Equals(SelectedGroupKey, value, StringComparison.OrdinalIgnoreCase);
+        if (changed && !await ClearTicksBeforeSwitchAsync())
+        {
+            // The person kept their batch input: they stay on this season.
+            return;
+        }
+
         // Any window still being fetched belongs to the season being left; its answer must not touch this one.
         _windowRequestId++;
         CancelWindowLoad();
         _loadingWindow = false;
-        var changed = !string.Equals(SelectedGroupKey, value, StringComparison.OrdinalIgnoreCase);
         _selectedGroupKey = value;
         _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
         _windowFailed = false;
@@ -1520,11 +1530,41 @@ else
     private Task SelectContainerAsync(SequenceContainerOptionViewModel option)
         => OnContainerSelected.InvokeAsync(option);
 
-    private Task SelectContainerValueAsync(string? containerId)
+    // A season or series switch changes which rows are on screen, so rows ticked in the one being left must not stay ticked out of sight.
+    // An open batch section (typed fields, or move picks) asks "Save or discard?" first; Cancel keeps the person where they were.
+    private async Task<bool> ClearTicksBeforeSwitchAsync()
+    {
+        if (BatchSelection is not { Count: > 0 } selection)
+        {
+            return true;
+        }
+
+        if (EditingMode is { } mode && mode.OpenSectionKind.IsBatch() && !await mode.CloseSectionAsync())
+        {
+            return false;
+        }
+
+        selection.Clear();
+        return true;
+    }
+
+    private async Task SelectContainerValueAsync(string? containerId)
     {
         var option = DistinctAvailableContainers.FirstOrDefault(candidate =>
             string.Equals(candidate.ContainerId, containerId, StringComparison.OrdinalIgnoreCase));
-        return option is null ? Task.CompletedTask : SelectContainerAsync(option);
+        if (option is null)
+        {
+            return;
+        }
+
+        // Another series changes which rows are on screen: ticks from the one being left are cleared (after "Save or discard?" if needed).
+        var changed = !string.Equals(option.ContainerId, SelectedContainerValue, StringComparison.OrdinalIgnoreCase);
+        if (changed && !await ClearTicksBeforeSwitchAsync())
+        {
+            return;
+        }
+
+        await SelectContainerAsync(option);
     }
 
     private async Task SetDefaultSequenceAsync()
@@ -1560,6 +1600,22 @@ else
 
     private bool IsTicked(SequenceItemViewModel item)
         => IsTickable(item) && BatchSelection!.Contains(TickId(item));
+
+    private EventCallback TickFromCard(SequenceItemViewModel item)
+        => EventCallback.Factory.Create(this, () => ToggleTickFromCard(item));
+
+    private void ToggleTickFromCard(SequenceItemViewModel item)
+    {
+        if (!IsTickable(item) || BatchSelection is null)
+        {
+            return;
+        }
+
+        if (!BatchSelection.Toggle(new DetailBatchRow(TickId(item), SequenceItemTitle(item), item.EntityType)))
+        {
+            Snackbar.Add(DetailBatchSelection.FullNotice, AppSeverity.Info);
+        }
+    }
 
     private static Guid TickId(SequenceItemViewModel item)
         => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;

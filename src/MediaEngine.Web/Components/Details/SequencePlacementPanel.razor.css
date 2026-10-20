@@ -1688,3 +1688,5 @@
 
 /* A card ticked for "Edit together" (details overlay spec D8): outlined and tinted, so it stays visible among the cards. */
 .tl-series-item.is-selected { outline: 2px solid var(--tl-accent-primary, #8852FC); outline-offset: 2px; border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, transparent); }
+
+.tl-series-item[data-tickable="true"] { cursor: pointer; }

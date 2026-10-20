@@ -8,6 +8,7 @@
 @inject IAppToastService Toasts
 @inject DeviceContextService Device
 @inject ILogger<DetailBatchSection> Logger
+@inject IJSRuntime JS
 
 @* The batch section "Edit together" (details overlay spec D8, D9, D11): it opens above the rows in the list column, shows how the ticked
    rows stand on each metadata field, and applies the touched fields to all of them in one request. Every field starts as "No change".
@@ -15,7 +16,7 @@
 <section class="tl-batch-section" id="tl-batch-section" aria-labelledby="tl-batch-section-title" data-section="batch">
     <header class="tl-batch-section__header">
         <div class="tl-batch-section__heading">
-            <h3 id="tl-batch-section-title" class="tl-batch-section__title">@DetailBatchText.EditTogether</h3>
+            <h3 id="tl-batch-section-title" class="tl-batch-section__title" tabindex="-1">@DetailBatchText.EditTogether</h3>
             <span class="tl-batch-section__scope">@Selection.Count @Noun</span>
         </div>
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
@@ -83,6 +84,7 @@
     private bool _loading = true;
     private bool _applying;
     private bool _disposed;
+    private bool _focusHeading;
     private int _loadVersion;
 
     [Parameter, EditorRequired] public EditingModeContext Mode { get; set; } = default!;
@@ -103,7 +105,22 @@
         _mode = Mode;
         _selection = Selection;
         Selection.Changed += OnSelectionChanged;
+        _focusHeading = true;
+        await DetailBatchFocus.RememberOpenerAsync(JS);
         await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusHeading)
+        {
+            return;
+        }
+
+        _focusHeading = false;
+
+        // Name the section for screen readers and put the keyboard in it, as the hero's section slot does.
+        await DetailBatchFocus.FocusAsync(JS, "tl-batch-section-title");
     }
 
     private void OnSelectionChanged()
@@ -174,7 +191,8 @@
     {
         LibraryBatchEditOutcomeStatus.Forbidden => "You can't edit these items together. Nothing was changed.",
         LibraryBatchEditOutcomeStatus.Invalid => outcome.Message ?? "The Engine did not accept these changes. Nothing was changed.",
-        _ => "Couldn't reach the Engine. Nothing was changed; try Apply again.",
+        // The Engine did not answer, so whether the changes landed is not known: say that, never that nothing changed.
+        _ => "Couldn't confirm the result. Reload to check.",
     };
 
     private Task ApplyFromButtonAsync() => ApplyAsync(fromSaveOrDiscard: false);
@@ -439,5 +457,8 @@
         {
             _mode.SectionHost = null;
         }
+
+        // Closing to nothing returns the keyboard to "Edit together" (or the bar); swapping to another section leaves focus to that one.
+        _ = DetailBatchFocus.RestoreOpenerAsync(JS, _mode);
     }
 }

@@ -24,6 +24,9 @@ public sealed class DetailBatchSelection
     /// <summary>The Engine takes at most this many items in one batch; ticking stops there.</summary>
     public bool IsFull => _rows.Count >= LibraryBatchEditRequest.MaxEntityIds;
 
+    /// <summary>What is said when a row cannot be ticked because the batch is full.</summary>
+    public static string FullNotice => $"You can tick up to {LibraryBatchEditRequest.MaxEntityIds} items at once.";
+
     /// <summary>The page's editor media type ("Music", "TV", "Books"...), which names the place a move goes to.</summary>
     public string? MediaType { get; set; }
 

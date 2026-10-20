@@ -333,7 +333,8 @@
             {
                 case LibraryMoveOutcomeStatus.Ok when outcome.Value is { } committed:
                     var line = LibraryMoveText.ResultLine(selection, committed);
-                    var moved = committed.Rows.FirstOrDefault(row => row.ItemId == ItemId);
+                    var itemId = ItemId;
+                    var moved = committed.Rows.FirstOrDefault(row => row.ItemId == itemId);
                     _stage = MoveStage.Closed;
                     _selection = null;
                     _destinations = [];
@@ -344,7 +345,9 @@
                     await OnMoved.InvokeAsync(new ItemMovedArgs(
                         line,
                         moved is { ResultEntityId: var resultId } && resultId != Guid.Empty ? resultId : null,
-                        moved is not null && string.Equals(moved.Outcome, LibraryMoveOutcomes.AddedUnmatched, StringComparison.Ordinal)));
+                        moved is not null && string.Equals(moved.Outcome, LibraryMoveOutcomes.AddedUnmatched, StringComparison.Ordinal),
+                        itemId,
+                        committed.RemovedContainers));
                     return;
                 case LibraryMoveOutcomeStatus.Conflict when outcome.FreshPreview is { } fresh:
                     // Nothing moved. The fresh preview replaces the old one, keeping every choice that still holds.

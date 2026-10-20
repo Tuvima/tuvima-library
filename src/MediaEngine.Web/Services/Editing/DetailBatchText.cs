@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Library;
+using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -25,6 +26,45 @@ public static class DetailBatchRules
     /// </summary>
     public static bool AreDeletable(IReadOnlyList<DetailBatchRow> rows) =>
         rows.Count > 0 && rows.All(row => IsSelectableKind(row.Kind));
+
+    /// <summary>The most titles the Engine deletes in one request (its own cap, <c>LibraryItemDeletionService.MaxWorks</c>); more than this asks to delete fewer.</summary>
+    public const int MaxDeleteItems = 200;
+
+    /// <summary>The key of the bar's "Move…" entry. It is the bar's own and never an Engine action, so it is not in <c>DetailActionKeys.Handled</c>.</summary>
+    public const string MoveActionKey = "batch-move";
+
+    /// <summary>
+    /// What the selection bar's "..." menu holds for these ticked rows, under the gates the bar always had: Move only where the rows can move,
+    /// Delete only for the person who may delete (and rows that are single titles), and Delete off, with its reason, above the Engine's cap.
+    /// <paramref name="busy"/> greys every entry while a save or a question is in flight, so nothing starts twice.
+    /// </summary>
+    public static IReadOnlyList<DetailAction> BarMenuActions(IReadOnlyList<DetailBatchRow> rows, bool canMove, bool canDelete, bool busy)
+    {
+        var actions = new List<DetailAction>();
+        if (canMove && CanMove(rows))
+        {
+            actions.Add(new DetailAction { Key = MoveActionKey, Label = "Move…", Icon = "account_tree", IsDisabled = busy });
+        }
+
+        if (canDelete && AreDeletable(rows))
+        {
+            var overLimit = rows.Count > MaxDeleteItems;
+            actions.Add(new DetailAction
+            {
+                Key = DetailActionKeys.DeleteFromLibrary,
+                Label = DetailMenuGrouping.DeleteFromLibraryAction.Label,
+                Icon = DetailMenuGrouping.DeleteFromLibraryAction.Icon,
+                IsDestructive = true,
+                IsDisabled = busy || overLimit,
+                Tooltip = overLimit ? DeleteLimitReason : null,
+            });
+        }
+
+        return actions;
+    }
+
+    /// <summary>Why Delete is off above the cap.</summary>
+    public const string DeleteLimitReason = "Delete up to 200 at a time";
 }
 
 public static class DetailBatchText

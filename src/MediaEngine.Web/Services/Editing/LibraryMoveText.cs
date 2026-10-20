@@ -11,6 +11,7 @@ public static class LibraryMoveText
     public const string UnavailableMessage = "The move could not be checked. Try again in a moment.";
     public const string NoDestinationsMessage = "There is nowhere this item can be moved to.";
     public const string GenericRefusal = "This move could not be done.";
+    public const string MatchEveryRowFirst = "Match every row first, or add the rest without numbers, then continue.";
 
     /// <summary>The "Move" entry's label for this kind of item (Details overlay spec section 4).</summary>
     public static string MoveLabel(string? mediaType) => (mediaType ?? string.Empty).Trim().ToLowerInvariant() switch

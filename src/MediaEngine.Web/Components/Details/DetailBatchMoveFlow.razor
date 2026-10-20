@@ -3,14 +3,19 @@
 @using MediaEngine.Web.Components.MediaEditor.Moves
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@implements IEditingSectionHost
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
 @inject DeviceContextService Device
+@inject IJSRuntime JS
 
-@* "Move" from the selection bar (details overlay spec D8, D12): the same destination picker and Match step the single Move uses, with
-   every ticked row in the mapping table. Nothing changes until the person confirms, and the Engine checks again that the preview is
-   still true. *@
-<section class="tl-batch-move" aria-label="@Label">
+@* "Move…" from the selection bar (details overlay spec D8, D9, D12): the same destination picker and Match step the single Move uses, with
+   every ticked row in the mapping table. It is a section of Editing Mode (EditingSection.BatchMove) hosted here, so it follows the one
+   open section rule: opening a hero section or "Edit together" closes it, and a destination picked counts as unsaved input, so Esc, Done
+   or Back ask "Save or discard?" first (Save continues to the move confirmation; Discard drops the picks). Nothing changes until the
+   person confirms, and the Engine checks again that the preview is still true. *@
+<section class="tl-batch-move" id="tl-batch-move-section" tabindex="-1" aria-label="@Label" data-section="batch-move">
     @if (_stage == MoveStage.Picking)
     {
         <MoveDestinationPicker Heading="@Label"
@@ -29,7 +34,7 @@
                    Notice="@_notice"
                    Error="@_error"
                    Busy="_busy"
-                   OnApply="ApplyAsync"
+                   OnApply="ApplyFromStepAsync"
                    OnCancel="CloseAsync" />
     }
 </section>
@@ -51,6 +56,10 @@
     private IReadOnlyList<LibraryMoveDestination> _destinations = [];
     private LibraryMoveSelection? _selection;
     private Guid _destinationId;
+    private EditingModeContext? _mode;
+    private bool _focusSection;
+
+    [Parameter, EditorRequired] public EditingModeContext Mode { get; set; } = default!;
 
     /// <summary>The ticked rows, all one kind of single title.</summary>
     [Parameter, EditorRequired] public IReadOnlyList<Guid> ItemIds { get; set; } = [];
@@ -67,13 +76,30 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _mode = Mode;
+        Mode.SectionHost = this;
         if (EditorDeviceRule.TryRefuse(Device, null) || ItemIds.Count == 0)
         {
             await OnClosed.InvokeAsync();
             return;
         }
 
+        _focusSection = true;
+        await DetailBatchFocus.RememberOpenerAsync(JS);
         await LoadDestinationsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusSection)
+        {
+            return;
+        }
+
+        _focusSection = false;
+
+        // Name the section for screen readers and put the keyboard in it, as the hero's section slot does.
+        await DetailBatchFocus.FocusAsync(JS, "tl-batch-move-section");
     }
 
     private async Task QueryChangedAsync(string? value)
@@ -135,6 +161,9 @@
             _selection = LibraryMoveSelection.From(outcome.Value!);
             _notice = null;
             _stage = MoveStage.Matching;
+
+            // A place was picked: from here the picks are unsaved input for the page's "Save or discard?".
+            Mode.SetSectionDirty(true);
         }
         finally
         {
@@ -143,11 +172,14 @@
     }
 
     // Apply was chosen with every row decided. One confirmation with the preview (D17); a stale preview shows the fresh one and asks again.
-    private async Task ApplyAsync(LibraryMoveSelection selection)
+    private Task ApplyFromStepAsync(LibraryMoveSelection selection) => ApplyAsync(selection);
+
+    // Returns true only when the move was committed, so "Save" in "Save or discard?" knows whether anything unsaved is left.
+    private async Task<bool> ApplyAsync(LibraryMoveSelection selection)
     {
         if (_busy || EditorDeviceRule.TryRefuse(Device, null))
         {
-            return;
+            return false;
         }
 
         _error = null;
@@ -172,15 +204,16 @@
                 }
 
                 StateHasChanged();
-                return;
+                return false;
             }
 
             if (answer != AppConfirmResult.Primary)
             {
-                return;
+                return false;
             }
 
             _busy = true;
+            Mode.SetSectionSaving(true);
             StateHasChanged();
             LibraryMoveOutcome<LibraryMoveCommitResult> outcome;
             try
@@ -190,13 +223,15 @@
             finally
             {
                 _busy = false;
+                Mode.SetSectionSaving(false);
             }
 
             switch (outcome.Status)
             {
                 case LibraryMoveOutcomeStatus.Ok when outcome.Value is { } committed:
+                    Mode.SetSectionDirty(false);
                     await OnMoved.InvokeAsync(LibraryMoveText.ResultLine(selection, committed));
-                    return;
+                    return true;
                 case LibraryMoveOutcomeStatus.Conflict when outcome.FreshPreview is { } fresh:
                     // Nothing moved. The fresh preview replaces the old one, keeping every choice that still holds.
                     selection = LibraryMoveSelection.From(fresh, selection);
@@ -205,19 +240,71 @@
                     if (!selection.CanApply)
                     {
                         _notice = LibraryMoveText.ChangedLine;
-                        return;
+                        return false;
                     }
 
                     continue;
                 case LibraryMoveOutcomeStatus.Expired:
                     _error = outcome.Message ?? LibraryMoveText.ExpiredMessage;
                     await RefreshPreviewAsync();
-                    return;
+                    return false;
                 default:
                     _error = Describe(outcome.Status, outcome.Message);
-                    return;
+                    return false;
             }
         }
+    }
+
+    // The page's "Save or discard?" answered Save: it means "continue to the move confirmation". Only a committed move counts as saved; a
+    // cancelled confirmation, or rows still to be matched, keeps the section open with the picks.
+    async Task<bool> IEditingSectionHost.SaveAsync()
+    {
+        if (_selection is null)
+        {
+            return true;
+        }
+
+        if (!_selection.CanApply)
+        {
+            _notice = LibraryMoveText.MatchEveryRowFirst;
+            await InvokeAsync(StateHasChanged);
+            return false;
+        }
+
+        return await ApplyAsync(_selection);
+    }
+
+    Task IEditingSectionHost.DiscardAsync()
+    {
+        DropPicks();
+        return Task.CompletedTask;
+    }
+
+    private void DropPicks()
+    {
+        _queryVersion++;
+        _selection = null;
+        _destinations = [];
+        _error = null;
+        _notice = null;
+        Mode.SetSectionDirty(false);
+    }
+
+    public void Dispose()
+    {
+        _queryVersion++;
+        if (_mode is null)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_mode.SectionHost, this))
+        {
+            _mode.SectionHost = null;
+        }
+
+        // Closing to nothing returns the keyboard to the control that opened this; swapping to another section leaves focus to that one.
+        _ = DetailBatchFocus.RestoreOpenerAsync(JS, _mode);
     }
 
     // The review expired: ask again for the same place so Apply has a fresh token, keeping the person's choices.
@@ -239,9 +326,10 @@
         }
     }
 
+    // Cancel on a step is the person's own "drop this": the picks go and the section closes.
     private async Task CloseAsync()
     {
-        _queryVersion++;
+        DropPicks();
         await OnClosed.InvokeAsync();
     }
 

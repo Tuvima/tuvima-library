@@ -81,7 +81,7 @@
 
         if (!Selection.Toggle(new DetailBatchRow(ItemId, Title, Kind)))
         {
-            Toasts.Add($"You can tick up to {MediaEngine.Contracts.Library.LibraryBatchEditRequest.MaxEntityIds} items at once.", AppSeverity.Info);
+            Toasts.Add(DetailBatchSelection.FullNotice, AppSeverity.Info);
         }
     }
 

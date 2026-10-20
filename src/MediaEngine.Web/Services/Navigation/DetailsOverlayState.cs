@@ -48,6 +48,11 @@ public sealed class DetailsOverlayState : IDisposable
     // A close that never produced an address change (the browser had nowhere to step back to) must not make the overlay unclosable.
     internal static readonly TimeSpan DismissTimeout = TimeSpan.FromSeconds(2);
 
+    // How long an offered "resume editing" note waits for the page that loads for the surviving item (a slow Engine still beats it).
+    internal static readonly TimeSpan EditResumeLifetime = TimeSpan.FromSeconds(30);
+
+    private (DetailsEditResume Resume, DateTimeOffset At)? _editResume;
+
     public DetailsOverlayState(
         NavigationManager navigation,
         IDetailsOverlayHistory history,
@@ -222,6 +227,41 @@ public sealed class DetailsOverlayState : IDisposable
         // This navigation consumes the "already answered" mark when it reaches the location handler.
         _navigation.NavigateTo(_navigation.ToAbsoluteUri(route.UnderlayUri ?? DetailsOverlayRoute.Home).ToString(), replace: true);
         return true;
+    }
+
+    /// <summary>
+    /// A detail page that follows its item to another address (a move removed the title it showed) leaves a one-shot note here for the page
+    /// that loads there: turn Editing Mode back on, reopen the section, show the result line. It is held in memory for this circuit only,
+    /// is taken once by the page for that item, and lapses if no such page takes it soon (see <see cref="EditResumeLifetime"/>), so it can
+    /// never switch Editing Mode on for a title opened later.
+    /// </summary>
+    public void OfferEditResume(DetailsEditResume resume)
+    {
+        ArgumentNullException.ThrowIfNull(resume);
+        _editResume = (resume, _time.GetUtcNow());
+    }
+
+    /// <summary>Withdraws the note (the follow did not happen).</summary>
+    public void WithdrawEditResume() => _editResume = null;
+
+    /// <summary>
+    /// Takes the note once for the page showing <paramref name="entityId"/>. A note for another item, or one that has lapsed, is dropped
+    /// and nothing is returned.
+    /// </summary>
+    public bool TryTakeEditResume(Guid entityId, out DetailsEditResume resume)
+    {
+        var offered = _editResume;
+        _editResume = null;
+        if (offered is { } note
+            && note.Resume.EntityId == entityId
+            && _time.GetUtcNow() - note.At < EditResumeLifetime)
+        {
+            resume = note.Resume;
+            return true;
+        }
+
+        resume = default!;
+        return false;
     }
 
     /// <summary>
