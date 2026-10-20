@@ -19,9 +19,9 @@ public sealed class ExcludedFileService(
     IFileIntake intake,
     ILogger<ExcludedFileService> logger)
 {
-    public const string QueuedMessage = "Added back. Tuvima will scan it again.";
+    public const string QueuedMessage = "Added back. Library will scan it again.";
     public const string MissingMessage = "The file is no longer on disk.";
-    public const string NotQueuedMessage = "Added back, but Tuvima could not start the scan. The next scan will pick it up.";
+    public const string NotQueuedMessage = "Added back, but Library could not start the scan. The next scan will pick it up.";
     public const string FolderGoneMessage = "Added back, but its library folder is no longer set up.";
 
     private const string LabelSeparator = " › ";
