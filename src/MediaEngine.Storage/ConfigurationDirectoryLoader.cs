@@ -316,7 +316,9 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         }
 
         var results = new List<ProviderConfiguration>();
-        foreach (var file in Directory.EnumerateFiles(dir, "*.json"))
+        // Sorted by file name: the operating system lists files in its own order (alphabetical on Windows, not on
+        // Linux), and the order decides which provider registers, and so answers, first.
+        foreach (var file in Directory.EnumerateFiles(dir, "*.json").Order(StringComparer.Ordinal))
         {
             var relativePath = Path.Combine(ProvidersSubdir, Path.GetFileName(file));
             var config = LoadFile<ProviderConfiguration>(relativePath);
