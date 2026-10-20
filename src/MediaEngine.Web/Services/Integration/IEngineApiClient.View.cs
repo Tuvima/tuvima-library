@@ -12,6 +12,10 @@ public partial interface IEngineApiClient
     /// <summary>Who opened the caller's own photos, newest first (read-only). Never lists views of anyone else's photos.</summary>
     Task<ViewPhotoViewsPageDto?> GetViewPhotoViewsAsync(int offset = 0, int limit = 25, CancellationToken ct = default);
     Task<LibraryCapacityDto?> GetLibraryCapacityAsync(string area, CancellationToken ct = default);
+    /// <summary>Count and size of the signed-in person's own View Trash (any device). Forbidden for anyone else; changes nothing.</summary>
+    Task<ViewTrashOutcome<ViewTrashSummaryDto>> GetViewTrashSummaryAsync(CancellationToken ct = default);
+    /// <summary>What Empty Trash would do right now, with the fingerprint to confirm. Changes nothing; Forbidden for anyone but the signed-in owner.</summary>
+    Task<ViewTrashOutcome<ViewTrashEmptyPreviewDto>> GetViewTrashEmptyPreviewAsync(CancellationToken ct = default);
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default);

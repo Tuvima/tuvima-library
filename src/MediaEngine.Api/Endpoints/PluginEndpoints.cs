@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Approvals;
+using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Contracts.Approvals;
 using MediaEngine.Contracts.Operations;
@@ -204,6 +205,7 @@ internal static class PluginEndpoints
             string pluginId,
             PluginCatalog catalog,
             IPluginExecutionContextFactory contexts,
+            PluginAiBudget aiBudget,
             CancellationToken ct) =>
         {
             var plugin = catalog.Get(pluginId);
@@ -224,17 +226,7 @@ internal static class PluginEndpoints
                 checks.Add(await check.GetHealthAsync(context, ct).ConfigureAwait(false));
             }
 
-            return Results.Ok(new PluginHealthResponse
-            {
-                PluginId = plugin.Manifest.Id,
-                Status = checks.Any(c => c.Status == "degraded") ? "degraded" : checks.Count == 0 ? "unknown" : "healthy",
-                Checks = checks.Select(check => new PluginHealthCheckDto
-                {
-                    Status = check.Status,
-                    Message = check.Message,
-                    Warnings = check.Warnings.ToList(),
-                }).ToList(),
-            });
+            return Results.Ok(await PluginHealthComposer.ComposeAsync(plugin.Manifest.Id, checks, aiBudget, ct).ConfigureAwait(false));
         })
         .WithName("CheckPluginHealth")
         .Produces<PluginHealthResponse>(StatusCodes.Status200OK)

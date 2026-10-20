@@ -185,9 +185,14 @@ public sealed class SeriesReaderAgreementTests : IDisposable
     {
         var source = File.ReadAllText(Path.Combine(
             FindRepoRoot(), "src", "MediaEngine.Api", "Services", "ReadServices", "UniverseClientReadService.cs"));
+        // The placements are read by the shared Series split, which the shelf's see-all list uses too.
+        var split = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "MediaEngine.Api", "Services", "Display", "SeriesShelfRows.cs"));
 
-        Assert.Contains("GetLinkedItemsByCollectionIdsAsync", source);
+        Assert.Contains("SeriesShelfSplit.LoadPlacementsAsync(manifests, members.Select(member => member.Id).ToList(), ct)", source);
+        Assert.Contains("GetLinkedItemsByCollectionIdsAsync", split);
         Assert.DoesNotContain("GetViewByCollectionIdAsync", source);
+        Assert.DoesNotContain("GetViewByCollectionIdAsync", split);
     }
 
     // ----------------------------------------------------------------------------------------------------------------

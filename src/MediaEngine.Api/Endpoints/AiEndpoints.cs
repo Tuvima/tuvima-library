@@ -52,12 +52,13 @@ internal static class AiEndpoints
             IModelDownloadManager downloadManager,
             IModelLifecycleManager lifecycle,
             AiSettings settings,
-            ModelInventory inventory) =>
+            ModelInventory inventory,
+            [FromServices] AiModelSelectionAdvisor advisor) =>
         {
             var statuses = downloadManager.GetAllStatuses()
                 .Select(status =>
                 {
-                    return ToModelStatusResponse(status, settings, lifecycle.CurrentlyLoadedRole, inventory);
+                    return ToModelStatusResponse(status, settings, lifecycle.CurrentlyLoadedRole, inventory, advisor);
                 })
                 .ToList();
             return Results.Ok(statuses);
@@ -218,7 +219,8 @@ internal static class AiEndpoints
             MediaEngine.AI.Infrastructure.HardwareBenchmarkService benchmark,
             CancellationToken ct) =>
         {
-            var profile = await benchmark.BenchmarkAsync(force: true, ct: ct);
+            // A person asked for this, so it goes ahead of background work and is never turned away as "busy".
+            var profile = await benchmark.BenchmarkAsync(force: true, requestedBy: AiCallerKind.Person, ct: ct);
             return Results.Ok(AiContractMapper.ToContract(profile));
         })
         .WithName("RunAiHardwareBenchmark")
@@ -436,10 +438,14 @@ internal static class AiEndpoints
         CanOperate = false,
     };
 
-    private static AiModelStatusDto ToModelStatusResponse(AiModelStatus status, AiSettings settings, AiModelRole? currentRole, ModelInventory inventory)
+    private static AiModelStatusDto ToModelStatusResponse(
+        AiModelStatus status,
+        AiSettings settings,
+        AiModelRole? currentRole,
+        ModelInventory inventory,
+        AiModelSelectionAdvisor advisor)
     {
         var definition = settings.Models.GetByRole(status.Role);
-        var advisor = new AiModelSelectionAdvisor(settings);
         var decision = advisor.GetDecision(status.Role);
         var catalog = settings.GetCatalogEntryForRole(status.Role);
         var isLoaded = currentRole == status.Role || status.State == AiModelState.Loaded;

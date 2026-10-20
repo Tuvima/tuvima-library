@@ -51,4 +51,16 @@ public interface IPluginLoreRepository
         string universeQid,
         bool approvedOnly = true,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// For each of the given Wikidata items, the names of the approved lore sources of this Universe that hold an entity for
+    /// it (one row per item and source). Reads only those two columns, so a large lore source costs little.
+    /// </summary>
+    Task<IReadOnlyList<PluginLoreItemSource>> GetApprovedSourceNamesForItemsAsync(
+        string universeQid,
+        IReadOnlyCollection<string> wikidataQids,
+        CancellationToken ct = default);
 }
+
+/// <summary>An approved lore source that holds an entity for one Wikidata item.</summary>
+public sealed record PluginLoreItemSource(string WikidataQid, string SourceName);

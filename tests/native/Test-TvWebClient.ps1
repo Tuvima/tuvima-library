@@ -2,14 +2,14 @@ $ErrorActionPreference = 'Stop'
 
 # Static gate for the shared TV web client (clients/tv-web): every script parses, no server addresses or secrets are
 # baked in, every required screen and API v1 route is present, the wire names it reads exist in the checked-in
-# fixtures, and the Node behaviour checks for the API layer and remote input pass.
+# fixtures, and the Node behaviour checks for the API layer, the Universe page logic and remote input pass.
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $client = Join-Path $repoRoot 'clients/tv-web'
 $fixtures = Join-Path $repoRoot 'tests/fixtures/native-client-v1'
 
 $required = @(
-    'index.html', 'app.js', 'api.js', 'nav.js', 'player.js', 'styles.css', 'README.md',
+    'index.html', 'app.js', 'api.js', 'universe.js', 'nav.js', 'player.js', 'styles.css', 'README.md',
     'vendor/hls.min.js', 'vendor/LICENSE-hls.js.txt', 'assets/tuvima-icon.svg', 'assets/tuvima-logo-dark.svg'
 )
 foreach ($relative in $required) {
@@ -50,7 +50,7 @@ foreach ($forbidden in @('sessionStorage', 'document.cookie', 'indexedDB', 'inne
 # 4. index.html loads the scripts in order, as classic scripts (so it also runs from file:// in a packaged app).
 $html = Get-Content -LiteralPath (Join-Path $client 'index.html') -Raw
 $last = -1
-foreach ($name in @('api.js', 'nav.js', 'player.js', 'app.js')) {
+foreach ($name in @('api.js', 'universe.js', 'nav.js', 'player.js', 'app.js')) {
     $at = $html.IndexOf("src=`"$name`"", [StringComparison]::Ordinal)
     if ($at -lt 0) { throw "index.html does not load $name." }
     if ($at -lt $last) { throw "index.html must load $name after the previous script." }
@@ -125,7 +125,7 @@ $wire = [ordered]@{
     'next-episodes.json'          = @('episodes', 'asset_id', 'title', 'season_number', 'episode_number')
     'collections.json'            = @('items', 'group_type', 'universe_qid', 'item_count', 'artwork_items', 'cover_url', 'next_cursor', 'has_more')
     'collection-items.json'       = @('work_id', 'title', 'media_type', 'cover_url', 'detail_route')
-    'universe.json'               = @('qid', 'name', 'shelves', 'collection_id', 'shelf')
+    'universe.json'               = @('qid', 'name', 'shelves', 'collection_id', 'shelf', 'series_count', 'media_types', 'also_in_this_world', 'also_in_this_world_count', 'cast', 'characters', 'adaptations', 'relationship', 'source_label')
 }
 foreach ($file in $wire.Keys) {
     $raw = Get-Content -LiteralPath (Join-Path $fixtures $file) -Raw
@@ -136,7 +136,7 @@ foreach ($file in $wire.Keys) {
 }
 
 # 8. Behaviour checks for the API layer and remote input.
-foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js')) {
+foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js', 'tv-web-universe.test.js')) {
     $path = Join-Path $PSScriptRoot $test
     if (-not (Test-Path -LiteralPath $path)) { throw "Missing $test." }
     & node $path

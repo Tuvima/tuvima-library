@@ -22,6 +22,7 @@ public sealed class ModelLifecycleManager :
     private readonly AiSettings _settings;
     private readonly AiRuntimeSettingsSnapshot _runtimeSettings;
     private readonly ModelInventory _inventory;
+    private readonly IAiRuntimeStatus _runtimeStatus;
     private readonly IEventPublisher _eventPublisher;
     private readonly ILogger<ModelLifecycleManager> _logger;
     private readonly SemaphoreSlim _runtimeGate = new(1, 1);
@@ -40,12 +41,14 @@ public sealed class ModelLifecycleManager :
     public ModelLifecycleManager(
         AiSettings settings,
         ModelInventory inventory,
+        IAiRuntimeStatus runtimeStatus,
         IEventPublisher eventPublisher,
         ILogger<ModelLifecycleManager> logger)
     {
         _settings = settings;
         _runtimeSettings = AiRuntimeSettingsSnapshot.Create(settings);
         _inventory = inventory;
+        _runtimeStatus = runtimeStatus;
         _eventPublisher = eventPublisher;
         _logger = logger;
         _idleMonitorTask = MonitorIdleUnloadAsync(_shutdown.Token);
@@ -166,7 +169,9 @@ public sealed class ModelLifecycleManager :
             MemoryLimitMB = 3000,
             GpuAvailable = gpuAvailable,
             MemoryProfile = "conservative",
-            IsReady = _inventory.AreAllReady(),
+            // Ready means text features can run now: the text model file is in place and the native runtime loads.
+            // The optional audio pack never decides this.
+            IsReady = _inventory.IsTextModelReady() && _runtimeStatus.TextRuntimeLoads,
         };
     }
 

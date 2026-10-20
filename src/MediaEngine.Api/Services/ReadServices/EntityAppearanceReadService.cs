@@ -37,7 +37,9 @@ public sealed class EntityAppearanceReadService(
 
     /// <summary>
     /// The Works that share one character, place or organisation. Null when no such entity exists or none of its Works is
-    /// visible to the profile, so an entity the profile cannot see about is never confirmed.
+    /// visible to the profile, so an entity the profile cannot see about is never confirmed. An appearance marked as a
+    /// spoiler for a work is left out until the Library knows how far the viewer has got (the same rule as the Universe
+    /// page's Characters list, where such a character has "no plot details").
     /// </summary>
     public async Task<EntityAppearancesDto?> GetForEntityAsync(
         string universeQid,
@@ -57,9 +59,10 @@ public sealed class EntityAppearanceReadService(
             .GroupBy(row => row.IdentityQid!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<DisplayWorkRow>)group.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        // The same visibility rule as every Universe read: only links to a work the profile may see.
+        // The same visibility rule as every Universe read: only links to a work the profile may see, and no spoiler-marked ones.
         var visibleLinks = (await entities.GetWorkLinksAsync(entity.Id, ct).ConfigureAwait(false))
-            .Where(link => rowsByWorkQid.ContainsKey(link.WorkQid))
+            .Where(link => rowsByWorkQid.ContainsKey(link.WorkQid)
+                && string.IsNullOrWhiteSpace(link.SpoilerForWorkQid))
             .ToList();
         if (visibleLinks.Count == 0)
         {

@@ -18,7 +18,8 @@ public sealed class Phase7LocalAiTests
         // Whether Local AI can run is told by the permanent page notice from the shared attention state, not by an alert here.
         Assert.DoesNotContain("_status?.IsReady", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
-        Assert.Contains("MaxConcurrentInferences", runtime, StringComparison.Ordinal);
+        // The unread "max at once" setting is gone; the engine room owns the queue.
+        Assert.DoesNotContain("MaxConcurrentInferences", runtime, StringComparison.Ordinal);
         Assert.Contains("MinimumFreeDiskMB", runtime, StringComparison.Ordinal);
         Assert.Contains("CpuPressureLabel(double pressure)", runtime, StringComparison.Ordinal);
         Assert.Contains("switch (NormalizedSubsection)", source, StringComparison.Ordinal);

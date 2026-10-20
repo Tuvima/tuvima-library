@@ -16,7 +16,20 @@ public sealed class ViewStorageService(
     private static readonly SemaphoreSlim PersonalSpaceGate = new(1, 1);
     private static readonly SemaphoreSlim ManagedSourceGate = new(1, 1);
 
-    public string GetRootPath()
+    public string GetRootPath() => GetRootPath(requireWrite: true);
+
+    /// <summary>
+    /// Whether the configured View storage location allows writes. A folder on read-only storage can still be shown and
+    /// planned against, but the safety gate must refuse to change anything in it.
+    /// </summary>
+    public bool IsStorageWritable()
+    {
+        var settings = configuration.LoadLibraries();
+        return settings.StorageLocations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, settings.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase))?.AllowWrite == true;
+    }
+
+    private string GetRootPath(bool requireWrite)
     {
         var settings = configuration.LoadLibraries();
         if (!string.Equals(settings.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
@@ -36,7 +49,7 @@ public sealed class ViewStorageService(
             string.Equals(candidate.Id, settings.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
                 $"View storage location '{settings.ViewStorage.StorageLocationId}' is not configured.");
-        if (!storage.AllowWrite)
+        if (requireWrite && !storage.AllowWrite)
         {
             throw new InvalidOperationException("The configured View storage location must allow writes.");
         }
@@ -53,14 +66,20 @@ public sealed class ViewStorageService(
         return Path.TrimEndingDirectorySeparator(root);
     }
 
-    public string GetProfileRoot(ViewPersonalSpace space)
+    public string GetProfileRoot(ViewPersonalSpace space) => GetProfileRoot(space, requireWrite: true);
+
+    /// <summary>
+    /// The owner's profile folder. With <paramref name="requireWrite"/> false the folder is returned even when the storage
+    /// location is read-only, for callers that only plan and leave the writability decision to the safety gate.
+    /// </summary>
+    public string GetProfileRoot(ViewPersonalSpace space, bool requireWrite)
     {
         if (!ViewStorageNames.IsValid(space.StorageLabel))
         {
             throw new InvalidOperationException("This Personal Space uses obsolete storage state. Recreate its disposable index and explicitly reimport originals; files are not relocated automatically.");
         }
 
-        return ResolveManagedRelativePath($"Profiles/{space.StorageLabel}");
+        return ResolveManagedRelativePath($"Profiles/{space.StorageLabel}", requireWrite);
     }
 
     public string GetSharedRoot() => ResolveManagedRelativePath("Shared");
@@ -330,14 +349,110 @@ public sealed class ViewStorageService(
             || string.Equals(Path.GetDirectoryName(fullPath), fullRoot, PathComparison);
     }
 
-    private string ResolveManagedRelativePath(string relative)
+    /// <summary>
+    /// Decides whether a file path really lies beneath a folder once every symbolic link and junction is followed, including
+    /// the file itself (the string-only <see cref="Contains"/> cannot see a link). On success <paramref name="resolved"/> holds the
+    /// real folder and the real path the file is stored at (they differ from the inputs only when a folder above the root is a link). Anything that leaves the folder after resolution is refused, and so is a path that
+    /// reaches the file through a link even when the link stays inside the folder: removing "the file" would then be
+    /// ambiguous between the link and its target, so such a file is never treated as removable. The reason never names a path.
+    /// </summary>
+    public static bool TryResolveContainedPath(string root, string path, out ViewResolvedPath resolved, out string reason)
+    {
+        resolved = default;
+        reason = string.Empty;
+        string fullRoot;
+        string fullPath;
+        try
+        {
+            fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+            fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            reason = "The file location is not a valid path.";
+            return false;
+        }
+
+        if (string.Equals(fullRoot, fullPath, PathComparison) || !IsWithin(fullRoot, fullPath))
+        {
+            reason = "This file is outside your Personal Space folder.";
+            return false;
+        }
+
+        string realRoot;
+        string realPath;
+        try
+        {
+            realRoot = ResolveRealPath(fullRoot, 0);
+            realPath = ResolveRealPath(fullPath, 0);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException
+            or NotSupportedException)
+        {
+            // The links on the way to the file could not be followed, so it cannot be shown to be inside the folder.
+            _ = exception;
+            reason = "This file's location could not be checked, so it was left where it is.";
+            return false;
+        }
+
+        if (string.Equals(realRoot, realPath, PathComparison) || !IsWithin(realRoot, realPath))
+        {
+            reason = "This file is a link that leads outside your Personal Space folder.";
+            return false;
+        }
+
+        // The same steps below the folder before and after following links means no link was crossed on the way.
+        var lexical = Path.GetRelativePath(fullRoot, fullPath);
+        var real = Path.GetRelativePath(realRoot, realPath);
+        if (!string.Equals(lexical, real, PathComparison))
+        {
+            reason = "This file is reached through a link, so it was left where it is.";
+            return false;
+        }
+
+        resolved = new ViewResolvedPath(realRoot, realPath);
+        return true;
+    }
+
+    /// <summary>Follows every link on the way to <paramref name="fullPath"/>, directory or file, as the filesystem would.</summary>
+    private static string ResolveRealPath(string fullPath, int depth)
+    {
+        const int MaximumLinkDepth = 40;
+        if (depth > MaximumLinkDepth)
+        {
+            throw new IOException("Too many levels of symbolic links.");
+        }
+
+        var pathRoot = Path.GetPathRoot(fullPath) ?? string.Empty;
+        var current = pathRoot;
+        var segments = fullPath[pathRoot.Length..]
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 0; index < segments.Length; index++)
+        {
+            var next = Path.Combine(current, segments[index]);
+            FileSystemInfo info = Directory.Exists(next) ? new DirectoryInfo(next) : new FileInfo(next);
+            if (info.LinkTarget is null)
+            {
+                current = next;
+                continue;
+            }
+
+            var target = info.ResolveLinkTarget(returnFinalTarget: true);
+            var targetPath = target?.FullName ?? Path.GetFullPath(info.LinkTarget, current);
+            current = ResolveRealPath(Path.TrimEndingDirectorySeparator(targetPath), depth + 1);
+        }
+
+        return Path.TrimEndingDirectorySeparator(current);
+    }
+
+    private string ResolveManagedRelativePath(string relative, bool requireWrite = true)
     {
         if (Path.IsPathRooted(relative))
         {
             throw new InvalidOperationException("Managed View paths must be relative to the View root.");
         }
 
-        var root = GetRootPath();
+        var root = GetRootPath(requireWrite);
         var result = Path.GetFullPath(Path.Combine(root, relative));
         EnsureContained(root, result, "Managed View paths must remain within the View root.");
         EnsureNoReparsePoints(result);
@@ -375,3 +490,6 @@ public sealed class ViewStorageService(
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 }
+
+/// <summary>A folder and a file inside it, both with every symbolic link and junction followed.</summary>
+public readonly record struct ViewResolvedPath(string Root, string Path);

@@ -132,7 +132,6 @@ MediaEngine.Contracts.Ai.MediaEngine.Contracts.Ai.AiConfigDto
   NativeRuntimeDirectory: System.String | nullability=not-null | accessors=get,set
   IdleUnloadSeconds: System.Int32 | nullability=not-null | accessors=get,set
   InferenceTimeoutSeconds: System.Int32 | nullability=not-null | accessors=get,set
-  MaxConcurrentInferences: System.Int32 | nullability=not-null | accessors=get,set
   MinimumFreeDiskMB: System.Int32 | nullability=not-null | accessors=get,set
   ResourceProfile: System.String | nullability=not-null | accessors=get,set
   EffectiveResourceProfile: System.String | nullability=not-null | accessors=get,set
@@ -3453,6 +3452,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDt
   People: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
   Snippet: System.String | nullability=nullable | accessors=get,init
   DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=nullable | accessors=get,init
+  CanTrash: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3627,8 +3627,11 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
   ItemId: System.Guid | nullability=not-null | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
   Reason: System.String | nullability=nullable | accessors=get,init
+  ReasonCode: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkOperations
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkReasonCodes
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentBulkRequest
   ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
@@ -4151,6 +4154,45 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimeline
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimelineIndexDto
   Buckets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTimelineBucketDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashEmptyPreviewDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto> | nullability=not-null | accessors=get,init
+  Galleries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto> | nullability=not-null | accessors=get,init
+  DeleteCount: System.Int32 | nullability=not-null | accessors=get,init
+  PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
+  VideoCount: System.Int32 | nullability=not-null | accessors=get,init
+  DocumentCount: System.Int32 | nullability=not-null | accessors=get,init
+  OtherCount: System.Int32 | nullability=not-null | accessors=get,init
+  Skipped: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTrashPreviewSkippedDto> | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  HasCompound: System.Boolean | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashOutcomes
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewGalleryDto
+  GalleryId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewItemDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  MediaKind: System.String | nullability=not-null | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashPreviewSkippedDto
+  ReasonCode: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTrashSummaryDto
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  PhotoCount: System.Int32 | nullability=not-null | accessors=get,init
+  VideoCount: System.Int32 | nullability=not-null | accessors=get,init
+  DocumentCount: System.Int32 | nullability=not-null | accessors=get,init
+  OtherCount: System.Int32 | nullability=not-null | accessors=get,init
+  Bytes: System.Int64 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewUploadResponseDto
   ItemId: System.Guid | nullability=not-null | accessors=get,init
@@ -8647,6 +8689,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseAdaptation
   cover_image: System.String | nullability=nullable | accessors=get,init
   relationship_to_parent: System.String | nullability=nullable | accessors=get,init
   children: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseAdaptationNodeDto> | nullability=not-null | accessors=get,init
+  source: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseAdaptationTreeResponse
   universe_qid: System.String | nullability=not-null | accessors=get,init
@@ -8669,6 +8712,13 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCastPerfor
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCastResponse
   universe_qid: System.String | nullability=not-null | accessors=get,init
   characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCastCharacterDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCharacterDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  WorkCount: System.Int32 | nullability=not-null | accessors=get,init
+  NoPlotDetails: System.Boolean | nullability=not-null | accessors=get,init
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientAdaptationDto
   Qid: System.String | nullability=not-null | accessors=get,init
@@ -8700,6 +8750,12 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientDeta
   Shelves: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseMemberShelfDto> | nullability=not-null | accessors=get,init
   Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseClientCastMemberDto> | nullability=not-null | accessors=get,init
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseClientAdaptationDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseConnectionsDto
+  Characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCharacterDto> | nullability=not-null | accessors=get,init
+  CharacterCount: System.Int32 | nullability=not-null | accessors=get,init
+  Cast: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto> | nullability=not-null | accessors=get,init
+  Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseDetailRef
   qid: System.String | nullability=not-null | accessors=get,init
@@ -8857,6 +8913,7 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseMissingIte
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniversePageDto
   Detail: MediaEngine.Contracts.Universe.UniverseClientDetailDto | nullability=not-null | accessors=get,init
+  Connections: MediaEngine.Contracts.Universe.UniverseConnectionsDto | nullability=not-null | accessors=get,init
   Standalone: MediaEngine.Contracts.Display.DisplayShelfDto | nullability=nullable | accessors=get,init
   Missing: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseShelfMissingDto> | nullability=not-null | accessors=get,init
   Enrichment: MediaEngine.Contracts.Universe.UniverseEnrichmentStateDto | nullability=not-null | accessors=get,init
@@ -8874,4 +8931,16 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseShelfMissi
   ShowMissing: System.Boolean | nullability=not-null | accessors=get,init
   MissingCount: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseMissingItemDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourceDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto
+  Adaptation: MediaEngine.Contracts.Universe.UniverseClientAdaptationDto | nullability=not-null | accessors=get,init
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseSourcedCastMemberDto
+  Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | nullability=not-null | accessors=get,init
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | nullability=not-null | accessors=get,init
 

@@ -20,6 +20,15 @@ certification packaging.
 
 Home shows Continue first, then the home shelves, then a Collections row and a
 Photos row. Select a collection to browse its items (Back returns to Home).
+A Collections entry that is a Universe (its `group_type` is `universe` and it
+carries a Wikidata QID in `universe_qid`, or a QID-shaped `system_key`) opens
+that Universe's Series list (`GET /api/v1/universe/{qid}`): one tile per Series
+in the Engine's order, showing the item count, or "Also in this world" with its
+count when the Series has no numbered run of its own (never "0 items"). Select a
+Series to see its items; Back returns to the Series list, and Back from the list
+returns to Home. Roku shows Series only: no cast, adaptations or totals. A
+Universe the profile cannot see shows the usual error text.
+
 Up and down move between rows and the top buttons; left and right move inside a
 row. Photos open in a full-screen viewer: left and right step through the row,
 Back closes it. The preview JPEG is fetched by the app with the bearer token
