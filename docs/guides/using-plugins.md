@@ -15,21 +15,32 @@ status: current
 
 Add optional tools to Tuvima Library with [plugins](../reference/glossary.md#plugin). Allow a few minutes for setup, plus time to get and check the files. Only admins can manage plugins.
 
-You can list built-in and dynamic plugins, enable or disable them, edit settings, check health, and view recent jobs. The approved catalog comes from GitHub. One-click install and update flows are not ready.
+You can list built-in and dynamic plugins, enable or disable them, edit settings, check health, and view recent jobs. **Available plugins** shows a public list of plugins from GitHub. One-click install and update flows are not ready.
 
 ## Open plugin settings
 
-Open **Settings > Plugins**. It is one page: the installed plugins come first, then the approved catalog, then the details for one plugin (health and jobs, capabilities, and the danger zone). From there you can change settings, run health checks, view jobs, and refresh the approved catalog.
+Open **Settings > Plugins**. It is one page: the installed plugins come first, then **Available plugins**, then the details for one plugin (health and jobs, capabilities, and the danger zone). From there you can change settings, run health checks, view jobs, and check the plugin directory.
 
 Built-in plugins ship as part of Tuvima. You can disable them, but cannot delete them or edit their files. Dynamic plugins have their own folder and manifest.
 
-## Install an approved plugin
+## Find an available plugin
 
-The approved catalog is a list of reviewed releases, not an installer.
+**Available plugins** is a list of plugins other people have shared. It is a list, not an installer.
 
-1. Open **Settings > Plugins** and scroll to **Approved Catalog**.
-2. Choose **Refresh catalog** to load the GitHub catalog.
-3. Open the plugin release link.
+- The Library keeps a saved copy of the list and shows that. It checks GitHub when you open the section and the last check is more than a day old, and when you choose **Check now**. It never checks in the background. Nothing about you or your Library is sent.
+- The section says when the list was last checked. If GitHub could not be reached it keeps showing the saved copy and says which date it is from.
+- The switch at the top turns the lookup off. With it off, no request is made; the saved copy, if there is one, is still shown.
+- Each entry has a label. **Official** plugins are built by Tuvima. **Verified** plugins have been checked by Tuvima. **Not verified** plugins have not been checked, and say so beside the entry: "Tuvima hasn't checked this plugin. Plugins run inside the Library with its full access."
+- A quiet line, "N new plugins available", appears when plugins have been added since you last looked.
+- An **Install** button appears on an entry only once the Library can install plugins; until then it is not shown. When it appears it opens the same confirmation as switching a plugin on, listing what the plugin can do and whether it sends data out.
+
+## Install an available plugin by hand
+
+Until installing is built in, install a plugin from its release page.
+
+1. Open **Settings > Plugins** and scroll to **Available plugins**.
+2. Choose **Check now** if the list looks out of date.
+3. Open the plugin's **Release** link.
 4. Download the versioned archive.
 5. Check its published SHA-256 checksum when one is supplied.
 6. Extract it into the library data folder:
@@ -61,7 +72,7 @@ Built-in plugins can only be disabled. To remove a dynamic plugin, choose **Dang
 
 ## Choose trusted code
 
-A plugin is compiled .NET code loaded into the Engine process. It is not sandboxed. Install only code from a source you trust. The approved catalog helps you find reviewed releases, but does not remove all risks from outside code.
+A plugin is compiled .NET code loaded into the Engine process. It is not sandboxed. Install only code from a source you trust. Available plugins helps you find plugins, and the label shows whether Tuvima has checked one, but it does not remove all risks from outside code.
 
 <details>
 <summary>Technical details</summary>
@@ -74,6 +85,6 @@ It should also list required tools and checksums when tool downloads are support
 
 ## Next steps
 
-- [Check the approved plugin catalog](../reference/plugin-catalog.md)
+- [Read the plugin directory format](../reference/plugin-catalog.md)
 - [Build a plugin](building-a-plugin.md)
 - [Understand privacy and external services](../explanation/privacy-local-first.md)

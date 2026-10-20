@@ -33,8 +33,8 @@ else
         {
             <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
         }
-        @* One page: the installed plugins first, then the approved catalog, then the advanced plugin sections
-           (health and jobs, capabilities, danger zone). The advanced sections and the catalog are desktop and tablet only. *@
+        @* One page: the installed plugins first, then Available plugins, then the advanced plugin sections
+           (health and jobs, capabilities, danger zone). The advanced sections and Available plugins are desktop and tablet only. *@
         @OverviewSummary()
         @InstalledPluginsPanel()
         @if (!DeviceContext.IsMobile)
@@ -49,8 +49,7 @@ else
                     @PluginSettingsPanel(ConfiguredPlugin)
                 </AppCard>
             }
-            @MarketplaceNote()
-            @ApprovedCatalogPanel()
+            <AvailablePluginsPanel />
             @AdvancedPluginPanel()
         }
     </div>
@@ -65,8 +64,6 @@ else
     private readonly CancellationTokenSource _disposed = new();
     private IReadOnlyList<ScheduledTaskDto>? _tasks;
     private bool _tasksLoaded;
-    private ApprovedPluginCatalogDto? _approvedCatalog;
-    private bool _approvedCatalogLoading;
     private bool _loading = true;
     private string? _error;
     private readonly Dictionary<string, ApprovalRecordResponse> _latestApproval = new(StringComparer.OrdinalIgnoreCase);
@@ -173,10 +170,6 @@ else
         "verified" => AppUiTone.Info,
         _ => AppUiTone.Neutral,
     };
-
-    private RenderFragment MarketplaceNote() => @<AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
-        Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
-    </AppAlert>;
 
     private RenderFragment AdvancedPluginPanel() => @<text>
         <AppCard Title="Plugin details" Description="Check one plugin's health and jobs, review what it can access, or remove it.">
@@ -321,58 +314,6 @@ else
                            OnClick="@(() => _deletePluginId = plugin.Id)" />
             }
         </div>
-    </AppCard>;
-
-    private RenderFragment ApprovedCatalogPanel() => @<AppCard Class="settings-plugin-catalog-card">
-        <div class="settings-plugin-catalog-header">
-            <div>
-                <AppText Typo="AppTypo.subtitle1">Approved Catalog</AppText>
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Discover reviewed third-party plugins from the configured GitHub catalog.</AppText>
-            </div>
-            <AppButton Label="Refresh catalog"
-                       StartIcon="@AppMaterialIcons.Outlined.CloudDownload"
-                       Size="AppControlSize.Compact"
-                       Tone="AppUiTone.Primary"
-                       OnClick="@LoadApprovedCatalogAsync" />
-        </div>
-        @if (_approvedCatalogLoading)
-        {
-            <AppSkeleton Size="AppControlSize.Large" />
-        }
-        else if (_approvedCatalog is null)
-        {
-            <AppAlert Tone="AppUiTone.Info">The approved plugin catalog has not been loaded yet. Choose Refresh catalog to load it.</AppAlert>
-        }
-        else if (_approvedCatalog.Plugins.Count == 0)
-        {
-            <AppAlert Tone="@CatalogTone(_approvedCatalog.Status)">No approved third-party plugins are listed right now.</AppAlert>
-        }
-        else
-        {
-            <AppTable Class="settings-plugin-job-table">
-                <thead><tr><th>Plugin</th><th>Status</th><th>Capabilities</th><th>Package</th></tr></thead>
-                <tbody>
-                    @foreach (var item in _approvedCatalog.Plugins)
-                    {
-                        <tr>
-                            <td><div class="settings-plugin-table-title">@item.Name</div><div class="settings-plugin-table-meta">@item.Id - v@item.Version</div></td>
-                            <td>@item.Status</td>
-                            <td>@string.Join(", ", item.Capabilities)</td>
-                            <td>
-                                @if (!string.IsNullOrWhiteSpace(item.ReleaseUrl))
-                                {
-                                    <AppLink Href="@item.ReleaseUrl" Target="_blank">Release</AppLink>
-                                }
-                                else
-                                {
-                                    <span>Not published</span>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </AppTable>
-        }
     </AppCard>;
 
     protected override async Task OnInitializedAsync()
@@ -585,21 +526,6 @@ else
     private async Task LoadJobsAsync(PluginSummaryResponse plugin)
     {
         _jobs[plugin.Id] = await Orchestrator.GetPluginJobsAsync(plugin.Id);
-    }
-
-    private async Task LoadApprovedCatalogAsync()
-    {
-        _approvedCatalogLoading = true;
-        try
-        {
-            _approvedCatalog = await Orchestrator.GetApprovedPluginCatalogAsync();
-            if (_approvedCatalog is null)
-                Snackbar.Add("Approved plugin catalog could not be loaded.", AppSeverity.Error);
-        }
-        finally
-        {
-            _approvedCatalogLoading = false;
-        }
     }
 
     private RenderFragment SettingEditor(PluginSummaryResponse plugin, PluginSettingDefinition setting)
@@ -825,8 +751,6 @@ else
         && property.GetBoolean();
 
     private static AppUiTone HealthTone(string status) => string.Equals(status, "healthy", StringComparison.OrdinalIgnoreCase) ? AppUiTone.Success : AppUiTone.Warning;
-
-    private static AppUiTone CatalogTone(string status) => string.Equals(status, "ok", StringComparison.OrdinalIgnoreCase) ? AppUiTone.Success : AppUiTone.Warning;
 
     private static string PluginIcon(PluginSummaryResponse plugin) => plugin.Id switch
     {

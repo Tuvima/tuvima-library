@@ -6215,29 +6215,6 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.WatchingSettingsDt
   RememberPerTitlePlaybackSpeed: System.Boolean | nullability=not-null | accessors=get,set
   PreferredVideoQuality: System.String | nullability=not-null | accessors=get,set
 
-MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.ApprovedPluginCatalogDto
-  SchemaVersion: System.String | nullability=not-null | accessors=get,set
-  SourceUrl: System.String | nullability=not-null | accessors=get,set
-  LastUpdated: System.DateTimeOffset? | nullability=nullable | accessors=get,set
-  Status: System.String | nullability=not-null | accessors=get,set
-  Message: System.String | nullability=nullable | accessors=get,set
-  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.ApprovedPluginDto> | nullability=not-null | accessors=get,set
-
-MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.ApprovedPluginDto
-  Id: System.String | nullability=not-null | accessors=get,set
-  Name: System.String | nullability=not-null | accessors=get,set
-  Version: System.String | nullability=not-null | accessors=get,set
-  Description: System.String | nullability=not-null | accessors=get,set
-  Author: System.String | nullability=not-null | accessors=get,set
-  Status: System.String | nullability=not-null | accessors=get,set
-  RepositoryUrl: System.String | nullability=nullable | accessors=get,set
-  ReleaseUrl: System.String | nullability=nullable | accessors=get,set
-  PackageUrl: System.String | nullability=nullable | accessors=get,set
-  Sha256: System.String | nullability=nullable | accessors=get,set
-  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
-  Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
-  InstallNotes: System.String | nullability=nullable | accessors=get,set
-
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.DiscoverUniverseLoreSourcesRequest
   UniverseQid: System.String | nullability=not-null | accessors=get,init
 
@@ -6270,6 +6247,46 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginCapabilityDto
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeletedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   deleted: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Author: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Version: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  TrustLevel: System.String | nullability=not-null | accessors=get,set
+  TrustWarning: System.String | nullability=nullable | accessors=get,set
+  Permissions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  AllowedTo: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Capabilities: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
+  MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
+  SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  RepositoryUrl: System.String | nullability=nullable | accessors=get,set
+  ReleaseUrl: System.String | nullability=nullable | accessors=get,set
+  PackageUrl: System.String | nullability=nullable | accessors=get,set
+  Sha256: System.String | nullability=nullable | accessors=get,set
+  AddedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  IsNew: System.Boolean | nullability=not-null | accessors=get,set
+  IsInstalled: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryResponse
+  SchemaVersion: System.String | nullability=not-null | accessors=get,set
+  SourceUrl: System.String | nullability=not-null | accessors=get,set
+  UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  Status: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=nullable | accessors=get,set
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  LastCheckedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  LastSuccessAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  NewCount: System.Int32 | nullability=not-null | accessors=get,set
+  SkippedCount: System.Int32 | nullability=not-null | accessors=get,set
+  InstallSupported: System.Boolean | nullability=not-null | accessors=get,set
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectorySettingsRequest
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginEnabledResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init

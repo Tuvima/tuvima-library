@@ -18,7 +18,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginSettingsService>();
         services.AddSingleton<IPluginApprovalCheck, PluginApprovalCheck>();
         services.AddSingleton<PluginCatalog>();
-        services.AddSingleton<ApprovedPluginCatalogService>();
+        services.AddSingleton<PluginDirectoryService>();
         services.AddSingleton<PluginUniverseLoreService>();
         services.AddSingleton<PluginScheduledSegmentService>();
         services.AddSingleton<PluginToolRuntime>();

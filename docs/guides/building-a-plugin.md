@@ -1,6 +1,6 @@
 ---
 title: "Build a Plugin"
-description: "How developers create dynamic Tuvima Library plugins and submit them for the approved catalog."
+description: "How developers create dynamic Tuvima Library plugins and submit them to the plugin directory."
 audience: "developer"
 category: "guide"
 product_area: "plugins"
@@ -15,7 +15,7 @@ status: current
 
 ## In this page
 
-Create a local .NET plugin, package its manifest, and load it through the Engine. The guide also explains the trust boundary and the evidence needed for an approved-catalog submission.
+Create a local .NET plugin, package its manifest, and load it through the Engine. The guide also explains the trust boundary and how to submit a plugin to the plugin directory.
 
 ## Where this lives in the code
 
@@ -272,21 +272,21 @@ Use this shape when a source has useful structured lore but should stay visibly 
 - Extracted entities should include source URLs, confidence, evidence, and a stable external key.
 - Article prose should not be copied into Tuvima. Store structured metadata, relationships, and links back to the source.
 
-## Submit for the approved catalog
+## Submit your plugin
 
-To be listed as an approved plugin, publish a GitHub release that includes:
+Plugins reach the Library's list of available plugins (**Settings > Plugins > Available plugins**) through a short, public review.
 
-- A versioned archive containing `plugin.json` and compiled files.
-- A SHA-256 checksum for the archive.
-- Source repository URL.
-- Release URL.
-- Minimum Tuvima API version.
-- Capability list.
-- Install notes and tool requirements.
-- License information for plugin code and bundled or downloaded tools.
+1. Publish a GitHub release that includes:
+   - A versioned archive containing `plugin.json` and the plugin's files.
+   - A SHA-256 checksum for the archive.
+   - Your source repository URL and the release URL.
+   - The Library versions it works with (`minimum_library_version`, and `maximum_library_version` if there is a limit).
+   - The permissions it declares and the capabilities it provides.
+   - License information for the plugin and for any bundled or downloaded tools.
+2. Propose a change to the list file, [`docs/reference/approved-plugins.json`](../reference/approved-plugins.json), on GitHub. Add one entry in the [plugin directory format](../reference/plugin-catalog.md): `id`, `name`, `author`, `description`, `version`, `kind`, `permissions`, `capabilities`, `minimum_library_version`, `repository_url`, `release_url`, `package_url`, `sha256` and `added_at`. Use a real archive checksum, not the illustrative placeholder.
+3. Tuvima reviews the proposed change. It is listed as **Not verified**: Tuvima has not checked the plugin, and the entry says so beside it.
+4. The **Verified** mark is added only after Tuvima has checked the plugin and what it asks for. You cannot set it yourself; an entry that claims it is treated as a request until the review is done. Plugins built by Tuvima (**Official**) ship in the main repository and are not listed here.
 
-Submit the release metadata for maintainer review through the repository's contribution process. Maintainers can then add the approved release to [the catalog source](../reference/approved-plugins.json). The catalog currently has no third-party entries; built-in plugins ship with the application.
+The list is read-only: being listed does not install anything, and listing does not sandbox the plugin's code.
 
-Match the [catalog shape and status values](../reference/plugin-catalog.md): include `id`, `name`, `version`, `description`, `author`, `status`, `repository_url`, `release_url`, `package_url`, `sha256`, `minimum_library_version`, `capabilities`, and `install_notes`. Use a real archive checksum, not the illustrative placeholder. Catalog lookup is read-only and does not download or install an assembly. Catalog approval also does not sandbox the installed code.
-
-Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release for catalog approval.
+Plain English summary: A plugin is a small .NET package with a manifest and clear settings metadata. Developers implement the plugin contracts, package the assembly and `plugin.json` together, test it from the library `.data/plugins` folder, and publish a checksummed GitHub release and propose it for the plugin directory.
