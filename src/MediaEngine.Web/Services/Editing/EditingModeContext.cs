@@ -98,7 +98,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     /// <summary>A field typed into on the page that has not been saved.</summary>
     public bool HasUnsavedField => Fields.IsDirty;
 
-    public bool HasUnsavedInput => Fields.IsDirty || SectionDirty;
+    public bool HasUnsavedInput => Fields.IsDirty || SectionDirty || BatchDirty;
 
     /// <summary>The open section's handle for saving and discarding, set by the section slot while it is showing.</summary>
     public IEditingSectionHost? SectionHost { get; set; }
@@ -107,6 +107,149 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     public Func<Task<SaveOrDiscardChoice>>? AskSaveOrDiscard { get; set; }
 
     public event Action? Changed;
+
+    private readonly HashSet<Guid> _batch = [];
+
+    /// <summary>
+    /// The rows ticked for a batch edit (details overlay spec D8): episodes, tracks or parts of this page. Ticking only works while
+    /// Editing Mode is on, and leaving the mode clears it.
+    /// </summary>
+    public IReadOnlyCollection<Guid> BatchSelection => _batch;
+
+    /// <summary>True while the batch section (above the rows) is open.</summary>
+    public bool BatchSectionOpen { get; private set; }
+
+    /// <summary>True while the batch section holds a change that has not been applied.</summary>
+    public bool BatchDirty { get; private set; }
+
+    /// <summary>True while the batch section is applying.</summary>
+    public bool BatchSaving { get; private set; }
+
+    /// <summary>The batch section, so "Save or discard?" can apply or drop what it holds.</summary>
+    public IEditingSectionHost? BatchHost { get; set; }
+
+    /// <summary>Ticks or unticks a row. Refused (false) when Editing Mode is off or the device may not edit.</summary>
+    public bool ToggleBatchSelection(Guid id)
+    {
+        if (!IsOn || !CanEdit || id == Guid.Empty)
+        {
+            return false;
+        }
+
+        if (!_batch.Add(id))
+        {
+            _batch.Remove(id);
+        }
+
+        if (_batch.Count == 0)
+        {
+            BatchSectionOpen = false;
+            BatchDirty = false;
+        }
+
+        RaiseChanged();
+        return true;
+    }
+
+    /// <summary>Unticks everything and closes the batch section. The caller has already settled its unsaved input.</summary>
+    public void ClearBatchSelection()
+    {
+        if (_batch.Count == 0 && !BatchSectionOpen)
+        {
+            return;
+        }
+
+        _batch.Clear();
+        BatchSectionOpen = false;
+        BatchDirty = false;
+        BatchSaving = false;
+        RaiseChanged();
+    }
+
+    /// <summary>Opens the batch section for the ticked rows. Refused with nothing ticked or while a field is mid-edit.</summary>
+    public bool OpenBatchSection()
+    {
+        if (!IsOn || !CanEdit || _batch.Count == 0 || Fields.HasOpenDraft)
+        {
+            return false;
+        }
+
+        BatchSectionOpen = true;
+        RaiseChanged();
+        return true;
+    }
+
+    /// <summary>Closes the batch section, asking "Save or discard?" first when it holds an unapplied change. True when it is closed afterwards.</summary>
+    public async Task<bool> CloseBatchSectionAsync()
+    {
+        if (!BatchSectionOpen)
+        {
+            return true;
+        }
+
+        return await SettleAsync(CloseBatchSectionCoreAsync, whenBusy: false);
+    }
+
+    private async Task<bool> CloseBatchSectionCoreAsync()
+    {
+        if (BatchDirty)
+        {
+            var choice = await AskAsync();
+            if (!IsOn)
+            {
+                return false;
+            }
+
+            switch (choice)
+            {
+                case SaveOrDiscardChoice.Save:
+                    if (BatchHost is null || !await BatchHost.SaveAsync())
+                    {
+                        return false;
+                    }
+
+                    break;
+                case SaveOrDiscardChoice.Discard:
+                    if (BatchHost is not null)
+                    {
+                        await BatchHost.DiscardAsync();
+                    }
+
+                    break;
+                default:
+                    return false;
+            }
+        }
+
+        BatchSectionOpen = false;
+        BatchDirty = false;
+        RaiseChanged();
+        return true;
+    }
+
+    /// <summary>Reports whether the batch section holds an unapplied change.</summary>
+    public void SetBatchDirty(bool dirty)
+    {
+        if (BatchDirty == dirty)
+        {
+            return;
+        }
+
+        BatchDirty = dirty;
+        RaiseChanged();
+    }
+
+    /// <summary>Reports whether the batch section is applying.</summary>
+    public void SetBatchSaving(bool saving)
+    {
+        if (BatchSaving == saving)
+        {
+            return;
+        }
+
+        BatchSaving = saving;
+        RaiseChanged();
+    }
 
     /// <summary>Loads the item's editable fields the first time Editing Mode turns on (set by the page).</summary>
     public Func<Task>? Loader { get; set; }
@@ -139,6 +282,10 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         OpenSectionArtworkSlot = null;
         SectionDirty = false;
         SectionSaving = false;
+        _batch.Clear();
+        BatchSectionOpen = false;
+        BatchDirty = false;
+        BatchSaving = false;
         Fields.Discard();
         RaiseChanged();
     }
@@ -161,7 +308,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return true;
         }
 
-        if (Fields.Saving || SectionSaving)
+        if (Fields.Saving || SectionSaving || BatchSaving)
         {
             return false;
         }
@@ -217,12 +364,12 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return false;
         }
 
-        if (!Fields.HasOpenDraft && !SectionOpen)
+        if (!Fields.HasOpenDraft && !SectionOpen && !BatchSectionOpen)
         {
             return false;
         }
 
-        if (IsSettling || Fields.Saving || SectionSaving)
+        if (IsSettling || Fields.Saving || SectionSaving || BatchSaving)
         {
             // Something is already being settled or saved: the press is spent, and the overlay must not close under it.
             return true;
@@ -263,7 +410,13 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return true;
         }
 
-        await CloseSectionCoreAsync();
+        if (SectionOpen)
+        {
+            await CloseSectionCoreAsync();
+            return true;
+        }
+
+        await CloseBatchSectionCoreAsync();
         return true;
     }
 
@@ -443,6 +596,11 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         }
 
         if (SectionDirty && (SectionHost is null || !await SectionHost.SaveAsync()))
+        {
+            return false;
+        }
+
+        if (BatchDirty && (BatchHost is null || !await BatchHost.SaveAsync()))
         {
             return false;
         }

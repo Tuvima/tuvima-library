@@ -76,6 +76,12 @@ else if (Model is not null)
                             BuildRequest="BuildSectionRequest"
                             OnCommitted="RefreshAfterSectionCommitAsync" />
 
+        @* Batch editing: the selection bar and the section for the ticked rows sit above the rows, in the page's own column. *@
+        @if (BatchRowNouns is { } nouns)
+        {
+            <EditingBatchSection Mode="_editing" Singular="@nouns.Singular" Plural="@nouns.Plural" OnApplied="RefreshAfterSectionCommitAsync" />
+        }
+
         @if (ShowPrimaryModuleAfterNavigation)
         {
             <section class="tl-detail-page__primary-content">
@@ -143,6 +149,15 @@ else if (Model is not null)
     private DetailPresentationCapabilities PresentationCapabilities =>
         DetailPresentationCapabilities.For(Model?.EntityType ?? DetailEntityType.Work);
     private bool IsMusicAlbum => PresentationCapabilities.IsMusicAlbum;
+
+    // What the ticked rows are called, for the pages whose rows can be batch edited (episodes, tracks, audiobook parts); null elsewhere.
+    private (string Singular, string Plural)? BatchRowNouns => Model?.EntityType switch
+    {
+        DetailEntityType.TvShow or DetailEntityType.TvSeason => ("episode", "episode" + "s"),
+        DetailEntityType.MusicAlbum => ("track", "track" + "s"),
+        DetailEntityType.Audiobook => ("part", "part" + "s"),
+        _ => null,
+    };
     private bool IsAudiobook => PresentationCapabilities.IsAudiobook
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
