@@ -34,6 +34,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     private readonly ImageCacheRepository _imageCache;
     private readonly AssetPathService _assetPaths;
     private readonly ConfigurationDirectoryLoader _configLoader;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _imageSizes = new(StringComparer.Ordinal);
 
     public ImageEnrichmentServiceTests()
     {
@@ -319,7 +320,9 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         if (repeatImagesPassFirst)
         {
             await CreateService(Respond).EnrichWorkImagesAsync(movie.AssetId, null);
-            Assert.Equal("602", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_bridge_id"));
+            // The failed pass holds nothing for 602, so the held artwork is still recorded as the earlier film's.
+            Assert.Equal("Error", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_status"));
+            Assert.Equal("601", await GetCanonicalAsync(movie.WorkId, "tmdb_artwork_bridge_id"));
         }
 
         await CreateCoverArtWorker(Respond).DownloadAndPersistAsync(movie.AssetId, wikidataQid: null, CancellationToken.None);
@@ -493,13 +496,10 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         const string currentCover = "https://image.tmdb.org/t/p/w500/retail-652.jpg";
         var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Cleared.mkv");
         await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "651"), (MetadataFieldConstants.Cover, earlierCover));
-        HttpResponseMessage Respond(HttpRequestMessage request)
-        {
-            var url = request.RequestUri?.ToString() ?? string.Empty;
-            return url.Contains("/movie/651/images?", StringComparison.OrdinalIgnoreCase) || url.Contains("/movie/652/images?", StringComparison.OrdinalIgnoreCase)
-                ? TwoPosterFilm(url.Contains("/651/", StringComparison.Ordinal) ? "651" : "652")(request)
-                : ImageResponse(CreatePosterJpeg(200, 300));
-        }
+        var earlierFilm = TwoPosterFilm("651");
+        var currentFilm = TwoPosterFilm("652");
+        HttpResponseMessage Respond(HttpRequestMessage request) =>
+            request.RequestUri!.ToString().Contains("652", StringComparison.Ordinal) ? currentFilm(request) : earlierFilm(request);
 
         await CreateCoverArtWorker(Respond).DownloadAndPersistAsync(movie.AssetId, wikidataQid: null, CancellationToken.None);
         await CreateService(Respond).EnrichWorkImagesAsync(movie.AssetId, null);
@@ -524,11 +524,125 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.Equal(2, backdrops.Count);
     }
 
-    /// <summary>A film whose images list offers two posters (first ranks higher) and one backdrop.</summary>
-    private Func<HttpRequestMessage, HttpResponseMessage> TwoPosterFilm(string film)
+    [Fact]
+    public async Task ArtworkPasses_WithoutReidentification_RemoveNothing()
     {
-        var small = CreatePosterJpeg(50, 75);
-        var large = CreatePosterJpeg(200, 300);
+        // Guards ingestion baselines: ordinary, repeat and forced passes on an unchanged identity keep every variant.
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Unchanged.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "661"),
+            (MetadataFieldConstants.Cover, "https://image.tmdb.org/t/p/w500/retail-661.jpg"));
+        var respond = TwoPosterFilm("661");
+        var images = CreateService(respond);
+
+        await CreateCoverArtWorker(respond).DownloadAndPersistAsync(movie.AssetId, wikidataQid: null, CancellationToken.None);
+        await images.EnrichWorkImagesAsync(movie.AssetId, null);
+        var before = (await _entityAssets.GetByEntityAsync(movie.WorkId.ToString())).Select(asset => asset.Id).Order().ToList();
+        await images.EnrichWorkImagesAsync(movie.AssetId, null);
+        await images.RefreshWorkImagesAsync(movie.AssetId, null);
+        await CreateCoverArtWorker(respond).DownloadAndPersistAsync(movie.AssetId, wikidataQid: null, CancellationToken.None);
+
+        Assert.Equal(4, before.Count);
+        Assert.Equal(before, (await _entityAssets.GetByEntityAsync(movie.WorkId.ToString())).Select(asset => asset.Id).Order().ToList());
+    }
+
+    [Fact]
+    public async Task ArtworkLibraryChoice_SurvivesALaterPickAndARetailRematch()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Library Choice.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "662"));
+        var respond = TwoPosterFilm("662");
+        await CreateService(respond).EnrichWorkImagesAsync(movie.AssetId, null);
+        // A picture linked from the artwork library keeps its provider as the source but has a local address.
+        var libraryId = Guid.NewGuid();
+        var libraryPath = _assetPaths.GetCentralAssetPath("ArtworkAsset", libraryId, "Primary", libraryId, ".jpg");
+        AssetPathService.EnsureDirectory(libraryPath);
+        await File.WriteAllBytesAsync(libraryPath, CreatePosterJpeg(120, 180));
+        await _entityAssets.UpsertAsync(new EntityAsset
+        {
+            Id = libraryId, EntityId = movie.WorkId.ToString(), EntityType = "Work", AssetTypeValue = "CoverArt",
+            ImageUrl = $"/api/v1/display/artwork/assets/{libraryId:N}/content", LocalImagePath = libraryPath,
+            SourceProvider = "tmdb", AssetClassValue = "Artwork", StorageLocationValue = "Central", OwnerScope = "Work",
+            IsUserOverride = true, CreatedAt = DateTimeOffset.UtcNow,
+        });
+        var provider = (await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "CoverArt")).First(asset => asset.Id != libraryId);
+
+        await _entityAssets.SetUserChoiceAsync(provider.Id);
+        Assert.True((await _entityAssets.FindByIdAsync(libraryId))!.IsUserOverride);
+        await CreateCoverArtWorker(respond).ReplaceProviderArtworkAsync(
+            movie.AssetId, "https://image.tmdb.org/t/p/w500/rematched-662.jpg", "tmdb", WellKnownProviders.Tmdb, CancellationToken.None);
+
+        var covers = await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "CoverArt");
+        Assert.Contains(covers, asset => asset.Id == libraryId && asset.IsUserOverride);
+        Assert.DoesNotContain(covers, asset => asset.Id == provider.Id);
+        Assert.True(File.Exists(libraryPath));
+    }
+
+    [Fact]
+    public async Task OrdinaryImagesPass_AfterReidentification_ClearsTheBackdropWhenNothingReplacesIt()
+    {
+        var movie = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "No Backdrop.mkv");
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "663"));
+        var earlierFilm = TwoPosterFilm("663");
+        var currentFilm = TwoPosterFilm("664", withBackdrop: false);
+        HttpResponseMessage Respond(HttpRequestMessage request) =>
+            request.RequestUri!.ToString().Contains("664", StringComparison.Ordinal) ? currentFilm(request) : earlierFilm(request);
+        await CreateService(Respond).EnrichWorkImagesAsync(movie.AssetId, null);
+        Assert.NotNull(await GetCanonicalAsync(movie.WorkId, "background"));
+
+        await SeedCanonicalsAsync(movie.WorkId, (BridgeIdKeys.TmdbId, "664"));
+        await CreateService(Respond).EnrichWorkImagesAsync(movie.AssetId, null);
+
+        Assert.Empty(await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "Background"));
+        Assert.Null(await GetCanonicalAsync(movie.WorkId, "background"));
+        Assert.Null(await GetCanonicalAsync(movie.WorkId, "background_url_m"));
+    }
+
+    [Fact]
+    public async Task OrdinaryImagesPass_AfterReidentification_KeepsAFileAnotherItemStillUses()
+    {
+        // Artwork rows are content-addressed: the second film's identical poster is served through the first
+        // film's file, so removing the first film's variant must leave that file in place.
+        const string shared = "https://image.tmdb.org/t/p/original/shared.jpg";
+        var sharedBytes = CreatePosterJpeg(222, 333);
+        var first = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Shared First.mkv");
+        var second = await SeedStandaloneAssetAsync(MediaType.Movies, "Movies", "Movies", "Shared Second.mkv");
+        await SeedCanonicalsAsync(first.WorkId, (BridgeIdKeys.TmdbId, "671"));
+        await SeedCanonicalsAsync(second.WorkId, (BridgeIdKeys.TmdbId, "672"));
+        var service = CreateService(request =>
+        {
+            var url = request.RequestUri?.ToString() ?? string.Empty;
+            if (url.Contains("/images?", StringComparison.OrdinalIgnoreCase))
+            {
+                var poster = url.Contains("/movie/673/", StringComparison.Ordinal) ? "/replacement.jpg" : "/shared.jpg";
+                return JsonResponse($$"""
+                    { "posters": [ { "file_path": "{{poster}}", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ], "logos": [], "backdrops": [] }
+                    """);
+            }
+
+            return ImageResponse(url == shared ? sharedBytes : CreatePosterJpeg(240, 360));
+        });
+        await service.EnrichWorkImagesAsync(first.AssetId, null);
+        await service.EnrichWorkImagesAsync(second.AssetId, null);
+        var firstFile = Assert.Single(await _entityAssets.GetByEntityAsync(first.WorkId.ToString(), "CoverArt")).LocalImagePath!;
+
+        await SeedCanonicalsAsync(first.WorkId, (BridgeIdKeys.TmdbId, "673"));
+        await service.EnrichWorkImagesAsync(first.AssetId, null);
+
+        Assert.DoesNotContain(await _entityAssets.GetByEntityAsync(first.WorkId.ToString(), "CoverArt"), asset => asset.ImageUrl == shared);
+        Assert.True(File.Exists(firstFile));
+        Assert.True(File.Exists(Assert.Single(await _entityAssets.GetByEntityAsync(second.WorkId.ToString(), "CoverArt")).LocalImagePath));
+    }
+
+    /// <summary>
+    /// A film whose images list offers two posters (first ranks higher) and, unless told otherwise, one backdrop.
+    /// Every image address serves its own bytes (retail covers small), so no two variants share a
+    /// content-addressed artwork row by accident.
+    /// </summary>
+    private Func<HttpRequestMessage, HttpResponseMessage> TwoPosterFilm(string film, bool withBackdrop = true)
+    {
+        var backdrops = withBackdrop
+            ? $$"""[ { "file_path": "/backdrop-{{film}}.jpg", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ]"""
+            : "[]";
         return request =>
         {
             var url = request.RequestUri?.ToString() ?? string.Empty;
@@ -541,12 +655,15 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
                         { "file_path": "/second-{{film}}.jpg", "vote_average": 5, "vote_count": 1, "iso_639_1": null }
                       ],
                       "logos": [],
-                      "backdrops": [ { "file_path": "/backdrop-{{film}}.jpg", "vote_average": 8, "vote_count": 4, "iso_639_1": null } ]
+                      "backdrops": {{backdrops}}
                     }
                     """);
             }
 
-            return ImageResponse(url.Contains("/w500/", StringComparison.Ordinal) ? small : large);
+            var step = _imageSizes.GetOrAdd(url, _ => _imageSizes.Count + 1);
+            return ImageResponse(url.Contains("/w500/", StringComparison.Ordinal)
+                ? CreatePosterJpeg(50 + step, 75)
+                : CreatePosterJpeg(200 + step, 300));
         };
     }
 

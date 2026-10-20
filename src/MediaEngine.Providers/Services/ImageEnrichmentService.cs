@@ -444,7 +444,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     .Where(path => !string.IsNullOrWhiteSpace(path))
                     .Select(path => BuildImageUrl(path!));
                 await RemoveEarlierIdentityArtworkAsync(owner, mapping.AssetType, offered,
-                    GetValue(canonicals, MetadataFieldConstants.Cover), ct).ConfigureAwait(false);
+                    await ReadCurrentCoverUrlAsync(context, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
             }
         }
 
@@ -718,7 +718,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             foreach (var (owner, type) in scopes.Distinct())
             {
                 await RemoveEarlierIdentityArtworkAsync(owner, type, offered.GetValueOrDefault((owner, type)) ?? [],
-                    GetValue(canonicals, MetadataFieldConstants.Cover), ct).ConfigureAwait(false);
+                    await ReadCurrentCoverUrlAsync(context, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
             }
         }
 
@@ -1011,10 +1011,18 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     }
 
     /// <summary>
+    /// Read fresh rather than from the pass's opening snapshot: a cover pass running alongside may have stored the
+    /// current identity's retail cover since.
+    /// </summary>
+    private async Task<string?> ReadCurrentCoverUrlAsync(ArtworkContext context, CancellationToken ct) =>
+        GetValue(await LoadCanonicalsAsync(context, ct).ConfigureAwait(false), MetadataFieldConstants.Cover);
+
+    /// <summary>
     /// After re-identification, removes the owner's provider artwork of <paramref name="assetType"/> that the
     /// current identity did not offer. Uploads, user picks and local covers (embedded or folder art) stay, as
-    /// does the retail cover for the current identity (<paramref name="currentCoverUrl"/>). If the preferred
-    /// variant goes and nothing new replaced it, the next best survivor takes over.
+    /// does the retail cover for the current identity (<paramref name="currentCoverUrl"/>); unlike an explicit
+    /// retail rematch, which replaces picked provider images too. If the preferred variant goes and nothing new
+    /// replaced it, the next best survivor takes over.
     /// </summary>
     private async Task RemoveEarlierIdentityArtworkAsync(Guid ownerEntityId, AssetType assetType, IEnumerable<string> offeredUrls,
         string? currentCoverUrl, CancellationToken ct)
@@ -1040,8 +1048,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         foreach (var asset in earlier)
         {
-            await _assetRepo.DeleteAsync(asset.Id, ct).ConfigureAwait(false);
-            ArtworkVariantHelper.DeleteManagedFiles(asset, _assetPaths, _logger);
+            await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_assetRepo, asset, _assetPaths, _logger, ct).ConfigureAwait(false);
         }
         _logger.LogInformation("Removed {Count} {AssetType} variant(s) of an earlier identity from {OwnerEntityId}",
             earlier.Count, assetType, ownerEntityId);
@@ -1337,7 +1344,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             AddDiagnostic(values, id, $"{providerName}_artwork_status", status, now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_last_checked_at", result.LastCheckedAt.ToString("O", CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_held_count", heldCount.ToString(CultureInfo.InvariantCulture), now, providerId);
-            AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
+            if (result.Success)
+            {
+                // The id the held artwork was found for: a skipped or failed pass holds nothing for its id.
+                AddDiagnostic(values, id, $"{providerName}_artwork_bridge_id", result.BridgeId, now, providerId);
+            }
             AddDiagnostic(values, id, $"{providerName}_artwork_http_status", result.HttpStatusCode?.ToString(CultureInfo.InvariantCulture), now, providerId);
             AddDiagnostic(values, id, $"{providerName}_artwork_skipped_reason", result.SkippedReason, now, providerId);
         }

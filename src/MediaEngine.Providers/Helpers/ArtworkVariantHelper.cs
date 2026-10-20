@@ -1,4 +1,5 @@
 using MediaEngine.Domain;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
@@ -110,24 +111,19 @@ public static class ArtworkVariantHelper
     }
 
     /// <summary>
-    /// Deletes a removed variant's image and renditions. Only files under the managed asset root are touched.
+    /// Deletes a removed variant and the files of its that nothing else references
+    /// (<see cref="IEntityAssetRepository.DeleteVariantAsync"/>). Only files under the managed asset root are touched.
     /// </summary>
-    public static void DeleteManagedFiles(EntityAsset asset, AssetPathService assetPathService, ILogger logger)
+    public static async Task DeleteVariantAndUnusedFilesAsync(IEntityAssetRepository repository, EntityAsset asset,
+        AssetPathService assetPathService, ILogger logger, CancellationToken ct)
     {
+        var unused = await repository.DeleteVariantAsync(asset.Id, ct).ConfigureAwait(false);
         var managedRoot = Path.GetFullPath(assetPathService.AssetsRoot)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
-        foreach (var path in new[]
-                 {
-                     asset.LocalImagePath,
-                     asset.LocalImagePathSmall,
-                     asset.LocalImagePathMedium,
-                     asset.LocalImagePathLarge,
-                 }
-                     .Where(path => !string.IsNullOrWhiteSpace(path))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var path in unused)
         {
-            var fullPath = Path.GetFullPath(path!);
+            var fullPath = Path.GetFullPath(path);
             if (!fullPath.StartsWith(managedRoot, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogWarning(

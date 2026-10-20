@@ -4369,6 +4369,12 @@ public sealed class WorkerPipelineTests
             return Task.CompletedTask;
         }
 
+        public async Task<IReadOnlyList<string>> DeleteVariantAsync(Guid assetId, CancellationToken ct = default)
+        {
+            await DeleteAsync(assetId, ct);
+            return [];
+        }
+
         public Task SetUserChoiceAsync(Guid assetId, CancellationToken ct = default)
         {
             var target = Assets.FirstOrDefault(asset => asset.Id == assetId);

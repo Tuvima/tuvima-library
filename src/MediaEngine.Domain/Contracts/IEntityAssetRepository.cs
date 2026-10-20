@@ -32,10 +32,17 @@ public interface IEntityAssetRepository
 
     /// <summary>
     /// Makes a variant the user's own choice for its entity + asset type: preferred, and marked as a user
-    /// override so later artwork passes keep it. A provider variant picked earlier for the same slot goes back
-    /// to provider-managed; uploads stay the user's.
+    /// override so later artwork passes keep it. A provider image picked earlier for the same slot goes back
+    /// to provider-managed; uploads and artwork-library choices stay the user's.
     /// </summary>
     Task SetUserChoiceAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a variant, and its artwork-library row when no other entity links that picture any more.
+    /// Returns the variant's files that no remaining row references, for the caller to remove; artwork is
+    /// content-addressed, so another entity can be served by the same file.
+    /// </summary>
+    Task<IReadOnlyList<string>> DeleteVariantAsync(Guid assetId, CancellationToken ct = default);
 
     /// <summary>Delete all assets for an entity (used during entity cleanup).</summary>
     Task DeleteByEntityAsync(string entityId, CancellationToken ct = default);

@@ -187,8 +187,7 @@ public sealed class CoverArtWorker
             .ToList();
         foreach (var stale in variantsToRemove)
         {
-            await _entityAssetRepo.DeleteAsync(stale.Id, ct);
-            ArtworkVariantHelper.DeleteManagedFiles(stale, _assetPaths, _logger);
+            await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_entityAssetRepo, stale, _assetPaths, _logger, ct);
         }
 
         var affectedTypes = variantsToRemove
@@ -737,8 +736,7 @@ public sealed class CoverArtWorker
                 .ToList();
             foreach (var staleAsset in staleAssets)
             {
-                await _entityAssetRepo.DeleteAsync(staleAsset.Id, ct);
-                ArtworkVariantHelper.DeleteManagedFiles(staleAsset, _assetPaths, _logger);
+                await ArtworkVariantHelper.DeleteVariantAndUnusedFilesAsync(_entityAssetRepo, staleAsset, _assetPaths, _logger, ct);
                 removed++;
             }
 

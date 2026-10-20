@@ -516,7 +516,8 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
                 AND    asset_type = @assetType
                 AND    id <> @assetId
                 AND    is_user_override = 1
-                AND    COALESCE(source_provider, '') <> 'user_upload';
+                AND    COALESCE(source_provider, '') <> 'user_upload'
+                AND    (image_url LIKE 'http://%' OR image_url LIKE 'https://%');
                 """, new { entityId = ToEntityIdParameter(target.EntityId), assetType = target.AssetType, assetId }, tx).ToList();
             const string setOverride = """
                 UPDATE entity_assets SET is_user_override = @isUserOverride, updated_at = datetime('now') WHERE id = @id;
@@ -530,6 +531,52 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
             conn.Execute(setOverride, new { id = assetId, isUserOverride = 1 }, tx);
 
             SetPreferred(conn, tx, assetId);
+        }, ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<string>> DeleteVariantAsync(Guid assetId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        return _db.ExecuteWriteAsync<IReadOnlyList<string>>((conn, tx, innerCt) =>
+        {
+            var candidates = conn.Query<string?>("""
+                SELECT local_image_path FROM entity_assets WHERE id = @assetId
+                UNION ALL SELECT local_image_path_s FROM entity_assets WHERE id = @assetId
+                UNION ALL SELECT local_image_path_m FROM entity_assets WHERE id = @assetId
+                UNION ALL SELECT local_image_path_l FROM entity_assets WHERE id = @assetId;
+                """, new { assetId }, tx).ToList();
+            var artworkAssetId = conn.QuerySingleOrDefault<Guid?>(
+                "SELECT artwork_asset_id FROM entity_artwork_links WHERE id = @assetId;", new { assetId }, tx);
+            conn.Execute("""
+                DELETE FROM entity_artwork_links WHERE id = @assetId;
+                DELETE FROM entity_assets WHERE id = @assetId;
+                """, new { assetId }, tx);
+
+            // The picture's library row goes with its last link, as when a title is deleted.
+            if (artworkAssetId is { } artworkId
+                && conn.ExecuteScalar<long>(
+                    "SELECT COUNT(1) FROM entity_artwork_links WHERE artwork_asset_id = @artworkId;", new { artworkId }, tx) == 0)
+            {
+                candidates.AddRange(conn.Query<string?>("""
+                    SELECT original_path FROM artwork_assets WHERE id = @artworkId
+                    UNION ALL SELECT small_path FROM artwork_assets WHERE id = @artworkId
+                    UNION ALL SELECT medium_path FROM artwork_assets WHERE id = @artworkId
+                    UNION ALL SELECT large_path FROM artwork_assets WHERE id = @artworkId;
+                    """, new { artworkId }, tx));
+                conn.Execute("""
+                    DELETE FROM artwork_asset_search WHERE artwork_asset_id = @artworkId;
+                    DELETE FROM artwork_assets WHERE id = @artworkId;
+                    """, new { artworkId }, tx);
+            }
+
+            var stillReferenced = AssetFileReferences.LoadReferencedPaths(conn, tx);
+            return candidates
+                .Where(path => !string.IsNullOrWhiteSpace(path) && !stillReferenced.Contains(Path.GetFullPath(path)))
+                .Select(path => path!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }, ct);
     }
 
