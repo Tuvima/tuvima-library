@@ -183,6 +183,8 @@ The bookmark tables are created by the baseline upgrade step (`Schema/Upgrades/0
 
 ## Client Identity
 
+The Engine keeps one shared player (queue, transport and takeover) per profile in `player_sessions`, and separately keeps each device's own latest heartbeat in `player_device_states`, so a second device playing on the same profile no longer overwrites the first one's live state. `CompanionSessionService` reads those per-device records, within the caller's own profile and catalogue scope only, so a phone can follow one device's position (live within about one heartbeat, 45 seconds at most before a silent device drops out) or hold a position set by hand in `companion_sessions`. The routes are under `/api/v1/companion` ([API reference](../reference/api-endpoints.md#companion)).
+
 Web stores a stable device id in localStorage under `tuvima.playback.v2.device-id`. Future native clients should store the same concept in Keychain on iOS and Keystore on Android. Engine heartbeats and queue sync should use the supplied device id and client string, not a hardcoded Dashboard id.
 
 ## Configuration

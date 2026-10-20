@@ -989,7 +989,7 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_by_name` | TEXT | Profile display name (or application name) at the time |
 | `approved_at` | TEXT | ISO 8601 UTC |
 
-**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0013_approval_records`.
+**Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0014_approval_records`.
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.
@@ -1264,6 +1264,42 @@ Whispersync audio-to-text alignment jobs.
 | `created_at` | TEXT | Timestamp |
 
 ---
+
+## Companion
+
+The shared player (`player_sessions` with its queue) holds one transport and one queue per profile. Live state per device, and the companion choices that read it, are kept apart so devices never overwrite each other.
+
+### player_device_states
+
+One row per device on a profile: what that device is playing, written from its own heartbeats. Rows not refreshed for 24 hours are removed when the profile writes another row. Readers treat a row as live only when it is playing or paused and was updated within 45 seconds.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `device_id` | TEXT | The device id the client reported; part of primary key |
+| `client` | TEXT | Client label, such as `web` |
+| `player_session_id` | BLOB | The player session id the heartbeat carried, when any |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade) |
+| `work_id` | BLOB | FK -> `works.id` (set null on delete) |
+| `playback_state` | TEXT | `playing`, `paused` or `ended` (CHECK-constrained) |
+| `position_seconds` | REAL | Exact position, 0 or more |
+| `duration_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp of the last heartbeat |
+
+### companion_sessions
+
+One row per companion device: either following another device or holding a position set by hand.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `companion_device_id` | TEXT | The device that is following; part of primary key |
+| `mode` | TEXT | `follow` or `manual` (CHECK-constrained) |
+| `followed_device_id` | TEXT | Required for `follow`, null for `manual` |
+| `manual_work_id` | BLOB | FK -> `works.id` (cascade); required for `manual`, null for `follow` |
+| `manual_chapter_index` | INTEGER | Optional, 0 or more |
+| `manual_position_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp |
 
 ## User
 

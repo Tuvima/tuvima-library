@@ -3518,6 +3518,43 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemClaimRecordDt
   IsUserLocked: System.Boolean | nullability=not-null | accessors=get,init
   ClaimedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  ItemsInRequest: System.Int32 | nullability=not-null | accessors=get,init
+  WillBeDeleted: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionFileDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid? | nullability=nullable | accessors=get,init
+  LibraryName: System.String | nullability=not-null | accessors=get,init
+  FolderLabel: System.String | nullability=not-null | accessors=get,init
+  FileName: System.String | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  Outcome: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=nullable | accessors=get,init
+  IsSidecar: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionItemDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionOutcomes
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreview
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionItemDto> | nullability=not-null | accessors=get,init
+  Files: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionFileDto> | nullability=not-null | accessors=get,init
+  CuratedCollections: System.Collections.Generic.List<MediaEngine.Contracts.Items.LibraryItemDeletionCollectionDto> | nullability=not-null | accessors=get,init
+  ProfilesWithProgress: System.Int32 | nullability=not-null | accessors=get,init
+  ProcessingRunning: System.Boolean | nullability=not-null | accessors=get,init
+  BytesFreed: System.Int64 | nullability=not-null | accessors=get,init
+  Fingerprint: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDeletionPreviewRequest
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.LibraryItemDetailDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
@@ -5837,6 +5874,54 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastTextTrackDto
   IsDefault: System.Boolean | nullability=not-null | accessors=get,init
   Path: System.String | nullability=not-null | accessors=get,init
   ContentType: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionDeviceListDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  Devices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CompanionLiveDeviceDto> | nullability=not-null | accessors=get,init
+  ObservedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionFollowRequestDto
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  CompanionDeviceId: System.String | nullability=nullable | accessors=get,init
+  DeviceId: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionLiveDeviceDto
+  DeviceId: System.String | nullability=not-null | accessors=get,init
+  DeviceName: System.String | nullability=nullable | accessors=get,init
+  Client: System.String | nullability=not-null | accessors=get,init
+  PlaybackState: System.String | nullability=not-null | accessors=get,init
+  PositionSeconds: System.Double | nullability=not-null | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  WorkId: System.Guid? | nullability=nullable | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Item: MediaEngine.Contracts.Playback.PlayerQueueItemDto | nullability=nullable | accessors=get,init
+  UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionManualPositionDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
+  Item: MediaEngine.Contracts.Playback.PlayerQueueItemDto | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionManualPositionRequestDto
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  CompanionDeviceId: System.String | nullability=nullable | accessors=get,init
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  ChapterIndex: System.Int32? | nullability=nullable | accessors=get,init
+  PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionModes
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CompanionSessionDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  CompanionDeviceId: System.String | nullability=not-null | accessors=get,init
+  Mode: System.String | nullability=not-null | accessors=get,init
+  FollowedDeviceId: System.String | nullability=nullable | accessors=get,init
+  Followed: MediaEngine.Contracts.Playback.CompanionLiveDeviceDto | nullability=nullable | accessors=get,init
+  IsFollowedDeviceLive: System.Boolean | nullability=not-null | accessors=get,init
+  Manual: MediaEngine.Contracts.Playback.CompanionManualPositionDto | nullability=nullable | accessors=get,init
+  UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ObservedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ContextSidebarLayoutDto
   Open: System.Boolean | nullability=not-null | accessors=get,set
