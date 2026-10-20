@@ -211,7 +211,8 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
                 FacetSignature(item.Relationships),
                 FacetSignature(item.TextTracks),
                 item.UpdatedAt.ToString("O")))),
-            string.Join(',', value.RecentDays.Select(day => $"{day.Date:O}:{day.TotalCount}")));
+            string.Join(',', value.RecentDays.Select(day => $"{day.Date:O}:{day.TotalCount}:{string.Join('/', day.TypeCounts.Select(type => $"{type.MediaType}={type.Count}"))}")),
+            $"{value.PersonalMediaInProgress.Photos}/{value.PersonalMediaInProgress.Videos}");
     }
 
     private static string FacetSignature(IngestionFacetStateDto value) => $"{value.State}/{value.Label}";
@@ -268,7 +269,9 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     {
         while (!ct.IsCancellationRequested)
         {
+            // Photos and personal videos never make the run "running", so their in-progress count polls quickly too.
             var delay = Presentation?.IsRunning == true
+                || Presentation?.PersonalMediaInProgress is { } personal && personal.Photos + personal.Videos > 0
                 ? TimeSpan.FromSeconds(5)
                 : TimeSpan.FromSeconds(40);
             try

@@ -50,7 +50,7 @@ public sealed class PlaybackRateEndpointValidationTests
         var authority = new FixedAuthorityResolver(new RequestAuthority(
             PrincipalKind.Human, true, Guid.NewGuid(), profileId, AccountEnabled: true, GrantEnabled: true));
         var scope = new PlayerCatalogueScope(accessor);
-        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, null!, null!, scope, null!);
+        var player = new PlayerService(null!, null!, null!, null!, null!, null!, null!, null!, null!, scope, null!, null!);
 
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton<IHttpContextAccessor>(accessor);

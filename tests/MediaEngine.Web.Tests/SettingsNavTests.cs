@@ -408,9 +408,9 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void EveryPage_ExceptNeedsReview_HasARowInTheGroupItsDefinitionNames()
+    public void EveryPage_IncludingTheOffMenuOnes_ResolvesToTheGroupItsDefinitionNames()
     {
-        foreach (var item in SettingsNav.AllItems.Where(item => item.Value != SettingsSection.Review))
+        foreach (var item in SettingsNav.AllItems)
         {
             var location = SettingsNav.FindMenuLocation(item.Value);
             Assert.NotNull(location);
@@ -418,7 +418,8 @@ public sealed class SettingsNavTests
             Assert.Equal(item.Label, location.Node.Label);
         }
 
-        Assert.Null(SettingsNav.FindMenuLocation(SettingsSection.Review));
+        // Needs Review is off the menu, so it resolves through its parent: Server, Library and Ingestion, Needs Review.
+        Assert.Equal(["Library and Ingestion", "Needs Review"], SettingsNav.FindMenuLocation(SettingsSection.Review)!.Trail.Select(node => node.Label));
     }
 
     [Fact]

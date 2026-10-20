@@ -488,9 +488,6 @@
   <data name="Schedule_ItemsEnriched" xml:space="preserve">
     <value>items enriched</value>
   </data>
-  <data name="Schedule_ItemsPending" xml:space="preserve">
-    <value>items pending - processed in background batches</value>
-  </data>
   <data name="Schedule_AllItemsEnriched" xml:space="preserve">
     <value>All items enriched</value>
   </data>
@@ -1274,9 +1271,6 @@
   </data>
   <data name="Wikidata_Stage3Schedule" xml:space="preserve">
     <value>Schedule</value>
-  </data>
-  <data name="Wikidata_Stage3BatchSize" xml:space="preserve">
-    <value>Batch Size</value>
   </data>
   <data name="Wikidata_Stage3BatchSizeHelper" xml:space="preserve">
     <value>Maximum works processed per sweep.</value>

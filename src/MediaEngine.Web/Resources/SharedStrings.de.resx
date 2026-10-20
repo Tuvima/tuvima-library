@@ -488,9 +488,6 @@
   <data name="Schedule_ItemsEnriched" xml:space="preserve">
     <value>Einträge angereichert</value>
   </data>
-  <data name="Schedule_ItemsPending" xml:space="preserve">
-    <value>Einträge ausstehend - werden in Hintergrundchargen verarbeitet</value>
-  </data>
   <data name="Schedule_AllItemsEnriched" xml:space="preserve">
     <value>Alle Einträge angereichert</value>
   </data>
@@ -1274,9 +1271,6 @@
   </data>
   <data name="Wikidata_Stage3Schedule" xml:space="preserve">
     <value>Zeitplan</value>
-  </data>
-  <data name="Wikidata_Stage3BatchSize" xml:space="preserve">
-    <value>Stapelgröße</value>
   </data>
   <data name="Wikidata_Stage3BatchSizeHelper" xml:space="preserve">
     <value>Maximale Anzahl von Werken, die pro Durchlauf verarbeitet werden.</value>

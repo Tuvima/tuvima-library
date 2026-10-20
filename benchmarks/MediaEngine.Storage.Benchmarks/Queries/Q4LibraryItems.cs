@@ -10,7 +10,8 @@ namespace MediaEngine.Storage.Benchmarks.Queries;
 /// <summary>
 /// Q4: <c>LibraryItemRepository.GetPageAsync</c> (src/MediaEngine.Storage/LibraryItemRepository.cs:25), a page of 50
 /// without a filter and with a media-type filter. The heaviest read in the product: a long CTE chain, ROW_NUMBER,
-/// about twenty MAX(CASE ...) aggregates per work, correlated subqueries, then a COUNT and a page over the same CTE.
+/// about twenty MAX(CASE ...) aggregates per work, correlated subqueries, then one page that carries the total
+/// (COUNT(*) OVER ()).
 ///
 /// The projection SQL (<c>BuildProjectionSql</c>, about 700 lines) is private to Storage. It is not copied: it is read
 /// from the compiled production assembly by reflection, so the EF variant runs byte-for-byte the SQL the product
@@ -61,13 +62,8 @@ internal static class Q4LibraryItems
         var sql = ProjectionSql.Value;
 
         using var lease = context.Ef.Rent();
-        var database = lease.Context.Database;
 
-        var countSql = sql + $"SELECT COUNT(*) AS Value FROM full_data fd {whereClause}";
 #pragma warning disable EF1002 // the interpolated text is the product's own SQL and fixed predicates, no caller input
-        var counts = database.SqlQueryRaw<int>(countSql, Clone(parameters).ToArray()).ToList();
-        var totalCount = counts.Single();
-
         var dataSql = sql + $"""
             SELECT
                 fd.entity_id, fd.title, fd.year, fd.media_type, fd.cover_url, fd.background_url, fd.banner_url,
@@ -77,7 +73,8 @@ internal static class Q4LibraryItems
                 fd.retail_match_detail, fd.series, fd.series_position, fd.narrator, fd.genre, fd.runtime, fd.rating,
                 fd.album, fd.track_number, fd.season_number, fd.episode_number, fd.show_name, fd.duration,
                 fd.episode_title, fd.network, fd.top_cast, fd.qid_resolution_method, fd.pipeline_step,
-                fd.library_visibility, fd.is_ready_for_library, fd.artwork_state, fd.artwork_source, fd.artwork_settled_at
+                fd.library_visibility, fd.is_ready_for_library, fd.artwork_state, fd.artwork_source, fd.artwork_settled_at,
+                COUNT(*) OVER () AS total_count
             FROM full_data fd
             {whereClause}
             {orderBy}
@@ -90,6 +87,12 @@ internal static class Q4LibraryItems
 #pragma warning restore EF1002
 
         var items = rows.Select(Map).ToList();
+        var totalCount = rows.Count > 0 ? rows[0].TotalCount : 0;
+        if (rows.Count == 0 && query.Offset > 0)
+        {
+            throw new NotSupportedException("The benchmark only reads pages that have rows; a page past the end needs the production count fallback.");
+        }
+
         return Task.FromResult(new LibraryItemsPage(items, totalCount, query.Offset + items.Count < totalCount));
     }
 
@@ -269,5 +272,7 @@ internal static class Q4LibraryItems
         [Column("artwork_source")] public string? ArtworkSource { get; set; }
 
         [Column("artwork_settled_at")] public string? ArtworkSettledAt { get; set; }
+
+        [Column("total_count")] public int TotalCount { get; set; }
     }
 }

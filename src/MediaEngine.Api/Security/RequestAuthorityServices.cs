@@ -506,10 +506,19 @@ public sealed class GrantAdminUnlockService(
     }
 }
 
-public sealed class EffectiveAdministratorRequirement(bool surfaceUnlock, bool allowHouseholdAdministrator = false)
+public sealed class EffectiveAdministratorRequirement(
+    bool surfaceUnlock,
+    bool allowHouseholdAdministrator = false,
+    bool humanOnly = false)
     : IAuthorizationRequirement
 {
     public bool SurfaceUnlock { get; } = surfaceUnlock;
+
+    /// <summary>
+    /// When true only a person signed in directly (<see cref="PrincipalKind.Human"/>) passes: no paired app, native client or
+    /// service application, even one acting for an administrator.
+    /// </summary>
+    public bool HumanOnly { get; } = humanOnly;
 
     /// <summary>When true a household administrator (not a server administrator) passes too.</summary>
     public bool AllowHouseholdAdministrator { get; } = allowHouseholdAdministrator;
@@ -529,6 +538,12 @@ public sealed class EffectiveAdministratorHandler(
         }
 
         var authority = await resolver.ResolveAsync(http, http.RequestAborted).ConfigureAwait(false);
+        if (requirement.HumanOnly
+            && (authority.PrincipalKind != PrincipalKind.Human || AuthorityValidity.ValidateHuman(authority) is not null))
+        {
+            return;
+        }
+
         if ((await decisions.EvaluateAdministratorAsync(
                 authority, requirement.SurfaceUnlock, http.RequestAborted).ConfigureAwait(false)).IsAllowed ||
             requirement.AllowHouseholdAdministrator && !authority.IsEffectiveAdministrator &&
@@ -716,6 +731,23 @@ public static class AuthorityEndpointExtensions
         this RouteGroupBuilder builder,
         bool surfaceUnlock = true) =>
         builder.RequireAuthorization(surfaceUnlock ? AuthPolicies.Administrator : AuthPolicies.AdministratorEligibility);
+
+    /// <summary>
+    /// An effective administrator signed in at the Dashboard, with the surface PIN unlocked where one is set. No paired app, native
+    /// client or service application, even one acting for an administrator. For actions that must never be delegated.
+    /// </summary>
+    public static RouteHandlerBuilder RequireEffectiveAdministratorInPerson(this RouteHandlerBuilder builder) =>
+        builder.RequireAuthorization(InPersonAdministratorPolicy());
+
+    /// <inheritdoc cref="RequireEffectiveAdministratorInPerson(RouteHandlerBuilder)"/>
+    public static RouteGroupBuilder RequireEffectiveAdministratorInPerson(this RouteGroupBuilder builder) =>
+        builder.RequireAuthorization(InPersonAdministratorPolicy());
+
+    private static AuthorizationPolicy InPersonAdministratorPolicy() =>
+        new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new EffectiveAdministratorRequirement(surfaceUnlock: true, humanOnly: true))
+            .Build();
 
     /// <summary>The administrator-unlock routes also serve a household administrator who turned on their PIN.</summary>
     public static RouteHandlerBuilder RequireEffectiveAdministratorOrHouseholdAdministrator(

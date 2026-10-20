@@ -17,17 +17,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
     private static readonly string[] ActiveStatuses =
         ["pending", "queued", "leased", "running", "processing", "active", "retry_waiting", "failed_retryable", "interrupted"];
 
+    /// <summary>
+    /// Enough in-flight rows for the Dashboard's Now panel (at most 10 shown) to rotate from, ordered most recently active first.
+    /// </summary>
+    public const int DefaultCurrentLimit = 12;
+
     private readonly IDatabaseConnection _db;
     private readonly MediaEngine.Providers.Services.BatchProgressService? _progress;
+    private readonly MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? _personalMedia;
 
-    public IngestionPresentationReadService(IDatabaseConnection db, MediaEngine.Providers.Services.BatchProgressService? progress = null)
+    public IngestionPresentationReadService(
+        IDatabaseConnection db,
+        MediaEngine.Providers.Services.BatchProgressService? progress = null,
+        MediaEngine.Api.Services.LocalAssets.PersonalMediaActivityRecorder? personalMedia = null)
     {
         _db = db;
         _progress = progress;
+        _personalMedia = personalMedia;
     }
 
     public async Task<IngestionPresentationSnapshotDto> GetSnapshotAsync(
-        int currentLimit = 8,
+        int currentLimit = DefaultCurrentLimit,
         int recentDayLimit = 3,
         int recentItemsPerDay = 9,
         CancellationToken ct = default)
@@ -57,7 +67,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = reviewCount,
                 Label = $"{reviewCount:N0} {Pluralize("title", reviewCount)} need review",
                 Description = "Missing or uncertain metadata",
-                Route = "/settings/recently-added?review=expanded",
+                Route = "/settings/review",
             });
         }
 
@@ -69,7 +79,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
                 Description = "Library will retry automatically",
-                Route = batchFacts.BatchId is { } batchId ? $"/settings/ingestion?runId={batchId:D}&view=all" : "/settings/ingestion",
+                // Shown on the page it would link to, so it is information, not a link.
+                Route = null,
             });
         }
 
@@ -81,7 +92,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Count = operationFacts.TextTrackWaiting,
                 Label = $"{operationFacts.TextTrackWaiting:N0} lyrics or subtitles in queue",
                 Description = "Fetching from providers",
-                Route = batchFacts.BatchId is { } batchId ? $"/settings/ingestion?runId={batchId:D}&view=all" : "/settings/ingestion",
+                Route = null,
             });
         }
 
@@ -107,8 +118,15 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             CurrentMediaTotal = currentPage.TotalCount ?? current.Count,
             Attention = attention,
             RecentDays = recentDays,
+            PersonalMediaInProgress = ReadPersonalMediaInProgress(),
             GeneratedAt = DateTimeOffset.UtcNow,
         };
+    }
+
+    private IngestionPersonalMediaProgressDto ReadPersonalMediaInProgress()
+    {
+        var (photos, videos) = _personalMedia?.GetInProgress() ?? (0, 0);
+        return new IngestionPersonalMediaProgressDto { Photos = photos, Videos = videos };
     }
 
     public async Task<PagedResponse<IngestionMediaGroupDto>> GetCurrentMediaAsync(
@@ -264,7 +282,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "review",
                 Count = batch.ReviewCount,
                 Label = $"{batch.ReviewCount:N0} {Pluralize("item", batch.ReviewCount)} need review",
-                Route = "/settings/recently-added?review=expanded",
+                Route = "/settings/review",
             });
         }
         if (batch.FailureCount > 0)
@@ -447,8 +465,8 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
-        var keys = (await conn.QueryAsync<RecentDayGroupKeyRow>(new CommandDefinition($"""
-            WITH latest_logs AS (
+        var dayScopeCtes = $"""
+            latest_logs AS (
                 SELECT *
                 FROM (
                     SELECT il.*,
@@ -477,7 +495,9 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 SELECT ll.ingestion_run_id AS BatchId,
                        {PresentationGroupSql} AS GroupId,
                        MIN({AddedAtSql}) AS AddedAt,
-                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at)) AS UpdatedAt
+                       MAX(COALESCE(lfo.updated_at, ll.updated_at, ll.created_at)) AS UpdatedAt,
+                       MAX({NormalizedMediaTypeSql}) AS MediaTypeRaw,
+                       COUNT(DISTINCT w.id) AS LeafCount
                 FROM latest_logs ll
                 JOIN ingestion_batches b ON b.id = ll.ingestion_run_id
                 JOIN media_assets ma ON ma.id = ll.media_asset_id
@@ -497,9 +517,14 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 SELECT BatchId,
                        GroupId,
                        UpdatedAt,
+                       MediaTypeRaw,
+                       LeafCount,
                        DATE(AddedAt, 'localtime') AS LocalDate
                 FROM scoped
-            ),
+            )
+            """;
+        var keys = (await conn.QueryAsync<RecentDayGroupKeyRow>(new CommandDefinition($"""
+            WITH {dayScopeCtes},
             ranked AS (
                 SELECT BatchId,
                        GroupId,
@@ -515,6 +540,27 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             WHERE DayRank <= @dayLimit AND GroupRank <= @itemLimit
             ORDER BY LocalDate DESC, GroupRank;
             """, new { dayLimit, itemLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+
+        // Per-type counts cover every group of the day, not just the capped preview above, so the Added summary is complete.
+        var typeRows = (await conn.QueryAsync<RecentDayTypeCountRow>(new CommandDefinition($"""
+            WITH {dayScopeCtes}
+            SELECT LocalDate, MediaTypeRaw, SUM(LeafCount) AS ItemCount
+            FROM dated
+            WHERE LocalDate IS NOT NULL
+              AND LocalDate IN (SELECT DISTINCT LocalDate FROM dated WHERE LocalDate IS NOT NULL ORDER BY LocalDate DESC LIMIT @dayLimit)
+            GROUP BY LocalDate, MediaTypeRaw;
+            """, new { dayLimit, currentBatchId }, cancellationToken: ct)).ConfigureAwait(false)).AsList();
+        var typeCountsByDay = typeRows
+            .GroupBy(row => row.LocalDate, StringComparer.Ordinal)
+            .ToDictionary(
+                day => day.Key,
+                day => day
+                    .GroupBy(row => NormalizeMediaType(row.MediaTypeRaw), StringComparer.Ordinal)
+                    .Select(type => new IngestionTypeCountDto { MediaType = type.Key, Count = type.Sum(row => row.ItemCount) })
+                    .OrderByDescending(type => type.Count)
+                    .ThenBy(type => type.MediaType, StringComparer.Ordinal)
+                    .ToList(),
+                StringComparer.Ordinal);
 
         if (keys.Count == 0)
         {
@@ -537,6 +583,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             {
                 Date = DateOnly.ParseExact(day.Key, "yyyy-MM-dd", CultureInfo.InvariantCulture),
                 TotalCount = day.First().TotalCount,
+                TypeCounts = typeCountsByDay.GetValueOrDefault(day.Key) ?? [],
                 Items = day
                     .OrderBy(key => key.GroupRank)
                     .Select(key => groupsByKey.GetValueOrDefault((key.BatchId, key.GroupId)))
@@ -2304,6 +2351,13 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public Guid BatchId { get; set; }
         public Guid GroupId { get; set; }
         public int TotalCount { get; set; }
+    }
+
+    private sealed class RecentDayTypeCountRow
+    {
+        public string LocalDate { get; set; } = "";
+        public string? MediaTypeRaw { get; set; }
+        public int ItemCount { get; set; }
     }
 
     private sealed class RecentDayGroupKeyRow

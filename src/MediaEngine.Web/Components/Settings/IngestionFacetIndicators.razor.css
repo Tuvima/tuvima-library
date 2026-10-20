@@ -28,6 +28,10 @@
     background: var(--app-surface-elevated, var(--app-surface));
     border-radius: 50%;
 }
+/* Not started yet, or no result: the symbol stays in its slot, dimmed. A symbol that does not apply to the type is a dash instead. */
+.ingestion-facet.is-notapplicable,
+.ingestion-facet.is-none { color: var(--tl-text-muted); opacity: .7; }
+.ingestion-facet.is-none { font-size: 1.1rem; line-height: 1; }
 .ingestion-facet.is-complete { color: var(--tl-palette-success); }
 .ingestion-facet.is-active { color: var(--tl-palette-info); }
 .ingestion-facet.is-attention { color: var(--tl-palette-warning); }
