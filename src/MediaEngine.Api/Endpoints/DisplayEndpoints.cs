@@ -12,6 +12,7 @@ using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -466,7 +467,7 @@ public static class DisplayEndpoints
             int? limit,
             ClaimsPrincipal user,
             DisplayComposerService display,
-            IProfileGridPreferenceRepository preferences,
+            [FromServices] IProfileGridPreferenceRepository preferences,
             CancellationToken ct) =>
         {
             var profileId = ProfileId(user);

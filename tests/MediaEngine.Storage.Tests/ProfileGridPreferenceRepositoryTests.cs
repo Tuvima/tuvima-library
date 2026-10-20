@@ -1,6 +1,6 @@
 using Dapper;
-using Microsoft.Data.Sqlite;
 using MediaEngine.Storage;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
 

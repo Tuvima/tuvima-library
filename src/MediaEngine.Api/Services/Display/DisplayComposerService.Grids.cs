@@ -174,45 +174,45 @@ public sealed partial class DisplayComposerService
                         .Select(work => new GridCard(_cards.FromWork(work, "home", progressByWork.GetValueOrDefault(work.WorkId)), false))];
                 break;
             case DisplayGridSource.HomeContinue:
-            {
-                var journey = (await _readService.LoadJourneyAsync(profileId, null, ct)).ToList();
-                cards = [.. CollapseJourneyByIdentity(journey)
+                {
+                    var journey = (await _readService.LoadJourneyAsync(profileId, null, ct)).ToList();
+                    cards = [.. CollapseJourneyByIdentity(journey)
                     .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) != "Music")
                     .Where(item => item.ProgressPct is > 0 and < 99.5)
                     .Select(item => new GridCard(_cards.FromJourney(item, "home"), true)),
                     .. BuildMusicJourneyAlbumCards(works, journey).Select(card => new GridCard(card, true))];
-                break;
-            }
+                    break;
+                }
             case DisplayGridSource.ReadContinue:
             case DisplayGridSource.WatchContinue:
-            {
-                var lane = definition.Lane;
-                var journey = await _readService.LoadJourneyAsync(profileId, lane, ct);
-                cards = [.. CollapseJourneyByIdentity(journey).Select(item => new GridCard(_cards.FromJourney(item, lane), true))];
-                break;
-            }
+                {
+                    var lane = definition.Lane;
+                    var journey = await _readService.LoadJourneyAsync(profileId, lane, ct);
+                    cards = [.. CollapseJourneyByIdentity(journey).Select(item => new GridCard(_cards.FromJourney(item, lane), true))];
+                    break;
+                }
             case DisplayGridSource.ReadRecentlyAdded:
             case DisplayGridSource.ReadAuthor:
-            {
-                var readWorks = CollapseReadVariantsByQid(works.Where(work => DisplayMediaRules.IsReadKind(work.MediaType))).ToList();
-                if (definition.Source == DisplayGridSource.ReadAuthor)
                 {
-                    readWorks = readWorks
-                        .Where(work => !string.IsNullOrWhiteSpace(work.Author)
-                                       && DisplayMediaRules.StableKey(work.Author) == definition.Preset)
-                        .ToList();
-                    if (readWorks.Count == 0)
+                    var readWorks = CollapseReadVariantsByQid(works.Where(work => DisplayMediaRules.IsReadKind(work.MediaType))).ToList();
+                    if (definition.Source == DisplayGridSource.ReadAuthor)
                     {
-                        return null;
+                        readWorks = readWorks
+                            .Where(work => !string.IsNullOrWhiteSpace(work.Author)
+                                           && DisplayMediaRules.StableKey(work.Author) == definition.Preset)
+                            .ToList();
+                        if (readWorks.Count == 0)
+                        {
+                            return null;
+                        }
+
+                        title = readWorks[0].Author!;
+                        subtitle = $"{readWorks.Count} titles";
                     }
 
-                    title = readWorks[0].Author!;
-                    subtitle = $"{readWorks.Count} titles";
+                    cards = [.. readWorks.Select(work => new GridCard(_cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId)), false))];
+                    break;
                 }
-
-                cards = [.. readWorks.Select(work => new GridCard(_cards.FromWork(work, "read", progressByWork.GetValueOrDefault(work.WorkId)), false))];
-                break;
-            }
             case DisplayGridSource.WatchTvShows:
                 cards = [.. _cards.BuildTvShowCards(works.Where(work => DisplayMediaRules.IsWatchKind(work.MediaType)).ToList(), progressByWork)
                     .Select(card => new GridCard(card, false))];
@@ -223,21 +223,21 @@ public sealed partial class DisplayComposerService
                     .Select(work => new GridCard(_cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)), false))];
                 break;
             case DisplayGridSource.WatchGenre:
-            {
-                var watchWorks = works.Where(work => DisplayMediaRules.IsWatchKind(work.MediaType)).ToList();
-                var matching = watchWorks
-                    .Where(work => DisplayMediaRules.SplitValues(work.Genre).Any(genre => DisplayMediaRules.StableKey(genre) == definition.Preset))
-                    .ToList();
-                if (matching.Count == 0)
                 {
-                    return null;
-                }
+                    var watchWorks = works.Where(work => DisplayMediaRules.IsWatchKind(work.MediaType)).ToList();
+                    var matching = watchWorks
+                        .Where(work => DisplayMediaRules.SplitValues(work.Genre).Any(genre => DisplayMediaRules.StableKey(genre) == definition.Preset))
+                        .ToList();
+                    if (matching.Count == 0)
+                    {
+                        return null;
+                    }
 
-                title = matching
-                    .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre))
-                    .First(genre => DisplayMediaRules.StableKey(genre) == definition.Preset);
-                var shows = _cards.BuildTvShowCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
-                cards = [.. matching
+                    title = matching
+                        .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre))
+                        .First(genre => DisplayMediaRules.StableKey(genre) == definition.Preset);
+                    var shows = _cards.BuildTvShowCards(watchWorks, progressByWork).ToDictionary(card => card.Id);
+                    cards = [.. matching
                     .Select(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV"
                         ? shows.GetValueOrDefault(TvGroupId(work))
                         : _cards.FromWork(work, "watch", progressByWork.GetValueOrDefault(work.WorkId)))
@@ -245,26 +245,26 @@ public sealed partial class DisplayComposerService
                     .Cast<DisplayCardDto>()
                     .DistinctBy(card => card.Id)
                     .Select(card => new GridCard(card, false))];
-                subtitle = $"{cards.Count} titles";
-                break;
-            }
+                    subtitle = $"{cards.Count} titles";
+                    break;
+                }
             case DisplayGridSource.ListenContinue:
-            {
-                var journey = await _readService.LoadJourneyAsync(profileId, "listen", ct);
-                cards = [.. CollapseJourneyByIdentity(journey)
+                {
+                    var journey = await _readService.LoadJourneyAsync(profileId, "listen", ct);
+                    cards = [.. CollapseJourneyByIdentity(journey)
                     .Where(item => DisplayMediaRules.NormalizeDisplayKind(item.MediaType) == "Audiobook")
                     .Where(item => item.ProgressPct is > 0 and < 99.5)
                     .GroupBy(item => item.WorkId)
                     .Select(group => group.OrderByDescending(item => item.LastAccessed).First())
                     .Select(item => new GridCard(_cards.FromJourney(item, "listen"), true))];
-                break;
-            }
+                    break;
+                }
             case DisplayGridSource.ListenRecentlyPlayed:
-            {
-                var journey = (await _readService.LoadJourneyAsync(profileId, "listen", ct)).ToList();
-                cards = [.. BuildMusicJourneyAlbumCards(MusicWorks(works), journey).Select(card => new GridCard(card, true))];
-                break;
-            }
+                {
+                    var journey = (await _readService.LoadJourneyAsync(profileId, "listen", ct)).ToList();
+                    cards = [.. BuildMusicJourneyAlbumCards(MusicWorks(works), journey).Select(card => new GridCard(card, true))];
+                    break;
+                }
             case DisplayGridSource.ListenAlbums:
                 // Every album with its own card. The shelf's "N new tracks added" fact is left out: over the whole
                 // library it would claim every track is new.

@@ -484,8 +484,17 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
                     (@placeA, @othersCollection, 'home', 0), (@placeB, @sharedCollection, 'home', 1);
                 """, new
             {
-                othersPlaylist, minePlaylist, othersCollection, sharedCollection, other, profile = ProfileForLookups,
-                member = member.WorkId, itemA = Guid.NewGuid(), itemB = Guid.NewGuid(), placeA = Guid.NewGuid(), placeB = Guid.NewGuid(),
+                othersPlaylist,
+                minePlaylist,
+                othersCollection,
+                sharedCollection,
+                other,
+                profile = ProfileForLookups,
+                member = member.WorkId,
+                itemA = Guid.NewGuid(),
+                itemB = Guid.NewGuid(),
+                placeA = Guid.NewGuid(),
+                placeB = Guid.NewGuid(),
             });
         }
 
