@@ -17,6 +17,8 @@ Home shows a featured item and shelves such as Continue Across Media and Recentl
 
 Recently Added offers All, Watch, Read, Listen, or View items you can access. It shows when media joined your library. A title may also appear on another Home shelf.
 
+Each shelf shows up to 20 titles. Choose **View all** (the last tile in the row, or the link beside the shelf title) to see the whole list as a grid. Sort it by Recently added, Title A-Z, Year or Recently played, and narrow it with the filters that apply, such as media type, genre, format or progress. More titles load as you scroll. Your sort is remembered for each lane on every device. On a phone, sort and filters are under **Filters**.
+
 ## Return to For Me
 
 [For Me](for-me.md) gathers your Continue, My List, Favorites, Collections, Playlists, and Galleries. Empty shelves are left out. The items belong to your active profile.
