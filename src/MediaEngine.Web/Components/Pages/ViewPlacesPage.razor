@@ -8,27 +8,27 @@
 @inject ViewAssetDragService AssetDrag
 @namespace MediaEngine.Web.Components.Pages
 
-<PageTitle>Places - Tuvima Library</PageTitle>
+<PageTitle>Places - Library</PageTitle>
 <ViewSectionShell>
 <ViewContentPage Title="Places" Class="view-atlas-page" ShowHeader="false" FillAvailableHeight="true">
 <ChildContent>
 @if (_initializing || (_loading && _atlas is null))
 {
-    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening Tuvima Atlas" Message="Plotting your authorized memories around the world." />
+    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening Places" Message="Plotting your authorized memories around the world." />
 }
 else if (_atlas is null)
 {
-    <AppErrorState Title="Atlas could not be loaded" Message="The Engine did not return geographic discovery data." Retry="LoadAtlasAsync" />
+    <AppErrorState Title="Places could not be loaded" Message="The Engine did not return geographic discovery data." Retry="LoadAtlasAsync" />
 }
 else
 {
-    <section class="view-atlas" aria-label="Tuvima Atlas">
+    <section class="view-atlas" aria-label="Places map">
         <div class="view-atlas__map-shell">
             <ViewMap @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="World map of authorized photo and video locations"
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
             <div class="view-atlas__toolbar" aria-label="Atlas filters">
                 <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="Search places, cities, or regions…" AriaLabel="Search places, cities, or regions" /></label>
-                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="Filter Atlas by time"><option value="">All time</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
+                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="Filter places by time"><option value="">All time</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
                 <div class="view-atlas__types" role="group" aria-label="Media type"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">All</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">Photos</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">Videos</AppNativeButton></div>
                 <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />Filters</AppNativeButton>
             </div>

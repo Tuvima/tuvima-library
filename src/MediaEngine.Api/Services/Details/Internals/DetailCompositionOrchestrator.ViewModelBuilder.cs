@@ -315,11 +315,11 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static DescriptionAttributionViewModel BuildLocalDescriptionAttribution() => new()
     {
-        SourceName = "Tuvima Library",
+        SourceName = "Library",
         SourceTitle = "local customization",
         LicenseName = "Local library value",
         IsModifiedOrSummarized = true,
-        Notice = "This description was customized for this Tuvima Library.",
+        Notice = "This description was customized in this library.",
     };
 
     private static string? ReleaseYear(string? value)
@@ -687,7 +687,7 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             Key = "my-list",
             Label = isSelected ? "In My List" : "Add to My List",
-            Icon = isSelected ? "check" : "add",
+            Icon = "favorite",
             Tooltip = isSelected ? "Remove from My List" : "Add to My List",
             DisplayStyle = "icon-circle",
             IsSelected = isSelected,

@@ -61,8 +61,8 @@ public sealed class SetupPreflightService(
             checks.All(check => check.Status == "passed"),
             inContainer,
             inContainer
-                ? "These are paths inside the Tuvima container. Tuvima can use only host folders already mounted into the container."
-                : "These paths are resolved on the computer running Tuvima Library.",
+                ? "These are paths inside the Library container. Library can use only host folders already mounted into the container."
+                : "These paths are resolved on the computer running Library.",
             RuntimeInformation.RuntimeIdentifier,
             RuntimeInformation.OSArchitecture.ToString(),
             RuntimeInformation.ProcessArchitecture.ToString(),
@@ -116,7 +116,7 @@ public sealed class SetupPreflightService(
 
     // One plain message that names the folder and the fix; setup never offers a storage-location editor.
     private static string UnusableFolderMessage(string path) =>
-        $"Tuvima could not use the folder {path}. Make sure the account running Tuvima can create and write to it, "
+        $"Library could not use the folder {path}. Make sure the account running Library can create and write to it, "
         + "or set TUVIMA_DATA_DIR to a folder it can use, then try again.";
 
     private SetupPathCheckDto ProbeFile(string key, string label, string rawPath, string source)

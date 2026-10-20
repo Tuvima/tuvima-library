@@ -28,7 +28,7 @@ class TuvimaTvApplication : Application() {
         return TuvimaClient(
             serverAddress = serverAddress,
             clientId = "tuvima-tv",
-            clientName = "Tuvima for Android TV",
+            clientName = "Library for Android TV",
             clientVersion = BuildConfig.VERSION_NAME,
             deviceName = Build.MODEL,
             deviceClass = "television",

@@ -73,7 +73,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     {
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
-        Assert.DoesNotContain("Restart Tuvima Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Restart Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
 
-        Assert.Contains("Restart Tuvima Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Restart Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

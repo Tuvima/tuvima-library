@@ -68,7 +68,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
-            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
+            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Library">
                 @if (IsPhoneShell)
                 {
                     @* Phone: the icon only, no wordmark. *@
@@ -137,7 +137,7 @@
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>

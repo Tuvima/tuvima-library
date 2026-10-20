@@ -172,7 +172,7 @@ public sealed class NetworkStatusService
         : "Local access needs attention";
 
     private static string BuildGuidance(string local, string remote, bool remoteEnabled) =>
-        local != "healthy" ? "Tuvima could not find a usable address on your local network."
+        local != "healthy" ? "Library could not find a usable address on your local network."
         : remoteEnabled && remote == "needs-attention" ? "The latest remote connection test failed. Review the failed check for the next action."
         : remoteEnabled ? "Run Test Connection to check the configured remote path."
         : "Run a local connection test after the Dashboard finishes starting.";

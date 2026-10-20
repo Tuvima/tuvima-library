@@ -3,7 +3,7 @@
   "storage_locations": [
     {
       "id": "media",
-      "label": "Tuvima data",
+      "label": "Library data",
       "path": "{TuvimaData}/library",
       "allow_write": true
     }

@@ -487,7 +487,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
 
         var errors = JsonConfigValidator.Validate(config, "libraries.json");
 
-        Assert.Contains(errors, error => error.Contains("requires a folder Tuvima manages"));
+        Assert.Contains(errors, error => error.Contains("requires a folder Library manages"));
     }
 
     [Fact]

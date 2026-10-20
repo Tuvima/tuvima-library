@@ -65,7 +65,7 @@
             else
             {
                 <p>
-                    Tuvima will bring every media file in <strong>@Path</strong> into the folder you choose, once, with the same naming,
+                    Library will bring every media file in <strong>@Path</strong> into the folder you choose, once, with the same naming,
                     duplicate and tag rules as the rest of your library. To keep feeding a folder over time, use the Import folder instead.
                 </p>
 
@@ -122,7 +122,7 @@
                     </div>
                     @if (!CanMove)
                     {
-                        <p class="merge-folder__note">Move is not offered because Tuvima uses this folder as-is and never changes it.</p>
+                        <p class="merge-folder__note">Move is not offered because Library uses this folder as-is and never changes it.</p>
                     }
                 </fieldset>
 
@@ -154,14 +154,14 @@
                         Exact duplicates follow your &ldquo;same file twice&rdquo; setting, which is
                         <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "." : ", so both copies are kept under different names.")
                     </li>
-                    <li>Files Tuvima cannot name yet (including any it has not finished scanning) go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
+                    <li>Files Library cannot name yet (including any it has not finished scanning) go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
                     <li>
                         Afterwards this folder shows &ldquo;Merged into&rdquo; the target and is no longer scanned, so nothing appears twice.
-                        Tuvima never removes the folder itself; you do that when you are ready.
+                        Library never removes the folder itself; you do that when you are ready.
                     </li>
                     <li>
                         <strong>This cannot be undone automatically.</strong> You can pause or stop at any time: what was copied stays,
-                        and the log lists what remains. Tuvima keeps a full log you can download.
+                        and the log lists what remains. Library keeps a full log you can download.
                     </li>
                 </ul>
             }
@@ -261,7 +261,7 @@
         if (response is null)
         {
             _quick = null;
-            _error = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            _error = ApiClient.LastError ?? "Library could not count the files in this folder.";
             return;
         }
 
@@ -283,7 +283,7 @@
             });
             if (_preview is null)
             {
-                _error = ApiClient.LastError ?? "Tuvima could not preview this merge.";
+                _error = ApiClient.LastError ?? "Library could not preview this merge.";
                 return;
             }
 
@@ -306,7 +306,7 @@
             });
             if (full is null)
             {
-                _error = ApiClient.LastError ?? "Tuvima could not preview this merge.";
+                _error = ApiClient.LastError ?? "Library could not preview this merge.";
                 _showingPreview = false;
                 return;
             }

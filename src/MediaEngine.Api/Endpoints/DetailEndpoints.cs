@@ -86,7 +86,7 @@ public static class DetailEndpoints
                 : Results.Ok(detail);
         })
         .WithName("GetDetailPage")
-        .WithSummary("Returns the unified Tuvima detail-page model for media and related entities.")
+        .WithSummary("Returns the unified detail-page model for media and related entities.")
         .Produces<DetailPageViewModel>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)

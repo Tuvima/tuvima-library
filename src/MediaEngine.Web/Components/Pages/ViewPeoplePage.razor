@@ -6,7 +6,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @namespace MediaEngine.Web.Components.Pages
-<PageTitle>People - Tuvima Library</PageTitle>
+<PageTitle>People - Library</PageTitle>
 <ViewSectionShell><ViewContentPage Title="People" Subtitle="Browse named and reviewed people evidence stored with your personal media.">
 <label class="view-search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="Search people" AriaLabel="Search people" /></label>
 @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading People" Message="Looking at indexed local metadata." /> }

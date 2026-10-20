@@ -13,7 +13,7 @@
     "Comics": "Comics/{Series}/{Series} - {IssueNumber} ({Year}){Ext}",
     "Music": "Music/{AlbumArtist}/{Album} ({Year})/{TrackNumber} - {Title}{Ext}"
   },
-  "server_name": "Tuvima Library",
+  "server_name": "Library",
   "language": {
     "display": "en",
     "metadata": "en",
@@ -58,7 +58,7 @@
       "smtp_port": 587,
       "use_start_tls": true,
       "from_address": "",
-      "from_name": "Tuvima Library",
+      "from_name": "Library",
       "username": ""
     }
   },

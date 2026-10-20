@@ -284,7 +284,7 @@ public static class AuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
@@ -375,7 +375,7 @@ public static class AuthenticationEndpoints
             {
                 var issued = await identity.ChangeTemporaryPasswordAsync(
                     RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, request.NewPassword,
-                    request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct,
+                    request.DeviceId, request.DeviceName, "Library Dashboard", ct,
                     ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(issued, projector, ct));
             }
@@ -562,7 +562,7 @@ public static class AuthenticationEndpoints
             }
 
             await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey).ConfigureAwait(false);
-            return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
+            return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Library Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
         }).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/passkeys/registration/options", async (BeginPasskeyRegistrationRequest request,
@@ -582,7 +582,7 @@ public static class AuthenticationEndpoints
             }
 
             var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
-            var entity = new PasskeyUserEntity { Id = account.Id.ToString("D"), Name = account.Email ?? account.Id.ToString("D"), DisplayName = account.Email ?? "Tuvima account" };
+            var entity = new PasskeyUserEntity { Id = account.Id.ToString("D"), Name = account.Email ?? account.Id.ToString("D"), DisplayName = account.Email ?? "Library account" };
             var result = await passkeys.MakeCreationOptionsAsync(entity, context).ConfigureAwait(false);
             return Results.Ok(new PasskeyOptionsResponse(result.CreationOptionsJson, result.AttestationState ?? string.Empty));
         }).Produces<PasskeyOptionsResponse>().RequireAuthorization(AuthPolicies.HumanSelfService);
@@ -804,7 +804,7 @@ public static class AuthenticationEndpoints
         {
             if (!ComesFromThisComputer(httpRequest))
             {
-                return ApiErrors.Forbidden("Secure your account on the computer that runs Tuvima.");
+                return ApiErrors.Forbidden("Secure your account on the computer that runs Library.");
             }
 
             var accountId = RequiredGuidClaim(user, TuvimaClaimTypes.AccountId);

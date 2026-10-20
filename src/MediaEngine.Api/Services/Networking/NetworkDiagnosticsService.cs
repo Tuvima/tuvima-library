@@ -43,7 +43,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             Key = "local-server",
             Label = "Local server",
             Status = "failed",
-            Detail = "Tuvima could not find an active local network address.",
+            Detail = "Library could not find an active local network address.",
         };
 
         foreach (var candidate in addresses)
@@ -51,7 +51,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             if (await CanConnectAsync(candidate.Address, settings.Local.Port, ct))
             {
                 check.Status = "passed";
-                check.Detail = $"Tuvima responded at {FormatAddress(candidate.Address, settings.Local.Port)}.";
+                check.Detail = $"Library responded at {FormatAddress(candidate.Address, settings.Local.Port)}.";
                 break;
             }
         }
@@ -63,7 +63,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             Status = passed ? "passed" : "failed",
             Headline = passed ? "Local access is working" : "Local access needs attention",
             Detail = passed
-                ? "Devices on this network can reach Tuvima."
+                ? "Devices on this network can reach Library."
                 : "The configured address did not respond. The Dashboard may still be starting or the selected port may be blocked.",
             TestedAt = DateTimeOffset.UtcNow,
             Checks = [check],
@@ -96,7 +96,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
                 Status = "skipped",
                 Detail = "Remote access is turned off.",
             });
-            var disabled = BuildRemoteResult("disabled", "Remote access is disabled", "Tuvima remains available on your local network.", checks);
+            var disabled = BuildRemoteResult("disabled", "Remote access is disabled", "Library remains available on your local network.", checks);
             _runtime.RecordRemoteTest(disabled);
             return disabled;
         }
@@ -152,7 +152,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
                 Key = "external-port",
                 Label = "External reachability",
                 Status = "unknown",
-                Detail = "A trusted external connection checker is not configured, so Tuvima cannot verify this path from inside your home network.",
+                Detail = "A trusted external connection checker is not configured, so Library cannot verify this path from inside your home network.",
             });
         }
 
@@ -164,7 +164,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             failed
                 ? "One or more connection checks failed. Review the failed step below."
                 : passed
-                    ? "Tuvima is reachable through the configured secure endpoint."
+                    ? "Library is reachable through the configured secure endpoint."
                     : "Local checks passed, but an external service is required to prove internet reachability.",
             checks);
         _runtime.RecordRemoteTest(result);
@@ -190,7 +190,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
             {
                 Port = port,
                 Available = true,
-                Message = "This is Tuvima's current configured port.",
+                Message = "This is Library's current configured port.",
             });
         }
 
@@ -272,7 +272,7 @@ public sealed class NetworkDiagnosticsService : INetworkDiagnosticsService
                 Key = "custom-endpoint",
                 Label = "Custom HTTPS endpoint",
                 Status = "failed",
-                Detail = "Tuvima could not reach the configured HTTPS address.",
+                Detail = "Library could not reach the configured HTTPS address.",
             };
         }
     }

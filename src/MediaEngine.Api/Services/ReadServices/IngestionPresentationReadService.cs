@@ -81,7 +81,7 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 Kind = "provider",
                 Count = operationFacts.RetryWaiting,
                 Label = $"{operationFacts.RetryWaiting:N0} {Pluralize("item", operationFacts.RetryWaiting)} waiting on provider data",
-                Description = "Tuvima will retry automatically",
+                Description = "Library will retry automatically",
                 // Shown on the page it would link to, so it is information, not a link.
                 Route = null,
             });
