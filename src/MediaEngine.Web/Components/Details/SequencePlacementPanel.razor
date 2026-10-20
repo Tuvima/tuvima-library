@@ -145,6 +145,9 @@
     </div>
     }
 
+    @* Editing Mode: the ticked rows' bar and the "Edit together" section sit directly above the rows. *@
+    <DetailBatchPanel />
+
     @if (_seasonBrowserOpen && IsSeasonContainer)
     {
     <div class="tl-series-detail__carousel tl-season-browser">
@@ -214,7 +217,9 @@
             {
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
-                var route = SequenceItemRoute(item);
+                // While Editing Mode is on a tickable card is not a link: the tick box is the card's one control.
+                var tickable = IsTickable(item);
+                var route = tickable ? null : SequenceItemRoute(item);
                 if (route is not null)
                 {
                     <a class="@SequenceItemClass(item)"
@@ -234,6 +239,10 @@
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
                              aria-label="@SequenceItemAccessibilityLabel(item)">
+                        @if (tickable)
+                        {
+                            <DetailRowSelectBox ItemId="@TickId(item)" Title="@SequenceItemTitle(item)" Kind="@item.EntityType" Floating="true" />
+                        }
                         <SequenceEntryContent Item="item" IsSeasonContainer="IsSeasonContainer"
                                               ShowConnector="@(previousItem is not null && AreAdjacentInEngineOrder(previousItem, item))"
                                               PositionLabel="@SequenceNodeLabel(item)" Title="@SequenceItemTitle(item)"
@@ -1055,6 +1064,7 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
+        HookBatchState();
         var profile = await Orchestrator.GetActiveProfileAsync();
         _activeProfileId = profile?.Id;
         _canCurateSequence = Session.HasNavigation("settings.administration");
@@ -1436,6 +1446,16 @@ else
     }
     public async ValueTask DisposeAsync()
     {
+        if (_hookedMode is not null)
+        {
+            _hookedMode.Changed -= OnBatchStateChanged;
+        }
+
+        if (_hookedSelection is not null)
+        {
+            _hookedSelection.Changed -= OnBatchStateChanged;
+        }
+
         CancelWindowLoad();
         if (_episodeReference is null) return;
         try { await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip); }
@@ -1527,7 +1547,62 @@ else
         => StringHelpers.FirstNonBlank(item.Title, $"{ItemNoun} {SequenceNumber(item)}")!;
 
     private string SequenceItemClass(SequenceItemViewModel item)
-        => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}";
+        => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(!IsTickable(item) && SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}{(IsTicked(item) ? " is-selected" : string.Empty)}";
+
+    // Details overlay spec D8: while Editing Mode is on, an owned single title in the detail page's own list can be ticked.
+    private bool IsTickable(SequenceItemViewModel item)
+        => DetailSurface
+           && EditingMode is { IsOn: true, CanEdit: true }
+           && BatchSelection is not null
+           && item.IsOwned
+           && TickId(item) != Guid.Empty
+           && DetailBatchRules.IsSelectableKind(item.EntityType);
+
+    private bool IsTicked(SequenceItemViewModel item)
+        => IsTickable(item) && BatchSelection!.Contains(TickId(item));
+
+    private static Guid TickId(SequenceItemViewModel item)
+        => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
+
+    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
+
+    [CascadingParameter] public DetailBatchSelection? BatchSelection { get; set; }
+
+    private EditingModeContext? _hookedMode;
+    private DetailBatchSelection? _hookedSelection;
+
+    private void HookBatchState()
+    {
+        if (!ReferenceEquals(_hookedMode, EditingMode))
+        {
+            if (_hookedMode is not null)
+            {
+                _hookedMode.Changed -= OnBatchStateChanged;
+            }
+
+            _hookedMode = EditingMode;
+            if (_hookedMode is not null)
+            {
+                _hookedMode.Changed += OnBatchStateChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_hookedSelection, BatchSelection))
+        {
+            if (_hookedSelection is not null)
+            {
+                _hookedSelection.Changed -= OnBatchStateChanged;
+            }
+
+            _hookedSelection = BatchSelection;
+            if (_hookedSelection is not null)
+            {
+                _hookedSelection.Changed += OnBatchStateChanged;
+            }
+        }
+    }
+
+    private void OnBatchStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private string? SequenceItemRoute(SequenceItemViewModel item)
     {

@@ -51,15 +51,20 @@ public sealed class LibraryEndpointRouteTests
     }
 
     [Fact]
-    public void LibraryEndpoints_BatchEditRoutesFieldsByLineageScope()
+    public void LibraryEndpoints_BatchEditDelegatesToTheServiceAndChecksEachItem()
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/LibraryCurationReadService.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/BatchEdit/LibraryBatchEditService.cs"));
+        var readSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/LibraryCurationReadService.cs"));
 
-        Assert.Contains("curationReadService.ResolveBatchEditTargetsAsync(", source, StringComparison.Ordinal);
-        Assert.Contains("ClaimScopeCatalog.IsParentScoped(key, mediaType)", serviceSource, StringComparison.Ordinal);
-        Assert.Contains("claimsByTargetAndKey", source, StringComparison.Ordinal);
-        Assert.Contains("album fields are written once", source, StringComparison.Ordinal);
+        Assert.Contains("batchEdit.ApplyAsync(request.EntityIds, changes, refusals, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("batchEdit.PreviewAsync(request.EntityIds, fieldKeys, refusals, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("access.FindRefusalsAsync(http, request.EntityIds, ct)", source, StringComparison.Ordinal);
+        Assert.Contains("BatchEditFieldCatalog.TryValidateChange(", source, StringComparison.Ordinal);
+        Assert.Contains("curationReadService.LoadBatchEditItemsAsync(", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("DetailDisplayOverrideCatalog.ApplyChanges(current, updates)", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("MaxParametersPerQuery", readSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("claimRepo", source, StringComparison.Ordinal);
     }
 
     [Fact]

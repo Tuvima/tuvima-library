@@ -95,6 +95,8 @@ A single title, independent of version or format.
 | `ready_at` | TEXT | UTC ISO-8601 time the Work first became Ready. Set by the Engine's readiness service the first time a leaf Work (`standalone` or `child`) is matched to a real title, not in Needs Review, placed in its show or album, and has its artwork present or settled; cleared when it hits a negative outcome (Needs Review, no match, failure, rejection, lost file or placement). NULL means not Ready. It is the only gate for Home, the hero, lanes, Watch, Read, Listen, collections and the Library list. |
 | `first_ready_at` | TEXT | UTC ISO-8601 time the Work was Ready for the first time. Set together with the first `ready_at` and never cleared; the Engine announces a Work as added only when this was empty. |
 
+| `placement_unmatched` | INTEGER | 1 when the title was moved into a place with a known list (an album's tracks, a season's episodes, a series' positions) with **Add anyway** and so has no track, episode or position number and no details borrowed from any entry; 0 otherwise (the default, and every existing row). The detail page shows it as "Not matched". A later Match to a real entry clears it, and only a Match does: while the mark is set, no scan, re-read of the file, provider or re-identify gives the title or its files a track, disc, episode, season, series-position or part number (`CanonicalValueRepository` skips those values for it, the hierarchy resolver never finds it by title or slot or renumbers it, and the old membership correction refuses it), and the detail page shows it with no number in an "Unnumbered" group at the end. Upgrade step `0021_placement_unmatched`. |
+
 **Indices:** `wikidata_qid`, `collection_id`, `media_type`, `status`, `ready_at`
 
 Note: newer media library surfaces rely on a shared projection layered over work state, review queue state, identity job state, and canonical artwork flags. The `status` column remains part of the stored model, but it is no longer the only source of truth for browse visibility. Visibility is decided once, by `works.ready_at`; display queries read it through `WorkReadinessSql` and never define their own rule.
@@ -111,6 +113,7 @@ A specific version of a Work (e.g., "4K HDR Blu-ray Remux", "First Edition Hardc
 | `work_id` | BLOB | FK -> `works.id` |
 | `title` | TEXT | Edition label |
 | `created_at` | TEXT | Timestamp |
+| `placement_unmatched` | INTEGER | The same "Not matched" mark as `works.placement_unmatched`, for an audiobook part: a part is one file (one Edition) of its audiobook's recording Work, so it is the Edition that is added anyway. 0 by default. Added by upgrade step `0021_placement_unmatched`. |
 
 ### media_assets
 

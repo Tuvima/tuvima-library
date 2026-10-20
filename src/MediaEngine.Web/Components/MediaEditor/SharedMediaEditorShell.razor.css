@@ -1423,14 +1423,6 @@
 
 /* Preserve the complete logo, including tall or square transparent wordmarks. */
 
-.sme-membership-cleanup-note {
-    display: block;
-    margin-top: .35rem;
-    color: var(--tl-text-secondary);
-    font-size: .8rem;
-    line-height: 1.35;
-}
-
 .tvdb-match-context {
     display:flex;
     align-items:center;
