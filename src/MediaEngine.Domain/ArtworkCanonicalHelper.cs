@@ -129,20 +129,26 @@ public static class ArtworkCanonicalHelper
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(asset.PrimaryHex))
+        // The shared colour set is "the title's colours", read by Home, the library, the detail hero and
+        // browse. Only a main picture writes it; a background or logo keeps just its prefixed set so it
+        // cannot re-tint the title (or flip it when the start-up repair walks preferred assets).
+        if (WritesSharedColourSet(asset.AssetTypeValue))
         {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkPrimaryHex, asset.PrimaryHex, lastScoredAt));
-        }
+            if (!string.IsNullOrWhiteSpace(asset.PrimaryHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkPrimaryHex, asset.PrimaryHex, lastScoredAt));
+            }
 
-        if (!string.IsNullOrWhiteSpace(asset.SecondaryHex))
-        {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkSecondaryHex, asset.SecondaryHex, lastScoredAt));
-        }
+            if (!string.IsNullOrWhiteSpace(asset.SecondaryHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkSecondaryHex, asset.SecondaryHex, lastScoredAt));
+            }
 
-        if (!string.IsNullOrWhiteSpace(asset.AccentHex))
-        {
-            values.Add(Create(entityId, MetadataFieldConstants.ArtworkAccentHex, asset.AccentHex, lastScoredAt));
-            values.Add(Create(entityId, "dominant_color", asset.AccentHex, lastScoredAt));
+            if (!string.IsNullOrWhiteSpace(asset.AccentHex))
+            {
+                values.Add(Create(entityId, MetadataFieldConstants.ArtworkAccentHex, asset.AccentHex, lastScoredAt));
+                values.Add(Create(entityId, "dominant_color", asset.AccentHex, lastScoredAt));
+            }
         }
 
         return values;
@@ -161,6 +167,16 @@ public static class ArtworkCanonicalHelper
         "EpisodeStill" => ["episode_still", "episode_still_url"],
         "CharacterPortrait" => ["character_portrait", "character_portrait_url"],
         _ => [],
+    };
+
+    /// <summary>
+    /// True for the pictures that stand for the record itself (cover, season poster, episode still,
+    /// headshot, character portrait). Backgrounds, logos and thumbs never write the shared colour set.
+    /// </summary>
+    private static bool WritesSharedColourSet(string assetTypeValue) => assetTypeValue switch
+    {
+        "CoverArt" or "SeasonPoster" or "EpisodeStill" or "Headshot" or "CharacterPortrait" => true,
+        _ => false,
     };
 
     private static string? ResolveMetadataPrefix(string assetTypeValue) => assetTypeValue switch
