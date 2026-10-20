@@ -1246,6 +1246,42 @@ Whispersync audio-to-text alignment jobs.
 
 ---
 
+## Companion
+
+The shared player (`player_sessions` with its queue) holds one transport and one queue per profile. Live state per device, and the companion choices that read it, are kept apart so devices never overwrite each other.
+
+### player_device_states
+
+One row per device on a profile: what that device is playing, written from its own heartbeats. Rows not refreshed for 24 hours are removed when the profile writes another row. Readers treat a row as live only when it is playing or paused and was updated within 45 seconds.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `device_id` | TEXT | The device id the client reported; part of primary key |
+| `client` | TEXT | Client label, such as `web` |
+| `player_session_id` | BLOB | The player session id the heartbeat carried, when any |
+| `asset_id` | BLOB | FK -> `media_assets.id` (cascade) |
+| `work_id` | BLOB | FK -> `works.id` (set null on delete) |
+| `playback_state` | TEXT | `playing`, `paused` or `ended` (CHECK-constrained) |
+| `position_seconds` | REAL | Exact position, 0 or more |
+| `duration_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp of the last heartbeat |
+
+### companion_sessions
+
+One row per companion device: either following another device or holding a position set by hand.
+
+| Column | Type | Notes |
+|---|---|---|
+| `profile_id` | BLOB | FK -> `profiles.id` (cascade); part of primary key |
+| `companion_device_id` | TEXT | The device that is following; part of primary key |
+| `mode` | TEXT | `follow` or `manual` (CHECK-constrained) |
+| `followed_device_id` | TEXT | Required for `follow`, null for `manual` |
+| `manual_work_id` | BLOB | FK -> `works.id` (cascade); required for `manual`, null for `follow` |
+| `manual_chapter_index` | INTEGER | Optional, 0 or more |
+| `manual_position_seconds` | REAL | Optional, 0 or more |
+| `updated_at` | TEXT | ISO 8601 UTC timestamp |
+
 ## User
 
 ### user_states

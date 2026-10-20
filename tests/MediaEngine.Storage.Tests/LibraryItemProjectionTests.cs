@@ -562,6 +562,155 @@ public sealed class LibraryItemProjectionTests : IDisposable
         Assert.Equal(1, counts["Movies"]);
     }
 
+    [Fact]
+    public async Task LibraryItemProjection_TvEpisodeShowsItsShowsDirectorAndFirstThreeCastMembers()
+    {
+        var showId = await BuildParentWorkAsync("TV", parentWorkId: null);
+        var seasonId = await BuildParentWorkAsync("TV", showId);
+        var (episodeId, _) = await BuildChildWorkAsync("TV", seasonId);
+        await InsertCanonicalArrayAsync(showId, "director", "Vince Gilligan");
+        await InsertCanonicalArrayAsync(showId, "cast_member", "Bryan Cranston", 0);
+        await InsertCanonicalArrayAsync(showId, "cast_member", "Aaron Paul", 1);
+        await InsertCanonicalArrayAsync(showId, "cast_member", "Anna Gunn", 2);
+        await InsertCanonicalArrayAsync(showId, "cast_member", "Dean Norris", 3);
+
+        var otherShowId = await BuildParentWorkAsync("TV", parentWorkId: null);
+        var otherSeasonId = await BuildParentWorkAsync("TV", otherShowId);
+        var (otherEpisodeId, _) = await BuildChildWorkAsync("TV", otherSeasonId);
+        await InsertCanonicalArrayAsync(otherShowId, "director", "Other Director");
+        await InsertCanonicalArrayAsync(otherShowId, "cast_member", "Other Actor");
+
+        var page = await new LibraryItemRepository(_db).GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+
+        var episode = Assert.Single(page.Items, item => item.EntityId == episodeId);
+        Assert.Equal("Vince Gilligan", episode.Director);
+        Assert.Equal("Bryan Cranston, Aaron Paul, Anna Gunn", episode.TopCast);
+        var otherEpisode = Assert.Single(page.Items, item => item.EntityId == otherEpisodeId);
+        Assert.Equal("Other Director", otherEpisode.Director);
+        Assert.Equal("Other Actor", otherEpisode.TopCast);
+    }
+
+    [Fact]
+    public async Task LibraryItemProjection_MusicTrackPrefersItsAlbumsAlbumArtist()
+    {
+        var albumId = await BuildParentWorkAsync("Music", parentWorkId: null);
+        var (trackId, _) = await BuildChildWorkAsync("Music", albumId);
+        await InsertCanonicalArrayAsync(albumId, "performer", "Session Player");
+        await InsertCanonicalArrayAsync(albumId, "artist", "Track Artist");
+        await InsertCanonicalArrayAsync(albumId, "album_artist", "Album Artist");
+
+        var otherAlbumId = await BuildParentWorkAsync("Music", parentWorkId: null);
+        var (otherTrackId, _) = await BuildChildWorkAsync("Music", otherAlbumId);
+        await InsertCanonicalArrayAsync(otherAlbumId, "performer", "Only Performer");
+
+        var page = await new LibraryItemRepository(_db).GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+
+        Assert.Equal("Album Artist", Assert.Single(page.Items, item => item.EntityId == trackId).Artist);
+        Assert.Equal("Only Performer", Assert.Single(page.Items, item => item.EntityId == otherTrackId).Artist);
+    }
+
+    [Fact]
+    public async Task LibraryItemProjection_AudiobookShowsItsFirstNarratorAndGenresInOrder()
+    {
+        var (audiobookId, _) = await BuildStandaloneWorkAsync("Audiobooks");
+        await InsertCanonicalArrayAsync(audiobookId, "narrator", "Scott Brick", 0);
+        await InsertCanonicalArrayAsync(audiobookId, "narrator", "Second Narrator", 1);
+        await InsertCanonicalArrayAsync(audiobookId, "genre", "Science Fiction", 0);
+        await InsertCanonicalArrayAsync(audiobookId, "genre", "Adventure", 1);
+        var (otherId, _) = await BuildStandaloneWorkAsync("Audiobooks");
+        await InsertCanonicalArrayAsync(otherId, "narrator", "Other Narrator");
+        await InsertCanonicalArrayAsync(otherId, "genre", "Mystery");
+
+        var page = await new LibraryItemRepository(_db).GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+
+        var audiobook = Assert.Single(page.Items, item => item.EntityId == audiobookId);
+        Assert.Equal("Scott Brick", audiobook.Narrator);
+        Assert.Equal("Science Fiction; Adventure", audiobook.Genre);
+        var other = Assert.Single(page.Items, item => item.EntityId == otherId);
+        Assert.Equal("Other Narrator", other.Narrator);
+        Assert.Equal("Mystery", other.Genre);
+    }
+
+    [Fact]
+    public async Task LibraryItemProjection_MovieFallsBackToItsFilesDirectorOnlyWhenTheWorkHasNone()
+    {
+        var (fileOnlyMovieId, fileOnlyAssetId) = await BuildStandaloneWorkAsync("Movies");
+        await InsertCanonicalArrayAsync(fileOnlyAssetId, "director", "Denis Villeneuve");
+        var (workMovieId, workMovieAssetId) = await BuildStandaloneWorkAsync("Movies");
+        await InsertCanonicalArrayAsync(workMovieId, "director", "Work Director");
+        await InsertCanonicalArrayAsync(workMovieAssetId, "director", "File Director");
+        var (noDirectorMovieId, _) = await BuildStandaloneWorkAsync("Movies");
+
+        var page = await new LibraryItemRepository(_db).GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+
+        Assert.Equal("Denis Villeneuve", Assert.Single(page.Items, item => item.EntityId == fileOnlyMovieId).Director);
+        Assert.Equal("Work Director", Assert.Single(page.Items, item => item.EntityId == workMovieId).Director);
+        Assert.Null(Assert.Single(page.Items, item => item.EntityId == noDirectorMovieId).Director);
+    }
+
+    [Fact]
+    public async Task LibraryItemProjection_BookWithThreeAuthorsShowsTwoAndACount()
+    {
+        var (bookId, _) = await BuildStandaloneWorkAsync("Books");
+        await InsertCanonicalArrayAsync(bookId, "author", "Terry Pratchett", 0);
+        await InsertCanonicalArrayAsync(bookId, "author", "Neil Gaiman", 1);
+        await InsertCanonicalArrayAsync(bookId, "author", "Third Author", 2);
+        var (soloBookId, _) = await BuildStandaloneWorkAsync("Books");
+        await InsertCanonicalArrayAsync(soloBookId, "author", "Frank Herbert");
+
+        var page = await new LibraryItemRepository(_db).GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+
+        Assert.Equal("Terry Pratchett & Neil Gaiman + 1 more", Assert.Single(page.Items, item => item.EntityId == bookId).Author);
+        Assert.Equal("Frank Herbert", Assert.Single(page.Items, item => item.EntityId == soloBookId).Author);
+    }
+
+    [Fact]
+    public async Task LibraryItemPage_ReportsTheMatchingTotalOnEveryPageIncludingPastTheEnd()
+    {
+        var repo = new LibraryItemRepository(_db);
+        var empty = await repo.GetPageAsync(new LibraryItemQuery(IncludeAll: true));
+        Assert.Empty(empty.Items);
+        Assert.Equal(0, empty.TotalCount);
+        Assert.False(empty.HasMore);
+
+        for (var i = 0; i < 5; i++)
+        {
+            await BuildStandaloneWorkAsync("Books");
+        }
+
+        await BuildStandaloneWorkAsync("Movies");
+        await BuildStandaloneWorkAsync("Movies");
+
+        var first = await repo.GetPageAsync(new LibraryItemQuery(Limit: 2, IncludeAll: true));
+        Assert.Equal(2, first.Items.Count);
+        Assert.Equal(7, first.TotalCount);
+        Assert.True(first.HasMore);
+
+        var last = await repo.GetPageAsync(new LibraryItemQuery(Offset: 6, Limit: 2, IncludeAll: true));
+        Assert.Single(last.Items);
+        Assert.Equal(7, last.TotalCount);
+        Assert.False(last.HasMore);
+
+        var movies = await repo.GetPageAsync(new LibraryItemQuery(Limit: 1, MediaType: "Movies", IncludeAll: true));
+        Assert.Single(movies.Items);
+        Assert.Equal(2, movies.TotalCount);
+        Assert.True(movies.HasMore);
+
+        var pastTheEnd = await repo.GetPageAsync(new LibraryItemQuery(Offset: 100, IncludeAll: true));
+        Assert.Empty(pastTheEnd.Items);
+        Assert.Equal(7, pastTheEnd.TotalCount);
+        Assert.False(pastTheEnd.HasMore);
+
+        var moviesPastTheEnd = await repo.GetPageAsync(new LibraryItemQuery(Offset: 50, MediaType: "Movies", IncludeAll: true));
+        Assert.Empty(moviesPastTheEnd.Items);
+        Assert.Equal(2, moviesPastTheEnd.TotalCount);
+        Assert.False(moviesPastTheEnd.HasMore);
+
+        var countOnly = await repo.GetPageAsync(new LibraryItemQuery(Limit: 0, IncludeAll: true));
+        Assert.Empty(countOnly.Items);
+        Assert.Equal(7, countOnly.TotalCount);
+    }
+
     private async Task<(Guid WorkId, Guid AssetId)> BuildStandaloneWorkAsync(string mediaType)
     {
         using var conn = _db.CreateConnection();
@@ -585,6 +734,47 @@ public sealed class LibraryItemProjectionTests : IDisposable
                 editionId,
                 assetId,
                 mediaType,
+                hash = $"hash_{assetId:N}",
+                filePath = $"/library/{assetId:N}.bin",
+            });
+
+        return (workId, assetId);
+    }
+
+    private async Task<Guid> BuildParentWorkAsync(string mediaType, Guid? parentWorkId)
+    {
+        using var conn = _db.CreateConnection();
+        var workId = Guid.NewGuid();
+        await conn.ExecuteAsync("""
+            INSERT INTO works (id, media_type, work_kind, parent_work_id)
+                VALUES (@workId, @mediaType, 'parent', @parentWorkId);
+            """,
+            new { workId, mediaType, parentWorkId });
+
+        return workId;
+    }
+
+    private async Task<(Guid WorkId, Guid AssetId)> BuildChildWorkAsync(string mediaType, Guid parentWorkId)
+    {
+        using var conn = _db.CreateConnection();
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        await conn.ExecuteAsync("""
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal)
+                VALUES (@workId, @mediaType, 'child', @parentWorkId, 1);
+            INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
+                VALUES (@assetId, @editionId, @hash, @filePath, 'Normal');
+            """,
+            new
+            {
+                workId,
+                mediaType,
+                parentWorkId,
+                editionId,
+                assetId,
                 hash = $"hash_{assetId:N}",
                 filePath = $"/library/{assetId:N}.bin",
             });
