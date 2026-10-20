@@ -38,11 +38,21 @@
     [Parameter] public ProgressViewModel? Progress { get; set; }
     [Parameter] public bool UsePrimaryHeroChrome { get; set; }
     [Parameter] public bool IsMusicAlbum { get; set; }
+
+    /// <summary>
+    /// True while Editing Mode is on: "Mark as watched" and its reset are viewing actions, so the "..." menu leaves them out
+    /// until editing ends (details overlay spec section 4).
+    /// </summary>
+    [Parameter] public bool HideStatusActions { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
     private IReadOnlyList<DetailAction> VisibleSecondaryActions => PrimaryActions.Skip(1).Where(action => action.Key == "shuffle").Concat(SecondaryActions).ToList();
-    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowMenu(PrimaryActions, OverflowActions);
+    private IReadOnlyList<DetailAction> OverflowMenuActions => HideStatusActions
+        ? OverflowMenu(PrimaryActions, OverflowActions)
+            .Where(action => action.Key is not (DetailActionKeys.StatusComplete or DetailActionKeys.StatusReset))
+            .ToList()
+        : OverflowMenu(PrimaryActions, OverflowActions);
 
     /// <summary>The shared More list: the overflow actions plus the primary actions that do not fit in the row.</summary>
     public static IReadOnlyList<DetailAction> OverflowMenu(IReadOnlyList<DetailAction> primaryActions, IReadOnlyList<DetailAction> overflowActions) =>

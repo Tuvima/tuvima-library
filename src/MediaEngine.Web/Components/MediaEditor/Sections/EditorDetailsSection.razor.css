@@ -607,26 +607,6 @@
 
 .sme-details-inspector { padding: 0; }
 
-/* Editing Mode drawer: the same inspector in one narrow column. */
-.sme-shell--drawer .sme-details-inspector__grid,
-.sme-shell--drawer .sme-details-inspector__side {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--tl-space-4);
-}
-
-.sme-shell--drawer .sme-details-inspector__side {
-    grid-column: auto;
-}
-
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork,
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork img,
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork.is-square,
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork.is-landscape,
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork.is-square img,
-.sme-shell--drawer .sme-details-inspector .sme-details-artwork.is-landscape img {
-    max-height: 14rem;
-}
-
 .sme-details-inspector .sme-details-artwork img {
     width: 100%;
     height: auto;

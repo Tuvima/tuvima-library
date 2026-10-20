@@ -13,7 +13,9 @@ public sealed class Phase5InlineEditingTests
         Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", source, StringComparison.Ordinal);
         Assert.Contains("await _editing.EnterAsync()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("_editing.ToggleAsync()", source, StringComparison.Ordinal);
-        Assert.Contains("<EditingDrawer", source, StringComparison.Ordinal);
+        Assert.Contains("<EditingBanner", source, StringComparison.Ordinal);
+        Assert.Contains("<EditingSectionSlot", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("<EditingDrawer", source, StringComparison.Ordinal);
         // People, series shelves and curated collections keep their own editor dialogs.
         Assert.Contains("MediaEditorLauncherService MediaEditorLauncher", source, StringComparison.Ordinal);
         Assert.Contains("MediaEditorLauncher.OpenAsync(request)", source, StringComparison.Ordinal);
@@ -280,10 +282,10 @@ public sealed class Phase5InlineEditingTests
     {
         var shell = ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
 
-        // The drawer shows the same questions in the shell footer instead of the inline strip.
-        Assert.Contains("Inline && !Drawer && _confirmDiscard", shell, StringComparison.Ordinal);
+        // An Editing Mode section slot shows the same questions in the shell footer instead of the inline strip.
+        Assert.Contains("Inline && !IsSection && _confirmDiscard", shell, StringComparison.Ordinal);
         Assert.Contains("Discard unsaved changes?", shell, StringComparison.Ordinal);
-        Assert.Contains("Inline && !Drawer && _pendingMembershipPreview is not null", shell, StringComparison.Ordinal);
+        Assert.Contains("Inline && !IsSection && _pendingMembershipPreview is not null", shell, StringComparison.Ordinal);
         Assert.Contains("Save and Move", shell, StringComparison.Ordinal);
         Assert.Contains("HasPendingDetailsInlineEdit", ReadSource("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs"), StringComparison.Ordinal);
         Assert.Contains("BeginTvdbCrossShowSearch", shell, StringComparison.Ordinal);

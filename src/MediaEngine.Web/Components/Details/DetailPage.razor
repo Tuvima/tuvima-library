@@ -33,7 +33,16 @@
 @if (Model is not null)
 {
     <CascadingValue Value="_editing" IsFixed="true">
-    <article class="@ArticleClass">
+    <article class="tl-detail-page">
+        @* Editing Mode: the banner is the first thing in the page's scroll container and sticks to its top; it is outside the
+           hero because the full-bleed hero clips what overflows it. *@
+        @if (Model.EntityType != DetailEntityType.Person)
+        {
+            <EditingBanner Mode="_editing"
+                           CanDelete="@CanDeleteFromLibrary"
+                           OnActionSelected="HandleDetailActionAsync" />
+        }
+
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
                         OnActionSelected="HandleDetailActionAsync"
@@ -49,6 +58,11 @@
                 </div>
             }
         </section>
+
+        @* The open Editing Mode section (Artwork, Match and Identity, History): directly below the hero, one at a time. *@
+        <EditingSectionSlot Mode="_editing"
+                            BuildRequest="BuildSectionRequest"
+                            OnCommitted="RefreshAfterSectionCommitAsync" />
 
         @if (ShowPrimaryModuleAfterNavigation)
         {
@@ -90,11 +104,6 @@
                 <DetailsTab Model="Model" />
             }
         </section>
-
-        <EditingDrawer Mode="_editing"
-                       BuildRequest="BuildDrawerRequest"
-                       ItemTitle="@Model.Title"
-                       OnCommitted="RefreshAfterDrawerCommitAsync" />
     </article>
     </CascadingValue>
 }
@@ -130,17 +139,19 @@
     private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
-    // Editing Mode (the in-page drawer) is for single items. Collections, series shelves and people keep their own editors.
+    // Editing Mode (the banner, pencils and one section below the hero) is for single items. Collections, series shelves and
+    // people keep their own editors.
     private EditingModeContext? _editing;
     private Guid? _editingProfileId;
-
-    private string ArticleClass => _editing is { DrawerOpen: true } ? "tl-detail-page tl-detail-page--editing-drawer" : "tl-detail-page";
+    private IDisposable? _overlayGuard;
+    private IDisposable? _overlayEscape;
 
     protected override void OnInitialized()
     {
         _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
         {
             Loader = LoadEditingFieldsAsync,
+            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
         };
         _editing.Changed += OnEditingChanged;
         _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
@@ -159,6 +170,7 @@
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+        ReleaseOverlayGuards();
         if (_editing is null)
         {
             return;
@@ -169,7 +181,44 @@
         _editing.Dispose();
     }
 
-    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnEditingChanged()
+    {
+        SyncOverlayGuards();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // While Editing Mode is on the overlay asks it before it closes (close button, Esc, backdrop, Back, a link to another
+    // title): it settles unsaved input with "Save or discard?" and leaves the mode first. Esc is offered to it first too,
+    // so Esc closes an open field, then an open section, and only then dismisses the overlay.
+    private void SyncOverlayGuards()
+    {
+        if (_editing is { IsOn: true } && Overlay is not null)
+        {
+            _overlayGuard ??= Overlay.RegisterDismissGuard(_editing);
+            _overlayEscape ??= Overlay.RegisterEscapeHandler(_editing.HandleEscapeAsync);
+            return;
+        }
+
+        ReleaseOverlayGuards();
+    }
+
+    private void ReleaseOverlayGuards()
+    {
+        _overlayGuard?.Dispose();
+        _overlayGuard = null;
+        _overlayEscape?.Dispose();
+        _overlayEscape = null;
+    }
+
+    /// <summary>
+    /// Delete from library (the banner's "..." menu): only in Editing Mode (which a deep link never starts), on a desktop for an
+    /// effective administrator, and for a page that is one title. The Engine and <see cref="DeleteFromLibraryAsync"/> check again.
+    /// </summary>
+    private bool CanDeleteFromLibrary =>
+        Model is not null
+        && _editing is { IsOn: true, CanEdit: true }
+        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
 
     private void UpdateEditingEligibility()
     {
@@ -208,7 +257,8 @@
             _editingProfileId);
     }
 
-    private MediaEditorLaunchRequest? BuildDrawerRequest(string tab, string? artworkSlot)
+    // The request for the editor hosted in the section slot: the section id (artwork, links or history) is its one tab.
+    private MediaEditorLaunchRequest? BuildSectionRequest(string tab, string? artworkSlot)
     {
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
         {
@@ -233,7 +283,7 @@
         }
     }
 
-    private async Task RefreshAfterDrawerCommitAsync()
+    private async Task RefreshAfterSectionCommitAsync()
     {
         try
         {
@@ -245,7 +295,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "The detail page could not refresh after the editor drawer saved a change");
+            Logger.LogWarning(ex, "The detail page could not refresh after an editing section saved a change");
             Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
         }
     }
@@ -619,7 +669,7 @@
         }
     }
 
-    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode drawer.
+    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode section slot.
     private MediaEditorLaunchRequest? BuildMediaEditorRequest(
         Guid entityId,
         (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,

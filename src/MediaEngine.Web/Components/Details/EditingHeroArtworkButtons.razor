@@ -1,8 +1,8 @@
 @namespace MediaEngine.Web.Components.Details
 @implements IDisposable
 
-@* Edit Background / Edit Logo / Edit Cover over the hero art while Editing Mode is on. Each opens the drawer on
-   Artwork for that slot and reuses the editor's own choose, upload and remove behaviour. Only the slots this item
+@* Edit Background / Edit Logo / Edit Cover over the hero art while Editing Mode is on. Each opens the Artwork section
+   below the hero on that slot and reuses the editor's own choose, upload and remove behaviour. Only the slots this item
    can actually hold are offered. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && mode.Fields.CanEditArtwork && Slots.Count > 0)
 {
@@ -16,7 +16,7 @@
                        Class="tl-editing-art__button"
                        StartIcon="@slot.Icon"
                        Disabled="@mode.Fields.HasOpenDraft"
-                       OnClick="@(() => mode.OpenDrawer(EditingDrawerTab.Artwork, assetType))">
+                       OnClick="@(() => mode.ShowSectionAsync(EditingSection.Artwork, assetType))">
                 @slot.Label
             </AppButton>
         }

@@ -81,11 +81,11 @@ public partial class SharedMediaEditorShell
             });
         }
         await SynchronizeDetailsDialogEscapeAsync();
-        if (firstRender && Inline && !Drawer)
+        if (firstRender && Inline && !IsSection)
         {
             await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-title");
         }
-        await ReportDrawerStateAsync();
+        await ReportHostStateAsync();
         if (_scrollToEpisodePlacement)
         {
             _scrollToEpisodePlacement = false;
@@ -219,7 +219,7 @@ public partial class SharedMediaEditorShell
     private string _lastNonFileTab => _tabState.LastNonFileTab;
     private bool _showArtworkUrlInput;
     private bool _matchActionPending;
-    // Counts commits so a host (the Editing Mode drawer) can refresh whatever it shows after each one.
+    // Counts commits so a host (the Editing Mode section slot) can refresh whatever it shows after each one.
     private int _commitVersion;
     private bool _hasCommittedChanges
     {
@@ -247,7 +247,7 @@ public partial class SharedMediaEditorShell
 
     protected IReadOnlyList<(string Key, string Label)> QuickSearchTargets => ResolveQuickSearchTargets();
     protected IReadOnlyList<ArtworkSlotDefinition> ArtworkSlots => ResolveArtworkSlots(ArtworkScope);
-    protected bool CanMatchCurrentTarget => EditorMediaType != "TV" || ActiveScope?.ScopeId is "series" or "season" or "episode";
+    protected bool CanMatchCurrentTarget => MediaEditorMatchRule.CanMatch(EditorMediaType, ActiveScope?.ScopeId);
     protected bool SupportsCanonicalSearch => CanMatchCurrentTarget && QuickSearchTargets.Count > 0;
     protected bool SupportsRetailSearch => !RequiresWikidataOnlySearch;
     protected bool RequiresWikidataOnlySearch =>
@@ -402,7 +402,7 @@ public partial class SharedMediaEditorShell
         || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit)
         || Request.Mode == SharedMediaEditorMode.Review;
     protected bool ShouldShowNonInlineEditorFooter =>
-        (!Inline || Drawer) && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
+        (!Inline || IsSection) && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
                                     || _artworkApplyingKeys.Count > 0 || _editionCoverReviewing || _editionCoverSaving;
@@ -5950,7 +5950,7 @@ public partial class SharedMediaEditorShell
         }
 
         return TabDisplayOrder
-            .Where(tabId => !(Drawer && tabId == "history"))
+            .Where(tabId => !IsSection || string.Equals(tabId, NormalizeTabId(Section), StringComparison.Ordinal))
             .Where(IsTabVisible)
             .Select(tabId => (tabId, GetTabLabel(tabId), GetTabIcon(tabId)))
             .ToList();
@@ -6141,7 +6141,7 @@ public partial class SharedMediaEditorShell
         {
             "details" => "Details",
             "artwork" => "Artwork",
-            "links" => Drawer ? "Match and Identity" : "Match & Identity",
+            "links" => IsSection ? "Match and Identity" : "Match & Identity",
             "history" => "History",
             _ => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(tabId.Replace('_', ' ')),
         };
@@ -7370,7 +7370,6 @@ public partial class SharedMediaEditorShell
             return;
         }
         _tabState.Activate(normalized);
-        await NotifyDrawerTabAsync(normalized);
         Task? scopedMatchTask = null;
         if (string.Equals(normalized, "links", StringComparison.OrdinalIgnoreCase))
         {

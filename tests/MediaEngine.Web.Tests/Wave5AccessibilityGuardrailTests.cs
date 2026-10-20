@@ -37,26 +37,30 @@ public sealed class Wave5AccessibilityGuardrailTests
     public void EditingMode_ReusesTheEditorGuardsAndKeepsEveryControlKeyboardReachable()
     {
         var details = "src/MediaEngine.Web/Components/Details/";
-        var bar = Read(details + "EditingModeBar.razor");
-        var drawer = Read(details + "EditingDrawer.razor");
+        var banner = Read(details + "EditingBanner.razor");
+        var slot = Read(details + "EditingSectionSlot.razor");
         var pencil = Read(details + "EditableFieldPencil.razor");
         var hero = Read(details + "EditingHeroArtworkButtons.razor");
         var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
 
-        // One unsaved-input guard for the page (the editor's own lock and guard) and the shell's lock inside the drawer.
-        Assert.Contains("<NavigationLock", bar);
-        Assert.Contains("MediaEditorNavigationGuard", bar);
-        Assert.Contains("OnBeforeInternalNavigation", bar);
+        // One unsaved-input question for the page ("Save or discard?" from Done, Esc and Back) and the browser's own prompt
+        // for reload; the editor in the slot registers no lock of its own, so nothing is asked twice.
+        Assert.Contains("<NavigationLock", banner);
+        Assert.Contains("OnBeforeInternalNavigation", banner);
+        Assert.Contains("DoneAsync", banner);
         Assert.Contains("<NavigationLock", shell);
-        Assert.Contains("role=\"group\" aria-label=\"Editing\"", bar);
-        Assert.Contains("role=\"alert\"", bar);
+        Assert.Contains("@if (!IsSection)", shell);
+        Assert.Contains("role=\"region\" aria-label=\"Editing\"", banner);
+        Assert.Contains("role=\"group\" aria-label=\"Editing sections\"", banner);
+        Assert.Contains("aria-pressed", banner);
+        Assert.Contains("role=\"alert\"", banner);
 
-        // The drawer is a labelled region; Esc closes it and focus returns to the control that opened it.
-        Assert.Contains("aria-labelledby=\"tl-editing-drawer-title\"", drawer);
-        Assert.Contains("string.Equals(args.Key, \"Escape\", StringComparison.Ordinal)", drawer);
-        Assert.Contains("tuvimaFocusReturn.remember", drawer);
-        Assert.Contains("tuvimaFocusReturn.restore", drawer);
-        Assert.Contains("AriaLabel=\"Close editor drawer\"", drawer);
+        // The slot is a labelled region; Esc closes it and focus returns to the control that opened it.
+        Assert.Contains("aria-labelledby=\"tl-editing-slot-title\"", slot);
+        Assert.Contains("string.Equals(args.Key, \"Escape\", StringComparison.Ordinal)", slot);
+        Assert.Contains("tuvimaFocusReturn.remember", slot);
+        Assert.Contains("tuvimaFocusReturn.restore", slot);
+        Assert.Contains("Tooltip=\"@($\"Close {Heading(mode.OpenSectionKind)}\")\"", slot);
 
         // Pencils are real buttons with names, locks are focusable with the reason, and results are announced.
         Assert.Contains("AriaLabel=\"@($\"Edit {field.Label.ToLowerInvariant()}\")\"", pencil);
@@ -66,9 +70,11 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("Escape", pencil);
         Assert.Contains("role=\"group\" aria-label=\"Edit hero artwork\"", hero);
 
-        // Motion is optional and the drawer never traps a pointer-free user.
-        Assert.Contains("prefers-reduced-motion", Read(details + "EditingDrawer.razor.css"));
-        Assert.DoesNotContain("<AppFocusTrap", drawer);
+        // The banner and slot never trap a pointer-free user and add no motion that would need a reduced-motion rule.
+        Assert.DoesNotContain("<AppFocusTrap", banner);
+        Assert.DoesNotContain("<AppFocusTrap", slot);
+        Assert.DoesNotContain("animation", Read(details + "EditingBanner.razor.css"));
+        Assert.DoesNotContain("animation", Read(details + "EditingSectionSlot.razor.css"));
     }
 
     [Fact]
