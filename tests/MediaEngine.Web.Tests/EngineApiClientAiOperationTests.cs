@@ -14,7 +14,6 @@ public sealed class EngineApiClientAiOperationTests
         {
             Content = new StringContent("""
                 {
-                  "max_concurrent_inferences": 3,
                   "minimum_free_disk_mb": 4096,
                   "resource_profile": "standard",
                   "audio_pack_enabled": false,
@@ -29,7 +28,6 @@ public sealed class EngineApiClientAiOperationTests
         var config = await client.GetAiConfigAsync();
 
         Assert.NotNull(config);
-        Assert.Equal(3, config.MaxConcurrentInferences);
         Assert.Equal(4096, config.MinimumFreeDiskMB);
         Assert.Equal("standard", config.ResourceProfile);
         Assert.False(config.AudioPackEnabled);

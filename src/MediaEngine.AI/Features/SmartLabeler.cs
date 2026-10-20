@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -15,16 +16,18 @@ namespace MediaEngine.AI.Features;
 /// </summary>
 public sealed class SmartLabeler : ISmartLabeler
 {
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.Ingestion(AiCallerIds.SmartLabeling);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly AiSettings _settings;
     private readonly ILogger<SmartLabeler> _logger;
 
     public SmartLabeler(
-        ILlamaInferenceService llama,
+        IAiEngineRoom engineRoom,
         AiSettings settings,
         ILogger<SmartLabeler> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _settings = settings;
         _logger = logger;
     }
@@ -64,11 +67,12 @@ public sealed class SmartLabeler : ISmartLabeler
         try
         {
             var prompt = PromptTemplates.SmartLabelingPrompt(stem);
-            var result = await _llama.InferJsonAsync<SmartLabelingResponse>(
-                AiModelRole.TextQuality,
+            var result = await _engineRoom.ExtractJsonOrThrowAsync<SmartLabelingResponse>(
+                Caller,
+                AiAbility.ExtractStructured,
                 prompt,
                 PromptTemplates.SmartLabelingGrammar,
-                ct);
+                ct: ct);
 
             if (result is null || string.IsNullOrWhiteSpace(result.Title))
             {
