@@ -314,6 +314,8 @@ Before Claude Code starts the first packet, and again before each wave:
 
 **Further decisions (Shy, 2026-10-19, while building U-WP5 and U-WP10):** Edit Universe reuses the existing Universe editor, shown in-line beside the Universe page in the same side drawer Editing Mode uses (not a pop-up), desktop administrators only. "Also appears in" is a panel on the Universe page, not a character page.
 
+**Further decision (Shy, 2026-10-20, while building U-WP4):** the audiobook Wikidata fallback is option (a). When Apple has no match for an audiobook, it takes the Wikidata ID of an already-confirmed book in the Library with the same title and author. Nothing new is looked up outside the machine, and "no retail match = no Wikidata" stays true for everything else: an audiobook with no owned, confirmed book of the same title and author still goes to Needs Review.
+
 **Landing alongside the locked Developer tools spec:** see section 6A. That spec (`engineering/specs/developer-tools.md`, Locked v2, 2026-10-19) owns the plugin platform and the shared state card, approval rule, health words and run records; this spec defines no plugin mechanics.
 
 **Risks**

@@ -38,14 +38,17 @@ Supplemental serving rule: approved plugin lore appears only when a caller asks 
 
 ## Narrative Root Resolution
 
-Before the graph can be built, the Engine determines which fictional universe a work belongs to. The Narrative Root Resolver walks a property chain in priority order:
+Before the graph can be built, the Engine determines which Universe a work belongs to. There is one Universe record per Wikidata ID: the `narrative_roots` row. The Universe shelf the Library shows (`collections.universe_qid` on a Universe collection) and the graph root are the same record, chosen by one rule, `UniverseIdentityRule` (Domain), which both `ParentCollectionResolver` (Series shelves) and `NarrativeRootResolver` (works) use:
 
 1. P1434 (takes place in fictional universe)
 2. P8345 (media franchise)
-3. P179 (part of series)
-4. Collection DisplayName (fallback)
+3. P179 (part of series) naming a broader Series than the work's or shelf's own
+4. P144 (based on), so an adaptation joins the Universe of what it adapts
+5. the work's or shelf's own Series (P179)
 
-The resolved universe QID and label are stored in the `narrative_roots` table. All fictional entities discovered within a work are linked to their narrative root, enabling cross-media queries - for example, finding all characters from the Dune universe across novels, films, and audiobooks.
+Within one step the lowest QID wins, so repeated runs pick the same record. A fictional universe or franchise value that is one of the work's own characters, places, events or objects is ignored. The chosen QID is then looked up in the Library: a Series shelf with that QID that already names a Universe gives that Universe, otherwise the record's `parent_qid` chain is followed to its top. A work that sits on a Series shelf takes that shelf's Universe; when a shelf's Universe changes, the narrative root stored on its works follows, and shelves that point at it (a TV show based on that book Series) are decided again, so the result does not depend on which shelf was ingested first.
+
+The resolved QID and label are stored on the work (`narrative_root_qid`, `narrative_root_label`). All fictional entities discovered within a work are linked to its narrative root, enabling cross-media queries - for example, finding all characters from the Dune universe across novels, films, and audiobooks. Entities discovered under an earlier root keep it until the next universe enrichment pass.
 
 ---
 

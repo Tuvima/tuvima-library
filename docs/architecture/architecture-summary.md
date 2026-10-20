@@ -49,7 +49,7 @@ The Intelligence project's main public surface:
 - `IdentityDecisionService` (in `Intelligence/Services`) — accept/review/retry verdicts using a `ConfidenceBand` (Exact / Strong / Provisional / Ambiguous / Insufficient) and a `ReviewRootCause`.
 - `IdentityMatcher` — routes a candidate to the right media-type identity strategy.
 - `CollectionArbiter` — decides whether a Work belongs in a Collection.
-- `ParentCollectionResolver` — resolves parent/child collection hierarchy (Series→Universe).
+- `ParentCollectionResolver` — decides each Series shelf's Universe with `UniverseIdentityRule` (the same rule the work-level `NarrativeRootResolver` uses), stores it as `collections.universe_qid` and keeps the Universe shelf (Series→Universe) in step with the one `narrative_roots` record.
 - `FuzzyMatchingService` — Levenshtein + phonetic name matching.
 - `Intelligence/Strategies/` — seven `IMediaTypeIdentityStrategy` implementations: `ExactMatchStrategy`, `BookIdentityStrategy`, `MovieIdentityStrategy`, `AudiobookIdentityStrategy`, `ComicIdentityStrategy`, `MusicIdentityStrategy`, `TvIdentityStrategy`.
 
