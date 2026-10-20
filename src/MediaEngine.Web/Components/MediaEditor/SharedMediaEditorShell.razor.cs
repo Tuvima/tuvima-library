@@ -418,15 +418,35 @@ public partial class SharedMediaEditorShell
     protected bool IsOnlyArtworkUploadInFlight => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count > 0;
     protected bool ShowArtworkUploadRetryFooter => IsSection && OnlyArtworkUploadsStaged && _artworkApplyingKeys.Count == 0;
 
+    // One retry at a time: a second click (or a second caller) while the uploads run would send the same files twice.
+    private bool _artworkRetrying;
+
+    protected bool IsArtworkRetryRunning => _artworkRetrying;
+
     protected async Task RetryFailedArtworkUploadsAsync()
     {
-        foreach (var (scopedKey, file) in _pendingArtworkFiles.ToList())
+        if (_artworkRetrying)
         {
-            var parsed = ParseScopedKey(scopedKey);
-            if (GetScopeById(parsed.ScopeId) is { } scope)
+            return;
+        }
+
+        _artworkRetrying = true;
+        StateHasChanged();
+        try
+        {
+            foreach (var (scopedKey, file) in _pendingArtworkFiles.ToList())
             {
-                await UploadPendingArtworkAsync(scope, parsed.Key, file, scopedKey);
+                var parsed = ParseScopedKey(scopedKey);
+                if (GetScopeById(parsed.ScopeId) is { } scope)
+                {
+                    await UploadPendingArtworkAsync(scope, parsed.Key, file, scopedKey);
+                }
             }
+        }
+        finally
+        {
+            _artworkRetrying = false;
+            StateHasChanged();
         }
     }
     protected bool ShouldShowNonInlineEditorFooter =>
@@ -785,6 +805,9 @@ public partial class SharedMediaEditorShell
     /// <summary>The line shown when a refresh was started; the Engine's own wording is for logs, this one is for the person.</summary>
     internal const string RefreshStartedMessage = "Refresh started. Details update when it finishes.";
 
+    /// <summary>The line shown when a refresh could not be started; the raw Engine error goes to the log only.</summary>
+    internal const string RefreshFailedMessage = "Refresh could not start. Try again later.";
+
     /// <summary>
     /// Refresh metadata (details overlay spec D11) is only for people the Engine accepts for the run-now action: an effective
     /// administrator, the same check Delete from library and Universe editing use. The Engine decides again when it is called.
@@ -801,7 +824,7 @@ public partial class SharedMediaEditorShell
     protected async Task QueueFullEnrichmentAsync()
     {
         var target = _refreshSchedule;
-        if (_refreshQueueing || RefreshMetadataDisabledReason is not null)
+        if (_refreshQueueing || RefreshMetadataDisabledReason is not null || !CanRefreshMetadata)
         {
             return;
         }
@@ -822,9 +845,9 @@ public partial class SharedMediaEditorShell
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(entityType, entityId);
             if (result is null)
             {
-                _refreshError = string.IsNullOrWhiteSpace(ApiClient.LastError)
-                    ? "The refresh could not be started. Try again in a moment."
-                    : ApiClient.LastError;
+                // The Engine's own wording is for the log; the person gets one plain line.
+                Logger.LogWarning("Refresh metadata could not be started for {EntityType} {EntityId}: {Error}", entityType, entityId, ApiClient.LastError);
+                _refreshError = RefreshFailedMessage;
                 return;
             }
 

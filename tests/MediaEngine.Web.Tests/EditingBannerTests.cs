@@ -324,6 +324,30 @@ public sealed class EditingBannerTests : AsyncBunitContext
         Assert.True(mode.IsOn);
     }
 
+    [Fact]
+    public async Task DoneIsDisabledWhileTheOpenSectionsOwnSaveIsRunningAndPressingItStartsNoSecondSave()
+    {
+        await UseDesktopAsync();
+        var mode = await StartedAsync();
+        var host = new CountingSectionHost();
+        mode.SectionHost = host;
+        Assert.True(mode.OpenSection(EditingSection.Artwork));
+        mode.SetSectionDirty(true);
+        var cut = RenderBanner(mode);
+
+        await cut.InvokeAsync(() => mode.SetSectionSaving(true));
+
+        Assert.True(cut.Find("button.tl-editing-banner__done").HasAttribute("disabled"));
+        Assert.False(await cut.InvokeAsync(() => mode.DoneAsync()));
+        Assert.Equal(0, host.Saved);
+        Assert.Equal(0, _ask.Asked);
+        Assert.True(mode.IsOn);
+
+        await cut.InvokeAsync(() => mode.SetSectionSaving(false));
+
+        Assert.False(cut.Find("button.tl-editing-banner__done").HasAttribute("disabled"));
+    }
+
     // -- Leaving a page that has no overlay guard (a Universe) ---------------------------------
 
     [Fact]
@@ -467,6 +491,19 @@ public sealed class EditingBannerTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("could not be loaded", cut.Find(".tl-editing-banner__notice[role='alert']").TextContent));
         Assert.True(mode.IsOn);
         Assert.Equal(3, cut.FindAll(".tl-editing-banner__section").Count);
+    }
+
+    private sealed class CountingSectionHost : IEditingSectionHost
+    {
+        public int Saved { get; private set; }
+
+        public Task<bool> SaveAsync()
+        {
+            Saved++;
+            return Task.FromResult(true);
+        }
+
+        public Task DiscardAsync() => Task.CompletedTask;
     }
 
     private sealed class AskCounter

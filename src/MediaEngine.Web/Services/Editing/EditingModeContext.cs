@@ -92,6 +92,9 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     /// <summary>Set by the section slot while the editor inside it has unsaved input.</summary>
     public bool SectionDirty { get; private set; }
 
+    /// <summary>Set by the section slot while the editor inside it is running its own save; Done waits for it so a second save never starts.</summary>
+    public bool SectionSaving { get; private set; }
+
     /// <summary>A field typed into on the page that has not been saved.</summary>
     public bool HasUnsavedField => Fields.IsDirty;
 
@@ -135,6 +138,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         OpenSectionKind = null;
         OpenSectionArtworkSlot = null;
         SectionDirty = false;
+        SectionSaving = false;
         Fields.Discard();
         RaiseChanged();
     }
@@ -157,7 +161,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return true;
         }
 
-        if (Fields.Saving)
+        if (Fields.Saving || SectionSaving)
         {
             return false;
         }
@@ -169,10 +173,18 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     {
         if (HasUnsavedInput)
         {
-            switch (await AskAsync())
+            var choice = await AskAsync();
+            if (!IsOn)
+            {
+                // The mode ended while the question was open (the title was removed, or the device stopped qualifying): there is
+                // nothing left to save into or discard, and the overlay must stay put for whatever ended it to be seen.
+                return false;
+            }
+
+            switch (choice)
             {
                 case SaveOrDiscardChoice.Save:
-                    if (!await SaveUnsavedAsync())
+                    if (!await SaveUnsavedAsync() || !IsOn)
                     {
                         return false;
                     }
@@ -210,7 +222,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return false;
         }
 
-        if (IsSettling || Fields.Saving)
+        if (IsSettling || Fields.Saving || SectionSaving)
         {
             // Something is already being settled or saved: the press is spent, and the overlay must not close under it.
             return true;
@@ -230,7 +242,14 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
                 return true;
             }
 
-            switch (await AskAsync())
+            var choice = await AskAsync();
+            if (!IsOn)
+            {
+                // The mode ended while the question was open: nothing may save into the removed item.
+                return false;
+            }
+
+            switch (choice)
             {
                 case SaveOrDiscardChoice.Save:
                     // A failed save leaves the field open with its typed value and its error showing.
@@ -271,7 +290,14 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
         if (SectionDirty)
         {
-            switch (await AskAsync())
+            var choice = await AskAsync();
+            if (!IsOn)
+            {
+                // The mode ended while the question was open: the section is already closed and must not save into the removed item.
+                return false;
+            }
+
+            switch (choice)
             {
                 case SaveOrDiscardChoice.Save:
                     if (SectionHost is null || !await SectionHost.SaveAsync())
@@ -371,6 +397,19 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         OpenSectionKind = null;
         OpenSectionArtworkSlot = null;
         SectionDirty = false;
+        SectionSaving = false;
+        RaiseChanged();
+    }
+
+    /// <summary>Reports whether the editor inside the open section is saving on its own.</summary>
+    public void SetSectionSaving(bool saving)
+    {
+        if (SectionSaving == saving)
+        {
+            return;
+        }
+
+        SectionSaving = saving;
         RaiseChanged();
     }
 

@@ -47,11 +47,12 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
     private Func<Task<EnrichmentRefreshQueuedResponse?>> _queueRefresh =
         () => Task.FromResult<EnrichmentRefreshQueuedResponse?>(new() { Message = "queued" });
     private string? _lastError;
+    private readonly CapturingLoggerProvider _logs = new();
 
     public ArtworkAndMatchSectionTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddLogging();
+        Services.AddLogging(logging => logging.AddProvider(_logs));
         var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
@@ -225,6 +226,31 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".sme-footer")));
         Assert.Equal(2, _uploads.Count);
+        Assert.Equal(1, _artworkChanged);
+    }
+
+    [Fact]
+    public async Task ARetryAskedForTwiceWhileItRunsUploadsTheFileOnlyOnce()
+    {
+        _upload = () => Task.FromResult(false);
+        var cut = RenderSection("artwork");
+        await cut.Instance.PickAsync("CoverArt", new FakeBrowserFile("cover.png"));
+        Assert.Single(_uploads);
+
+        var gate = new TaskCompletionSource<bool>();
+        _upload = () => gate.Task;
+        var first = cut.Instance.RetryAsync();
+        var second = cut.Instance.RetryAsync();
+        await second;
+
+        Assert.Equal(2, _uploads.Count);
+        Assert.True(cut.Instance.RetryRunning);
+
+        gate.SetResult(true);
+        await first;
+
+        Assert.Equal(2, _uploads.Count);
+        Assert.False(cut.Instance.RetryRunning);
         Assert.Equal(1, _artworkChanged);
     }
 
@@ -427,23 +453,39 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ARefusedRefreshShowsTheEnginesReasonInline()
+    public void ARefusedRefreshShowsOnePlainLineAndKeepsTheEnginesRawErrorInTheLog()
     {
         SignInAs(administrator: true);
         _queueRefresh = () => Task.FromResult<EnrichmentRefreshQueuedResponse?>(null);
-        _lastError = "Unlock administrator settings first.";
+        _lastError = "HTTP 403: Unlock administrator settings first.";
         var cut = RenderSection("links");
 
         cut.Find(".sme-match-refresh button").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(
-            "Unlock administrator settings first.", cut.Find(".sme-match-refresh [role='alert']").TextContent.Trim()));
+            "Refresh could not start. Try again later.", cut.Find(".sme-match-refresh [role='alert']").TextContent.Trim()));
+        Assert.DoesNotContain("HTTP 403", cut.Find(".sme-match-refresh").TextContent);
         Assert.Empty(cut.FindAll(".sme-match-refresh [role='status']"));
         Assert.False(cut.Find(".sme-match-refresh button").HasAttribute("disabled"));
+        Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("HTTP 403: Unlock administrator settings first."));
     }
 
     [Fact]
-    public void ARefreshThatCouldNotStartWithoutAReasonStillSaysSoPlainly()
+    public void RefreshMetadataIsCheckedAgainWhenPressedSoAnAdministratorWhoLostTheRightCallsNothing()
+    {
+        SignInAs(administrator: true);
+        var cut = RenderSection("links");
+        var button = cut.Find(".sme-match-refresh button");
+
+        SignInAs(administrator: false);
+        button.Click();
+
+        Assert.Empty(_refreshes);
+        Assert.Empty(cut.FindAll(".sme-match-refresh [role='status']"));
+    }
+
+    [Fact]
+    public void ARefreshThatCouldNotStartWithoutAnEngineMessageSaysTheSamePlainLine()
     {
         SignInAs(administrator: true);
         _queueRefresh = () => Task.FromResult<EnrichmentRefreshQueuedResponse?>(null);
@@ -452,7 +494,7 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
         cut.Find(".sme-match-refresh button").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(
-            "The refresh could not be started. Try again in a moment.", cut.Find(".sme-match-refresh [role='alert']").TextContent.Trim()));
+            "Refresh could not start. Try again later.", cut.Find(".sme-match-refresh [role='alert']").TextContent.Trim()));
     }
 
     [Fact]
@@ -550,6 +592,10 @@ public sealed class ArtworkAndMatchSectionTests : AsyncBunitContext
     {
         public Task PickAsync(string assetType, IBrowserFile file) =>
             InvokeAsync(() => HandleArtworkSelectedAsync(assetType, new InputFileChangeEventArgs([file])));
+
+        public Task RetryAsync() => InvokeAsync(RetryFailedArtworkUploadsAsync);
+
+        public bool RetryRunning => IsArtworkRetryRunning;
 
         public Task RemoveAsync(ArtworkVariantDisplayItem item) =>
             InvokeAsync(() => DeleteArtworkVariantWithConfirmationAsync(item));

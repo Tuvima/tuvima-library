@@ -12,6 +12,7 @@ public partial class SharedMediaEditorShell
 {
     private int _appliedRequestVersion;
     private bool _lastReportedDirty;
+    private bool _lastReportedSaving;
     private int _lastReportedCommit;
 
     /// <summary>The one section to show (details, artwork, links or history). Setting it makes the shell a section slot, which is always hosted <see cref="Inline"/>.</summary>
@@ -25,6 +26,9 @@ public partial class SharedMediaEditorShell
 
     /// <summary>Raised when unsaved input appears or is cleared, so the host can guard Done, Esc, Back and closing.</summary>
     [Parameter] public EventCallback<bool> DirtyChanged { get; set; }
+
+    /// <summary>Raised when the section's own save starts or finishes, so the host can keep Done from starting a second save.</summary>
+    [Parameter] public EventCallback<bool> SavingChanged { get; set; }
 
     /// <summary>Raised after each saved change so the host can refresh what the page shows behind the section.</summary>
     [Parameter] public EventCallback Committed { get; set; }
@@ -117,6 +121,13 @@ public partial class SharedMediaEditorShell
         {
             _lastReportedDirty = dirty;
             await DirtyChanged.InvokeAsync(dirty);
+        }
+
+        var saving = _saving || _matchActionPending;
+        if (saving != _lastReportedSaving)
+        {
+            _lastReportedSaving = saving;
+            await SavingChanged.InvokeAsync(saving);
         }
 
         if (_commitVersion != _lastReportedCommit)

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
@@ -31,10 +32,15 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
     private int _asked;
     private int _committed;
     private bool _buildReturnsNull;
+    private readonly CapturingLoggerProvider _logs = new();
+    private readonly EscapeScriptJsRuntime _js;
 
     public EditingSectionSlotTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
+        _js = new EscapeScriptJsRuntime(JSInterop.JSRuntime);
+        Services.AddSingleton<IJSRuntime>(_js);
+        Services.AddLogging(logging => logging.AddProvider(_logs));
         Services.AddSingleton(_device);
         var api = EngineApiClientStub.Create(stub =>
         {
@@ -285,6 +291,48 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task DisposingTheSlotReleasesTheEscScriptModule()
+    {
+        var module = new EscapeModuleSpy();
+        _js.EscapeModule = module;
+        var (mode, slot) = await StartAsync(handlesEscape: true);
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
+        slot.WaitForAssertion(() => Assert.Equal(1, module.Attached));
+
+        await slot.InvokeAsync(() => ((IAsyncDisposable)slot.Instance).DisposeAsync().AsTask());
+
+        Assert.Equal(1, module.Disposed);
+    }
+
+    [Fact]
+    public async Task AnEscScriptThatCannotAttachIsLoggedAndTheSectionStillOpens()
+    {
+        _js.EscapeModule = new EscapeModuleSpy { AttachFails = true };
+        var (mode, slot) = await StartAsync(handlesEscape: true);
+
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
+
+        slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll(".tl-editing-slot")));
+        slot.WaitForAssertion(() => Assert.Contains(_logs.Entries, entry =>
+            entry.Level == LogLevel.Warning && entry.Exception is JSException));
+        Assert.True(mode.SectionOpen);
+    }
+
+    [Fact]
+    public async Task AnEscScriptThatCannotBeImportedIsLoggedAndTheSectionStillOpens()
+    {
+        _js.ImportFails = true;
+        var (mode, slot) = await StartAsync(handlesEscape: true);
+
+        await slot.InvokeAsync(() => mode.OpenSection(EditingSection.History));
+
+        slot.WaitForAssertion(() => Assert.NotEmpty(slot.FindAll(".tl-editing-slot")));
+        slot.WaitForAssertion(() => Assert.Contains(_logs.Entries, entry =>
+            entry.Level == LogLevel.Warning && entry.Exception is JSException));
+        Assert.True(mode.SectionOpen);
+    }
+
+    [Fact]
     public async Task InsideTheOverlayTheSlotAddsNoEscListenerBecauseTheOverlayOwnsEsc()
     {
         var (mode, slot) = await StartAsync(handlesEscape: false);
@@ -388,5 +436,67 @@ public sealed class EditingSectionSlotTests : AsyncBunitContext
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
+    }
+
+    // Hands the Esc script's module to a hand-written spy (or refuses to load it) and forwards every other browser call.
+    private sealed class EscapeScriptJsRuntime(IJSRuntime inner) : IJSRuntime
+    {
+        public EscapeModuleSpy? EscapeModule { get; set; }
+
+        public bool ImportFails { get; set; }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "import" && args?.FirstOrDefault() as string == "./js/editing-section-escape.js")
+            {
+                if (ImportFails)
+                {
+                    throw new JSException("Failed to fetch dynamically imported module");
+                }
+
+                if (EscapeModule is { } module)
+                {
+                    return ValueTask.FromResult((TValue)(object)module);
+                }
+            }
+
+            return inner.InvokeAsync<TValue>(identifier, cancellationToken, args);
+        }
+    }
+
+    private sealed class EscapeModuleSpy : IJSObjectReference
+    {
+        public bool AttachFails { get; init; }
+
+        public int Attached { get; private set; }
+
+        public int Disposed { get; private set; }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "attach")
+            {
+                if (AttachFails)
+                {
+                    throw new JSException("attach failed");
+                }
+
+                Attached++;
+            }
+
+            return ValueTask.FromResult(default(TValue)!);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed++;
+            return ValueTask.CompletedTask;
+        }
     }
 }

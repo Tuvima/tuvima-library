@@ -570,6 +570,93 @@ public sealed class EditingModeContextTests
         await saving;
     }
 
+    [Fact]
+    public async Task WhileTheOpenSectionsOwnSaveRuns_DoneAndEscAreRefusedAndNeverAskOrSave()
+    {
+        var (mode, ask) = await StartedAsync(SaveOrDiscardChoice.Save);
+        var host = new SectionHostSpy();
+        mode.SectionHost = host;
+        mode.OpenSection(EditingSection.Artwork);
+        mode.SetSectionDirty(true);
+        mode.SetSectionSaving(true);
+
+        Assert.False(await mode.DoneAsync());
+        Assert.False(await mode.CanDismissAsync());
+        Assert.True(await mode.HandleEscapeAsync());
+
+        Assert.Equal(0, ask.Asked);
+        Assert.Equal(0, host.Saved);
+        Assert.True(mode.SectionOpen);
+
+        mode.SetSectionSaving(false);
+        Assert.True(await mode.DoneAsync());
+        Assert.Equal(1, host.Saved);
+    }
+
+    // -- The mode ends while "Save or discard?" is open (the title was removed) ----------------
+
+    [Theory]
+    [InlineData(SaveOrDiscardChoice.Save)]
+    [InlineData(SaveOrDiscardChoice.Discard)]
+    public async Task Done_WhenEditingEndsWhileTheQuestionIsOpen_DoesNotDismissOrSaveWhateverIsChosen(SaveOrDiscardChoice choice)
+    {
+        var (mode, _) = await StartedAsync();
+        var gate = new TaskCompletionSource<SaveOrDiscardChoice>();
+        mode.AskSaveOrDiscard = () => gate.Task;
+        var host = new SectionHostSpy();
+        mode.SectionHost = host;
+        mode.OpenSection(EditingSection.Artwork);
+        mode.SetSectionDirty(true);
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        var done = mode.DoneAsync();
+        mode.Leave();
+        gate.SetResult(choice);
+
+        Assert.False(await done);
+        Assert.False(mode.IsOn);
+        Assert.False(mode.IsSettling);
+        Assert.Equal(0, host.Saved);
+        Assert.Empty(_saves);
+    }
+
+    [Fact]
+    public async Task CloseSection_WhenEditingEndsWhileTheQuestionIsOpen_DoesNotSaveIntoTheRemovedItem()
+    {
+        var (mode, _) = await StartedAsync();
+        var gate = new TaskCompletionSource<SaveOrDiscardChoice>();
+        mode.AskSaveOrDiscard = () => gate.Task;
+        var host = new SectionHostSpy();
+        mode.SectionHost = host;
+        mode.OpenSection(EditingSection.Match);
+        mode.SetSectionDirty(true);
+
+        var closing = mode.CloseSectionAsync();
+        mode.Leave();
+        gate.SetResult(SaveOrDiscardChoice.Save);
+
+        Assert.False(await closing);
+        Assert.Equal(0, host.Saved);
+        Assert.Equal(0, host.Discarded);
+    }
+
+    [Fact]
+    public async Task Escape_WhenEditingEndsWhileAFieldQuestionIsOpen_DoesNotSaveTheFieldIntoTheRemovedItem()
+    {
+        var (mode, _) = await StartedAsync();
+        var gate = new TaskCompletionSource<SaveOrDiscardChoice>();
+        mode.AskSaveOrDiscard = () => gate.Task;
+        TypeIntoTheTitle(mode, "Typed but not saved");
+
+        var escape = mode.HandleEscapeAsync();
+        mode.Leave();
+        gate.SetResult(SaveOrDiscardChoice.Save);
+
+        Assert.True(await escape);
+        Assert.False(mode.IsOn);
+        Assert.Empty(_saves);
+    }
+
     // -- Spies ---------------------------------------------------------------------------------
 
     private sealed class AskSpy(IEnumerable<SaveOrDiscardChoice> answers)
