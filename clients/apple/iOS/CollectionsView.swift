@@ -240,17 +240,24 @@ struct UniverseView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(universe.name).font(.largeTitle.bold())
-                            Text("Universe · \(universe.itemCount ?? 0) items")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                            let totals = universeTotalsLine(universe)
+                            if !totals.isEmpty {
+                                Text(totals)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                             if let description = universe.description, !description.isEmpty {
                                 Text(description)
                             }
                         }
                         .padding(.horizontal)
                         ForEach(universe.shelves) { member in
-                            ShelfRow(shelf: member.shelf, title: shelfTitle(member))
+                            if let rows = universeShelfPresentation(member) {
+                                seriesSection(rows)
+                            }
                         }
+                        if !universe.cast.isEmpty { castSection(universe.cast) }
+                        if !universe.adaptations.isEmpty { adaptationsSection(universe.adaptations) }
                     }
                     .padding(.vertical)
                 }
@@ -264,10 +271,56 @@ struct UniverseView: View {
         }
     }
 
-    private func shelfTitle(_ member: UniverseShelf) -> String {
-        let kind = groupTypeLabel(member.groupType ?? "series")
-        let count = member.itemCount ?? member.shelf.items.count
-        return "\(kind) · \(member.shelf.title) (\(count))"
+    /// One Series: its name and kind line, the numbered run when it has one, then its "Also in this world" row.
+    private func seriesSection(_ rows: UniverseShelfPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rows.title).font(.title3.bold())
+                Text(rows.kindLine).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            if rows.showsRun {
+                ShelfRow(shelf: rows.runShelf, showsTitle: false)
+            }
+            if let also = rows.alsoShelf, let heading = rows.alsoHeading {
+                // With no run, the Series heading above already says "Also in this world · N items".
+                ShelfRow(shelf: also, title: heading, showsTitle: rows.showsRun)
+            }
+        }
+    }
+
+    /// The Universe's cast: read-only, so no row opens anything.
+    private func castSection(_ cast: [UniverseCastMember]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Cast").font(.title3.bold())
+            ForEach(cast) { member in
+                HStack(spacing: 12) {
+                    if let headshot = member.headshotUrl, !headshot.isEmpty {
+                        ArtworkImage(path: headshot)
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(member.name).font(.subheadline.bold())
+                        if let line = castCharactersLine(member) {
+                            Text(line).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    /// Works in the Universe that adapt another work: read-only text rows.
+    private func adaptationsSection(_ adaptations: [UniverseAdaptation]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Adaptations").font(.title3.bold())
+            ForEach(adaptations) { adaptation in
+                Text(adaptationLine(adaptation)).font(.subheadline)
+            }
+        }
+        .padding(.horizontal)
     }
 
     private func load() async {

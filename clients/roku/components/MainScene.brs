@@ -15,6 +15,9 @@ sub init()
     m.photoIndex = 0
     m.photoCounter = 0
     m.inCollection = false
+    m.inUniverse = false
+    m.universePage = invalid
+    m.universeName = ""
     m.status = m.top.findNode("status")
     m.api = m.top.findNode("api")
     m.pairingTimer = m.top.findNode("pairingTimer")
@@ -114,17 +117,25 @@ sub pollPairing()
     })
 end sub
 
-sub loadHome()
+sub clearBrowseState()
+    ' Leaving a collection or a Universe's Series list for good; Back from either must never stay armed.
     m.inCollection = false
+    m.inUniverse = false
+    m.universePage = invalid
+    m.universeName = ""
+end sub
+
+sub loadHome()
+    clearBrowseState()
     m.homePage = invalid
     m.continuePage = invalid
     m.collectionsPage = invalid
     m.photosPage = invalid
     runApi("home", {})
 end sub
-sub loadWatch(): m.inCollection = false: runApi("browse", { lane: "watch" }): end sub
-sub loadRead(): m.inCollection = false: runApi("browse", { lane: "read" }): end sub
-sub loadListen(): m.inCollection = false: runApi("browse", { lane: "listen" }): end sub
+sub loadWatch(): clearBrowseState(): runApi("browse", { lane: "watch" }): end sub
+sub loadRead(): clearBrowseState(): runApi("browse", { lane: "read" }): end sub
+sub loadListen(): clearBrowseState(): runApi("browse", { lane: "listen" }): end sub
 
 sub showSearch()
     m.libraryGroup.visible = false
@@ -189,6 +200,8 @@ sub onApiResult()
         showLibrary(value)
     else if operation = "collectionItems"
         showCollectionItems(value)
+    else if operation = "universe"
+        showUniverse(value)
     else if operation = "photoFile"
         showPhoto(value)
     else if operation = "profiles"
@@ -260,6 +273,9 @@ function photoDeniedText() as String
 end function
 
 sub showLibrary(page as Object)
+    ' Every fresh list starts outside a collection / Universe; the callers that are one set their flag after this returns.
+    m.inCollection = false
+    m.inUniverse = false
     m.serverGroup.visible = false
     m.pairingGroup.visible = false
     m.libraryGroup.visible = true
@@ -307,6 +323,15 @@ sub onItemSelected()
     location = m.rows.rowItemSelected
     item = m.rows.content.getChild(location[0]).getChild(location[1])
     if item.kind = "collection"
+        ' A plain collection opened from Home: Back returns Home, not to a Universe.
+        m.universePage = invalid
+        m.collectionName = item.title
+        runApi("collectionItems", { id: item.entityId })
+    else if item.kind = "universe"
+        m.universeName = item.title
+        runApi("universe", { qid: item.entityId })
+    else if item.kind = "universeSeries"
+        ' m.universePage stays set so Back from the items returns to the Series list.
         m.collectionName = item.title
         runApi("collectionItems", { id: item.entityId })
     else if item.kind = "photo"
@@ -336,10 +361,18 @@ sub showHomeRows()
         for each entry in m.collectionsPage.items
             cover = invalid
             if entry.cover_artwork_url <> invalid then cover = entry.cover_artwork_url
+            ' A Universe entry opens its Series list; the QID rides in the tile id so the selection handler can read it.
+            tileKind = "collection"
+            tileId = entry.id
+            qid = universeQidFor(entry)
+            if qid <> ""
+                tileKind = "universe"
+                tileId = qid
+            end if
             shelf.items.Push({
-                id: entry.id,
+                id: tileId,
                 assetId: invalid,
-                kind: "collection",
+                kind: tileKind,
                 mediaType: "collection",
                 title: entry.name,
                 description: entry.item_count.ToStr() + " items",
@@ -390,6 +423,98 @@ sub showCollectionItems(response as Object)
     end for
     showLibrary({ shelves: [shelf] })
     m.inCollection = true
+end sub
+
+function isQid(value as Dynamic) as Boolean
+    if value = invalid then return false
+    if Type(value) <> "roString" and Type(value) <> "String" then return false
+    matcher = CreateObject("roRegex", "^Q[0-9]+$", "")
+    return matcher.IsMatch(value)
+end function
+
+' The Universe QID of a Collections entry: universe_qid, else a QID-shaped system_key; empty when the entry is not a Universe.
+function universeQidFor(entry as Object) as String
+    if entry.group_type = invalid then return ""
+    if LCase(entry.group_type) <> "universe" then return ""
+    if isQid(entry.universe_qid) then return entry.universe_qid
+    if isQid(entry.system_key) then return entry.system_key
+    return ""
+end function
+
+function wireCount(value as Dynamic) as Integer
+    if value = invalid then return 0
+    kind = Type(value)
+    if kind = "roInt" or kind = "roInteger" or kind = "Integer" or kind = "roFloat" or kind = "Float" or kind = "roDouble" or kind = "Double" or kind = "roLongInteger" or kind = "LongInteger"
+        return Int(value)
+    end if
+    return 0
+end function
+
+function itemCountText(count as Integer) as String
+    if count = 1 then return "1 item"
+    return count.ToStr() + " items"
+end function
+
+' The short line under a Series tile: its run count, or the Also count when the run is empty (never "0 items"); empty text means skip the Series.
+function seriesCountLine(itemCount as Integer, alsoCount as Integer) as String
+    if itemCount > 0 then return itemCountText(itemCount)
+    if alsoCount > 0 then return "Also in this world · " + itemCountText(alsoCount)
+    return ""
+end function
+
+function firstCardCover(source as Dynamic) as Dynamic
+    if source = invalid then return invalid
+    if source.items = invalid or source.items.Count() = 0 then return invalid
+    artwork = source.items[0].artwork
+    if artwork = invalid then return invalid
+    if artwork.coverLargeUrl <> invalid then return artwork.coverLargeUrl
+    if artwork.coverUrl <> invalid then return artwork.coverUrl
+    return invalid
+end function
+
+sub showUniverse(response as Object)
+    m.universePage = response
+    showUniverseSeries(response)
+end sub
+
+' The Universe's Series list (Series only on Roku): one tile per shelf in the Engine's order.
+sub showUniverseSeries(page as Object)
+    title = m.universeName
+    if page.name <> invalid and page.name <> "" then title = page.name
+    row = { title: title, items: [] }
+    if page.shelves <> invalid
+        for each entry in page.shelves
+            itemCount = wireCount(entry.item_count)
+            alsoCount = wireCount(entry.also_in_this_world_count)
+            also = entry.also_in_this_world
+            if alsoCount = 0 and also <> invalid and also.items <> invalid then alsoCount = also.items.Count()
+            line = seriesCountLine(itemCount, alsoCount)
+            if line <> "" and entry.collection_id <> invalid
+                name = "Series"
+                if entry.shelf <> invalid and entry.shelf.title <> invalid and entry.shelf.title <> "" then name = entry.shelf.title
+                cover = invalid
+                if itemCount > 0 then cover = firstCardCover(entry.shelf)
+                if cover = invalid then cover = firstCardCover(also)
+                row.items.Push({
+                    id: entry.collection_id,
+                    assetId: invalid,
+                    kind: "universeSeries",
+                    mediaType: "collection",
+                    title: name,
+                    description: line,
+                    artwork: { coverLargeUrl: cover },
+                    actions: []
+                })
+            end if
+        end for
+    end if
+    if row.items.Count() = 0
+        m.universePage = invalid
+        m.status.text = "This Universe has no Series to show yet."
+        return
+    end if
+    showLibrary({ shelves: [row] })
+    m.inUniverse = true
 end sub
 
 sub openPhoto(item as Object)
@@ -596,6 +721,11 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         return true
     end if
     if key = "back" and m.inCollection and m.libraryGroup.visible
+        ' Items opened from a Universe's Series list go back to that list; any other collection goes Home.
+        if m.universePage <> invalid then showUniverseSeries(m.universePage) else loadHome()
+        return true
+    end if
+    if key = "back" and m.inUniverse and m.libraryGroup.visible
         loadHome()
         return true
     end if
