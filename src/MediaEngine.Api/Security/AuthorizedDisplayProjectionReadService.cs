@@ -28,6 +28,27 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
+    public async Task<IReadOnlySet<Guid>> LoadVisibleWorkIdsAsync(CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        return await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
+    }
+
+    // The same rule LoadWorksAsync applies, over the light rows: an invalid scope sees nothing, otherwise a work is visible
+    // when any of its (work, library) rows passes Allows.
+    private async Task<IReadOnlySet<Guid>> AllowedWorkIdsAsync(CatalogueScope scope, CancellationToken ct)
+    {
+        if (!scope.IsValid)
+        {
+            return new HashSet<Guid>();
+        }
+
+        return (await inner.LoadVisibleWorkRowsAsync(ct).ConfigureAwait(false))
+            .Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
+            .Select(row => row.WorkId)
+            .ToHashSet();
+    }
+
     public async Task<DisplayLibraryScope> LoadLibraryScopeAsync(CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
@@ -156,10 +177,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return await inner.LoadHomeCollectionsAsync(profileId, ct).ConfigureAwait(false);
         }
 
-        var allowedWorkIds = (await inner.LoadWorksAsync(ct).ConfigureAwait(false))
-            .Where(work => Allows(work.LibraryId, work.MediaType, work.ContentRating, scope))
-            .Select(work => work.WorkId)
-            .ToHashSet();
+        var allowedWorkIds = await AllowedWorkIdsAsync(scope, ct).ConfigureAwait(false);
         if (allowedWorkIds.Count == 0)
         {
             return [];
