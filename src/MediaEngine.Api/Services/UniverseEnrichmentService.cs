@@ -302,6 +302,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
 
             var lookup = stage3Scope.Canonicals.ToDictionary(v => v.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
             var narrativeRoot = await services.NarrativeRootResolver.ResolveAsync(stage3Scope.CanonicalEntityId, ct).ConfigureAwait(false);
+            await services.WorkAdaptationEdges.WriteAsync(stage3Scope.CanonicalEntityId, request.WorkQid, ct).ConfigureAwait(false);
             var hasUniversePath = HasUniversePath(lookup, narrativeRoot);
             var workTitle = request.WorkTitle ?? GetBestTitle(lookup) ?? request.WorkQid;
 
@@ -660,6 +661,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
             services.GetRequiredService<IEnrichmentService>(),
             services.GetRequiredService<IFictionalEntityRepository>(),
             services.GetRequiredService<INarrativeRootResolver>(),
+            services.GetRequiredService<IWorkAdaptationEdgeService>(),
             services.GetRequiredService<IIdentityJobRepository>(),
             services.GetRequiredService<IEventPublisher>(),
             services.GetRequiredService<PluginUniverseLoreService>());
@@ -698,6 +700,7 @@ public sealed class UniverseEnrichmentService : BackgroundService, IUniverseEnri
         IEnrichmentService Enrichment,
         IFictionalEntityRepository FictionalEntityRepository,
         INarrativeRootResolver NarrativeRootResolver,
+        IWorkAdaptationEdgeService WorkAdaptationEdges,
         IIdentityJobRepository JobRepository,
         IEventPublisher EventPublisher,
         PluginUniverseLoreService PluginUniverseLore);

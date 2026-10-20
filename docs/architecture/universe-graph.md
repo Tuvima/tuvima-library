@@ -79,7 +79,7 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 
 `RelationshipPopulationService` creates graph edges by reading entity-valued claims after enrichment. The traversal depth is configurable (default: 2 hops) via `lineage_depth` in `config/hydration.json`.
 
-26 relationship types are supported:
+27 character, place, organisation and event relationship types are supported. A property is read only when it is listed for its entity type in `data_extension` (`character_properties.core` for characters) and has a `property_labels` entry in `config/providers/wikidata_reconciliation.json`; an edge is written only for the claim keys `RelationshipPopulationService` maps to a type:
 
 | Relationship | Wikidata property |
 |---|---|
@@ -88,7 +88,8 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 | spouse | P26 |
 | sibling | P3373 |
 | child | P40 |
-| opponent | P1344 |
+| participant_in (a character took part in an event) | P1344 |
+| enemy | P7047 |
 | student_of | P1066 |
 | partner | P451 |
 | member_of | P463 |
@@ -109,6 +110,17 @@ Entity types are stored in a single `fictional_entities` table with a sub-type d
 | participant | P710 |
 | caused_by | P828 |
 | causes | P1542 |
+
+### Adaptation edges between Works
+
+Adaptations on a Universe page fill from evidence. During Stage 3 (right after the Work's narrative root is resolved) `WorkAdaptationEdgeService` reads the Work's own Wikidata claims and writes `entity_relationships` rows between Works, so no adaptation is guessed:
+
+| Claim on the Work | Wikidata property | Edge written |
+|---|---|---|
+| `based_on` | P144 | this Work `based_on` the named Work |
+| `derivative_work` | P4969 | the named Work `derivative_work` of this Work (the claim is stored reversed, so every edge reads "subject is an adaptation of object") |
+
+An edge is keyed by subject, type, object and source, so a re-run updates the row it wrote before and never duplicates it. Works are not `fictional_entities` rows; their QIDs sit as plain text in the edge. Ownership is not checked when an edge is written, because the Universe reads (`UniverseConnectionsReadService`) show only an edge whose both Works the profile can see. `inspired_by` (P941) is not read yet, so no `inspired_by` edge is written.
 
 Actor-to-character links are stored separately in `character_performer_links` (person_id, fictional_entity_id, work_qid) and merged into the graph at query time.
 
