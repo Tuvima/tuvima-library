@@ -549,14 +549,14 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     }
 
     /// <summary>
-    /// A repeat pass may skip the provider call only when the last pass got TMDB's answer for the item's
+    /// A repeat pass may skip the provider call only when the last pass got TMDB's artwork for the item's
     /// current id. After re-identification the stored artwork belongs to the earlier film, and a pass that
-    /// was skipped or failed has nothing to repeat, so both call TMDB again.
+    /// was skipped, failed or found no TMDB record has nothing to repeat, so each calls TMDB again.
     /// </summary>
     private static bool LastPassAnsweredFor(IReadOnlyDictionary<string, string> canonicals, string tmdbId) =>
         !string.IsNullOrWhiteSpace(GetValue(canonicals, "tmdb_artwork_last_checked_at"))
         && string.Equals(GetValue(canonicals, "tmdb_artwork_bridge_id"), tmdbId, StringComparison.OrdinalIgnoreCase)
-        && GetValue(canonicals, "tmdb_artwork_status") is "Completed" or "NoImages" or "NoResult";
+        && GetValue(canonicals, "tmdb_artwork_status") is "Completed" or "NoImages";
 
     /// <summary>
     /// True when the provider artwork held for the item was found for a different bridge id than the current

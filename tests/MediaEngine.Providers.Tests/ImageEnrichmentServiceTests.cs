@@ -559,10 +559,18 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         await File.WriteAllBytesAsync(libraryPath, CreatePosterJpeg(120, 180));
         await _entityAssets.UpsertAsync(new EntityAsset
         {
-            Id = libraryId, EntityId = movie.WorkId.ToString(), EntityType = "Work", AssetTypeValue = "CoverArt",
-            ImageUrl = $"/api/v1/display/artwork/assets/{libraryId:N}/content", LocalImagePath = libraryPath,
-            SourceProvider = "tmdb", AssetClassValue = "Artwork", StorageLocationValue = "Central", OwnerScope = "Work",
-            IsUserOverride = true, CreatedAt = DateTimeOffset.UtcNow,
+            Id = libraryId,
+            EntityId = movie.WorkId.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = "CoverArt",
+            ImageUrl = $"/api/v1/display/artwork/assets/{libraryId:N}/content",
+            LocalImagePath = libraryPath,
+            SourceProvider = "tmdb",
+            AssetClassValue = "Artwork",
+            StorageLocationValue = "Central",
+            OwnerScope = "Work",
+            IsUserOverride = true,
+            CreatedAt = DateTimeOffset.UtcNow,
         });
         var provider = (await _entityAssets.GetByEntityAsync(movie.WorkId.ToString(), "CoverArt")).First(asset => asset.Id != libraryId);
 
@@ -743,9 +751,17 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         {
             await _entityAssets.UpsertAsync(new EntityAsset
             {
-                Id = Guid.NewGuid(), EntityId = owner.ToString(), EntityType = "Work", AssetTypeValue = type,
-                ImageUrl = url, SourceProvider = "tvdb", AssetClassValue = "Artwork", StorageLocationValue = "Central",
-                OwnerScope = "Work", IsPreferred = true, CreatedAt = DateTimeOffset.UtcNow,
+                Id = Guid.NewGuid(),
+                EntityId = owner.ToString(),
+                EntityType = "Work",
+                AssetTypeValue = type,
+                ImageUrl = url,
+                SourceProvider = "tvdb",
+                AssetClassValue = "Artwork",
+                StorageLocationValue = "Central",
+                OwnerScope = "Work",
+                IsPreferred = true,
+                CreatedAt = DateTimeOffset.UtcNow,
             });
         }
         var paths = new List<string>();

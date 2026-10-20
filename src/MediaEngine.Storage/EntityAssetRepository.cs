@@ -573,7 +573,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
 
             var stillReferenced = AssetFileReferences.LoadReferencedPaths(conn, tx);
             return candidates
-                .Where(path => !string.IsNullOrWhiteSpace(path) && !stillReferenced.Contains(Path.GetFullPath(path)))
+                .Where(path => !string.IsNullOrWhiteSpace(path) && !AssetFileReferences.IsReferenced(stillReferenced, path))
                 .Select(path => path!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
