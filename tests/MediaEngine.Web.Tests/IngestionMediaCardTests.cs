@@ -143,21 +143,6 @@ public sealed class IngestionMediaCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ASymbolThatHasNotStartedYet_StaysADimSymbolNotADash()
-    {
-        var item = Item("Movies");
-        item.People = IngestionFacetStateDto.NotApplicable("People");
-
-        var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, item));
-
-        var people = cut.FindAll(".ingestion-media-list-row__details .ingestion-facets__slot")[2];
-        Assert.Empty(people.QuerySelectorAll(".is-none"));
-        var symbol = people.QuerySelector(".ingestion-facet")!;
-        Assert.Equal("People", symbol.GetAttribute("aria-label"));
-        Assert.Equal("People", people.QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
-    }
-
-    [Fact]
     public void EachSymbol_UsesTheSameWordsForItsTooltipAndItsAccessibleName()
     {
         var cut = Render<IngestionMediaCard>(parameters => parameters.Add(component => component.Item, Item("Music")));

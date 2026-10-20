@@ -30,6 +30,8 @@ public static class DetailActionKeys
     public const string ReactionLike = "reaction-like";
     public const string ReactionLove = "reaction-love";
     public const string Details = "details";
+    /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
+    public const string DeleteFromLibrary = "delete-from-library";
 
     /// <summary>Every key <c>DetailPage</c> handles itself (in handler order); see the class summary.</summary>
     public static IReadOnlyList<string> Handled { get; } =
@@ -55,6 +57,7 @@ public static class DetailActionKeys
         ReactionLike,
         ReactionLove,
         Details,
+        DeleteFromLibrary,
     ];
 
     /// <summary>True for the personal-status actions (mark complete or reset, hide or show in Continue, history).</summary>

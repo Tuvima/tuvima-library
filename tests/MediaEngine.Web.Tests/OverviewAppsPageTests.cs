@@ -141,7 +141,7 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
     {
         var cut = RenderPage();
 
-        Assert.Contains("Scan with the Tuvima app on your phone to fill in the server, then sign in as usual.", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Scan with the Library app on your phone to fill in the server, then sign in as usual.", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

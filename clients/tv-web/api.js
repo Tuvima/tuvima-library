@@ -11,7 +11,7 @@
   var TV = (global.TV = global.TV || {});
 
   var CLIENT_ID = 'tuvima-tv';
-  var CLIENT_NAME = 'Tuvima TV';
+  var CLIENT_NAME = 'Library TV';
   var CLIENT_VERSION = '0.1.0';
   var SCOPES = 'library.read artwork.read progress.read progress.write queue.read queue.write playback.read playback.write';
   var DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code';
@@ -162,7 +162,7 @@
         lastError = error;
       }
     }
-    throw lastError || new ApiError(0, 'invalid_address', 'Enter the address of your Tuvima server.');
+    throw lastError || new ApiError(0, 'invalid_address', 'Enter the address of your Library server.');
   }
 
   /* ---- tokens ---- */

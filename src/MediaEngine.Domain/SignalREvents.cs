@@ -28,6 +28,9 @@ public static class SignalREvents
     public const string MediaAdded = "MediaAdded";
     public const string MediaRemoved = "MediaRemoved";
 
+    /// <summary>Titles were deleted from the library by an administrator; screens drop them. Carries <c>LibraryItemsRemovedEvent</c>.</summary>
+    public const string LibraryItemsRemoved = "LibraryItemsRemoved";
+
     // ── Metadata & enrichment ────────────────────────────────────────
     public const string MetadataHarvested = "MetadataHarvested";
     public const string HydrationStageCompleted = "HydrationStageCompleted";

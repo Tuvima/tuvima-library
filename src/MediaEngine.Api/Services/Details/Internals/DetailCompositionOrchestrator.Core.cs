@@ -91,7 +91,8 @@ internal sealed partial class DetailCompositionOrchestrator
         DetailActionAuthorizationContext actionAuthorization = default,
         IReadOnlyList<Guid>? authorizedAssetIds = null,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
-        SequenceWindowRequest? sequenceWindow = null)
+        SequenceWindowRequest? sequenceWindow = null,
+        UniverseLinkResolver? universeLinks = null)
     {
         var favoriteWorkIds = await _reader.LoadFavoriteWorkIdsAsync(profileId, ct);
 
@@ -124,7 +125,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 authorizedAssetIds,
                 authorizedWorks,
                 ct,
-                sequenceWindow),
+                sequenceWindow,
+                universeLinks),
         };
         if (model is not null && profileId.HasValue)
         {

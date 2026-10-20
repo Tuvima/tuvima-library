@@ -492,10 +492,10 @@
     var panel = el('div', 'panel center');
     var logo = el('img', 'logo');
     logo.src = 'assets/tuvima-logo-dark.svg';
-    logo.alt = 'Tuvima Library';
+    logo.alt = 'Library';
     panel.appendChild(logo);
     panel.appendChild(el('h1', '', 'Connect to your library'));
-    panel.appendChild(el('p', 'muted', 'Enter the address of your Tuvima server, as shown in a web browser on your home network.'));
+    panel.appendChild(el('p', 'muted', 'Enter the address of your Library server, as shown in a web browser on your home network.'));
     var input = el('input', 'input focusable');
     input.type = 'text';
     input.setAttribute('data-key', 'server-input');
@@ -519,7 +519,7 @@
         if (!ctx.isCurrent()) { return; }
         message.textContent = error && error.status === 404
           ? 'That address answered, but app access is switched off on the server (Settings, Network, Apps).'
-          : 'Could not find a Tuvima server there. ' + errorMessage(error);
+          : 'Could not find a Library server there. ' + errorMessage(error);
       }
     }, 'primary');
     // Enter on an untouched box opens the TV's on-screen keyboard; once the address was typed, Enter connects.
@@ -644,7 +644,7 @@
 
     ctx.root.textContent = '';
     if (!rows.length) {
-      ctx.root.appendChild(emptyPanel('Your library is empty', 'Add folders in Tuvima on your computer and they will appear here.'));
+      ctx.root.appendChild(emptyPanel('Your library is empty', 'Add folders in Library on your computer and they will appear here.'));
     } else {
       rows.forEach(function (r) { ctx.root.appendChild(r); });
     }
@@ -666,7 +666,7 @@
     var rows = shelvesToRows(page, ctx, { lane: lane });
     ctx.root.textContent = '';
     if (lane === 'read') {
-      ctx.root.appendChild(el('p', 'note', 'Reading is available in the Tuvima apps for phones, tablets and the web. This TV shows your books and comics so you can browse them.'));
+      ctx.root.appendChild(el('p', 'note', 'Reading is available in the Library apps for phones, tablets and the web. This TV shows your books and comics so you can browse them.'));
     }
     if (!rows.length) {
       ctx.root.appendChild(emptyPanel('Nothing here yet', 'Items you add to this part of your library will appear here.'));
@@ -1039,7 +1039,7 @@
         }
       }
     } else {
-      info.appendChild(el('p', 'note', 'This is a book or comic. Open it in the Tuvima apps for phones, tablets and the web to read it.'));
+      info.appendChild(el('p', 'note', 'This is a book or comic. Open it in the Library apps for phones, tablets and the web to read it.'));
     }
     actions.appendChild(button('Back', 'back', function () { goBack(); }));
 
@@ -1178,7 +1178,7 @@
     });
     root.appendChild(list);
     root.appendChild(message);
-    root.appendChild(el('p', 'muted', 'Tuvima TV ' + api.CLIENT_VERSION));
+    root.appendChild(el('p', 'muted', 'Library TV ' + api.CLIENT_VERSION));
     ctx.focus();
   };
 

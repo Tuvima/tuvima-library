@@ -120,6 +120,17 @@ internal static class DataSeeder
                 connection.Execute(ReviewAndJobsSql, null, transaction, commandTimeout: 0);
                 connection.Execute("DROP TABLE seed_owner; DROP TABLE seed_leaf;", null, transaction);
             });
+
+            RunStep(connection, timer, "mark every work Ready", transaction =>
+            {
+                // Home, detail and the library list show only Ready works. A fully processed real library has every work
+                // Ready, so the seed matches it; without this Home and detail return no rows and look fast.
+                connection.Execute(
+                    "UPDATE works SET ready_at = '2026-01-01T00:00:00Z' WHERE ready_at IS NULL;",
+                    null,
+                    transaction,
+                    commandTimeout: 0);
+            });
         }
 
         using (var connection = database.CreateConnection())

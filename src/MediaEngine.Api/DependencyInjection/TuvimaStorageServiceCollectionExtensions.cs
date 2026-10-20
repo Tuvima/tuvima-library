@@ -76,6 +76,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<LibraryItemDeletionService>();
+        services.AddSingleton<ExcludedFileService>();
         services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
         services.AddSingleton<ImportFolderApplier>();
@@ -129,6 +130,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<SetupPreflightService>();
         services.AddSingleton<IProfileWorkPreferencesRepository, ProfileWorkPreferencesRepository>();
         services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
+        services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
         services.AddSingleton<ITasteProfileRepository, TasteProfileRepository>();
         services.AddSingleton<IProfileService, ProfileService>();
         services.AddSingleton<IAccountExternalLoginRepository, AccountExternalLoginRepository>();
@@ -173,9 +175,11 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAccountNoticeDismissalRepository, AccountNoticeDismissalRepository>();
         services.AddSingleton<IProfileNoticeDismissalRepository, ProfileNoticeDismissalRepository>();
         services.AddSingleton<IPersonalActivityRepository, PersonalActivityRepository>();
+        services.AddSingleton<IProfileGridPreferenceRepository, ProfileGridPreferenceRepository>();
         services.AddSingleton<ITasteOverrideRepository, TasteOverrideRepository>();
         services.TryAddSingleton<IIngestionQueueProgressRepository, IngestionQueueProgressRepository>();
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
+        services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<MusicPairingCommitRepository>();

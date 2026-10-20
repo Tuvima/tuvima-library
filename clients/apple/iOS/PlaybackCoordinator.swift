@@ -236,7 +236,7 @@ final class PlaybackCoordinator: ObservableObject {
     private func updateNowPlaying() {
         guard let player else { return }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: title ?? "Tuvima Library",
+            MPMediaItemPropertyTitle: title ?? "Library",
             MPNowPlayingInfoPropertyElapsedPlaybackTime: player.currentTime().seconds,
             MPNowPlayingInfoPropertyPlaybackRate: player.rate,
             MPMediaItemPropertyPlaybackDuration: player.currentItem?.duration.seconds ?? 0,

@@ -93,3 +93,67 @@ public sealed class LibraryItemDeletionCollectionDto
     /// <summary>True when every title in the collection is being deleted, so the collection goes too.</summary>
     [JsonPropertyName("will_be_deleted")] public bool WillBeDeleted { get; init; }
 }
+
+/// <summary>
+/// Deletes these titles from the library. <see cref="Fingerprint"/> is the one the preview returned: if anything changed since
+/// (a new file, a new collection membership, a folder switched to as-is) the Engine changes nothing and answers 409 with a fresh preview.
+/// </summary>
+public sealed class LibraryItemDeletionRequest
+{
+    /// <summary>One to 200 Work ids. Duplicates are collapsed.</summary>
+    [JsonPropertyName("work_ids")] public IReadOnlyList<Guid> WorkIds { get; init; } = [];
+
+    /// <summary>The <see cref="LibraryItemDeletionPreview.Fingerprint"/> of the preview the person confirmed.</summary>
+    [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
+}
+
+/// <summary>What a deletion did. The titles are gone from the library even when a file could not be removed from disk.</summary>
+public sealed class LibraryItemDeletionResultDto
+{
+    [JsonPropertyName("deleted_work_ids")] public List<Guid> DeletedWorkIds { get; init; } = [];
+
+    /// <summary>The titles that were deleted, for the confirmation message.</summary>
+    [JsonPropertyName("titles")] public List<string> Titles { get; init; } = [];
+
+    /// <summary>Files removed from disk (media files and their sidecars).</summary>
+    [JsonPropertyName("files_deleted")] public int FilesDeleted { get; init; }
+
+    /// <summary>Files that are still on disk: kept as they are, protected, or a delete that failed (those are also in <see cref="FilesFailed"/>).</summary>
+    [JsonPropertyName("files_left_on_disk")] public int FilesLeftOnDisk { get; init; }
+
+    /// <summary>Files the Engine tried to remove and could not.</summary>
+    [JsonPropertyName("files_failed")] public List<LibraryItemDeletionFailedFileDto> FilesFailed { get; init; } = [];
+
+    /// <summary>Total size of the files actually removed from disk.</summary>
+    [JsonPropertyName("bytes_freed")] public long BytesFreed { get; init; }
+
+    /// <summary>Hand-picked collections that were left with no titles and deleted.</summary>
+    [JsonPropertyName("collections_deleted")] public List<LibraryItemDeletionRemovedCollectionDto> CollectionsDeleted { get; init; } = [];
+}
+
+/// <summary>A file the Engine could not remove from disk.</summary>
+public sealed class LibraryItemDeletionFailedFileDto
+{
+    [JsonPropertyName("file_name")] public string FileName { get; init; } = string.Empty;
+
+    /// <summary>The library and the folder inside its source folder. Never a full disk path.</summary>
+    [JsonPropertyName("folder_label")] public string FolderLabel { get; init; } = string.Empty;
+
+    /// <summary>A plain sentence, for example "The file is in use".</summary>
+    [JsonPropertyName("reason")] public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class LibraryItemDeletionRemovedCollectionDto
+{
+    [JsonPropertyName("collection_id")] public Guid CollectionId { get; init; }
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+}
+
+/// <summary>The 409 body of a deletion whose preview is out of date. Nothing was deleted.</summary>
+public sealed class LibraryItemDeletionConflictDto
+{
+    [JsonPropertyName("message")] public string Message { get; init; } = string.Empty;
+
+    /// <summary>The preview worked out fresh, to show in place of the old one.</summary>
+    [JsonPropertyName("preview")] public LibraryItemDeletionPreview Preview { get; init; } = new();
+}

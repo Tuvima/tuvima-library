@@ -66,6 +66,43 @@
     border-bottom: 1px solid var(--app-border);
 }
 
+/* A row that could not be drawn keeps its place and the same columns; its one cell spans them all. */
+.ingestion-now__row-error {
+    display: grid;
+    grid-template-columns: var(--ingestion-now-columns);
+    gap: .75rem;
+    align-items: center;
+    min-height: 3.25rem;
+    padding: .25rem .5rem;
+    color: var(--tl-palette-text-secondary);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.ingestion-now__row-error > [role="cell"] {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+}
+
+.ingestion-now__row-error > [role="cell"] > span:last-child {
+    display: grid;
+    min-width: 0;
+}
+
+.ingestion-now__row-error strong {
+    color: var(--tl-text-primary);
+    font-size: .84rem;
+}
+
+.ingestion-now__row-error small {
+    overflow: hidden;
+    font-size: .77rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 .ingestion-grouping-state {
     display: flex;
     align-items: center;

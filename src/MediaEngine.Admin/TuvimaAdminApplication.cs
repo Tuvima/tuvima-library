@@ -49,7 +49,7 @@ public static class TuvimaAdminApplication
         var fullDatabasePath = Path.GetFullPath(databasePath);
         if (!File.Exists(fullDatabasePath))
         {
-            console.WriteError($"Tuvima database was not found at '{fullDatabasePath}'. Use --config-dir or TUVIMA_DB_PATH to select the installed library.");
+            console.WriteError($"Library database was not found at '{fullDatabasePath}'. Use --config-dir or TUVIMA_DB_PATH to select the installed library.");
             return 4;
         }
 
@@ -92,7 +92,7 @@ public static class TuvimaAdminApplication
 
     private static void WriteHelp(IAdminConsole console)
     {
-        console.WriteLine("Tuvima Library host administration");
+        console.WriteLine("Library host administration");
         console.WriteLine(string.Empty);
         console.WriteLine("Usage:");
         console.WriteLine("  tuvima-admin auth reset-password [--email <address>] [--config-dir <path>]");

@@ -23,7 +23,7 @@
             </div>
         }
 
-        <MediaShelfScroller ItemCount="@Shelf.Items.Count" AriaLabel="@Shelf.Title">
+        <MediaShelfScroller ItemCount="@(Shelf.Items.Count + (HasViewAllTile ? 1 : 0))" AriaLabel="@Shelf.Title">
                     @foreach (var (item, index) in Shelf.Items.Select((item, index) => (item, index)))
                     {
                         @if (UseContinueWatchingOrListeningTiles)
@@ -52,6 +52,14 @@
                                        EagerArtwork="@(index < EagerItemCount)"
                                        @key="item.RenderKey" />
                         }
+                    }
+                    @if (HasViewAllTile)
+                    {
+                        @* The last item of the row: opens the whole shelf as a grid. A plain link, so keys and TV remotes reach it like any tile. *@
+                        <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-view-all" aria-label="@($"View all {Shelf.Title}")" data-shelf-view-all>
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Large" aria-hidden="true" />
+                            <span class="media-tile-shelf-view-all-text">View all</span>
+                        </a>
                     }
         </MediaShelfScroller>
     </section>
@@ -84,6 +92,8 @@ else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
     [Parameter] public int EagerItemCount { get; set; }
     /// <summary>When set, an empty shelf keeps its header and shows this helper text instead of disappearing.</summary>
     [Parameter] public string? EmptyMessage { get; set; }
+
+    private bool HasViewAllTile => !string.IsNullOrWhiteSpace(Shelf.SeeAllRoute);
 
     private string RowClass => Shelf.Items.FirstOrDefault()?.Shape switch
     {

@@ -626,6 +626,7 @@
     {
         Nav.LocationChanged += OnLocationChanged;
         StateContainer.MediaAddedReceived += OnMediaAdded;
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Playback.Changed += OnPlaybackChanged;
     }
 
@@ -797,6 +798,15 @@
         var token = _mediaAddedReloadCts.Token;
 
         _ = DebounceMediaAddedReloadAsync(ev.Title, token);
+    }
+
+    // Titles deleted from the library: the same silent, debounced reload a new title gets; the next answer no longer holds them.
+    private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent ev)
+    {
+        _mediaAddedReloadCts?.Cancel();
+        _mediaAddedReloadCts?.Dispose();
+        _mediaAddedReloadCts = new CancellationTokenSource();
+        _ = DebounceMediaAddedReloadAsync(string.Empty, _mediaAddedReloadCts.Token);
     }
 
     private async Task DebounceMediaAddedReloadAsync(string latestTitle, CancellationToken token)
@@ -2214,6 +2224,7 @@
     {
         Nav.LocationChanged -= OnLocationChanged;
         StateContainer.MediaAddedReceived -= OnMediaAdded;
+        Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Playback.Changed -= OnPlaybackChanged;
         _mediaAddedReloadCts?.Cancel();
         _mediaAddedReloadCts?.Dispose();

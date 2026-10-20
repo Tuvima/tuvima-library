@@ -566,6 +566,7 @@ internal class EngineApiClientStub : DispatchProxy
                     Name = "Dune Universe",
                     Description = "A generated Wikidata-backed universe across formats.",
                     CollectionType = "Universe",
+                    UniverseQid = "Q4242",
                     Family = "Global",
                     Visibility = "shared",
                     IsGlobal = true,

@@ -45,7 +45,7 @@ public sealed class PasswordResetDeliverySettings
     [JsonPropertyName("smtp_port")] public int SmtpPort { get; set; } = 587;
     [JsonPropertyName("use_start_tls")] public bool UseStartTls { get; set; } = true;
     [JsonPropertyName("from_address")] public string FromAddress { get; set; } = string.Empty;
-    [JsonPropertyName("from_name")] public string FromName { get; set; } = "Tuvima Library";
+    [JsonPropertyName("from_name")] public string FromName { get; set; } = "Library";
     [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
     [JsonIgnore] public string Password { get; set; } = string.Empty;
 }
