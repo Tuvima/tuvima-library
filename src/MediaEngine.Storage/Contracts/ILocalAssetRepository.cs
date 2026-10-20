@@ -15,11 +15,21 @@ public interface ILocalAssetRepository
     IReadOnlyList<LocalAssetTimelineBucket> QueryTimelineIndex(LocalAssetTimelineQuery query, CancellationToken ct = default);
     LocalAssetDto? Find(Guid itemId, CancellationToken ct = default);
 
+    /// <summary>The items that exist among <paramref name="itemIds"/>, in the order given (unknown ids are left out). The read-only lookup is one query for the whole list.</summary>
+    IReadOnlyList<LocalAssetDto> FindMany(IReadOnlyList<Guid> itemIds, CancellationToken ct = default);
+
     /// <summary>True when the item is a document (PDF, Office or text file) rather than a photo, video or audio.</summary>
     bool IsDocument(Guid itemId, CancellationToken ct = default);
 
     /// <summary>The media kind (<c>image</c>, <c>video</c>, <c>document</c>, ...) of each id that exists; unknown ids are absent. Read in chunks, a few queries for any number of ids.</summary>
     IReadOnlyDictionary<Guid, string> GetMediaKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// The ids, among <paramref name="itemIds"/>, of items that are read-only: at least one of their files comes from a
+    /// <c>linked</c> folder, which Tuvima never moves, renames or deletes. Such an item cannot be moved to Trash.
+    /// Read in chunks, a few queries for any number of ids.
+    /// </summary>
+    IReadOnlySet<Guid> GetReadOnlyItemIds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
 
     /// <summary>
     /// Reads at most <paramref name="maxCharacters"/> characters of an item's extracted document text; the second value

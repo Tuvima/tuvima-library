@@ -14,7 +14,7 @@ $build = Join-Path $here 'build'
 if (Test-Path -LiteralPath $build) { Remove-Item -LiteralPath $build -Recurse -Force }
 New-Item -ItemType Directory -Path $build | Out-Null
 
-foreach ($file in @('api.js', 'nav.js', 'player.js', 'app.js', 'styles.css')) {
+foreach ($file in @('api.js', 'universe.js', 'nav.js', 'player.js', 'app.js', 'styles.css')) {
     Copy-Item -LiteralPath (Join-Path $client $file) -Destination $build
 }
 foreach ($folder in @('assets', 'vendor')) {

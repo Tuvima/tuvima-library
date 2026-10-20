@@ -84,7 +84,8 @@ public sealed class ViewFolderService(
             itemIds.RemoveAt(itemIds.Count - 1);
         }
 
-        var items = itemIds.Select(id => assets.Find(id, ct)).Where(item => item is not null).Cast<LocalAssetDto>().ToList();
+        var items = assets.FindMany(itemIds, ct)
+            .Select(item => ViewItemCapabilities.ForViewer(item, viewerProfileId)).ToList();
         var timelineOverride = folderPreferences.TimelinePolicies.GetValueOrDefault(normalized);
         var effectiveTimeline = EffectiveTimeline(selected.Dto.IncludeInTimeline, normalized,
             folderPreferences.TimelinePolicies);

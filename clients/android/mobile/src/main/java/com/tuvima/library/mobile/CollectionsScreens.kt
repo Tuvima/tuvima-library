@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,8 +44,12 @@ import com.tuvima.library.core.CollectionEntry
 import com.tuvima.library.core.CollectionItem
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.UniverseCastMember
 import com.tuvima.library.core.UniverseDetail
-import com.tuvima.library.core.groupTypeLabel
+import com.tuvima.library.core.adaptationLine
+import com.tuvima.library.core.castCharactersLine
+import com.tuvima.library.core.universeShelfRows
+import com.tuvima.library.core.universeTotalsLine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -274,31 +280,87 @@ internal fun UniverseScreen(
                 item {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text(universe.name, style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            "Universe · ${universe.itemCount} items",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        universeTotalsLine(universe).takeIf { it.isNotEmpty() }?.let {
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
                         universe.description?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }
                     }
                 }
-                items(universe.shelves) { member ->
+                items(universe.shelves.mapNotNull(::universeShelfRows)) { rows ->
                     Column(Modifier.padding(top = 16.dp)) {
-                        Text(
-                            "${groupTypeLabel(member.groupType)} · ${member.shelf.title} (${member.itemCount})",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(member.shelf.items) { card ->
-                                PosterTile(client, card, Modifier.width(120.dp)) { openCard(card) }
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Text(rows.title, style = MaterialTheme.typography.titleMedium)
+                            Text(rows.kindLine, style = MaterialTheme.typography.bodySmall)
+                        }
+                        rows.run?.let { run -> PosterRow(client, run.items, openCard) }
+                        rows.also?.let { also ->
+                            if (rows.showRun) {
+                                Text(
+                                    rows.alsoHeading(),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
                             }
+                            PosterRow(client, also.items, openCard)
                         }
                     }
                 }
+                if (universe.cast.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Cast",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+                        )
+                    }
+                    items(universe.cast) { member -> CastRow(client, member) }
+                }
+                if (universe.adaptations.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Adaptations",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+                        )
+                    }
+                    items(universe.adaptations) { link ->
+                        Text(
+                            adaptationLine(link),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun PosterRow(client: TuvimaClient, cards: List<DisplayCard>, openCard: (DisplayCard) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(cards) { card ->
+            PosterTile(client, card, Modifier.width(120.dp)) { openCard(card) }
+        }
+    }
+}
+
+/** One read-only cast line: an optional small round headshot, the name, and "as …" beneath when characters are known. */
+@Composable
+private fun CastRow(client: TuvimaClient, member: UniverseCastMember) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        member.headshotUrl?.let { url ->
+            RemoteImage(client, url, Modifier.padding(end = 12.dp).size(40.dp).clip(CircleShape))
+        }
+        Column {
+            Text(member.name, style = MaterialTheme.typography.bodyLarge)
+            castCharactersLine(member)?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

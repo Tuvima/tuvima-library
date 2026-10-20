@@ -35,6 +35,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITransactionJournal, TransactionJournal>();
         services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         services.AddSingleton<ILocalAssetRepository, LocalAssetRepository>();
+        services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
         services.AddSingleton<IDocumentFilingRepository, DocumentFilingRepository>();
         services.AddSingleton<IDocumentBulkRepository, DocumentBulkRepository>();
@@ -69,6 +70,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewFolderService>();
         services.AddSingleton<ViewDocumentRuleService>();
         services.AddScoped<ViewDocumentBulkService>();
+        services.AddScoped<ViewTrashDeletionPlanner>();
         services.AddSingleton<ViewSharedTransferService>();
         services.AddSingleton<IProfilePhotoDisposer, ProfilePhotoDisposer>();
         services.AddSingleton<IViewSharedContributionQueue, ViewSharedContributionQueue>();

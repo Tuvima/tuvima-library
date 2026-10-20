@@ -59,10 +59,18 @@ public sealed record ViewDocumentBulkRequest(
     [property: JsonPropertyName("document_date")] DateOnly? DocumentDate = null,
     [property: JsonPropertyName("clear")] bool Clear = false);
 
+/// <summary>Stable codes for why a document was skipped, for the few reasons a client reacts to (the plain message is <c>reason</c>).</summary>
+public static class ViewDocumentBulkReasonCodes
+{
+    /// <summary>The document is in a read-only (linked) folder, so it cannot be moved to Trash.</summary>
+    public const string ReadOnlySource = "read_only_source";
+}
+
 public sealed record ViewDocumentBulkItemResultDto(
     [property: JsonPropertyName("item_id")] Guid ItemId,
     [property: JsonPropertyName("status")] string Status,
-    [property: JsonPropertyName("reason")] string? Reason = null);
+    [property: JsonPropertyName("reason")] string? Reason = null,
+    [property: JsonPropertyName("reason_code")] string? ReasonCode = null);
 
 /// <summary>
 /// What happened to every document in a bulk edit, one result per requested id in the order sent. A document that

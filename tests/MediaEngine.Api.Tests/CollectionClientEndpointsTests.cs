@@ -633,6 +633,60 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task SeeAll_ListsTheUniverseShelfRun_WithAlsoInThisWorldMembersInTheirOwnShelf()
+    {
+        var extra = AddWork("Movies", "Alpha Extra", "PG", _alpha, ".mkv");
+        AddManifestPlacement(_alpha, "Q4243", "Q7001", extra, "Supplementary");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+        var alpha = universe["shelves"]!.AsArray().Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _alpha)!;
+        var seeAll = await GetJsonAsync(app, alpha["shelf"]!["seeAllRoute"]!.GetValue<string>());
+        var seeAllShelves = seeAll["shelves"]!.AsArray();
+
+        // The see-all run is the Universe shelf's run: same items, same order, same count.
+        var run = seeAllShelves[0]!;
+        Assert.Equal(
+            alpha["shelf"]!["items"]!.AsArray().Select(card => card!["id"]!.GetValue<Guid>()),
+            run["items"]!.AsArray().Select(card => card!["id"]!.GetValue<Guid>()));
+        Assert.Equal(alpha["item_count"]!.GetValue<int>(), run["items"]!.AsArray().Count);
+        Assert.Equal("3 items", seeAll["subtitle"]!.GetValue<string>());
+        var also = Assert.Single(seeAllShelves.Skip(1))!;
+        Assert.Equal("Also in this world", also["title"]!.GetValue<string>());
+        Assert.Equal(["Alpha Extra"], also["items"]!.AsArray().Select(card => card!["title"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task ASeriesWithOnlyAlsoInThisWorldMembers_HasAnEmptyRun_AndSeeAllHasNoEmptyRunShelf()
+    {
+        var companions = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, parent_collection_id)
+                VALUES (@companions, 'Series Companions', 'Series', 'library', 'query', 1, @universe);
+                """,
+                new { companions, universe = _universe });
+        }
+
+        var guide = AddWork("Movies", "Companion Guide", "G", companions, ".mkv");
+        AddManifestPlacement(companions, "Q4301", "Q7003", guide, "Supplementary");
+        await using var app = await StartAsync();
+
+        var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
+        var shelf = universe["shelves"]!.AsArray().Single(entry => entry!["collection_id"]!.GetValue<Guid>() == companions)!;
+        Assert.Equal(0, shelf["item_count"]!.GetValue<int>());
+        Assert.Empty(shelf["shelf"]!["items"]!.AsArray());
+        Assert.Equal(1, shelf["also_in_this_world_count"]!.GetValue<int>());
+
+        var seeAll = await GetJsonAsync(app, $"/api/v1/display/groups/{companions:D}");
+        var only = Assert.Single(seeAll["shelves"]!.AsArray())!;
+        Assert.Equal("Also in this world", only["title"]!.GetValue<string>());
+        Assert.Equal("1 item", seeAll["subtitle"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task HeroTotals_CountSeriesWorksAndFormatsTheProfileCanSee()
     {
         await using var app = await StartAsync();
@@ -1184,10 +1238,17 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => _libraryPreferences));
         builder.Services.AddScoped<UniversePageReadService>();
         builder.Services.AddSingleton<UniverseLinkCache>();
+        builder.Services.AddSingleton<DisplayShelfBuilder>();
+        builder.Services.AddScoped<DisplayComposerService>();
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapCollectionClientEndpoints();
+        // The shelf's see-all action calls exactly this read (DisplayEndpoints "GetDisplayGroup").
+        app.MapGet("/api/v1/display/groups/{groupId:guid}", async (Guid groupId, DisplayComposerService display, CancellationToken ct) =>
+            await display.BuildGroupAsync(groupId, includeCatalog: false, profileId: null, ct) is { } page
+                ? Results.Ok(page)
+                : Results.NotFound());
         if (mapGraphActions)
         {
             // The older Universe graph actions behind a test-only prefix, to prove their answers did not change.

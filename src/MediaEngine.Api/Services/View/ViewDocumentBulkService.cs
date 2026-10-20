@@ -21,6 +21,7 @@ public sealed class ViewDocumentBulkService(
     public const string SharedFilingReason = "Filed by a household administrator.";
     public const string NotYoursReason = "You can't change this document.";
     public const string NotAvailableReason = "This document is not available.";
+    public const string ReadOnlySourceReason = "This document is in a read-only folder, so it can't be moved to Trash.";
 
     public async Task<ViewDocumentBulkResultDto> RunAsync(
         RequestAuthority authority, ViewCatalogueViewer viewer, ViewDocumentBulkRequest request, CancellationToken ct)
@@ -29,10 +30,14 @@ public sealed class ViewDocumentBulkService(
         var change = Validate(request, out var ids);
         var subjects = bulk.Describe(viewer, ids, ct).ToDictionary(subject => subject.ItemId);
         var results = new List<ViewDocumentBulkItemResultDto>(ids.Count);
+        // Documents with a file in a linked (read-only) folder never go to Trash; one lookup covers the whole batch.
+        var readOnly = request.Operation == ViewDocumentBulkOperations.MoveToTrash
+            ? assets.GetReadOnlyItemIds(ids, ct)
+            : new HashSet<Guid>();
         foreach (var id in ids)
         {
             ct.ThrowIfCancellationRequested();
-            results.Add(await RunOneAsync(authority, viewer, request.Operation, change, subjects[id], ct).ConfigureAwait(false));
+            results.Add(await RunOneAsync(authority, viewer, request.Operation, change, subjects[id], readOnly, ct).ConfigureAwait(false));
         }
 
         return new ViewDocumentBulkResultDto(
@@ -100,7 +105,7 @@ public sealed class ViewDocumentBulkService(
 
     private async Task<ViewDocumentBulkItemResultDto> RunOneAsync(
         RequestAuthority authority, ViewCatalogueViewer viewer, string operation, DocumentBulkChange? change,
-        DocumentBulkSubject subject, CancellationToken ct)
+        DocumentBulkSubject subject, IReadOnlySet<Guid> readOnly, CancellationToken ct)
     {
         var id = subject.ItemId;
         // An id outside the person's libraries gets the same answer as one that does not exist.
@@ -157,6 +162,12 @@ public sealed class ViewDocumentBulkService(
                     if (subject.IsTrashed)
                     {
                         return Skipped(id, "Already in the trash.");
+                    }
+
+                    if (readOnly.Contains(id))
+                    {
+                        return new ViewDocumentBulkItemResultDto(
+                            id, ViewDocumentBulkStatuses.Skipped, ReadOnlySourceReason, ViewDocumentBulkReasonCodes.ReadOnlySource);
                     }
 
                     return await assets.SetLifecycleStateAsync(id, LocalAssetLifecycleState.Trashed, ct).ConfigureAwait(false)
