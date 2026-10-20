@@ -1,0 +1,22 @@
+.excluded-files {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+    min-width: 0;
+    padding-top: var(--tl-space-3, 12px);
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.excluded-files__title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.excluded-files__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+}
+
+.excluded-files__when {
+    white-space: nowrap;
+}

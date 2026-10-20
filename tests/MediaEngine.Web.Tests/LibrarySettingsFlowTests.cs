@@ -70,6 +70,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private List<FolderJobStatusDto> _jobs = [];
     private readonly List<string> _converted = [];
     private readonly List<(string Id, string Action)> _controls = [];
+    private readonly List<ExcludedFileDto> _excluded = [];
     private IRenderedComponent<AppPopoverHost> _popovers = null!;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
@@ -154,6 +155,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 return Task.FromResult<FolderJobStatusDto?>(job);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>(_jobs));
+            stub.SetHandler(nameof(IEngineApiClient.GetExcludedFilesAsync), args => Task.FromResult<IReadOnlyList<ExcludedFileDto>>(_excluded.Where(file => file.LibraryId == (string?)args![0]).ToList()));
             stub.SetHandler(nameof(IEngineApiClient.ConvertFolderAsync), args =>
             {
                 var id = (string)args![0]!;
@@ -309,6 +311,21 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             Assert.Contains("Folder unavailable", tv.TextContent);
             Assert.Contains("because the New media folder is offline", tv.TextContent);
         });
+    }
+
+    // Files that stayed on disk when their title was deleted are listed under the type's folders, only for that type, and only when there are any.
+    [Fact]
+    public void ExcludedFilesAreListedUnderTheirTypesFoldersOnly()
+    {
+        _excluded.Add(new() { Id = Guid.NewGuid(), LibraryId = MoviesId, FileName = "Dune.mkv", FolderLabel = "Movies", ExcludedAt = DateTimeOffset.UtcNow.AddMinutes(-5), ExcludedBy = "Shy" });
+
+        var movies = Open("Movies");
+        movies.WaitForAssertion(() => Assert.Contains("Dune.mkv", Text(movies.Find(".excluded-files"))));
+        Assert.Contains("Add back", Text(movies.Find(".excluded-files")));
+
+        var tv = Open("TV Shows");
+        tv.WaitForElement(".folder-table");
+        Assert.Empty(tv.FindAll(".excluded-files"));
     }
 
     // A1: the per-library page and its link are gone.

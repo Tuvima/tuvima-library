@@ -7493,6 +7493,20 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.BrowseServerFolder
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.DismissProfileNoticeRequest
   Fingerprint: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExcludedFileAddBackResultDto
+  Queued: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExcludedFileDto
+  Id: System.Guid | nullability=not-null | accessors=get,set
+  LibraryId: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  FolderLabel: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=nullable | accessors=get,set
+  ExcludedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
+  ExcludedBy: System.String | nullability=nullable | accessors=get,set
+  Reason: System.String | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ExternalAuthProviderDto
   Id: System.String | nullability=not-null | accessors=get,init
   Kind: System.String | nullability=not-null | accessors=get,init
