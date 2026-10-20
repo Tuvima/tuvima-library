@@ -4453,6 +4453,37 @@ input[type="reset"],
     outline-offset: var(--tl-focus-ring-offset, 2px);
 }
 
+/* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach. */
+.tl-details-overlay__close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(8, 12, 18, 0.66);
+    color: #f6f0e8;
+    cursor: pointer;
+    backdrop-filter: blur(0.75rem);
+}
+
+.tl-details-overlay__close:hover {
+    background: rgba(8, 12, 18, 0.86);
+}
+
+.tl-details-overlay__close:focus-visible {
+    outline: 2px solid var(--tl-palette-primary, #7765e3);
+    outline-offset: 2px;
+}
+
 .app-overflow-menu__trigger--icon {
     width: var(--tl-control-height-lg);
     height: var(--tl-control-height-lg);
@@ -6275,35 +6306,4 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
-}
-
-/* Details overlay close button: global because AppNativeButton renders the element, which the overlay's scoped styles cannot reach. */
-.tl-details-overlay__close {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    z-index: 30;
-    display: grid;
-    place-items: center;
-    box-sizing: border-box;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 50%;
-    background: rgba(8, 12, 18, 0.66);
-    color: #f6f0e8;
-    cursor: pointer;
-    backdrop-filter: blur(0.75rem);
-}
-
-.tl-details-overlay__close:hover {
-    background: rgba(8, 12, 18, 0.86);
-}
-
-.tl-details-overlay__close:focus-visible {
-    outline: 2px solid var(--tl-palette-primary, #7765e3);
-    outline-offset: 2px;
 }
