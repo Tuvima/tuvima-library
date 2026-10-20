@@ -311,7 +311,9 @@ public sealed class ViewSourceIndexingHostedService(
     private void OnFileChanged(object? sender, ViewSourceFileEvent change)
     {
         var queue = _queue;
-        if (queue is null || !TryResolveLibrary(_sources, change.Path, out _))
+        if (queue is null
+            || ViewStorageService.IsInsideStagingFolder(change.Path)
+            || !TryResolveLibrary(_sources, change.Path, out _))
         {
             return;
         }
@@ -457,7 +459,8 @@ internal sealed class FileSystemViewSourceWatcher : IViewSourceWatcher
 
     private void Raise(string path, ViewSourceFileEventKind kind, string? oldPath = null)
     {
-        if (_disposed || Directory.Exists(path))
+        // Files Empty Trash is removing sit in a hidden staging folder; they are never indexed.
+        if (_disposed || ViewStorageService.IsInsideStagingFolder(path) || Directory.Exists(path))
         {
             return;
         }

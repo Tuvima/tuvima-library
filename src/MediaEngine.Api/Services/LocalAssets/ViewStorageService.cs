@@ -16,6 +16,42 @@ public sealed class ViewStorageService(
     private static readonly SemaphoreSlim PersonalSpaceGate = new(1, 1);
     private static readonly SemaphoreSlim ManagedSourceGate = new(1, 1);
 
+    /// <summary>
+    /// The hidden folder, directly inside a person's profile folder, where Empty Trash parks an item's files for a moment before
+    /// they are deleted for good. It is never a View source, and scans and the folder watcher ignore anything beneath it.
+    /// </summary>
+    public const string StagingFolderName = ".tuvima-staging";
+
+    /// <summary>
+    /// True when the path is inside the staging folder of a profile folder (<c>Profiles/{label}/.tuvima-staging</c>), so scans and
+    /// watchers can skip it. A folder that merely has the same name somewhere else is an ordinary folder.
+    /// </summary>
+    /// <remarks>
+    /// This reads the path as written and does not follow links, on purpose (it runs for every file of every scan). A managed source
+    /// reaches a profile only through <c>Profiles/{label}</c> and <c>ResolveManagedRelativePath</c> refuses any link on that way, and a
+    /// linked source may not sit inside the managed root (<c>AddLinkedSourceAsync</c>), so no source can reach a profile's staging
+    /// folder through a link. Empty Trash itself also never stages through a link (it resolves the folder before moving anything).
+    /// </remarks>
+    public static bool IsInsideStagingFolder(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 2; index < segments.Length; index++)
+        {
+            if (string.Equals(segments[index], StagingFolderName, PathComparison)
+                && string.Equals(segments[index - 2], "Profiles", PathComparison))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public string GetRootPath() => GetRootPath(requireWrite: true);
 
     /// <summary>

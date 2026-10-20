@@ -45,6 +45,34 @@ public static partial class ViewEndpoints
         }).WithName("PreviewViewTrashEmpty")
             .WithSummary("What Empty Trash would do right now for the signed-in person's own Trash, with a fingerprint to confirm. Deletes nothing.")
             .Produces<ViewTrashEmptyPreviewDto>();
+
+        group.MapPost("/trash/empty", async (IViewRequestProfileContext identity,
+            ViewTrashDeletionService service, ViewTrashEmptyRequestDto? request, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            var refusal = TrashCallerRefusal(authority);
+            if (refusal is not null)
+            {
+                return refusal;
+            }
+
+            // The caller can leave; once the work starts the service carries it through (stopping half way would leave some items
+            // gone and others untouched), so the request's cancellation only matters until then.
+            var outcome = await service.EmptyAsync(authority, request?.Fingerprint, ct);
+            return outcome.Status switch
+            {
+                ViewTrashEmptyStatus.Ok => Results.Ok(outcome.Result),
+                ViewTrashEmptyStatus.Conflict => Results.Json(
+                    new ViewTrashEmptyConflictDto(ViewTrashDeletionService.ChangedMessage, outcome.FreshPreview!),
+                    statusCode: StatusCodes.Status409Conflict),
+                ViewTrashEmptyStatus.Unauthenticated => Unauthenticated(),
+                ViewTrashEmptyStatus.Forbidden => ApiErrors.Forbidden("View access is not permitted."),
+                _ => Missing(),
+            };
+        }).WithName("EmptyViewTrash")
+            .WithSummary("Permanently deletes everything in the signed-in person's own Trash, but only if the fingerprint is the one the latest summary returned. A changed Trash answers 409 with the fresh summary and deletes nothing.")
+            .Produces<ViewTrashEmptyResultDto>()
+            .Produces<ViewTrashEmptyConflictDto>(StatusCodes.Status409Conflict);
     }
 
     /// <summary>

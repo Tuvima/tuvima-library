@@ -285,6 +285,7 @@ public sealed class ActivityLogPresenterTests
     [InlineData(SystemActionType.FileQuarantined, ActivityLogCategoryValues.Failed)]
     [InlineData(SystemActionType.ArtworkWritebackFailed, ActivityLogCategoryValues.Failed)]
     [InlineData(SystemActionType.MediaRemoved, ActivityLogCategoryValues.System)]
+    [InlineData(SystemActionType.PersonalTrashEmptied, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ToolMissing, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ProviderRecovered, ActivityLogCategoryValues.System)]
     [InlineData(SystemActionType.ReconciliationCompleted, ActivityLogCategoryValues.System)]
