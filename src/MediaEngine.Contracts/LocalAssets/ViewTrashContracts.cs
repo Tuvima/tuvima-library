@@ -56,6 +56,7 @@ public sealed record ViewTrashPreviewSkippedDto(
 public sealed record ViewTrashEmptyPreviewDto(
     [property: JsonPropertyName("items")] IReadOnlyList<ViewTrashPreviewItemDto> Items,
     [property: JsonPropertyName("galleries")] IReadOnlyList<ViewTrashPreviewGalleryDto> Galleries,
+    [property: JsonPropertyName("gallery_item_count")] int GalleryItemCount,
     [property: JsonPropertyName("delete_count")] int DeleteCount,
     [property: JsonPropertyName("photo_count")] int PhotoCount,
     [property: JsonPropertyName("video_count")] int VideoCount,
@@ -65,3 +66,28 @@ public sealed record ViewTrashEmptyPreviewDto(
     [property: JsonPropertyName("bytes_freed")] long BytesFreed,
     [property: JsonPropertyName("has_compound")] bool HasCompound,
     [property: JsonPropertyName("fingerprint")] string Fingerprint);
+
+/// <summary>The body of Empty Trash: the fingerprint of the summary the person confirmed.</summary>
+public sealed record ViewTrashEmptyRequestDto(
+    [property: JsonPropertyName("fingerprint")] string? Fingerprint);
+
+/// <summary>An item that stayed in Trash because it could not be removed, with the plain reason. Never an error message or a disk path.</summary>
+public sealed record ViewTrashEmptyFailureDto(
+    [property: JsonPropertyName("item_id")] Guid ItemId,
+    [property: JsonPropertyName("reason")] string Reason);
+
+/// <summary>
+/// What Empty Trash did. <see cref="SkippedCount"/> is the items the summary already said would stay (read-only folder, waiting for
+/// the Shared Library, refused by the safety check); <see cref="Failed"/> is items that were meant to go but could not, and are
+/// still in Trash.
+/// </summary>
+public sealed record ViewTrashEmptyResultDto(
+    [property: JsonPropertyName("deleted_count")] int DeletedCount,
+    [property: JsonPropertyName("bytes_freed")] long BytesFreed,
+    [property: JsonPropertyName("skipped_count")] int SkippedCount,
+    [property: JsonPropertyName("failed")] IReadOnlyList<ViewTrashEmptyFailureDto> Failed);
+
+/// <summary>The 409 body of Empty Trash when the summary the person confirmed is out of date. Nothing was deleted.</summary>
+public sealed record ViewTrashEmptyConflictDto(
+    [property: JsonPropertyName("message")] string Message,
+    [property: JsonPropertyName("preview")] ViewTrashEmptyPreviewDto Preview);

@@ -7,6 +7,7 @@ using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.ScheduledTasks;
+using MediaEngine.Api.Services.View;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage.Services;
 
@@ -65,6 +66,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();
         services.AddSingleton<ViewSourceIndexingHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewSourceIndexingHostedService>());
+        services.AddHostedService<ViewTrashRecoveryHostedService>();
         services.AddHostedService<RetagSweepWorker>();
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();

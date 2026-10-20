@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0021 plugin_host_services).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0022 plugin_host_services).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -2508,10 +2508,10 @@ CREATE TABLE view_shared_contribution_events (
     occurred_at       TEXT NOT NULL
 );
 
-CREATE TABLE view_shared_contribution_items (
+CREATE TABLE "view_shared_contribution_items" (
     id                  BLOB NOT NULL PRIMARY KEY,
     contribution_id     BLOB NOT NULL REFERENCES view_shared_contributions(id) ON DELETE CASCADE,
-    item_id              BLOB NOT NULL REFERENCES local_items(id) ON DELETE RESTRICT,
+    item_id              BLOB REFERENCES local_items(id) ON DELETE SET NULL,
     original_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     original_profile_name TEXT NOT NULL,
     position            INTEGER NOT NULL,
@@ -2549,9 +2549,9 @@ CREATE TABLE view_shared_library (
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE view_shared_transfers (
+CREATE TABLE "view_shared_transfers" (
     id                     BLOB NOT NULL PRIMARY KEY,
-    item_id                BLOB NOT NULL REFERENCES local_items(id) ON DELETE RESTRICT,
+    item_id                BLOB REFERENCES local_items(id) ON DELETE SET NULL,
     contribution_item_id   BLOB REFERENCES view_shared_contribution_items(id) ON DELETE SET NULL,
     operation              TEXT NOT NULL CHECK (operation IN ('move', 'copy')),
     state                  TEXT NOT NULL CHECK (state IN ('planned', 'transferring', 'completed', 'cleanup_pending', 'failed')),

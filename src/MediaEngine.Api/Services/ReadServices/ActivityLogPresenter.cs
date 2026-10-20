@@ -54,6 +54,12 @@ public static partial class ActivityLogPresenter
                 dto.Detail = FirstText(entry.Detail);
                 break;
 
+            case SystemActionType.PersonalTrashEmptied:
+                // The writer keeps only counts and size in the detail ("128 items, 4.2 GB freed, 2 skipped"); no file names or titles exist here.
+                dto.Title = "Emptied Trash";
+                dto.Detail = FirstText(entry.Detail);
+                break;
+
             case SystemActionType.PersonalMediaAdded:
                 dto.Title = FirstText(entry.CollectionName) ?? "Personal media";
                 dto.Detail = FirstText(entry.Detail);

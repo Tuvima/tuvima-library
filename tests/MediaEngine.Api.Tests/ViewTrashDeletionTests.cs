@@ -39,7 +39,7 @@ namespace MediaEngine.Api.Tests;
 /// and real folders. Nothing here deletes anything: personal files cannot be downloaded again, so every test also checks the
 /// files are still on disk.
 /// </summary>
-public sealed class ViewTrashDeletionTests : IAsyncLifetime
+public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima-view-trash-{Guid.NewGuid():N}");
     private readonly ActorBox _actor = new();
@@ -50,6 +50,7 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
     private ViewProfileRepository _policies = null!;
     private ViewStorageService _storage = null!;
     private ConfigurationDirectoryLoader _configuration = null!;
+    private AssetPathService _assetPaths = null!;
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -105,8 +106,13 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         builder.Services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         builder.Services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
         builder.Services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
-        builder.Services.AddSingleton(new ViewThumbnailService(
-            new AssetPathService(Path.Combine(_root, "thumbnails")), NullLogger<ViewThumbnailService>.Instance));
+        _assetPaths = new AssetPathService(Path.Combine(_root, "thumbnails"));
+        builder.Services.AddSingleton(new ViewThumbnailService(_assetPaths, NullLogger<ViewThumbnailService>.Instance));
+        builder.Services.AddSingleton(_assetPaths);
+        builder.Services.AddSingleton<IViewTrashPurgeRepository, ViewTrashPurgeRepository>();
+        builder.Services.AddSingleton<ISystemActivityRepository, SystemActivityRepository>();
+        builder.Services.AddSingleton<ViewTrashRecoveryService>();
+        builder.Services.AddScoped<ViewTrashDeletionService>();
         builder.Services.AddScoped<ViewFolderService>();
         builder.Services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         builder.Services.AddSingleton<ISourceMutationPolicyGate, SourceMutationPolicyGate>();
@@ -646,6 +652,26 @@ public sealed class ViewTrashDeletionTests : IAsyncLifetime
         var plan = await PlanAsync(alice);
 
         Assert.Equal([("alpha", 1), ("Zeta", 2)], plan.Preview.Galleries.Select(gallery => (gallery.Name, gallery.ItemCount)).ToArray());
+    }
+
+    [Fact]
+    public async Task AnItemInTwoGalleries_CountsOnceInHowManyDeletedItemsWereInAGallery()
+    {
+        var alice = await CreatePerson();
+        var both = await AddPhoto(alice, "both");
+        var onlyOne = await AddPhoto(alice, "only-one");
+        await AddPhoto(alice, "no-gallery");
+        var galleries = new ViewGalleryRepository(_database);
+        var first = await galleries.CreateAsync(new CreateViewGalleryCommand(alice.ProfileId, alice.Space.Id, "First", ViewGalleryKind.Manual));
+        var second = await galleries.CreateAsync(new CreateViewGalleryCommand(alice.ProfileId, alice.Space.Id, "Second", ViewGalleryKind.Manual));
+        await galleries.AddItemsAsync(first.Id, [both.ItemId, onlyOne.ItemId]);
+        await galleries.AddItemsAsync(second.Id, [both.ItemId]);
+
+        var plan = await PlanAsync(alice);
+
+        Assert.Equal(2, plan.Preview.GalleryItemCount);
+        Assert.Equal(3, plan.Preview.Galleries.Sum(gallery => gallery.ItemCount));
+        Assert.Equal(2, plan.Preview.Galleries.Count);
     }
 
     [Fact]

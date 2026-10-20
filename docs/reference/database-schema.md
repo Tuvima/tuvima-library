@@ -417,6 +417,31 @@ Library transfer. It stores source and destination manifests and one of
 Shared membership is published only after every destination member verifies;
 managed-source deletion happens afterward and can remain cleanup-pending.
 
+`item_id` on both `view_shared_contribution_items` and `view_shared_transfers` is
+optional and clears itself (`ON DELETE SET NULL`) when the personal item is removed
+by Empty Trash, so a finished, failed, declined or cancelled contribution keeps its
+history row with no item link (upgrade step 0020). Work still in flight (a pending
+contribution, an accepted item that is waiting, copying or cleaning up, or a transfer
+that is planned, copying or cleaning up) never reaches that point: Empty Trash skips
+the item first. The `contribution_item_id` link from a transfer to its contribution
+item is unaffected.
+
+**Empty Trash and the data store.** Emptying a person's Trash removes each item's
+`local_items` row inside one transaction. Its cascades clear `local_item_metadata`,
+`local_item_files`, `local_item_tag_links`, `local_item_annotations`,
+`local_item_search_keys` (a delete trigger clears the search text),
+`doc_item_details`, `doc_field_values`, `doc_item_field_sources`,
+`view_gallery_items` and `device_photo_downloads`; a Gallery whose cover was the
+item has `cover_item_id` set to NULL (`view_galleries` rows themselves are never
+removed). The same transaction then deletes the item's `local_file_sources` rows
+for files that were removed from disk (or were already gone), and any `local_files`
+row left with no item link and no remaining place. Items that share a file on disk
+are removed together in one transaction. Before that, the files are parked in a
+hidden `.tuvima-staging/<item id>/` folder inside the owner's profile folder, with a
+`manifest.json`, so a failure puts every file back; View scans and the folder watcher
+ignore that folder, and a startup (and after-each-Empty-Trash) sweep puts parked files
+back when their item still exists or deletes them when it does not.
+
 ### Galleries
 
 `view_galleries` stores owner, Personal Space, name/description, kind, optional
@@ -1050,7 +1075,7 @@ One row per attempt to send an event to a webhook receiver, including the Send t
 | `duration_ms` | INTEGER | How long the send took |
 | `is_test` | INTEGER | 1 for a Send test |
 
-**Indices:** `ix_application_webhook_attempts_webhook_time (webhook_id, attempted_at DESC)`. Added by upgrade step `0020_webhook_delivery_attempts`.
+**Indices:** `ix_application_webhook_attempts_webhook_time (webhook_id, attempted_at DESC)`. Added by upgrade step `0021_webhook_delivery_attempts`.
 
 ### plugin_records
 
@@ -1065,7 +1090,7 @@ The records a plugin keeps for itself, written through the plugin's own record s
 | `size_bytes` | INTEGER | UTF-8 size of `value_json`, so a plugin's total is a cheap sum |
 | `updated_at` | TEXT | ISO 8601 UTC |
 
-**Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0021_plugin_host_services`.
+**Key:** `PRIMARY KEY (plugin_id, collection, record_key)`. Added by upgrade step `0022_plugin_host_services`.
 
 ### plugin_event_cursors
 
@@ -1077,7 +1102,7 @@ Where each plugin has got to in the Library's event list (`application_events`):
 | `last_sequence` | INTEGER | The newest `application_events.sequence` already delivered |
 | `updated_at` | TEXT | ISO 8601 UTC |
 
-Added by upgrade step `0021_plugin_host_services`.
+Added by upgrade step `0022_plugin_host_services`.
 
 ### media_operations (file intake rows)
 
@@ -1413,12 +1438,12 @@ The Activity log's store: one row per thing the Library did (added media, Needs 
 |---|---|---|
 | `id` | INTEGER | Auto-increment primary key |
 | `occurred_at` | TEXT | UTC timestamp |
-| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`) |
+| `action_type` | TEXT | Kind of event (for example `MediaAdded`, `MediaFailed`, `ToolMissing`, `PersonalMediaAdded`, `PersonalTrashEmptied`) |
 | `collection_name` | TEXT | The headline the log shows: a title, a file name or a count such as "3,000 photos" |
 | `entity_id` | BLOB | Related entity, when there is one |
 | `entity_type` | TEXT | Kind of related entity (for example `Work`, `MediaAsset`, `PersonalMedia`) |
 | `profile_id` | BLOB | The profile that caused it, when a person did |
-| `changes_json` | TEXT | Event-specific facts (for example the media type, or photo and video counts) |
+| `changes_json` | TEXT | Event-specific facts (for example the media type, photo and video counts, or for `PersonalTrashEmptied` the item count, bytes freed and skipped count: never a file name or title) |
 | `detail` | TEXT | The plain explanation under the headline |
 
 **Indexes:** `action_type`, `occurred_at`. There is no run or batch link (removed by upgrade step 0018).

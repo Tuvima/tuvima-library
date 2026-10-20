@@ -395,6 +395,91 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task MoveToTrashIsHiddenWhenEveryPickedDocumentIsInAReadOnlyFolder()
+    {
+        _handler.ReadOnlyIds.Add(ItemIds[0]);
+        _handler.ReadOnlyIds.Add(ItemIds[1]);
+        var cut = RenderLoaded();
+        await EnterSelectModeAsync(cut);
+
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
+        await ChangeAsync(cut, ".view-document-card__select input", 1, true);
+
+        var bar = cut.Find(".view-selection-toolbar");
+        Assert.DoesNotContain(cut.FindAll(".view-selection-toolbar__action"), button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        Assert.Contains("Favorite", bar.TextContent, StringComparison.Ordinal);
+
+        // One document that can go to Trash brings the button back; the Engine leaves the others where they are.
+        await ChangeAsync(cut, ".view-document-card__select input", 2, true);
+        Assert.Contains(cut.FindAll(".view-selection-toolbar__action"), button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AMixedSelectionTrashesTheOthersAndSaysHowManyAreInAReadOnlyFolder()
+    {
+        _handler.ReadOnlyIds.Add(ItemIds[1]);
+        _handler.ReadOnlyIds.Add(ItemIds[2]);
+        _handler.BulkResponse = "{\"operation\":\"move_to_trash\",\"requested\":3,\"done\":1,\"skipped\":2,\"failed\":0,\"items\":["
+            + $"{{\"item_id\":\"{ItemIds[0]}\",\"status\":\"done\"}},"
+            + $"{{\"item_id\":\"{ItemIds[1]}\",\"status\":\"skipped\",\"reason\":\"This document is in a read-only folder, so it can't be moved to Trash.\",\"reason_code\":\"read_only_source\"}},"
+            + $"{{\"item_id\":\"{ItemIds[2]}\",\"status\":\"skipped\",\"reason\":\"This document is in a read-only folder, so it can't be moved to Trash.\",\"reason_code\":\"read_only_source\"}}]}}";
+        var cut = RenderLoaded();
+        await EnterSelectModeAsync(cut);
+        for (var index = 0; index < ItemIds.Length; index++)
+        {
+            await ChangeAsync(cut, ".view-document-card__select input", index, true);
+        }
+
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+
+        cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
+        var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();
+        Assert.Equal(["2 items are in a read-only folder and weren't moved to Trash."], reasons);
+    }
+
+    [Fact]
+    public async Task TheTrashViewShowsTheWholeTrashHeaderWithItsSizeAndEmptyTrashOnADesktop()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var cut = RenderLoaded();
+        Assert.Empty(cut.FindAll(".view-trash-header"));
+
+        await ClickAsync(cut, ".view-documents-rail [role=radio]", radio => radio.TextContent.Trim() == "Trash");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
+        var header = cut.Find(".view-trash-header");
+        Assert.Contains("Items in Trash stay on your disk until you empty Trash.", header.TextContent, StringComparison.Ordinal);
+        Assert.Contains("128 items · 4.2 GB", header.TextContent, StringComparison.Ordinal);
+        Assert.Single(header.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Empty Trash…");
+    }
+
+    [Fact]
+    public async Task TheTrashViewOnATouchDeviceSaysToEmptyTrashOnAComputerAndOffersNoButton()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true, FinePointer: false, Hover: false));
+        var cut = RenderLoaded();
+
+        await ClickAsync(cut, ".view-documents-rail [role=radio]", radio => radio.TextContent.Trim() == "Trash");
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-trash-header")));
+        Assert.Empty(cut.FindAll(".view-trash-header button"));
+        Assert.Contains("Empty Trash on a computer.", cut.Find(".view-trash-header").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ADocumentThatCouldNotBeDeletedShowsItsNoteInTheTrashView()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        Services.GetRequiredService<ViewWorkspaceService>().ReplaceTrashFailures([new ViewTrashEmptyFailureDto(ItemIds[1], "Couldn't delete: the file is in use.")]);
+        var cut = RenderLoaded();
+        Assert.Empty(cut.FindAll(".view-document-card__note"));
+
+        await ClickAsync(cut, ".view-documents-rail [role=radio]", radio => radio.TextContent.Trim() == "Trash");
+
+        cut.WaitForAssertion(() => Assert.Equal("Couldn't delete: the file is in use.", Assert.Single(cut.FindAll(".view-document-card__note")).TextContent.Trim()));
+    }
+
+    [Fact]
     public void ASavedViewThatIsAppliedCannotBeSavedAgainAsIfItWereEverything()
     {
         var state = new ViewDocumentFilterState { SavedViewId = SavedViewId };
@@ -471,10 +556,10 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         + $"\"name\":\"{name}\",\"description\":null,\"kind\":{kind},\"smart_rule_json\":{(rule is null ? "null" : JsonSerializer.Serialize(rule))},\"cover_item_id\":null,"
         + "\"sort_order\":0,\"item_count\":2,\"created_at\":\"2026-10-01T10:00:00+00:00\",\"updated_at\":\"2026-10-01T10:00:00+00:00\"}";
 
-    private static string Item(Guid id, string file, string title) =>
+    private static string Item(Guid id, string file, string title, bool canTrash = true) =>
         $"{{\"id\":\"{id}\",\"library_id\":\"{LibraryId}\",\"media_kind\":\"document\",\"title\":\"{title}\",\"file_name\":\"{file}\",\"mime_type\":\"application/pdf\","
         + "\"created_at\":\"2026-10-01T10:00:00+00:00\",\"captured_at\":null,\"source_count\":1,\"files\":[],\"tags\":[\"tax\"],\"thumbnail_url\":\"/t\",\"content_url\":\"/c\","
-        + "\"favorite\":false,\"hidden\":false,\"document_info\":{\"text_source\":\"embedded\",\"text_truncated\":false,\"encrypted\":false,\"has_text\":true}}";
+        + "\"favorite\":false,\"hidden\":false,\"document_info\":{\"text_source\":\"embedded\",\"text_truncated\":false,\"encrypted\":false,\"has_text\":true},\"can_trash\":" + (canTrash ? "true" : "false") + "}";
 
     private sealed class Handler : HttpMessageHandler
     {
@@ -487,6 +572,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         public bool ExportTruncated { get; set; }
         public string Galleries { get; set; } = "{\"owned\":[],\"shared_with_you\":[]}";
         public string? BulkResponse { get; set; }
+        public HashSet<Guid> ReadOnlyIds { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -541,7 +627,8 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
                     "/view/preferences" => "{\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"scope\":1,\"scope_profile_id\":null,\"timeline_density\":1,\"viewer_info_open\":true,\"updated_at\":null}",
                     "/view/scopes" => "{\"scope\":{\"kind\":1,\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"was_fallback\":false},\"available_scopes\":[{\"kind\":1,\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"label\":\"Mine\",\"avatar_color\":null,\"avatar_url\":null}],\"can_browse_other_people\":false,\"can_view_documents\":true}",
                     "/view/documents/inbox-summary" => "{\"count\":0}",
-                    "/view/assets" => "{\"items\":[" + string.Join(",", ItemIds.Select((id, index) => Item(id, $"doc{index}.pdf", $"Document {index}"))) + "],\"next_cursor\":null,\"has_more\":false}",
+                    "/view/trash/summary" => "{\"item_count\":128,\"photo_count\":0,\"video_count\":0,\"document_count\":128,\"other_count\":0,\"bytes\":4509715661}",
+                    "/view/assets" => "{\"items\":[" + string.Join(",", ItemIds.Select((id, index) => Item(id, $"doc{index}.pdf", $"Document {index}", canTrash: !ReadOnlyIds.Contains(id)))) + "],\"next_cursor\":null,\"has_more\":false}",
                     "/view/catalogue" => "{\"tags\":[{\"id\":\"aaaaaaaa-0000-0000-0000-000000000001\",\"name\":\"Tax\",\"colour\":null,\"usage_count\":3,\"can_manage\":true}],"
                         + "\"correspondents\":[],\"document_types\":[],\"fields\":[]}",
                     "/view/galleries" => Galleries,

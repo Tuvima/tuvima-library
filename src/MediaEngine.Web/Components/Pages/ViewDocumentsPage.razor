@@ -81,6 +81,11 @@
                     </AppAlert>
                 }
 
+                @if (_filter.TrashOnly)
+                {
+                    <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="LoadAsync" />
+                }
+
                 @if (Device.IsPhone && _selectMode)
                 {
                     <AppButton Label="Done selecting" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
@@ -205,6 +210,10 @@
                                         </span>
                                     </span>
                                 </AppNativeButton>
+                                @if (TrashNote(item) is { } trashNote)
+                                {
+                                    <small class="view-document-card__note" role="note">@trashNote</small>
+                                }
                                 @if (_selectMode)
                                 {
                                     <AppCheckboxRow Label="@($"Select {ViewDocumentPresentation.DisplayTitle(item)}")" Value="@_selected.Contains(item.Id)" ValueChanged="@(_ => ToggleSelection(item.Id))" Class="view-document-card__select" />
@@ -294,6 +303,8 @@
     private ViewDocumentBulkResultDto? _bulkReport;
     private CancellationTokenSource? _pressCts;
     private Guid? _longPressed;
+    // Bumped after a bulk restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
+    private int _trashVersion;
 
     // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
@@ -835,7 +846,7 @@
 
     private RenderFragment BulkToolbar => @<ViewSelectionToolbar Count="@_selected.Count" AriaLabel="Selected document actions"
                                                                   OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())"
-                                                                  ShowTrash="@(!_filter.TrashOnly)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
+                                                                  ShowTrash="@(!_filter.TrashOnly && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
                                                                   ShowRestore="_filter.TrashOnly" OnRestore="@(() => BulkAsync(ViewDocumentBulkOperations.Restore))">
         @if (!_filter.TrashOnly)
         {
@@ -850,6 +861,12 @@
             </AppOverflowMenu>
         }
     </ViewSelectionToolbar>;
+
+    // The Engine skips documents in a read-only folder when moving to Trash, so the button stays unless every picked document is known to be one.
+    private bool AnySelectedTrashable => _selected.Any(id => _items.FirstOrDefault(item => item.Id == id) is not { CanTrash: false });
+
+    private string? TrashNote(LocalAssetDto item) =>
+        _filter.TrashOnly && Workspace.TrashFailureReason(item.Id) is { } reason ? EmptyTrashText.FailureNote(reason) : null;
 
     private async Task AskThenBulkAsync(string operation)
     {
@@ -885,6 +902,7 @@
         {
             var ids = _selected.ToList();
             var items = new List<ViewDocumentBulkItemResultDto>(ids.Count);
+            var restoring = operation == ViewDocumentBulkOperations.Restore;
             foreach (var batch in ids.Chunk(ViewDocumentBulkOperations.MaximumItems))
             {
                 var request = (answer ?? new ViewDocumentBulkRequest([], operation)) with { ItemIds = batch, Operation = operation };
@@ -896,6 +914,10 @@
                 }
 
                 items.AddRange(result.Value!.Items);
+                if (restoring)
+                {
+                    Workspace.ClearTrashFailures(result.Value.Items.Where(item => item.Status == ViewDocumentBulkStatuses.Done).Select(item => item.ItemId));
+                }
             }
 
             if (items.Count == 0)
@@ -909,6 +931,7 @@
                 items.Count(item => item.Status == ViewDocumentBulkStatuses.Skipped),
                 items.Count(item => item.Status == ViewDocumentBulkStatuses.Failed), items);
             _selectMode = false;
+            if (restoring) { _trashVersion++; }
             await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync());
         }
         finally
@@ -928,8 +951,16 @@
     }
 
     // The reasons, counted: "3 left as they were. In the Shared Library: only filing rules can change it."
-    private static IReadOnlyList<string> ReportReasons(ViewDocumentBulkResultDto report) => report.Items
-        .Where(item => item.Status != ViewDocumentBulkStatuses.Done)
+    private static IReadOnlyList<string> ReportReasons(ViewDocumentBulkResultDto report) => ReadOnlyReason(report) is { } readOnly
+        ? [readOnly, .. OtherReasons(report)]
+        : OtherReasons(report);
+
+    // Documents in a read-only folder stay put when the rest go to Trash: "3 items are in a read-only folder and weren't moved to Trash."
+    private static string? ReadOnlyReason(ViewDocumentBulkResultDto report) => EmptyTrashText.ReadOnlyNote(
+        report.Items.Count(item => item.Status == ViewDocumentBulkStatuses.Skipped && item.ReasonCode == ViewDocumentBulkReasonCodes.ReadOnlySource));
+
+    private static IReadOnlyList<string> OtherReasons(ViewDocumentBulkResultDto report) => report.Items
+        .Where(item => item.Status != ViewDocumentBulkStatuses.Done && item.ReasonCode != ViewDocumentBulkReasonCodes.ReadOnlySource)
         .GroupBy(item => (item.Status, item.Reason ?? "No reason was given."))
         .OrderByDescending(group => group.Count())
         .Select(group => group.Key.Status == ViewDocumentBulkStatuses.Failed
