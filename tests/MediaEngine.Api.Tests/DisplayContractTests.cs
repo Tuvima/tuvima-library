@@ -167,7 +167,7 @@ public sealed class DisplayContractTests
 
         // The cover is read from the file, then the work, then the show or album, under each of these stored names.
         Assert.Contains("Slot[] assetWorkRoot = [Slot.Asset, Slot.Work, Slot.Root];", workProjection, StringComparison.Ordinal);
-        Assert.Contains("From(\"CoverUrl\", assetWorkRoot, \"cover_url\", \"cover\", \"poster_url\", \"poster\", \"episode_still_url\", \"episode_still\", \"still_url\", \"still\")", workProjection, StringComparison.Ordinal);
+        Assert.Contains("FromInOrder(\"CoverUrl\", assetWorkRoot, \"cover_url\", \"cover\", \"poster_url\", \"poster\", \"episode_still_url\", \"episode_still\", \"still_url\", \"still\")", workProjection, StringComparison.Ordinal);
         Assert.Contains("episode_still_url", workProjection, StringComparison.Ordinal);
         Assert.Contains("episode_still_url", journeyProjection, StringComparison.Ordinal);
         Assert.Contains("cover_url_s", workProjection, StringComparison.Ordinal);
