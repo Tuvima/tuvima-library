@@ -726,6 +726,16 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Applic
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationTypeDto
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookAttemptResponse
+  AttemptId: System.Guid | nullability=not-null | accessors=get,init
+  EventType: System.String | nullability=not-null | accessors=get,init
+  AttemptNumber: System.Int32 | nullability=not-null | accessors=get,init
+  AttemptedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  Delivered: System.Boolean | nullability=not-null | accessors=get,init
+  Result: System.String | nullability=not-null | accessors=get,init
+  DurationMs: System.Int64 | nullability=not-null | accessors=get,init
+  IsTest: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ApplicationWebhookResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   ApplicationId: System.Guid | nullability=not-null | accessors=get,init

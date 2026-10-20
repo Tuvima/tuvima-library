@@ -84,6 +84,148 @@ public sealed class ApplicationWebhookRepositoryTests : IDisposable
         Assert.Equal("delivered", last.Status);
     }
 
+    [Fact]
+    public async Task Attempts_AreWrittenWithTheDeliveryUpdate_AndListedNewestFirstUpToTheLimit()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var endpoint = NewEndpoint();
+        await repository.SaveAsync(endpoint, true);
+        var delivery = NewDelivery(endpoint);
+        await repository.QueueAsync(endpoint, 1, [delivery]);
+        var start = new DateTimeOffset(2026, 10, 19, 8, 0, 0, TimeSpan.Zero);
+        for (var number = 1; number <= 8; number++)
+        {
+            delivery.AttemptCount = number;
+            delivery.UpdatedAt = start.AddMinutes(number);
+            await repository.FinishAttemptAsync(delivery, "HTTP 503", false, delivery.UpdatedAt,
+                NewAttempt(endpoint, delivery, number, delivery.UpdatedAt, "HTTP 503"));
+        }
+
+        var last = await repository.ListAttemptsAsync(endpoint.Id, 6);
+
+        Assert.Equal([8, 7, 6, 5, 4, 3], last.Select(attempt => attempt.AttemptNumber));
+        var newest = last[0];
+        Assert.Equal(delivery.Id, newest.DeliveryId);
+        Assert.Equal(start.AddMinutes(8), newest.AttemptedAt);
+        Assert.False(newest.Delivered);
+        Assert.Equal("HTTP 503", newest.Result);
+        Assert.Equal(503, newest.HttpStatus);
+        Assert.False(newest.IsTest);
+        Assert.Single(await repository.ListAttemptsAsync(endpoint.Id, 1));
+        Assert.Empty(await repository.ListAttemptsAsync(Guid.NewGuid(), 6));
+    }
+
+    [Fact]
+    public async Task RecordTest_StoresAFinishedDeliveryAndATestAttempt_WithoutQueueingAnythingToRetry()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var endpoint = NewEndpoint();
+        await repository.SaveAsync(endpoint, true);
+        var delivery = NewDelivery(endpoint);
+        delivery.EventSequence = 0;
+        delivery.Status = "delivered";
+        delivery.AttemptCount = 1;
+        var at = new DateTimeOffset(2026, 10, 19, 9, 0, 0, TimeSpan.Zero);
+        delivery.UpdatedAt = at;
+        var attempt = NewAttempt(endpoint, delivery, 1, at, "HTTP 204");
+        attempt.Delivered = true;
+        attempt.IsTest = true;
+        attempt.EventType = "webhook.test";
+
+        await repository.RecordTestAsync(delivery, attempt, "HTTP 204");
+
+        Assert.Empty(await repository.DueAsync(at.AddDays(1)));
+        var stored = Assert.Single(await repository.ListAttemptsAsync(endpoint.Id, 6));
+        Assert.True(stored.IsTest);
+        Assert.True(stored.Delivered);
+        var webhook = (await repository.FindAsync(endpoint.Id))!;
+        Assert.Equal("HTTP 204", webhook.LastStatus);
+        Assert.Equal(at, webhook.LastAttemptAt);
+        Assert.Equal(at, webhook.LastSuccessAt);
+        Assert.Equal(at, (await repository.LastAttemptAsync())!.At);
+    }
+
+    [Fact]
+    public async Task Prune_RemovesOldAttemptsButEachWebhookKeepsItsNewestTwenty()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var busy = NewEndpoint();
+        var quiet = NewEndpoint();
+        await repository.SaveAsync(busy, true);
+        await repository.SaveAsync(quiet, true);
+        var oldest = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+        for (var number = 1; number <= 30; number++)
+        {
+            await repository.RecordTestAsync(NewFinishedDelivery(busy), NewAttempt(busy, NewDelivery(busy), number, oldest.AddMinutes(number), "HTTP 500"), "Failed: HTTP 500");
+        }
+
+        await repository.RecordTestAsync(NewFinishedDelivery(quiet), NewAttempt(quiet, NewDelivery(quiet), 1, oldest, "HTTP 500"), "Failed: HTTP 500");
+        var recent = new DateTimeOffset(2026, 10, 19, 0, 0, 0, TimeSpan.Zero);
+        await repository.RecordTestAsync(NewFinishedDelivery(quiet), NewAttempt(quiet, NewDelivery(quiet), 2, recent, "HTTP 200"), "HTTP 200");
+
+        await repository.PruneAsync(oldest.AddDays(7));
+
+        var busyLeft = await repository.ListAttemptsAsync(busy.Id, 50);
+        Assert.Equal(ApplicationWebhookRepository.RetainedAttemptsPerWebhook, busyLeft.Count);
+        Assert.Equal(30, busyLeft[0].AttemptNumber);
+        Assert.Equal(11, busyLeft[^1].AttemptNumber);
+        Assert.Equal(2, (await repository.ListAttemptsAsync(quiet.Id, 50)).Count);
+
+        await repository.PruneAsync(recent);
+
+        Assert.Equal(ApplicationWebhookRepository.RetainedAttemptsPerWebhook, (await repository.ListAttemptsAsync(busy.Id, 50)).Count);
+        Assert.Equal(2, (await repository.ListAttemptsAsync(quiet.Id, 50)).Count);
+        await repository.PruneAsync(recent.AddDays(1));
+        Assert.Equal(2, (await repository.ListAttemptsAsync(quiet.Id, 50)).Count);
+    }
+
+    [Fact]
+    public async Task DeletingAWebhook_DeletesItsAttemptHistory()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+        var endpoint = NewEndpoint();
+        await repository.SaveAsync(endpoint, true);
+        await repository.RecordTestAsync(NewFinishedDelivery(endpoint), NewAttempt(endpoint, NewDelivery(endpoint), 1, DateTimeOffset.UtcNow, "HTTP 500"), "Failed: HTTP 500");
+
+        await repository.DeleteAsync(endpoint.ApplicationId, endpoint.Id);
+
+        Assert.Empty(await repository.ListAttemptsAsync(endpoint.Id, 50));
+    }
+
+    [Fact]
+    public async Task EventServerId_IsCreatedOnceAndStaysTheSame()
+    {
+        var repository = new ApplicationWebhookRepository(_database);
+
+        var first = await repository.EventServerIdAsync();
+
+        Assert.True(Guid.TryParse(first, out _));
+        Assert.Equal(first, await repository.EventServerIdAsync());
+    }
+
+    private static ApplicationWebhookAttempt NewAttempt(ApplicationWebhook endpoint, ApplicationWebhookDelivery delivery, int number, DateTimeOffset at, string result) => new()
+    {
+        Id = Guid.NewGuid(),
+        WebhookId = endpoint.Id,
+        DeliveryId = delivery.Id,
+        EventId = delivery.EventId,
+        EventType = "ingestion.completed",
+        AttemptNumber = number,
+        AttemptedAt = at,
+        Result = result,
+        HttpStatus = result.StartsWith("HTTP ", StringComparison.Ordinal) ? int.Parse(result[5..]) : null,
+        DurationMs = 12,
+    };
+
+    private static ApplicationWebhookDelivery NewFinishedDelivery(ApplicationWebhook endpoint)
+    {
+        var delivery = NewDelivery(endpoint);
+        delivery.Status = "failed";
+        delivery.AttemptCount = 1;
+        delivery.EventSequence = 0;
+        return delivery;
+    }
+
     private static ApplicationWebhook NewEndpoint() => new()
     {
         Id = Guid.NewGuid(),
