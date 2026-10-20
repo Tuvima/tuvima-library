@@ -471,7 +471,7 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         Assert.Equal(["Gallery 1", "Gallery 2", "Gallery 3", "Gallery 4", "Gallery 5"],
             host.FindAll("section[aria-label='Galleries'] p strong").Select(name => name.TextContent));
-        var more = host.Find(".empty-trash__more");
+        var more = host.Find(".empty-trash__more button");
         Assert.Equal("and 3 more", more.TextContent.Trim());
 
         await host.InvokeAsync(() => more.Click());
@@ -641,6 +641,16 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
         var (host, _) = await OpenAsync();
 
         host.WaitForAssertion(() => Assert.Contains("Couldn't reach the Engine. Nothing was deleted.", Body(host), StringComparison.Ordinal));
+        Assert.Equal(["Close", "Try again"], host.FindAll("footer button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task Dialog_WhenOnlyTheSummaryTimesOutOffersTryAgainBecauseNothingCouldHaveChanged()
+    {
+        _preview = () => Task.FromResult(ViewTrashOutcome<ViewTrashEmptyPreviewDto>.Failed(ViewTrashOutcomeStatus.Unconfirmed));
+        var (host, _) = await OpenAsync();
+
+        host.WaitForAssertion(() => Assert.Contains("didn't answer in time", Body(host), StringComparison.Ordinal));
         Assert.Equal(["Close", "Try again"], host.FindAll("footer button").Select(button => button.TextContent.Trim()));
     }
 

@@ -303,7 +303,7 @@
     private ViewDocumentBulkResultDto? _bulkReport;
     private CancellationTokenSource? _pressCts;
     private Guid? _longPressed;
-    // Bumped after every list load so the Trash header reads the Trash size again (it follows trash, restore and Empty Trash).
+    // Bumped after a bulk restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
     private int _trashVersion;
 
     // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
@@ -651,7 +651,6 @@
         }
 
         _loading = false;
-        _trashVersion++;
     }
 
     private async Task LoadMoreAsync()
@@ -932,6 +931,7 @@
                 items.Count(item => item.Status == ViewDocumentBulkStatuses.Skipped),
                 items.Count(item => item.Status == ViewDocumentBulkStatuses.Failed), items);
             _selectMode = false;
+            if (restoring) { _trashVersion++; }
             await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync());
         }
         finally

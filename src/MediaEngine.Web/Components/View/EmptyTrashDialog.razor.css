@@ -25,18 +25,8 @@
 }
 
 .empty-trash__more {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--tl-accent-primary);
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-}
-
-.empty-trash__more:focus-visible {
-    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
-    outline-offset: var(--tl-focus-ring-offset);
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .empty-trash__compound,

@@ -40,7 +40,7 @@
                                 }
                                 @if (HiddenGalleryCount > 0)
                                 {
-                                    <text>, </text><AppNativeButton Type="button" Class="empty-trash__more" aria-expanded="false" OnClick="ExpandGalleries">and @HiddenGalleryCount more</AppNativeButton>
+                                    <text>, </text><span class="empty-trash__more"><AppButton Label="@($"and {HiddenGalleryCount} more")" ButtonStyle="AppButtonStyle.Text" OnClick="ExpandGalleries" /></span>
                                 }.
                                 They'll be taken out for good.
                             </p>
@@ -162,7 +162,7 @@
             return;
         }
 
-        Fail(outcome.Status, outcome.Message);
+        Fail(outcome.Status, outcome.Message, loadingPreview: true);
     }
 
     private async Task ConfirmAsync()
@@ -203,11 +203,11 @@
         Fail(outcome.Status, outcome.Message);
     }
 
-    private void Fail(ViewTrashOutcomeStatus status, string? message)
+    private void Fail(ViewTrashOutcomeStatus status, string? message, bool loadingPreview = false)
     {
-        // Unavailable never reached the Engine, so asking again is safe (and shows a fresh summary to confirm). Unconfirmed may have
-        // deleted something, so it is never offered a blind retry.
-        _canRetry = status == ViewTrashOutcomeStatus.Unavailable;
+        // Unavailable never reached the Engine, so asking again is safe (and shows a fresh summary to confirm). An Unconfirmed answer to
+        // the delete may have deleted something, so it is never offered a blind retry; the preview is only a read, so there it can be.
+        _canRetry = status == ViewTrashOutcomeStatus.Unavailable || (loadingPreview && status == ViewTrashOutcomeStatus.Unconfirmed);
         _failure = status switch
         {
             ViewTrashOutcomeStatus.Unavailable => EmptyTrashText.Unavailable,

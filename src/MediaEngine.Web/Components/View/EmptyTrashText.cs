@@ -14,7 +14,6 @@ public static class EmptyTrashText
     public const string TrashIsEmpty = "Trash is empty.";
     public const string EmptyOnAComputer = "Empty Trash on a computer.";
     public const string EmptyButton = "Empty Trash…";
-    public const string CheckingTrash = "Checking Trash…";
 
     // The dialog.
     public const string Checking = "Checking what's in Trash…";
