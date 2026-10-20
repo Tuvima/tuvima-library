@@ -17,7 +17,6 @@
                 <AppTextField @bind-Value="_config.ModelsDirectory" Label="Models directory" />
                 <AppNumericField T="int" @bind-Value="_config.IdleUnloadSeconds" Label="Idle unload seconds" Min="1" />
                 <AppNumericField T="int" @bind-Value="_config.InferenceTimeoutSeconds" Label="Inference timeout seconds" Min="1" />
-                <AppNumericField T="int" @bind-Value="_config.MaxConcurrentInferences" Label="Maximum concurrent inference" Min="1" Max="1" />
                 <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="Minimum free disk (MB)" Min="256" />
                 <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="Enrichment batch size" Min="1" />
             </div>
@@ -71,7 +70,6 @@
     {
         IdleUnloadSeconds: > 0,
         InferenceTimeoutSeconds: > 0,
-        MaxConcurrentInferences: 1,
         MinimumFreeDiskMB: >= 256,
         EnrichmentBatchSize: > 0,
     } && !string.IsNullOrWhiteSpace(_config.ModelsDirectory);

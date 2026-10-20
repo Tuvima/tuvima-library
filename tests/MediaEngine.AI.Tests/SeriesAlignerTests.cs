@@ -9,7 +9,7 @@ public sealed class SeriesAlignerTests
     public async Task InferPositionAsync_PreservesModelConfidence()
     {
         var aligner = new SeriesAligner(
-            StubLlamaInferenceService.ReturningJson("""{"position":3,"confidence":0.87}"""),
+            StubAiEngineRoom.ReturningJson("""{"position":3,"confidence":0.87}"""),
             NullLogger<SeriesAligner>.Instance);
 
         var result = await aligner.InferPositionAsync(
@@ -28,7 +28,7 @@ public sealed class SeriesAlignerTests
     public async Task InferPositionAsync_RejectsOutOfRangeConfidence(double confidence)
     {
         var aligner = new SeriesAligner(
-            StubLlamaInferenceService.ReturningJson($"{{\"position\":2,\"confidence\":{confidence}}}"),
+            StubAiEngineRoom.ReturningJson($"{{\"position\":2,\"confidence\":{confidence}}}"),
             NullLogger<SeriesAligner>.Instance);
 
         var result = await aligner.InferPositionAsync("Book", "Series", ["Book"]);

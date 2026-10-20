@@ -58,10 +58,7 @@ public static partial class AiSettingsValidator
             Add("inference_timeout_seconds", "Must be positive.");
         }
 
-        if (settings.MaxConcurrentInferences != 1)
-        {
-            Add("max_concurrent_inferences", "Must be 1 while the runtime supports one resident model.");
-        }
+        ValidatePluginBudget(settings, errors);
 
         if (settings.ReservedCpuCores < 1)
         {
@@ -155,6 +152,62 @@ public static partial class AiSettingsValidator
         && fileName is not "." and not ".."
         && string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal)
         && fileName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+
+    private static void ValidatePluginBudget(AiSettings settings, List<AiConfigurationError> errors)
+    {
+        if (settings.PluginBudget is null)
+        {
+            errors.Add(new AiConfigurationError("plugin_budget", "Plugin budget is required."));
+            return;
+        }
+
+        ValidateBudgetFields(
+            "plugin_budget",
+            settings.PluginBudget.RequestsPerHour,
+            settings.PluginBudget.BusySecondsPerHour,
+            settings.PluginBudget.MaxWaitSeconds,
+            errors);
+
+        foreach (var (pluginId, budget) in settings.PluginBudgetOverrides ?? [])
+        {
+            var path = $"plugin_budget_overrides.{pluginId}";
+            if (string.IsNullOrWhiteSpace(pluginId))
+            {
+                errors.Add(new AiConfigurationError("plugin_budget_overrides", "Plugin ids cannot be blank."));
+            }
+            else if (budget is null)
+            {
+                errors.Add(new AiConfigurationError(path, "Definition is required."));
+            }
+            else
+            {
+                ValidateBudgetFields(path, budget.RequestsPerHour, budget.BusySecondsPerHour, budget.MaxWaitSeconds, errors);
+            }
+        }
+    }
+
+    private static void ValidateBudgetFields(
+        string path,
+        int? requestsPerHour,
+        int? busySecondsPerHour,
+        int? maxWaitSeconds,
+        List<AiConfigurationError> errors)
+    {
+        if (requestsPerHour is < 1 or > 100_000)
+        {
+            errors.Add(new AiConfigurationError($"{path}.requests_per_hour", "Must be between 1 and 100000."));
+        }
+
+        if (busySecondsPerHour is < 1 or > 3600)
+        {
+            errors.Add(new AiConfigurationError($"{path}.busy_seconds_per_hour", "Must be between 1 and 3600 seconds."));
+        }
+
+        if (maxWaitSeconds is < 1 or > 3600)
+        {
+            errors.Add(new AiConfigurationError($"{path}.max_wait_seconds", "Must be between 1 and 3600 seconds."));
+        }
+    }
 
     private static void ValidateExecutableModel(
         AiModelDefinition model,
@@ -308,14 +361,12 @@ public sealed class AiRuntimeSettingsSnapshot
         string modelsDirectory,
         int idleUnloadSeconds,
         int inferenceTimeoutSeconds,
-        int maxConcurrentInferences,
         int minimumFreeDiskMb,
         IReadOnlyDictionary<AiModelRole, AiModelRuntimeDefinition> models)
     {
         ModelsDirectory = modelsDirectory;
         IdleUnloadSeconds = idleUnloadSeconds;
         InferenceTimeoutSeconds = inferenceTimeoutSeconds;
-        MaxConcurrentInferences = maxConcurrentInferences;
         MinimumFreeDiskMB = minimumFreeDiskMb;
         Models = models;
     }
@@ -323,7 +374,6 @@ public sealed class AiRuntimeSettingsSnapshot
     public string ModelsDirectory { get; }
     public int IdleUnloadSeconds { get; }
     public int InferenceTimeoutSeconds { get; }
-    public int MaxConcurrentInferences { get; }
     public int MinimumFreeDiskMB { get; }
     public IReadOnlyDictionary<AiModelRole, AiModelRuntimeDefinition> Models { get; }
 
@@ -340,7 +390,6 @@ public sealed class AiRuntimeSettingsSnapshot
             Path.GetFullPath(settings.ModelsDirectory),
             settings.IdleUnloadSeconds,
             settings.InferenceTimeoutSeconds,
-            settings.MaxConcurrentInferences,
             settings.MinimumFreeDiskMB,
             new ReadOnlyDictionary<AiModelRole, AiModelRuntimeDefinition>(models));
     }

@@ -249,6 +249,88 @@ public func groupTypeLabel(_ groupType: String) -> String {
     }
 }
 
+// MARK: Universe screen
+
+/// "1 item" or "4 items".
+public func itemCountText(_ count: Int) -> String { count == 1 ? "1 item" : "\(count) items" }
+
+/// The Universe hero's one line of totals, for example "3 Series · 14 Works · 2 formats". A Universe whose lines are
+/// all shows says "shows"; every other mix says "Series". A part that is zero is left out.
+public func universeTotalsLine(_ detail: UniverseDetail) -> String {
+    var parts: [String] = []
+    if detail.seriesCount > 0 {
+        let allShows = !detail.shelves.isEmpty
+            && detail.shelves.allSatisfy { ($0.groupType ?? "").lowercased() == "show" }
+        let noun = allShows ? (detail.seriesCount == 1 ? "show" : "shows") : "Series"
+        parts.append("\(detail.seriesCount) \(noun)")
+    }
+    let works = detail.itemCount ?? 0
+    if works > 0 { parts.append("\(works) \(works == 1 ? "Work" : "Works")") }
+    let formats = detail.mediaTypes.count
+    if formats > 0 { parts.append("\(formats) \(formats == 1 ? "format" : "formats")") }
+    return parts.joined(separator: " · ")
+}
+
+/// "as Hero, Villain" for a cast row; nil when the credit names no character.
+public func castCharactersLine(_ member: UniverseCastMember) -> String? {
+    let labels = member.characters
+        .map { $0.label.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+    return labels.isEmpty ? nil : "as \(labels.joined(separator: ", "))"
+}
+
+/// "The Film — Based on The Novel": the wire relationship is lower case, so its first letter is capitalised. Just
+/// the title when the relationship or the source is blank.
+public func adaptationLine(_ adaptation: UniverseAdaptation) -> String {
+    let relationship = adaptation.relationship.trimmingCharacters(in: .whitespacesAndNewlines)
+    let source = adaptation.sourceLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+    if relationship.isEmpty || source.isEmpty { return adaptation.label }
+    let sentence = String(relationship.prefix(1)).uppercased() + String(relationship.dropFirst())
+    return "\(adaptation.label) — \(sentence) \(source)"
+}
+
+/// What one Series of a Universe shows: a heading, the numbered run only when the Series has one, and the
+/// "Also in this world" row only when it has items.
+public struct UniverseShelfPresentation: Sendable {
+    /// The Series name.
+    public let title: String
+    /// The kind label and count under the name, for example "Series · 4 items". When the run is hidden the
+    /// count is the Also count ("Series · Also in this world · 2 items"), never "0 items".
+    public let kindLine: String
+    public let showsRun: Bool
+    public let runShelf: DisplayShelf
+    /// The Also row's shelf, or nil when the Series has no Also items.
+    public let alsoShelf: DisplayShelf?
+    /// The Also row's heading: the wire title and the Also count.
+    public let alsoHeading: String?
+}
+
+/// The rows to show for one Series, or nil when it has neither a run nor Also items (such a Series is skipped).
+public func universeShelfPresentation(_ member: UniverseShelf) -> UniverseShelfPresentation? {
+    let kind = groupTypeLabel(member.groupType ?? "series")
+    let showsRun = (member.itemCount ?? 0) > 0 && !member.shelf.items.isEmpty
+    var alsoShelf: DisplayShelf?
+    if let also = member.alsoInThisWorld, !also.items.isEmpty { alsoShelf = also }
+    if !showsRun && alsoShelf == nil { return nil }
+
+    let alsoCount = member.alsoInThisWorldCount > 0 ? member.alsoInThisWorldCount : (alsoShelf?.items.count ?? 0)
+    let alsoTitle = alsoShelf.map { $0.title.isEmpty ? "Also in this world" : $0.title }
+    let kindLine: String
+    if showsRun {
+        kindLine = "\(kind) · \(itemCountText(member.itemCount ?? member.shelf.items.count))"
+    } else {
+        kindLine = "\(kind) · \(alsoTitle ?? "Also in this world") · \(itemCountText(alsoCount))"
+    }
+    return UniverseShelfPresentation(
+        title: member.shelf.title,
+        kindLine: kindLine,
+        showsRun: showsRun,
+        runShelf: member.shelf,
+        alsoShelf: alsoShelf,
+        alsoHeading: alsoTitle.map { "\($0) · \(itemCountText(alsoCount))" }
+    )
+}
+
 /// Work id to the file that plays it, for the playable cards that name both.
 public func playableAssets(byWork cards: [DisplayCard]) -> [UUID: UUID] {
     var result: [UUID: UUID] = [:]

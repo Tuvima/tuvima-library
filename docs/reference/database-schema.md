@@ -66,7 +66,7 @@ Represents a Series (user-facing) or Universe (ParentCollection). Both are store
 | `wikidata_qid` | TEXT | Wikidata entity identifier. Indexed. |
 | `parent_collection_id` | BLOB | FK -> `collections.id`. NULL for top-level Universes and standalone Series. |
 | `media_type` | TEXT | The media type a Series shelf holds (a `MediaType` name such as `Books`, `Audiobooks` or `TV`); null on collections that are not Series shelves. Added by upgrade step `0012_series_identity_by_media_type`. A Series is its Wikidata Series QID plus this media type, so a book Series and an audiobook Series with the same `wikidata_qid` are two rows, and a lookup by QID and media type never returns the other one (`CollectionRepository.FindSeriesShelfAsync`). Indexed with `wikidata_qid`. |
-| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0019_universe_record`. |
+| `universe_qid` | TEXT | FK -> `narrative_roots.qid` (`ON DELETE SET NULL`). The Universe record this shelf belongs to or presents. On a Series shelf it names the Universe the Series sits in, stored even when it is the only Series of that Universe. On a Universe shelf it is the record the shelf presents and always equals `wikidata_qid`. Set by `ParentCollectionResolver` using `UniverseIdentityRule`; added by upgrade step `0020_universe_record`. |
 | `description` | TEXT | Wikipedia or provider description |
 | `sort_title` | TEXT | Normalized title for alphabetical sorting |
 | `created_at` | TEXT | Timestamp |
@@ -1014,6 +1014,26 @@ One append-only row each time a server administrator (or an application holding 
 | `approved_at` | TEXT | ISO 8601 UTC |
 
 **Indices:** `ix_approval_records_item (item_kind, item_id, approved_at)`. Added by upgrade step `0017_approval_records`.
+
+### ai_usage_records
+
+One row for every request that reached the Local AI engine room: text written or structured by the local model, and text read from an image by Tesseract. A request is recorded whatever happened to it (succeeded, failed, unavailable, refused over a plugin's hourly allowance, cancelled or timed out); a request that was only deferred (a background poll that found the machine busy) writes nothing. A plugin's hourly allowance (`plugin_budget` in `config/ai.json`) is counted from these rows over the last rolling hour, so it survives an Engine restart; refused and unavailable requests do not count against it. The engine room writes the row; a failed write is logged as a warning and never fails the AI request. Rows older than 90 days are deleted by the daily activity cleanup. The prompt and the text read are never stored.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | 16-byte GUID, primary key |
+| `started_at` | TEXT | ISO 8601 UTC; when the request reached the engine room |
+| `caller_kind` | TEXT | `person`, `ingestion`, `library_background` or `plugin` |
+| `caller_id` | TEXT | Stable key: a feature key such as `smart_labeling` or `vibe_tags`, a text-reading key, or the plugin manifest id |
+| `ability` | TEXT | `write_text_quick`, `write_text_careful`, `write_text_long`, `extract_structured`, `classify`, `read_text_from_image` (and `transcribe_speech`, `find_similar`, `describe_image`, which are recorded for later and always answer unavailable) |
+| `engine` | TEXT | `text_model`, `tesseract` or `none` |
+| `wait_ms` | INTEGER | Milliseconds spent waiting in the queue |
+| `duration_ms` | INTEGER | Milliseconds spent running once it had a turn |
+| `outcome` | TEXT | `succeeded`, `failed`, `unavailable`, `refused_over_budget`, `cancelled` or `timed_out` |
+| `message` | TEXT | Plain-English result or reason |
+
+**Indices:** `ix_ai_usage_records_caller (caller_kind, caller_id, started_at)` and `ix_ai_usage_records_started (started_at)`. Added by upgrade step `0019_ai_usage_records`.
+
 ### media_operations (file intake rows)
 
 The Engine's durable work queue. Each file noticed by ingestion has one row with `operation_type = ingestion.file`; the live ingestion page's numbers are worked out from these rows (see `IngestionQueueProgressRepository`). Only the columns that matter to that count are listed here.

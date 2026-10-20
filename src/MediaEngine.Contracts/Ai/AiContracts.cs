@@ -180,9 +180,6 @@ public sealed class AiConfigDto
     [JsonPropertyName("inference_timeout_seconds")]
     public int InferenceTimeoutSeconds { get; set; } = 60;
 
-    [JsonPropertyName("max_concurrent_inferences")]
-    public int MaxConcurrentInferences { get; set; } = 1;
-
     [JsonPropertyName("minimum_free_disk_mb")]
     public int MinimumFreeDiskMB { get; set; } = 1024;
 

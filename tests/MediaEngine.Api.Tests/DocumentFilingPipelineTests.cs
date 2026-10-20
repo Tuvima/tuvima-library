@@ -21,7 +21,7 @@ public sealed class DocumentFilingPipelineTests
 
     private static DocumentOcrOperationWorker OcrWorker(ViewLibraryServiceTests.ViewFixture fixture, FakeOcrService ocr) => new(
         fixture.Operations,
-        new DocumentOcrService(fixture.Repository, fixture.Configuration, ocr,
+        new DocumentOcrService(fixture.Repository, fixture.Configuration, ocr, OcrEngineRoom.For(ocr, fixture.Configuration),
             NullLogger<DocumentOcrService>.Instance, fixture.RulesQueue),
         fixture.OcrQueue!,
         new ManualPlaybackProbe(),

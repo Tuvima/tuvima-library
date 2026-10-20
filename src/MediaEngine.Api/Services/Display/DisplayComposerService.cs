@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Playback;
 
@@ -12,6 +13,9 @@ public sealed partial class DisplayComposerService
     private readonly MusicPlayStatsRepository? _musicStats;
     private readonly DisplayFormatReader? _formats;
     private readonly DisplayGridPersonalReader? _personal;
+    private readonly ISeriesManifestRepository? _manifests;
+    private readonly ICanonicalValueArrayRepository? _arrays;
+    private readonly ICollectionRepository? _collections;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -19,7 +23,10 @@ public sealed partial class DisplayComposerService
         DisplayShelfBuilder shelves,
         MusicPlayStatsRepository? musicStats = null,
         DisplayFormatReader? formats = null,
-        DisplayGridPersonalReader? personal = null)
+        DisplayGridPersonalReader? personal = null,
+        ISeriesManifestRepository? manifests = null,
+        ICanonicalValueArrayRepository? arrays = null,
+        ICollectionRepository? collections = null)
     {
         _readService = readService;
         _cards = cards;
@@ -27,6 +34,9 @@ public sealed partial class DisplayComposerService
         _musicStats = musicStats;
         _formats = formats;
         _personal = personal;
+        _manifests = manifests;
+        _arrays = arrays;
+        _collections = collections;
     }
 
     // Projection rows remain per asset for resume/state calculations. Only presentation
@@ -447,6 +457,12 @@ public sealed partial class DisplayComposerService
             hasMore);
     }
 
+    /// <summary>
+    /// The see-all list of one Series (or show): its run in the shared Series order as the <c>items</c> shelf, and its
+    /// "Also in this world" members as a second shelf, split by <see cref="SeriesShelfSplit"/> exactly like the Universe
+    /// read, so the run shelf here and the Universe's shelf list the same items. The subtitle counts the run (or, for a
+    /// Series with only "Also in this world" members, those). TV episodes keep their episode order.
+    /// </summary>
     public async Task<DisplayPageDto?> BuildGroupAsync(
         Guid groupId,
         bool includeCatalog = true,
@@ -455,26 +471,51 @@ public sealed partial class DisplayComposerService
     {
         var works = CollapseReadVariantsByQid((await _readService.LoadWorksAsync(ct))
             .Where(work => work.CollectionId == groupId)
-        )
-            .OrderBy(work => DisplayMediaRules.ParseDouble(work.SeriesPosition) ?? double.MaxValue)
-            .ThenBy(work => work.SortTitle ?? work.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        ).ToList();
 
         if (works.Count == 0)
         {
             return null;
         }
 
-        var cards = works.Select(work => _cards.FromWork(work, "collection", null)).ToList();
+        var placements = await SeriesShelfSplit.LoadPlacementsAsync(_manifests, [groupId], ct).ConfigureAwait(false);
+        var shelfQid = _collections is null
+            ? null
+            : (await _collections.GetByIdAsync(groupId, ct).ConfigureAwait(false))?.WikidataQid;
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(_arrays, works, ct).ConfigureAwait(false);
+        var split = SeriesShelfSplit.Split(
+            works,
+            placements.TryGetValue(groupId, out var byWork) ? byWork : new Dictionary<Guid, MediaEngine.Domain.Entities.SeriesManifestItemRecord>(),
+            shelfQid,
+            seriesPairs);
+        var episodes = split.TvRows
+            .OrderBy(work => DisplayMediaRules.ParseDouble(work.SeriesPosition) ?? double.MaxValue)
+            .ThenBy(work => work.SortTitle ?? work.Title, StringComparer.OrdinalIgnoreCase);
+        var runCards = episodes.Concat(split.Run).Select(work => _cards.FromWork(work, "collection", null)).ToList();
+        var alsoCards = split.Also.Select(work => _cards.FromWork(work, "collection", null)).ToList();
+        var cards = runCards.Concat(alsoCards).ToList();
         var title = works.FirstOrDefault(work => !string.IsNullOrWhiteSpace(work.Series))?.Series ?? "Collection";
+        var shelves = new List<DisplayShelfDto>();
+        if (runCards.Count > 0)
+        {
+            shelves.Add(new DisplayShelfDto("items", title, ItemsLabel(runCards.Count), runCards, null));
+        }
+
+        if (alsoCards.Count > 0)
+        {
+            shelves.Add(new DisplayShelfDto("also-in-this-world", "Also in this world", ItemsLabel(alsoCards.Count), alsoCards, null));
+        }
+
         return new DisplayPageDto(
             Key: $"group-{groupId:N}",
             Title: title,
-            Subtitle: $"{works.Count} items",
+            Subtitle: ItemsLabel(runCards.Count > 0 ? runCards.Count : alsoCards.Count),
             Hero: cards.FirstOrDefault() is { } hero ? DisplayCardBuilder.ToHero(hero, "Collection") : null,
-            Shelves: [new DisplayShelfDto("items", title, $"{works.Count} items", cards, null)],
+            Shelves: shelves,
             Catalog: includeCatalog ? cards : []);
     }
+
+    private static string ItemsLabel(int count) => count == 1 ? "1 item" : $"{count} items";
 
     private Task<DisplayPageDto> BuildShelfSourcePageAsync(
         string? lane,

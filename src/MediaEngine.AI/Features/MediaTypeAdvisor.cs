@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Llama;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -14,16 +15,18 @@ namespace MediaEngine.AI.Features;
 /// </summary>
 public sealed class MediaTypeAdvisor : IMediaTypeAdvisor
 {
-    private readonly ILlamaInferenceService _llama;
+    private static readonly AiCaller Caller = AiCaller.Ingestion(AiCallerIds.TypeLogic);
+
+    private readonly IAiEngineRoom _engineRoom;
     private readonly AiSettings _settings;
     private readonly ILogger<MediaTypeAdvisor> _logger;
 
     public MediaTypeAdvisor(
-        ILlamaInferenceService llama,
+        IAiEngineRoom engineRoom,
         AiSettings settings,
         ILogger<MediaTypeAdvisor> logger)
     {
-        _llama = llama;
+        _engineRoom = engineRoom;
         _settings = settings;
         _logger = logger;
     }
@@ -54,11 +57,12 @@ public sealed class MediaTypeAdvisor : IMediaTypeAdvisor
             var prompt = PromptTemplates.MediaTypePrompt(
                 filename, container, durationSeconds, bitrate, genre, hasChapters, folderPath);
 
-            var result = await _llama.InferJsonAsync<MediaTypeResponse>(
-                AiModelRole.TextQuality,
+            var result = await _engineRoom.ExtractJsonOrThrowAsync<MediaTypeResponse>(
+                Caller,
+                AiAbility.Classify,
                 prompt,
                 PromptTemplates.MediaTypeGrammar,
-                ct);
+                ct: ct);
 
             if (result is null || string.IsNullOrWhiteSpace(result.Type))
             {

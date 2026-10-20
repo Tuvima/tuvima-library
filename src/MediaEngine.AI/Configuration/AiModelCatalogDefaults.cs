@@ -3,6 +3,9 @@ namespace MediaEngine.AI.Configuration;
 /// <summary>Supported launch catalogue only. Every entry has a wired local runtime.</summary>
 public static class AiModelCatalogDefaults
 {
+    private const string AudioFile = "ggml-medium.bin";
+    private const string AudioDownloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin";
+
     public static Dictionary<string, AiModelCatalogEntry> CreateCatalog() =>
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -34,8 +37,8 @@ public static class AiModelCatalogDefaults
                 Status = "supported",
                 SelectionTier = "optional-audio-pack",
                 IntendedRoles = ["audio"],
-                File = "ggml-medium.bin",
-                DownloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+                File = AudioFile,
+                DownloadUrl = AudioDownloadUrl,
                 SourceUrl = "https://huggingface.co/ggerganov/whisper.cpp",
                 Sha256 = "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
                 SizeMB = 1500,
@@ -50,7 +53,7 @@ public static class AiModelCatalogDefaults
                     Multilingual = true,
                 },
                 Compatibility = ReadyCompatibility("Whisper.net"),
-                Readiness = Ready(),
+                Readiness = DefinitionReadiness(AudioFile, AudioDownloadUrl),
                 Validation = new AiModelValidationProfile
                 {
                     BenchmarkSuite = "audio_sync",
@@ -127,7 +130,7 @@ public static class AiModelCatalogDefaults
                 Cjk = true,
             },
             Compatibility = ReadyCompatibility("LLamaSharp"),
-            Readiness = Ready(),
+            Readiness = DefinitionReadiness(file, downloadUrl),
             Validation = new AiModelValidationProfile
             {
                 BenchmarkSuite = tier == "advanced" ? "text_enrichment" : "text_ingestion",
@@ -145,10 +148,15 @@ public static class AiModelCatalogDefaults
         MinimumRuntimeVersion = "bundled",
     };
 
-    private static AiModelReadiness Ready() => new()
+    /// <summary>
+    /// What the catalogue can know on its own: the definition is complete when it names a file and a download address.
+    /// Whether the native runtime loads and whether the model file is on disk are facts about this machine; the
+    /// <c>AiModelSelectionAdvisor</c> fills them in from the live checks, so they start false here.
+    /// </summary>
+    private static AiModelReadiness DefinitionReadiness(string file, string downloadUrl) => new()
     {
-        ConfigurationReady = true,
-        RuntimeReady = true,
-        Validated = true,
+        ConfigurationReady = !string.IsNullOrWhiteSpace(file) && !string.IsNullOrWhiteSpace(downloadUrl),
+        RuntimeReady = false,
+        Validated = false,
     };
 }

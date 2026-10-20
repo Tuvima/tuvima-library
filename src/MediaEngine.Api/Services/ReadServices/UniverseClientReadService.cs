@@ -5,7 +5,6 @@ using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Universe;
-using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
@@ -86,8 +85,8 @@ public sealed partial class UniverseClientReadService(
             .ToDictionary(group => group.Key, group => group.ToList());
 
         // One read for every member shelf's manifest rows, not one per shelf.
-        var placementsByShelf = await LoadManifestPlacementsAsync(members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
-        var seriesPairs = await LoadSeriesPairsAsync(rowsByCollection.Values.SelectMany(rows => rows).ToList(), ct).ConfigureAwait(false);
+        var placementsByShelf = await SeriesShelfSplit.LoadPlacementsAsync(manifests, members.Select(member => member.Id).ToList(), ct).ConfigureAwait(false);
+        var seriesPairs = await SeriesShelfSplit.LoadSeriesPairsAsync(arrays, rowsByCollection.Values.SelectMany(rows => rows).ToList(), ct).ConfigureAwait(false);
 
         var shelves = new List<UniverseMemberShelfDto>();
         var mediaTypes = new List<string>();
@@ -349,126 +348,17 @@ public sealed partial class UniverseClientReadService(
         return members;
     }
 
-    /// <summary>The manifest row that places each owned work on this Series shelf, for the shared Series ordering.</summary>
-    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>> LoadManifestPlacementsAsync(
-        IReadOnlyCollection<Guid> shelfIds,
-        CancellationToken ct)
-    {
-        if (manifests is null || shelfIds.Count == 0)
-        {
-            return new Dictionary<Guid, IReadOnlyDictionary<Guid, ManifestItem>>();
-        }
-
-        var rows = await manifests.GetLinkedItemsByCollectionIdsAsync(shelfIds, ct).ConfigureAwait(false);
-        return rows
-            .GroupBy(item => item.CollectionId)
-            .ToDictionary(
-                shelf => shelf.Key,
-                shelf => (IReadOnlyDictionary<Guid, ManifestItem>)shelf
-                    .GroupBy(item => item.LinkedWorkId!.Value)
-                    .ToDictionary(
-                        group => group.Key,
-                        group => group
-                            .OrderBy(item => item.IsExpandedFromCollection)
-                            .ThenBy(item => SeriesPlacementRule.ScopeRank(item.MembershipScope))
-                            .First()));
-    }
-
-    /// <summary>
-    /// The (Series, position) pairs each listed work and its file store, so a work in two Series shows this shelf's own
-    /// number, as the shelf and the item page do.
-    /// </summary>
-    private async Task<IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>> LoadSeriesPairsAsync(
-        IReadOnlyList<DisplayWorkRow> rows,
-        CancellationToken ct)
-    {
-        if (arrays is null || rows.Count == 0)
-        {
-            return new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
-        }
-
-        var entityIds = rows.SelectMany(row => new[] { row.WorkId, row.AssetId }).Distinct().ToList();
-        var byEntity = await arrays.GetAllByEntitiesAsync(entityIds, ct).ConfigureAwait(false);
-        var pairs = new Dictionary<Guid, IReadOnlyList<CanonicalArrayEntry>>();
-        foreach (var (entityId, keys) in byEntity)
-        {
-            if (keys.TryGetValue(MetadataFieldConstants.SeriesPlacement, out var entries) && entries.Count > 0)
-            {
-                pairs[entityId] = entries;
-            }
-        }
-
-        return pairs;
-    }
-
-    private static string? OwnPosition(
-        DisplayWorkRow row,
-        string? seriesQid,
-        IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
-    {
-        var fromAsset = SeriesPositionPairs.PositionFor(
-            seriesQid, seriesPairs.GetValueOrDefault(row.AssetId), fallbackPosition: null);
-        return fromAsset ?? SeriesPositionPairs.PositionFor(
-            seriesQid, seriesPairs.GetValueOrDefault(row.WorkId), row.SeriesPosition);
-    }
-
     private ShelfCards BuildCards(
         IReadOnlyList<DisplayWorkRow> rows,
         IReadOnlyDictionary<Guid, ManifestItem> manifestByWork,
         string? seriesQid,
         IReadOnlyDictionary<Guid, IReadOnlyList<CanonicalArrayEntry>> seriesPairs)
     {
-        var run = new List<DisplayCardDto>();
-        var also = new List<DisplayCardDto>();
-        var kinds = new List<string>();
-        var tvRows = rows.Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) == "TV").ToList();
-        run.AddRange(cards.BuildTvShowCards(tvRows));
-        if (tvRows.Count > 0)
-        {
-            kinds.Add("TV");
-        }
-
-        // The same Series ordering as the shelf and the item page: the manifest's ordinal, then the work's own decimal
-        // position, then publication date, then title, with "Also in this world" members after the Series run.
-        var seriesRows = rows
-            .Where(row => DisplayMediaRules.NormalizeDisplayKind(row.MediaType) != "TV")
-            .GroupBy(row => row.WorkId)
-            .Select(group => group.First())
-            .ToList();
-        var ordered = SeriesOrdering.Order(seriesRows, row =>
-        {
-            manifestByWork.TryGetValue(row.WorkId, out var placement);
-            return SeriesOrdering.BuildInput(
-                placement?.MembershipScope,
-                placement?.ParsedOrdinal,
-                placement?.OrdinalScopeQid,
-                placement?.SeriesQid,
-                SeriesPositionPairs.SortValueOf(OwnPosition(row, seriesQid, seriesPairs)),
-                row.Year,
-                row.SortTitle ?? row.Title);
-        });
-        foreach (var row in ordered)
-        {
-            var kind = DisplayMediaRules.NormalizeDisplayKind(row.MediaType);
-            if (!kinds.Contains(kind, StringComparer.Ordinal))
-            {
-                kinds.Add(kind);
-            }
-
-            // The same split the item page uses: supplementary, collected and broader members are "Also in this world".
-            manifestByWork.TryGetValue(row.WorkId, out var placement);
-            var card = cards.FromWork(row, "collection", null);
-            if (SeriesOrdering.SplitsAlsoInThisWorld(kind) && SeriesOrdering.IsAlsoInThisWorld(placement?.MembershipScope))
-            {
-                also.Add(card);
-            }
-            else
-            {
-                run.Add(card);
-            }
-        }
-
-        return new ShelfCards(run, also, kinds);
+        var split = SeriesShelfSplit.Split(rows, manifestByWork, seriesQid, seriesPairs);
+        var run = new List<DisplayCardDto>(cards.BuildTvShowCards(split.TvRows));
+        run.AddRange(split.Run.Select(row => cards.FromWork(row, "collection", null)));
+        var also = split.Also.Select(row => cards.FromWork(row, "collection", null)).ToList();
+        return new ShelfCards(run, also, split.Kinds);
     }
 
     private sealed record ShelfCards(

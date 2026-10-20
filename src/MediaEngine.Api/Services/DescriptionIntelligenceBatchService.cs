@@ -1,4 +1,5 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Domain;
@@ -44,7 +45,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
     private readonly IReadOnlyList<IExternalMetadataProvider> _providers;
     private readonly IRecursiveIdentityService _identityService;
     private readonly IMetadataHarvestingService _harvesting;
-    private readonly BackgroundAiAdmissionController _admission;
     private readonly ScheduledTaskRunner _runner;
     private readonly ILogger<DescriptionIntelligenceBatchService> _logger;
 
@@ -66,7 +66,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         IEnumerable<IExternalMetadataProvider> providers,
         IRecursiveIdentityService identityService,
         IMetadataHarvestingService harvesting,
-        BackgroundAiAdmissionController admission,
         ScheduledTaskRunner runner,
         ILogger<DescriptionIntelligenceBatchService> logger)
     {
@@ -88,7 +87,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         ArgumentNullException.ThrowIfNull(providers);
         ArgumentNullException.ThrowIfNull(identityService);
         ArgumentNullException.ThrowIfNull(harvesting);
-        ArgumentNullException.ThrowIfNull(admission);
         ArgumentNullException.ThrowIfNull(logger);
 
         _settings = settings;
@@ -108,7 +106,6 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
         _providers = providers.ToList();
         _identityService = identityService;
         _harvesting = harvesting;
-        _admission = admission;
         _runner = runner;
         _logger = logger;
     }
@@ -243,15 +240,7 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
                     continue;
                 }
 
-                using var admission = _admission.TryAcquire(
-                    MediaEngine.Domain.Enums.AiModelRole.TextScholar,
-                    ct);
-                if (admission is null)
-                {
-                    return TaskRunResult.Skipped("Waiting: the machine is busy");
-                }
-
-                var diResult = await descIntel.AnalyzeAsync(entityId, mediaCategory, admission.Token)
+                var diResult = await descIntel.AnalyzeAsync(entityId, mediaCategory, ct)
                     .ConfigureAwait(false);
 
                 if (diResult is not null)
@@ -482,6 +471,11 @@ public sealed class DescriptionIntelligenceBatchService : BackgroundService
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (AiRequestDeferredException)
+            {
+                // The engine room found the machine busy (first-run setup, someone using the app, or low resources).
+                return TaskRunResult.Skipped("Waiting: the machine is busy");
+            }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 _logger.LogInformation(

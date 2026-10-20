@@ -1,8 +1,15 @@
 using MediaEngine.AI.Configuration;
+using MediaEngine.AI.EngineRoom;
 using MediaEngine.AI.Infrastructure;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Services;
+
+/// <summary>Waiting times for the start-up benchmark. Shortened in tests.</summary>
+public sealed record HardwareBenchmarkTiming(TimeSpan StartupDelay, TimeSpan BusyRetryDelay)
+{
+    public static HardwareBenchmarkTiming Default { get; } = new(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(60));
+}
 
 /// <summary>
 /// One-shot background service that runs the hardware benchmark 15 seconds after the
@@ -14,8 +21,7 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class HardwareBenchmarkBackgroundService : BackgroundService
 {
-    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(15);
-
+    private readonly HardwareBenchmarkTiming _timing;
     private readonly HardwareBenchmarkService _benchmark;
     private readonly ILogger<HardwareBenchmarkBackgroundService> _logger;
     private readonly OnboardingActivationGate? _onboardingGate;
@@ -25,8 +31,10 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
         HardwareBenchmarkService benchmark,
         AiSettings settings,
         ILogger<HardwareBenchmarkBackgroundService> logger,
-        OnboardingActivationGate? onboardingGate = null)
+        OnboardingActivationGate? onboardingGate = null,
+        HardwareBenchmarkTiming? timing = null)
     {
+        _timing = timing ?? HardwareBenchmarkTiming.Default;
         _benchmark = benchmark;
         _settings = settings;
         _logger = logger;
@@ -49,33 +57,54 @@ public sealed class HardwareBenchmarkBackgroundService : BackgroundService
 
         _logger.LogInformation(
             "HardwareBenchmarkBackgroundService: waiting {Seconds}s before running benchmark",
-            StartupDelay.TotalSeconds);
+            _timing.StartupDelay.TotalSeconds);
 
-        await Task.Delay(StartupDelay, stoppingToken);
+        await Task.Delay(_timing.StartupDelay, stoppingToken);
 
         if (stoppingToken.IsCancellationRequested)
         {
             return;
         }
 
-        try
+        // Library background work waits for a quiet moment. The benchmark never used to wait, so keep trying until it has
+        // run instead of giving up the first time the machine is busy.
+        while (!stoppingToken.IsCancellationRequested)
         {
-            await _benchmark.BenchmarkAsync(ct: stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            // Shutdown before benchmark completed — no action needed.
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "HardwareBenchmarkBackgroundService: benchmark failed unexpectedly");
+            try
+            {
+                await _benchmark.BenchmarkAsync(ct: stoppingToken);
+                break;
+            }
+            catch (Exception ex) when (ex is AiRequestDeferredException or AiRequestPreemptedException)
+            {
+                // Busy machine, or a person's request made the benchmark step aside (a cancellation that is not shutdown).
+                // Neither is a result, so try again.
+                _logger.LogInformation(
+                    "HardwareBenchmarkBackgroundService: the machine is busy; trying again in {Seconds}s",
+                    _timing.BusyRetryDelay.TotalSeconds);
+                try
+                {
+                    await Task.Delay(_timing.BusyRetryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Shutdown before benchmark completed — no action needed.
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "HardwareBenchmarkBackgroundService: benchmark failed unexpectedly");
+                break;
+            }
         }
 
         // Service is done — runs once on startup only.
     }
 
-    private static bool AnyAiFeatureEnabled(AiSettings settings) =>
-        settings.AudioPackEnabled || settings.Features.SmartLabeling || settings.Features.TypeLogic
-        || settings.Features.SeriesAlignment || settings.Features.VibeTags || settings.Features.Tldr
-        || settings.Features.DescriptionIntelligence;
+    private static bool AnyAiFeatureEnabled(AiSettings settings) => settings.IsLocalAiEnabled;
 }

@@ -40,7 +40,14 @@ public sealed class AiFeatureGate
 
     public bool CanExecute(AiFeature feature, AiModelRole role)
     {
-        if (!IsEnabled(feature) || !_advisor.GetDecision(role).CanEnable)
+        if (!IsEnabled(feature))
+        {
+            return false;
+        }
+
+        // Work only runs when the model may be used here and the native runtime really loads.
+        var decision = _advisor.GetDecision(role);
+        if (!decision.CanEnable || !decision.RuntimeReady)
         {
             return false;
         }
