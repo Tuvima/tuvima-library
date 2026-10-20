@@ -73,7 +73,7 @@ public sealed class DisplayWorkProjectionReader
             "RootWorkId",
             "AssetId",
             "MediaType",
-            relatedBookYearExpression: MediaDateSql.RelatedBookYearLookup("related_book_year", "AssetId"));
+            relatedBookYearExpression: MediaDateSql.RelatedBookYearLookup("related_book_year", "WorkId", "AssetId"));
         var sql = $"""
             WITH projection_credits AS MATERIALIZED (SELECT * FROM primary_person_media_credits),
             asset_dates AS MATERIALIZED (

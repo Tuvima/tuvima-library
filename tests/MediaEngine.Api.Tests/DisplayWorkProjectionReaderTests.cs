@@ -500,6 +500,54 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_OneAudiobookFileCoveringTwoWorks_EachWorkBorrowsItsOwnBooksYear()
+    {
+        var duneBookId = Guid.NewGuid();
+        var messiahBookId = Guid.NewGuid();
+        var firstWorkId = Guid.NewGuid();
+        var secondWorkId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                "INSERT INTO persons (id, name, is_pseudonym, created_at) VALUES (@personId, 'Frank Herbert', 0, CURRENT_TIMESTAMP);",
+                new { personId = Guid.NewGuid() });
+            await InsertBookAsync(conn, duneBookId, "Dune", ["Frank Herbert"]);
+            await InsertBookAsync(conn, messiahBookId, "Dune Messiah", ["Frank Herbert"]);
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@duneBookId, 'original_publication_year', '1965', CURRENT_TIMESTAMP),
+                       (@messiahBookId, 'original_publication_year', '1969', CURRENT_TIMESTAMP);
+                """,
+                new { duneBookId, messiahBookId });
+
+            // One combined audiobook file with no title of its own: its edition belongs to the first work and it also
+            // covers the second, so each work's own title picks the book whose year it borrows.
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@firstWorkId, 'Audiobooks', 'standalone', 'accepted');
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@secondWorkId, 'Audiobooks', 'standalone', 'accepted');
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @firstWorkId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+                VALUES (@assetId, @editionId, @hash, 'C:/library/combined.m4b', CURRENT_TIMESTAMP);
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES (@assetId, @secondWorkId, 2, 'manual');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@firstWorkId, 'title', 'Dune', CURRENT_TIMESTAMP),
+                       (@secondWorkId, 'title', 'Dune Messiah', CURRENT_TIMESTAMP);
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@assetId, 'author', 0, 'Frank Herbert');
+                """,
+                new { firstWorkId, secondWorkId, editionId, assetId, hash = Guid.NewGuid().ToString("N") });
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+
+        Assert.Equal("1965", Assert.Single(rows, row => row.WorkId == firstWorkId).Year);
+        Assert.Equal("1969", Assert.Single(rows, row => row.WorkId == secondWorkId).Year);
+    }
+
+    [Fact]
     public void CardBuilder_MapsSettlingFromWorkRowsAndAnyMemberOfAGroup()
     {
         var collectionId = Guid.NewGuid();

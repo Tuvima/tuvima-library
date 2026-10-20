@@ -14,7 +14,6 @@ public static partial class MediaDateSql
         string rootWorkIdExpression,
         string assetIdExpression,
         string mediaTypeExpression,
-        string contributorRelation = "primary_person_media_credits",
         string? relatedBookYearExpression = null)
     {
         var workYear = OriginalYearValue(workIdExpression, mediaTypeExpression);
@@ -26,7 +25,7 @@ public static partial class MediaDateSql
         // A ready expression (RelatedBookYearLookup over RelatedBookOriginalYearCte, or NULL for a read that never
         // returns audiobooks) replaces the per-row look-up, whose cost grows with the square of the library.
         var relatedBookYear = relatedBookYearExpression
-            ?? RelatedBookOriginalYear(workIdExpression, assetIdExpression, contributorRelation);
+            ?? RelatedBookOriginalYear(workIdExpression, assetIdExpression);
 
         return $"""
             CASE
@@ -123,8 +122,7 @@ public static partial class MediaDateSql
 
     public static string RelatedBookOriginalYear(
         string audiobookWorkIdExpression,
-        string audiobookAssetIdExpression,
-        string contributorRelation = "primary_person_media_credits")
+        string audiobookAssetIdExpression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(audiobookWorkIdExpression);
         ArgumentException.ThrowIfNullOrWhiteSpace(audiobookAssetIdExpression);
@@ -134,8 +132,8 @@ public static partial class MediaDateSql
 
         return $"""
             (SELECT COALESCE({bookWorkYear}, {bookAssetYear})
-             FROM {contributorRelation} audiobook_author
-             INNER JOIN {contributorRelation} book_author
+             FROM primary_person_media_credits audiobook_author
+             INNER JOIN primary_person_media_credits book_author
                  ON book_author.person_id = audiobook_author.person_id
                 AND book_author.credit_key = 'author'
              INNER JOIN media_assets book_asset
@@ -171,7 +169,8 @@ public static partial class MediaDateSql
     /// Set-based form of <see cref="RelatedBookOriginalYear"/>: works out the borrowed year for every candidate
     /// audiobook in one pass instead of one look-up per row. Returns a chain of CTE definitions (without the leading
     /// <c>WITH</c>) whose last CTE is named <paramref name="resultName"/> and has the columns
-    /// <c>audiobook_asset_id, year</c>: one row per candidate file that has a matching book.
+    /// <c>audiobook_work_id, audiobook_asset_id, year</c>: one row per candidate (work, file) pair that has a matching book.
+    /// The pair is the key because one file can cover several works, and each work's own title picks its own book.
     /// </summary>
     /// <param name="resultName">Name of the final CTE the caller selects from.</param>
     /// <param name="candidatesSelect">
@@ -258,12 +257,13 @@ public static partial class MediaDateSql
                 WHERE credit.credit_key = 'author'
             ),
             {ranked} AS (
-                SELECT candidate.asset_id AS audiobook_asset_id,
+                SELECT candidate.work_id AS audiobook_work_id,
+                       candidate.asset_id AS audiobook_asset_id,
                        book_match.book_work_id,
                        book_match.book_asset_id,
                        book_match.media_type,
                        ROW_NUMBER() OVER (
-                           PARTITION BY candidate.asset_id
+                           PARTITION BY candidate.work_id, candidate.asset_id
                            ORDER BY book_match.book_work_id, book_match.book_asset_id) AS match_rank
                 FROM {candidateTitles} candidate
                 INNER JOIN {authors} audiobook_author
@@ -275,7 +275,8 @@ public static partial class MediaDateSql
                    AND book_match.title_key = candidate.title_key
             ),
             {resultName} AS MATERIALIZED (
-                SELECT book_match.audiobook_asset_id,
+                SELECT book_match.audiobook_work_id,
+                       book_match.audiobook_asset_id,
                        COALESCE({bookWorkYear}, {bookAssetYear}) AS year
                 FROM {ranked} book_match
                 WHERE book_match.match_rank = 1
@@ -284,15 +285,16 @@ public static partial class MediaDateSql
     }
 
     /// <summary>
-    /// The look-up of one audiobook file's borrowed year in a CTE built by <see cref="RelatedBookOriginalYearCte"/>.
+    /// The look-up of one audiobook (work and file) borrowed year in a CTE built by <see cref="RelatedBookOriginalYearCte"/>.
     /// Pass the result as the <c>relatedBookYearExpression</c> of <see cref="DisplayOriginalYear"/>.
     /// </summary>
-    public static string RelatedBookYearLookup(string resultName, string audiobookAssetIdExpression)
+    public static string RelatedBookYearLookup(string resultName, string audiobookWorkIdExpression, string audiobookAssetIdExpression)
     {
         ValidateIdentifier(resultName, nameof(resultName));
+        ArgumentException.ThrowIfNullOrWhiteSpace(audiobookWorkIdExpression);
         ArgumentException.ThrowIfNullOrWhiteSpace(audiobookAssetIdExpression);
 
-        return $"(SELECT related.year FROM {resultName} related WHERE related.audiobook_asset_id = {audiobookAssetIdExpression})";
+        return $"(SELECT related.year FROM {resultName} related WHERE related.audiobook_work_id = {audiobookWorkIdExpression} AND related.audiobook_asset_id = {audiobookAssetIdExpression})";
     }
 
     public static string OriginalYearFromGroupedRows(

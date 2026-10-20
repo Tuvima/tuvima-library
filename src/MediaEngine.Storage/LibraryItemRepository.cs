@@ -911,7 +911,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             WHERE LOWER(audiobook_work.media_type) LIKE '%audio%'
             """,
             "rby_");
-        var relatedBookYearSql = MediaDateSql.RelatedBookYearLookup("related_book_year", primaryAssetIdSql);
+        var relatedBookYearSql = MediaDateSql.RelatedBookYearLookup("related_book_year", "w.id", primaryAssetIdSql);
 
         var primaryAssetOrder = preferAsset
             ? "CASE WHEN ma.id=@preferredAssetId THEN 0 ELSE 1 END, ma.id"
