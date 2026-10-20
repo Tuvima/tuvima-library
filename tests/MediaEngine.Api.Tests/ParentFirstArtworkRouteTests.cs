@@ -322,7 +322,7 @@ public sealed class ParentFirstArtworkRouteTests
             builder.Services.AddSingleton<MusicTrackRelocationRepository>();
             builder.Services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
             builder.Services.AddMemoryCache();
-            builder.Services.AddSingleton(new TvdbRetailClient(null!, null!, null!));
+            builder.Services.AddSingleton(new ProviderApiClient(null!, null!, null!));
             builder.Services.AddSingleton(new MusicBrainzReleaseClient(null!, null!,
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<MusicBrainzReleaseClient>.Instance));
             _app = builder.Build();

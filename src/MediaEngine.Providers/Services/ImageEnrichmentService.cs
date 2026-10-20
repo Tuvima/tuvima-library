@@ -201,7 +201,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ImageDownloadCoordinator _imageDownloadCoordinator;
     private readonly ILogger<ImageEnrichmentService> _logger;
-    private readonly TvdbRetailClient? _tvdb;
+    private readonly ProviderApiClient? _tvdb;
 
     // Keep the established constructor shape so composition and existing callers stay stable.
     public ImageEnrichmentService(
@@ -212,7 +212,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         IImageCacheRepository imageCache, AssetPathService assetPaths, IAssetExportService? assetExportService,
         IHttpClientFactory httpFactory, IFuzzyMatchingService fuzzy, ILogger<ImageEnrichmentService> logger,
         ImageDownloadCoordinator? imageDownloadCoordinator = null,
-        TvdbRetailClient? tvdb = null)
+        ProviderApiClient? tvdb = null)
     {
         _assetRepo = assetRepo;
         _mediaAssetRepo = mediaAssetRepo;
@@ -238,7 +238,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     public async Task<ImageEnrichmentResult> RefreshTvdbScopeImagesAsync(
         Guid ownerWorkId, string scopeId, string tvdbId, CancellationToken ct = default)
     {
-        if (_tvdb?.IsConfigured() != true || scopeId is not ("series" or "season" or "episode")
+        if (_tvdb?.IsConfigured("tvdb") != true || scopeId is not ("series" or "season" or "episode")
             || !tvdbId.All(char.IsDigit))
         {
             return new ImageEnrichmentResult
@@ -255,9 +255,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         var detail = scopeId switch
         {
-            "series" => await _tvdb.GetSeriesAsync(tvdbId, ct).ConfigureAwait(false),
-            "season" => await _tvdb.GetSeasonAsync(tvdbId, ct).ConfigureAwait(false),
-            _ => await _tvdb.GetEpisodeAsync(tvdbId, ct).ConfigureAwait(false),
+            "series" => await _tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", tvdbId)), ct).ConfigureAwait(false),
+            "season" => await _tvdb.GetAsync("tvdb", "season_extended", ProviderApiClient.Args(("id", tvdbId)), ct).ConfigureAwait(false),
+            _ => await _tvdb.GetAsync("tvdb", "episode_extended", ProviderApiClient.Args(("id", tvdbId)), ct).ConfigureAwait(false),
         };
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var held = 0;
@@ -265,7 +265,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         if (detail is not null)
         {
             var typeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (scopeId != "episode" && await _tvdb.GetArtworkTypesAsync(ct).ConfigureAwait(false) is JsonArray types)
+            if (scopeId != "episode" && await _tvdb.GetAsync("tvdb", "artwork_types", null, ct).ConfigureAwait(false) is JsonArray types)
             {
                 foreach (var type in types.Where(value => value is not null))
                 {
@@ -358,7 +358,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
 
         var canonicals = await LoadCanonicalsAsync(context, ct).ConfigureAwait(false);
-        if (context.MediaType == MediaType.TV && _tvdb?.IsConfigured() == true)
+        if (context.MediaType == MediaType.TV && _tvdb?.IsConfigured("tvdb") == true)
         {
             var source = GetValue(canonicals, MetadataFieldConstants.IdentityProvider);
             var tvdbId = GetValue(canonicals, BridgeIdKeys.TvdbId);
@@ -459,7 +459,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     string.Equals(value.Key, BridgeIdKeys.TvdbSeasonId, StringComparison.OrdinalIgnoreCase))?.Value;
                 if (string.Equals(seasonSource, "tvdb", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (_tvdb?.IsConfigured() == true && !string.IsNullOrWhiteSpace(tvdbSeasonId))
+                    if (_tvdb?.IsConfigured("tvdb") == true && !string.IsNullOrWhiteSpace(tvdbSeasonId))
                     {
                         var seasonResult = await RefreshTvdbScopeImagesAsync(season.WorkId, "season", tvdbSeasonId, ct)
                             .ConfigureAwait(false);
@@ -515,7 +515,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     "tvdb", StringComparison.OrdinalIgnoreCase)
                 && ownCanonicals.FirstOrDefault(value =>
                     string.Equals(value.Key, BridgeIdKeys.TvdbEpisodeId, StringComparison.OrdinalIgnoreCase))?.Value is { } tvdbEpisodeId
-                && _tvdb?.IsConfigured() == true)
+                && _tvdb?.IsConfigured("tvdb") == true)
             {
                 var episodeResult = await RefreshTvdbScopeImagesAsync(context.SelfWorkId, "episode", tvdbEpisodeId, ct)
                     .ConfigureAwait(false);
@@ -544,7 +544,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         ArtworkContext context, string showId, bool forceRefresh, DateTimeOffset checkedAt,
         CancellationToken ct)
     {
-        var types = await _tvdb!.GetArtworkTypesAsync(ct).ConfigureAwait(false);
+        var types = await _tvdb!.GetAsync("tvdb", "artwork_types", null, ct).ConfigureAwait(false);
         var typeNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (types is JsonArray typeArray)
         {
@@ -557,7 +557,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
         }
 
-        var show = await _tvdb.GetSeriesAsync(showId, ct).ConfigureAwait(false);
+        var show = await _tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", showId)), ct).ConfigureAwait(false);
         if (show is null)
         {
             return await PersistDiagnosticsAsync(context, new ImageEnrichmentResult
@@ -650,7 +650,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                         LastScoredAt = checkedAt,
                     }], ct).ConfigureAwait(false);
             }
-            var detail = await _tvdb.GetSeasonAsync(seasonId, ct).ConfigureAwait(false);
+            var detail = await _tvdb.GetAsync("tvdb", "season_extended", ProviderApiClient.Args(("id", seasonId)), ct).ConfigureAwait(false);
             await AddArtworksAsync(detail, "season", season.WorkId).ConfigureAwait(false);
             if (!heldTypes.Contains(AssetType.SeasonPoster.ToString()))
             {
@@ -666,7 +666,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             && (string.IsNullOrWhiteSpace(ownSource)
                 || string.Equals(ownSource, "tvdb", StringComparison.OrdinalIgnoreCase)))
         {
-            var episode = await _tvdb.GetEpisodeAsync(episodeId, ct).ConfigureAwait(false);
+            var episode = await _tvdb.GetAsync("tvdb", "episode_extended", ProviderApiClient.Args(("id", episodeId)), ct).ConfigureAwait(false);
             if (episode?["seriesId"]?.ToString() == showId)
             {
                 await AddAsync(episode["image"]?.ToString(), AssetType.EpisodeStill,

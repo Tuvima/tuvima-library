@@ -41,7 +41,7 @@ public sealed class PersonEnrichmentWorker
     private readonly IBridgeIdRepository? _bridgeIds;
     private readonly IConfigurationLoader? _configuration;
     private readonly TmdbRetailClient? _tmdbClient;
-    private readonly TvdbRetailClient? _tvdbClient;
+    private readonly ProviderApiClient? _tvdbClient;
 
     public PersonEnrichmentWorker(
         IMetadataClaimRepository claimRepo,
@@ -59,7 +59,7 @@ public sealed class PersonEnrichmentWorker
         IBridgeIdRepository? bridgeIds = null,
         IConfigurationLoader? configuration = null,
         TmdbRetailClient? tmdbClient = null,
-        TvdbRetailClient? tvdbClient = null)
+        ProviderApiClient? tvdbClient = null)
     {
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
@@ -295,7 +295,7 @@ public sealed class PersonEnrichmentWorker
         // TV portraits and biographies follow the same provider as the show.
         // Wikidata-linked actors still need their TVDB person bridge recorded;
         // otherwise the generic QID image path would query TMDB for TV credits.
-        if (mediaType == MediaType.TV && _tvdbClient?.IsConfigured() == true && _bridgeIds is not null)
+        if (mediaType == MediaType.TV && _tvdbClient?.IsConfigured("tvdb") == true && _bridgeIds is not null)
         {
             foreach (var reference in personRefs.Where(reference =>
                          string.Equals(reference.Role, "Actor", StringComparison.OrdinalIgnoreCase)))
@@ -348,7 +348,7 @@ public sealed class PersonEnrichmentWorker
         }
         var (tvdbId, tvdbImage) = FindTvdbCastHint(claims, name);
         var tmdb = FindTmdbImageHint(tmdbHints, role, name);
-        var useTvdb = !string.IsNullOrWhiteSpace(tvdbId) && _tvdbClient?.IsConfigured() == true;
+        var useTvdb = !string.IsNullOrWhiteSpace(tvdbId) && _tvdbClient?.IsConfigured("tvdb") == true;
         if (mediaType == MediaType.TV && !useTvdb)
         {
             return;
@@ -399,7 +399,7 @@ public sealed class PersonEnrichmentWorker
         string? biography = null;
         if (useTvdb)
         {
-            profile = await _tvdbClient!.GetPersonAsync(providerId, ct).ConfigureAwait(false);
+            profile = await _tvdbClient!.GetAsync("tvdb", "person_extended", ProviderApiClient.Args(("id", providerId)), ct).ConfigureAwait(false);
             headshot = profile?["image"]?.ToString() ?? tvdbImage;
             if (profile?["biographies"] is JsonArray biographies)
             {
@@ -513,7 +513,7 @@ public sealed class PersonEnrichmentWorker
             ProviderId = "tvdb",
             CreatedAt = DateTimeOffset.UtcNow,
         }, ct).ConfigureAwait(false);
-        var profile = await _tvdbClient.GetPersonAsync(tvdbId, ct).ConfigureAwait(false);
+        var profile = await _tvdbClient.GetAsync("tvdb", "person_extended", ProviderApiClient.Args(("id", tvdbId)), ct).ConfigureAwait(false);
         var headshot = profile?["image"]?.ToString() ?? imageHint;
         var biography = profile?["biographies"] is JsonArray biographies
             ? biographies.FirstOrDefault(node => string.Equals(node?["language"]?.ToString(), "eng",

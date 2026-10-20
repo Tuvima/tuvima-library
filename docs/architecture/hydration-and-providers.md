@@ -97,6 +97,8 @@ field_mappings        JSON path extraction rules with named transforms, confiden
 
 **Comic title path validation:** `ConfigDrivenAdapter` validates a response before accepting it by checking that at least one recognised title field is non-empty. Recognised comic title fields include `name`, `title`, `issue`, `series.name`, `series`, and `volumeName`.
 
+**Declarative provider abilities (WP9):** every shipped metadata provider is a file. TheTVDB's sign-in, endpoints and fetch/search flows (`auth`, `api`, `flows`), TMDB's detail and collection lookups (`follow_ups`), Comic Vine's issue choice, creator credits and volume manifest (`candidate_ranking`, `result_rules`, `claim_rules`, `follow_ups`), and SubDL and LRCLIB (`text_track`) are described in `config/providers/*.json`, validated at load, and run by general code that names no provider (a guardrail test enforces this). The retail-match services that still name TMDB (`TmdbRetailClient`, `TmdbTvSuggestionService`, `TmdbSeasonEpisodeCatalogue`) and the other places that branch on a provider name are listed for the Plugins work (WP20). Registration order is pinned by a test; a file's `registration_order` places TheTVDB after the reconciliation provider.
+
 ### Sequence, Attribution, And Artwork Responsibilities
 
 Providers may supply sequence facts, but they do not get to create title-specific
@@ -139,9 +141,17 @@ Current ownership:
 | `Adapters/Internals/ReconciliationAdapter.ClaimMapping` | Data-extension filtering/mapping, value extraction, cache keys, and staleness checks. |
 | `ConfigDrivenAdapter` | Construction, capabilities, and the public config-driven fetch/search facade. |
 | `Adapters/Internals/ConfigDrivenAdapter.SearchExecution` | Strategy execution, response caching, multi-result projection, and search scoring. |
-| `Adapters/Internals/ConfigDrivenAdapter.ComicValidation` | Claim validation plus Comic Vine volume, manifest, creator, and request-alignment rules. |
-| `Adapters/Internals/ConfigDrivenAdapter.TmdbEnrichment` | TMDB detail, collection, cast/crew, content-rating, URL, and response-cache enrichment. |
-| `Adapters/Internals/ConfigDrivenAdapter.ResultSelection` | JSON result navigation and comic, album, year, publisher, and text candidate selection. |
+| `Adapters/Internals/ConfigDrivenAdapter.ClaimValidation` | Claim validation and request alignment (title, series/issue and run checks keyed on media type and strategy role). |
+| `Adapters/Internals/ConfigDrivenAdapter.FollowUps` | The provider file's `follow_ups`: inputs, URL, cache, rules, nested lookups and error policy. |
+| `Adapters/Internals/ConfigDrivenAdapter.PagedSequences` | The `paged_sequence` rule: pages of ordered members and the manifest claim. |
+| `Adapters/Internals/ConfigDrivenAdapter.Ranking` | The file's `candidate_ranking`: preferred-run search, enrichment and ordering. |
+| `Adapters/Internals/ConfigDrivenAdapter.ClaimRules` | Strategy `claim_rules` and `result_rules`. |
+| `Adapters/Internals/ConfigDrivenAdapter.UrlBuilding` | URL templates, placeholders, query composition, and title/year cleaning. |
+| `Adapters/Internals/ClaimRuleEngine`, `SequenceRuleEvaluator`, `CandidateRankingEvaluator`, `ResultTextRules` | Pure rule evaluation shared by the adapter files above. |
+| `Adapters/Internals/ProviderFlowSet`, `ProviderFlowRunner` | The file's `flows.fetch` / `flows.search` programs (steps, expressions, conditions). |
+| `Services/ProviderApiClient`, `ProviderSession`, `ApiEndpointPath` | The general provider client: sign-in, token, named endpoints, argument checks, paging, caching. Used by flows and by any code that needs one answer from a provider. |
+| `Providers/TextTrackProviderAdapter` (+ `.Transport`, `.Subtitles`, `.SubtitleDownload`, `.Lyrics`) | The one adapter for subtitle and lyrics providers, run from the file's `text_track` block. |
+| `Adapters/Internals/ConfigDrivenAdapter.ResultSelection` | JSON result navigation, configured candidate selection, album and text candidate selection. |
 | `Adapters/Internals/ConfigDrivenAdapter.ClaimExtraction` | Release selection, field mapping/transforms, media scoping, language cloning, and private projection records. |
 | `CommonsImageResolver` | Wikimedia Commons person image URL/download handling through the `headshot_download` named client. |
 | `RetailMatchWorker` | Stage 1 dependencies, durable leasing, and the public polling facade. |

@@ -140,6 +140,9 @@ public static partial class ValueTransformCatalog
             // Pass value through unchanged (useful for int→string coercion in JSON)
             ["to_string"] = raw => raw,
 
+            // First plausible four-digit year (1900-2099) in a longer text, e.g. "Sept 2012" -> "2012".
+            ["first_year"] = raw => MediaEngine.Providers.Adapters.ResultTextRules.ExtractYear(raw)?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+
             // Normalize provider durations expressed in milliseconds to the
             // canonical duration field's minutes contract.
             ["milliseconds_to_minutes"] = raw =>

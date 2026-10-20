@@ -152,6 +152,17 @@ public sealed class AiModelStatusDto
     public List<string> BlockingReasons { get; set; } = [];
 }
 
+/// <summary>What one Local AI feature is allowed to do and where its data goes, in plain words written by the Engine.</summary>
+public sealed class AiFeatureInfoDto
+{
+    [JsonPropertyName("allowed_to")]
+    public List<string> AllowedTo { get; set; } = [];
+
+    /// <summary>Where the feature sends data; null when nothing leaves this machine.</summary>
+    [JsonPropertyName("sends_data_to")]
+    public string? SendsDataTo { get; set; }
+}
+
 public sealed class AiConfigDto
 {
     [JsonPropertyName("dev_skip_download")]
@@ -186,6 +197,20 @@ public sealed class AiConfigDto
 
     [JsonPropertyName("features")]
     public Dictionary<string, bool> Features { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Read-only: the plain words the Engine uses for each feature, keyed like <see cref="Features"/>. Filled by
+    /// <c>GET /ai/config</c>; ignored when saving.
+    /// </summary>
+    [JsonPropertyName("feature_info")]
+    public Dictionary<string, AiFeatureInfoDto> FeatureInfo { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Save-only: for each feature switched from off to on, the <c>statement_hash</c> of the approval the person just
+    /// confirmed (feature key to hash). Without it a newly switched-on feature is refused with an approval-required 409.
+    /// </summary>
+    [JsonPropertyName("approvals")]
+    public Dictionary<string, string> Approvals { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     [JsonPropertyName("vibe_vocabulary")]
     public Dictionary<string, List<string>> VibeVocabulary { get; set; } = new(StringComparer.OrdinalIgnoreCase);

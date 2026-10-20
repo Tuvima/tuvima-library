@@ -23,18 +23,10 @@ namespace MediaEngine.Providers.Adapters;
 /// <summary>
 /// Universal config-driven adapter that reads its behaviour entirely from a
 /// <see cref="ProviderConfiguration"/> loaded from <c>config/providers/{name}.json</c>.
-///
-/// <para>
-/// One instance is created per config file with <c>adapter_type: "config_driven"</c>.
-/// The adapter evaluates search strategies in priority order, extracts fields via
-/// JSON path expressions, and applies named transforms — all driven by data in the
-/// config file. No subclass required.
-/// </para>
-///
-/// <para>
-/// Adding a new REST+JSON provider is a zero-code operation: drop a config file
-/// in <c>config/providers/</c>, restart, done.
-/// </para>
+/// One instance is created per config file with <c>adapter_type: "config_driven"</c>. It runs
+/// search strategies in priority order, extracts fields via JSON path expressions, applies named
+/// transforms, and runs the file's follow-ups, candidate ranking, claim rules and flows, so a
+/// new REST+JSON provider is a config file in <c>config/providers/</c> and a restart. No subclass.
 /// </summary>
 public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IProviderCredentialConsumer
 {
@@ -44,15 +36,17 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
     private readonly IProviderResponseCacheRepository? _responseCache;
     private readonly IProviderHealthMonitor _healthMonitor;
     private readonly IProviderRateLimiterCoordinator _rateLimiter;
-    private readonly ConcurrentDictionary<string, Lazy<Task<ComicVineVolumeFacts?>>> _comicVineVolumeFacts =
+    // One typed memory cache per kind of remembered lookup, so keys of different kinds never meet.
+    private readonly ConcurrentDictionary<string, Lazy<Task<JsonNode?>>> _jsonLookups =
         new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lazy<Task<ProviderSequenceManifest?>>> _comicVineSequenceManifests =
+    private readonly ConcurrentDictionary<string, Lazy<Task<CollectedMembers?>>> _pagedLookups =
         new(StringComparer.OrdinalIgnoreCase);
 
     // Parsed once at construction.
     private readonly Guid _providerId;
     private readonly HashSet<MediaType> _mediaTypes;
     private readonly HashSet<EntityType> _entityTypes;
+    private readonly ProviderFlowSet? _flows;
 
     public ConfigDrivenAdapter(
         ProviderConfiguration config,
@@ -60,7 +54,8 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         ILogger<ConfigDrivenAdapter> logger,
         IProviderHealthMonitor healthMonitor,
         IProviderResponseCacheRepository? responseCache = null,
-        IProviderRateLimiterCoordinator? rateLimiter = null)
+        IProviderRateLimiterCoordinator? rateLimiter = null,
+        ProviderApiClient? apiClient = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(httpFactory);
@@ -73,6 +68,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         _logger = logger;
         _healthMonitor = healthMonitor;
         _rateLimiter = rateLimiter ?? new ProviderRateLimiterCoordinator();
+        _flows = apiClient is null || config.Flows is null ? null : new ProviderFlowSet(config, apiClient, logger);
 
         _providerId = !string.IsNullOrEmpty(config.ProviderId)
             ? Guid.Parse(config.ProviderId)
@@ -103,6 +99,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         _config.HttpClient.AccessToken = credentials.GetValueOrDefault("access_token");
         _config.HttpClient.Username = credentials.GetValueOrDefault("username");
         _config.HttpClient.Password = credentials.GetValueOrDefault("password");
+        _config.HttpClient.Pin = credentials.GetValueOrDefault("pin");
     }
 
     /// <summary>Returns the configured key, preferring an administrator override.</summary>
@@ -120,6 +117,11 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         ProviderLookupRequest request,
         CancellationToken ct = default)
     {
+        if (_flows?.HasFetch == true)
+        {
+            return await _flows.FetchAsync(request, ct).ConfigureAwait(false);
+        }
+
         if (!CanHandle(request.MediaType) || !CanHandle(request.EntityType))
         {
             return [];
@@ -340,6 +342,11 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         int limit = 25,
         CancellationToken ct = default)
     {
+        if (_flows?.HasSearch == true)
+        {
+            return await _flows.SearchAsync(request, limit, ct).ConfigureAwait(false);
+        }
+
         if (!CanHandle(request.MediaType) || !CanHandle(request.EntityType))
         {
             return [];

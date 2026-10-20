@@ -1,0 +1,12 @@
+== requests ==
+GET https://api.themoviedb.org/3/search/movie?query=Blade%20Runner&year=1982&include_adult=false&language=en-US&page=1
+GET https://api.themoviedb.org/3/movie/78?language=en-US&append_to_response=credits,release_dates,external_ids,images
+== claims ==
+title=Blade Runner@0.85
+description=A future noir.@0.85
+short_description=A future noir.@0.84
+year=1982@0.9
+cover=https://image.tmdb.org/t/p/w500/poster.jpg@0.9
+tmdb_id=78@1
+rating=8.1@0.8
+original_language=en@0.85

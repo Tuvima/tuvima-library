@@ -5,6 +5,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Providers.Adapters;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
+using MediaEngine.Providers.Tests.ProviderRecording;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -18,16 +19,14 @@ public sealed class TvdbMetadataProviderLanguageTests : IDisposable
     public async Task SoloLevelingSearch_UsesEnglishTranslationsAndDefaultEpisodeOrder()
     {
         var loader = new ConfigurationDirectoryLoader(_directory);
-        loader.SaveProvider(new ProviderConfiguration
-        {
-            Name = "tvdb",
-            Enabled = true,
-            Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
-            HttpClient = new HttpClientConfig { ApiKey = "installation-key" },
-        });
+        ShippedProviderHarness.SaveShipped(loader, "tvdb", "installation-key");
         var handler = new SoloLevelingHandler();
-        var client = new TvdbRetailClient(loader, new StubFactory(handler), new ProviderRateLimiterCoordinator());
-        var provider = new TvdbMetadataProvider(client, NullLogger<TvdbMetadataProvider>.Instance);
+        var factory = new StubFactory(handler);
+        var limiter = new ProviderRateLimiterCoordinator();
+        var provider = new ConfigDrivenAdapter(
+            loader.LoadProvider("tvdb")!, factory, NullLogger<ConfigDrivenAdapter>.Instance,
+            NullProviderHealthMonitor.Instance, rateLimiter: limiter,
+            apiClient: new ProviderApiClient(loader, factory, limiter));
 
         var shows = await provider.SearchAsync(new ProviderLookupRequest
         {

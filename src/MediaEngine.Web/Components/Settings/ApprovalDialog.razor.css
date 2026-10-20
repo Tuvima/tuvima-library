@@ -1,0 +1,6 @@
+.approval-dialog { display: grid; gap: 8px; padding: 8px 24px 16px; min-width: 0; }
+.approval-dialog__title { overflow-wrap: anywhere; color: var(--tl-text-primary); font-size: 16px; }
+.approval-dialog__heading, .approval-dialog__sends, .approval-dialog__nothing { margin: 0; color: var(--tl-text-primary); font-size: 14px; overflow-wrap: anywhere; }
+.approval-dialog__list, .approval-dialog__notes { margin: 0; padding-left: 18px; overflow-wrap: anywhere; font-size: 14px; }
+.approval-dialog__notes { color: var(--tl-text-muted); }
+.approval-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 8px; }

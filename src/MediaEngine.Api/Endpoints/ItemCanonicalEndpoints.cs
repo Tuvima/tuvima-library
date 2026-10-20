@@ -826,7 +826,7 @@ public static class ItemCanonicalEndpoints
             IHierarchyAlignmentService hierarchyAlignment,
             MusicBrainzReleaseClient musicBrainz,
             AppleRetailClient apple,
-            TvdbRetailClient tvdb,
+            ProviderApiClient tvdb,
             IEnumerable<IExternalMetadataProvider> externalProviders,
             CancellationToken ct) =>
         {
@@ -929,7 +929,7 @@ public static class ItemCanonicalEndpoints
             IItemCanonicalRepository itemCanonicalData,
             CanonicalCandidateBuilder candidateBuilder,
             IHierarchyAlignmentService hierarchyAlignment,
-            TvdbRetailClient tvdb,
+            ProviderApiClient tvdb,
             MusicBrainzReleaseClient musicBrainz,
             AppleRetailClient apple,
             IEnumerable<IExternalMetadataProvider> externalProviders,
@@ -971,13 +971,13 @@ public static class ItemCanonicalEndpoints
 
             if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show")
             {
-                if (!tvdb.IsConfigured())
+                if (!tvdb.IsConfigured("tvdb"))
                 {
                     return ApiErrors.BadRequest("Connect TheTVDB in Settings before matching a show.");
                 }
                 try
                 {
-                    var remoteSeries = await tvdb.GetSeriesAsync(request.ProviderItemId, ct);
+                    var remoteSeries = await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", request.ProviderItemId)), ct);
                     if (!IsTvdbSeriesRecord(remoteSeries, request.ProviderItemId))
                     {
                         return ApiErrors.BadRequest("The selected TheTVDB series is no longer available. Search again before applying it.");
@@ -2313,13 +2313,13 @@ public static class ItemCanonicalEndpoints
         && string.Equals(policy.TargetFieldGroup, "show_episode", StringComparison.OrdinalIgnoreCase);
 
     private static async Task<(IResult? Error, string? VerifiedShowName)> VerifyTvdbEpisodeMoveAsync(
-        TvdbRetailClient tvdb,
+        ProviderApiClient tvdb,
         string candidateId,
         IReadOnlyDictionary<string, string> bridgeIds,
         IReadOnlyDictionary<string, string> fields,
         CancellationToken ct)
     {
-        if (!tvdb.IsConfigured())
+        if (!tvdb.IsConfigured("tvdb"))
         {
             return (ApiErrors.BadRequest("Connect TheTVDB in Settings before moving an episode."), null);
         }
@@ -2339,16 +2339,16 @@ public static class ItemCanonicalEndpoints
 
         try
         {
-            var show = await tvdb.GetSeriesAsync(seriesId, ct);
-            var episode = await tvdb.GetEpisodeAsync(episodeId, ct);
-            var orderedEpisodes = await tvdb.GetAllEpisodesAsync(seriesId, "default", language: "eng", ct: ct);
+            var show = await tvdb.GetAsync("tvdb", "series_extended", ProviderApiClient.Args(("id", seriesId)), ct);
+            var episode = await tvdb.GetAsync("tvdb", "episode_extended", ProviderApiClient.Args(("id", episodeId)), ct);
+            var orderedEpisodes = await tvdb.GetAllPagesAsync("tvdb", "series_episodes", ProviderApiClient.Args(("id", seriesId), ("season_type", "default"), ("lang", "eng")), ct);
             var error = ValidateTvdbEpisodeMoveEvidence(seriesId, episodeId, seasonNumber, episodeNumber,
                 show, episode, orderedEpisodes);
             if (error is not null)
             {
                 return (error, null);
             }
-            var translation = await tvdb.GetSeriesTranslationAsync(seriesId, ct: ct);
+            var translation = await tvdb.GetAsync("tvdb", "series_translation", ProviderApiClient.Args(("id", seriesId)), ct);
             var verifiedShowName = translation?["name"]?.ToString() ?? show?["name"]?.ToString();
             if (string.IsNullOrWhiteSpace(verifiedShowName))
             {

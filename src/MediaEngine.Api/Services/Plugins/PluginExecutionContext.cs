@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins;
@@ -92,7 +93,8 @@ internal sealed class PluginExecutionContextFactory(
     IPluginPermissionGate permissions,
     PluginToolRuntime tools,
     PluginAiClient ai,
-    IHttpClientFactory httpClients) : IPluginExecutionContextFactory
+    IHttpClientFactory httpClients,
+    IConfigSecretsStore secrets) : IPluginExecutionContextFactory
 {
     public IPluginExecutionContext Create(string pluginId, string purpose) => CreateCore(pluginId, purpose, null);
 
@@ -121,7 +123,8 @@ internal sealed class PluginExecutionContextFactory(
             new BoundPluginHttpClient(registration.Manifest.Id, permissions, httpClients),
             storage,
             new BoundPluginToolRuntime(registration.Manifest.Id, registration.Settings, storage, permissions, tools),
-            new BoundPluginAiClient(registration.Manifest.Id, permissions, ai));
+            new BoundPluginAiClient(registration.Manifest.Id, permissions, ai),
+            new BoundPluginSecrets(registration.Manifest.Id, permissions, secrets));
     }
 
     private static string SafeSegment(string value, string parameter)
@@ -143,7 +146,8 @@ internal sealed class PluginExecutionContext(
     IPluginHttpClient http,
     IPluginStorage storage,
     IPluginToolRuntime tools,
-    IPluginAiClient ai) : IPluginExecutionContext
+    IPluginAiClient ai,
+    IPluginSecrets secrets) : IPluginExecutionContext
 {
     public string PluginId { get; } = pluginId;
     public IReadOnlyDictionary<string, JsonElement> Settings { get; } = settings;
@@ -152,6 +156,7 @@ internal sealed class PluginExecutionContext(
     public IPluginStorage Storage { get; } = storage;
     public IPluginToolRuntime Tools { get; } = tools;
     public IPluginAiClient Ai { get; } = ai;
+    public IPluginSecrets Secrets { get; } = secrets;
 
     public ValueTask DisposeAsync()
     {
@@ -289,6 +294,25 @@ internal sealed class BoundPluginToolRuntime(
         }
 
         return runtime.RunToolAsync(path, arguments, workingDirectory, timeout, cancellationToken);
+    }
+}
+
+/// <summary>
+/// Gives one plugin read access to the secrets it declared, only with the <c>secrets.plugin</c> permission and
+/// only from its own owner scope. Plugins cannot write or list secrets. Values are never logged here.
+/// </summary>
+internal sealed class BoundPluginSecrets(string pluginId, IPluginPermissionGate permissions, IConfigSecretsStore store) : IPluginSecrets
+{
+    public async Task<string?> GetAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var registration = permissions.Demand(pluginId, PluginPermissionIds.PluginSecrets);
+        if (string.IsNullOrWhiteSpace(name)
+            || !registration.Manifest.Secrets.Any(secret => string.Equals(secret.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        return await store.GetAsync(SecretOwner.Plugin(registration.Manifest.Id), name, cancellationToken).ConfigureAwait(false);
     }
 }
 

@@ -1,0 +1,4 @@
+== requests ==
+GET https://api.subdl.com/api/v2/subtitles/search?tmdb_id=1396&type=tv&season=1&episode=1&languages=en&unpack=1 [auth:Bearer]
+== results ==
+EXCEPTION IdentityMismatch: SubDL returned subtitles for a different movie or show.

@@ -1,0 +1,4 @@
+== requests ==
+POST https://api4.thetvdb.com/v4/login | {"apikey":"installation-key"}
+GET https://api4.thetvdb.com/v4/search?query=Solo%20Leveling&type=series [auth:Bearer]
+== claims ==
