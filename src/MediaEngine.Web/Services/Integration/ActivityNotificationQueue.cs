@@ -13,31 +13,60 @@ public sealed class ActivityNotificationQueue
 
     private readonly Queue<ActivityNotification> _history = new();
     private ActivityNotification? _pending;
+    private bool _seen;
     private string? _lastState;
+    private DateTimeOffset? _lastRunStart;
+    private bool _runOpen;
     private DateTimeOffset _lastDelivery;
     public IReadOnlyList<ActivityNotification> History => _history.ToArray();
 
+    /// <summary>
+    /// Follows runs, not single looks: the page looks only every few seconds, so a run is recognised by the Engine's
+    /// period start (<see cref="IngestionQueueProgressDto.StartedAt"/>) as well as by state changes. A run that started
+    /// and finished between two looks still gets its completion; waiting for a missing tool neither completes a run nor
+    /// starts a new one, so working, waiting, idle completes once and waiting, working does not announce a second start.
+    /// </summary>
     public void Observe(IngestionQueueProgressDto queue)
     {
-        var previous = _lastState;
-        _lastState = queue.State;
-
         // A page load must not replay work already under way as a new notification.
-        if (previous is null || previous == queue.State)
+        if (!_seen)
         {
+            _seen = true;
+            _lastState = queue.State;
+            _lastRunStart = queue.StartedAt;
+            _runOpen = queue.State == WorkingState;
             return;
         }
 
-        var notification = (previous, queue.State) switch
+        var newRun = queue.StartedAt is { } started && started != _lastRunStart;
+        _lastRunStart = queue.StartedAt ?? _lastRunStart;
+        var previous = _lastState;
+        _lastState = queue.State;
+
+        ActivityNotification? notification = null;
+        if (queue.State == WorkingState)
         {
-            (not WorkingState, WorkingState) => new ActivityNotification("Library update started", false),
-            (WorkingState, IdleState) when queue.Outcomes.Failed > 0 =>
-                new ActivityNotification("Library update needs attention", true),
-            (WorkingState, IdleState) when queue.Outcomes.NeedsReview > 0 =>
-                new ActivityNotification("Library update complete; some items need review", false),
-            (WorkingState, IdleState) => new ActivityNotification("Library update complete", false),
-            _ => null,
-        };
+            if (!_runOpen && (previous != WorkingState || newRun))
+            {
+                notification = new ActivityNotification("Library update started", false);
+            }
+
+            _runOpen = true;
+        }
+        else if (queue.State == IdleState)
+        {
+            if (_runOpen || newRun)
+            {
+                notification = queue.Outcomes.Failed > 0
+                    ? new ActivityNotification("Library update needs attention", true)
+                    : queue.Outcomes.NeedsReview > 0
+                        ? new ActivityNotification("Library update complete; some items need review", false)
+                        : new ActivityNotification("Library update complete", false);
+            }
+
+            _runOpen = false;
+        }
+
         if (notification is null)
         {
             return;

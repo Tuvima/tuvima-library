@@ -60,9 +60,48 @@ public sealed class ActivityNotificationQueueTests
         Assert.Equal(2, queue.History.Count);
     }
 
-    private static IngestionQueueProgressDto Snapshot(string state, int needsReview = 0, int failed = 0) => new()
+    [Fact]
+    public void ARunThatStartsAndFinishesBetweenTwoLooks_StillGetsItsCompletion()
+    {
+        var queue = new ActivityNotificationQueue();
+        var earlier = DateTimeOffset.UtcNow.AddHours(-1);
+        queue.Observe(Snapshot("idle", startedAt: earlier));
+        queue.Observe(Snapshot("idle", startedAt: earlier.AddMinutes(55)));
+        Assert.Equal("Library update complete", queue.Take(false, DateTimeOffset.UtcNow)?.Message);
+        queue.Observe(Snapshot("idle", startedAt: earlier.AddMinutes(55)));
+        Assert.Null(queue.Take(false, DateTimeOffset.UtcNow.AddMinutes(1)));
+    }
+
+    [Fact]
+    public void WaitingForAToolNeitherCompletesARunNorStartsANewOne()
+    {
+        var queue = new ActivityNotificationQueue();
+        queue.Observe(Snapshot("idle"));
+        queue.Observe(Snapshot("working"));
+        Assert.Equal("Library update started", queue.Take(false, DateTimeOffset.UtcNow)?.Message);
+        queue.Observe(Snapshot("waiting"));
+        queue.Observe(Snapshot("working"));
+        Assert.Null(queue.Take(false, DateTimeOffset.UtcNow.AddMinutes(1)));
+        queue.Observe(Snapshot("waiting"));
+        queue.Observe(Snapshot("idle"));
+        Assert.Equal("Library update complete", queue.Take(false, DateTimeOffset.UtcNow.AddMinutes(2))?.Message);
+    }
+
+    [Fact]
+    public void ToolsMissingWithNothingToDo_IsSilent()
+    {
+        var queue = new ActivityNotificationQueue();
+        queue.Observe(Snapshot("idle"));
+        queue.Observe(Snapshot("waiting"));
+        queue.Observe(Snapshot("idle"));
+        Assert.Null(queue.Take(false, DateTimeOffset.UtcNow));
+        Assert.Empty(queue.History);
+    }
+
+    private static IngestionQueueProgressDto Snapshot(string state, int needsReview = 0, int failed = 0, DateTimeOffset? startedAt = null) => new()
     {
         State = state,
+        StartedAt = startedAt,
         Outcomes = new IngestionQueueOutcomesDto { NeedsReview = needsReview, Failed = failed },
     };
 }

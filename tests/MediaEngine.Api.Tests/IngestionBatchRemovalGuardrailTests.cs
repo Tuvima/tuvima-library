@@ -10,6 +10,7 @@ public sealed class IngestionBatchRemovalGuardrailTests
     [
         "src/MediaEngine.Api/Endpoints",
         "src/MediaEngine.Api/Services/ReadServices",
+        "src/MediaEngine.Application",
         "src/MediaEngine.Contracts",
         "src/MediaEngine.Web",
     ];
@@ -23,12 +24,16 @@ public sealed class IngestionBatchRemovalGuardrailTests
         "ingestion_run_id",
         "runId",
         "/batches",
+        "ingestion_batches",
     ];
 
     // The progress event goes with its emitter when the pipeline stops writing batches.
     private static readonly string[] Allowed =
     [
         "src/MediaEngine.Contracts/Realtime/IngestionEvents.cs",
+        // The timeline's ingestion run id goes with the pipeline's batch rows (WP11b).
+        "src/MediaEngine.Contracts/Timeline/TimelineDtos.cs",
+        "src/MediaEngine.Api/Endpoints/TimelineEndpoints.cs",
     ];
 
     private static readonly string[] TextExtensions = [".cs", ".razor", ".js", ".mjs", ".json", ".css"];
@@ -51,7 +56,8 @@ public sealed class IngestionBatchRemovalGuardrailTests
 
                 var source = File.ReadAllText(file);
                 offences.AddRange(Forbidden
-                    .Where(token => source.Contains(token, StringComparison.Ordinal))
+                    // Case does not matter: "batchId" in a route or "INGESTION_BATCHES" in SQL is the same thing.
+                    .Where(token => source.Contains(token, StringComparison.OrdinalIgnoreCase))
                     .Select(token => $"{relative} contains '{token}'"));
             }
         }

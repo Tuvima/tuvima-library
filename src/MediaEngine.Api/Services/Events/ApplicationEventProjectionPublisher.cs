@@ -16,7 +16,7 @@ public sealed class ApplicationEventProjectionPublisher(
     private const string IdleState = "idle";
 
     private readonly object _queueStateLock = new();
-    private string _lastQueueState = IdleState;
+    private bool _runOpen;
 
     public async Task ProjectAsync<T>(string internalName, T payload, CancellationToken ct) where T : notnull
     {
@@ -49,7 +49,8 @@ public sealed class ApplicationEventProjectionPublisher(
         return (name, value) switch
         {
             (SignalREvents.IngestionStarted, IngestionStartedEvent e) => Draft("ingestion.started", "ingestion", "current", e.StartedAt, new { status = "started" }),
-            (SignalREvents.IngestionProgress, IngestionProgressEvent e) => Draft("ingestion.progress", "ingestion", "current", now, new { e.ProcessedCount, e.TotalCount, e.Stage }),
+            // The per-file progress event stays internal: "ingestion.progress" has one payload shape, the queue's.
+            (SignalREvents.IngestionProgress, IngestionProgressEvent) => null,
             (SignalREvents.IngestionQueueProgress, IngestionQueueProgressDto e) => QueueProgressDraft(e, now),
             (SignalREvents.IngestionCompleted, IngestionCompletedEvent) => null,
             (SignalREvents.IngestionFailed, IngestionFailedEvent e) => Draft("ingestion.failed", "ingestion", "current", e.FailedAt, new { status = "failed" }),
@@ -67,14 +68,22 @@ public sealed class ApplicationEventProjectionPublisher(
     }
 
     // The live ingestion numbers are the external progress: "ingestion.progress" while files are being worked on, and
-    // "ingestion.completed" once when the queue goes from working back to idle. A repeated idle snapshot says nothing new.
+    // "ingestion.completed" once when a run returns to idle. Waiting for a missing tool neither completes a run nor starts
+    // a new one, so working, waiting, idle completes once; a repeated idle snapshot says nothing new.
     private ApplicationEventDraft? QueueProgressDraft(IngestionQueueProgressDto value, DateTimeOffset at)
     {
-        string previous;
+        bool completed;
         lock (_queueStateLock)
         {
-            previous = _lastQueueState;
-            _lastQueueState = value.State;
+            completed = _runOpen && value.State == IdleState;
+            if (value.State == WorkingState)
+            {
+                _runOpen = true;
+            }
+            else if (value.State == IdleState)
+            {
+                _runOpen = false;
+            }
         }
 
         var payload = new
@@ -90,9 +99,7 @@ public sealed class ApplicationEventProjectionPublisher(
             return Draft("ingestion.progress", "ingestion", "current", at, payload);
         }
 
-        return previous == WorkingState && value.State == IdleState
-            ? Draft("ingestion.completed", "ingestion", "current", at, payload)
-            : null;
+        return completed ? Draft("ingestion.completed", "ingestion", "current", at, payload) : null;
     }
 
     private async Task<ApplicationEventDraft?> LibraryDraftAsync(string type, Guid assetId, string? mediaType, string action, DateTimeOffset at, CancellationToken ct, Guid? workId = null,
