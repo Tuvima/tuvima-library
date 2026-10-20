@@ -295,6 +295,12 @@ public sealed class DisplayWorkProjectionReader
         /// <summary>The CTEs that read the values: the entities involved, then one pivot per table. Ends with a comma.</summary>
         public string PivotCtes()
         {
+            // Both pivots list their columns after the entity id, so each needs at least one (Author and Title always are).
+            if (_valueKeys.Count == 0 || _arrayGroups.Count == 0)
+            {
+                throw new InvalidOperationException("The display projection must read at least one stored value and one stored list.");
+            }
+
             var entities = _valueSlots.Union(_arraySlots)
                 .Select(slot => $"SELECT {SlotId(slot)} AS id FROM chosen WHERE {SlotId(slot)} IS NOT NULL");
             var valueColumns = _valueKeys
@@ -656,7 +662,8 @@ public sealed class DisplayWorkProjectionReader
     /// work or own id carries a stored credit for a person who matches (a superset, found by scanning the credit rows
     /// once). Then credits are built for just those files and the match is checked on them. This is a separate statement
     /// because SQLite copies a CTE at every place it is named, so this chain inside the main read would be copied
-    /// once per use of the chosen rows.
+    /// once per use of the chosen rows. The two statements are not one snapshot: a credit added between them shows on
+    /// the next read.
     /// </summary>
     internal static async Task<string> LoadPersonAssetsAsync(System.Data.IDbConnection conn, Guid personId, CancellationToken ct)
     {
