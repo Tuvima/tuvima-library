@@ -52,6 +52,7 @@ public sealed class LibraryItemDeletionPreviewEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new CallerResolver(this));
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AccountAccessDecisionService(
             new AccountRepository(_world.Database), new UnlockState(_lockedSession)));
+        builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));
         builder.Services.AddSingleton(_world.Service);
         // The other routes in the group are mapped but never called here; their services are only named so the group can be built.
         builder.Services.AddSingleton<ILibraryItemRepository>(_ => throw new InvalidOperationException("Not used by these tests."));

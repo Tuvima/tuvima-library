@@ -127,6 +127,24 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
+    public async Task LiveAudience_TitlesDeletedFromTheLibrary_ReachEveryActiveSession_NotJustAdministrators()
+    {
+        await SeedHumanAsync();
+        var authorizer = new IntercomAudienceAuthorizer(
+            _identities, _accounts, new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
+            new ProfileRepository(_database), TimeProvider.System);
+        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
+        var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
+
+        // A member (not an administrator) must see the title drop from their screens.
+        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.LibraryItemsRemoved, removed));
+
+        // A session that has been revoked still receives nothing.
+        await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
+        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.LibraryItemsRemoved, removed));
+    }
+
+    [Fact]
     public async Task LiveAudience_StopsAfterSessionRevocation()
     {
         await SeedHumanAsync();
