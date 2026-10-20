@@ -1,0 +1,83 @@
+@namespace MediaEngine.Web.Components.Universe
+@using MediaEngine.Contracts.Universe
+
+@* The Universe's characters as a read-only list: the name, how many of your works it appears in, and where the Library
+   learned it. No portraits, no relationship graph and no character page. Choosing a row raises OnCharacterSelected (the
+   host opens "Also appears in"); without a listener a row is plain text. A character with no plot details (every visible
+   appearance is marked as a spoiler) is shown by name and source only, and is never a button. The first rows are shown and
+   the rest sit behind "Show all". As in the cast list, the frame belongs to the list item and a button row takes the shared
+   list-row button class, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
+<ul class="universe-characters" aria-label="Characters">
+    @foreach (var character in VisibleCharacters)
+    {
+        <li class="universe-characters__item" @key="character.Qid">
+            @if (OnCharacterSelected.HasDelegate && !character.NoPlotDetails)
+            {
+                <AppNativeButton Type="button" Class="tl-list-item-button universe-characters__row" OnClick="@(() => OnCharacterSelected.InvokeAsync(character))">
+                    @RowContent(character)
+                </AppNativeButton>
+            }
+            else
+            {
+                <span class="universe-characters__row universe-characters__row--plain">
+                    @RowContent(character)
+                </span>
+            }
+        </li>
+    }
+</ul>
+
+@if (HiddenCount > 0)
+{
+    <div class="universe-characters__more">
+        <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Large" OnClick="ShowAll">
+            Show all @Characters.Count characters
+        </AppButton>
+    </div>
+}
+
+@if (CharacterCount > Characters.Count)
+{
+    <p class="universe-characters__note">Showing the @Characters.Count characters seen in the most works</p>
+}
+
+@code {
+    private const int InitialRows = 12;
+
+    private bool _showAll;
+
+    [Parameter, EditorRequired] public IReadOnlyList<UniverseCharacterDto> Characters { get; set; } = [];
+
+    /// <summary>All visible characters of the Universe; larger than the list when the Engine capped it.</summary>
+    [Parameter] public int CharacterCount { get; set; }
+
+    /// <summary>Raised when a character with plot details is chosen. When nothing listens, rows are plain text.</summary>
+    [Parameter] public EventCallback<UniverseCharacterDto> OnCharacterSelected { get; set; }
+
+    private IEnumerable<UniverseCharacterDto> VisibleCharacters => _showAll ? Characters : Characters.Take(InitialRows);
+
+    private int HiddenCount => _showAll ? 0 : Math.Max(0, Characters.Count - InitialRows);
+
+    private void ShowAll() => _showAll = true;
+
+    private RenderFragment RowContent(UniverseCharacterDto character) => __builder =>
+    {
+        <span class="universe-characters__body">
+            <span class="universe-characters__heading">
+                <span class="universe-characters__name">@character.Label</span>
+                @if (character.NoPlotDetails)
+                {
+                    <AppChip Text="No plot details" />
+                }
+            </span>
+            @if (!character.NoPlotDetails && UniversePageText.CharacterWorksLine(character.WorkCount) is { } works)
+            {
+                <span class="universe-characters__works">@works</span>
+            }
+            @if (UniversePageText.SourcesLine(character.Sources) is { } sources)
+            {
+                <span class="universe-characters__source">@sources</span>
+            }
+        </span>
+    };
+}

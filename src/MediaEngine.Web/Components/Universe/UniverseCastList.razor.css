@@ -51,3 +51,9 @@ a.universe-cast__row {
     font-size: 0.88rem;
     overflow-wrap: anywhere;
 }
+
+.universe-cast__source {
+    color: var(--tl-text-muted);
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+}
