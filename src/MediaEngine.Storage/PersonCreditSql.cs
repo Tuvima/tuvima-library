@@ -11,7 +11,8 @@ namespace MediaEngine.Storage;
 /// </summary>
 public static partial class PersonCreditSql
 {
-    private const string CreditKeys =
+    /// <summary>The credit keys, as a comma-separated list of SQL string literals.</summary>
+    public const string CreditKeys =
         "'author', 'narrator', 'director', 'artist', 'performer', " +
         "'composer', 'illustrator', 'screenwriter', 'cast_member'";
 
@@ -35,6 +36,14 @@ public static partial class PersonCreditSql
     /// <c>metadata_claims</c> and <c>canonical_values</c> is by <c>entity_id</c> (the root work, the work and
     /// the file), so SQLite searches those tables by index instead of scanning them. The caller joins the
     /// block into a statement that already has its own <c>WITH</c>, separating the definitions with a comma.
+    /// <para>
+    /// SQLite copies a CTE's definition at every place the CTE is named, so the number of references inside this
+    /// block decides how often <paramref name="assetIdsSelect"/> (often a large query) is duplicated and how long the
+    /// statement takes to prepare. Each internal CTE is therefore named as few times as possible: the input once (by
+    /// the file scope), the file scope once, the stored credits three times (arrays, claims, scalars), and every later
+    /// step once. Precedence between the three sources and between the show/album, work and file is decided with a
+    /// window over (file, credit key) rather than by joining a CTE back to itself.
+    /// </para>
     /// </remarks>
     public static string ScopedCreditsCte(string resultName, string assetIdsSelect, string prefix)
     {
@@ -44,12 +53,7 @@ public static partial class PersonCreditSql
 
         var scope = prefix + "asset_scope";
         var entities = prefix + "scope_entities";
-        var arrayCandidates = prefix + "array_candidates";
-        var selectedArrays = prefix + "selected_arrays";
-        var claimCandidates = prefix + "claim_candidates";
-        var selectedClaims = prefix + "selected_claims";
-        var scalarCandidates = prefix + "scalar_candidates";
-        var selectedScalars = prefix + "selected_scalars";
+        var candidates = prefix + "candidates";
         var selectedCredits = prefix + "selected_credits";
         var creditPersons = prefix + "credit_persons";
 
@@ -66,148 +70,102 @@ public static partial class PersonCreditSql
                 WHERE ma.id IN ({assetIdsSelect})
             ),
             {entities} AS MATERIALIZED (
-                SELECT scope.media_asset_id, scope.root_work_id AS entity_id, 0 AS scope_priority
+                -- 0 = show or album, 1 = work (when different), 2 = file (when different from both): the first match wins.
+                SELECT scope.media_asset_id,
+                       CASE level.value
+                           WHEN 0 THEN scope.root_work_id
+                           WHEN 1 THEN scope.work_id
+                           ELSE scope.media_asset_id
+                       END AS entity_id,
+                       level.value AS scope_priority
                 FROM {scope} scope
-                UNION ALL
-                SELECT scope.media_asset_id, scope.work_id, 1
-                FROM {scope} scope
-                WHERE scope.work_id != scope.root_work_id
-                UNION ALL
-                SELECT scope.media_asset_id, scope.media_asset_id, 2
-                FROM {scope} scope
-                WHERE scope.media_asset_id != scope.root_work_id
-                  AND scope.media_asset_id != scope.work_id
+                CROSS JOIN (SELECT 0 AS value UNION ALL SELECT 1 UNION ALL SELECT 2) level
+                WHERE level.value = 0
+                   OR (level.value = 1 AND scope.work_id != scope.root_work_id)
+                   OR (level.value = 2
+                       AND scope.media_asset_id != scope.root_work_id
+                       AND scope.media_asset_id != scope.work_id)
             ),
-            {arrayCandidates} AS MATERIALIZED (
+            {candidates} AS MATERIALIZED (
+                -- source_rank: stored credit arrays beat provider claims, which beat single stored values.
                 SELECT scope.media_asset_id,
                        cva.key AS credit_key,
                        cva.ordinal AS billing_order,
                        TRIM(cva.value) AS person_name,
                        NULLIF(TRIM(cva.value_qid), '') AS person_qid,
+                       0 AS source_rank,
                        scope.scope_priority
                 FROM {entities} scope
                 CROSS JOIN canonical_value_arrays cva
                     ON cva.entity_id = scope.entity_id
                 WHERE cva.key IN ({CreditKeys})
                   AND NULLIF(TRIM(cva.value), '') IS NOT NULL
-            ),
-            {selectedArrays} AS MATERIALIZED (
-                SELECT candidate.media_asset_id,
-                       candidate.credit_key,
-                       candidate.billing_order,
-                       candidate.person_name,
-                       candidate.person_qid
-                FROM {arrayCandidates} candidate
-                WHERE candidate.scope_priority = (
-                    SELECT MIN(peer.scope_priority)
-                    FROM {arrayCandidates} peer
-                    WHERE peer.media_asset_id = candidate.media_asset_id
-                      AND peer.credit_key = candidate.credit_key
-                )
-            ),
-            {claimCandidates} AS MATERIALIZED (
+                UNION ALL
                 SELECT scope.media_asset_id,
-                       mc.claim_key AS credit_key,
-                       mc.rowid AS billing_order,
-                       TRIM(mc.claim_value) AS person_name,
-                       NULL AS person_qid,
+                       mc.claim_key,
+                       mc.rowid,
+                       TRIM(mc.claim_value),
+                       NULL,
+                       1,
                        scope.scope_priority
                 FROM {entities} scope
                 CROSS JOIN metadata_claims mc
                     ON mc.entity_id = scope.entity_id
                 WHERE mc.claim_key IN ({CreditKeys})
                   AND NULLIF(TRIM(mc.claim_value), '') IS NOT NULL
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM {selectedArrays} array_credit
-                      WHERE array_credit.media_asset_id = scope.media_asset_id
-                        AND array_credit.credit_key = mc.claim_key
-                  )
-            ),
-            {selectedClaims} AS MATERIALIZED (
-                SELECT candidate.media_asset_id,
-                       candidate.credit_key,
-                       candidate.billing_order,
-                       candidate.person_name,
-                       candidate.person_qid
-                FROM {claimCandidates} candidate
-                WHERE candidate.scope_priority = (
-                    SELECT MIN(peer.scope_priority)
-                    FROM {claimCandidates} peer
-                    WHERE peer.media_asset_id = candidate.media_asset_id
-                      AND peer.credit_key = candidate.credit_key
-                )
-            ),
-            {scalarCandidates} AS MATERIALIZED (
+                UNION ALL
                 SELECT scope.media_asset_id,
-                       cv.key AS credit_key,
-                       0 AS billing_order,
-                       TRIM(cv.value) AS person_name,
-                       NULL AS person_qid,
+                       cv.key,
+                       0,
+                       TRIM(cv.value),
+                       NULL,
+                       2,
                        scope.scope_priority
                 FROM {entities} scope
                 CROSS JOIN canonical_values cv
                     ON cv.entity_id = scope.entity_id
                 WHERE cv.key IN ({CreditKeys})
                   AND NULLIF(TRIM(cv.value), '') IS NOT NULL
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM {selectedArrays} array_credit
-                      WHERE array_credit.media_asset_id = scope.media_asset_id
-                        AND array_credit.credit_key = cv.key
-                  )
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM {selectedClaims} claim_credit
-                      WHERE claim_credit.media_asset_id = scope.media_asset_id
-                        AND claim_credit.credit_key = cv.key
-                  )
-            ),
-            {selectedScalars} AS MATERIALIZED (
-                SELECT candidate.media_asset_id,
-                       candidate.credit_key,
-                       candidate.billing_order,
-                       candidate.person_name,
-                       candidate.person_qid
-                FROM {scalarCandidates} candidate
-                WHERE candidate.scope_priority = (
-                    SELECT MIN(peer.scope_priority)
-                    FROM {scalarCandidates} peer
-                    WHERE peer.media_asset_id = candidate.media_asset_id
-                      AND peer.credit_key = candidate.credit_key
-                )
             ),
             {selectedCredits} AS MATERIALIZED (
-                SELECT * FROM {selectedArrays}
-                UNION ALL
-                SELECT * FROM {selectedClaims}
-                UNION ALL
-                SELECT * FROM {selectedScalars}
+                -- Per file and credit key only the best (source, level) survives; a lower source beats any level.
+                SELECT ranked.media_asset_id,
+                       ranked.credit_key,
+                       ranked.billing_order,
+                       ranked.person_name,
+                       ranked.person_qid
+                FROM (
+                    SELECT candidate.*,
+                           candidate.source_rank * 10 + candidate.scope_priority AS rank_value,
+                           MIN(candidate.source_rank * 10 + candidate.scope_priority) OVER (
+                               PARTITION BY candidate.media_asset_id, candidate.credit_key) AS best_rank_value
+                    FROM {candidates} candidate
+                ) ranked
+                WHERE ranked.rank_value = ranked.best_rank_value
             ),
             {creditPersons} AS MATERIALIZED (
+                -- A credit with a QID finds persons by QID; one without finds them by name ignoring case.
+                -- pseudonym_min and pseudonym_max are the lowest and highest id of the pseudonym persons credited
+                -- for the same file and key; they stand in for "another person credited here is a pseudonym".
                 SELECT credit.media_asset_id,
                        credit.credit_key,
                        credit.billing_order,
-                       person.id AS person_id,
-                       person.name AS person_name,
-                       person.wikidata_qid AS person_qid,
-                       person.is_pseudonym
+                       COALESCE(person_by_qid.id, person_by_name.id) AS person_id,
+                       COALESCE(person_by_qid.name, person_by_name.name) AS person_name,
+                       COALESCE(person_by_qid.wikidata_qid, person_by_name.wikidata_qid) AS person_qid,
+                       MIN(CASE WHEN COALESCE(person_by_qid.is_pseudonym, person_by_name.is_pseudonym) = 1
+                                THEN COALESCE(person_by_qid.id, person_by_name.id) END) OVER credit_group AS pseudonym_min,
+                       MAX(CASE WHEN COALESCE(person_by_qid.is_pseudonym, person_by_name.is_pseudonym) = 1
+                                THEN COALESCE(person_by_qid.id, person_by_name.id) END) OVER credit_group AS pseudonym_max
                 FROM {selectedCredits} credit
-                INNER JOIN persons person
-                    ON person.wikidata_qid = credit.person_qid COLLATE NOCASE
-                WHERE credit.person_qid IS NOT NULL
-                UNION ALL
-                SELECT credit.media_asset_id,
-                       credit.credit_key,
-                       credit.billing_order,
-                       person.id,
-                       person.name,
-                       person.wikidata_qid,
-                       person.is_pseudonym
-                FROM {selectedCredits} credit
-                INNER JOIN persons person
-                    ON person.name = credit.person_name COLLATE NOCASE
-                WHERE credit.person_qid IS NULL
+                LEFT JOIN persons person_by_qid
+                    ON credit.person_qid IS NOT NULL
+                   AND person_by_qid.wikidata_qid = credit.person_qid COLLATE NOCASE
+                LEFT JOIN persons person_by_name
+                    ON credit.person_qid IS NULL
+                   AND person_by_name.name = credit.person_name COLLATE NOCASE
+                WHERE person_by_qid.id IS NOT NULL OR person_by_name.id IS NOT NULL
+                WINDOW credit_group AS (PARTITION BY credit.media_asset_id, credit.credit_key)
             ),
             {resultName} AS (
                 SELECT DISTINCT credit.media_asset_id,
@@ -228,15 +186,10 @@ public static partial class PersonCreditSql
                            WHEN 'cast_member' THEN 'Actor'
                        END AS role
                 FROM {creditPersons} credit
+                -- An author row is dropped when some other person credited for the same file and key is a pseudonym.
                 WHERE credit.credit_key != 'author'
-                   OR NOT EXISTS (
-                    SELECT 1
-                    FROM {creditPersons} collective_credit
-                    WHERE collective_credit.media_asset_id = credit.media_asset_id
-                      AND collective_credit.credit_key = credit.credit_key
-                      AND collective_credit.is_pseudonym = 1
-                      AND collective_credit.person_id != credit.person_id
-                )
+                   OR credit.pseudonym_min IS NULL
+                   OR (credit.pseudonym_min = credit.person_id AND credit.pseudonym_max = credit.person_id)
             )
             """;
     }

@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Domain;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -545,6 +546,164 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
 
         Assert.Equal("1965", Assert.Single(rows, row => row.WorkId == firstWorkId).Year);
         Assert.Equal("1969", Assert.Single(rows, row => row.WorkId == secondWorkId).Year);
+    }
+
+    [Fact]
+    public async Task LoadAsync_PersonDetailReturnsExactlyTheItemsThatCreditThemByNameOrByQid()
+    {
+        var personId = Guid.NewGuid();
+        var byNameWork = Guid.NewGuid();
+        var byQidWork = Guid.NewGuid();
+        var similarNameWork = Guid.NewGuid();
+        var otherPersonWork = Guid.NewGuid();
+        var uncreditedWork = Guid.NewGuid();
+        var byQidAssetId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO persons (id, name, wikidata_qid, is_pseudonym, created_at) VALUES (@personId, 'Ada Lovelace', 'Q7259', 0, CURRENT_TIMESTAMP);
+                INSERT INTO persons (id, name, wikidata_qid, is_pseudonym, created_at) VALUES (@similarId, 'Ada Lovelaces', NULL, 0, CURRENT_TIMESTAMP);
+                INSERT INTO persons (id, name, wikidata_qid, is_pseudonym, created_at) VALUES (@otherId, 'Someone Else', 'Q1', 0, CURRENT_TIMESTAMP);
+                """,
+                new { personId, similarId = Guid.NewGuid(), otherId = Guid.NewGuid() });
+            await InsertBookAsync(conn, byNameWork, "Notes", ["ada LOVELACE"]);
+            await InsertBookAsync(conn, byQidWork, "Sketch", ["A. A. Lovelace"], byQidAssetId);
+            await conn.ExecuteAsync(
+                "UPDATE canonical_value_arrays SET value_qid = 'q7259' WHERE entity_id = @byQidAssetId;",
+                new { byQidAssetId });
+            await InsertBookAsync(conn, similarNameWork, "Lookalike", ["Ada Lovelaces"]);
+            await InsertBookAsync(conn, otherPersonWork, "Elsewhere", ["Someone Else"]);
+            await InsertBookAsync(conn, uncreditedWork, "Nobody", ["Nobody Known"]);
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None, detailId: personId);
+
+        Assert.Equal(
+            new[] { byNameWork, byQidWork }.OrderBy(id => id).ToArray(),
+            rows.Select(row => row.WorkId).OrderBy(id => id).ToArray());
+    }
+
+    [Fact]
+    public async Task LoadAsync_PersonDetailForAWorkOrUnknownIdFindsNoCreditedItems()
+    {
+        var workId = Guid.NewGuid();
+        var otherWorkId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                "INSERT INTO persons (id, name, is_pseudonym, created_at) VALUES (@id, 'Ada Lovelace', 0, CURRENT_TIMESTAMP);",
+                new { id = Guid.NewGuid() });
+            await InsertBookAsync(conn, workId, "Notes", ["Ada Lovelace"]);
+            await InsertBookAsync(conn, otherWorkId, "Other", ["Ada Lovelace"]);
+        }
+
+        var reader = new DisplayWorkProjectionReader(_db);
+
+        Assert.Equal(workId, Assert.Single(await reader.LoadAsync(CancellationToken.None, detailId: workId)).WorkId);
+        Assert.Empty(await reader.LoadAsync(CancellationToken.None, detailId: Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task LoadAsync_PersonCreditedOnlyOnAShowReturnsItsEpisodes()
+    {
+        var showId = Guid.NewGuid();
+        var seasonId = Guid.NewGuid();
+        var episodeOneId = Guid.NewGuid();
+        var episodeTwoId = Guid.NewGuid();
+        var personId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO persons (id, name, is_pseudonym, created_at) VALUES (@personId, 'Show Star', 0, CURRENT_TIMESTAMP);
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@showId, 'TV', 'parent', 'accepted');
+                INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, curator_state) VALUES (@seasonId, 'TV', 'parent', @showId, 1, 'accepted');
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@showId, 'cast_member', 0, 'show star');
+                """,
+                new { personId, showId, seasonId });
+            foreach (var (episodeId, number) in new[] { (episodeOneId, 1), (episodeTwoId, 2) })
+            {
+                var editionId = Guid.NewGuid();
+                var assetId = Guid.NewGuid();
+                await conn.ExecuteAsync(
+                    """
+                    INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, curator_state) VALUES (@episodeId, 'TV', 'child', @seasonId, @number, 'accepted');
+                    INSERT INTO editions (id, work_id) VALUES (@editionId, @episodeId);
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+                    VALUES (@assetId, @editionId, @hash, @path, CURRENT_TIMESTAMP);
+                    """,
+                    new { episodeId, seasonId, number, editionId, assetId, hash = Guid.NewGuid().ToString("N"), path = $"C:/library/show/e{number}.mkv" });
+            }
+
+            // An unrelated book is not returned.
+            await InsertBookAsync(conn, Guid.NewGuid(), "Unrelated", ["Unrelated Author"]);
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None, detailId: personId);
+
+        Assert.Equal(
+            new[] { episodeOneId, episodeTwoId }.OrderBy(id => id).ToArray(),
+            rows.Select(row => row.WorkId).OrderBy(id => id).ToArray());
+    }
+
+    [Fact]
+    public async Task LoadAsync_ArtistIdentityPrefersAHeadshotOverABiographyWhenTwoPersonsShareTheName()
+    {
+        var workId = Guid.NewGuid();
+        var editionId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var withBiographyId = Guid.NewGuid();
+        var withHeadshotId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO works (id, media_type, curator_state) VALUES (@workId, 'Music', 'accepted');
+                INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @workId, 'Audio');
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at)
+                VALUES (@assetId, @editionId, @hash, 'C:/library/music/song.flac', CURRENT_TIMESTAMP);
+                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@workId, 'artist', 0, 'Same Name');
+                INSERT INTO persons (id, name, biography, created_at) VALUES (@withBiographyId, 'Same Name', 'Has a biography', '2026-01-01T00:00:00Z');
+                INSERT INTO persons (id, name, headshot_url, created_at) VALUES (@withHeadshotId, 'Same Name', 'https://example.invalid/face.jpg', '2026-02-01T00:00:00Z');
+                """,
+                new { workId, editionId, assetId, hash = Guid.NewGuid().ToString("N"), withBiographyId, withHeadshotId });
+        }
+
+        var row = Assert.Single(await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None));
+
+        Assert.Equal(withHeadshotId, row.ArtistPersonId);
+    }
+
+    [Fact]
+    public async Task LoadAsync_ItemsAddedAtTheSameMomentComeBackInWorkIdOrderAndTheLimitCutIsStable()
+    {
+        var workIds = Enumerable.Range(0, 6).Select(_ => Guid.NewGuid()).ToList();
+        using (var conn = _db.CreateConnection())
+        {
+            foreach (var workId in workIds)
+            {
+                var assetId = Guid.NewGuid();
+                await InsertBookAsync(conn, workId, $"Same moment {workId:N}", ["Some Author"], assetId);
+                await conn.ExecuteAsync(
+                    """
+                    INSERT INTO metadata_claims (id, entity_id, provider_id, claim_key, claim_value, confidence, claimed_at)
+                    VALUES (@id, @assetId, @providerId, 'title', 'x', 0.9, '2026-03-01T12:00:00.000Z');
+                    """,
+                    new { id = Guid.NewGuid(), assetId, providerId = WellKnownProviders.LocalProcessor });
+            }
+        }
+
+        var expected = workIds.OrderBy(id => Convert.ToHexString(GuidSql.ToBlob(id)), StringComparer.Ordinal).ToList();
+        var reader = new DisplayWorkProjectionReader(_db);
+
+        var all = await reader.LoadAsync(CancellationToken.None);
+        var firstCut = await reader.LoadAsync(CancellationToken.None, limit: 3);
+        var secondCut = await reader.LoadAsync(CancellationToken.None, limit: 3);
+
+        Assert.Equal(expected, all.Select(row => row.WorkId).ToList());
+        Assert.Equal(expected.Take(3).ToList(), firstCut.Select(row => row.WorkId).ToList());
+        Assert.Equal(firstCut.Select(row => row.WorkId), secondCut.Select(row => row.WorkId));
     }
 
     [Fact]

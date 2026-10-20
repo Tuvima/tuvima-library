@@ -139,6 +139,20 @@ public sealed class PersonCreditSqlTests : IDisposable
 
         // When an author is credited with a pen name, the real person is not listed beside it.
         Assert.Equal(new[] { "Pen Name" }, NamesFor(fixture.BookWithPseudonym, "author"));
+
+        // A credit whose QID matches nobody finds nobody (its name is not tried), while its neighbour still resolves.
+        Assert.Empty(NamesFor(fixture.BookWithQidMismatch, "author"));
+        Assert.Equal(new[] { "Padded Name" }, NamesFor(fixture.BookWithQidMismatch, "narrator"));
+
+        // Two different pen names count as "another pseudonym" for each other, so all three are dropped.
+        Assert.Empty(NamesFor(fixture.BookWithTwoPseudonyms, "author"));
+
+        // The same pen name twice is not "another" pseudonym: it stays (both rows), the real person goes.
+        Assert.Equal(new[] { "Pen Solo", "Pen Solo" }, NamesFor(fixture.BookWithPseudonymTwice, "author"));
+
+        // One name shared by a person and a pseudonym: only the pseudonym remains.
+        var twin = Assert.Single(credits, c => c.AssetHex == Hex(fixture.BookWithTwinNames) && c.CreditKey == "author");
+        Assert.Equal("Twin Name", twin.PersonName);
     }
 
     [Fact]
@@ -182,6 +196,11 @@ public sealed class PersonCreditSqlTests : IDisposable
 
         await InsertPersonAsync("Douglas A.", qid: "Q42");
         await InsertPersonAsync("Pen Name", isPseudonym: true);
+        await InsertPersonAsync("Pen One", isPseudonym: true);
+        await InsertPersonAsync("Pen Two", isPseudonym: true);
+        await InsertPersonAsync("Pen Solo", isPseudonym: true);
+        await InsertPersonAsync("Twin Name");
+        await InsertPersonAsync("Twin Name", isPseudonym: true);
 
         // TV: show -> season -> two episodes.
         var showId = await InsertParentWorkAsync("TV", null);
@@ -225,6 +244,27 @@ public sealed class PersonCreditSqlTests : IDisposable
         await InsertArrayAsync(pseudonymWork, "author", 0, "Real Person");
         await InsertArrayAsync(pseudonymWork, "author", 1, "Pen Name");
 
+        // A QID that no person has finds nobody, even though the name alone would find a person.
+        var (qidMismatchWork, bookWithQidMismatch) = await InsertStandaloneWorkAsync("Books");
+        await InsertArrayAsync(qidMismatchWork, "author", 0, "Shy Faruqi", "Q99999999");
+        await InsertArrayAsync(qidMismatchWork, "narrator", 0, "Padded Name");
+
+        // Two different pen names beside a real person: each pen name sees the other as "another pseudonym".
+        var (twoPseudonymsWork, bookWithTwoPseudonyms) = await InsertStandaloneWorkAsync("Books");
+        await InsertArrayAsync(twoPseudonymsWork, "author", 0, "Real Person");
+        await InsertArrayAsync(twoPseudonymsWork, "author", 1, "Pen One");
+        await InsertArrayAsync(twoPseudonymsWork, "author", 2, "Pen Two");
+
+        // The same pen name listed twice never counts as "another" pseudonym, so it stays and the real person goes.
+        var (pseudonymTwiceWork, bookWithPseudonymTwice) = await InsertStandaloneWorkAsync("Books");
+        await InsertArrayAsync(pseudonymTwiceWork, "author", 0, "Real Person");
+        await InsertArrayAsync(pseudonymTwiceWork, "author", 1, "Pen Solo");
+        await InsertArrayAsync(pseudonymTwiceWork, "author", 2, "pen solo");
+
+        // One name that belongs to two people, one of them a pseudonym: the pseudonym stays and the other goes.
+        var (twinNamesWork, bookWithTwinNames) = await InsertStandaloneWorkAsync("Books");
+        await InsertArrayAsync(twinNamesWork, "author", 0, "Twin Name");
+
         // Movie: director only as a scalar value; a claim beats a scalar for the cast.
         var (movieWork, movie) = await InsertStandaloneWorkAsync("Movies");
         await InsertScalarAsync(movieWork, "director", "Movie Director");
@@ -233,7 +273,12 @@ public sealed class PersonCreditSqlTests : IDisposable
 
         return new Fixture(
             episode1, episode2, track, bookFromClaims, rootAndFile, bookWithQid, bookWithPseudonym, movie,
-            new[] { episode1, episode2, track, bookFromClaims, rootAndFile, bookWithQid, bookWithPseudonym, movie });
+            bookWithQidMismatch, bookWithTwoPseudonyms, bookWithPseudonymTwice, bookWithTwinNames,
+            new[]
+            {
+                episode1, episode2, track, bookFromClaims, rootAndFile, bookWithQid, bookWithPseudonym, movie,
+                bookWithQidMismatch, bookWithTwoPseudonyms, bookWithPseudonymTwice, bookWithTwinNames,
+            });
     }
 
     private async Task<List<Credit>> ReadViewAsync(IReadOnlyCollection<Guid> assetIds)
@@ -391,6 +436,10 @@ public sealed class PersonCreditSqlTests : IDisposable
         Guid BookWithQid,
         Guid BookWithPseudonym,
         Guid Movie,
+        Guid BookWithQidMismatch,
+        Guid BookWithTwoPseudonyms,
+        Guid BookWithPseudonymTwice,
+        Guid BookWithTwinNames,
         IReadOnlyCollection<Guid> AllAssets);
 
     private sealed record Credit(
