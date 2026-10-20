@@ -141,7 +141,8 @@
         _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger));
         _editing.Changed += OnEditingChanged;
         State.OnStateChanged += OnEngineStateChanged;
-        DeviceContext.OnChanged += OnDeviceChanged;
+        DeviceContext.OnChanged += OnAccessContextChanged;
+        Session.OnAuthorityChanged += OnAccessContextChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -167,17 +168,19 @@
             return;
         }
 
-        await LoadAdministratorExtrasAsync();
+        await LoadAdministratorExtrasAsync(confirmWithEngine: true);
     }
 
     // Administrators get two extras: whether this Universe is editable, and the quiet "Add Fandom details" line when the
     // lore plugin is off. Both ask the Engine, which decides again for any action taken.
-    private async Task LoadAdministratorExtrasAsync()
+    private async Task LoadAdministratorExtrasAsync(bool confirmWithEngine)
     {
         // On a fresh page load the sign-in details may not have reached this screen yet, so when they don't already say
         // "administrator" the page asks the Engine once, as the explorer does (the answer is cached for the open screen).
+        // A recheck started by a sign-in or device notice reads the session only, so asking can never start another notice.
         _isAdministrator = Session.Authority?.EffectiveAdministrator == true
-            || (await Identity.RevalidateAuthorityAsync(Session, _lifetime.Token))?.EffectiveAdministrator == true;
+            || (confirmWithEngine
+                && (await Identity.RevalidateAuthorityAsync(Session, _lifetime.Token))?.EffectiveAdministrator == true);
         if (!IsAdministrator)
         {
             _canEditUniverse = false;
@@ -306,18 +309,18 @@
         _ = RefreshAfterAsync(wait);
     });
 
-    // The device is often only known after the first render (unknown means "can't edit"), so when it becomes a desktop
-    // with a fine pointer the page asks again whether this administrator may edit this Universe.
-    private void OnDeviceChanged() => _ = InvokeAsync(async () =>
+    // The sign-in details and the device are often only known after the first render (unknown means "not an
+    // administrator" and "can't edit"), so when either arrives the page checks the administrator extras again.
+    private void OnAccessContextChanged() => _ = InvokeAsync(async () =>
     {
-        if (_disposed || _state.Page is null || _canEditUniverse || !DeviceContext.CanEdit)
+        if (_disposed || _state.Page is null || _canEditUniverse)
         {
             return;
         }
 
         try
         {
-            await LoadAdministratorExtrasAsync();
+            await LoadAdministratorExtrasAsync(confirmWithEngine: false);
             StateHasChanged();
         }
         catch (OperationCanceledException)
@@ -358,7 +361,8 @@
     {
         _disposed = true;
         State.OnStateChanged -= OnEngineStateChanged;
-        DeviceContext.OnChanged -= OnDeviceChanged;
+        DeviceContext.OnChanged -= OnAccessContextChanged;
+        Session.OnAuthorityChanged -= OnAccessContextChanged;
         _editing.Changed -= OnEditingChanged;
         _lifetime.Cancel();
         _lifetime.Dispose();

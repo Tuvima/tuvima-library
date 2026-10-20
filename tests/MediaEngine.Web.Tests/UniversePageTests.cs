@@ -320,6 +320,28 @@ public sealed class UniversePageTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".tl-dialog"));
     }
 
+    [Fact]
+    public async Task TheAdministratorExtras_Appear_WhenTheSignInArrivesAfterThePageHasLoaded()
+    {
+        // A fresh load can render before the sign-in details reach the screen; when they arrive the page checks again.
+        await UseDeviceAsync("web", "desktop");
+        _editContext = EditContext(editable: true);
+        _plugins = [new PluginSummaryResponse { Id = "tuvima.fandom-lore", Name = "Fandom lore", Enabled = false }];
+
+        var cut = RenderPage();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-connections")));
+        Assert.Empty(cut.FindAll("button.universe-hero__edit"));
+        Assert.Empty(cut.FindAll(".universe-connections__fandom a"));
+
+        await cut.InvokeAsync(() => SignIn(administrator: true));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll("button.universe-hero__edit"));
+            Assert.Single(cut.FindAll(".universe-connections__fandom a"));
+        });
+    }
+
     // The lore plugin -----------------------------------------------------------------------------------------------
 
     [Theory]
