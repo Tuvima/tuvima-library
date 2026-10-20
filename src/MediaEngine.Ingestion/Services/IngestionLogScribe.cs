@@ -26,7 +26,6 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
 
     public async Task<Guid> InsertDetectedAsync(
         IngestionCandidate candidate,
-        Guid ingestionRunId,
         CancellationToken ct = default)
     {
         var logEntryId = Guid.NewGuid();
@@ -38,7 +37,6 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
                 Id = logEntryId,
                 FilePath = candidate.Path,
                 Status = "detected",
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             await PublishProgressAsync(candidate, logEntryId, "detected", 5, false, ct)
@@ -103,7 +101,6 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
 
     public async Task RecordTerminalAsync(
         IngestionCandidate candidate,
-        Guid? ingestionRunId,
         string status,
         string detail,
         CancellationToken ct = default)
@@ -117,7 +114,6 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
                 FilePath = candidate.Path,
                 Status = status,
                 ErrorDetail = detail,
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             await PublishProgressAsync(candidate, logEntryId, status, 100, true, ct)
@@ -140,15 +136,9 @@ public sealed class IngestionLogScribe : IIngestionLogScribe
         string? title = null,
         string? mediaType = null)
     {
-        if (!candidate.BatchId.HasValue)
-        {
-            return Task.CompletedTask;
-        }
-
         return SafePublishAsync(
             SignalREvents.IngestionItemProgress,
             new IngestionItemProgressEvent(
-                candidate.BatchId.Value,
                 logEntryId,
                 mediaAssetId,
                 candidate.Path,

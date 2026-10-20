@@ -150,7 +150,7 @@ Current ownership:
 | `Workers/Internals/RetailMatchWorker.CandidateSelection` | Locale/grouping helpers, structural scoring, candidate ranking, and identity/enrichment selection. |
 | `Workers/Internals/RetailMatchWorker.JobProcessing` | File-hint loading, local music fallback, single-job provider execution, outcome persistence, and provenance. |
 | `WikidataBridgeWorker` | Stage 2 dependencies, durable leasing, and the public polling facade. |
-| `Workers/Internals/WikidataBridgeWorker.BatchResolution` | Batch gates, context loading, grouped QID resolution, and result distribution. |
+| `Workers/Internals/WikidataBridgeWorker.BatchResolution` | Context loading, grouped QID resolution, and result distribution. |
 | `Workers/Internals/WikidataBridgeWorker.Finalization` | Candidate persistence, sibling/comic rollups, identity merging, and series-manifest hydration. |
 | `Workers/Internals/WikidataBridgeWorker.JobResolution` | Synchronous single-job resolution plus bridge-ID scope, priority, and fallback policies. |
 | `Workers/Internals/WikidataBridgeWorker.Persistence` | Retained-retail organization, property persistence, operation progress, Work routing, and person enrichment. |
@@ -721,7 +721,6 @@ Thin dispatcher (`IEnrichmentService`) routing to modular enrichment workers:
 | `BridgeIdHelper` | Bridge ID <-> Wikidata P-code mapping |
 | `StageOutcomeFactory` | Review item creation with correct triggers |
 | `TimelineRecorder` | Entity timeline event recording |
-| `BatchProgressService` | Batch counter adjustment + SignalR progress |
 | `PersonReferenceExtractor` | Person reference extraction from claims |
 
 ## Wikidata Series Manifest Hydration

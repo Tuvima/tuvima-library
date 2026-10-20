@@ -126,7 +126,7 @@ Operations keeps a group in flight on the live ingestion page while durable jobs
 A durable staged enrichment pipeline runs after ingestion. `identity_jobs` rows (SQLite) replace any in-memory queue. Pipeline workers poll for jobs:
 
 - **`RetailMatchWorker`** - Stage 1. Active configured providers score candidates through `RetailMatchScoringService`; music runs MusicBrainz first for recording/release identity and Apple second for artwork/retail enrichment. Strong candidates auto-accept, ambiguous candidates route to review, and failed provider matches do not trigger broad Wikidata fallback.
-- **`WikidataBridgeWorker`** - Stage 2. Uses retail/catalogue bridge IDs (ISBN, ASIN, TMDB ID, MusicBrainz ID, Apple ID, Comic Vine ID, etc.) to resolve a QID. A batch gate holds Stage 2 until Stage 1 finishes for the run.
+- **`WikidataBridgeWorker`** - Stage 2. Uses retail/catalogue bridge IDs (ISBN, ASIN, TMDB ID, MusicBrainz ID, Apple ID, Comic Vine ID, etc.) to resolve a QID.
 - **`QuickHydrationWorker`** — Populates canonical values, hero images, collection assignment.
 - **Stage 3 enrichment workers** — Fanart.tv, people enrichment, universe graph population, lyrics/subtitles, fictional entities, relationships, and additional images.
 
@@ -143,7 +143,7 @@ All settings live in `config/` as individual JSON files grouped by concern. Prov
 
 | File / folder | What it controls |
 |---|---|
-| `core.json` | Core paths, rate limits, language preferences, batch gate, maintenance schedules |
+| `core.json` | Core paths, rate limits, language preferences, maintenance schedules |
 | `libraries.json` | Watch folders, media-type hints, organization templates |
 | `providers/*.json` | One file per provider; includes language strategy |
 | `providers/wikidata_reconciliation.json` | All Wikidata config — reconciliation, edition pivot, data extension, child entity discovery |

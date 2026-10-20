@@ -6541,29 +6541,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.AutoOrganizedInges
   MediaType: System.String | nullability=not-null | accessors=get,init
   Timestamp: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
-MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.BatchProgressEvent
-  BatchId: System.Guid | nullability=not-null | accessors=get,init
-  FilesTotal: System.Int32 | nullability=not-null | accessors=get,init
-  FilesProcessed: System.Int32 | nullability=not-null | accessors=get,init
-  FilesIdentified: System.Int32 | nullability=not-null | accessors=get,init
-  FilesReview: System.Int32 | nullability=not-null | accessors=get,init
-  FilesNoMatch: System.Int32 | nullability=not-null | accessors=get,init
-  FilesFailed: System.Int32 | nullability=not-null | accessors=get,init
-  ProgressPercent: System.Int32 | nullability=not-null | accessors=get,init
-  EstimatedSecondsRemaining: System.Int32? | nullability=nullable | accessors=get,init
-  IsComplete: System.Boolean | nullability=not-null | accessors=get,init
-  RecentTitles: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
-  CurrentStage: System.String | nullability=nullable | accessors=get,init
-  FilesQueued: System.Int32 | nullability=not-null | accessors=get,init
-  FilesActive: System.Int32 | nullability=not-null | accessors=get,init
-  FilesReady: System.Int32 | nullability=not-null | accessors=get,init
-  FilesReadyWithoutUniverse: System.Int32 | nullability=not-null | accessors=get,init
-  CurrentFileTitle: System.String | nullability=nullable | accessors=get,init
-  LifecycleStage: System.String | nullability=nullable | accessors=get,init
-  WorkUnitsTotal: System.Int32 | nullability=not-null | accessors=get,init
-  WorkUnitsCompleted: System.Int32 | nullability=not-null | accessors=get,init
-  ProgressIsIndeterminate: System.Boolean | nullability=not-null | accessors=get,init
-
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.EntityReviewResolvedEvent
   EntityId: System.Guid | nullability=not-null | accessors=get,init
   Status: System.String | nullability=not-null | accessors=get,init
@@ -6598,7 +6575,6 @@ MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.IngestionHashedEve
   Elapsed: System.TimeSpan | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Realtime.MediaEngine.Contracts.Realtime.IngestionItemProgressEvent
-  BatchId: System.Guid | nullability=not-null | accessors=get,init
   LogEntryId: System.Guid | nullability=not-null | accessors=get,init
   MediaAssetId: System.Guid? | nullability=nullable | accessors=get,init
   FilePath: System.String | nullability=not-null | accessors=get,init
@@ -8343,7 +8319,6 @@ MediaEngine.Contracts.Timeline.MediaEngine.Contracts.Timeline.EntityTimelineEven
   ScoreCoverArt: System.Double? | nullability=nullable | accessors=get,set
   ScoreComposite: System.Double? | nullability=nullable | accessors=get,set
   OccurredAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
-  IngestionRunId: System.Guid? | nullability=nullable | accessors=get,set
   Detail: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Timeline.MediaEngine.Contracts.Timeline.EntityTimelineFieldChangeDto

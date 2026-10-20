@@ -129,7 +129,6 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [InlineData("local_items", true)]
     [InlineData("works", false)]
     [InlineData("media_assets", false)]
-    [InlineData("ingestion_batches", false)]
     [InlineData("metadata_claims", false)]
     public void LibraryReset_PreservesConfigurationAndClearsGeneratedLibraryTables(string table, bool expected)
     {

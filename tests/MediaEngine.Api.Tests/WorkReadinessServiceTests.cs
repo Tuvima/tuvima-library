@@ -333,20 +333,13 @@ public sealed class WorkReadinessServiceTests : IDisposable
     private void SeedIngestionLog(Guid assetId, string title)
     {
         var at = DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O");
-        var runId = Guid.NewGuid();
         using var conn = _db.CreateConnection();
-        // The live page still lists additions by their intake run until batches are removed (spec WP11).
         conn.Execute(
             """
-            INSERT INTO ingestion_batches (
-                id, status, source_path, category, files_total, files_processed,
-                files_registered, files_review, files_no_match, files_failed,
-                started_at, completed_at, created_at, updated_at)
-            VALUES (@runId, 'completed', '/library', 'Books', 1, 1, 1, 0, 0, 0, @at, @at, @at, @at);
-            INSERT INTO ingestion_log (id, file_path, media_asset_id, content_hash, status, media_type, detected_title, normalized_title, ingestion_run_id, created_at, updated_at)
-            VALUES (@id, @path, @assetId, @hash, 'registered', 'Books', @title, lower(@title), @runId, @at, @at)
+            INSERT INTO ingestion_log (id, file_path, media_asset_id, content_hash, status, media_type, detected_title, normalized_title, created_at, updated_at)
+            VALUES (@id, @path, @assetId, @hash, 'registered', 'Books', @title, lower(@title), @at, @at)
             """,
-            new { id = Guid.NewGuid(), runId, path = $"/library/{assetId:N}.epub", assetId, hash = $"hash_{assetId:N}", title, at });
+            new { id = Guid.NewGuid(), path = $"/library/{assetId:N}.epub", assetId, hash = $"hash_{assetId:N}", title, at });
     }
 
     private string? ReadyAt(Guid workId)

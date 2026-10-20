@@ -45,9 +45,6 @@ public sealed class IngestionLogEntry
     /// <summary>Error detail when status is "failed".</summary>
     public string? ErrorDetail { get; set; }
 
-    /// <summary>Links this entry to a batch ingestion run.</summary>
-    public Guid? IngestionRunId { get; set; }
-
     /// <summary>When the file was first detected.</summary>
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

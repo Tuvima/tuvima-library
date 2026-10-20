@@ -1012,7 +1012,6 @@ One row per file processed through the ingestion pipeline.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | TEXT | UUID, primary key |
-| `batch_id` | TEXT | FK -> `ingestion_batches.id` |
 | `asset_id` | TEXT | FK -> `media_assets.id` |
 | `file_path` | TEXT | Original file path |
 | `fingerprint` | TEXT | SHA-256 hash |
@@ -1020,38 +1019,6 @@ One row per file processed through the ingestion pipeline.
 | `outcome_reason` | TEXT | Natural-language explanation for non-promoted outcomes |
 | `pipeline_state` | TEXT | JSON snapshot of pipeline stage completion |
 | `created_at` | TEXT | Timestamp |
-
-### ingestion_batches
-
-Groups ingestion_log rows into named runs.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `started_at` | TEXT | Timestamp |
-| `completed_at` | TEXT | NULL until batch finishes |
-| `file_count` | INTEGER | Total files in batch |
-| `promoted_count` | INTEGER | |
-| `rejected_count` | INTEGER | |
-
-### ingestion_batch_artifacts
-
-Current-schema ledger for the concrete things an ingestion batch added, updated, linked, or routed to review. This table supports later Activity page rollups without relying on UI-only state.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | BLOB | UUID, primary key |
-| `batch_id` | BLOB | Ingestion batch/run id |
-| `artifact_type` | TEXT | Media, metadata field, cover/poster URL, stored artwork, person, relationship, series, QID, review item, or other batch artifact |
-| `artifact_id` | BLOB | Optional id of the created or updated artifact |
-| `parent_entity_id` | BLOB | Optional owning asset, work, collection, person, or review entity |
-| `parent_entity_type` | TEXT | Optional owner type |
-| `action` | TEXT | Added, updated, linked, resolved, skipped, review-created, or similar action |
-| `display_name` | TEXT | Human-readable artifact label |
-| `provider_id` | TEXT | Provider that supplied the artifact, when relevant |
-| `source` | TEXT | Source subsystem or worker |
-| `detail_json` | TEXT | Structured detail for Activity page display and diagnostics |
-| `occurred_at` | TEXT | Timestamp |
 
 ### deferred_enrichment_queue
 

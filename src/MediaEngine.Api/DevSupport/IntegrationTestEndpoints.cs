@@ -883,7 +883,7 @@ public static class IntegrationTestEndpoints
                 logger.LogInformation("[Phase 3] Grouped ScanDirectories triggered for {Count} target(s)", scanTargets.Count);
             }
 
-            var ingestionWaitPlan = ResolveIngestionWaitPlan(configLoader, stages, activeTypes.Count, logger);
+            var ingestionWaitPlan = ResolveIngestionWaitPlan(stages, activeTypes.Count);
             logger.LogInformation(
                 "[Phase 3] Waiting for ingestion to complete (budgets: registration={Registration}, identity={Identity}, stage3={Stage3}, idle={Idle}, hard={Total})...",
                 ingestionWaitPlan.FileRegistration,
@@ -1216,10 +1216,8 @@ public static class IntegrationTestEndpoints
     }
 
     private static IngestionWaitPlan ResolveIngestionWaitPlan(
-        IConfigurationLoader configLoader,
         int stages,
-        int activeTypeCount,
-        ILogger logger)
+        int activeTypeCount)
     {
         var fileRegistration = TimeSpan.FromMinutes(activeTypeCount >= 6 ? 20 : 10);
         var identityResolution = stages >= 12
@@ -1230,28 +1228,7 @@ public static class IntegrationTestEndpoints
             : TimeSpan.Zero;
         var finalIdle = TimeSpan.FromMinutes(10);
 
-        try
-        {
-            var gate = configLoader.LoadCore().Pipeline.BatchGate;
-            if (!gate.Enabled)
-            {
-                return new(fileRegistration, identityResolution, stage3Enrichment, finalIdle);
-            }
-
-            // Stage 2 may intentionally wait for the batch gate before making
-            // Wikidata calls. A full all-types Stage 1+2+3 run also performs
-            // quick hydration, write-back, person enrichment, and Stage 3 image
-            // work, so the timeout has to cover more than the retail/bridge gate.
-            var gateBudget = TimeSpan.FromSeconds(gate.TimeoutSeconds);
-            identityResolution += gateBudget;
-            return new(fileRegistration, identityResolution, stage3Enrichment, finalIdle);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            var fallback = new IngestionWaitPlan(fileRegistration, identityResolution, stage3Enrichment, finalIdle);
-            logger.LogWarning(ex, "Integration test: failed to read batch gate timeout; using {Fallback}", fallback.Total);
-            return fallback;
-        }
+        return new(fileRegistration, identityResolution, stage3Enrichment, finalIdle);
     }
 
     // ── Wait for ingestion ────────────────────────────────────────────────

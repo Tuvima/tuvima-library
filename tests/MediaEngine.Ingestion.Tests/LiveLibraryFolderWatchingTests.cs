@@ -528,7 +528,6 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             new StubMediaTypeAdvisor(),
             new StubEntityTimelineRepository(),
             new ScoringConfiguration(),
-            new IngestionBatchRepository(db),
             h.Jobs,
             new MediaTypeResolver(
                 monitor,

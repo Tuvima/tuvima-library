@@ -45,7 +45,6 @@ public sealed record IngestionProgressEvent(
     string Stage);
 
 public sealed record IngestionItemProgressEvent(
-    Guid BatchId,
     Guid LogEntryId,
     Guid? MediaAssetId,
     string FilePath,
@@ -56,29 +55,6 @@ public sealed record IngestionItemProgressEvent(
     bool IsTerminal,
     string? Title = null,
     string? MediaType = null);
-
-public sealed record BatchProgressEvent(
-    Guid BatchId,
-    int FilesTotal,
-    int FilesProcessed,
-    int FilesIdentified,
-    int FilesReview,
-    int FilesNoMatch,
-    int FilesFailed,
-    int ProgressPercent,
-    int? EstimatedSecondsRemaining,
-    bool IsComplete,
-    IReadOnlyList<string>? RecentTitles = null,
-    string? CurrentStage = null,
-    int FilesQueued = 0,
-    int FilesActive = 0,
-    int FilesReady = 0,
-    int FilesReadyWithoutUniverse = 0,
-    string? CurrentFileTitle = null,
-    string? LifecycleStage = null,
-    int WorkUnitsTotal = 0,
-    int WorkUnitsCompleted = 0,
-    bool ProgressIsIndeterminate = false);
 
 public sealed record ProviderActivityEvent(
     IReadOnlyList<ProviderActivityItemEvent> Providers,

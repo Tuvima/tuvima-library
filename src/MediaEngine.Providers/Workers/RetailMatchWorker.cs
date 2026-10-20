@@ -37,7 +37,6 @@ public sealed partial class RetailMatchWorker
     private readonly IRetailCandidateRepository _candidateRepo;
     private readonly StageOutcomeFactory _outcomeFactory;
     private readonly TimelineRecorder _timeline;
-    private readonly Services.BatchProgressService _batchProgress;
     private readonly IEnumerable<IExternalMetadataProvider> _providers;
     private readonly IRetailMatchScoringService _retailScoring;
     private readonly IMetadataClaimRepository _claimRepo;
@@ -86,7 +85,6 @@ public sealed partial class RetailMatchWorker
         IRetailCandidateRepository candidateRepo,
         StageOutcomeFactory outcomeFactory,
         TimelineRecorder timeline,
-        Services.BatchProgressService batchProgress,
         IEnumerable<IExternalMetadataProvider> providers,
         IRetailMatchScoringService retailScoring,
         IMetadataClaimRepository claimRepo,
@@ -124,7 +122,6 @@ public sealed partial class RetailMatchWorker
         _candidateRepo = candidateRepo;
         _outcomeFactory = outcomeFactory;
         _timeline = timeline;
-        _batchProgress = batchProgress;
         _providers = providers;
         _retailScoring = retailScoring;
         _claimRepo = claimRepo;
@@ -188,7 +185,6 @@ public sealed partial class RetailMatchWorker
             await _operations.EnsureAsync(new MediaOperation
             {
                 OperationType = "enrichment.people",
-                BatchId = identityJob?.IngestionRunId,
                 OperationKind = "enrichment",
                 EntityId = entityId,
                 EntityKind = "media_asset",
@@ -297,15 +293,6 @@ public sealed partial class RetailMatchWorker
         }
 
         await Task.WhenAll(work).ConfigureAwait(false);
-
-        foreach (var runId in jobs
-                     .Select(j => j.IngestionRunId)
-                     .Where(id => id.HasValue)
-                     .Select(id => id!.Value)
-                     .Distinct())
-        {
-            await _batchProgress.EmitProgressAsync(runId, isFinal: false, ct).ConfigureAwait(false);
-        }
 
         return jobs.Count;
     }

@@ -56,7 +56,6 @@ public sealed partial class IngestionEngine
         var refreshed = await RefreshExistingAssetMetadataAsync(
             asset,
             path,
-            Guid.NewGuid(),
             ct,
             queueIdentityRefresh: false).ConfigureAwait(false);
         if (!refreshed)
@@ -74,7 +73,7 @@ public sealed partial class IngestionEngine
         }
 
         asset.ContentHash = hash.Hash.Hex;
-        await InspectPlaybackAsync(asset, null, ct).ConfigureAwait(false);
+        await InspectPlaybackAsync(asset, ct).ConfigureAwait(false);
         return new(
             assetId,
             "Updated",
@@ -126,7 +125,6 @@ public sealed partial class IngestionEngine
     private async Task<bool> RefreshExistingAssetMetadataAsync(
         MediaAsset asset,
         string filePath,
-        Guid ingestionRunId,
         CancellationToken ct,
         bool queueIdentityRefresh = true)
     {
@@ -224,7 +222,6 @@ public sealed partial class IngestionEngine
                     media_type = result.DetectedType.ToString(),
                     claims_count = claims.Count,
                 }),
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             if (queueIdentityRefresh)
@@ -235,7 +232,6 @@ public sealed partial class IngestionEngine
                     EntityType = EntityType.MediaAsset.ToString(),
                     MediaType = result.DetectedType.ToString(),
                     Pass = "Quick",
-                    IngestionRunId = ingestionRunId,
                 }, ct).ConfigureAwait(false);
                 _identityStageDependencies.Signal?.Signal(IdentityPipelineSignalKind.Retail);
             }
@@ -251,7 +247,6 @@ public sealed partial class IngestionEngine
     private async Task RunProcessStageAsync(IngestionPipelineContext context, CancellationToken ct)
     {
         var candidate = context.Candidate;
-        var ingestionRunId = context.IngestionRunId;
         var durableOperation = context.DurableOperation;
         var logEntryId = context.LogEntryId;
         var hash = context.Hash!;
@@ -331,7 +326,6 @@ public sealed partial class IngestionEngine
                 corrupt_reason = result.CorruptReason,
                 filename = Path.GetFileName(candidate.Path),
             }),
-            IngestionRunId = ingestionRunId,
         }, ct).ConfigureAwait(false);
 
         try
@@ -467,7 +461,6 @@ public sealed partial class IngestionEngine
                 CollectionName = Path.GetFileName(candidate.Path),
                 ChangesJson = failedJson,
                 Detail = $"Failed — {Path.GetFileName(candidate.Path)}: {result.CorruptReason}",
-                IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
 
             await SafePublishAsync(SignalREvents.IngestionFailed, new IngestionFailedEvent(
@@ -484,12 +477,6 @@ public sealed partial class IngestionEngine
                 await PublishItemProgressAsync(candidate, logEntryId, "failed", 100, true, ct).ConfigureAwait(false);
             }
             catch (Exception ex) { _logger.LogDebug(ex, "Ingestion log update failed — continuing"); }
-            if (candidate.BatchId.HasValue)
-            {
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesFailed, ct).ConfigureAwait(false);
-                await SafeIncrementBatchCounterAsync(candidate.BatchId.Value, BatchCounterColumn.FilesProcessed, ct).ConfigureAwait(false);
-                await PublishQueuedBatchSnapshotAsync(candidate.BatchId.Value, ct).ConfigureAwait(false);
-            }
             await NoResultOperationAsync(
                 durableOperation,
                 $"Corrupt media file: {result.CorruptReason ?? "processor rejected the file"}",

@@ -55,7 +55,6 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<BridgeIdHelper>();
         services.AddSingleton<StageOutcomeFactory>();
         services.AddSingleton<TimelineRecorder>();
-        services.AddSingleton<BatchProgressService>();
         services.AddSingleton<CoverArtWorker>();
         services.AddSingleton<PersonImageEnrichmentWorker>();
         services.AddSingleton<PersonEnrichmentWorker>();

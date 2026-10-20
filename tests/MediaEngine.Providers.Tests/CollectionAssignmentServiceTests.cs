@@ -359,7 +359,6 @@ public sealed class CollectionAssignmentServiceTests
             MediaType: MediaType.Audiobooks,
             Title: "Book One",
             SeriesHint: "Series",
-            IngestionRunId: null,
             Lineage: null,
             FullClaims: []);
 
@@ -393,7 +392,6 @@ public sealed class CollectionAssignmentServiceTests
             MediaType: MediaType.Movies,
             Title: "The Lord of the Rings: The Fellowship of the Ring",
             SeriesHint: "The Lord of the Rings",
-            IngestionRunId: null,
             Lineage: null,
             FullClaims: []);
 

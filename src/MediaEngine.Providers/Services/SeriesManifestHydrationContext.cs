@@ -12,6 +12,5 @@ public sealed record SeriesManifestHydrationContext(
     MediaType MediaType,
     string? Title,
     string? SeriesHint,
-    Guid? IngestionRunId,
     WorkLineage? Lineage,
     IReadOnlyList<ProviderClaim> FullClaims);

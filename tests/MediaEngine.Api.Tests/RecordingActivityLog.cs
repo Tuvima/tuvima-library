@@ -30,8 +30,6 @@ internal sealed class RecordingActivityLog : ISystemActivityRepository
 
     public Task<long> CountAsync(CancellationToken ct = default) => throw new NotSupportedException();
 
-    public Task<IReadOnlyList<SystemActivityEntry>> GetByRunIdAsync(Guid runId, CancellationToken ct = default) => throw new NotSupportedException();
-
     public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByTypesAsync(IReadOnlyList<string> actionTypes, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();
 
     public Task<IReadOnlyList<SystemActivityEntry>> GetRecentByProfileAsync(Guid profileId, int limit = 50, CancellationToken ct = default) => throw new NotSupportedException();

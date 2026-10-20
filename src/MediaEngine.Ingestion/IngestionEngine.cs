@@ -122,9 +122,6 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     // Config-driven thresholds — replaces hardcoded 0.85 literals.
     private readonly ScoringConfiguration _scoringConfig;
 
-    // Ingestion batch tracking — creates batch records and emits BatchProgress events.
-    private readonly IIngestionBatchRepository _batchRepo;
-
     // Durable identity pipeline — creates identity_jobs rows for the three-stage
     // retail-first identity pipeline (RetailMatchWorker ? WikidataBridgeWorker ? QuickHydrationWorker).
     private readonly IIdentityJobRepository _identityJobRepo;
@@ -149,7 +146,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     // Lock order: folder ? hash (see ConcurrencyGuard doc for full hierarchy).
     private readonly ConcurrencyGuard _concurrencyGuard = new();
 
-    // Collect-then-process: accumulate FSW/poll events, create batch after quiet period.
+    // Collect-then-process: accumulate FSW/poll events, flush them after the quiet period.
     private readonly List<FileEvent> _fswBuffer = [];
     private readonly HashSet<string> _activePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PollFingerprint> _queuedFingerprints = new(StringComparer.OrdinalIgnoreCase);
@@ -191,7 +188,6 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IMediaTypeAdvisor typeAdvisor,
         IEntityTimelineRepository timelineRepo,
         ScoringConfiguration scoringConfig,
-        IIngestionBatchRepository batchRepo,
         IIdentityJobRepository identityJobRepo,
         IMediaTypeResolver mediaTypeResolver,
         IDuplicateResolver duplicateResolver,
@@ -246,7 +242,6 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         _typeAdvisor = typeAdvisor;
         _timelineRepo = timelineRepo;
         _scoringConfig = scoringConfig;
-        _batchRepo = batchRepo;
         _identityJobRepo = identityJobRepo;
         _operationTracker = operationTracker;
         _operationRepository = operationRepository;

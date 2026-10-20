@@ -45,7 +45,7 @@ public sealed partial class IngestionEngine
 
         // Fetch all known file paths from the database in a single query.
         // Files whose path is already tracked are skipped without being
-        // enqueued, preventing a spurious batch from being created on restart
+        // enqueued, preventing a spurious re-run on restart
         // for files that were processed in a previous session.
         // Note: files that moved after processing (e.g. watch folder -> staging)
         // will not be caught by this path check, but the hash-based duplicate
@@ -161,18 +161,10 @@ public sealed partial class IngestionEngine
                             Path = normalizedPath,
                             EventType = FileEventType.Created,
                             OccurredAt = DateTimeOffset.UtcNow,
-                            BatchId = trackedOperation.BatchId,
                         };
 
-                        if (trackedOperation.BatchId.HasValue)
-                        {
-                            await RequeueTrackedIngestionOperationAsync(trackedOperation, ct).ConfigureAwait(false);
-                            resumedEvents.Add(trackedEvent);
-                            resumed++;
-                            continue;
-                        }
-
-                        newEvents.Add(trackedEvent);
+                        await RequeueTrackedIngestionOperationAsync(trackedOperation, ct).ConfigureAwait(false);
+                        resumedEvents.Add(trackedEvent);
                         resumed++;
                         continue;
                     }
@@ -206,46 +198,11 @@ public sealed partial class IngestionEngine
             return;
         }
 
-        if (newEvents.Count > 0)
-        {
-            var batchId = Guid.NewGuid();
-            foreach (var evt in newEvents)
-            {
-                evt.BatchId = batchId;
-            }
-
-            try
-            {
-                await _batchRepo.CreateAsync(new IngestionBatch
-                {
-                    Id = batchId,
-                    Status = "running",
-                    SourcePath = ResolveScanBatchSourcePath(scanTargets),
-                    FilesTotal = newEvents.Count,
-                    StartedAt = DateTimeOffset.UtcNow,
-                }, ct).ConfigureAwait(false);
-                await PublishInitialBatchProgressAsync(batchId, newEvents.Count).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Batch record creation failed for scan batchId {BatchId} - pipeline continues", batchId);
-            }
-        }
-
         _logger.LogInformation(
             "Initial scan: enqueued {NewCount} new file(s) and resumed {ResumedCount} tracked file(s) across {TargetCount} scan target(s)",
             newEvents.Count,
             resumed,
             scanTargets.Count);
-
-        foreach (var resumedBatchId in resumedEvents
-            .Select(evt => evt.BatchId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct())
-        {
-            await PublishQueuedBatchSnapshotAsync(resumedBatchId, ct).ConfigureAwait(false);
-        }
 
         foreach (var evt in newEvents.Concat(resumedEvents))
         {
@@ -293,11 +250,6 @@ public sealed partial class IngestionEngine
             ? full
             : full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
-
-    private static string ResolveScanBatchSourcePath(IReadOnlyList<IngestionScanTarget> targets)
-        => targets.Count == 1
-            ? targets[0].Path
-            : "Multiple source folders";
 
     // =========================================================================
     // Polling fallback — safety net when FSW misses events
@@ -526,9 +478,7 @@ public sealed partial class IngestionEngine
 
     /// <summary>
     /// Adds an FSW/poll-sourced file event to the collection buffer.
-    /// Resets the quiet-period timer. Events that already carry a BatchId
-    /// (e.g. from <see cref="ScanExistingFilesAsync"/>) are passed directly to
-    /// the debounce queue.
+    /// Resets the quiet-period timer; the buffer is flushed into the debounce queue when it expires.
     /// </summary>
     private bool BufferFswEvent(FileEvent evt)
     {
@@ -556,23 +506,12 @@ public sealed partial class IngestionEngine
             OldPath = evt.OldPath,
             EventType = evt.EventType,
             OccurredAt = evt.OccurredAt,
-            BatchId = evt.BatchId,
             Intake = evt.Intake,
         };
 
         if (!TryTrackQueuedPath(normalizedPath))
         {
             return false;
-        }
-
-        // Events from ScanExistingFiles already have a batch - pass through.
-        if (normalizedEvent.BatchId is not null)
-        {
-            TrackBackgroundTask(
-                EnsureIngestionOperationAsync(normalizedEvent, MediaOperationStage.Discovered, LifetimeToken),
-                "durable ingestion-operation discovery");
-            _debounce.Enqueue(normalizedEvent);
-            return true;
         }
 
         lock (_fswBufferLock)
@@ -670,9 +609,8 @@ public sealed partial class IngestionEngine
     }
 
     /// <summary>
-    /// Called when the quiet period expires. Creates a batch record with the
-    /// exact file count, stamps every buffered event with the batch ID,
-    /// and flushes them all into the debounce queue for processing.
+    /// Called when the quiet period expires. Flushes every buffered event into the
+    /// debounce queue for processing.
     /// </summary>
     private void QueueFswBufferFlush()
     {
@@ -744,79 +682,13 @@ public sealed partial class IngestionEngine
                 continue;
             }
 
-            if (trackedOperation.BatchId.HasValue)
-            {
-                evt.BatchId = trackedOperation.BatchId;
-                await RequeueTrackedIngestionOperationAsync(trackedOperation, ct).ConfigureAwait(false);
-                resumedEvents.Add(evt);
-                continue;
-            }
-
-            newEvents.Add(evt);
+            await RequeueTrackedIngestionOperationAsync(trackedOperation, ct).ConfigureAwait(false);
+            resumedEvents.Add(evt);
         }
 
         if (newEvents.Count == 0 && resumedEvents.Count == 0)
         {
             return;
-        }
-
-        if (newEvents.Count > 0)
-        {
-            var sourcePath = ResolveBufferedBatchSourcePath(newEvents);
-            var activeBatches = await _batchRepo.GetActiveAsync(ct).ConfigureAwait(false);
-            var activeBatch = activeBatches
-                .Where(batch => string.Equals(batch.Status, "running", StringComparison.OrdinalIgnoreCase))
-                .Where(batch => string.Equals(batch.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(batch.SourcePath, "Multiple source folders", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(sourcePath, "Multiple source folders", StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(batch => batch.UpdatedAt)
-                .FirstOrDefault();
-            var batchId = activeBatch?.Id ?? Guid.NewGuid();
-
-            try
-            {
-                if (activeBatch is null)
-                {
-                    await _batchRepo.CreateAsync(new IngestionBatch
-                    {
-                        Id = batchId,
-                        Status = "running",
-                        SourcePath = sourcePath,
-                        FilesTotal = newEvents.Count,
-                        StartedAt = DateTimeOffset.UtcNow,
-                    }, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    await _batchRepo.IncrementCounterByAsync(
-                        batchId,
-                        BatchCounterColumn.FilesTotal,
-                        newEvents.Count,
-                        ct).ConfigureAwait(false);
-                }
-
-                await PublishInitialBatchProgressAsync(
-                    batchId,
-                    (activeBatch?.FilesTotal ?? 0) + newEvents.Count).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogDebug(ex, "Batch record creation failed for FSW flush batchId {BatchId} - pipeline continues", batchId);
-            }
-
-            foreach (var evt in newEvents)
-            {
-                evt.BatchId = batchId;
-            }
-        }
-
-        foreach (var resumedBatchId in resumedEvents
-            .Select(evt => evt.BatchId)
-            .Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct())
-        {
-            await PublishQueuedBatchSnapshotAsync(resumedBatchId, ct).ConfigureAwait(false);
         }
 
         foreach (var evt in newEvents.Concat(resumedEvents))
@@ -826,22 +698,6 @@ public sealed partial class IngestionEngine
             await EnsureIngestionOperationAsync(evt, MediaOperationStage.Discovered, LifetimeToken).ConfigureAwait(false);
             _debounce.Enqueue(evt);
         }
-    }
-
-    private string ResolveBufferedBatchSourcePath(IReadOnlyList<FileEvent> events)
-    {
-        var roots = events
-            .Select(evt => ResolveContainingWatchDirectory(evt.Path))
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return roots.Count switch
-        {
-            0 => _folderOptions.EffectiveWatchDirectories.FirstOrDefault() ?? "Unknown source folder",
-            1 => roots[0]!,
-            _ => "Multiple source folders",
-        };
     }
 
     private string? ResolveContainingWatchDirectory(string filePath)

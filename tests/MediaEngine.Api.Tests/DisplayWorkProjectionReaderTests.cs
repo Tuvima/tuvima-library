@@ -450,10 +450,10 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
             await InsertBookAsync(conn, workId, "Still Matching", ["Some Author"], assetId);
             await conn.ExecuteAsync(
                 """
-                INSERT INTO identity_jobs (id, entity_id, entity_type, media_type, ingestion_run_id, state, pass, created_at, updated_at)
-                VALUES (@jobId, @assetId, 'MediaAsset', 'Books', @runId, 'Queued', 'Quick', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                INSERT INTO identity_jobs (id, entity_id, entity_type, media_type, state, pass, created_at, updated_at)
+                VALUES (@jobId, @assetId, 'MediaAsset', 'Books', 'Queued', 'Quick', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
                 """,
-                new { jobId, assetId, runId = Guid.NewGuid() });
+                new { jobId, assetId });
         }
 
         var reader = new DisplayWorkProjectionReader(_db);
