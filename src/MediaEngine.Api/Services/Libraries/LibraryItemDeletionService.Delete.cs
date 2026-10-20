@@ -81,7 +81,21 @@ public sealed partial class LibraryItemDeletionService
         await RecordExclusionsAsync(plan, files, actor).ConfigureAwait(false);
 
         // 6. The records, in one transaction.
-        var data = await repository.DeleteWorksAsync(plan.WorkIds, ct).ConfigureAwait(false);
+        LibraryItemDeletionDataResult data;
+        try
+        {
+            data = await repository.DeleteWorksAsync(plan.WorkIds, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // The files are already gone, so the titles are listed with missing files until this is retried; say so plainly.
+            logger.LogError(
+                ex,
+                "Deleting from the library failed after {Deleted} file(s) were already removed from disk. These titles are still in the library with missing files: {WorkIds}",
+                files.DeletedPaths.Count,
+                string.Join(", ", plan.WorkIds.Select(id => id.ToString("D", CultureInfo.InvariantCulture))));
+            throw;
+        }
 
         // 7. Files Tuvima wrote for the titles (pictures only they used, text tracks, derived files).
         RemoveTuvimaOwnedFiles(data, plan.WorkIds);
@@ -367,7 +381,7 @@ public sealed partial class LibraryItemDeletionService
         {
             if (!Directory.Exists(folder)
                 || ExcludedSourceFilePaths.RelativePathOf(NormalizePath(root), NormalizePath(folder)) is null
-                || new DirectoryInfo(folder).Attributes.HasFlag(FileAttributes.ReparsePoint))
+                || IsReparsePoint(folder))
             {
                 return;
             }
@@ -379,6 +393,9 @@ public sealed partial class LibraryItemDeletionService
             logger.LogWarning(ex, "Could not remove Tuvima's own folder {Folder}", Path.GetFileName(folder));
         }
     }
+
+    private static bool IsReparsePoint(string directory) =>
+        new DirectoryInfo(directory).Attributes.HasFlag(FileAttributes.ReparsePoint);
 
     private static IEnumerable<string> SafeSubfolders(string root)
     {
@@ -417,7 +434,8 @@ public sealed partial class LibraryItemDeletionService
                     continue;
                 }
 
-                if (Directory.EnumerateFileSystemEntries(normalized).Any())
+                // A junction or symlink is somebody's arrangement, not ours to remove.
+                if (IsReparsePoint(normalized) || Directory.EnumerateFileSystemEntries(normalized).Any())
                 {
                     return;
                 }
@@ -463,7 +481,8 @@ public sealed partial class LibraryItemDeletionService
                 {
                     if (Directory.Exists(directory))
                     {
-                        if (Directory.EnumerateFileSystemEntries(directory).Any())
+                        // A junction or symlink is somebody's arrangement, not ours to remove, and the walk goes no further up through it.
+                        if (IsReparsePoint(directory) || Directory.EnumerateFileSystemEntries(directory).Any())
                         {
                             break;
                         }

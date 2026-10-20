@@ -30,7 +30,10 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
     private readonly IngestionOptions _options;
 
     /// <param name="wrapGate">Lets a test stand between the service and the real safety gate (a spy that changes its answer on the second look).</param>
-    public LibraryItemDeletionTestWorld(Func<ISourceMutationPolicyGate, ISourceMutationPolicyGate>? wrapGate = null)
+    /// <param name="leaseWaitLimit">How long the delete waits for a running job to let go; short in the tests that never release one.</param>
+    public LibraryItemDeletionTestWorld(
+        Func<ISourceMutationPolicyGate, ISourceMutationPolicyGate>? wrapGate = null,
+        TimeSpan? leaseWaitLimit = null)
     {
         DapperConfiguration.Configure();
         Root = Path.Combine(Path.GetTempPath(), $"tuvima_delete_preview_{Guid.NewGuid():N}");
@@ -52,7 +55,11 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         Events = new RecordingEvents();
         var gate = new SourceMutationPolicyGate(MergeLedger);
         Service = new LibraryItemDeletionService(
-            new LibraryItemDeletionRepository(Database),
+            new LibraryItemDeletionRepository(
+                Database,
+                NullLogger<LibraryItemDeletionRepository>.Instance,
+                leaseWaitLimit,
+                leasePollInterval: TimeSpan.FromMilliseconds(50)),
             new LibraryFolderResolver(new StaticMonitor(_options)),
             wrapGate is null ? gate : wrapGate(gate),
             new FixedExtensionCatalog(),

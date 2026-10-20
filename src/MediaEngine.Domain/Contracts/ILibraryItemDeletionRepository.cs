@@ -32,8 +32,9 @@ public interface ILibraryItemDeletionRepository
 
     /// <summary>
     /// Stops processing for the titles: every identification or enrichment job that is queued or running for a title or one of its
-    /// files is marked failed and released, so no worker picks it up. The jobs themselves are removed by
-    /// <see cref="DeleteWorksAsync"/>.
+    /// files is marked failed, so no worker picks it up. A job a worker is running right now cannot be interrupted, so this waits
+    /// (up to about 30 seconds) for it to let go, then carries on and logs a warning naming the jobs that did not. The jobs themselves
+    /// are removed by <see cref="DeleteWorksAsync"/>.
     /// </summary>
     Task CancelProcessingAsync(
         IReadOnlyList<Guid> workIds,

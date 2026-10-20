@@ -3,6 +3,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Storage;
 
@@ -12,7 +13,13 @@ namespace MediaEngine.Storage;
 /// one transaction that removes the titles' records (<see cref="DeleteWorksAsync"/>). Reads use a short-lived connection and
 /// guid-blob parameters.
 /// </summary>
-public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILibraryItemDeletionRepository
+/// <param name="leaseWaitLimit">How long <see cref="CancelProcessingAsync"/> waits for a running job to let go (default 30 seconds).</param>
+/// <param name="leasePollInterval">How often it looks (default 400 ms).</param>
+public sealed class LibraryItemDeletionRepository(
+    IDatabaseConnection db,
+    ILogger<LibraryItemDeletionRepository>? logger = null,
+    TimeSpan? leaseWaitLimit = null,
+    TimeSpan? leasePollInterval = null) : ILibraryItemDeletionRepository
 {
     // Jobs in these states are finished or waiting for a person, so they are not "processing". The same set the active-job
     // index (ux_identity_jobs_entity_pass_active) and IdentityJobRepository treat as at rest.
@@ -299,29 +306,79 @@ public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILib
         }
 
         var ids = ToBlobs(workIds);
-        var now = DateTimeOffset.UtcNow.ToString("O");
-        await db.ExecuteWriteAsync((connection, transaction, _) =>
+        var limit = leaseWaitLimit ?? TimeSpan.FromSeconds(30);
+        var interval = leasePollInterval ?? TimeSpan.FromMilliseconds(400);
+        var deadline = DateTimeOffset.UtcNow + limit;
+
+        // Mark the jobs failed so nothing new can lease them. A job a worker is running right now keeps its lease, so the lease still
+        // shows who is on it; everything else is released. A running job cannot be interrupted from here, so it is waited for below.
+        // The marking is repeated while waiting, because a worker that finishes moves its job on to the next state.
+        await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
+        while (true)
         {
-            // A job that is mid-run cannot be interrupted from here, but nothing can lease it again; its rows go in DeleteWorksAsync.
-            connection.Execute("""
-                UPDATE identity_jobs
-                SET state = @failed,
-                    last_error = @reason,
-                    lease_owner = NULL,
-                    lease_expires_at = NULL,
-                    next_retry_at = NULL,
-                    updated_at = @now
-                WHERE state NOT IN @resting
-                  AND (entity_id IN @ids
-                       OR entity_id IN (
-                           SELECT ma.id
-                           FROM editions e
-                           INNER JOIN media_assets ma ON ma.edition_id = e.id
-                           WHERE e.work_id IN @ids));
-                """,
-                new { failed = nameof(IdentityJobState.Failed), reason = CancelledReason, now, resting = RestingJobStates, ids },
-                transaction);
-        }, ct).ConfigureAwait(false);
+            var running = FindRunningJobs(ids);
+            if (running.Count == 0)
+            {
+                // One last marking: a job that just finished has moved on to its next state.
+                await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
+                return;
+            }
+
+            if (DateTimeOffset.UtcNow >= deadline)
+            {
+                logger?.LogWarning(
+                    "Deleting from the library without waiting any longer for {Count} running job(s) to finish: {JobIds}",
+                    running.Count,
+                    string.Join(", ", running.Select(id => id.ToString("D"))));
+                return;
+            }
+
+            await Task.Delay(interval, ct).ConfigureAwait(false);
+            await MarkJobsFailedAsync(ids, ct).ConfigureAwait(false);
+        }
+    }
+
+    private Task MarkJobsFailedAsync(byte[][] ids, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        // A short write each time, so a worker can take the write lock between looks and let go of its job.
+        return db.ExecuteWriteAsync((connection, transaction, _) => connection.Execute("""
+            UPDATE identity_jobs
+            SET state = @failed,
+                last_error = @reason,
+                lease_owner = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_owner ELSE NULL END,
+                lease_expires_at = CASE WHEN lease_owner IS NOT NULL AND lease_expires_at > @now THEN lease_expires_at ELSE NULL END,
+                next_retry_at = NULL,
+                updated_at = @now
+            WHERE (state NOT IN @resting OR (lease_owner IS NOT NULL AND lease_expires_at > @now))
+              AND (entity_id IN @ids
+                   OR entity_id IN (
+                       SELECT ma.id
+                       FROM editions e
+                       INNER JOIN media_assets ma ON ma.edition_id = e.id
+                       WHERE e.work_id IN @ids));
+            """,
+            new { failed = nameof(IdentityJobState.Failed), reason = CancelledReason, now, resting = RestingJobStates, ids },
+            transaction), ct);
+    }
+
+    private List<Guid> FindRunningJobs(byte[][] ids)
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using var connection = db.CreateConnection();
+        return connection.Query<Guid>("""
+            SELECT j.id
+            FROM identity_jobs j
+            WHERE j.lease_owner IS NOT NULL
+              AND j.lease_expires_at > @now
+              AND (j.entity_id IN @ids
+                   OR j.entity_id IN (
+                       SELECT ma.id
+                       FROM editions e
+                       INNER JOIN media_assets ma ON ma.edition_id = e.id
+                       WHERE e.work_id IN @ids));
+            """,
+            new { now, ids }).ToList();
     }
 
     public async Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
@@ -422,13 +479,31 @@ public sealed class LibraryItemDeletionRepository(IDatabaseConnection db) : ILib
             // A hand-picked collection whose last title just left is deleted too (it writes its own activity entry).
             var collections = CuratedCollectionCleanup.DeleteEmpty(connection, transaction);
 
+            // A file is Tuvima's to remove only when no remaining row still points at it: artwork rows are content-addressed, so another
+            // title's picture can be served by the very file a deleted title's entity asset names.
+            var stillReferenced = AssetFileReferences.LoadReferencedPaths(connection, transaction);
+            var deletable = ownedFiles
+                .Where(path => !stillReferenced.Contains(NormalizeForComparison(path)))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             ClearScratchTables(connection, transaction);
-            return new LibraryItemDeletionDataResult(
-                editionIds,
-                assetIds,
-                collections,
-                [.. ownedFiles.Distinct(StringComparer.OrdinalIgnoreCase)]);
+            return new LibraryItemDeletionDataResult(editionIds, assetIds, collections, deletable);
         }, ct).ConfigureAwait(false);
+    }
+
+    private static string NormalizeForComparison(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // Compared as written, the same way AssetFileReferences keeps a path it cannot normalise.
+            _ = ex;
+            return path;
+        }
     }
 
     private static void ClearScratchTables(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction) =>

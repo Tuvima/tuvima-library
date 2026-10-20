@@ -463,6 +463,95 @@ public sealed class LibraryItemDeletionTests : IDisposable
     }
 
     [Fact]
+    public async Task APictureFileAnotherTitlesArtworkRowStillServes_IsNotDeleted_ButOneNothingReferencesIs()
+    {
+        // Artwork rows are content-addressed: the first title to need a picture names its file, and a second title with the
+        // same picture links to that same row. Deleting the first title must not take the file away from the second.
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, _) = _world.AddWork("Dune", [media]);
+        var (arrivalId, _) = _world.AddWork("Arrival", [other]);
+        var artworkFolder = Path.Combine(_world.DataRoot, "assets", "artwork", "work");
+        Directory.CreateDirectory(artworkFolder);
+        var sharedFile = Path.Combine(artworkFolder, "shared.jpg");
+        var ownFile = Path.Combine(artworkFolder, "dune-only.jpg");
+        File.WriteAllText(sharedFile, "x");
+        File.WriteAllText(ownFile, "x");
+        using (var connection = _world.Database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path) VALUES (randomblob(16), @duneId, 'Work', 'CoverArt', @sharedFile);",
+                new { duneId, sharedFile });
+            connection.Execute(
+                "INSERT INTO entity_assets (id, entity_id, entity_type, asset_type, local_image_path) VALUES (randomblob(16), @duneId, 'Work', 'Background', @ownFile);",
+                new { duneId, ownFile });
+        }
+
+        // The row that keeps the first writer's path is linked to the other title only.
+        var shared = SeedArtwork(sharedFile, arrivalId, "Work");
+
+        await DeleteAsync(duneId);
+
+        Assert.True(File.Exists(sharedFile), "Another title's artwork row still serves this file.");
+        Assert.Equal(1, Count("artwork_assets", "id", shared));
+        Assert.Equal(1, ScalarInt("SELECT COUNT(*) FROM entity_artwork_links WHERE artwork_asset_id = @shared AND entity_id = @arrivalId;", new { shared, arrivalId }));
+        Assert.False(File.Exists(ownFile), "A file only the deleted title referenced is removed.");
+    }
+
+    [Fact]
+    public async Task ARunningJob_DelaysTheDeleteUntilItLetsGo()
+    {
+        using var world = new LibraryItemDeletionTestWorld(leaseWaitLimit: TimeSpan.FromSeconds(20));
+        var media = world.WriteFile(world.Managed, "Dune.mkv");
+        var (workId, assetIds) = world.AddWork("Dune", [media]);
+        AddLeasedJob(world, assetIds[0]);
+        var fingerprint = (await world.Service.PreviewAsync([workId])).Value!.Fingerprint;
+        var released = false;
+        var releaser = Task.Run(async () =>
+        {
+            await Task.Delay(700);
+            released = true;
+            using var connection = world.Database.CreateConnection();
+            connection.Execute("UPDATE identity_jobs SET lease_owner = NULL, lease_expires_at = NULL;");
+        });
+
+        var started = DateTimeOffset.UtcNow;
+        var result = await world.Service.DeleteAsync([workId], fingerprint, LibraryItemDeletionTestWorld.Actor);
+        var elapsed = DateTimeOffset.UtcNow - started;
+        await releaser;
+
+        Assert.True(result.IsSuccess);
+        Assert.True(released, "The delete must not go ahead while the job is still running.");
+        Assert.True(elapsed >= TimeSpan.FromMilliseconds(600), $"Waited only {elapsed}.");
+        Assert.True(elapsed < TimeSpan.FromSeconds(15), $"Waited {elapsed}, which is the whole limit.");
+        Assert.False(File.Exists(media));
+        using var check = world.Database.CreateConnection();
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @workId;", new { workId }));
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM identity_jobs;"));
+    }
+
+    [Fact]
+    public async Task AJobThatNeverLetsGo_TimesOut_AndTheDeleteStillCompletes()
+    {
+        using var world = new LibraryItemDeletionTestWorld(leaseWaitLimit: TimeSpan.FromMilliseconds(800));
+        var media = world.WriteFile(world.Managed, "Dune.mkv");
+        var (workId, assetIds) = world.AddWork("Dune", [media]);
+        AddLeasedJob(world, assetIds[0]);
+        var fingerprint = (await world.Service.PreviewAsync([workId])).Value!.Fingerprint;
+
+        var started = DateTimeOffset.UtcNow;
+        var result = await world.Service.DeleteAsync([workId], fingerprint, LibraryItemDeletionTestWorld.Actor);
+        var elapsed = DateTimeOffset.UtcNow - started;
+
+        Assert.True(result.IsSuccess);
+        Assert.True(elapsed >= TimeSpan.FromMilliseconds(700), $"Gave up after only {elapsed}.");
+        Assert.False(File.Exists(media));
+        using var check = world.Database.CreateConnection();
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE id = @workId;", new { workId }));
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM identity_jobs;"));
+    }
+
+    [Fact]
     public async Task ArtworkOnlyTheTitleUsed_IsDeletedWithItsFiles_ButSharedArtworkAndFilesOutsideTheDataFolderStay()
     {
         var media = _world.WriteFile(_world.Managed, "Dune.mkv");
@@ -609,6 +698,17 @@ public sealed class LibraryItemDeletionTests : IDisposable
     {
         using var connection = _world.Database.CreateConnection();
         return connection.ExecuteScalar<string>("SELECT content_hash FROM media_assets WHERE id = @assetId;", new { assetId })!;
+    }
+
+    /// <summary>A job a worker is running right now: leased, with a lease that has not run out.</summary>
+    private static void AddLeasedJob(LibraryItemDeletionTestWorld world, Guid entityId)
+    {
+        using var connection = world.Database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO identity_jobs (id, entity_id, entity_type, media_type, state, lease_owner, lease_expires_at)
+            VALUES (@id, @entityId, 'MediaAsset', 'Movies', 'RetailSearching', 'worker-1', @expires);
+            """,
+            new { id = Guid.NewGuid(), entityId, expires = DateTimeOffset.UtcNow.AddMinutes(5).ToString("O") });
     }
 
     private Guid SeedArtwork(string path, Guid entityId, string entityType)

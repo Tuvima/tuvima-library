@@ -1,5 +1,6 @@
 using System.Data;
 using MediaEngine.Domain.Services;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services;
@@ -59,21 +60,11 @@ public sealed class AssetStoreCleanupService
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using var conn = _database.CreateConnection();
 
-        AddReferencedPaths(conn, paths,
-            """
-            SELECT local_image_path FROM entity_assets WHERE local_image_path IS NOT NULL
-            UNION ALL SELECT local_image_path_s FROM entity_assets WHERE local_image_path_s IS NOT NULL
-            UNION ALL SELECT local_image_path_m FROM entity_assets WHERE local_image_path_m IS NOT NULL
-            UNION ALL SELECT local_image_path_l FROM entity_assets WHERE local_image_path_l IS NOT NULL
-            UNION ALL SELECT original_path FROM artwork_assets WHERE original_path IS NOT NULL
-            UNION ALL SELECT small_path FROM artwork_assets WHERE small_path IS NOT NULL
-            UNION ALL SELECT medium_path FROM artwork_assets WHERE medium_path IS NOT NULL
-            UNION ALL SELECT large_path FROM artwork_assets WHERE large_path IS NOT NULL
-            """);
-        AddReferencedPaths(conn, paths, "SELECT local_headshot_path FROM persons WHERE local_headshot_path IS NOT NULL");
-        AddReferencedPaths(conn, paths, "SELECT local_image_path FROM character_portraits WHERE local_image_path IS NOT NULL");
-        AddReferencedPaths(conn, paths, "SELECT local_image_path FROM fictional_entities WHERE local_image_path IS NOT NULL");
-        AddReferencedPaths(conn, paths, "SELECT local_path FROM text_tracks WHERE local_path IS NOT NULL");
+        // The one shared list of every place a file path is recorded (also used when a title is deleted).
+        foreach (var sql in AssetFileReferences.PathQueries)
+        {
+            AddReferencedPaths(conn, paths, sql);
+        }
 
         return paths;
     }
