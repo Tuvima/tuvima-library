@@ -1,5 +1,6 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Browse
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -90,11 +91,13 @@
     private IReadOnlyList<TimelinePeriod> Periods => Grouping == TimelineGrouping.Year ? Years
         : Years.GroupBy(p => p.Key / 10 * 10).Select(g => new TimelinePeriod(g.Key, g.Key == 0 ? "Unknown year" : $"{g.Key}s", g.Sum(p => p.Count), g.Key == 0 ? null : g.ToList())).ToList();
     private int? ActiveKey => Grouping == TimelineGrouping.Decade ? _selectedYear / 10 * 10 : _selectedYear;
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     protected override void OnParametersSet()
     {
         Groups = Items.GroupBy(item => Math.Max(0, item.SortYear))
             .OrderBy(group => group.Key == 0).ThenBy(group => Descending ? -group.Key : group.Key).ToList();
-        if (ShowGroupingControl) Grouping = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query)["period"] == "decade" ? TimelineGrouping.Decade : TimelineGrouping.Year;
+        if (ShowGroupingControl) Grouping = System.Web.HttpUtility.ParseQueryString(new Uri(RoutedPageAddress.AbsoluteFor(Nav, Overlay)).Query)["period"] == "decade" ? TimelineGrouping.Decade : TimelineGrouping.Year;
         if (!_selectedYear.HasValue || !Years.Any(p => p.Key == _selectedYear)) _selectedYear = Groups.FirstOrDefault()?.Key;
     }
     private async Task ChangeGroupingAsync(TimelineGrouping value)

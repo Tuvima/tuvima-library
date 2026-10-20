@@ -7,9 +7,14 @@ public sealed class DashboardReliabilityGuardrailTests
     {
         var source = Read(@"src/MediaEngine.Web/Components/Routes.razor");
 
+        // Routes hands every routed page to the overlay-aware route view, which also owns FocusOnNavigate so that opening
+        // the details overlay does not pull focus to the page behind it.
+        var routeView = Read(@"src/MediaEngine.Web/Components/Details/DetailsOverlayRouteView.razor");
+
         Assert.Contains("<ErrorBoundary>", source, StringComparison.Ordinal);
         Assert.Contains("<AppErrorState", source, StringComparison.Ordinal);
-        Assert.Contains("<FocusOnNavigate", source, StringComparison.Ordinal);
+        Assert.Contains("<DetailsOverlayRouteView", source, StringComparison.Ordinal);
+        Assert.Contains("<FocusOnNavigate", routeView, StringComparison.Ordinal);
     }
 
     [Fact]

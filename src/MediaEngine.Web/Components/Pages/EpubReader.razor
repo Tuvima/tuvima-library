@@ -2,6 +2,7 @@
 @layout MediaEngine.Web.Shared.ReaderLayout
 
 @namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Navigation
 
 @using MediaEngine.Contracts.Reading
 @using MediaEngine.Web.Models.ViewDTOs
@@ -318,9 +319,14 @@ else
 
 @code {
     [Parameter] public Guid AssetId { get; set; }
-    [SupplyParameterFromQuery] public Guid? ReturnCollectionId { get; set; }
-    [SupplyParameterFromQuery] public bool Restart { get; set; }
-    [SupplyParameterFromQuery(Name = "reader")] public string? ReaderChoice { get; set; }
+
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public Guid? ReturnCollectionId => Query.Guid("ReturnCollectionId");
+    public bool Restart => Query.Bool("Restart");
+    public string? ReaderChoice => Query.String("reader");
 
     // BR2: ?reader=new shows the foliate-js reader; the current reader stays the default until the cutover.
     // Decided once when the page opens, so a later address change cannot swap readers under a running page.
@@ -882,15 +888,24 @@ else
         return result;
     }
 
+    /// <summary>The details overlay state, cascaded by the route view; null where the reader is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     private async Task ExitReader()
     {
         await AutoSaveProgress();
         _progressAlreadySaved = true;
 
+        // What the title's page needs from this exit (where reading stopped) is handed over in memory, not through the address.
+        if (ReturnCollectionId.HasValue)
+        {
+            Overlay?.OfferLastAsset(ReturnCollectionId.Value, AssetId);
+        }
+
         var returnUrl = ReturnCollectionId.HasValue
-            ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
+            ? $"/details/collection/{ReturnCollectionId.Value}"
             : "/";
-        Nav.NavigateTo(returnUrl, replace: true);
+        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Overlay, returnUrl);
     }
 
     public async ValueTask DisposeAsync()

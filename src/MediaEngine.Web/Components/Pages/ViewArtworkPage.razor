@@ -7,6 +7,7 @@
 @using MediaEngine.Web.Components.Artwork
 @inject UIOrchestratorService Orchestrator
 @inject IAppDialogService DialogService
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Navigation
 @inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
@@ -34,7 +35,9 @@
     private ArtworkAssetDto? _selected;
     private int _total;
 
-    private ArtworkAssetQuery InitialQuery => LegacyQuery(Navigation.ToAbsoluteUri(Navigation.Uri).AbsolutePath);
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    private ArtworkAssetQuery InitialQuery => LegacyQuery(new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath);
 
     private static ArtworkAssetQuery LegacyQuery(string path) => path.EndsWith("/people", StringComparison.OrdinalIgnoreCase)
         ? new ArtworkAssetQuery(Roles: ["Portrait"], EntityTypes: ["Person"], Sort: ArtworkAssetSort.Newest)

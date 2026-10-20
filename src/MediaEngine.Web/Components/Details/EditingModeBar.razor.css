@@ -14,6 +14,11 @@
     box-shadow: var(--tl-shadow-md);
 }
 
+/* While Editing Mode is off the bar holds nothing (Edit lives in the "..." menu), so it draws no empty box. */
+.tl-editing-bar:not(:has(*)) {
+    display: none;
+}
+
 .tl-editing-decision {
     display: flex;
     flex-wrap: wrap;

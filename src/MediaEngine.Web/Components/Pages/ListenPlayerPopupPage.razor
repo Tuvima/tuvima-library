@@ -7,10 +7,12 @@
 @using MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Domain.Enums
 @using Microsoft.Extensions.DependencyInjection
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<ListenPlayerPopupPage> Logger
 @inject ListenPlaybackClientSettings PlaybackClientSettings
@@ -87,8 +89,12 @@
     private long _bookmarkOpenGeneration;
     private bool _disposed;
 
-    [SupplyParameterFromQuery(Name = "owner")] public string? OwnerRecipientId { get; set; }
-    [SupplyParameterFromQuery(Name = "window")] public string? WindowRegistrationId { get; set; }
+    // The address this page was routed with (see RoutedPageQuery).
+    [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
+
+    private RoutedPageQuery Query => RoutedPageQuery.From(RoutedUri ?? Nav.Uri);
+    public string? OwnerRecipientId => Query.String("owner");
+    public string? WindowRegistrationId => Query.String("window");
     private IPlaybackCommandSink PopupPanelCommands => new BroadcastPlaybackCommandSink(
         Guid.TryParse(OwnerRecipientId, out var owner) ? owner : Guid.Empty, _popupRecipientId, BookmarkCommandChannel);
     private ListenQueueItem? CurrentItem => _snapshot.CurrentIndex >= 0 && _snapshot.CurrentIndex < _snapshot.Queue.Count ? _snapshot.Queue[_snapshot.CurrentIndex] : null;

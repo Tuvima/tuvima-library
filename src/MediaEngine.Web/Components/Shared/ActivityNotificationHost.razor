@@ -3,11 +3,15 @@
 @inject ActivityNotificationQueue Notifications
 @inject MediaEngine.Web.Services.Playback.PlaybackSessionController Playback
 @inject ShellActivityState Activity
+@using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Navigation
 @inject IAppToastService Snackbar
 @inject ILogger<ActivityNotificationHost> Logger
 
 @code {
+    /// <summary>The details overlay state, cascaded by the route view; null where this is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
     [Parameter] public bool Enabled { get; set; }
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
@@ -28,7 +32,7 @@
                 {
                     var snapshot = await Api.GetIngestionQueueProgressAsync(_stop.Token);
                     if (snapshot is not null) Notifications.Observe(snapshot);
-                    var path = new Uri(Navigation.Uri).AbsolutePath;
+                    var path = new Uri(RoutedPageAddress.AbsoluteFor(Navigation, Overlay)).AbsolutePath;
                     var quiet = Playback.CurrentItem is not null
                         || Activity.IsPlaybackActive
                         || path.StartsWith("/read/", StringComparison.OrdinalIgnoreCase) && path.Contains("reader")

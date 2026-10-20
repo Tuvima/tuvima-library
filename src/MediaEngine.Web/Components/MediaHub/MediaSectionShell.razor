@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Routing
+@using MediaEngine.Web.Services.Navigation
 @implements IDisposable
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -462,23 +463,52 @@
         group.CreateOptions is not null
         || group.Items.Any(item => HasChildren(item) || item.Management is not null));
 
+    /// <summary>The details overlay state, cascaded by the route view; null where the shell is shown on its own.</summary>
+    [CascadingParameter] public DetailsOverlayState? Overlay { get; set; }
+
+    // The routed page's own address: while the details overlay is open the address bar names the title, not this page.
+    private RoutedPageAddress? _address;
+
     protected override void OnInitialized()
     {
+        _address = new RoutedPageAddress(Nav, Overlay);
         Nav.LocationChanged += OnLocationChanged;
         ExpandActiveBranch();
         _scrollActiveItem = true;
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs args) =>
+    // The Router renders before this shell's own location handler runs, so a render for a new address must already see it.
+    protected override void OnParametersSet()
+    {
+        if (_address!.Accept(Nav.Uri))
+        {
+            ApplyAddressChange();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        // The details overlay opening, swapping titles or closing leaves this page where it was: no scroll, no change of active entry.
+        if (!_address!.Accept(args.Location))
+        {
+            return;
+        }
+
         _ = InvokeAsync(() =>
         {
-            ExpandActiveBranch();
-            _scrollActiveItem = true;
-            _scrollContentTop = true;
+            ApplyAddressChange();
             StateHasChanged();
         });
+    }
 
-    private Uri CurrentUri => Nav.ToAbsoluteUri(Nav.Uri);
+    private void ApplyAddressChange()
+    {
+        ExpandActiveBranch();
+        _scrollActiveItem = true;
+        _scrollContentTop = true;
+    }
+
+    private Uri CurrentUri => new(_address!.Absolute);
 
     private bool IsActive(MediaSectionNavigationItem item)
     {
