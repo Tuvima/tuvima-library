@@ -469,62 +469,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         string[] actionTypes, int limit = 50, CancellationToken ct = default)
         => _api.GetActivityByTypesAsync(actionTypes, limit, ct);
 
-    /// <summary>Returns activity entries for a single ingestion run.</summary>
-    public Task<List<ActivityEntryResponse>> GetActivityByRunIdAsync(
-        Guid runId, CancellationToken ct = default)
-        => _api.GetActivityByRunIdAsync(runId, ct);
-
-    public Task<PagedResponse<ActivityBatchSummaryDto>?> GetActivityBatchesAsync(
-        ActivityAuditQuery query, CancellationToken ct = default)
-        => _api.GetActivityBatchesAsync(query, ct);
-
-    public Task<ActivityBatchSummaryDto?> GetActivityBatchAsync(
-        Guid batchId, CancellationToken ct = default)
-        => _api.GetActivityBatchAsync(batchId, ct);
-
-    public Task<List<ActivityMediaTypeGroupDto>> GetActivityBatchGroupsAsync(
-        Guid batchId, CancellationToken ct = default)
-        => _api.GetActivityBatchGroupsAsync(batchId, ct);
-
-    public Task<ActivityBatchInsightsDto?> GetActivityBatchInsightsAsync(
-        Guid batchId,
-        CancellationToken ct = default)
-        => _api.GetActivityBatchInsightsAsync(batchId, ct);
-
-    public Task<PagedResponse<ActivityBatchItemDto>?> GetActivityBatchItemsAsync(
-        Guid batchId,
-        string? mediaType = null,
-        string? search = null,
-        string? status = null,
-        string? source = null,
-        int offset = 0,
-        int limit = 25,
-        string? sort = null,
-        string? sortDirection = null,
-        CancellationToken ct = default)
-        => _api.GetActivityBatchItemsAsync(batchId, mediaType, search, status, source, offset, limit, sort, sortDirection, ct);
-
-    public Task<PagedResponse<ActivityTechnicalEventDto>?> GetActivityBatchEventsAsync(
-        Guid batchId,
-        string? search = null,
-        string? eventType = null,
-        string? result = null,
-        int offset = 0,
-        int limit = 25,
-        CancellationToken ct = default)
-        => _api.GetActivityBatchEventsAsync(batchId, search, eventType, result, offset, limit, ct);
-
-    public Task<ActivityBatchItemDetailDto?> GetActivityBatchItemDetailAsync(
-        Guid batchId,
-        Guid assetId,
-        CancellationToken ct = default)
-        => _api.GetActivityBatchItemDetailAsync(batchId, assetId, ct);
-
-    public Task<PagedResponse<ActivityPersonAuditDto>?> GetActivityPeopleAsync(
-        ActivityAuditQuery query,
-        CancellationToken ct = default)
-        => _api.GetActivityPeopleAsync(query, ct);
-
     /// <summary>Triggers a library reconciliation scan for missing files.</summary>
     public Task<ReconciliationResultResponse?> TriggerReconciliationAsync(CancellationToken ct = default)
         => _api.TriggerReconciliationAsync(ct);
@@ -975,18 +919,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
     public Task<LibraryItemDetailViewModel?> GetLibraryItemDetailAsync(Guid entityId, CancellationToken ct = default)
         => _api.GetLibraryItemDetailAsync(entityId, ct);
 
-    /// <summary>Fetches recent ingestion batches from the Engine.</summary>
-    public async Task<IReadOnlyList<IngestionBatchResponse>> GetIngestionBatchesAsync(int limit = 20)
-        => await _api.GetIngestionBatchesAsync(limit);
-
-    /// <summary>Fetches a single ingestion batch by ID.</summary>
-    public async Task<IngestionBatchResponse?> GetIngestionBatchByIdAsync(Guid id)
-        => await _api.GetIngestionBatchByIdAsync(id);
-
-    /// <summary>Fetches the count of items needing curator attention across all batches.</summary>
-    public async Task<int> GetBatchAttentionCountAsync()
-        => await _api.GetBatchAttentionCountAsync();
-
     // -- Search ----------------------------------------------------------------
 
     /// <summary>POST /search/universe  -  Wikidata candidate search enriched with retail cover art.</summary>
@@ -1391,17 +1323,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
                 "Intercom ? IngestionItemProgress: [{Stage}] {Percent}% - {File}",
                 ev.Stage, ev.ProgressPercent, ev.FileName);
             _state.PushIngestionItemProgress(ev);
-        });
-
-        // -- "BatchProgress" -------------------------------------------------
-        // Per-file progress tick during an ingestion batch  -  carries running
-        // counters and estimated time remaining for the active batch card.
-        _hubConnection.On<BatchProgressEvent>(SignalREvents.BatchProgress, ev =>
-        {
-            _logger.LogDebug(
-                "Intercom ? BatchProgress: {Done}/{Total} ({Pct}%) ~{Eta}s remaining",
-                ev.FilesProcessed, ev.FilesTotal, ev.ProgressPercent, ev.EstimatedSecondsRemaining);
-            _state.PushBatchProgress(ev);
         });
 
         // -- "IngestionQueueProgress" ----------------------------------------

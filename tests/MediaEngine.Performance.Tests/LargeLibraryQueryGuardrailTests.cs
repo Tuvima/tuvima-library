@@ -74,28 +74,49 @@ public sealed class LargeLibraryQueryGuardrailTests : IClassFixture<LargeLibrary
 
     [Fact]
     [Trait("Category", "Performance")]
-    public async Task HistoricalIngestion_DeepPageStaysResponsiveAtTenThousandGroups()
+    public async Task RecentlyAdded_DeepPageStaysResponsiveAtTenThousandGroups()
     {
-        var batchId = _fixture.SeedIngestionBatch(10_000);
+        _fixture.SeedIngestedGroups(10_000);
         var work = new SqliteWorkCounter(_fixture.Database);
         var service = new IngestionPresentationReadService(work);
 
         // Responsive is measured as the work SQLite does, not the seconds it takes: elapsed time moves with whatever else
         // the machine is running, the work for the same data does not.
-        var page = await service.GetBatchMediaAsync(batchId, 9_950, 50);
+        var page = await service.GetRecentAdditionsAsync(null, null, null, null, 9_950, 50);
 
-        _output.WriteLine("Historical ingestion deep page: {0:N0} thousand SQLite instructions", work.KiloInstructions);
+        _output.WriteLine("Recently Added deep page: {0:N0} thousand SQLite instructions", work.KiloInstructions);
         Assert.Equal(10_000, page.TotalCount);
         Assert.Equal(50, page.Items.Count);
         Assert.False(page.HasMore);
         Assert.True(work.KiloInstructions < DeepPageWorkBudgetKiloInstructions,
-            $"Historical ingestion deep page took {work.KiloInstructions:N0} thousand SQLite instructions; the budget is {DeepPageWorkBudgetKiloInstructions:N0}.");
+            $"Recently Added deep page took {work.KiloInstructions:N0} thousand SQLite instructions; the budget is {DeepPageWorkBudgetKiloInstructions:N0}.");
     }
 
-    // The deep page measured 9,159 thousand instructions, the same on every run, when this budget was set. The budget is two
-    // and a half times that, so it trips when the query starts doing a different order of work (an extra scan, a per-row
-    // lookup) and stays quiet for small changes to the query.
-    private const long DeepPageWorkBudgetKiloInstructions = 23_000;
+    [Fact]
+    [Trait("Category", "Performance")]
+    public async Task LiveSnapshot_StaysResponsiveAtTenThousandAddedGroups()
+    {
+        _fixture.SeedIngestedGroups(10_000);
+        var work = new SqliteWorkCounter(_fixture.Database);
+        var service = new IngestionPresentationReadService(work);
+
+        var snapshot = await service.GetSnapshotAsync();
+
+        _output.WriteLine("Live snapshot: {0:N0} thousand SQLite instructions", work.KiloInstructions);
+        Assert.NotEmpty(snapshot.RecentDays);
+        Assert.Empty(snapshot.CurrentMedia);
+        Assert.True(work.KiloInstructions < LiveSnapshotWorkBudgetKiloInstructions,
+            $"The live snapshot took {work.KiloInstructions:N0} thousand SQLite instructions; the budget is {LiveSnapshotWorkBudgetKiloInstructions:N0}.");
+    }
+
+    // The snapshot measured 13,244 thousand instructions, the same on every run, when this budget was set: two and a half
+    // times that, for the same reason as the deep page budget below.
+    private const long LiveSnapshotWorkBudgetKiloInstructions = 33_110;
+
+    // The deep page of the Recently Added list measured 6,266 thousand instructions, the same on every run, when this
+    // budget was set. The budget is two and a half times that, so it trips when the query starts doing a different order
+    // of work (an extra scan, a per-row lookup) and stays quiet for small changes to the query.
+    private const long DeepPageWorkBudgetKiloInstructions = 15_665;
 
     private sealed class QueryPlanRow
     {

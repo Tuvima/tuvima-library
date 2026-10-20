@@ -20,17 +20,4 @@ public sealed class ActivityEntryPresentationTests
         Assert.Equal("Example", richData.Title);
         Assert.Equal("just now", entry.GetRelativeTime());
     }
-
-    [Fact]
-    public void SharedActivityPerson_UsesDashboardRouteHelper()
-    {
-        var person = new ActivityPersonAuditDto
-        {
-            PersonId = Guid.Parse("11111111-2222-3333-4444-555555555555"),
-        };
-
-        Assert.Equal(
-            "/details/person/11111111-2222-3333-4444-555555555555",
-            person.GetPersonUrl());
-    }
 }

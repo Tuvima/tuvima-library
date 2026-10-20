@@ -31,7 +31,7 @@ durable `media_operations` row with `operation_type = ingestion.file`.
 
 The operation stage is updated as the item moves through discovery, settling,
 lock checks, queueing, hashing, parsing, scoring, registration, and identity
-queueing. The batch item endpoint reads these durable rows, so a restart can
+queueing. The live ingestion page reads these durable rows, so a restart can
 still show what was waiting, running, interrupted, blocked, or failed.
 
 Durable ingestion status is the source of truth for:
@@ -41,7 +41,7 @@ Durable ingestion status is the source of truth for:
 - active stage
 - retry and blocked state
 - interrupted work after restart
-- per-batch item rows
+- per-file rows
 
 The legacy ingestion log can still exist as historical/support data, but product
 status should use `media_operations`.
@@ -152,57 +152,17 @@ The `category` tells the Engine where to organise files on disk. The `media_type
 
 ## Ingestion Snapshot
 
-The Dashboard's Ingestion page uses `GET /ingestion/operations`, backed by `IIngestionOperationsStatusService`, as the application-facing ingestion status model. The service aggregates existing persisted state rather than keeping a separate demo task model:
+The Dashboard's live ingestion page and the menu indicator read three Engine views, all built from the per-file rows (`ingestion_log`, `media_operations`, `identity_jobs`, `review_queue`) and never from a run or batch record:
 
-- `ILibraryItemRepository` for total, registered, provisional, and review lifecycle counts
-- `IIngestionBatchRepository` for active and recent batches
-- `identity_jobs` and `ingestion_log` for pipeline stage counts
-- `stage_progress` rows in the snapshot for the numbered user-facing stage bars
-- `ingestion_batch_artifacts` for batch-scoped media, metadata, artwork, people, relationship, QID, and review artifacts used by later Activity rollups
-- `review_queue` for actionable review reason groups
-- `config/libraries.json` for Read, Watch, Listen, the internal personal-library
-  bridges behind View Personal Spaces, stable sources, destinations, and
-  incoming locations
-- `provider_health` and provider config files for provider status
-- runtime `IngestionOptions` and `core.json` for organization rule summaries
+- `GET /ingestion/queue-progress` (and the `IngestionQueueProgress` event) is the one source for the bar, the tally by type and the state (`working`, `waiting`, `idle`). `IngestionQueueProgressService` works it out once and the Dashboard only displays it.
+- `GET /ingestion/presentation` is the page projection: `current_media` is the groups in flight, `recent_days` is what became Ready on each recent day, and `attention` and the group counts sit beside them.
+- `GET /ingestion/recent-additions` is the paged Recently Added list, and `GET /ingestion/media-groups/{groupId}` (with `/children`) feeds the drawer.
 
-Live Dashboard updates come from the snapshot endpoint. Existing SignalR Intercom events (`BatchProgress` and `IngestionProgress`) trigger a refresh of that same snapshot model instead of maintaining separate UI progress state. Polling is faster while jobs are active and slower while idle.
+**A group is its structural identity alone.** A TV show, an album, a comic series or a multi-part audiobook is one group however many intakes its files arrived in or how often they were scanned again. The newest ingestion log row of each file and the newest `ingestion.file` row of each file decide what the page shows for it.
 
-`GET /ingestion/operations` includes a `stage_progress` collection. Each row has:
+**In flight** means a group is not Ready and not failed (its availability is adding, waiting for tools, finishing or in review), or one of its files still has an open `ingestion.file` row. **Added** means a Work has a `first_ready_at` time, and the day comes from that time, so a group appears under the day it became Ready whatever else happens to its files later. The Ready rule itself is `WorkReadinessSql`.
 
-| Field | Meaning |
-| --- | --- |
-| `stage_number` | User-facing order. Stages 1-8 are progress rows; Stage 9 is review exception state for metrics and Activity rollups. |
-| `stage_key` | Stable key such as `scan`, `retail`, `wikidata`, `people`, or `deep_artwork`. |
-| `label` | Display label for the stage. |
-| `completed_files` / `total_files` / `percent_complete` | File progress against the active batch total. |
-| `active_count` / `queued_count` | Current in-flight and queued work where the backend can measure it. |
-| `status_label` | Human-readable state: pending, active, complete, stale, or needs review. |
-| `active_item_label` | Exact item label only when per-file state is known. |
-| `active_group_label` / `active_group_count` | Group label for batched calls such as Wikidata reconciliation. |
-| `label_accuracy` | `ExactItem`, `GroupedLookup`, `BatchOnly`, `Stale`, or `None`. |
-| `artifact_label` / `artifact_count` | Running artifact count for the stage. |
-| `detail_items` | Optional server-generated detail rows shaped as `{ label, value, tone?, icon? }` for expanded UI content and artifact math. |
-| `last_updated_time` / `is_stale` | Freshness signal for active worker data. |
-
-The compact Ingestion page renders Stages 1-8 as progress rows:
-
-| # | Stage | Progress Rule | Artifact Count |
-| ---: | --- | --- | --- |
-| 1 | Scan | Files accepted, skipped, duplicated, or failed / total files | Accepted files |
-| 2 | Read Details | Files parsed, skipped, duplicated, or failed / total files | Parsed files |
-| 3 | Retail Match | Files retail matched, review-ready, no-result, skipped, or failed / total files | Provider matches |
-| 4 | Wikidata | Files with QID, no QID, not applicable, review-ready, skipped, or failed / total files | QIDs |
-| 5 | Ready | Files organized, writeback-ready, visible, or terminal / total files | Added files |
-| 6 | People | Files person-enriched, skipped, or not applicable / total files | People |
-| 7 | Relationships | Files relationship-enriched, skipped, or not applicable / total files | Links |
-| 8 | Artwork | Files deep-artwork completed, skipped, or not applicable / total files | Assets |
-
-Stage 3 is the collapsed retail metadata, quick metadata, and primary cover/poster bar. Stage 8 is later deep artwork enrichment. Stages 6, 7, and 8 may run concurrently after their retail/Wikidata prerequisites exist. For grouped `Tuvima.Wikidata` or provider work, the backend must show a group label instead of an exact file label unless it has a correlation key for a specific file.
-
-Stage 7 prefers explicit series order values over Wikidata previous/next backlink consistency. Missing or contradictory public Wikidata chain links are diagnostics, not Review Queue work, unless they expose a local conflict that needs a curator decision.
-
-Review remains live, but it is not a progress row in the Dashboard. `stage_progress` can still expose Stage 9 for API consumers and artifact ledger support; the Dashboard uses the top **Need Review** metric plus latest-batch review delta, and recent batch rows repeat the review count with other artifact totals.
+The Engine no longer keeps a separate "Operations" snapshot: the old `GET /ingestion/operations` stage-by-stage view and its recent-batches list were removed with the batch screens (spec `ingestion-and-readiness`, D12 and D14).
 
 Music remains a conservative organization lane. The status surface emphasizes tag/fingerprint-first handling and preserving album folders instead of implying aggressive rename/move behavior.
 

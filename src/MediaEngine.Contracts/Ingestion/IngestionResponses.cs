@@ -28,11 +28,6 @@ public sealed class ReconciliationResultResponse
 }
 
 /// <summary>
-/// Wire shape for <c>GET /ingestion/batches/attention-count</c>.
-/// </summary>
-public sealed record BatchAttentionCountResponse(int count);
-
-/// <summary>
 /// Wire shape for <c>POST /ingestion/upload</c>.
 /// </summary>
 public sealed record UploadMediaResponse(string path, string mediaType, string destinationLibraryId);

@@ -1610,7 +1610,7 @@ public static partial class DevSeedEndpoints
             total_test_files = SeedBooks.Length + SeedAudiobooks.Length + SeedVideos.Length + SeedMusicTracks.Length + SeedComics.Length,
             next_steps = new[]
             {
-                "Watch ingestion progress: GET /ingestion/batches",
+                "Watch ingestion progress: GET /ingestion/queue-progress",
                     "Check library items: GET /dev/library-items?limit=50",
                 "Check review queue: GET /review/pending",
                 "Check activity: GET /activity/recent",

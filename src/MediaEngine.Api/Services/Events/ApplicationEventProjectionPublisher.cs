@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
@@ -11,6 +12,12 @@ public sealed class ApplicationEventProjectionPublisher(
     IApplicationEventResourceResolver resources,
     ILogger<ApplicationEventProjectionPublisher> logger)
 {
+    private const string WorkingState = "working";
+    private const string IdleState = "idle";
+
+    private readonly object _queueStateLock = new();
+    private string _lastQueueState = IdleState;
+
     public async Task ProjectAsync<T>(string internalName, T payload, CancellationToken ct) where T : notnull
     {
         try
@@ -43,8 +50,7 @@ public sealed class ApplicationEventProjectionPublisher(
         {
             (SignalREvents.IngestionStarted, IngestionStartedEvent e) => Draft("ingestion.started", "ingestion", "current", e.StartedAt, new { status = "started" }),
             (SignalREvents.IngestionProgress, IngestionProgressEvent e) => Draft("ingestion.progress", "ingestion", "current", now, new { e.ProcessedCount, e.TotalCount, e.Stage }),
-            (SignalREvents.BatchProgress, BatchProgressEvent e) => Draft(e.IsComplete ? "ingestion.completed" : "ingestion.progress", "ingestion-batch", e.BatchId.ToString("D"), now,
-                new { e.FilesTotal, e.FilesProcessed, e.FilesIdentified, e.FilesReview, e.FilesNoMatch, e.FilesFailed, e.ProgressPercent, e.IsComplete, e.CurrentStage, e.LifecycleStage }),
+            (SignalREvents.IngestionQueueProgress, IngestionQueueProgressDto e) => QueueProgressDraft(e, now),
             (SignalREvents.IngestionCompleted, IngestionCompletedEvent) => null,
             (SignalREvents.IngestionFailed, IngestionFailedEvent e) => Draft("ingestion.failed", "ingestion", "current", e.FailedAt, new { status = "failed" }),
             (SignalREvents.ProviderStatusChanged, ProviderStatusChangedEvent e) => Draft("provider.status_changed", "provider", e.ProviderId, now, new { e.Status }),
@@ -58,6 +64,35 @@ public sealed class ApplicationEventProjectionPublisher(
             (SignalREvents.ReviewItemCreated, ReviewItemCreatedEvent e) => await ReviewDraftAsync(e.ReviewItemId, e.EntityId, e.Trigger, now, ct).ConfigureAwait(false),
             _ => null,
         };
+    }
+
+    // The live ingestion numbers are the external progress: "ingestion.progress" while files are being worked on, and
+    // "ingestion.completed" once when the queue goes from working back to idle. A repeated idle snapshot says nothing new.
+    private ApplicationEventDraft? QueueProgressDraft(IngestionQueueProgressDto value, DateTimeOffset at)
+    {
+        string previous;
+        lock (_queueStateLock)
+        {
+            previous = _lastQueueState;
+            _lastQueueState = value.State;
+        }
+
+        var payload = new
+        {
+            files_found = value.FilesFound,
+            files_done = value.FilesDone,
+            files_waiting = value.FilesWaiting,
+            progress = value.Progress,
+            state = value.State,
+        };
+        if (value.State == WorkingState)
+        {
+            return Draft("ingestion.progress", "ingestion", "current", at, payload);
+        }
+
+        return previous == WorkingState && value.State == IdleState
+            ? Draft("ingestion.completed", "ingestion", "current", at, payload)
+            : null;
     }
 
     private async Task<ApplicationEventDraft?> LibraryDraftAsync(string type, Guid assetId, string? mediaType, string action, DateTimeOffset at, CancellationToken ct, Guid? workId = null,

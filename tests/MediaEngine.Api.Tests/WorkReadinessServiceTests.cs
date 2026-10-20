@@ -79,6 +79,8 @@ public sealed class WorkReadinessServiceTests : IDisposable
         await _service.BackfillAsync(CancellationToken.None);
         SetJob(assetId, "RetailMatched", DateTimeOffset.UtcNow);
         await _service.PollAsync(CancellationToken.None);
+        // The page names a Ready row "ready" once no enrichment is left open on it.
+        SetJob(assetId, "Ready", DateTimeOffset.UtcNow);
 
         var log = await new MediaEngine.Api.Services.ReadServices.ActivityLogReadService(_activity)
             .GetLogAsync(MediaEngine.Contracts.Activity.ActivityLogCategoryValues.Added, null, 0, 50);

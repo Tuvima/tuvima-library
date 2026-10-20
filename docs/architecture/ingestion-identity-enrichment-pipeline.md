@@ -41,9 +41,9 @@ flowchart TD
     K --> L["SQLite + .data/assets + API + Dashboard"]
 ```
 
-## Dashboard Stage Model
+## Pipeline Stage Model
 
-The Ingestion page uses the numbered operational stages below. These are the product-facing progress rows rendered from `GET /ingestion/operations.stage_progress`.
+The numbered stages below describe how a file moves through the pipeline. The live ingestion page no longer draws one bar per stage; it shows the Engine's queue progress (`GET /ingestion/queue-progress`), worked out once from the per-file rows.
 
 | # | Stage | Notes |
 | ---: | --- | --- |
@@ -56,7 +56,7 @@ The Ingestion page uses the numbered operational stages below. These are the pro
 | 7 | Relationships | Builds series, shelves, child items, and relationship graphs. |
 | 8 | Artwork | Fetches later artwork such as backgrounds, banners, logos, disc art, season posters, album variants, and episode stills. |
 
-Stages 6, 7, and 8 can run concurrently after their prerequisites are present. Grouped provider calls, including batched `Tuvima.Wikidata` work, show group labels when exact per-file labels are not available. Review/attention is a live exception metric and latest-batch delta, not a ninth progress row in the Dashboard.
+Stages 6, 7, and 8 can run concurrently after their prerequisites are present. Grouped provider calls, including batched `Tuvima.Wikidata` work, show group labels when exact per-file labels are not available. Review/attention is a live exception metric, not a ninth progress row in the Dashboard.
 
 The internal identity model is simpler than the dashboard row model: Stage 0 reads local tags and filename hints, Stage 1 runs configured providers in `config/pipelines.json`, Stage 2 resolves Wikidata from bridge IDs, quick hydration makes the item visible, and Stage 3 runs slower enrichment. For music, Stage 1 is a bounded configured flow: MusicBrainz identifier and staged searches run first, Apple may supply fallback identity, and an accepted Apple fallback schedules one MusicBrainz reconciliation attempt using configured accepted-claim hints.
 

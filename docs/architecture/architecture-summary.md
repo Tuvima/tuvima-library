@@ -121,7 +121,7 @@ All Engine-managed artefacts live under a single `.data/` directory at the libra
 ## Hydration Pipeline & Providers
 **Detail:** [`docs/architecture/hydration-and-providers.md`](hydration-and-providers.md)
 
-Operations uses `IngestionBatchActivitySql` to keep a batch active while durable jobs or operations remain, even across restart and stale terminal batch status. Startup requeues leased and unleased intermediate jobs before workers start. Long waits are not terminal failures. Ingestion cards and drawers show added tracks, episodes, and issues without provider totals or per-item progress bars; whole-batch progress includes distinct skipped duplicate inputs.
+Operations keeps a group in flight on the live ingestion page while durable jobs or operations remain, even across restart. Startup requeues leased and unleased intermediate jobs before workers start. Long waits are not terminal failures. Ingestion cards and drawers show added tracks, episodes, and issues without provider totals or per-item progress bars.
 
 A durable staged enrichment pipeline runs after ingestion. `identity_jobs` rows (SQLite) replace any in-memory queue. Pipeline workers poll for jobs:
 
