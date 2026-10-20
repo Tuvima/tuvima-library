@@ -429,6 +429,10 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
             var processed = await ProcessRankedImagesAsync(response.Json?[mapping.JsonField]?.AsArray() ?? [], mapping.AssetType,
                 owner, mapping.UpdatePreferred, metadataLanguage, ct).ConfigureAwait(false);
+            if (mapping.AssetType == AssetType.CoverArt && processed.PreferredLocalPath is not null)
+            {
+                await RecordPosterChoiceAsync(owner, TmdbProviderName, tmdbId, ct).ConfigureAwait(false);
+            }
             AddCount(counts, mapping.AssetType, processed.StoredCount);
             held += processed.HeldCount;
             preferredUpdates += processed.UpdatedPreferredCount;
@@ -436,7 +440,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
 
         foreach (var mapping in BrandMappings)
         {
-            var imageUrl = GetValue(canonicals, mapping.CanonicalKey);
+            var imageUrl = await ResolveBrandImageUrlAsync(GetValue(canonicals, mapping.CanonicalKey), mapping.AssetType, owner, ct)
+                .ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(imageUrl))
             {
                 continue;
@@ -620,6 +625,10 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         if (!heldTypes.Contains(AssetType.CoverArt.ToString()))
         {
             await AddAsync(show["image"]?.ToString(), AssetType.CoverArt, context.RootWorkId).ConfigureAwait(false);
+        }
+        if (heldTypes.Contains(AssetType.CoverArt.ToString()))
+        {
+            await RecordPosterChoiceAsync(context.RootWorkId, "tvdb", showId, ct).ConfigureAwait(false);
         }
 
         foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
@@ -910,6 +919,40 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         await _assetRepo.SetPreferredAsync(existing!.Id, ct).ConfigureAwait(false);
         await PersistPreferredAssetCanonicalsAsync(ownerEntityId, existing, ct).ConfigureAwait(false);
         return new ImageAssetProcessingResult(existing.LocalImagePath, stored, 1, currentPreferred?.Id == existing.Id ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Records which identity this pass chose the owner's poster for, so a later cover pass keeps that poster
+    /// only while the item still has that identity.
+    /// </summary>
+    private Task RecordPosterChoiceAsync(Guid ownerEntityId, string provider, string bridgeId, CancellationToken ct) =>
+        _canonicalRepo.UpsertBatchAsync(
+        [
+            new CanonicalValue
+            {
+                EntityId = ownerEntityId,
+                Key = ArtworkCanonicalHelper.PosterChoiceKey(provider),
+                Value = bridgeId,
+                LastScoredAt = DateTimeOffset.UtcNow,
+                WinningProviderId = provider == "tvdb" ? WellKnownProviders.Tvdb : WellKnownProviders.Tmdb,
+            },
+        ], ct);
+
+    /// <summary>
+    /// A stored brand logo replaces its provider address in the canonical with the stored copy's
+    /// <c>/stream/artwork/{id}</c> address. A repeat pass maps that back to the copy's provider URL so it
+    /// counts the same held logo instead of skipping it.
+    /// </summary>
+    private async Task<string?> ResolveBrandImageUrlAsync(string? value, AssetType assetType, Guid ownerEntityId, CancellationToken ct)
+    {
+        if (!ArtworkCanonicalHelper.TryParseStoredArtworkId(value, out var storedId))
+        {
+            return value;
+        }
+
+        var stored = (await _assetRepo.GetByEntityAsync(ownerEntityId.ToString(), assetType.ToString(), ct).ConfigureAwait(false))
+            .FirstOrDefault(asset => asset.Id == storedId);
+        return stored?.ImageUrl;
     }
 
     private async Task<int> CountHeldVariantsAsync(Guid ownerEntityId, AssetType assetType, string sourceProvider, CancellationToken ct)
